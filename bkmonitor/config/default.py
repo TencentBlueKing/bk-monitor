@@ -27,7 +27,6 @@ from .tools.elasticsearch import get_es7_settings
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
-    IS_CONTAINER_MODE,
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -597,6 +596,9 @@ APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 500
 APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 30
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 3
 APM_TRACE_DIAGRAM_CONFIG = {}
+APM_DORIS_STORAGE_CONFIG = {}
+# {2:["foo", "bar"], 3:["baz"]}
+APM_PROFILING_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 
 # bk.data.token 的salt值

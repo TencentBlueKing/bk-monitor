@@ -326,6 +326,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_APP_QPS", slz.IntegerField(label=_("APM中应用默认QPS"), default=500)),
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
+        ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
+        ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),

@@ -11,16 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 import math
 
-from common.log import logger
-from django.conf import settings
-from django.db import models
-from django.db.transaction import atomic
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from elasticsearch_dsl import Q
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-
 from apm import constants
 from apm.constants import (
     DATABASE_CONNECTION_NAME,
@@ -28,18 +18,31 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.utils.es_search import EsSearch
-from bkmonitor.utils.db import JsonField
-from bkmonitor.utils.user import get_global_user
+from common.log import logger
 from constants.apm import OtlpKey, SpanKind
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
+from django.conf import settings
+from django.db import models
+from django.db.transaction import atomic
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q
 from metadata import models as metadata_models
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+
+from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.user import get_global_user
+
+from .doris import BkDataDorisProvider
 
 
 class ApmDataSourceConfigBase(models.Model):
     TRACE_DATASOURCE = "trace"
     METRIC_DATASOURCE = "metric"
+    PROFILE_DATASOURCE = "profile"
 
     TABLE_SPACE_PREFIX = "space"
 
@@ -526,7 +529,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @property
     def table_id(self) -> str:
-
         bk_biz_id = int(self.bk_biz_id)
 
         if bk_biz_id > 0:
@@ -881,6 +883,34 @@ class TraceDataSource(ApmDataSourceConfigBase):
             cls._mappings_properties(v, properties)
 
 
+class ProfileDataSource(ApmDataSourceConfigBase):
+    """Profile 数据源"""
+
+    DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
+
+    created = models.DateTimeField("创建时间", auto_now_add=True)
+    updated = models.DateTimeField("更新时间", auto_now=True)
+
+    @property
+    def table_id(self) -> str:
+        bk_biz_id = int(self.bk_biz_id)
+        return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def apply_datasource(cls, bk_biz_id, app_name, **option):
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not obj:
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+        # 创建接入
+        essentials = BkDataDorisProvider.from_datasource_instance(obj, operator=get_global_user()).provider(**option)
+
+        obj.bk_data_id = essentials["bk_data_id"]
+        obj.result_table_id = essentials["result_table_id"]
+        obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
+        return
+
+
 class DataLink(models.Model):
     """
     数据链路配置
@@ -918,5 +948,4 @@ class DataLink(models.Model):
 
     @classmethod
     def create_global(cls, **kwargs):
-
         return cls.objects.create(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, **kwargs)
