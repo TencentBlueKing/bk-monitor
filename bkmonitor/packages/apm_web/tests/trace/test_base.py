@@ -2,6 +2,7 @@ import signal
 import sys
 
 import pytest
+
 from apm_web.trace.diagram.base import SpanNode, TraceTree
 
 from .utils import (
@@ -40,8 +41,8 @@ class Timeout:
         signal.alarm(0)
 
 
-def span_node_strictly_increasing(l):
-    return all(x.index_refer < y.index_refer for x, y in zip(l, l[1:]))
+def span_node_strictly_increasing(nodes: list):
+    return all(x.index_refer < y.index_refer for x, y in zip(nodes, nodes[1:]))
 
 
 class TestTraceTree:
