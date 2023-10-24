@@ -10,17 +10,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import base64
 import ntpath
 from urllib.parse import urljoin
 
 from bkcrypto import constants
-from bkcrypto.asymmetric.interceptors import BaseAsymmetricInterceptor
-from bkcrypto.symmetric import interceptors
-from bkcrypto.symmetric.ciphers import AESSymmetricCipher, BaseSymmetricCipher
-from bkcrypto.symmetric.ciphers.base import EncryptionMetadata
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
-from bkcrypto.utils import convertors
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
@@ -33,7 +27,6 @@ from .tools.elasticsearch import get_es7_settings
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
-    IS_CONTAINER_MODE,
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -602,6 +595,9 @@ APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 500
 APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 30
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 3
 APM_TRACE_DIAGRAM_CONFIG = {}
+APM_DORIS_STORAGE_CONFIG = {}
+# {2:["foo", "bar"], 3:["baz"]}
+APM_PROFILING_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 
 # bk.data.token 的salt值
