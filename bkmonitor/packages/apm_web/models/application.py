@@ -21,6 +21,9 @@ from apm_web.constants import (
 )
 from apm_web.metric_handler import RequestCountInstance
 from common.log import logger
+from constants.apm import OtlpKey, SpanKindKey
+from core.drf_resource import api, resource
+from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -33,8 +36,6 @@ from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import OtlpKey, SpanKindKey
-from core.drf_resource import api, resource
 
 
 class Application(AbstractRecordModel):
@@ -308,15 +309,18 @@ class Application(AbstractRecordModel):
     def create_application(
         cls, bk_biz_id, app_name, app_alias, description, plugin_id, deployment_ids, language_ids, datasource_option
     ):
-        application_info = api.apm_api.create_application(
-            {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "app_alias": app_alias,
-                "description": description,
-                "es_storage_config": datasource_option,
-            }
-        )
+        create_params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "app_alias": app_alias,
+            "description": description,
+            "es_storage_config": datasource_option,
+        }
+
+        white_list = settings.APM_PROFILING_ENABLED_APPS
+        if bk_biz_id in white_list and app_name in white_list[bk_biz_id]:
+            create_params["enabled_profiling"] = True
+        application_info = api.apm_api.create_application(create_params)
 
         application = cls.objects.create(
             application_id=application_info["application_id"],
@@ -446,7 +450,6 @@ class Application(AbstractRecordModel):
         ApplicationRelationInfo.add_relation(self.application_id, relation_key, relation_value)
 
     def refresh_config(self):
-
         config = self.get_transfer_config()
 
         api.apm_api.release_app_config({"bk_biz_id": self.bk_biz_id, "app_name": self.app_name, **config})
