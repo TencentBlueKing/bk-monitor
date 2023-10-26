@@ -233,6 +233,13 @@ export class MetricDetail {
     } else {
       this.logMetricList = null;
     }
+    // 处理日志关键字指标ID脏数据
+    if (this.metricMetaId === 'bk_log_search|log' && this.agg_method === 'COUNT') {
+      const list = this.metric_id.toString().split('.');
+      if (list.length > 3) {
+        this.metric_id = list.slice(0, 3).join('.');
+      }
+    }
     /* 随机key, 无实际含义 */
     this.key = random(8);
   }
@@ -354,7 +361,7 @@ export class MetricDetail {
   /** 日志关键字对应指标列表 */
   setLogMetricList(list: IMetricDetail[]) {
     this.logMetricList = list;
-    if (list?.length && !list.find(item => item.metric_id === this.metric_id)) {
+    if (list?.length && !list.find(item => item.metric_id === this.metric_id) && this.agg_method !== 'COUNT') {
       this.metric_id = list[0].metric_id;
     }
   }
