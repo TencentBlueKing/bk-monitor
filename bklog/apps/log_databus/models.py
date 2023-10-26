@@ -532,11 +532,13 @@ class ArchiveConfig(SoftDeleteModel):
         verbose_name_plural = _("归档配置表")
 
     @cached_property
-    def instance(self) -> Union["CollectorConfig", "CollectorPlugin"]:
+    def instance(self) -> Union["CollectorConfig", "CollectorPlugin", "LogIndexSet"]:
         if self.instance_type == ArchiveInstanceType.COLLECTOR_CONFIG.value:
             return CollectorConfig.objects.get(collector_config_id=self.instance_id)
         if self.instance_type == ArchiveInstanceType.COLLECTOR_PLUGIN.value:
             return CollectorPlugin.objects.get(collector_plugin_id=self.instance_id)
+        if self.instance_type == ArchiveInstanceType.INDEX_SET.value:
+            return LogIndexSet.objects.get(index_set_id=self.instance_id)
 
     @property
     def table_id(self) -> str:
