@@ -429,6 +429,7 @@ ACTIVE_VIEWS = {
         "apm_topo": "apm_web.topo.views",
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
+        "apm_db": "apm_web.db.views",
     },
 }
 
