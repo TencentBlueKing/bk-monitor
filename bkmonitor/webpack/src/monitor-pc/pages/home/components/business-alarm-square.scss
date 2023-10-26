@@ -1,0 +1,28 @@
+@import "../common/mixins.scss";
+
+$length: 3 !default;
+$const: 26 !default;
+
+.square-svg-component {
+  .square-container {
+    position: relative;
+
+    @for $i from 0 through $length {
+      .item-#{$i} {
+        top: -20px + $i * $const;
+        z-index: 6 - $i;
+      }
+    }
+    .item {
+      position: absolute;
+      transition: transform .3s ease-in-out;
+      &:hover {
+        transform: translateX(14px);
+        cursor: pointer;
+      }
+    }
+    .active {
+      transform: translateX(14px);
+    }
+  }
+}

@@ -1,0 +1,267 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, Emit } from 'vue-property-decorator';
+import { ofType } from 'vue-tsx-support';
+import moment from 'moment';
+
+import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
+import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
+import { IUnifyQuerySeriesItem } from '../../../../monitor-pc/pages/view-detail/utils';
+import ChartTitle from '../../components/chart-title/chart-title';
+// import { handleTimeRange } from '../../../../monitor-pc/utils/index';
+import { ILegendItem, IPanelModel } from '../../typings';
+import { reviewInterval } from '../../utils';
+import { VariablesService } from '../../utils/variable';
+import CommonSimpleChart from '../common-simple-chart';
+import TimeSeries from '../time-series/time-series';
+
+import './event-log-chart.scss';
+
+interface ITextUnitSeriesItem {
+  // 值
+  value: string | number;
+  // 单位
+  unit: string | number;
+}
+interface IEventLogChartEvents {
+  onChangeHeight?: (v: number) => number;
+}
+@Component
+class EventLogChart extends CommonSimpleChart {
+  series: ITextUnitSeriesItem = { value: 0, unit: '' };
+  empty = true;
+  emptyText = '';
+  tableData = [];
+  columns = [];
+  pagination = {
+    current: 1,
+    count: 100,
+    limit: 10
+  };
+  /* 此变量值用于点击图例时更新表格数据 */
+  variables = {
+    dimensions: []
+  };
+
+  get timeSeriesPanel(): IPanelModel {
+    return {
+      ...this.panel,
+      targets: this.panel.targets.filter(target => target.datasource === 'time_series'),
+      options: {
+        // todo 图例
+        ...(this.panel?.options || {}),
+        legend: {
+          ...(this.panel?.options?.legend || {}),
+          ...(this.panel.options?.dashboard_common?.static_width ? { displayMode: 'table' } : {}),
+          placement: 'bottom'
+        },
+        time_series: {
+          type: 'bar',
+          echart_option: {
+            color: ['#689DF3', '#4051A3']
+          }
+        }
+      }
+    };
+  }
+
+  get tablePanel() {
+    return {
+      ...this.panel,
+      targets: this.panel.targets.filter(target => target.datasource !== 'time_series')
+    };
+  }
+
+  async getPanelData(start_time?: string, end_time?: string): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    return new Promise(async (resolve, reject) => {
+      this.beforeGetPanelData(start_time, end_time);
+      this.handleLoadingChange(true);
+      this.emptyText = window.i18n.tc('加载中...');
+      try {
+        this.unregisterOberver();
+        // const { startTime, endTime } = handleTimeRange(this.timeRange);
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+        const params = {
+          data_format: 'scene_view',
+          limit: this.pagination.limit,
+          offset: (this.pagination.current - 1) * this.pagination.limit,
+          start_time: start_time ? moment(start_time).unix() : startTime,
+          end_time: end_time ? moment(end_time).unix() : endTime
+        };
+        const variablesService = new VariablesService({
+          ...this.scopedVars,
+          ...this.variables,
+          interval: reviewInterval(
+            this.viewOptions.interval,
+            params.end_time - params.start_time,
+            this.panel.collect_interval
+          )
+        });
+        const promiseList = this.tablePanel.targets.map(item =>
+          (this as any).$api[item.apiModule]
+            [item.apiFunc](
+              {
+                ...variablesService.transformVariables(item.data),
+                ...params,
+                view_options: {
+                  ...this.viewOptions
+                }
+              },
+              { needMessage: false }
+            )
+            .then(res => {
+              this.series = res;
+              this.clearErrorMsg();
+              return res;
+            })
+            .catch(error => {
+              this.handleErrorMsgChange(error.msg || error.message);
+            })
+        );
+        const res = await Promise.all(promiseList).catch(() => false);
+        if (!!res) {
+          this.inited = true;
+          this.empty = false;
+          this.columns = res[0].columns;
+          this.tableData = res[0].data;
+          this.pagination.count = res[0].total;
+          resolve(res);
+        } else {
+          this.emptyText = window.i18n.tc('查无数据');
+          this.empty = true;
+        }
+      } catch (e) {
+        this.empty = true;
+        this.emptyText = window.i18n.tc('出错了');
+        console.error(e);
+        reject(e);
+      }
+      this.handleLoadingChange(false);
+    });
+  }
+
+  handleTimeRangeChange() {
+    this.pagination.current = 1;
+    this.getPanelData();
+  }
+
+  /** 切换分页 */
+  async handlePageChange(page: number) {
+    const temp = this.pagination.current;
+    this.pagination.current = page;
+    await this.getPanelData().catch(() => {
+      this.pagination.current = temp;
+    });
+  }
+  /* 每页个数切换 */
+  async handleLimitChange(limit: number) {
+    const temp = this.pagination.limit;
+    this.pagination.limit = limit;
+    this.pagination.current = 1;
+    await this.getPanelData().catch(() => {
+      this.pagination.limit = temp;
+    });
+    this.$nextTick(() => {
+      const height =
+        56 + this.$el.querySelector('.time-series').clientHeight + this.$el.querySelector('.common-table').clientHeight;
+      this.handleChangeHeight(height);
+    });
+  }
+  /* 用于改变panel的高度 */
+  @Emit('changeHeight')
+  handleChangeHeight(height: number) {
+    // 返回高度(px)
+    return height;
+  }
+
+  handleEventLogSelectLegend(legendData: ILegendItem[]) {
+    const series = (this.$refs.timeSeries as any).series as IUnifyQuerySeriesItem[];
+    const selects = legendData.filter(item => item.show).map(item => item.name);
+    if (selects.length === legendData.length) {
+      this.variables.dimensions = [];
+    } else {
+      const temp = [];
+      series.forEach(item => {
+        if (selects.includes(item.name)) {
+          temp.push(item.dimensions);
+        }
+      });
+      this.variables.dimensions = temp as any;
+    }
+    this.pagination.current = 1;
+    this.pagination.limit = 10;
+    this.getPanelData();
+  }
+
+  render() {
+    return (
+      <div class='event-log-chart'>
+        <ChartTitle
+          class='draggable-handle text-header'
+          title={this.panel.title}
+          showMore={false}
+          draging={this.panel.draging}
+          isInstant={this.panel.instant}
+          onUpdateDragging={() => this.panel.updateDraging(false)}
+        />
+        <div
+          class='event-log-chart-main'
+          style={{ height: `${this.height}px` }}
+        >
+          {[
+            <TimeSeries
+              ref='timeSeries'
+              class='event-log-bar'
+              panel={this.timeSeriesPanel as any}
+              showChartHeader={false}
+              needSetEvent={false}
+              onSelectLegend={(v: ILegendItem[]) => this.handleEventLogSelectLegend(v)}
+            ></TimeSeries>,
+            !!this.tableData.length && (
+              <CommonTable
+                class='event-log-table'
+                checkable={false}
+                data={this.tableData}
+                columns={this.columns as any}
+                defaultSize='small'
+                paginationType='simple'
+                pagination={this.pagination}
+                hasColnumSetting={false}
+                showExpand={true}
+                onPageChange={this.handlePageChange}
+                onLimitChange={this.handleLimitChange}
+              ></CommonTable>
+            )
+          ]}
+        </div>
+      </div>
+    );
+  }
+}
+
+export default ofType<IEventLogChartEvents>().convert(EventLogChart);

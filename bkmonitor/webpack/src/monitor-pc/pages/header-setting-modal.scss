@@ -1,0 +1,277 @@
+/* stylelint-disable order/order */
+
+/* stylelint-disable declaration-no-important */
+@mixin common-route-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  color: #63656e;
+  overflow: hidden;
+  margin: 0 4px;
+}
+
+.header-setting-modal {
+  display: flex;
+  top: 52px;
+  background-color: white;
+  flex-direction: column;
+  width: 100%;
+  background-color: transparent;
+  position: relative;
+  top: inherit;
+  bottom: inherit;
+  right: inherit;
+  left: inherit;
+
+
+  .monitor-dialog {
+    padding: 0;
+    min-height: inherit !important;
+    height: inherit !important;
+    bottom: inherit !important;
+
+    &.full-screen {
+      top: 52px;
+      height: inherit !important;
+    }
+  }
+
+  .route-setting {
+    display: flex;
+    width: 100%;
+    height: 100%;
+
+    &-left {
+      flex: 0 0 400px;
+      width: 400px;
+      background-color: #f5f7fa;
+      position: relative;
+
+      .left-route {
+        display: flex;
+        flex-direction: column;
+        width: 152px;
+        position: absolute;
+        top: 24px;
+        right: 16px;
+        bottom: 15px;
+
+        &-title {
+          display: flex;
+          width: 100%;
+          align-items: center;
+          color: #313238;
+          font-size: 16px;
+          line-height: 24px;
+          font-weight: bold;
+          margin-bottom: 16px;
+
+          .route-count {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #979ba5;
+            padding: 4px 8px;
+            min-width: 24px;
+            border-radius: 2px;
+            background-color: #eaebf0;
+            height: 16px;
+            margin-left: 8px;
+            font-size: 12px;
+            font-weight: normal;
+          }
+        }
+
+        .route-list {
+          display: flex;
+          flex-direction: column;
+          min-height: 280px;
+          overflow: auto;
+
+          &-item {
+            display: flex;
+            width: 100%;
+            flex: 0 0 32px;
+            align-items: center;
+            font-size: 14px;
+            color: #313238;
+            border-radius: 2px;
+            margin-bottom: 8px;
+            user-select: none;
+
+            &.is-dragover {
+              background-color: #e1ecff;
+            }
+
+            .item-drag {
+              @include common-route-icon;
+              display: none;
+              color: #979ba5;
+            }
+
+            .item-icon {
+              @include common-route-icon;
+            }
+
+            .item-close {
+              margin-left: auto;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 16px;
+              height: 16px;
+              font-size: 20px;
+              overflow: hidden;
+              color: #979ba5;
+              margin-right: 10px;
+              display: none;
+
+              &:hover {
+                cursor: pointer;
+                color: #3a84ff;
+              }
+            }
+
+            &:hover {
+              border-color: transparent;
+              background-color: #eaebf0;
+              cursor: move;
+
+              .item-drag {
+                display: flex;
+              }
+
+              .item-icon {
+                display: none;
+              }
+
+              .item-close {
+                display: flex;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    &-right {
+      flex: 1;
+      background-color: white;
+      display: flex;
+      flex-direction: column;
+      padding: 0 40px;
+      min-width: 920px;
+
+      .content-header {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 22px 0 18px 0;
+        border-bottom: 1px solid #eaebf0;
+        line-height: 22px;
+        padding-left: 12px;
+
+        .latest-list {
+          display: flex;
+          margin-left: 16px;
+          font-size: 12px;
+          font-weight: normal;
+          height: 22px;
+
+          .latest-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 10px;
+            background-color: #f0f1f5;
+            border-radius: 2px;
+            margin-right: 8px;
+          }
+        }
+      }
+
+      .content-routes {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+        padding-top: 18px;
+
+        .route-content {
+          display: flex;
+          flex-direction: column;
+          flex: 0 0 180px;
+          margin-bottom: 40px;
+          width: 180px;
+          font-size: 12px;
+          margin-right: 52px;
+
+          .route-title {
+            font-weight: bold;
+            line-height: 20px;
+            padding-left: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #dcdee5;
+          }
+
+          .route-list {
+            display: flex;
+            flex-direction: column;
+            margin-top: 6px;
+            font-weight: normal;
+
+            .route-item {
+              display: flex;
+              flex: 0 0 32px;
+              height: 32px;
+              align-items: center;
+              padding-left: 12px;
+              color: #313238;
+
+              &:hover {
+                cursor: pointer;
+
+                &:not(.is-stored) {
+                  background-color: #f0f1f5;
+                  border-radius: 2px;
+
+                  .route-check {
+                    visibility: visible;
+                  }
+                }
+              }
+
+              &.is-stored {
+                background-color: #e1ecff;
+                color: #3a84ff;
+
+                .route-check {
+                  visibility: visible !important;
+                  color: #3a84ff;
+                }
+              }
+
+              .route-check {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                width: 14px;
+                height: 14px;
+                overflow: hidden;
+                margin-left: auto;
+                margin-right: 12px;
+                visibility: hidden;
+                color: #979ba5;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

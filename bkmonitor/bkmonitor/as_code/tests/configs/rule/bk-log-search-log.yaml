@@ -1,0 +1,22 @@
+snippet: base.yaml
+
+name: 日志平台日志关键字[code]
+
+query:
+  data_source: bk_log_search
+  data_type: log
+  query_configs:
+    - metric: "1"
+      interval: 300
+      query_string: error
+      group_by: [ip]
+
+detect:
+  trigger: 1/4/7
+  algorithm:
+    warning:
+      - type: Threshold
+        config: ">10"
+
+notice:
+  user_groups: ["主备负责人[code]"]

@@ -1,0 +1,15 @@
+.delete-sbutitle-component {
+  display: inline-flex;
+  justify-content: center;
+  line-height: 22px;
+  font-size: 14px; 
+  color: #63656e;
+  width: 100%;
+  .title {
+    white-space: nowrap;
+  }
+  .name {
+    font-weight: 700;
+    word-break: break-all;
+  }
+}

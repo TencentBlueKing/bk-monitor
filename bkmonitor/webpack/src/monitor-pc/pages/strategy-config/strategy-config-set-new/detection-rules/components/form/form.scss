@@ -1,0 +1,160 @@
+.form-wrapper {
+  .w280 {
+    width: 400px;
+  }
+
+  .bk-form-item {
+    & + .bk-form-item {
+      margin-top: 16px;
+    }
+
+    .bk-label,
+    .bk-form-content {
+      min-height: 24px;
+      line-height: initial;
+    }
+
+    .bk-label {
+      padding-top: 3px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+  }
+
+  .form-item-content {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+
+    .icon-hint {
+      margin-left: 8px;
+      font-size: 16px;
+      color: #979ba5;
+    }
+
+    .outlier-detection-range {
+      position: relative;
+
+      .left-text,
+      .right-text {
+        position: absolute;
+        bottom: -20px;
+      }
+
+      .left-text {
+        left: 0;
+      }
+
+      .right-text {
+        right: 0;
+      }
+    }
+
+    .bk-select.model-select::before {
+      left: 8px;
+    }
+
+    .al-level {
+      display: flex;
+      align-items: center;
+
+      .level-type-select {
+        width: 120px;
+        margin-right: 8px;
+      }
+
+      .icon-setting {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .level-select {
+        width: 120px;
+
+        .bk-select-prefix-icon {
+          top: 0;
+        }
+
+        &.is-focus {
+          box-shadow: none;
+        }
+      }
+    }
+  }
+
+  .input-unit-item {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+
+    .unit-wrap {
+      margin-left: 8px;
+    }
+  }
+
+  .tag-input {
+    width: 400px;
+    margin-top: -5px;
+
+    &.simplicity {
+      .bk-tag-input {
+        border-top: 0;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+
+        &.disabled {
+          border-bottom-color: #dcdee5;
+        }
+      }
+    }
+  }
+}
+
+.type-select-tooltips {
+  .bk-tooltip,
+  .bk-tooltip-ref {
+    width: 100%;
+  }
+
+  .type-select-item {
+    display: flex;
+    align-items: center;
+
+    .type-select-item-default {
+      display: inline-block;
+      height: 22px;
+      padding: 0 10px;
+      margin-left: 8px;
+      line-height: 22px;
+      color: #3a84ff;
+      background-color: #edf4ff;
+      border: 1px solid rgba(58, 132, 255, .3);
+      border-radius: 2px;
+    }
+
+    .icon-fenxiang {
+      display: none;
+      margin-left: auto;
+      font-size: 14px;
+      color: #979ba5;
+
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    &:hover {
+      .icon-fenxiang {
+        display: inline-block;
+      }
+    }
+  }
+}
+
+.type-tooltips-content-wrap {
+  min-width: 440px;
+  max-width: 600px;
+  min-height: 104px;
+}

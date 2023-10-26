@@ -1,0 +1,281 @@
+@mixin inputMinWidth {
+  min-width: 1036px;
+}
+
+@mixin cardStyle($color: #3A84FF) {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  color: #fff;
+  content: '';
+  background: linear-gradient(45deg, transparent 17px, $color 0);
+}
+
+@mixin checkIcon() {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 2;
+  font-family: 'icon-monitor';
+  font-size: 22px;
+  line-height: normal;
+  color: #fff;
+  content: '\e6b7';
+}
+$minWidth: 1036px;
+
+.alarm-group-add-wrap {
+  .biz-id-select {
+    @include inputMinWidth();
+  }
+
+  .input-name,
+  .input-member,
+  .input-desc {
+    width: 100%;
+
+    @include inputMinWidth();
+  }
+
+  .input-item {
+    .radio-group {
+      margin-bottom: 8px;
+
+      .radio-button {
+        .bk-radio-button-text {
+          display: flex;
+          align-items: center;
+          height: 26px;
+          font-size: 12px;
+          line-height: 20px;
+        }
+      }
+    }
+
+    .user-selector {
+      width: 100%;
+
+      @include inputMinWidth();
+    }
+  }
+
+  .input-item {
+    position: relative;
+
+    .error-msg {
+      position: relative;
+      font-size: 12px;
+      //position: absolute;
+      //bottom: -16px;
+      //left: 0;
+      line-height: 1;
+      color: #ff5656;
+    }
+  }
+
+  .input-duty {
+    display: flex;
+    align-items: center;
+
+    .icon-hint {
+      margin-left: 9px;
+    }
+  }
+
+  .alert-type {
+    display: flex;
+    align-items: center;
+
+    .type-card {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 132px;
+      height: 48px;
+      margin-right: 16px;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+
+      .card-name {
+        margin-left: 8px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+        letter-spacing: 0;
+      }
+
+      &:not(.selected-card):hover {
+        &::after {
+          @include cardStyle(#C4C6CC);
+        }
+
+        &::before {
+          @include checkIcon();
+        }
+      }
+    }
+
+    .selected-card {
+      position: relative;
+
+      &::after {
+        @include cardStyle(#A3C5FD);
+      }
+
+      &:not(.select-disabled)::after {
+        @include cardStyle();
+      }
+
+      &::before {
+        @include checkIcon();
+      }
+    }
+
+    .type-icon {
+      font-size: 16px;
+      color: #c4c6cc;
+    }
+
+    .selected-icon {
+      color: #a3c5fd;
+    }
+  }
+
+  .item-duty {
+    max-width: 100%;
+
+    @include inputMinWidth();
+    // overflow-x: auto;
+  }
+
+  .item-container {
+    position: relative;
+    line-height: 1;
+
+    .over-input {
+      position: absolute;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+      height: 32px;
+      padding-right: 10px;
+
+      &:hover {
+        cursor: no-drop;
+      }
+
+      .status-loading {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .text-msg {
+      margin-top: 10px;
+      font-size: 12px;
+      line-height: 15px;
+      color: rgba(0,0,0,.40);
+    }
+
+    .text-tip {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 10px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #63656e;
+      background: #f0f8ff;
+      border: 1px solid #c5daff;
+      border-radius: 3px;
+
+      .icon-hint {
+        margin-right: 8px;
+        font-size: 16px;
+        color: #3a84ff;
+      }
+    }
+
+    .directly-text-tip {
+      font-size: 12px;
+      line-height: 20px;
+      color: #979ba5;
+      letter-spacing: 0;
+    }
+  }
+
+  .bk-textarea-wrapper {
+    .bk-form-textarea.textarea-maxlength {
+      margin-bottom: 0px;
+    }
+  }
+
+  .footer {
+    padding-bottom: 20px;
+    padding-left: 100px;
+    margin-top: 20px;
+
+    &>:not(:last-child) {
+      margin-right: 10px;
+    }
+  }
+
+  .notice-wrap {
+    @include inputMinWidth();
+
+    .content-wrap-key1 {
+      border: 1px solid #dcdee5;
+      border-radius: 3px;
+
+      .custom-tab-component {
+        .bk-tab-section {
+          display: none;
+        }
+      }
+
+      .wrap-bottom {
+        padding: 16px 24px 24px 24px;
+        background: #fff;
+
+        .bottom-title {
+          margin-bottom: 8px;
+          line-height: 20px;
+          color: #979ba5;
+
+        }
+      }
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #63656e;
+
+      .title-tip {
+        margin-left: 12px;
+        font-size: 12px;
+        font-weight: 400;
+        color: #979ba5;
+      }
+    }
+  }
+}
+
+.alarm-group-add-wrap-page {
+  /* stylelint-disable-next-line declaration-no-important */
+  height: calc(100% - 48px) !important;
+}
+
+.mention-user-selector {
+  width: 100%;
+
+  @include inputMinWidth();
+}

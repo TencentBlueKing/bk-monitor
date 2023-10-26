@@ -1,0 +1,6 @@
+({{ shield_id }}) {{ start_time }} {{ notice_type }} shielded
+Shield Type: {{ category_name | safe }}
+Shield Content: {{ cycle_duration | safe }},{{ shield_content | safe }}
+{% if description %}
+Shield Description: {{ description | safe }}
+{% endif %}

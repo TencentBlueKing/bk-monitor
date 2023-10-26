@@ -1,0 +1,2433 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_蓝鲸监控_- 指标数据",
+      "label": "蓝鲸监控 - 指标数据",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "bkmonitor-timeseries-datasource",
+      "pluginName": "Blueing Monitor TimeSeries"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "bkmonitor-timeseries-datasource",
+      "name": "Blueing Monitor TimeSeries",
+      "version": "3.6.0"
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.1.0"
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 169,
+      "panels": [],
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "description": "MTTA (mean time to acknowledge) is the average time it takes from when an alert is triggered to when work begins on the issue. ",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "id": 107,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_time_range",
+          "query_configs": [
+            {
+              "alias": "$tag_time_range",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "time_range"
+              ],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "mtta",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "time_range",
+                  "method": "eq",
+                  "value": [
+                    "7d",
+                    "30d"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:mtta{time_range=~\"^(7d)$\"}[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "MTTA",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "description": "\nMTTR (mean time to repair) is the average time it takes to repair a system (usually technical or mechanical). It includes both the repair time and any testing time. The clock doesn’t stop on this metric until the system is fully functional again.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "id": 108,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_time_range",
+          "query_configs": [
+            {
+              "alias": "$tag_time_range",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "time_range"
+              ],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "mttr",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "time_range",
+                  "method": "eq",
+                  "value": [
+                    "7d",
+                    "30d"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:mttr{time_range=~\"^(7d)$\"}[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "MTTR",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "description": "Noise reduction ratio = (total number of events - total number of alarms) / total number of events. A higher noise reduction ratio indicates a better convergence of alarms.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 110,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "$tag_time_range",
+              "expression": "a * 100",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_time_range",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "time_range"
+              ],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "noise_reduction_ratio",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "time_range",
+                  "method": "eq",
+                  "value": [
+                    "7d",
+                    "30d"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:noise_reduction_ratio{time_range=~\"^(7d)$\"}[5m])) * 100",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Noise Reduction Ratio",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "description": "Self-healing coverage rate refers to the number of fatal alarms that have been handled (excluding work orders) divided by the total number of fatal alarms. It is recommended to improve the self-healing capability for fatal alarms.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Restore Alarm",
+              "url": "${baseURL}?bizId=${biz_id}#/event-center?activeFilterId=RECOVERED&from=now-7d&to=now&bizIds=${biz_id}"
+            }
+          ],
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "index": 0,
+                  "text": "-"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "max": 100,
+          "min": 0,
+          "noValue": "-",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 109,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Restore Alarm",
+          "url": "${baseURL}?bizId=${biz_id}#/event-center?activeFilterId=RECOVERED&from=now-7d&to=now&bizIds=${biz_id}"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_time_range",
+          "query_configs": [
+            {
+              "alias": "$tag_time_range",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "time_range"
+              ],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "auto_recovery_ratio",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "time_range",
+                  "method": "eq",
+                  "value": [
+                    "30d",
+                    "7d"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "sum by(time_range) (sum_over_time(bkmonitor:bkm_statistics:base:auto_recovery_ratio{time_range=~\"^(7d)$\"}[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Self-healing Coverage Rate",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "id": 179,
+      "panels": [],
+      "title": "Intergrations",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
+      "id": 182,
+      "links": [],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_data_status",
+          "query_configs": [
+            {
+              "alias": "$tag_agent_status",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "agent_status"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "sum_without_time",
+              "metric_field": "host_agent_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum(bkmonitor:bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Agent(status)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
+      "id": 180,
+      "links": [],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_data_status",
+          "query_configs": [
+            {
+              "alias": "$tag_collector_status",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "collector_name",
+                "collector_status"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "host_collector_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "collector_name",
+                  "method": "eq",
+                  "value": [
+                    "bkmonitorbeat"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "sum(bkmonitor:bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Metrics bkmonitorbeat(status)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "noValue": "-",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "id": 181,
+      "links": [],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_data_status",
+          "query_configs": [
+            {
+              "alias": "$tag_collector_status",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "collector_status",
+                "collector_name"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "host_collector_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "collector_name",
+                  "method": "eq",
+                  "value": [
+                    "bkunifylogbeat"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "sum(bkmonitor:bkm_statistics:base:host_collector_count{data_status=\"NORMAL\"})",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Logs bkunifylogbeat(status)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Integration",
+              "url": "${baseURL}/?bizId=${biz_id}#/collect-config?from=now-30d&to=now&bizIds=${biz_id}"
+            }
+          ],
+          "mappings": [
+            {
+              "options": {
+                "custom_event": {
+                  "index": 0,
+                  "text": "自定义事件"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 13,
+        "x": 0,
+        "y": 6
+      },
+      "id": 177,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Integration",
+          "url": "${baseURL}/?bizId=${biz_id}#/collect-config?from=now-30d&to=now&bizIds=${biz_id}"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "$tag_plugin_type",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "plugin_type"
+              ],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "collect_plugin_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum(sum_over_time(custom:bkm_statistics:base:collect_plugin_count[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Plugins",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "自定义场景",
+              "url": "${baseURL}/?bizId=${biz_id}#/collect-config?from=now-30d&to=now&bizIds=${biz_id}"
+            }
+          ],
+          "mappings": [
+            {
+              "options": {
+                "custom_event": {
+                  "index": 0,
+                  "text": "自定义事件"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 6,
+        "x": 13,
+        "y": 6
+      },
+      "id": 164,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "自定义场景",
+          "url": "${baseURL}/?bizId=${biz_id}#/collect-config?from=now-30d&to=now&bizIds=${biz_id}"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "custom_report_metric_dataid_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum  (sum_over_time(bkmonitor:bkm_statistics:base:observation_scene_count[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Custom Metric DataID",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "自定义场景",
+              "url": "${baseURL}?bizId=${biz_id}#/collect-config?from=now-30d&to=now&bizIds=${biz_id}"
+            }
+          ],
+          "mappings": [
+            {
+              "options": {
+                "custom_event": {
+                  "index": 0,
+                  "text": "自定义事件"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 5,
+        "x": 19,
+        "y": 6
+      },
+      "id": 183,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "自定义场景",
+          "url": "${baseURL}?bizId=${biz_id}#/collect-config?from=now-30d&to=now&bizIds=${biz_id}"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "custom_report_event_dataid_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum  (sum_over_time(bkmonitor:bkm_statistics:base:observation_scene_count[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Custom Events DataID",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 171,
+      "panels": [],
+      "title": "Observations",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Hosts",
+              "url": "${baseURL}?bizId=${biz_id}#/performance"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 4,
+        "x": 0,
+        "y": 9
+      },
+      "id": 153,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Hosts",
+          "url": "${baseURL}?bizId=${biz_id}#/performance"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_data_status",
+          "query_configs": [
+            {
+              "alias": "$tag_data_status",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "data_status"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "sum_without_time",
+              "metric_field": "host_report_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum(bkmonitor:bkm_statistics:base:host_report_count{data_status=\"NORMAL\"})",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Hosts",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "容器监控",
+              "url": "${baseURL}/?bizId=${biz_id}#/k8s"
+            }
+          ],
+          "mappings": [],
+          "noValue": "-",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 4,
+        "x": 4,
+        "y": 9
+      },
+      "id": 154,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Kubernetes",
+          "url": "${baseURL}/?bizId=${biz_id}#/k8s"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "code",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "k8s_cluster_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum(sum_over_time(custom:bkm_statistics:base:k8s_cluster_count[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Kubernetes(Clusters)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "APM",
+              "url": "${baseURL}/?bizId=${biz_id}#/apm/home"
+            }
+          ],
+          "mappings": [],
+          "noValue": "-",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 4,
+        "x": 8,
+        "y": 9
+      },
+      "id": 156,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "APM",
+          "url": "${baseURL}/?bizId=${biz_id}#/apm/home"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "alias": "",
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "display": true,
+          "expression": "",
+          "host": [],
+          "module": [],
+          "only_promql": false,
+          "query_configs": [
+            {
+              "alias": "$tag_function",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "MAX",
+              "metric_field": "biz_usage_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "function",
+                  "method": "eq",
+                  "value": [
+                    "apm"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "showExpression": false,
+          "source": "",
+          "step": ""
+        }
+      ],
+      "title": "APM (Applications)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 4,
+        "x": 12,
+        "y": 9
+      },
+      "id": 161,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "COUNT",
+              "metric_field": "index_set_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum by (bk_biz_id)(sum_over_time(bkmonitor:bkm_statistics:base:es_cluster_node_disk_total[5m]))",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Logs(Index)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Synthetics",
+              "url": "${baseURL}/?bizId=${biz_id}#/uptime-check"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 4,
+        "x": 16,
+        "y": 9
+      },
+      "id": 165,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Synthetics",
+          "url": "${baseURL}?bizId=${biz_id}#/uptime-check"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "alias": "",
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "display": true,
+          "expression": "",
+          "host": [],
+          "module": [],
+          "only_promql": false,
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "uptimecheck_task_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "showExpression": false,
+          "source": "",
+          "step": ""
+        }
+      ],
+      "title": "Synthetics(Tasks)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 4,
+        "x": 20,
+        "y": 9
+      },
+      "id": 166,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "grafana_dashboard_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Dashboards",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 176,
+      "panels": [],
+      "title": "Alerts & Notifications",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Alarm Rules",
+              "url": "${baseURL}?bizId=${biz_id}#/strategy-config"
+            }
+          ],
+          "mappings": [],
+          "noValue": "-",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 7,
+        "x": 0,
+        "y": 12
+      },
+      "id": 158,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Alarm Rules ",
+          "url": "${baseURL}?bizId=${biz_id}#/strategy-config"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_status",
+          "query_configs": [
+            {
+              "alias": "$tag_status",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "status"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "strategy_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "sum(bkmonitor:bkm_statistics:base:strategy_count{status=\"enabled\"})",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Alert Rules",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "告警分级分类",
+              "url": "${baseURL}?bizId=${biz_id}#/event-center?from=now-30d&to=now&bizIds=${biz_id}"
+            }
+          ],
+          "mappings": [
+            {
+              "options": {
+                "提醒": {
+                  "index": 2,
+                  "text": "Warning"
+                },
+                "致命": {
+                  "index": 0,
+                  "text": "Emergency"
+                },
+                "预警": {
+                  "index": 1,
+                  "text": "Critical"
+                }
+              },
+              "type": "value"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 7,
+        "y": 12
+      },
+      "id": 105,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "告警分级分类",
+          "url": "${baseURL}?bizId=${biz_id}#/event-center?from=now-30d&to=now&bizIds=${biz_id}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "alias": "",
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "display": true,
+          "expression": "",
+          "host": [],
+          "module": [],
+          "only_promql": false,
+          "query_configs": [
+            {
+              "alias": "$tag_severity",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "severity"
+              ],
+              "interval": 5,
+              "interval_unit": "m",
+              "method": "SUM",
+              "metric_field": "alert_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "time_range",
+                  "method": "eq",
+                  "value": [
+                    "5m"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "showExpression": false,
+          "source": "",
+          "step": ""
+        }
+      ],
+      "title": "Alarms(Latest)",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Alert Recipients",
+              "url": "${baseURL}?bizId=${biz_id}#/alarm-group"
+            }
+          ],
+          "mappings": [],
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 9,
+        "x": 15,
+        "y": 12
+      },
+      "id": 174,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Alert Groups",
+          "url": "${baseURL}?bizId=${biz_id}#/alarm-group"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "alias": "",
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "display": true,
+          "expression": "",
+          "host": [],
+          "module": [],
+          "only_promql": false,
+          "query_configs": [
+            {
+              "alias": "$tag_method",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "method"
+              ],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "notice_receiver_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "showExpression": false,
+          "source": "",
+          "step": ""
+        }
+      ],
+      "title": "Alert Recipients ",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Alarm Solutions",
+              "url": "${baseURL}?bizId=${biz_id}#/set-meal"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "super-light-orange",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 7,
+        "x": 0,
+        "y": 15
+      },
+      "id": 4,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Alarm Solutions",
+          "url": "${baseURL}?bizId=${biz_id}#/set-meal"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 28
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "$tag_plugin_type_name",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [],
+              "group_by": [
+                "plugin_type_name"
+              ],
+              "interval": 300,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "action_config_count",
+              "refId": "a",
+              "result_table_id": "bkm_statistics.base",
+              "result_table_label": "application_check",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "Alarm Solutions",
+      "type": "stat"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "bkmonitor-timeseries-datasource",
+          "uid": "${DS_蓝鲸监控_- 指标数据}"
+        },
+        "definition": "- Blueking Monitor - 维度",
+        "description": "业务ID",
+        "hide": 2,
+        "includeAll": false,
+        "label": "",
+        "multi": false,
+        "name": "biz_id",
+        "options": [],
+        "query": {
+          "metricConfig": {
+            "data_source_label": "bk_monitor",
+            "data_type_label": "time_series",
+            "group_by": "bk_biz_id",
+            "metric_field": "usage",
+            "result_table_id": "system.cpu_summary",
+            "result_table_label": "os",
+            "where": []
+          },
+          "queryType": "dimension",
+          "variables": ""
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "bkmonitor-timeseries-datasource",
+          "uid": "${DS_蓝鲸监控_- 指标数据}"
+        },
+        "definition": "- Blueking Monitor - 维度",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "baseURL",
+        "options": [],
+        "query": {
+          "metricConfig": {
+            "data_source_label": "custom",
+            "data_type_label": "time_series",
+            "group_by": "domain_name",
+            "metric_field": "last_update_timestamp",
+            "result_table_id": "bkm_statistics.base",
+            "result_table_label": "application_check",
+            "where": []
+          },
+          "queryType": "dimension",
+          "variables": ""
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "default",
+  "title": "可观测能力使用情况",
+  "version": 2,
+  "weekStart": ""
+}

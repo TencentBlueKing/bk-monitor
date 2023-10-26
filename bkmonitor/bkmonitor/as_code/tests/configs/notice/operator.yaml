@@ -1,0 +1,4 @@
+name: 主备负责人[code]
+snippet: base.yaml
+
+users: [group#operator, group#bk_bak_operator]

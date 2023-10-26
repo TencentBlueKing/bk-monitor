@@ -1,0 +1,7 @@
+@import './theme.scss';
+@import './mixin.scss';
+
+/* stylelint-disable declaration-no-important */
+.bk-tag-input-popover-content.bk-popover {
+  padding: 0 !important;
+}

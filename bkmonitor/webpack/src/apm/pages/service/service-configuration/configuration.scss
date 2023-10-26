@@ -1,0 +1,49 @@
+@import '../../../theme';
+
+.service-configuration {
+  height: 100%;
+
+  @include application-configuration-nav;
+
+  .configuration-content {
+    display: flex;
+    flex: 1;
+    height: calc(100% - 52px);
+    padding: 16px;
+
+    .conf-content {
+      width: 100%;
+      min-width: 820px;
+
+      @include flex-column;
+
+      .form-item-label {
+        width: 92px;
+        min-width: 92px;
+      }
+    }
+
+    .header-tools {
+      position: absolute;
+      top: 66px;
+      right: 24px;
+      display: flex;
+
+      .edit-btn {
+        min-width: 80px;
+      }
+
+      .history-btn {
+        margin-left: 8px;
+        width: 32px;
+        height: 32px;
+        background: #fff;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+        text-align: center;
+        line-height: 30px;
+        cursor: pointer;
+      }
+    }
+  }
+}

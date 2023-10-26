@@ -1,0 +1,7 @@
+{{gettext("触发防御规则")}} :{{action_instance.converged_description | safe}}
+{{gettext("套餐名称")}} :{{action_instance.name | safe}}
+{{gettext("套餐类型")}} : {{action_instance.plugin_type_name | safe}}
+{{gettext("执行对象")}} :{{action_instance.operate_target_string | safe}}
+{{gettext("触发的告警详情")}} : {{alarm.detail_url | safe}}
+{{gettext("同意将继续执行套餐，拒绝将忽略本次套餐的执行")}}
+{{gettext("注意：超过30分钟未进行审批，自愈系统将自动撤单并忽略本次套餐的执行！！")}}

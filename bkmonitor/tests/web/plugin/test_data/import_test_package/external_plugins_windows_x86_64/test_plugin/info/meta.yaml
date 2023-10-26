@@ -1,0 +1,11 @@
+plugin_id: test_plugin
+plugin_display_name: test_plugin
+plugin_type: Script
+tag:
+scripts:
+
+  windows:
+    type: bat
+    filename: test_plugin.bat
+
+is_support_remote: False

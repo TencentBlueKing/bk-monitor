@@ -1,0 +1,28 @@
+snippet: base.yaml
+
+name: 自定义上报测试[code]
+
+query:
+  data_source: custom
+  data_type: time_series
+  query_configs:
+    - metric: 2_bkmonitor_time_series_1572868.__default__.cpu_load
+      interval: 60
+      group_by: [target]
+      method: sum
+
+detect:
+  trigger: 1/5/5
+
+  algorithm:
+    remind:
+      - type: Threshold
+        config: ">1000 or <0"
+
+  nodata:
+    continuous: 7
+    dimensions: [ target ]
+    level: remind
+
+notice:
+  user_groups: [运维]

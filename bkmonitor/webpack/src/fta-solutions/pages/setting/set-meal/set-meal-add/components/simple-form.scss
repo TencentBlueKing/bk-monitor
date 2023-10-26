@@ -1,0 +1,22 @@
+.meal-content-simple-form {
+  .title {
+    color: #63656e;
+    line-height: 16px;
+    font-size: 12px;
+    display: flex;
+    white-space: nowrap;
+    .sub-title {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-left: 10px;
+    }
+  }
+  .wrap {
+    margin-bottom: 20px;
+    .bk-form-input {
+      padding: 0 10px 0 0;
+    }
+  }
+}

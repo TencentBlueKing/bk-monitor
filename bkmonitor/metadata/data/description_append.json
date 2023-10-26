@@ -1,0 +1,177 @@
+[
+  {
+    "result_table_id": "system.cpu_detail",
+    "item": "idle",
+    "description": "每个逻辑核空闲CPU时间比率",
+    "table_name_zh": "单核CPU",
+    "item_display": "单核处理器空闲率"
+  },
+  {
+    "result_table_id": "system.cpu_detail",
+    "item": "iowait",
+    "description": "单核CPU等待IO的时间占比",
+    "table_name_zh": "单核CPU",
+    "item_display": "单核处理器等待IO的时间占比"
+  },
+  {
+    "result_table_id": "system.cpu_detail",
+    "item": "stolen",
+    "description": "单核CPU分配给虚拟机的时间占比",
+    "table_name_zh": "单核CPU",
+    "item_display": "单核处理器分配给虚拟机的时间占比"
+  },
+  {
+    "result_table_id": "system.cpu_detail",
+    "item": "system",
+    "description": "单核CPU系统程序使用占比",
+    "table_name_zh": "单核CPU",
+    "item_display": "单核处理器系统程序使用占比"
+  },
+  {
+    "result_table_id": "system.cpu_detail",
+    "item": "usage",
+    "description": "单核CPU使用的时间占比",
+    "table_name_zh": "单核CPU",
+    "item_display": "单核处理器使用率"
+  },
+  {
+    "result_table_id": "system.cpu_detail",
+    "item": "user",
+    "description": "单核CPU用户程序使用占比",
+    "table_name_zh": "单核CPU",
+    "item_display": "单核处理器用户程序使用占比"
+  },
+  {
+    "result_table_id": "system.cpu_summary",
+    "item": "idle",
+    "description": "所有CPU核的总空闲率",
+    "table_name_zh": "CPU",
+    "item_display": "处理器空闲率"
+  },
+  {
+    "result_table_id": "system.cpu_summary",
+    "item": "iowait",
+    "description": "CPU等待IO的时间占比",
+    "table_name_zh": "CPU",
+    "item_display": "等待IO的时间占比"
+  },
+  {
+    "result_table_id": "system.cpu_summary",
+    "item": "stolen",
+    "description": "CPU分配给虚拟机的时间占比",
+    "table_name_zh": "CPU",
+    "item_display": "分配给虚拟机的时间占比"
+  },
+  {
+    "result_table_id": "system.cpu_summary",
+    "item": "system",
+    "description": "CPU分配给系统程序使用的时间占比",
+    "table_name_zh": "CPU",
+    "item_display": "系统程序使用占比"
+  },
+  {
+    "result_table_id": "system.cpu_summary",
+    "item": "usage",
+    "description": "CPU 使用的时间占比",
+    "table_name_zh": "CPU",
+    "item_display": "使用率"
+  },
+  {
+    "result_table_id": "system.cpu_summary",
+    "item": "user",
+    "description": "CPU分配给用户程序使用的时间占比",
+    "table_name_zh": "CPU",
+    "item_display": "用户程序使用占比"
+  },
+  {
+    "result_table_id": "system.inode",
+    "item": "free",
+    "description": "系统当前可用的inode文件句柄",
+    "table_name_zh": "文件句柄",
+    "item_display": "可用inode数量"
+  },
+  {
+    "result_table_id": "system.inode",
+    "item": "in_use",
+    "description": "系统已使用的文件句柄占比",
+    "table_name_zh": "文件句柄",
+    "item_display": "已用inode占比"
+  },
+  {
+    "result_table_id": "system.inode",
+    "item": "total",
+    "description": "系统文件句柄总数",
+    "table_name_zh": "文件句柄",
+    "item_display": "总inode数量"
+  },
+  {
+    "result_table_id": "system.inode",
+    "item": "used",
+    "description": "系统已使用的文件句柄数量",
+    "table_name_zh": "文件句柄",
+    "item_display": "已用inode数量"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "avgqu_sz",
+    "description": "磁盘平均I/O队列长度",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "平均队列长度"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "avgrq_sz",
+    "description": "磁盘平均每次I/O操作的数据大小（扇区）",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "平均数据大小"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "await",
+    "description": "磁盘平均每次I/O操作的等待时长",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "平均等待时长"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "rkb_s",
+    "description": "磁盘每秒I/O读操作的字节数",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "读速率"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "r_s",
+    "description": "磁盘每秒进行的读I/O次数",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "读次数"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "svctm",
+    "description": "磁盘平均每秒I/O操作的服务时长",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "平均服务时长"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "util",
+    "description": "磁盘每秒用于I/O操作的占比",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "IO使用率"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "wkb_s",
+    "description": "磁盘每秒I/O写操作的字节数",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "写速率"
+  },
+  {
+    "result_table_id": "system.io",
+    "item": "w_s",
+    "description": "磁盘每秒进行的写I/O次数",
+    "table_name_zh": "磁盘I/O",
+    "item_display": "写次数"
+  }
+]

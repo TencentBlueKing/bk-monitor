@@ -1,0 +1,113 @@
+
+/* 自定义场景数据状态 */
+$customScenesStatus: 'SUCCESS' 'NODATA';
+$customScenesStatusColor: #3fc06d #ea3636;
+$customScenesStatusBgColor: #e5f6ea #ffe6e6;
+
+
+@mixin common-status-icon {
+  $statusColor1: #3fc06d #ea3636 #979ba5;
+  $statusType1: 'normal' 'warning' 'stoped';
+  $statusColor2: #3fc06d #ea3636 #c4c6cc #ff9c01;
+  $statusType2: 'success' 'failed' 'disabled' 'waiting';
+  $statusColor3: #e5f6ea #ffe6e6 #f0f1f5 #ffe8c3;
+
+  @for $i from 1 through length($customScenesStatus) {
+    .common-status-icon.status-#{nth($customScenesStatus, $i)} {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      // margin-right: 10px;
+      border-radius: 50%;
+      border: 1px solid nth($customScenesStatusColor, $i);
+      background-color: nth($customScenesStatusBgColor, $i);
+    }
+  }
+
+  .common-status-wrap {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+
+    @for $i from 1 through length($statusType1) {
+      .common-status-icon.status-#{nth($statusType1, $i)} {
+        position: relative;
+
+        &::before,
+        &::after {
+          position: absolute;
+          content: '';
+          border-radius: 50%;
+        }
+
+        &::before {
+          width: 7px;
+          height: 7px;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background-color: nth($statusColor1, $i);
+        }
+
+        &::after {
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: nth($statusColor1, $i);
+          opacity: .16;
+        }
+      }
+    }
+
+    @for $i from 1 through length($statusType2) {
+      .common-status-icon.status-#{nth($statusType2, $i)} {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        // margin-right: 10px;
+        border-radius: 50%;
+        border: 1px solid nth($statusColor2, $i);
+        background-color: nth($statusColor3, $i);
+      }
+    }
+
+    .common-status-icon {
+      display: inline-block;
+      height: 16px;
+      width: 16px;
+      vertical-align: middle;
+
+      &.status-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #979ba5;
+        font-size: 12px;
+      }
+    }
+
+    .common-status-name {
+      line-height: 16px;
+      vertical-align: middle;
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+  }
+
+  .common-status-icon {
+    display: inline-block;
+    height: 16px;
+    width: 16px;
+    vertical-align: middle;
+  }
+
+  .common-status-name {
+    line-height: 16px;
+    vertical-align: middle;
+    white-space: nowrap;
+    margin-left: 8px;
+  }
+}
+
+@include common-status-icon;

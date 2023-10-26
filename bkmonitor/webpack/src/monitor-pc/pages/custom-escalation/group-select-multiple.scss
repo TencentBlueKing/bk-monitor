@@ -1,0 +1,30 @@
+.group-select-multiple-component {
+  position: relative;
+
+  .btn-content {
+    z-index: 1;
+  }
+
+  .select-dropdown {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: 0;
+    opacity: 0;
+    overflow: hidden;
+    z-index: -1;
+  }
+}
+
+.group-select-multiple-component-dropdown-content {
+  .bk-option-content,
+  .bk-select-extension {
+    padding: 0 10px;
+  }
+
+  .add-input-wrap {
+    display: flex;
+    align-items: center;
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "id": "pod_monitor",
+  "type": "detail",
+  "mode": "auto",
+  "name": "PodMonitor",
+  "variables": [
+    {
+      "id": 0,
+      "title": "Endpoints",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "scene_view",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesPodMonitorEndpoints",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "name": "$bk_monitor_name",
+            "metric_path": "$metric_path"
+          },
+          "fields": {
+            "id": "bk_bcs_monitor_endpoints_id"
+          }
+        }
+      ],
+      "options": {
+        "variables": {
+          "multiple": false,
+          "required": false,
+          "internal": true
+        }
+      }
+    }
+  ],
+  "panels": [],
+  "order": [],
+  "options": {
+    "show_panel_count": false,
+    "enable_index_list": true,
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "method_select": true,
+      "interval_select": true,
+      "split_switcher": false
+    },
+    "enable_group": true,
+    "alert_filterable": true,
+    "selector_panel": {
+      "title": "pod_monitors",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": "pod_monitor_list",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesPodMonitorList",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "name": "$bk_monitor_name"
+          },
+          "fields": {
+            "bcs_cluster_id": "bcs_cluster_id",
+            "namespace": "namespace",
+            "bk_monitor_name": "name",
+            "metric_path": "metric_path",
+            "metric_port": "metric_port"
+          }
+        }
+      ],
+      "options": {
+        "selector_list": {
+          "query_update_url": true,
+          "status_filter": true,
+          "field_sort": false
+        }
+      }
+    },
+    "fetch_panels": {
+      "targets": [
+        {
+          "datasource": "pod_monitor_list",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesPodMonitorPanels",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "name": "$bk_monitor_name",
+            "namespace": "$namespace"
+          }
+        }
+      ],
+      "type": "fetch_panels"
+    },
+    "detail_panel": {
+      "title": "pod_monitor",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getKubernetesPodMonitor",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "name": "$bk_monitor_name",
+            "metric_path": "$metric_path",
+            "metric_port": "$metric_port"
+          }
+        }
+      ]
+    },
+    "group_panel": {
+      "targets": [
+        {
+          "datasource": "dimensions",
+          "dataType": "list",
+          "api": "scene_view.getSceneViewDimensions",
+          "data": {
+            "scene_id": "kubernetes",
+            "type": "detail",
+            "id": "pod_monitor",
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "name": "$bk_monitor_name",
+            "namespace": "$namespace"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "monitor-static",
+  "version": "1.0.0",
+  "description": "monitor static",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "lint": "stylelint --fix"
+  },
+  "keywords": [
+    "monitor",
+    "static"
+  ],
+  "author": "bk fe",
+  "license": "MIT",
+  "dependencies": {
+    "vue": "2.7.14"
+  },
+  "devDependencies": {
+    "eslint-config-prettier": "^9.0.0",
+    "minimist": "^1.2.6",
+    "postcss-html": "^1.5.0",
+    "postcss-scss": "^4.0.4",
+    "stylelint": "^15.10.3",
+    "stylelint-config-recommended-vue": "^1.5.0",
+    "stylelint-config-standard": "^34.0.0",
+    "stylelint-order": "^6.0.3",
+    "stylelint-scss": "^5.1.0"
+  }
+}

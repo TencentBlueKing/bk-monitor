@@ -1,0 +1,692 @@
+{
+  "id": "instance",
+  "type": "overview",
+  "mode": "custom",
+  "name": "实例",
+  "variables": [
+  ],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "异常列表",
+      "type": "table-chart",
+      "targets": [
+        {
+          "datasource": "cluster_list",
+          "dataType": "table",
+          "api": "apm_metric.serviceQueryException",
+          "data": {
+            "app_name": "$app_name",
+            "filter_params": {
+              "resource.service.name": "$service_name"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 16
+      },
+      "options": {
+        "table_chart": {
+          "json_viewer_data_key": "content",
+          "json_viewer_data_empty_text": "status.messages和exception.messages数据为空",
+          "show_expand": true,
+          "query_update_url": true,
+          "need_title": true
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "调用总数",
+      "type": "graph",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "expression": "A",
+            "start_time": "$start_time",
+            "end_time": "$end_time",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name"
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "错误数",
+      "type": "graph",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "type": "range",
+            "stack": "all",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "http_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name"
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "type": "range",
+            "stack": "all",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "rpc_grpc_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name"
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "OTHER",
+          "data": {
+            "stack": "all",
+            "expression": "B",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "B"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name"
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "响应耗时",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "expression": "A",
+            "start_time": "$start_time",
+            "end_time": "$end_time",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration",
+                    "method": "AVG",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name"
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "异常列表",
+      "type": "table-chart",
+      "targets": [
+        {
+          "datasource": "cluster_list",
+          "dataType": "table",
+          "api": "apm_metric.serviceQueryException",
+          "data": {
+            "app_name": "$app_name",
+            "filter_params": {
+              "resource.service.name": "$service_name",
+              "resource.bk.instance.id": "$bk_instance_id"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 16
+      },
+      "options": {
+        "table_chart": {
+          "json_viewer_data_key": "content",
+          "json_viewer_data_empty_text": "status.messages和exception.messages数据为空",
+          "show_expand": true,
+          "query_update_url": true,
+          "need_title": true
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "调用总数",
+      "type": "graph",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "CALLED_COUNT",
+          "data": {
+            "expression": "A",
+            "start_time": "$start_time",
+            "end_time": "$end_time",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "bk_instance_id": "$bk_instance_id"
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "错误数",
+      "type": "graph",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "type": "range",
+            "stack": "all",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "http_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "bk_instance_id": "$bk_instance_id"
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "type": "range",
+            "stack": "all",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "rpc_grpc_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "bk_instance_id": "$bk_instance_id"
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "OTHER",
+          "data": {
+            "stack": "all",
+            "expression": "B",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "B"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "bk_instance_id": "$bk_instance_id"
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "响应耗时",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "AVG_DURATION",
+          "data": {
+            "expression": "A",
+            "start_time": "$start_time",
+            "end_time": "$end_time",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration",
+                    "method": "AVG",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "bk_instance_id": "$bk_instance_id"
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "method_select": false,
+      "compare_select": false,
+      "columns_toggle": false,
+      "interval_select": false,
+      "split_switcher": false
+    },
+    "selector_panel": {
+      "title": "服务实例",
+      "type": "table",
+      "options": {
+        "selector_list": {
+          "status_filter": false,
+          "field_sort": true,
+          "default_sort_field": "-request_count"
+        }
+      },
+      "targets": [
+        {
+          "datasource": "instance_list",
+          "dataType": "table",
+          "api": "apm_metric.serviceInstances",
+          "data": {
+            "app_name": "$app_name",
+            "service_name": "$service_name"
+          },
+          "fields": {
+            "bk_instance_id": "bk_instance_id",
+            "app_name": "app_name",
+            "service_name": "service_name",
+            "category": "service_category",
+            "kind": "service_kind",
+            "predicate_value": "service_predicate_value"
+          }
+        }
+      ]
+    }
+  }
+}

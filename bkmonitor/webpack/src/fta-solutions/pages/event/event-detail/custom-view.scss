@@ -1,0 +1,20 @@
+.event-detail-custom-view {
+  .view-content-wrap {
+    overflow: hidden;
+    transition: height .3s;
+    .viewer-wrap {
+      .toastui-editor-contents,
+      .tui-editor-contents {
+        >p {
+          margin: 0;
+        }
+      }
+    }
+  }
+  .expan-btn {
+    color: #3a84ff;
+    line-height: 20px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+}

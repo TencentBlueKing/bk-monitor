@@ -1,0 +1,243 @@
+@import '../../../../theme/mixin.scss';
+
+.host-tree-wrap {
+  height: 100%;
+  overflow: hidden;
+
+  .host-tree-main {
+    // height: calc(100% - 32px);
+    height: 100%;
+    padding: 0 16px;
+  }
+
+  .host-tree-tool {
+    .target-compare-tips {
+      max-height: 32px;
+      overflow: hidden;
+    }
+
+    &>* {
+      margin-bottom: 8px;
+    }
+  }
+
+  .host-tree-search-row {
+    display: flex;
+
+    .search-select-wrap {
+      flex: 1;
+    }
+
+    .refresh-btn {
+      width: 32px;
+      min-width: 32px;
+      padding: 0;
+      margin-left: 2px;
+
+      .icon-shuaxin {
+        font-size: 14px;
+        color: #63656e;
+      }
+    }
+  }
+
+  .big-tree {
+    // width: max-content;
+    min-width: 100%;
+    min-height: 100%;
+    max-height: 100%;
+    // margin-top: 16px;
+    &.clear-selected {
+      .bk-big-tree-node.is-selected {
+        background-color: unset;
+
+        .node-content {
+          color: unset;
+        }
+      }
+    }
+
+    .bk-big-tree-empty {
+      top: 100px;
+      display: initial;
+      height: auto;
+
+      .exception-image {
+        height: 123px;
+      }
+
+      .search-empty-wrap {
+        pointer-events: none;
+      }
+    }
+
+    .bk-big-tree-node {
+      padding-left: calc((var(--level) * 16px) + 8px);
+
+      .bk-tree-node {
+        .host-status {
+          display: inline-block;
+          width: 6px;
+          min-width: 6px;
+          height: 6px;
+          border: 1px solid;
+          border-radius: 50%;
+        }
+
+        .node-content {
+          position: relative;
+
+          .add-compared {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 32px;
+            padding-right: 8px;
+            padding-left: 16px;
+            margin-left: auto;
+
+            .add-compared-btn {
+              display: none;
+            }
+          }
+
+          .name {
+            display: block;
+            min-width: 70px;
+
+            @include ellipsis
+          }
+        }
+
+        &.checked-target {
+          color: #979ba5;
+          background-color: #f5f7fa;
+
+          .node-content {
+            .add-compared {
+              background-color: #f5f7fa;
+
+              .icon-mc-check-small {
+                font-size: 20px;
+                color: #979ba5;
+              }
+            }
+          }
+        }
+
+        &.active {
+          color: #3a84ff;
+          // background-color: #e1ecff;
+        }
+      }
+
+      &:hover {
+        color: #3a84ff;
+        background-color: #e1ecff;
+
+        .bk-tree-node:not(.active):not(.checked-target) {
+          .node-content {
+            .add-compared {
+              background-color: #e1ecff;
+
+              .add-compared-btn {
+                display: initial;
+              }
+            }
+          }
+        }
+      }
+
+      &.is-selected {
+        .bk-tree-node {
+          // background-color: #e1ecff;
+          .node-content {
+            .add-compared {
+              .add-compared-btn {
+                display: none;
+              }
+            }
+          }
+        }
+      }
+
+      &.is-leaf {
+        padding-left: 0;
+        cursor: default;
+
+        .bk-tree-node {
+          height: 32px;
+          padding-left: calc((var(--level) * 16px) + 8px + 20px);
+
+          @include host-status;
+
+          .node-content {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+
+            &-wrap {
+              min-width: 90px;
+
+              @include ellipsis;
+            }
+
+            .host-status {
+              margin-right: 10px;
+            }
+
+            // .host-name {
+            //   min-width: 90px;
+
+            //   @include ellipsis;
+            // }
+
+            .host-alias-name {
+              color: #c4c6cc;
+
+              // @include ellipsis;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .overview-item {
+    height: 32px;
+    padding-left: 16px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 32px;
+    cursor: pointer;
+    background-color: #fafbfd;
+    border-radius: 2px;
+
+    .icon-mc-overview {
+      margin-right: 5px;
+      font-size: 14px;
+    }
+
+    &.active {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+  }
+
+  .bk-scroll-home {
+    &:hover {
+      .bk-min-nav-slide {
+        &.bk-nav-show {
+          display: initial;
+        }
+      }
+    }
+
+    .bk-min-nav-slide {
+      &.bk-nav-show {
+        display: none;
+        background-color: #ddd;
+      }
+    }
+  }
+}

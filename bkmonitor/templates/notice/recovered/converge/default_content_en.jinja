@@ -1,0 +1,4 @@
+{{gettext("Recovered %(collect_count)d %(level_name)s Alarms", collect_count=alarm.collect_count, level_name=level_name)}}
+{{gettext("Detail: ")}}{{alarm.detail_url}}
+{{gettext("One of: ")}}{{alert.alert_name | safe}}
+{{user_content | safe}}

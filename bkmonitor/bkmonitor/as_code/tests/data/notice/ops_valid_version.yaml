@@ -1,0 +1,6 @@
+name: 日常运维
+version: "1.0"
+description: ""
+snippet: base.yaml
+
+users: [user1, group#bk_operator]

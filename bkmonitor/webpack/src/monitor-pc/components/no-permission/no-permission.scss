@@ -1,0 +1,30 @@
+.no-permission-component {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  .lock-icon {
+    background-image: url("../../static/images/svg/big-lock.svg");
+    width: 52px;
+    height: 61px;
+  }
+  .title {
+    font-size: 20px;
+    line-height: 28px;
+    color: #313238;
+    font-weight: 500;
+    margin-top: 27px;
+  }
+  .msg {
+    font-size: 14px;
+    line-height: 20px;
+    color: #979ba5;
+    margin-top: 30px;
+  }
+  .submit {
+    margin-top: 30px;
+    width: 96px;
+  }
+}

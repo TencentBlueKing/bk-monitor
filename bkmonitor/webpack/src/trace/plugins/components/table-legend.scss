@@ -1,0 +1,119 @@
+.table-legend {
+  font-size: 12px;
+  border-collapse: collapse;
+  line-height: 26px;
+  color: #63656e;
+  user-select: none;
+  width: 320px;
+
+  tr {
+    height: 26px;
+  }
+
+  thead tr,
+  tr:nth-child(even) {
+    background: #f5f6fa;
+  }
+
+  th {
+    white-space: nowrap;
+    padding: 0 12px;
+    font-weight: bold;
+
+    &:hover {
+      cursor: pointer;
+      background-color: #f0f1f5;
+    }
+
+    .caret-wrapper {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      height: 20px;
+      flex: 20px 0 0;
+      vertical-align: middle;
+      cursor: pointer;
+      position: relative;
+      top: -1px;
+      margin-left: 4px;
+
+      .sort-caret {
+        width: 0;
+        height: 0;
+        border: 5px solid transparent;
+        position: absolute;
+        margin-left: 4px;
+
+        &:hover {
+          cursor: pointer;
+        }
+
+        &.is-asc {
+          border-bottom-color: #c0c4cc;
+          top: -1px;
+
+          &.active {
+            border-bottom-color: #63656e;
+          }
+        }
+
+        &.is-desc {
+          border-top-color: #c0c4cc;
+          bottom: -1px;
+
+          &.active {
+            border-top-color: #63656e;
+          }
+        }
+      }
+    }
+  }
+
+  td {
+    display: table-cell;
+    white-space: nowrap;
+    padding: 0 6px;
+    text-align: right;
+
+    .content-wrapper {
+      display: flex;
+      align-items: center;
+      text-align: right;
+
+      .legend-metric {
+        text-align: left;
+        margin-right: 9px;
+        display: inline-flex;
+        align-items: center;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+
+        .metric-label {
+          display: inline-block;
+          width: 12px;
+          height: 4px;
+          background-color: violet;
+          margin-right: 6px;
+          min-width: 12px;
+        }
+
+        .metric-name {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        &:hover {
+          color: #999;
+          cursor: pointer;
+        }
+      }
+
+      .legend-value {
+        margin-left: auto;
+        text-align: right;
+      }
+    }
+  }
+}

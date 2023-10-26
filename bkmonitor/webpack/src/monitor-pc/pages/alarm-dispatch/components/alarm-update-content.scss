@@ -1,0 +1,28 @@
+.alarm-update-content {
+  padding: 4px 0;
+ 
+  &-wrap {
+    display: flex;
+    flex-direction: column;
+
+    .icon-common {
+      font-size: 14px;
+      margin: 0 4px 0 8px;
+    }
+
+    .content-label {
+      text-align: left;
+      display: inline-block;
+    }
+
+    .icon-mc-chart-alert {
+      font-size: 12px;
+    }
+    
+    .icon-mc-chart-alert:before {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+    } 
+  }
+}

@@ -1,0 +1,14 @@
+.organization-selector-component {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .item-wrap {
+    flex: 1;
+    background: #fff;
+
+    &:not(:last-of-type) {
+      margin-right: 16px;
+    }
+  }
+}

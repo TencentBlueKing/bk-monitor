@@ -1,0 +1,121 @@
+.cycle-input-wrap {
+  display: flex;
+
+  .input-popover {
+    flex: 1;
+
+    .bk-tooltip-ref {
+      width: 100%;
+    }
+
+    .input-text {
+      &.control-active {
+        .bk-form-input {
+          border: 1px solid #3a84ff;
+          box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+        }
+      }
+
+      .bk-form-input {
+        border-right: 0;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        transition: border-color .3s;
+      }
+    }
+  }
+
+  .cycle-unit {
+    position: relative;
+    display: inline-block;
+    height: 32px;
+    min-width: 40px;
+    font-size: 12px;
+    line-height: 30px;
+    color: #63656e;
+    text-align: center;
+    cursor: pointer;
+    border: 1px solid #c4c6cc;
+    border-left: 0;
+    border-radius: 2px;
+    border-bottom-left-radius: 0;
+    border-top-left-radius: 0;
+    transition: all .2s;
+    flex-shrink: 0;
+
+    &::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 1px;
+      background-color: #f0f1f5;
+      content: '';
+      transition: all .2s;
+    }
+
+    &.line-active {
+      &::before {
+        background-color: #3a84ff;
+      }
+    }
+
+    &.unit-active {
+      border-color: #3a84ff;
+      box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+    }
+  } 
+}
+
+.cycle-list-wrapper-theme {
+  width: 100%;
+  padding: 0;
+
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 0!important;
+  border-radius: 0;
+  box-shadow: 0 0 6px rgba(204, 204, 204, .3);
+
+  .cycle-list,
+  .unit-list {
+    display: flex;
+    width: 100%;
+    max-height: 210px;
+    min-width: 98px;
+    padding: 6px 0;
+    overflow: auto;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-sizing: border-box;
+    flex-direction: column;
+
+    .cycle-item {
+      flex: 0 0 32px;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: #e1ecff;
+      }
+
+      // &.item-disabled {
+      //   color: red;
+
+      //   &:hover {
+      //     color: red;
+      //     cursor: not-allowed;
+      //     background-color: #ffe1f8;
+      //   }
+      // }
+    }
+
+    .cycle-item-active {
+      color: #3a84ff;
+      background-color: #f4f6fa;
+    }
+  }
+}

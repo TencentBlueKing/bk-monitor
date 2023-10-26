@@ -1,0 +1,6 @@
+({{ shield_id }}) {{ start_time }} 将{{ notice_type }}告警屏蔽
+屏蔽类型: {{ category_name | safe }}
+屏蔽内容: {{ cycle_duration | safe }},{{ shield_content | safe }}
+{% if description %}
+屏蔽原因: {{ description | safe }}
+{% endif %}

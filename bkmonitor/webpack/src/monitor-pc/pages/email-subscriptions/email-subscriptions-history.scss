@@ -1,0 +1,53 @@
+.email-subscriptions-history-wrap {
+  padding: 24px;
+
+  .collapse-wrap {
+    .list-header {
+      color: #63656e;
+    }
+
+    .title {
+      font-size: 12px;
+      font-weight: 700;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .btn-wrap {
+      & > :not(:first-child) {
+        margin-left: 6px;
+      }
+    }
+  }
+
+  .list-content {
+    background-color: #fff;
+
+    .receivers-status {
+      display: flex;
+      align-items: center;
+      font-size: 0;
+
+      .icon-audit {
+        margin-left: 3px;
+        font-size: 14px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .text {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .is-success {
+    color: #2dcb56;
+  }
+
+  .is-fail {
+    color: #ea3636;
+  }
+}

@@ -1,0 +1,116 @@
+.add-calendar-dialog-wrap {
+  .bk-form {
+    padding: 0 16px;
+  }
+  .form-item-des {
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+    margin-top: 4px;
+  }
+  .form-start,
+  .form-end {
+    .date-picker {
+      width: 240px;
+    }
+    .time-picker {
+      width: 134px;
+      margin-left: 8px;
+    }
+    .all-day {
+      margin-left: 16px;
+    }
+  }
+  .repeat-select {
+    width: 240px;
+  }
+}
+.repeat-select-popover {
+  .bk-options {
+    .bk-option {
+      &.is-disabled {
+        display: none;
+      }
+    }
+  }
+  .bk-select-extension {
+    height: 44px;
+    line-height: 44px;
+    border-top: 0;
+    padding: 0;
+    background-color: #fff;
+    .repeat-extension {
+      position: relative;
+      height: 100%;
+      padding: 0 12px;
+      cursor: pointer;
+      &::after {
+        position: absolute;
+        content: "";
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 18px);
+        height: 1px;
+        background-color: #dcdee5;
+      }
+    }
+  }
+}
+.add-calendar-repeat-dialog-wrap {
+  .bk-form {
+    padding: 0 16px;
+  }
+  .repeat-frequency {
+    display: flex;
+    .frequency-type-select {
+      flex: 1;
+    }
+    .frequency-input-num-wrap {
+      display: flex;
+      align-items: center;
+      margin-left: 16px;
+    }
+    .frequency-input-num {
+      width: 50px;
+      margin: 0 8px;
+    }
+  }
+  .repeat-end-date {
+    width: 100%;
+  }
+}
+.repeat-end-date-popover {
+  .bk-date-picker-footer-wrapper {
+    border-top: 0;
+    background-color: initial;
+    .repeat-end-date-footer {
+      display: flex;
+      justify-content: center;
+      padding-bottom: 12px;
+      .no-repeat-btn {
+        width: 208px;
+        &.active {
+          background-color: #e1ecff;
+        }
+      }
+    }
+  }
+}
+.calendar-custom-add-btn-wrap {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  .calendar-input-wrapper {
+    width: 100%;
+  }
+  .calendar-custom-add-btn {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding-left: 24px;
+    .custom-add-btn-text {
+      margin-left: 54px;
+    }
+  }
+}

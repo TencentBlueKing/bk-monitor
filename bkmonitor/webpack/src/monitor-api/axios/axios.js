@@ -1,0 +1,162 @@
+/* eslint-disable no-underscore-dangle */
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+/* eslint-disable no-param-reassign */
+import axios from 'axios';
+import qs from 'qs';
+
+import { getCookie } from '../../monitor-common/utils/utils';
+import { authorityStore, bkMessage, makeMessage } from '../utils/index';
+// 错误请求处理 3314001(名称重复)
+const noMessageCode = [3314001, 3310003];
+const errorHandle = (response, config) => {
+  const traceparent = config?.headers?.traceparent;
+  const resMessage = makeMessage(response.data.message || '求出错了！', traceparent, config.needTraceId);
+  switch (response.status) {
+    case 502:
+      if (config.needMessage) bkMessage(resMessage);
+      break;
+    case 400:
+      if (!noMessageCode.includes(response.data.code)) {
+        if (config.needMessage) bkMessage(resMessage);
+      }
+      break;
+    case 401:
+      if (process.env.NODE_ENV === 'development') {
+        window.location.href = `${process.env.loginUrl}?c_url=${process.env.devUrl}`;
+      } else {
+        const handleLoginExpire = () => {
+          window.location.href = `${window.bkPaasHost.replace(/\/$/g, '')}/login/`;
+        };
+        const { data } = response;
+        // eslint-disable-next-line camelcase
+        if (data?.has_plain) {
+          try {
+            if (data.login_url) {
+              const url = new URL(data.login_url);
+              const curl = url.searchParams.get('c_url');
+              if (curl) {
+                url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
+                window.LoginModal.$props.loginUrl = url.href;
+              } else {
+                window.LoginModal.$props.loginUrl = data.login_url;
+              }
+            }
+            window.LoginModal.show();
+          } catch (_) {
+            handleLoginExpire();
+          }
+        } else {
+          handleLoginExpire();
+        }
+      }
+      break;
+    case 404:
+      if (config.needMessage) bkMessage(resMessage);
+      break;
+    case 403:
+    case 499:
+      /* 避免进入仪表盘内重复显示无权限提示 */
+      if (
+        !config.reject403 &&
+        window.space_list?.length &&
+        !(
+          ['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
+          location.hash.includes('#/event-center/detail')
+        ) &&
+        config.url !== 'rest/v2/grafana/dashboards/'
+      ) {
+        authorityStore?.()?.showAuthorityDetail?.(response.data);
+      }
+      break;
+    default:
+      break;
+  }
+};
+const instance = axios.create({
+  timeout: 1000 * 120,
+  withCredentials: true,
+  paramsSerializer(params) {
+    return qs.stringify(params, { arrayFormat: 'brackets' });
+  },
+  baseURL:
+    (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '') +
+    // eslint-disable-next-line no-nested-ternary
+    (process.env.NODE_ENV === 'production' ? window.site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
+  xsrfCookieName: 'X-CSRFToken'
+});
+instance.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded';
+
+instance.interceptors.request.use(
+  config => {
+    if (!['HEAD', 'OPTIONS', 'TRACE'].includes(config.method.toUpperCase())) {
+      config.headers['X-CSRFToken'] = window.csrf_token || getCookie(window.csrf_cookie_name);
+    }
+    config.headers['X-Requested-With'] = 'XMLHttpRequest';
+    config.headers['Source-App'] = window.source_app;
+    const isWhiteList = ['/get_context', 'get_token/get_share_params'].some(url => config.url.includes(url));
+    if (!isWhiteList && (window.__BK_WEWEB_DATA__?.token || window.token)) {
+      config.headers.Authorization = `Bearer ${window.__BK_WEWEB_DATA__?.token || window.token}`;
+    }
+    return config;
+  },
+  error => Promise.error(error)
+);
+instance.interceptors.response.use(
+  // 请求成功
+  res => {
+    if (!res.data.result) {
+      return Promise.reject(res.data);
+    }
+    if (res.status === 200) {
+      if (!res.data.result) {
+        return Promise.reject(res.data);
+      }
+      return Promise.resolve(res.data);
+    }
+    return Promise.reject(res);
+  },
+  // 请求失败
+  error => {
+    const { response, config } = error;
+    if (response) {
+      // 请求已发出，但是不在2xx的范围
+      errorHandle(response, config);
+      return Promise.reject(response);
+    }
+    // 处理断网的情况
+    // eg:请求超时或断网时，更新state的network状态
+    // network状态在app.vue中控制着一个全局的断网提示组件的显示隐藏
+    // 关于断网组件中的刷新重新获取数据，会在断网组件中说明
+    // if (!window.navigator.onLine) {
+    //     store.commit('changeNetwork', false)
+    // } else {
+    // }
+    return Promise.reject(error);
+  }
+);
+
+export default instance;

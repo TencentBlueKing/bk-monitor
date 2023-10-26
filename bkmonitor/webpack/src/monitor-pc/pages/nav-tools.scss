@@ -1,0 +1,153 @@
+@mixin defualt-icon-mixin($color: #768197) {
+  position: relative;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  font-size: 16px;
+  color: $color;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin is-left-mixin($needBgColor: true, $hoverColor: #768197) {
+  color: #63656e;
+
+  &:hover {
+    color: $hoverColor;
+
+    @if $needBgColor {
+      background: #f0f1f5;
+    }
+  }
+}
+
+@mixin icon-hover-mixin {
+  color: #d3d9e4;
+  cursor: pointer;
+  background: linear-gradient( 270deg ,#253047,#263247);
+  border-radius: 100%;
+}
+
+@mixin popover-panel-mxin($width: 150px, $itemHoverColor: #3a84ff) {
+  display: flex;
+  width: $width;
+  padding: 6px 0;
+  margin: 0;
+  font-size: 12px;
+  color: #63656e;
+  background: #fff;
+  border: 1px solid #e1e1e1;
+  border-radius: 2px;
+  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, .06);
+  flex-direction: column;
+
+  .nav-item {
+    flex: 0 0 32px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    list-style: none;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background-color: #eaf3ff;
+    }
+  }
+}
+
+.nav-tools {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+
+  .search-bar {
+    position: relative;
+    display: flex;
+    width: 202px;
+    height: 32px;
+    padding: 0 30px 0 10px;
+    margin-right: 32px;
+    color: #979ba5;
+    cursor: pointer;
+    background: #252f43;
+    border-radius: 2px;
+    align-items: center;
+
+    .search-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-search {
+      position: absolute;
+      right: 10px;
+      font-size: 14px;
+    }
+  }
+
+  .header-language {
+    @include defualt-icon-mixin;
+
+    .language-icon {
+      width: 20px;
+    }
+
+    &:hover {
+      @include icon-hover-mixin;
+    }
+  }
+
+  .header-help {
+    @include defualt-icon-mixin;
+
+    &.is-left {
+      @include is-left-mixin;
+    }
+
+    &:hover {
+      @include icon-hover-mixin;
+    }
+  }
+
+  .header-user {
+    display: flex;
+    height: 100%;
+    margin-left: 8px;
+    color: #768197;
+    align-items: center;
+    justify-content: center;
+
+    .header-user-text {
+      line-height: 32px;
+    }
+
+    .bk-icon {
+      margin-left: 5px;
+      font-size: 12px;
+    }
+
+    &.is-left {
+      @include is-left-mixin(false, #3a84ff);
+    }
+
+    &:hover {
+      color: #d3d9e4;
+      cursor: pointer;
+    }
+  }
+}
+
+.monitor-navigation-help {
+  @include popover-panel-mxin(170px #63656e);
+
+  .language-icon {
+    width: 20px;
+  }
+}
+
+.migrate-dashboard {
+  width: 100%;
+}

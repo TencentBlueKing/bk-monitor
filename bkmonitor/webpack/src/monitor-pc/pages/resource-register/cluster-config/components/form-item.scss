@@ -1,0 +1,52 @@
+.cluster-config-form-item {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  margin-top: 24px;
+
+  .form-item-title {
+    line-height: 20px;
+    min-height: 20px;
+
+    .require {
+      position: relative;
+
+      &::after {
+        position: absolute;
+        top: -2px;
+        right: -17px;
+        content: '*';
+        color: #ea3636;
+        height: 12px;
+        width: 12px;
+      }
+    }
+
+    .check-title {
+      .bk-checkbox-text {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .form-item-content {
+    margin-top: 6px;
+
+    &.err {
+      .bk-select,
+      .bk-form-input,
+      .bk-form-password,
+      .bk-form-select,
+      .bk-form-textarea {
+        border-color: #ff5656;
+      }
+    }
+  }
+
+  .form-item-errmsg {
+    color: #ea3636;
+    height: 0;
+    top: 4px;
+    position: relative;
+  }
+}

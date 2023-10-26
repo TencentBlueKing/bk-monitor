@@ -1,0 +1,11 @@
+.strategy-fta-set {
+  .strategy-config-nav {
+    padding-left: 0;
+  }
+  .set-content-right {
+    .right-wrapper {
+      top: 100px;
+      min-height: calc(100% - 100px);
+    }
+  }
+}

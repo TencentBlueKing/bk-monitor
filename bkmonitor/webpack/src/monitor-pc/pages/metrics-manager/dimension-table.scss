@@ -1,0 +1,64 @@
+/* stylelint-disable declaration-no-important */
+.metrics-manager-dimension-table {
+  margin-top: 16px;
+
+  &.displaynone {
+    display: none;
+  }
+
+  .dimension-table {
+    margin-top: 16px;
+  }
+}
+
+.dimension-table-dimension-values-dialog {
+  .bk-dialog-sub-header {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+
+  .dimension-values-content {
+    position: relative;
+
+    .title {
+      position: absolute;
+      top: -40px;
+      font-size: 20px;
+      color: #313238;
+      letter-spacing: 0;
+      line-height: 28px;
+    }
+
+    .content-wrap {
+      min-height: 200px;
+      background: #f5f7fa;
+
+      .content {
+        border-radius: 2px;
+        padding: 16px 8px;
+        margin-top: 30px;
+        max-height: 400px;
+        overflow-y: auto;
+        display: flex;
+        flex-wrap: wrap;
+  
+        .label {
+          font-size: 12px;
+          line-height: 20px;
+          margin: 0 12px;
+          max-width: 120px;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      }
+    }
+
+    .bottom {
+      display: flex;
+      justify-content: center;
+      margin-top: 8px;
+      color: #979ba5;
+    }
+  }
+}

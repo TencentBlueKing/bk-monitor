@@ -1,0 +1,69 @@
+@import "../../../static/scss/variate.scss";
+
+.setting-params-wrap {
+  padding: 24px 40px;
+  .setting-form {
+    .bk-form-item:not(:first-child) {
+      width: 686px;
+    }
+    .bk-label {
+      font-size: 12px;
+    }
+    .form-content-text {
+      height: 32px;
+      line-height: 32px;
+      color: #313238;
+      font-size: 12px;
+    }
+    .cluster-select-item {
+      .bk-form-content {
+        /* stylelint-disable-next-line declaration-no-important */
+        margin-left: 0 !important;
+      }
+    }
+    .index-name-item {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      background-color: #fafbfd;
+      color: #63656e;
+      .index-name-label {
+        padding: 0  12px;
+        border-right: 1px solid #dcdee5;
+      }
+      .index-name-value {
+        flex: 1;
+        padding: 0 8px;
+      }
+    }
+    .copies-num-item {
+      width: 124px;
+      .unit {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+        line-height: 31px;
+        color: #63656e;
+        text-align: center;
+      }
+    }
+    .submit-btn-group {
+      .btn {
+        min-width: 88px;
+        &:not(:last-child) {
+          margin-right: 8px;
+        }
+      }
+    }
+    .form-title {
+      margin: 40px 0 16px;
+      font-weight: Bold;
+      font-size: 14px;
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+  }
+}

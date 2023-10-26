@@ -1,0 +1,65 @@
+@mixin ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@mixin flex-align($orign: center) {
+  display: flex;
+  align-items: $orign;
+}
+@mixin flex-justify($orign: center) {
+  display: flex;
+  justify-content: $orign;
+}
+@mixin flex-column($orign: column) {
+  display: flex;
+  flex-direction: $orign;
+}
+@mixin icon-size($size: 14px, $fontSize: 14px) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: $size;
+  height: $size;
+  font-size: $fontSize;
+  overflow: hidden;
+  &::before {
+    width: $fontSize;
+    height: $fontSize;
+  }
+}
+@mixin tool-icon($size: 30px, $fontSize: 16px) {
+  @include icon-size($size, $fontSize);
+  &:hover {
+    color: #63656e;
+    cursor: pointer;
+    border-radius: 50%;
+    background-color: #f0f1f5;
+  }
+  &.active {
+    border-radius: 2px;
+    background-color: #e1ecff;
+    color: #3a84ff;
+  }
+}
+
+/** 配置应用导航条样式 */
+@mixin application-configuration-nav {
+  .application-configuration-nav,
+  .service-configuration-nav {
+    position: relative;
+    z-index: 1;
+    padding-left: 24px;
+    .nav-append-wrap {
+      padding-right: 19px;
+      .icon-audit {
+        @include tool-icon;
+      }
+    }
+  }
+}

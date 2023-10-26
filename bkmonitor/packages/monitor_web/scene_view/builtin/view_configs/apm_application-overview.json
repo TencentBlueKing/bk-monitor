@@ -1,0 +1,653 @@
+{
+  "id": "overview",
+  "type": "overview",
+  "mode": "custom",
+  "name": "概览",
+  "variables": [],
+  "panels": [],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "Apdex",
+      "type": "apdex-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": "apm",
+          "dataType": "apdex",
+          "api": "apm_metric.apdexQuery",
+          "data": {
+            "app_name": "$app_name",
+            "interval": "$interval"
+          }
+        }
+      ],
+      "descrition": "根据Apdex进行划分，划分范围为：<br>1.红：0~0.25<br>2.黄：0.25~0.75<br>3.绿：0.75以上"
+    },
+    {
+      "id": 2,
+      "title": "告警事件",
+      "type": "apdex-chart",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": "apm",
+          "dataType": "event",
+          "api": "apm_metric.alertQuery",
+          "data": {
+            "app_name": "$app_name",
+            "interval": "$interval"
+          }
+        }
+      ],
+      "descrition": "根据告警事件的数量进行划分，划分范围为：<br>1.红：发生了致命告警<br>2.黄：发生了告警或提醒<br>3.绿：无告警"
+    },
+    {
+      "id": 3,
+      "title": "请求数",
+      "type": "graph",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 8,
+        "h": 6
+      },
+      "alias": "请求数",
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "错误数",
+      "type": "graph",
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "type": "range",
+            "stack": "all",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "http_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": null,
+          "data": {
+            "type": "range",
+            "stack": "all",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "rpc_grpc_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "OTHER",
+          "data": {
+            "type": "range",
+            "stack": "all",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "响应耗时",
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "P50",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "AVG",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": [
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "P95",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "AVG",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": [
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.95
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "P99",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "AVG",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": [
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.99
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "MAX",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_max",
+                    "method": "MAX",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": []
+              }
+            ]
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "grafana.graphUnifyQuery",
+          "datasource": "time_series",
+          "alias": "MIN",
+          "data": {
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_min",
+                    "method": "MIN",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                },
+                "functions": []
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "服务调用总数Top5",
+      "type": "percentage-bar",
+      "instant": true,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "datasource": "time_series",
+          "api": "apm_metric.topNQuery",
+          "alias": null,
+          "data": {
+            "app_name": "$app_name",
+            "query_type": "service_called_count"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "服务错误次数Top5",
+      "type": "percentage-bar",
+      "instant": true,
+      "gridPos": {
+        "x": 8,
+        "y": 10,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "datasource": "time_series",
+          "api": "apm_metric.topNQuery",
+          "alias": null,
+          "data": {
+            "app_name": "$app_name",
+            "query_type": "service_error_count"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "服务平均响应耗时Top5",
+      "type": "percentage-bar",
+      "instant": true,
+      "gridPos": {
+        "x": 16,
+        "y": 10,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "datasource": "time_series",
+          "api": "apm_metric.topNQuery",
+          "alias": null,
+          "data": {
+            "app_name": "$app_name",
+            "query_type": "service_avg_duration"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "服务接口调用总数Top5",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 8,
+        "h": 8
+      },
+      "instant": true,
+      "targets": [
+        {
+          "data_type": "time_series",
+          "datasource": "time_series",
+          "api": "apm_metric.topNQuery",
+          "alias": null,
+          "data": {
+            "app_name": "$app_name",
+            "query_type": "endpoint_called_count"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "服务接口错误率Top5",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 8,
+        "y": 18,
+        "w": 8,
+        "h": 8
+      },
+      "instant": true,
+      "targets": [
+        {
+          "data_type": "time_series",
+          "datasource": "time_series",
+          "api": "apm_metric.topNQuery",
+          "alias": null,
+          "data": {
+            "app_name": "$app_name",
+            "query_type": "endpoint_error_rate"
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "服务接口平均耗时Top5",
+      "type": "percentage-bar",
+      "instant": true,
+      "gridPos": {
+        "x": 16,
+        "y": 18,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "data_type": "time_series",
+          "datasource": "time_series",
+          "api": "apm_metric.topNQuery",
+          "alias": null,
+          "data": {
+            "app_name": "$app_name",
+            "query_type": "endpoint_avg_duration"
+          }
+        }
+      ]
+    }
+  ],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "method_select": false,
+      "compare_select": false,
+      "columns_toggle": false,
+      "interval_select": false,
+      "split_switcher": false
+    }
+  }
+}

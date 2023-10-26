@@ -1,0 +1,61 @@
+.fav-list {
+  .fav-list-header {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    color: #666d8e;
+    padding: 0 22px;
+    cursor: pointer;
+
+    .icon-monitor {
+      font-size: 18px;
+      margin-top: -2px;
+      transform: rotate(-90deg);
+      transition: transform .2s ease-in-out;
+
+      &.expend {
+        transform: rotate(0deg);
+
+      }
+    }
+  }
+
+  .fav-list-main {
+    .fav-item {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      height: 40px;
+      padding: 0 24px;
+      cursor: pointer;
+
+      .icon-monitor {
+        font-size: 12px;
+        margin-right: 8px;
+        color: #ffb848;
+      }
+
+      &:hover {
+        background-color: #394561;
+      }
+
+      .fav-item-name {
+        overflow: hidden;
+        white-space: nowrap;
+        flex: 1;
+        text-overflow: ellipsis;
+        // height: 100%;
+        // display: flex;
+        // align-items: center;
+      }
+
+      &.checked {
+        background-color: #252f43;
+
+        .fav-item-name {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+}

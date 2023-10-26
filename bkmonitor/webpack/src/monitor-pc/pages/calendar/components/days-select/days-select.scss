@@ -1,0 +1,52 @@
+.days-select-wrap {
+  width: 400px;
+  overflow: hidden;
+  .days-select-list {
+    margin-top: 1px;
+    margin-left: 1px;
+    .days-item {
+      position: relative;
+      display: inline-block;
+      width: 58px;
+      height: 32px;
+      line-height: 32px;
+      text-align: center;
+      margin-left: -1px;
+      margin-top: -1px;
+      border: 1px solid #c4c6cc;
+      cursor: pointer;
+      &.checked {
+        border-color: #3a84ff;
+        background-color: #e1ecff;
+        z-index: 1;
+      }
+      &.weeks {
+        &:first-child {
+          border-top-left-radius: 2px;
+          border-bottom-left-radius: 2px;
+        }
+        &:last-child {
+          border-top-right-radius: 2px;
+          border-bottom-right-radius: 2px;
+        }
+      }
+      &.months {
+        &:first-child {
+          border-top-left-radius: 2px;
+        }
+        &:last-child {
+          border-bottom-right-radius: 2px;
+        }
+        &:nth-child(7) {
+          border-top-right-radius: 2px;
+        }
+        &:nth-child(28) {
+          border-bottom-right-radius: 2px;
+        }
+        &:nth-child(29) {
+          border-bottom-left-radius: 2px;
+        }
+      }
+    }
+  }
+}

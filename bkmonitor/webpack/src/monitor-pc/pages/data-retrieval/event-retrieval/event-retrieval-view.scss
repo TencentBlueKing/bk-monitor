@@ -1,0 +1,134 @@
+.event-retrieval-view-wrapper {
+  position: relative;
+  height: 100%;
+  padding: 10px 24px;
+  overflow-y: auto;
+  overflow-anchor: none;
+
+  .back-to-top {
+    width: 36px;
+    height: 36px;
+    right: 14px;
+    bottom: 24px;
+    text-align: center;
+    line-height: 36px;
+    color: #63656e;
+    border: 1px solid #dde4eb;
+    border-radius: 4px;
+    background-color: #f0f1f5;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    z-index: 50;
+
+    .icon-arrow-up {
+      font-size: 24px;
+    }
+
+    &:hover {
+      color: #fff;
+      background-color: #979ba5;
+    }
+  }
+
+  .query-time {
+    height: 20px;
+    line-height: 20px;
+    margin-bottom: 10px;
+
+    .query-count {
+      color: #f00;
+    }
+
+    .add-strategy {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .icon-mc-link {
+      margin-left: 5px;
+    }
+  }
+
+  .event-retrieval-view-main {
+    padding: 20px 24px;
+    background-color: #fff;
+
+    .event-chart-collapse {
+      margin-bottom: 12px;
+      transition: max-height 0.3s;
+      overflow: hidden;
+      background-color: #fff;
+
+      .collapse-header {
+        display: flex;
+        justify-content: space-between;
+        height: 24px;
+
+        .header-left {
+          display: flex;
+          align-items: center;
+          // cursor: pointer;
+          .icon-mc-triangle-down {
+            color: #979ba5;
+            font-size: 20px;
+            transform: rotate(-90deg);
+            transition: transform 0.2s;
+          }
+
+          .collapse-title {
+            font-weight: 700;
+            color: #63656e;
+          }
+
+          .interval-wrap {
+            display: flex;
+            align-items: center;
+
+            .interval-label {
+              margin: 0 10px 0 24px;
+            }
+          }
+        }
+
+        .header-right {
+          display: flex;
+          align-items: center;
+          font-size: 16px;
+
+          .icon-monitor {
+            &:hover {
+              color: #3a84ff;
+              cursor: pointer;
+            }
+          }
+
+          .icon-mc-full-screen,
+          .icon-mc-more {
+            margin-left: 12px;
+          }
+        }
+      }
+
+      .collapse-content {
+        .chart {
+          margin-top: 12px;
+          background-color: lavender;
+        }
+      }
+    }
+
+    .bk-table-expanded-cell {
+      /* stylelint-disable-next-line declaration-no-important */
+      padding: 0 !important;
+    }
+
+    .table-loading-wrap {
+      height: 50px;
+      line-height: 50px;
+      text-align: center;
+
+      .no-more-data-text {
+        font-size: 14px;
+      }
+    }
+  }
+}

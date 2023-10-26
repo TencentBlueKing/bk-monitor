@@ -1,0 +1,190 @@
+/* stylelint-disable declaration-no-important */
+.sequence-graph-wrapper {
+  position: relative;
+  // position: relative;
+  width: 100%;
+  height: 100%;
+
+  .sequence-graph {
+    position: relative;
+    flex: 1;
+    // display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: #f5f7fa;
+    border-radius: 2px;
+
+    &-ref {
+      // margin-bottom: 100px;
+      min-height: calc(100vh - 300px);
+
+      svg {
+        margin-bottom: 30px;
+        pointer-events: all !important;
+
+        * {
+          pointer-events: all !important;
+        }
+      }
+
+      text {
+        font-size: 12px !important;
+        color: #63656e !important;
+
+        &:hover {
+          cursor: pointer;
+          fill: #699df4 !important;
+        }
+      }
+  
+      g:has(>.actor) {
+        &:hover {
+          cursor: pointer;
+  
+          .actor {
+            fill: #d8e6ff !important;
+            stroke: #d8e6ff !important;
+          }
+        }
+
+        .actor {
+          &.is-active {
+            fill: #3a84ff !important;
+            stroke: #3a84ff !important;
+          }
+
+          &.is-active+text {
+            tspan {
+              fill: white !important;
+            }
+          }
+        }
+      }
+  
+  
+      .actor-man line {
+        fill: #dcdee5 !important;
+        stroke: #dcdee5 !important;
+      }
+  
+      .actor-man circle,
+      line {
+        fill: #dcdee5 !important;
+        stroke: #dcdee5 !important;
+        stroke-width: 2px;
+      }
+
+
+      .graph-box {
+        &.is-active {
+          .graph-box-rect {
+            stroke: #3a84ff !important;;
+          }
+
+          .graph-box-text {
+            fill: #699df4 !important;
+          }
+        }
+
+        &:hover {
+          cursor: pointer;
+
+          .graph-box-rect {
+            fill: #d8e6ff !important;
+            stroke: #d8e6ff !important;
+          }
+
+          .graph-box-text {
+            fill: #699df4 !important;
+          }
+        }
+      }
+
+      .rect {
+        fill: #fafbfd;
+        stroke: #dcdee5;
+        // stroke-width: 1px;
+      }
+  
+      .note {
+        filter: drop-shadow(0 1px 2px #00000029);
+        fill: #fdd !important;
+        stroke: #fdd !important;
+      }
+
+      .messageLine1,
+      .messageLine0 {
+        stroke: #b4bcd4 !important;
+
+        &:hover {
+          cursor: pointer;
+          stroke: #699df4 !important;
+        }
+
+        &.is-active {
+          stroke: #699df4 !important;
+        }
+      }
+
+      .activation0,
+      .activation1,
+      .activation2 {
+        &:hover {
+          cursor: pointer;
+          fill: #699df4 !important;
+          stroke: #a3c5fd !important;
+        }
+
+        &.is-active {
+          fill: #3a84ff !important;
+          stroke: #a3c5fd !important;
+        }
+      }
+
+      .messageText {
+        &.is-active {
+          fill: #3a84ff !important;
+        }
+      }
+    }
+  }
+
+  .sequence-graph-tools {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 999;
+  }
+}
+
+.sequence-thumbnail {
+  position: relative;
+  width: 100%;
+  height: 100%;
+
+  &-view {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 9;
+    display: flex;
+    width: 100%;
+    height: 20px;
+    cursor: move;
+    background-color: rgba(0,0,0,.1);
+    border: 1px solid red;
+  }
+
+  &-canvas {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+    transform-origin: 0 0;
+  }
+}
+
+.sequence-thumbnail-popover {
+  padding: 0 !important;
+  border-radius: 0 !important;
+}

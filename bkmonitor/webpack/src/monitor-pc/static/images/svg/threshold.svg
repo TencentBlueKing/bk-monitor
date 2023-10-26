@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" class="design-iconfont">
+  <defs>
+    <linearGradient x1="80.8634187%" y1="49.2523454%" x2="17.088772%" y2="51.1109961%" id="0kc5v4wnu__kv9cd4u9gc">
+      <stop stop-color="#FB0" stop-opacity=".6" offset="0%"/>
+      <stop stop-color="#FFBD07" stop-opacity=".59324216" offset="24.8246053%"/>
+      <stop stop-color="#FFEFD7" stop-opacity=".4" offset="100%"/>
+    </linearGradient>
+    <filter x="-17.3%" y="-87.5%" width="134.6%" height="325%" filterUnits="objectBoundingBox" id="0kc5v4wnu__67f8qh3jta">
+      <feMorphology radius="1" operator="dilate" in="SourceAlpha" result="shadowSpreadOuter1"/>
+      <feOffset dy="1" in="shadowSpreadOuter1" result="shadowOffsetOuter1"/>
+      <feGaussianBlur stdDeviation="1" in="shadowOffsetOuter1" result="shadowBlurOuter1"/>
+      <feComposite in="shadowBlurOuter1" in2="SourceAlpha" operator="out" result="shadowBlurOuter1"/>
+      <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0" in="shadowBlurOuter1"/>
+    </filter>
+    <rect id="0kc5v4wnu__luqdj28ykb" x="3" y="19" width="26" height="4" rx="2"/>
+  </defs>
+  <g fill="none" fill-rule="evenodd">
+    <rect fill="#FFF" width="32" height="32" rx="2"/>
+    <rect fill="#3A84FF" x="6" y="7" width="4" height="20" rx="1"/>
+    <rect fill="#3A84FF" x="14" y="11" width="4" height="16" rx="1"/>
+    <rect fill="#3A84FF" x="22" y="15" width="4" height="12" rx="1"/>
+    <g stroke-linecap="round">
+      <use fill="#000" filter="url(#0kc5v4wnu__67f8qh3jta)" xlink:href="#0kc5v4wnu__luqdj28ykb"/>
+      <rect stroke-opacity=".8" stroke="#FFF" fill="url(#0kc5v4wnu__kv9cd4u9gc)" x="2.5" y="18.5" width="27" height="5" rx="2"/>
+    </g>
+  </g>
+</svg>

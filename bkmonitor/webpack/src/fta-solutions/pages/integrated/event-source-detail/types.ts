@@ -1,0 +1,140 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+const { i18n } = window;
+
+// 已启用 ENABLED
+// 有更新 UPDATABLE
+// 无数据 NO_DATA
+// 将下架 REMOVE_SOON
+// 已下架 REMOVED
+// 已停用 DISABLED
+// 未安装 AVAILABLE
+export type StatusType = 'ENABLED' | 'UPDATABLE' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'DISABLED' | 'AVAILABLE';
+
+export type MapType<T extends string> = { [key in T]?: any };
+
+export enum EStatusMap {
+  AVAILABLE = 'notInstalled', // 未安装
+  ENABLED = 'installed', // 已安装
+  UPDATABLE = 'update', // 有更新
+  NO_DATA = 'noData', // 无数据
+  DISABLED = 'terminated', // 已停用
+  REMOVE_SOON = 'willBeRemoved', // 将下架
+  REMOVED = 'removed' // 已下架
+}
+export const bgColorMap: MapType<string> = {
+  notInstalled: '', // 未安装
+  installed: '#679EF3', // 已安装
+  update: '#14A568', // 有更新
+  noData: '#FF5656', // 无数据
+  terminated: '#979BA4', // 已停用
+  willBeRemoved: '#FF9C04', // 将下架
+  removed: '#DCDEE6' // 已下架
+};
+
+export const fontColorMap: MapType<string> = {
+  notInstalled: '', // 未安装
+  installed: '#6A9CF4', // 已安装
+  update: '#14A568', // 有更新
+  noData: '#FF5656', // 无数据
+  terminated: '#989AA5', // 已停用
+  willBeRemoved: '#FF9C00', // 将下架
+  removed: '#969BA5' // 已下架
+};
+
+export const textMap: MapType<string> = {
+  notInstalled: i18n.t('未安装'),
+  installed: i18n.t('已安装'),
+  update: i18n.t('有更新'),
+  noData: i18n.t('无数据'),
+  terminated: i18n.t('已停用'),
+  willBeRemoved: i18n.t('将下架'),
+  removed: i18n.t('已下架')
+};
+
+export interface ITabListItem {
+  id: number;
+  name: string;
+  warning?: boolean;
+}
+
+export enum EPluginType {
+  pull = 'http_pull',
+  push = 'http_push',
+  email = 'email_pull'
+}
+export type TPluginType = 'http_pull' | 'http_push' | 'email_pull';
+
+export type TPluginTypeObj = { [key in TPluginType]?: string };
+
+export type IScenario = 'MONITOR' | 'REST_API' | 'EMAIL';
+
+export type TScenaris = { [key in IScenario]?: string };
+
+export interface IBaseInfo {
+  name: string;
+  label: string[];
+  createUser: string;
+  popularity: number;
+  pluginId: string;
+  updateUser: string;
+  updateTime: string;
+  pluginTypeDisplay: string;
+  pluginType: TPluginType;
+  logo: string;
+  version: string;
+  sourceCode: string;
+  categoryDisplay: string;
+  scenario: IScenario;
+  isInstalled?: boolean;
+}
+
+export interface IPushConfigData {
+  ingesterHost: string;
+  sourceFormat: string;
+  pluginId: string;
+  pushUrl?: string;
+}
+
+export interface INormalizationTable {
+  field: string;
+  displayName: string;
+  type: string;
+  description: string;
+  expr: string;
+}
+
+export interface IAlertConfigTable {
+  name: string;
+  rules: IConditionRules[];
+}
+
+export interface IConditionRules {
+  key: string;
+  value: string[];
+  method: string;
+  condition?: string;
+}

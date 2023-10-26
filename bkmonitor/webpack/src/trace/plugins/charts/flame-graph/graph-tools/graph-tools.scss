@@ -1,0 +1,58 @@
+.graph-tools {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  box-shadow: 0 1px 6px 0 #0000001f;
+  border-radius: 4px;
+  // width: 240px;
+  height: 40px;
+
+  .tools-menu,
+  .tools-scale {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 4px;
+    border-right: 1px solid #eaebf0;
+    flex: 1;
+    height: 32px;
+
+    &:last-child {
+      border-right: none;
+      width: 120px;
+    }
+    %item-icon,
+    .item-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      flex: 0 0 32px;
+      color: #9b9da1;
+
+      &.is-active,
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      &:first-child {
+        margin-right: auto;
+      }
+
+      &:last-child {
+        margin-left: auto;
+      }
+    }
+
+    .item-store,
+    .icon-legend {
+      font-size: 18px;
+      font-weight: 600;
+
+      @extend %item-icon;
+    }
+  }
+}

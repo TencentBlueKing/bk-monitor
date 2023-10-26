@@ -1,0 +1,59 @@
+.alarm-shield-dimension {
+  padding: 40px 0 0 30px;
+  .set-shield-config-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #63656e;
+    &.top {
+      align-items: flex-start;
+      .item-label {
+        line-height: 32px;
+      }
+    }
+    .item-label {
+      min-width: 110px;
+      text-align: right;
+      margin-right: 24px;
+      position: relative;
+      flex: 0 0;
+    }
+    .item-required::after {
+      content: "*";
+      color: red;
+      position: absolute;
+      top: 2px;
+      right: -9px;
+    }
+    .item-container {
+      .container-select {
+        width: 413px;
+        &.small {
+          width: 243px;
+        }
+      }
+      .container-condition {
+        margin-top: 16px;
+      }
+      .scope-content,
+      .content-desc {
+        width: 836px;
+      }
+      .err-msg {
+        color: red;
+        font-size: 12px;
+      }
+    }
+  }
+}
+.shield-dimension-select-list-wrap {
+  .bk-options {
+    overflow-y: hidden;
+    .select-list-wrap {
+      max-height: 216px;
+      overflow-y: auto;
+    }
+  }
+}

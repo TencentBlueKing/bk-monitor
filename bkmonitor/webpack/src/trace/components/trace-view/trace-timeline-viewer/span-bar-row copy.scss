@@ -1,0 +1,321 @@
+@mixin span-row-border($boderColor) {
+  &:before,
+  &:after {
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: $boderColor;
+    content: '';
+    z-index: 9;
+  }
+  &:before {
+    top: 0;
+  }
+  &:after {
+    bottom: 0;
+  }
+  .span-name-column::before {
+    position: absolute;
+    left: 0;
+    width: 1px;
+    height: 100%;
+    background-color: $boderColor;
+    content: '';
+    z-index: 9;
+  }
+  .span-view::after {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background-color: $boderColor;
+    content: '';
+    z-index: 9;
+  }
+}
+
+/** 默认状态 奇偶间隔背景色 */
+.span-row {
+  height: 28px;
+  background-color: #fff;
+  &:hover {
+    background-color: #F1F2F5;
+  }
+  &.is-odd-row {
+    background-color: #f8f9fc;
+    &:hover {
+      background-color: #EDEEF3;
+    }
+  }
+}
+/** 搜索匹配状态 */
+.span-row.is-matching-filter {
+  background-color: #FFF3E1;
+  &:hover {
+    background-color: #F1EBE3;
+  }
+  &.is-odd-row {
+    background-color: #FFEBCC;
+    &:hover {
+      background-color: #F1E6D6;
+    }
+  }
+}
+.span-name-column {
+  position: relative;
+  white-space: nowrap;
+  z-index: 1;
+}
+.span-name-column:hover {
+  z-index: 1;
+}
+.span-row.clipping-left .span-name-column::before {
+  content: " ";
+  height: 28px;
+  position: absolute;
+  width: 6px;
+  background-image: linear-gradient(to right, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
+  left: 100%;
+  z-index: -1;
+}
+.span-name-wrapper {
+  line-height: 28px;
+  height: 28px;
+  overflow: hidden;
+  display: flex;
+  border-right: 1px solid #DCDEE5;
+}
+.span-row.is-expanded .span-name-wrapper {
+  background: #f0f0f0;
+  box-shadow: 0 1px 0 #ddd;
+}
+.span-row.is-expanded .span-name-wrapper.is-matching-filter {
+  background: #fff3d7;
+}
+.span-name {
+  color: #979ba5;
+  cursor: pointer;
+  flex: 1 1 auto;
+  outline: none;
+  padding-left: 9px;
+  padding-right: .25em;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.span-name::before {
+  content: " ";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  border-left: 3px solid;
+  border-left-color: inherit;
+}
+.span-name.is-detail-expanded::before {
+  bottom: 0;
+}
+
+/* This is so the hit area of the span-name extends the rest of the width of the span-name column */
+.span-name::after {
+  background: transparent;
+  bottom: 0;
+  content: " ";
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 1000px;
+}
+.span-name:focus {
+  text-decoration: none;
+}
+.endpoint-name {
+  color: #979ba5;
+  font-size: 12px;
+}
+.span-name:hover .endpoint-name {
+  color: #313238;
+}
+.span-svc-name {
+  display: flex;
+  padding: 0 6px 0 4px;
+  font-size: 14px;
+  color: #313238;
+  display: inline-block;
+  flex: 1;
+  width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  direction: rtl;
+}
+.span-name .error-icon,
+.span-name .service-icon {
+  width: 14px;
+  height: 14px;
+  position: relative;
+  margin-right: 4px;
+}
+.span-view {
+  position: relative;
+}
+.span-row.is-expanded .span-view {
+  background: #f8f8f8;
+}
+.span-row.is-expanded.is-matching-filter .span-view {
+  background: #fff3d7;
+}
+.span-row.is-expanded:hover .span-view {
+  background: #eee;
+}
+.span-row.clipping-right .span-view::before {
+  content: " ";
+  height: 100%;
+  position: absolute;
+  width: 6px;
+  background-image: linear-gradient(to left, rgba(25, 25, 25, .25), rgba(32, 32, 32, 0));
+  right: 0%;
+}
+.span-bar-row-error-icon {
+  background: #db2828;
+  border-radius: 6.5px;
+  color: #fff;
+  font-size: 12px;
+  margin-right: 6px;
+  padding: 1px;
+}
+.span-bar-row-arrow-icon {
+  width: 14px;
+  height: 14px;
+  position: relative;
+  top: 3px;
+  margin-right: 6px;
+}
+.span-bar-row-rpc-color-marker {
+  border-radius: 6.5px;
+  display: inline-block;
+  font-size: 12px;
+  height: 1em;
+  margin-right: 6px;
+  padding: 1px;
+  width: 1em;
+  vertical-align: middle;
+}
+
+/** 筛选边框高亮 */
+.span-row.is-focus-matching {
+  @include span-row-border(#FFB848);
+  .cross-app-span::before {
+    position: absolute;
+    left: 0;
+    width: 1px;
+    height: 100%;
+    background-color: #FFB848;
+    content: '';
+    z-index: 9;
+  }
+}
+
+/** 当前选中状态 */
+.span-row.is-active-matching {
+  @include span-row-border(#3A84FF);
+  .cross-app-span::before {
+    position: absolute;
+    left: 0;
+    width: 1px;
+    height: 100%;
+    background-color: #3A84FF;
+    content: '';
+    z-index: 9;
+  }
+}
+
+/** 已读状态 */
+.have-read-mark {
+  position: absolute;
+  top: 10px;
+  left: -10px;
+  width: 6px;
+  height: 6px;
+  background-color: #699DF4;
+  border-radius: 50%;
+}
+
+/** 当前选中状态 */
+.span-row.is-active-matching {
+  &:before,
+  &:after {
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: #3A84FF;
+    content: '';
+    z-index: 9;
+  }
+  &:before {
+    top: 0;
+  }
+  &:after {
+    bottom: -1px;
+  }
+  .span-name-column::before {
+    position: absolute;
+    left: 0;
+    width: 1px;
+    height: 100%;
+    background-color: #3A84FF;
+    content: '';
+    z-index: 9;
+  }
+  .span-view::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 100%;
+    background-color: #3A84FF;
+    content: '';
+    z-index: 9;
+  }
+}
+.span-view {
+  &.cross-app-span {
+    .span-name-wrapper {
+      font-size: 14px;
+      background-color: #D9E1FC;
+      &.is-matching-filter {
+        background-color: #FFF3E1;
+        &:hover {
+          background-color: #F1EBE3;
+        }
+        &.is-odd-row {
+          background-color: #FFEBCC;
+          &:hover {
+            background-color: #F1E6D6;
+          }
+        }
+      }
+      &.is-disabled {
+        opacity: 0.6;
+      }
+      .cross-span-name {
+        display: flex;
+        align-items: center;
+        .cross-tag {
+          display: inline-block;
+          width: 52px;
+          height: 18px;
+        }
+        .cross-span-name {
+          margin: 0 4px;
+          color: #4C4E57;
+        }
+        .cross-description {
+          color: #979BA5;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}

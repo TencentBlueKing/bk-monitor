@@ -1,0 +1,271 @@
+<heml>
+    <head>
+      <subject>BK Email</subject>
+      <style>
+        container {
+            max-width: 900px;
+            font-family: PingFangSC-Regular,'Microsoft Yahei','Micro Hei',Arial,sans-serif;
+        }
+        .header-logo {
+            width: 56px;
+            height: 40px;
+        }
+        .header-logo img {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            vertical-align: middle;
+        }
+        .chart-wrap {
+            margin-top: 10px;
+            border-radius: 2px;
+        }
+        .single-pic {
+            min-height: 100px; display: inline-block; width: 768px; vertical-align: middle; background-color: #F0F1F5;
+        }
+        .tow-pic-item {
+            min-height: 100px; display: inline-block; width: 374px; vertical-align: middle; background-color: #F0F1F5;
+        }
+      </style>
+    </head>
+    <body>
+      <container>
+        <table width="900px" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; border-collapse:collapse">
+            <tbody>
+                <!-- 头部 -->
+                <tr>
+                    <td>
+                      <table width="100%" bgcolor="#2E3959">
+                          <tr>
+                              <td height="28"></td>
+                              <td></td>
+                              <td></td>
+                          </tr>
+                          <tr>
+                              <td width="40"></td>
+                              <td class="header-logo">
+                                  <img src="cid:__INLINE__logo.png" alt="">
+                              </td>
+                              <td class="header-title">
+                                  <div class="title" style="font-size: 18px; line-height: 24px; color: #fff;">蓝鲸监控平台</div>
+                                  <div>
+                                      <a style="text-decoration: none; color: rgba(255,255,255,0.5); font-size: 14px;" href="{{ redirect_url }}">{{ redirect_url }}</a>
+                                  </div>
+                              </td>
+                          </tr>
+                          <tr>
+                              <td height="32"></td>
+                              <td></td>
+                              <td></td>
+                          </tr>
+                      </table>
+                    </td>
+                </tr>
+                <!-- 内容 -->
+                <tr>
+                    <td>
+                      <table bgcolor="#F0F1F5">
+                          <tr><td height="20"></td><td></td><td></td></tr>
+                          <tr>
+                              <td width="40"></td>
+                              <td>
+                                <!-- 标题 -->
+                                <table width="820px" bgcolor="#ffffff" style="border-radius: 2px; margin: 0 auto;" border="0" cellpadding="0" cellspacing="0">
+                                    <tr><td height="21"></td><td></td></tr>
+                                    <tr>
+                                        <td width="20"></td>
+                                        <td width="780" align="left">
+                                            <block>
+                                                <div style="font-size: 18px; font-weight: 700; text-align: left; color: #394567; line-height: 24px; font-family: PingFang-SC-Bold, MicrosoftYaHei-Bold, PingFangSC-Regular, 'Microsoft Yahei'">{{ mail_title }}</div>
+                                                <div style="color: #979ba5; font-size: 12px; line-height: 16px; margin-top: 6px;">报表范围：{{from_time}} ~ {{to_time}}</div>
+                                            </block>
+                                        </td>
+                                        <td width="20"></td>
+                                    </tr>
+                                    <tr><td height="21"></td><td></td></tr>
+                                </table>
+                                {% for item in contents %}
+                                    {% if not item.two_graph %}
+                                    <!-- 一行一图 -->
+                                    <table width="820px" bgcolor="#ffffff" class="chart-wrap" border="0" cellpadding="0" cellspacing="0">
+                                        <tr><td height="20"></td><td height="20"></td><td height="20"></td></tr>
+                                        <tr>
+                                            <td width="18"></td>
+                                            <td>
+                                                <div>
+                                                    <!-- 标题 -->
+                                                    <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                                                        <tbody>
+                                                            <tr>
+                                                                <td width="8">
+                                                                    <block style="display: inline-block; width: 4px; height: 16px; background: #699df4; border-radius: 2px; vertical-align: middle;">
+                                                                    </block>
+                                                                </td>
+                                                                <td>
+                                                                    <span style="height: 16px; font-size: 14px; text-align: left; color: #2E3959; line-height: 16px; vertical-align: middle;">{{ item.title }}</span>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td></td>
+                                                                <td style="padding: 10px 8px 0 0; text-align: left; color: #979ba5; line-height: 16px; margin-bottom: 16px; font-size: 12px;">{{ item.content }}</td>
+                                                            </tr>
+                                                            <tr><td height="14"></td></tr>
+                                                        </tbody>
+                                                    </table>
+                                                    {% for graphs in item.graphs %}
+                                                        <!-- 图 -->
+                                                        <table width="100%" style="padding: 0 8px;" border="0" cellpadding="0" cellspacing="0">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td>
+                                                                        <div style="color: #2E3959; margin-bottom: 10px;">
+                                                                            <span style="font-size: 12px; line-height: 14px; margin-top: -1px;">{{ graphs[0]['title'] }}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    {% if graphs[0]['url'] %}
+                                                                        <td>
+                                                                            <a style="display: inline-block; width: 768px;" href="{{ graphs[0]['url'] }}">
+                                                                                <img class="single-pic" src="cid:__INLINE__{{ graphs[0]['cid_tag'] }}">
+                                                                            </a>
+                                                                        </td>
+                                                                    {% else %}
+                                                                        <td>
+                                                                            <img class="single-pic" src="cid:__INLINE__{{ graphs[0]['cid_tag'] }}">
+                                                                        </td>
+                                                                    {% endif %}
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    {% endfor %}
+                                                </div>
+                                            </td>
+                                            <td width="18"></td>
+                                        </tr>
+                                        <tr><td height="20"></td><td height="20"></td><td height="20"></td></tr>
+                                    </table>
+                                    {% else %}
+                                    <!-- 一行两图 -->
+                                    <table width="820px" bgcolor="#ffffff" class="chart-wrap" border="0" cellpadding="0" cellspacing="0">
+                                        <tbody>
+                                            <tr><td height="20"></td><td height="20"></td><td height="20"></td></tr>
+                                            <tr>
+                                                <td width="18"></td>
+                                                <td>
+                                                    <div>
+                                                        <!-- 标题 -->
+                                                        <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td width="8">
+                                                                        <block style="display: inline-block; width: 4px; height: 16px; background: #699df4; border-radius: 2px; vertical-align: middle;">
+                                                                        </block>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span style="height: 16px; font-size: 14px; text-align: left; color: #2E3959; line-height: 16px; vertical-align: middle;">{{ item.title }}</span>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td></td>
+                                                                    <td style="padding: 10px 8px 0 0; text-align: left; color: #979ba5; line-height: 16px; margin-bottom: 16px; font-size: 12px;">{{ item.content }}</td>
+                                                                </tr>
+                                                            <tr><td height="14"></td></tr>
+                                                            </tbody>
+                                                        </table>
+                                                        {% for graphs in item.graphs %}
+                                                            <!-- 图 -->
+                                                            <table width="100%" style="padding: 0 8px;" border="0" cellpadding="0" cellspacing="0">
+                                                                <tr>
+                                                                    <!-- 左图 -->
+                                                                    <td>
+                                                                        <table width="374px" border="0" cellpadding="0" cellspacing="0">
+                                                                            <tbody>
+                                                                                <tr>
+                                                                                    <td>
+                                                                                        <div style="color: #2E3959; margin-bottom: 10px;">
+                                                                                            <span style="font-size: 12px; line-height: 14px; margin-top: -1px;">{{graphs[0]['title']}}</span>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                {% if graphs[0]['url'] %}
+                                                                                    <td>
+                                                                                        <a style="display: inline-block; width: 374px;" href="{{graphs[0]['url']}}">
+                                                                                            <img class="tow-pic-item" src="cid:__INLINE__{{graphs[0]['cid_tag']}}">
+                                                                                        </a>
+                                                                                    </td>
+                                                                                {% else %}
+                                                                                    <td>
+                                                                                        <img class="tow-pic-item" src="cid:__INLINE__{{graphs[0]['cid_tag']}}">
+                                                                                    </td>
+                                                                                {% endif %}
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </td>
+                                                                    <td style="width: 20px;"></td>
+                                                                    <!-- 右图 -->
+                                                                    <td>
+                                                                    {% if graphs[1] %}
+                                                                        <table width="374px" border="0" cellpadding="0" cellspacing="0">
+                                                                            <tbody>
+                                                                                <tr>
+                                                                                    <td>
+                                                                                        <div style="color: #2E3959; margin-bottom: 10px;">
+                                                                                            <span style="font-size: 12px; line-height: 14px; margin-top: -1px;">{{graphs[1]['title']}}</span>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                {% if graphs[1]['url'] %}
+                                                                                    <td>
+                                                                                        <a style="display: inline-block; width: 374px;" href="{{graphs[0]['url']}}">
+                                                                                            <img class="tow-pic-item" src="cid:__INLINE__{{graphs[1]['cid_tag']}}">
+                                                                                        </a>
+                                                                                    </td>
+                                                                                {% else %}
+                                                                                    <td>
+                                                                                        <img class="tow-pic-item" src="cid:__INLINE__{{graphs[1]['cid_tag']}}">
+                                                                                    </td>
+                                                                                {% endif %}
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    {% endif %}
+                                                                    </td>
+                                                                </tr>
+                                                            </table>
+                                                        {% endfor %}
+                                                    </div>
+                                                </td>
+                                                <td width="18"></td>
+                                            </tr>
+                                            <tr><td height="20"></td><td height="20"></td><td height="20"></td></tr>
+                                        </tbody>
+                                    </table>
+                                    {% endif %}
+                                {% endfor %}
+                                <table width="100%" style="margin-top: 16px;" border="0" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td align="center">
+                                            <a style="text-decoration: none; display: inline-block;"  href="{{ redirect_url }}">
+                                                <span style="display: inline-block; width: 145px; font-size: 14px; text-align: center; height: 32px; background: #3a84ff; border-radius: 16px; margin: 0 auto;">
+                                                    <span style="display: inline-block; width: 100%; text-align: center; color: #ffffff; line-height: 32px;">取消/增加订阅</span>
+                                                </span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+                              </td>
+                              <td width="40"></td>
+                          </tr>
+                          <tr><td height="20"></td><td></td><td></td></tr>
+                      </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+      </container>
+    </body>
+</heml>

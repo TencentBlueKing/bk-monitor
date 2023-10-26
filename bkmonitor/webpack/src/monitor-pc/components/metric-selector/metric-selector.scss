@@ -1,0 +1,343 @@
+
+@mixin metric-item-common {
+  position: relative;
+  min-width: 552px;
+  height: 52px;
+  padding: 6px 0 6px 16px;
+  cursor: pointer;
+
+  .top,
+  .bottom {
+    text-overflow: ellipsis;
+    // max-width: 380px;
+    white-space: nowrap;
+    // overflow: hidden;
+  }
+
+  .top {
+    .title {
+      margin-right: 8px;
+      font-size: 14px;
+      font-weight: Bold;
+      line-height: 22px;
+      color: #63656e;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
+    }
+
+    .light {
+      color: #3a84ff;
+    }
+  }
+
+  .bottom {
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+  }
+
+  .operate {
+    position: sticky;
+    left: 500px;
+    display: none;
+    // top: 4px;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-top: -40px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 1px 1px 0 rgba(0,0,0,.12);
+
+    .icon-mc-copy {
+      font-size: 16px;
+    }
+
+    .icon-fenxiang {
+      margin-left: 16px;
+      font-size: 12px;
+    }
+
+    .icon-mc-copy,
+    .icon-fenxiang {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  &:hover {
+    background: #f5f7fa;
+
+    .operate {
+      display: flex;
+    }
+  }
+
+  .tip-dom {
+    position: sticky;
+    left: 550px;
+    width: 10px;
+    height: 52px;
+    margin-top: -50px;
+  }
+}
+
+@mixin text-ellipsis() {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-selector-main {
+  height: 100%;
+
+  .metric-selector-content-wrap {
+    height: calc(100% - 56px);
+  }
+
+  .metric-selector-header {
+    display: flex;
+    align-items: center;
+    min-height: 56px;
+    padding: 0 16px;
+    background-color: #fafbfd;
+    border-bottom: 1px solid #dcdee5;
+
+    &.no-border {
+      border: 0;
+    }
+
+    .time-range {
+      width: 94px;
+      margin-left: 8px;
+      background-color: #fff;
+    }
+
+    .refresh-btn .bk-button-icon-loading::before {
+      content: '';
+    }
+  }
+
+  .metric-selector-tags {
+    padding: 0 16px 12px 16px;
+    background-color: #fafbfd;
+    border-bottom: 1px solid #dcdee5;
+
+    .pre,
+    .next {
+      background-color: #fafbfd;
+    }
+
+    .built-in {
+      display: flex;
+      align-items: center;
+      // flex-wrap: wrap;
+      // overflow: hidden;
+      height: 22px;
+
+      &-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 22px;
+        padding: 4px 10px;
+        margin-right: 8px;
+        color: #63656e;
+        white-space: nowrap;
+        cursor: pointer;
+        background: #f0f1f5;
+        border: 1px solid #f0f1f5;
+        border-radius: 2px;
+        
+
+        &:hover,
+        &.active {
+          color: #3a84ff;
+          background: #edf4ff;
+          border: 1px solid rgba(58,132,255,.30);
+        }
+      }
+    }
+  }
+
+  .metric-selector-content {
+    display: flex;
+    height: 100%;
+
+    &.common {
+      height: calc(100% - 35px);
+    }
+
+    .metric-selector-no-data {
+      padding-top: 54px;
+    }
+
+    &.has-tag {
+      height: calc(100% - 35px);
+    }
+
+    .content-main {
+      position: relative;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: auto;
+
+      .metric-item-common {
+        @include metric-item-common()
+      }
+
+      .metric-item {
+        &.common-type {
+          display: table-caption;
+          width: 100%;
+        }
+
+        &.selected {
+          background-color: #f5f7fa;
+        }
+
+        &.checked {
+          background-color: #e1ecff;
+        }
+      }
+
+      .metric-item-event,
+      .metric-item-log,
+      .metric-item-alert {
+        height: 32px;
+        padding: 0 16px;
+        font-size: 12px;
+        line-height: 32px;
+        color: #63656e;
+        cursor: pointer;
+
+        &:hover {
+          background-color: #e1ecff;
+        }
+      }
+
+      .metric-item-event {
+        @include text-ellipsis();
+      }
+
+      .metric-item-log {
+        height: 52px;
+        padding-top: 4px;
+
+        .log-name {
+          height: 22px;
+          font-weight: bold;
+          line-height: 22px;
+          letter-spacing: 0;
+
+          @include text-ellipsis();
+        }
+
+        .log-desc {
+          height: 20px;
+          line-height: 20px;
+          color: #979ba5;
+
+          @include text-ellipsis();
+        }
+      }
+
+      .metric-item-alert {
+        @include text-ellipsis();
+
+        .alert-id {
+          margin-left: 4px;
+          color: #979ba5;
+        }
+      }
+
+      .no-data {
+        .bk-exception-img {
+          .exception-image {
+            width: 300px;
+          }
+        }
+
+        .bk-exception-text {
+          position: relative;
+          top: -30px;
+          color: #63656e;
+
+          .no-data-msg {
+            font-size: 16px;
+          }
+
+          .operate {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-top: 12px;
+            font-size: 12px;
+            line-height: 22px;
+          }
+        }
+
+        .link {
+          margin-left: 4px;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+
+      .search-empty-msg {
+        .tip-text {
+          margin: 8px 0;
+          font-size: 12px;
+          color: #979ba5;
+        }
+
+        .create-custom-metric {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .content-aside {
+      flex: 0 160px;
+      padding: 8px 12px 8px 16px;
+      overflow-y: auto;
+      background-color: #fafbfd;
+      border-left: 1px solid #dcdee5;
+    }
+  }
+
+  .metric-next-page-tips {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    font-size: 12px;
+    color: #979ba5;
+
+    @keyframes loading {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-icon {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 6px;
+      border: 1px solid #979ba5;
+      border-top: 0;
+      border-radius: 50%;
+      animation: loading 1s linear infinite;
+    }
+  }
+}

@@ -1,0 +1,103 @@
+.icon-chart-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  .icon-chart-main {
+    display: flex;
+    justify-content: space-evenly;
+    height: 100%;
+    width: 100%;
+    .icon-item {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      width: 163px;
+      color: #313238;
+      position: relative;
+      height: 100%;
+      z-index: 1;
+      .icon-box {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid;
+        border-radius: 50%;
+      }
+      .box-SUCCESS {
+        color: #2dcb56;
+        border-color: #2dcb56;
+        background-color: #dcffe2;
+      }
+      .box-WARNING {
+        color: #ff9c01;
+        border-color: #ff9c01;
+        background-color: #ffe8c3;
+      }
+      .box-FAILD {
+        color: #ea3636;
+        border-color: #ea3636;
+        background-color: #fdd;
+      }
+      .bk-icon {
+        font-size: 20px;
+      }
+      .icon-item-label {
+        margin-top: 12px;
+        font-size: 16px;
+        color: #313238;
+        overflow: hidden;
+        width: 163px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        text-align: center;
+      }
+      .instant-icon {
+        position: absolute;
+        top: 8px;
+        right: 45px;
+        display: none;
+        font-size: 12px;
+        z-index: 1;
+      }
+      .icon-wrap {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+      }
+      &:hover {
+        .instant-icon {
+          display: block;
+        }
+      }
+    }
+  }
+  .draggable-handle-bar {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+  }
+  &:hover {
+    .draggable-handle-bar {
+      display: initial;
+    }
+  }
+  .empty-chart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex: 1;
+  }
+}

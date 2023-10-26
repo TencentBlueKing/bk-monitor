@@ -1,0 +1,59 @@
+@mixin overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, .1);
+}
+
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin select-main {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background-color: #fff;
+
+  .title {
+    line-height: 1.75rem;
+    font-size: 1.25rem;
+    color: #313238;
+  }
+
+  .contral-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1rem;
+    color: $primaryColor;
+    font-size: 1.25rem;
+
+    .line {
+      display: inline-block;
+      width: 1px;
+      height: 18px;
+      margin: 0 46px;
+      background-color: #eaebef;
+    }
+  }
+}
+
+@mixin fade-select-main {
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: opacity .3s ease-in-out;
+
+    .main {
+      transition: bottom .3s ease-in-out;
+    }
+  }
+}

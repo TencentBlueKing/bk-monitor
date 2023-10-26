@@ -1,0 +1,12 @@
+plugin_id: {{ plugin_id }}
+plugin_display_name: {{ plugin_display_name }}
+plugin_type: {{ plugin_type }}
+tag: {{ tag }}
+label: {{ label }}
+scripts:
+  {% for os_type, info in collector_json.items %}
+  {{ os_type }}:
+    type: {{ info.type }}
+    filename: {{ info.filename }}
+  {% endfor %}
+is_support_remote: {{ is_support_remote }}

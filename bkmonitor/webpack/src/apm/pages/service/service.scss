@@ -1,0 +1,76 @@
+.service {
+  display: flex;
+  height: 100%;
+  .add-service-btn {
+    display: flex;
+    .add-service-icon {
+      font-size: 24px;
+    }
+  }
+  .bk-tab-header {
+    display: flex;
+    flex-direction: row-reverse;
+    float: left;
+    .bk-tab-header-setting {
+      float: left;
+    }
+  }
+  .service-content {
+    display: flex;
+    justify-content: space-between;
+    .service-item {
+      margin-top: 6px;
+      min-width: 84px;
+      height: 24px;
+      line-height: 24px;
+      margin-right: 12px;
+      border-radius: 2px;
+      background: #f0f1f5;
+      text-align: center;
+      cursor: pointer;
+      div {
+        padding: 0 6px;
+      }
+    }
+    .icon-monitor {
+      margin-left: 4px;
+    }
+    .service-active {
+      :hover {
+        color: #3a84ff;
+      }
+    }
+    .service-close {
+      :hover {
+        background: #dcdee5;
+      }
+    }
+
+  }
+  .tools-wrap {
+    .service-tools {
+      display: flex;
+      .icon-mc-more-tool {
+        justify-content: center;
+        margin-left: 0px;
+        overflow: hidden;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        background: #F5F7FA;
+        border-radius: 2px;
+        font-size: 16px;
+        cursor: pointer;
+        &:hover {
+          color: #3a84ff;
+          background-color: #eaf3ff;
+        }
+      }
+    }
+  }
+}
+.goto-association-content .goto-association {
+  color: #3a84ff; 
+  cursor: pointer;
+}

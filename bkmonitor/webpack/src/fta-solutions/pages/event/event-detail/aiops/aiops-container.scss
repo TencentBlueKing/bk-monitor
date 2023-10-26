@@ -1,0 +1,19 @@
+.aiops-container {
+  display: none;
+  margin-top: 40px;
+
+  &.aiops-container-show {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .aiops-container-show {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .aiops-container-hide {
+    display: none;
+  }
+}
+

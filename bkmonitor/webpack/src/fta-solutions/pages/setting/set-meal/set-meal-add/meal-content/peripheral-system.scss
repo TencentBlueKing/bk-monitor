@@ -1,0 +1,61 @@
+.peripheral-system-wrap {
+  margin-top: 24px;
+  min-height: 49px;
+  .template-selsect-wrap {
+    .verify-item {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .icon-btn {
+      display: inline-block;
+      height: 25px;
+      line-height: 25px;
+      margin-left: 18px;
+      color: #3a84ff;
+      font-size: 12px;
+      vertical-align: middle;
+      .icon-mc-link {
+        cursor: pointer;
+        font-size: 12px;
+        margin-right: 11px;
+      }
+      .icon-shuaxin {
+        // margin-left: 11px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+    }
+    .input-width {
+      min-width: 350px;
+    }
+  }
+  .sensitivity-failure-judgment {
+    .bk-form-radio {
+      margin-right: 62px;
+      .bk-radio-text {
+        font-size: 12px;
+      }
+    }
+    .sensitivity,
+    .failure {
+      margin-top: 23px;
+    }
+    .sensitivity-tip {
+      margin-left: 18px;
+      .icon-hint {
+        margin-right: 8px;
+      }
+    }
+    .failure-text {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      .input-inline {
+        width: 40px;
+        .bk-form-input {
+          text-align: center;
+        }
+      }
+    }
+  }
+}

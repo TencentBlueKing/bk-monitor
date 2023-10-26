@@ -1,0 +1,75 @@
+.duty-user-selector-component {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  .left-wrap {
+    height: 100%;
+    border: 1px solid #c4c6cc;
+    border-right: 0;
+    position: relative;
+    left: 1px;
+    &.focus {
+      border: 1px solid #3a84ff;
+      border-right: 0;
+    }
+    .icon-mc-tuozhuai {
+      font-size: 12px;
+      margin: 0 8px;
+      cursor: pointer;
+    }
+  }
+  .user-selector {
+    width: 100%;
+    min-width: auto;
+    .user-selector-layout {
+      .user-selector-container {
+        border-left: 0;
+      }
+    }
+  }
+  .member-selector-wrap {
+    .bk-user-selector {
+      width: 100%;
+      .user-selector-selected {
+        background: none;
+      }
+    }
+  }
+  .is-error {
+    .user-selector-container {
+      border-color: #ff5656;
+    }
+  }
+  .tag {
+    display: flex;
+  }
+  .only-img {
+    color: #979ba5;
+    font-size: 22px;
+    background: #fafbfd;
+    border-radius: 16px;
+    margin-right: 5px;
+  }
+  .bk-form-control {
+    background: #fff;
+  }
+  .user-selector-overflow-tag,
+  .user-selector-selected {
+    background: none;
+    &:hover {
+      background: none;
+    }
+  }
+}
+.user-sort-list-component-bk-selector-member {
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  .only-img {
+    color: #979ba5;
+    font-size: 22px;
+    background: #fafbfd;
+    border-radius: 16px;
+    margin-right: 5px;
+  }
+}

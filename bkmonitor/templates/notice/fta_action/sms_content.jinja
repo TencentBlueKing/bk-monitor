@@ -1,0 +1,9 @@
+{{gettext("监控通知，")}}{{gettext("执行套餐名称")}} : {{action_instance.name | safe}}
+{{gettext("套餐类型")}} : {{action_instance.plugin_type_name | safe}}
+{{gettext("负责人")}} : {{action_instance.assignees | safe}}
+{{gettext("执行对象")}} : {{action_instance.operate_target_string | safe}}
+{{gettext("开始时间")}} : {{action_instance.start_time | safe}}
+{{gettext("结束时间")}} : {{action_instance.end_time | safe}}
+{{gettext("执行耗时")}} : {{action_instance.duration_string | safe}}
+{{gettext("执行状态")}} : {{action_instance.status_display | safe}}
+{{gettext("处理ID")}} : {{action_instance.action_id | safe}}

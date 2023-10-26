@@ -1,0 +1,42 @@
+.event-detail-container {
+  padding: 0 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 1200px;
+  position: relative;
+  scroll-behavior: smooth;
+
+  .chat-btn,
+  .feedback-btn {
+    position: absolute;
+    top: 48px;
+    right: 40px;
+    z-index: 1;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-monitor {
+      margin-right: 4px;
+      font-size: 12px;
+    }
+  }
+
+  .chat-btn {
+    right: 100px;
+  }
+
+  .container-group {
+    position: relative;
+    min-width: 1200px;
+    width: 100%;
+    padding-bottom: 68px;
+
+    .basicinfo-bottom-border {
+      display: none;
+    }
+  }
+}

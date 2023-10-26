@@ -1,0 +1,32 @@
+.simple-select-component {
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+  .btn-content {
+    z-index: 1;
+  }
+  .select-dropdown {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: 0;
+    opacity: 0;
+    overflow: hidden;
+    z-index: -1;
+    line-height: 1;
+    .bk-icon {
+      display: none;
+    }
+    .bk-select-dropdown {
+      height: 100%;
+      .bk-tooltip-ref {
+        height: 100%;
+      }
+      .bk-select-name {
+        height: 100%;
+        padding: 0;
+      }
+    }
+  }
+}

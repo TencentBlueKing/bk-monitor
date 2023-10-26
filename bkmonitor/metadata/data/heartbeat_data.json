@@ -1,0 +1,133 @@
+{
+  "result_table_list": [
+    {
+      "data_id": "1100001",
+      "default_storage": "influxdb",
+      "table_id": "beat_monitor.heartbeat_total",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "beat_monitor.heartbeat_total",
+      "field_list": [
+        {
+          "field_type": "int",
+          "field_name": "status",
+          "is_dimension": true,
+          "unit": "",
+          "description": "采集器状态"
+        },
+        {
+          "field_type": "int",
+          "field_name": "config_error_code",
+          "is_dimension": false,
+          "unit": "",
+          "description": "整体配置错误码"
+        },
+        {
+          "field_type": "string",
+          "field_name": "version",
+          "is_dimension": true,
+          "unit": "",
+          "description": "采集器版本"
+        },
+        {
+          "field_type": "int",
+          "field_name": "uptime",
+          "is_dimension": false,
+          "unit": "秒",
+          "description": "运行秒数"
+        },
+        {
+          "field_type": "int",
+          "field_name": "tasks",
+          "is_dimension": false,
+          "unit": "个",
+          "description": "采集任务数"
+        },
+        {
+          "field_type": "double",
+          "field_name": "config_load_at",
+          "is_dimension": false,
+          "unit": "",
+          "description": "配置加载时间"
+        },
+        {
+          "field_type": "int",
+          "field_name": "published",
+          "is_dimension": false,
+          "unit": "条",
+          "description": "数据上报数"
+        },
+        {
+          "field_type": "int",
+          "field_name": "errors",
+          "is_dimension": false,
+          "unit": "条",
+          "description": "采集错误数"
+        },
+        {
+          "field_type": "int",
+          "field_name": "error_tasks",
+          "is_dimension": false,
+          "unit": "个",
+          "description": "错误子任务数"
+        }
+      ]
+    },
+    {
+      "data_id": "1100002",
+      "default_storage": "influxdb",
+      "table_id": "beat_monitor.heartbeat_child",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "beat_monitor.heartbeat_child",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "version",
+          "is_dimension": true,
+          "unit": "",
+          "description": "子配置版本"
+        },
+        {
+          "field_type": "string",
+          "field_name": "name",
+          "is_dimension": true,
+          "unit": "",
+          "description": "名字"
+        },
+        {
+          "field_type": "int",
+          "field_name": "config_error_code",
+          "is_dimension": false,
+          "unit": "",
+          "description": "子配置错误码"
+        },
+        {
+          "field_type": "string",
+          "field_name": "path",
+          "is_dimension": true,
+          "unit": "",
+          "description": "配置文件的绝对路径"
+        },
+        {
+          "field_type": "int",
+          "field_name": "taskid",
+          "is_dimension": true,
+          "unit": "",
+          "description": "任务id"
+        }]
+    }
+  ],
+  "datasource_list": [
+    {
+      "data_name": "beat_monitor.heartbeat_total",
+      "etl": "bk_standard",
+      "data_id": "1100001"
+    },
+     {
+      "data_name": "beat_monitor.heartbeat_child",
+      "etl": "bk_standard",
+      "data_id": "1100002"
+    }
+  ]
+}

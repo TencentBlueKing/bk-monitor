@@ -1,0 +1,17 @@
+.common-tip-component {
+  display: inline-block;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  line-height: 20px;
+  color: #63656e;
+  background: #f0f8ff;
+  border: 1px solid #c5daff;
+  border-radius: 2px;
+
+  .icon-hint {
+    margin-right: 8px;
+    font-size: 14px;
+    color: #3a84ff;
+  }
+}

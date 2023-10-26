@@ -1,0 +1,88 @@
+@import "../common/mixins.scss";
+
+@mixin square(
+  $frontColor: #fcfffc,
+  $topColor: #fcfffc,
+  $leftColor: #fcfffc,
+  $backColor: #fcfffc,
+  $rightColor: #fcfffc,
+  $bottomColor: #fcfffc
+) {
+  position: relative;
+  width: 90px;
+  height: 20px;
+  box-sizing: border-box;
+  transform-style: preserve-3d;
+  transform: rotateX(-20deg) rotateY(45deg) rotateZ(0deg);
+  margin: 0px auto;
+  div {
+    position: absolute;
+  }
+  .front {
+    width: 90px;
+    height: 20px;
+    transform: translateZ(45px);
+    background: $frontColor;
+  }
+  .bottom {
+    width: 90px;
+    height: 90px;
+    transform: rotateX(270deg) translateZ(-25px);
+    background: $bottomColor;
+  }
+  .back {
+    width: 90px;
+    height: 20px;
+    transform: translateZ(-45px);
+    background: $backColor;
+  }
+  .top {
+    width: 90px;
+    height: 90px;
+    transform: rotateX(90deg) translateZ(45px);
+    background: $topColor;
+  }
+  .left {
+    width: 90px;
+    height: 20px;
+    transform: rotateY(270deg) translateZ(45px);
+    background: $leftColor;
+  }
+  .right {
+    width: 90px;
+    height: 20px;
+    transform: rotateY(90deg) translateZ(45px);
+    background: $rightColor;
+  }
+}
+
+.square-component {
+  .square-serious {
+    @include square(#eb8995, #ffdddd, #de6573);
+  }
+  .square-slight {
+    @include square(#ffe7a3, #fff2cc, #febf81);
+  }
+  .square-normal {
+    @include square(#bce4b7, #dcffe2, #85cfb7);
+  }
+  .square-unset {
+    @include square(#fcfffc, #ffffff, #f8fff9);
+    .front {
+      @include border-dashed-1px(#c4c6cc);
+    }
+    .left {
+      border-right: 0;
+
+      /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
+      @extend .front;
+    }
+    .top {
+      border-left: 0;
+      border-bottom: 0;
+
+      /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
+      @extend .front;
+    }
+  }
+}

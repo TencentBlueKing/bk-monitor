@@ -1,0 +1,74 @@
+.vertical-resizer {
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.vertical-resizer.is-flipped {
+  transform: scaleX(-1);
+}
+.vertical-resizer-wrapper {
+  bottom: 0;
+  position: absolute;
+  top: 0;
+}
+.vertical-resizer-dragger {
+  border-left: 2px solid transparent;
+  cursor: col-resize;
+  margin-left: -1px;
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+.vertical-resizer-dragger:hover {
+  border-left: 2px solid rgba(0, 0, 0, .3);
+}
+.vertical-resizer.isDraggingLeft > .vertical-resizer-dragger,
+.vertical-resizer.isDraggingRight > .vertical-resizer-dragger {
+  background: rgba(136, 0, 136, .05);
+  width: unset;
+}
+.vertical-resizer.isDraggingLeft > .vertical-resizer-dragger {
+  border-left: 2px solid #808;
+  border-right: 1px solid #999;
+}
+.vertical-resizer.isDraggingRight > .vertical-resizer-dragger {
+  border-left: 1px solid #999;
+  border-right: 2px solid #808;
+}
+.vertical-resizer-dragger::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -8px;
+  right: 0;
+  content: " ";
+}
+.vertical-resizer.isDraggingLeft > .vertical-resizer-dragger::before,
+.vertical-resizer.isDraggingRight > .vertical-resizer-dragger::before {
+  left: -2000px;
+  right: -2000px;
+}
+.vertical-resizer-gripIcon {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.vertical-resizer-gripIcon::before,
+.vertical-resizer-gripIcon::after {
+  border-right: 1px solid #ccc;
+  content: " ";
+  height: 9px;
+  position: absolute;
+  right: 9px;
+  top: 20px;
+}
+.vertical-resizer-gripIcon::after {
+  right: 5px;
+}
+.vertical-resizer.isDraggingLeft > .vertical-resizer-gripIcon::before,
+.vertical-resizer.isDraggingRight > .vertical-resizer-gripIcon::before,
+.vertical-resizer.isDraggingLeft > .vertical-resizer-gripIcon::after,
+.vertical-resizer.isDraggingRight > .vertical-resizer-gripIcon::after {
+  border-right: 1px solid rgba(136, 0, 136, .5);
+}  

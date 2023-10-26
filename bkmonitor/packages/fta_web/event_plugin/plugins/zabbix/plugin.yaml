@@ -1,0 +1,46 @@
+plugin_id: zabbix
+version: 1.0.1
+plugin_display_name: Zabbix
+plugin_type: http_push
+summary: Zabbix告警接入
+author: 蓝鲸智云
+
+# 标签
+tags:
+- Zabbix
+
+# 采集配置
+ingest_config:
+  # 事件源的数据格式
+  source_format: json
+
+# 清洗配置
+normalization_config:
+- field: alert_name
+  expr: alert_name
+- field: event_id
+  expr: event_id
+- field: description
+  expr: description
+- field: metric
+  expr: metric
+- field: category
+  expr: category
+- field: assignee
+  expr: assignee
+- field: status
+  expr: status
+- field: target_type
+  expr: target_type
+- field: target
+  expr: target
+- field: severity
+  expr: severity
+- field: bk_biz_id
+  expr: bk_biz_id
+- field: tags
+  expr: tags
+- field: time
+  expr: time
+- field: anomaly_time
+  expr: anomaly_time

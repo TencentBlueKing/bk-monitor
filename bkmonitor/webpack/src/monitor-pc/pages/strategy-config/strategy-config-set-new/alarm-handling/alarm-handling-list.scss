@@ -1,0 +1,78 @@
+.alarm-handling-list-content {
+  .signal-select-wrap {
+    display: flex;
+    align-items: center;
+    height: 20px;
+    .icon-monitor {
+      color: #63656e;
+    }
+    .signal-name,
+    .add-placeholder {
+      font-size: 12px;
+      color: #63656e;
+    }
+    .signal-name {
+      font-weight: 700;
+    }
+    .add-placeholder {
+      color: #c4c6cc;
+      margin-right: 4px;
+    }
+  }
+  .add-wrap {
+    display: flex;
+    align-items: center;
+    height: 42px;
+    border: 1px dashed #c4c6cc;
+    border-radius: 2px;
+    padding: 0 16px;
+    background: #fff;
+  }
+  .items-wrap {
+    .alarm-item {
+      position: relative;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      background: #fff;
+      margin-bottom: 10px;
+      padding: 10px 16px 20px 16px;
+      .icon-mc-delete-line {
+        display: none;
+      }
+      &:hover {
+        .icon-mc-delete-line {
+          display: inline-block;
+          position: absolute;
+          right: 23px;
+          top: 17px;
+          color: #ff5656;
+          font-size: 14px;
+          width: 14px;
+          height: 14px;
+          cursor: pointer;
+        }
+      }
+      .alarm-handling-item {
+        margin: 0;
+        .common-form-item {
+          padding: 0 0 0 12px;
+          margin-top: 16px;
+          .form-item-label {
+            width: auto;
+            flex: 0;
+            white-space: nowrap;
+            margin-right: 10px;
+          }
+        }
+        .tips-key1 {
+          margin-top: 8px;
+        }
+      }
+    }
+  }
+  .error-msg {
+    color: #ea3636;
+    display: block;
+    margin-top: 10px;
+  }
+}

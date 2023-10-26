@@ -1,0 +1,18 @@
+snippet: base.yaml
+
+name: CPU单核使用率2
+
+query:
+  query_configs:
+  - metric: system.cpu_detail.usage
+    method: avg
+    interval: 60
+    group_by:
+    - bk_target_ip
+    - bk_target_cloud_id
+
+detect:
+  algorithm:
+    fatal:
+    - type: Threshold
+      config: ">1 and <2"

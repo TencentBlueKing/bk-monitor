@@ -1,0 +1,78 @@
+.date-panel-wrap {
+  width: 240px;
+  .date-panel-main {
+    .date-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 22px;
+      margin-bottom: 4px;
+      overflow: hidden;
+      .header-text {
+        font-weight: Bold;
+        font-size: 14px;
+        color: #63656e;
+        letter-spacing: 0;
+        line-height: 22px;
+      }
+      .icon-left,
+      .icon-right {
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .icon-left {
+        margin-left: 12px;
+      }
+      .icon-right {
+        margin-right: 12px;
+      }
+    }
+    .date-row {
+      text-align: center;
+      padding: 4px 0;
+      height: 32px;
+      &.date-num {
+        .date-cell {
+          cursor: pointer;
+        }
+      }
+    }
+    .date-cell {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+      text-align: center;
+      &:not(:last-child) {
+        margin-right: 8px;
+      }
+      &.not-this-month {
+        color: #c4c6cc;
+      }
+      .date-cell-text {
+        display: inline-block;
+        width: 100%;
+        height: 100%;
+      }
+      &.is-today {
+        .date-cell-text {
+          color: #fff;
+          border: 1px solid #3a84ff;
+          border-radius: 50%;
+          line-height: 22px;
+          background-color: #3a84ff;
+        }
+      }
+      &.selected {
+        .date-cell-text {
+          display: inline-block;
+          width: 24px;
+          height: 24px;
+          color: #3a84ff;
+          border-radius: 50%;
+          border: 1px solid #3a84ff;
+        }
+      }
+    }
+  }
+}

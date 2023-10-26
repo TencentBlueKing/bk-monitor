@@ -1,0 +1,88 @@
+.select-system-wrap {
+  position: relative;
+  padding-top: 5px;
+  .empty-page {
+    padding-top: 200px;
+  }
+  .select-btn-row {
+    margin-top: 32px;
+    & > * {
+      margin-right: 8px;
+    }
+    & .btn {
+      min-width: 88px;
+    }
+  }
+  .card-item-search {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 400px;
+    z-index: 1;
+  }
+  .app-add-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    .app-add-row-content {
+      .app-add-row-other {
+        display: flex;
+        align-items: center;
+        margin-top: 18px;
+        .other-input {
+          width: 270px;
+          margin-left: 8px;
+        }
+      }
+    }
+    &:last-child {
+      align-items: start;
+    }
+    .app-add-row-title {
+      margin-right: 8px;
+      line-height: 20px;
+      height: 20px;
+      color: #313238;
+    }
+    .row-content-list {
+      margin-left: -16px;
+      margin-top: -16px;
+    }
+    .app-add-card-item {
+      margin-left: 16px;
+      margin-top: 16px;
+    }
+  }
+  .app-add-row-child {
+    // .child-row-content {
+    //   min-height: 120px;
+    // }
+    .child-title {
+      font-size: 12px;
+      line-height: 20px;
+      height: 20px;
+      margin-bottom: 4px;
+    }
+    &:not(:last-child) {
+      .child-row-content {
+        margin-bottom: 24px;
+      }
+    }
+  }
+  .app-add-desc {
+    margin-bottom: 12px;
+  }
+  .app-add-question {
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: #313238;
+  }
+  .app-add-form {
+    padding: 24px 32px;
+    min-height: calc(100vh - 440px);
+    background-color: #fff;
+    .bk-form-content {
+      width: 480px;
+    }
+  }
+}

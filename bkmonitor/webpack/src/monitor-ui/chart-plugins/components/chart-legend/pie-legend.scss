@@ -1,0 +1,24 @@
+.pie-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 16px 10px;
+  user-select: none;
+  &-item {
+    float: left;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    line-height: 16px;
+    font-size: 12px;
+    .legend-icon {
+      width: 8px;
+      height: 8px;
+      background-color: violet;
+      margin-right: 6px;
+    }
+    &:hover {
+      color: #999;
+      cursor: pointer;
+    }
+  }
+}

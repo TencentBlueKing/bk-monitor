@@ -1,0 +1,129 @@
+@import '../../theme//index.scss';
+
+.biz-list-wrap {
+  $bg-dark: #39455f;
+  $color-dark:#c3d0e7;
+  $border-dark: #434e68;
+  cursor: initial;
+
+  &.dark {
+    color: $color-dark;
+    background-color: $bg-dark;
+  }
+
+  .no-data {
+    padding-bottom: 24px;
+  }
+
+  .list-group {
+    position: relative;
+
+    &.no-name:not(:first-child) {
+      padding-top: 9px;
+
+      &::before {
+        display: initial;
+      }
+    }  
+
+    .list-group-name {
+      height: 32px;
+      line-height: 32px;
+      padding: 0 12px;
+      color: #979ba5;
+    }
+
+    &::before {
+      display: none;
+      position: absolute;
+      content: '';
+      top: 4px;
+      left: 9px;
+      right: 9px;
+      border-top: 1px solid #eaebf0;
+    }
+
+    &.dark {
+      &::before {
+        border-top-color: $border-dark;
+      }
+
+      .list-group-name {
+        color: #66768e;;
+      }
+    }
+  }
+
+  .list-item {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    line-height: 32px;
+    padding: 0 9px 0 12px;
+    cursor: pointer;
+    transition: background-color .1s ease-in-out;
+    color: #63656e;
+
+    &:hover {
+      background-color: #e1ecff;
+    }
+
+    &.checked {
+      color: #3a84ff;
+      background-color: #f5f7fa;
+    }
+
+    &.dark {
+      color: $color-dark;
+
+      &:hover {
+        background-color: #323c53;
+      }
+
+      &.checked {
+        color: #fff;
+        background-color: #272f45;
+      }
+    }
+  }
+
+  .list-item-left {
+    display: inline-flex;
+    flex: 1;
+    flex-wrap: nowrap;
+    margin-right: 8px;
+
+    @include ellipsis();
+
+    .list-item-name {
+      @include ellipsis();
+      // white-space: nowrap;
+    }
+
+    .list-item-id {
+      margin-left: 8px;
+
+      @include ellipsis();
+
+      &.dark {
+        color: #66768e;
+      }
+    }
+  }
+
+  .list-item-right {
+    flex-shrink: 0;
+
+    .list-item-tag {
+      display: inline-block;
+      height: 23px;
+      line-height: 23px;
+      padding: 0 10px;
+      border-radius: 2px;
+
+      &:not(:last-child) {
+        margin-right: 8px;
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+.scrubber-handleExpansion {
+  cursor: col-resize;
+  fill-opacity: 0;
+  fill: #3a84ff;
+}
+.scrubber.isDragging .scrubber--handleExpansion,
+.scrubber-handles:hover > .scrubber--handleExpansion {
+  fill-opacity: 1;
+}
+.scrubber-handle {
+  cursor: col-resize;
+  fill: #979ba5;
+}
+.scrubber.isDragging .scrubber-handle,
+.scrubber-handles:hover > .scrubber-handle {
+  fill: #3a84ff;
+}
+.scrubber-line {
+  pointer-events: none;
+  stroke: #979ba5;
+}
+.scrubber.isDragging > .scrubber-line,
+.scrubber-handles:hover + .scrubber-line {
+  stroke: #3a84ff;
+}

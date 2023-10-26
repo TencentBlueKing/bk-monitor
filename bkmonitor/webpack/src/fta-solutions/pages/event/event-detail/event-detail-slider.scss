@@ -1,0 +1,329 @@
+/* stylelint-disable declaration-no-important */
+.event-detail-sideslider {
+  .bk-sideslider-wrapper,
+  .bk-sideslider-content {
+    overflow: hidden;
+
+    .event-detail-container {
+      min-width: auto;
+    }
+  }
+
+  .sideslider-title {
+    .title-wrap {
+      font-size: 16px;
+      font-weight: initial;
+      color: #313238;
+      display: flex;
+      align-items: center;
+      .event-id {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #979ba5;
+      } 
+    }
+
+    .icon-copy-link {
+      margin-left: 10px;
+      font-size: 14px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .new-page-btn {
+      margin: 0 24px 0 auto;
+      color: #3a84ff;
+      cursor: pointer;
+      font-size: 12px;
+
+      .btn-text {
+        margin-right: 6px;
+      }
+
+      .icon-fenxiang {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .handle-detail-content {
+    padding: 26px 37px;
+
+    .title-h1 {
+      height: 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #63656e;
+      line-height: 18px;
+    }
+
+    .detail-content-main {
+      margin-top: 22px;
+
+      .info-item {
+        display: flex;
+        min-height: 22px;
+        line-height: 22px;
+        font-size: 12px;
+
+        &:not(:last-child) {
+          margin-bottom: 8px;
+        }
+
+        .info-label {
+          flex: 0 80px;
+          flex-shrink: 0;
+          width: 80px;
+          text-align: right;
+          font-weight: 400;
+          font-size: 12px;
+          color: #313238;
+        }
+
+        .info-content {
+          display: flex;
+          align-items: center;
+          flex: 1;
+          color: #63656e;
+
+          .icon-copy-link {
+            margin-left: 9px;
+            font-size: 14px;
+            color: #0091ff;
+            cursor: pointer;
+          }
+
+          .link {
+            color: #3a84ff;
+          }
+
+          .level {
+            position: relative;
+            display: inline-block;
+            padding-left: 8px;
+            height: 16px;
+            line-height: 18px;
+
+            &:before {
+              position: absolute;
+              content: '';
+              top: 0;
+              left: 0;
+              height: 16px;
+              width: 4px;
+              border-radius: 1px;
+            }
+          }
+
+          .level-3 {
+            color: #ff9c00;
+
+            &:before {
+              background-color: #ff9c00;
+            }
+          }
+
+          .level-2 {
+            color: #3a84ff;
+
+            &::before {
+              background-color: #3a84ff;
+            }
+          }
+
+          .level-1 {
+            color: #eb3635;
+
+            &::before {
+              background-color: #eb3635;
+            }
+          }
+
+          .status-tag {
+            display: inline-block;
+            height: 22px;
+            padding: 0 11px;
+            font-weight: 400;
+            line-height: 22px;
+            border-radius: 2px;
+          }
+
+          .status-failure {
+            color: #ea3536;
+            background-color: #feebea;
+          }
+
+          .status-success {
+            color: #14a568;
+            background-color: #e4faf0;
+          }
+
+          .status-shield {
+            color: #fe9c00;
+            background-color: #fff1db;
+          }
+
+          .status-running {
+            color: #3a84ff;
+            background-color: #edf4ff;
+          }
+
+          .status-skipped {
+            color: #63656e;
+            background-color: #f0f1f5;
+          }
+        }
+
+        .key-content {
+          display: initial;
+        }
+      }
+    }
+  }
+
+  .event-detail-content {
+    padding: 0;
+    max-height: calc(100vh - 60px);
+
+    .container-group {
+      min-width: initial;
+
+      .feedback-btn,
+      .chat-btn {
+        top: 24px;
+      }
+
+      .basicinfo-bottom-border {
+        display: block;
+        margin: 0 40px;
+        height: 1px;
+        background: #dbdee5;
+      }
+
+      .event-detail-basic {
+        margin-top: 0;
+        box-shadow: none;
+
+        .basic-detail {
+          padding-left: 40px;
+          padding-right: 40px;
+
+          .basic-left {
+            min-width: initial;
+
+            .basic-title {
+              border-bottom: 0;
+            }
+
+            .detail-form .item-col .item-label {
+              color: #313238;
+            }
+
+            .detail-form {
+              .alert-name {
+                max-width: 145px;
+              }
+            }
+          }
+
+          .basic-right {
+            position: relative;
+
+            &::before {
+              position: absolute;
+              content: '';
+              top: 116px;
+              left: 0;
+              transform: translateY(-50%);
+              height: 143px;
+              border-left: 1px solid #dbdee5;
+            }
+          }
+        }
+      }
+
+      .event-detail-tab {
+        padding: 0 40px;
+        margin-top: 0;
+
+        .aiops-container {
+          padding: 0px;
+        }
+
+        .event-detail-viewinfo {
+          .chart-title {
+            padding: 3px 0px 3px 0px
+          }
+
+          .source-log,
+          .series-view-container {
+            padding: 0;
+            box-shadow: initial;
+          }
+        }
+
+        .event-detail-handleexperience {
+          padding: 0;
+        }
+
+        .circulation-filter-btn {
+          right: 20px;
+        }
+
+        .event-detail-relatedevents {
+          padding: 0;
+
+          .related-events-table .detail-form {
+            padding-left: 38px;
+          }
+        }
+
+        .event-detail-performance-view,
+        .event-detail-scene-view {
+          .dashboard-panel {
+            background: #fff;
+
+            .vue-grid-layout {
+              background: #fff;
+
+              .chart-wrapper {
+                border: 1px solid #dcdee5 !important;
+
+                &.row-chart {
+                  border: 1px solid transparent !important;
+                  background: #f0f1f5 !important;
+
+                  &.is-collapsed {
+                    background: #f0f1f5 !important;
+                  }
+                }
+
+                .chart-row {
+                  background: #f0f1f5
+                }
+              }
+            }
+          }
+
+          .view-bottom {
+            .view-bottom-label {
+              width: 1280px;
+              background: #fafbfd;
+              box-shadow: 0 -1px 0 0 #dcdee5;
+            }
+          }
+        }
+
+        .event-detail-log-info-component {
+          padding: 0;
+          padding-top: 17px;
+          .related-log-chart-wrap {
+            .related-alert-info {
+              width: 1280px;
+            }
+          }
+        }
+      }
+    }
+  }
+}

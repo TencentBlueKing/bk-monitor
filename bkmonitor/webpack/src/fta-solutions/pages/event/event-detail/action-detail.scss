@@ -1,0 +1,215 @@
+.active-detail-record {
+  position: relative;
+  max-height: calc(100vh - 60px);
+  padding: 26px 40px 24px 35px;
+  overflow-y: auto;
+  
+  &.active-detail-record-page {
+    min-width: 1200px;
+    margin: 0 200px;
+
+    .detail-top,
+    .detail-table {
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0px 1px 2px 0px rgba(0,0,0,.10);
+    }
+
+    .detail-top {
+      padding: 24px 32px;
+    }
+
+    .detail-table {
+      padding: 24px 40px;
+      margin-top: 24px;
+
+      .first {
+        margin-top: 0;
+      }
+    }
+
+    .detail-info {
+      .form-item {
+        .item-col {
+          &-0 {
+            max-width: 45%;
+          }
+        }
+      }
+    }
+  }
+
+  .detail-title {
+    display: flex;
+    padding-bottom: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #63656e;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .detail-info {
+    position: relative;
+    width: 100%;
+    margin-top: 12px;
+
+    .form-item {
+      display: flex;
+      width: 100%;
+      padding-left: 22px;
+
+      .item-col {
+        display: flex;
+        flex: 1 1;
+        min-height: 22px;
+        margin-bottom: 5px;
+
+        &-0 {
+          max-width: 333px;
+        }
+
+        .item-label {
+          display: flex;
+          justify-content: flex-end;
+          font-size: 12px;
+          font-weight: 400;
+          line-height: 22px;
+          color: #313238;
+          white-space: nowrap;
+        }
+
+        .item-content {
+          display: block;
+          font-size: 12px;
+          font-weight: 400;
+          line-height: 22px;
+          color: #63656e;
+          word-break: break-all;
+
+          &-text {
+            display: block;
+            word-break: break-all;
+          }
+
+          .success,
+          .failure,
+          .running,
+          .shield,
+          .skipped {
+            display: flex;
+            align-items: center;
+            height: 22px;
+            padding: 0 10px;
+            font-size: 12px;
+          }
+
+          .success {
+            color: #14a568;
+            background: #e4faf0;
+          }
+
+          .failure {
+            color: #ea3536;
+            background: #feebea;
+          }
+
+          .running {
+            color: #3a84ff;
+            background: #edf4ff;
+          }
+
+          .shield {
+            color: #fe9c00;
+            background: #fff1db;
+          }
+
+          .skipped {
+            color: #63656e;
+            background: #f0f1f5;
+          }
+
+          .info-jtnr {
+            &-link {
+              display: inline-block;
+              margin-left: 10px;
+              color: #3a84ff;
+              cursor: pointer;
+
+              .icon-copy-link {
+                margin-right: 6px;
+                font-size: 12px;
+              }
+            } 
+          }
+        }
+      }
+
+      &.form-item-1 {
+        .item-col-0 {
+          max-width: 100%;
+        }
+      }
+    }
+  }
+
+  .detail-table {
+    .table-title {
+      display: flex;
+      align-items: flex-end;
+      margin-top: 40px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #63656e;
+
+      .msg {
+        display: flex;
+        align-items: flex-end;
+        margin-left: 5px;
+        font-size: 12px;
+        font-weight: 400;
+        color: #63656e;
+      }
+
+      &-link {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        font-weight: 400;
+        color: #3a84ff;
+        // margin-left: 10px;
+        cursor: pointer;
+
+        .icon-copy-link {
+          font-size: 12px;
+        }
+
+        .link-text {
+          margin-left: 6px;
+        }
+      }
+    }
+
+    .table-content {
+      margin-top: 10px;
+
+      .severity {
+        padding-left: 4px;
+      }
+
+      .dimension-desc,
+      .description-desc {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .fenxiang-link {
+    margin-left: 6px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}

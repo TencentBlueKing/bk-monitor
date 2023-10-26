@@ -1,0 +1,44 @@
+.space-add-list {
+  width: 560px;
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 10px;
+  margin-right: -10px;
+
+  .space-add-item-wrap {
+    &:not(:last-child) {
+      margin-bottom: 12px;
+    }
+  }
+
+  .common-link-guide {
+    color: #313238;
+
+    a {
+      color: #3a84ff;
+    }
+
+    .icon-monitor {
+      margin-right: 5px;
+    }
+
+    .common-link {
+      text-align: center;
+      line-height: 20px;
+      font-size: 12px;
+    }
+
+    .common-link-title {
+      text-align: center;
+      line-height: 22px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .common-link-item {
+      &:not(:last-child) {
+        margin-right: 26px;
+      }
+    }
+  }
+}

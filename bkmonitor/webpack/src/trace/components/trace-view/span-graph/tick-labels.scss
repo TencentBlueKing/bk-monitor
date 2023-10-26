@@ -1,0 +1,18 @@
+.tick-labels {
+  position: relative;
+  height: 24px;
+  background: #eaebf0;
+  .label {
+    position: absolute;
+    top: 4px;
+    user-select: none;
+    font-size: 12px;
+    color: #63656e;
+    &:first-child {
+      margin-left: 4px;
+    }
+    &:last-child {
+      margin-right: 4px;
+    }
+  }
+}

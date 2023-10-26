@@ -1,0 +1,67 @@
+{
+  "id": "container",
+  "type": "detail",
+  "mode": "auto",
+  "name": "Container",
+  "variables": [],
+  "panels": [],
+  "order": [],
+  "options": {
+    "show_panel_count": false,
+    "enable_index_list": true,
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "method_select": true,
+      "interval_select": true,
+      "split_switcher": false
+    },
+    "enable_group": true,
+    "alert_filterable": true,
+    "selector_panel": {
+      "title": "container列表",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": "container_list",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesContainerList",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          },
+          "fields": {
+            "bcs_cluster_id": "bcs_cluster_id",
+            "pod_name": "pod_name",
+            "namespace": "namespace",
+            "container_name": "name"
+          }
+        }
+      ],
+      "options": {
+        "selector_list": {
+          "query_update_url": true,
+          "status_filter": true,
+          "field_sort": true,
+          "default_sort_field": "-resource_usage_cpu"
+        }
+      }
+    },
+    "detail_panel": {
+      "title": "container",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getKubernetesContainer",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "pod_name": "$pod_name",
+            "container_name": "$container_name"
+          }
+        }
+      ]
+    }
+  }
+}

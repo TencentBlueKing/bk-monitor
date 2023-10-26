@@ -1,0 +1,24 @@
+snippet: base.yaml
+name: 系统事件测试[code]
+
+query:
+  data_source: bk_monitor
+  data_type: event
+  query_configs:
+    - metric: system.event.corefile-gse
+      where: signal="SIGQUIT"
+
+  target:
+    type: host
+    nodes:
+      - 127.0.0.1
+      - 127.0.0.2|1
+
+detect:
+  trigger: 2/4/5
+  algorithm:
+    remind: []
+
+notice:
+  user_groups:
+    - maintainer.yaml

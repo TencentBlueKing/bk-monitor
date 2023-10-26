@@ -1,0 +1,64 @@
+{
+  "id": "node",
+  "type": "detail",
+  "mode": "auto",
+  "name": "Node",
+  "variables": [],
+  "panels": [],
+  "order": [],
+  "options": {
+    "show_panel_count": false,
+    "enable_index_list": true,
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "method_select": true,
+      "interval_select": true,
+      "split_switcher": false
+    },
+    "enable_group": true,
+    "alert_filterable": true,
+    "selector_panel": {
+      "title": "nodes",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": "node_list",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesNodeList",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          },
+          "fields": {
+            "bcs_cluster_id": "bcs_cluster_id",
+            "node_name": "name",
+            "node_ip": "node_ip",
+          }
+        }
+      ],
+      "options": {
+        "selector_list": {
+          "query_update_url": true,
+          "status_filter": true,
+          "field_sort": true,
+          "default_sort_field": "-system_cpu_summary_usage"
+        }
+      }
+    },
+    "detail_panel": {
+      "title": "node",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getKubernetesNode",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "node_ip": "$node_ip"
+          }
+        }
+      ]
+    }
+  }
+}

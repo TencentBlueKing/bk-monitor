@@ -1,0 +1,338 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Grammar
+
+Rule 0     S' -> expression
+Rule 1     expression -> expression OR term
+Rule 2     expression -> term
+Rule 3     term -> term AND condition
+Rule 4     term -> condition
+Rule 5     condition -> EQ number
+Rule 6     condition -> NEQ number
+Rule 7     condition -> GT number
+Rule 8     condition -> GTE number
+Rule 9     condition -> LT number
+Rule 10    condition -> LTE number
+Rule 11    number -> INT
+Rule 12    number -> MINUS INT
+Rule 13    number -> FLOAT
+Rule 14    number -> MINUS FLOAT
+
+Terminals, with rules where they appear
+
+AND                  : 3
+EQ                   : 5
+FLOAT                : 13 14
+GT                   : 7
+GTE                  : 8
+INT                  : 11 12
+LT                   : 9
+LTE                  : 10
+MINUS                : 12 14
+NEQ                  : 6
+OR                   : 1
+error                : 
+
+Nonterminals, with rules where they appear
+
+condition            : 3 4
+expression           : 1 0
+number               : 5 6 7 8 9 10
+term                 : 1 2 3
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . expression
+    (1) expression -> . expression OR term
+    (2) expression -> . term
+    (3) term -> . term AND condition
+    (4) term -> . condition
+    (5) condition -> . EQ number
+    (6) condition -> . NEQ number
+    (7) condition -> . GT number
+    (8) condition -> . GTE number
+    (9) condition -> . LT number
+    (10) condition -> . LTE number
+
+    EQ              shift and go to state 4
+    NEQ             shift and go to state 5
+    GT              shift and go to state 6
+    GTE             shift and go to state 7
+    LT              shift and go to state 8
+    LTE             shift and go to state 9
+
+    expression                     shift and go to state 1
+    term                           shift and go to state 2
+    condition                      shift and go to state 3
+
+state 1
+
+    (0) S' -> expression .
+    (1) expression -> expression . OR term
+
+    OR              shift and go to state 10
+
+
+state 2
+
+    (2) expression -> term .
+    (3) term -> term . AND condition
+
+    OR              reduce using rule 2 (expression -> term .)
+    $end            reduce using rule 2 (expression -> term .)
+    AND             shift and go to state 11
+
+
+state 3
+
+    (4) term -> condition .
+
+    AND             reduce using rule 4 (term -> condition .)
+    OR              reduce using rule 4 (term -> condition .)
+    $end            reduce using rule 4 (term -> condition .)
+
+
+state 4
+
+    (5) condition -> EQ . number
+    (11) number -> . INT
+    (12) number -> . MINUS INT
+    (13) number -> . FLOAT
+    (14) number -> . MINUS FLOAT
+
+    INT             shift and go to state 13
+    MINUS           shift and go to state 14
+    FLOAT           shift and go to state 15
+
+    number                         shift and go to state 12
+
+state 5
+
+    (6) condition -> NEQ . number
+    (11) number -> . INT
+    (12) number -> . MINUS INT
+    (13) number -> . FLOAT
+    (14) number -> . MINUS FLOAT
+
+    INT             shift and go to state 13
+    MINUS           shift and go to state 14
+    FLOAT           shift and go to state 15
+
+    number                         shift and go to state 16
+
+state 6
+
+    (7) condition -> GT . number
+    (11) number -> . INT
+    (12) number -> . MINUS INT
+    (13) number -> . FLOAT
+    (14) number -> . MINUS FLOAT
+
+    INT             shift and go to state 13
+    MINUS           shift and go to state 14
+    FLOAT           shift and go to state 15
+
+    number                         shift and go to state 17
+
+state 7
+
+    (8) condition -> GTE . number
+    (11) number -> . INT
+    (12) number -> . MINUS INT
+    (13) number -> . FLOAT
+    (14) number -> . MINUS FLOAT
+
+    INT             shift and go to state 13
+    MINUS           shift and go to state 14
+    FLOAT           shift and go to state 15
+
+    number                         shift and go to state 18
+
+state 8
+
+    (9) condition -> LT . number
+    (11) number -> . INT
+    (12) number -> . MINUS INT
+    (13) number -> . FLOAT
+    (14) number -> . MINUS FLOAT
+
+    INT             shift and go to state 13
+    MINUS           shift and go to state 14
+    FLOAT           shift and go to state 15
+
+    number                         shift and go to state 19
+
+state 9
+
+    (10) condition -> LTE . number
+    (11) number -> . INT
+    (12) number -> . MINUS INT
+    (13) number -> . FLOAT
+    (14) number -> . MINUS FLOAT
+
+    INT             shift and go to state 13
+    MINUS           shift and go to state 14
+    FLOAT           shift and go to state 15
+
+    number                         shift and go to state 20
+
+state 10
+
+    (1) expression -> expression OR . term
+    (3) term -> . term AND condition
+    (4) term -> . condition
+    (5) condition -> . EQ number
+    (6) condition -> . NEQ number
+    (7) condition -> . GT number
+    (8) condition -> . GTE number
+    (9) condition -> . LT number
+    (10) condition -> . LTE number
+
+    EQ              shift and go to state 4
+    NEQ             shift and go to state 5
+    GT              shift and go to state 6
+    GTE             shift and go to state 7
+    LT              shift and go to state 8
+    LTE             shift and go to state 9
+
+    term                           shift and go to state 21
+    condition                      shift and go to state 3
+
+state 11
+
+    (3) term -> term AND . condition
+    (5) condition -> . EQ number
+    (6) condition -> . NEQ number
+    (7) condition -> . GT number
+    (8) condition -> . GTE number
+    (9) condition -> . LT number
+    (10) condition -> . LTE number
+
+    EQ              shift and go to state 4
+    NEQ             shift and go to state 5
+    GT              shift and go to state 6
+    GTE             shift and go to state 7
+    LT              shift and go to state 8
+    LTE             shift and go to state 9
+
+    condition                      shift and go to state 22
+
+state 12
+
+    (5) condition -> EQ number .
+
+    AND             reduce using rule 5 (condition -> EQ number .)
+    OR              reduce using rule 5 (condition -> EQ number .)
+    $end            reduce using rule 5 (condition -> EQ number .)
+
+
+state 13
+
+    (11) number -> INT .
+
+    AND             reduce using rule 11 (number -> INT .)
+    OR              reduce using rule 11 (number -> INT .)
+    $end            reduce using rule 11 (number -> INT .)
+
+
+state 14
+
+    (12) number -> MINUS . INT
+    (14) number -> MINUS . FLOAT
+
+    INT             shift and go to state 23
+    FLOAT           shift and go to state 24
+
+
+state 15
+
+    (13) number -> FLOAT .
+
+    AND             reduce using rule 13 (number -> FLOAT .)
+    OR              reduce using rule 13 (number -> FLOAT .)
+    $end            reduce using rule 13 (number -> FLOAT .)
+
+
+state 16
+
+    (6) condition -> NEQ number .
+
+    AND             reduce using rule 6 (condition -> NEQ number .)
+    OR              reduce using rule 6 (condition -> NEQ number .)
+    $end            reduce using rule 6 (condition -> NEQ number .)
+
+
+state 17
+
+    (7) condition -> GT number .
+
+    AND             reduce using rule 7 (condition -> GT number .)
+    OR              reduce using rule 7 (condition -> GT number .)
+    $end            reduce using rule 7 (condition -> GT number .)
+
+
+state 18
+
+    (8) condition -> GTE number .
+
+    AND             reduce using rule 8 (condition -> GTE number .)
+    OR              reduce using rule 8 (condition -> GTE number .)
+    $end            reduce using rule 8 (condition -> GTE number .)
+
+
+state 19
+
+    (9) condition -> LT number .
+
+    AND             reduce using rule 9 (condition -> LT number .)
+    OR              reduce using rule 9 (condition -> LT number .)
+    $end            reduce using rule 9 (condition -> LT number .)
+
+
+state 20
+
+    (10) condition -> LTE number .
+
+    AND             reduce using rule 10 (condition -> LTE number .)
+    OR              reduce using rule 10 (condition -> LTE number .)
+    $end            reduce using rule 10 (condition -> LTE number .)
+
+
+state 21
+
+    (1) expression -> expression OR term .
+    (3) term -> term . AND condition
+
+    OR              reduce using rule 1 (expression -> expression OR term .)
+    $end            reduce using rule 1 (expression -> expression OR term .)
+    AND             shift and go to state 11
+
+
+state 22
+
+    (3) term -> term AND condition .
+
+    AND             reduce using rule 3 (term -> term AND condition .)
+    OR              reduce using rule 3 (term -> term AND condition .)
+    $end            reduce using rule 3 (term -> term AND condition .)
+
+
+state 23
+
+    (12) number -> MINUS INT .
+
+    AND             reduce using rule 12 (number -> MINUS INT .)
+    OR              reduce using rule 12 (number -> MINUS INT .)
+    $end            reduce using rule 12 (number -> MINUS INT .)
+
+
+state 24
+
+    (14) number -> MINUS FLOAT .
+
+    AND             reduce using rule 14 (number -> MINUS FLOAT .)
+    OR              reduce using rule 14 (number -> MINUS FLOAT .)
+    $end            reduce using rule 14 (number -> MINUS FLOAT .)
+

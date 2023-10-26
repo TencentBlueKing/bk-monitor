@@ -1,0 +1,83 @@
+.notify-box {
+  position: absolute;
+  width: 270px;
+  min-height: 110px;
+  padding: 12px 10px 10px;
+  font-size: 12px;
+  color: #313238;
+  border-radius: 2px;
+  background: #fff;
+
+  &.has-border {
+    box-shadow: 0 0 6px 0 #dcdee5;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+  }
+
+  &.right {
+    .target-arrow {
+      top: 30px;
+      left: -4px;
+    }
+  }
+
+  &.left {
+    .target-arrow {
+      top: 30px;
+      right: -4px;
+    }
+  }
+
+  &.bottom {
+    .target-arrow {
+      top: -4px;
+      left: 50%;
+    }
+  }
+
+  &.top {
+    .target-arrow {
+      bottom: -4px;
+      left: 50%;
+    }
+  }
+
+  .notify-title {
+    font-weight: bold;
+    line-height: 16px;
+  }
+
+  .notify-content {
+    margin-top: 7px;
+  }
+
+  .notify-action {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+
+    .action-text {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .action-btn {
+      height: 20px;
+      padding: 0 8px;
+      margin-left: 14px;
+      line-height: 20px;
+      color: #fff;
+      border-radius: 10px;
+      background: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .target-arrow {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: inherit;
+    transform: rotateZ(45deg);
+  }
+}

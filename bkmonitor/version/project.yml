@@ -1,0 +1,7 @@
+- name: monitor
+  module: bkmonitorv3
+  project_dir: bkmonitorv3/monitor
+  alias: monitor
+  language: python/3.6
+  version: ${VERSION}
+  version_type: ${RELEASE_ENV}

@@ -1,0 +1,679 @@
+{
+  "id": "event",
+  "type": "detail",
+  "mode": "custom",
+  "name": "Event",
+  "variables": [
+    {
+      "id": 0,
+      "title": "集群",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "scene_view",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesClusterChoices",
+          "data": {
+          },
+          "fields": {
+            "id": "bcs_cluster_id"
+          }
+        }
+      ],
+      "options": {
+        "variables": {
+          "multiple": false,
+          "required": true,
+          "internal": true
+        }
+      }
+    }
+  ],
+  "panels": [],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "Event Count",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByType",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "告警事件",
+      "type": "graph",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "options": {
+        "disable_wrap_check": true
+      },
+      "targets": [
+        {
+          "alias": "今天",
+          "api": "scene_view.getKubernetesEventTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "event_type": "Warning",
+            "time_scope": "current"
+          }
+        },
+        {
+          "alias": "昨天",
+          "api": "scene_view.getKubernetesEventTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "event_type": "Warning",
+            "time_scope": "last_day"
+          }
+        },
+        {
+          "alias": "上周",
+          "api": "scene_view.getKubernetesEventTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "event_type": "Warning",
+            "time_scope": "last_week"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "正常事件",
+      "type": "graph",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "options": {
+        "disable_wrap_check": true
+      },
+      "targets": [
+        {
+          "alias": "今天",
+          "api": "scene_view.getKubernetesEventTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "event_type": "Normal",
+            "time_scope": "current"
+          }
+        },
+        {
+          "alias": "昨天",
+          "api": "scene_view.getKubernetesEventTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "event_type": "Normal",
+            "time_scope": "last_day"
+          }
+        },
+        {
+          "alias": "上周",
+          "api": "scene_view.getKubernetesEventTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "event_type": "Normal",
+            "time_scope": "last_week"
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Node事件",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 21,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["NodeNotReady"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "NodeNotReady"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "NodeNotReady"
+          }
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 3,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["NodeNotSchedulable"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "NodeNotSchedulable"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "NodeNotSchedulable"
+          }
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 6,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["Rebooted"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "Rebooted"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "Rebooted"
+          }
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 9,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["Shutdown"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "Shutdown"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "Shutdown"
+          }
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["OutOfDisk"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "OutOfDisk"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "OutOfDisk"
+          }
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 15,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["KubeletSetupFailed"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "KubeletSetupFailed"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "KubeletSetupFailed"
+          }
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 18,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["CIDRNotAvailable"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "CIDRNotAvailable"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "CIDRNotAvailable"
+          }
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "title": "Pod事件",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 31,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["SystemOOM"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "SystemOOM"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "SystemOOM"
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 3,
+        "y": 12,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["Evicted"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "Evicted"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "Evicted"
+          }
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 6,
+        "y": 12,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["FailedAttachVolume"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "FailedAttachVolume"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "FailedAttachVolume"
+          }
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "title": "",
+      "type": "resource",
+      "gridPos": {
+        "x": 9,
+        "y": 12,
+        "w": 3,
+        "h": 4
+      },
+      "options": {
+          "alert_filterable": {
+            "filter_type": "event",
+            "save_to_dashboard": false,
+            "data": {
+              "bcs_cluster_id": "$bcs_cluster_id",
+              "data_source_label": "custom",
+              "data_type_label": "event",
+              "where": [{"key": "event_name","method": "eq","value": ["FailedMount"]}]
+            },
+            "event_center": {
+              "query_string": [
+                {
+                  "metric": "FailedMount"
+                }
+              ]
+            }
+          }
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "resource",
+            "event_names": "FailedMount"
+          }
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "title": "Top 10事件",
+      "type": "column-bar",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 8,
+        "h": 12
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "column-bar",
+            "top_n": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "事件分布",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 8,
+        "y": 16,
+        "w": 8,
+        "h": 12
+      },
+      "percent": true,
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByEventName",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "data_type": "ratio-ring",
+            "top_n": 100
+          }
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "事件类型",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 16,
+        "y": 16,
+        "w": 8,
+        "h": 12
+      },
+      "percent": true,
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesEventCountByKind",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          }
+        }
+      ]
+    }
+  ],
+  "list": [],
+  "order": [],
+  "options": {
+    "show_panel_count": false,
+    "enable_index_list": false,
+    "alert_filterable": false,
+    "panel_tool": {
+      "compare_select": false,
+      "columns_toggle": false,
+      "method_select": false,
+      "interval_select": false,
+      "split_switcher": false
+    }
+  }
+}

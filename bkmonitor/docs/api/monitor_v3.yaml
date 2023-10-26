@@ -1,0 +1,2574 @@
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/collector/uptime_check_node/import/
+  is_hidden: false
+  label: 导入拨测节点配置
+  label_en: import uptime check node
+  name: import_uptime_check_node
+  path: /v2/monitor_v3/import_uptime_check_node/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/collector/uptime_check_task/export/
+  is_hidden: false
+  label: 导出拨测任务配置
+  label_en: export uptime check task
+  name: export_uptime_check_task
+  path: /v2/monitor_v3/export_uptime_check_task/
+  suggest_method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/collector/uptime_check_task/import/
+  is_hidden: false
+  label: 导入拨测任务配置
+  label_en: import uptime check task
+  name: import_uptime_check_task
+  path: /v2/monitor_v3/import_uptime_check_task/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/query/get_ts_data/
+  is_hidden: false
+  label: 获取时序数据
+  label_en: get ts data
+  name: get_ts_data
+  path: /v2/monitor_v3/get_ts_data/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/query/get_es_data/
+  is_hidden: true
+  label: 获取监控链路时序数据
+  label_en: get es data
+  name: get_es_data
+  path: /v2/monitor_v3/get_es_data/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_data_id/
+  is_hidden: false
+  label: 创建监控数据源
+  label_en: metadata create data id
+  name: metadata_create_data_id
+  path: /v2/monitor_v3/metadata_create_data_id/
+  method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/result_table/
+  is_hidden: false
+  label: 创建监控结果表
+  label_en: metadata create result table
+  name: metadata_create_result_table
+  path: /v2/monitor_v3/metadata_create_result_table/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/result_table/
+  is_hidden: false
+  label: 查询监控结果表
+  label_en: metadata list result table
+  name: metadata_list_result_table
+  path: /v2/monitor_v3/metadata_list_result_table/
+  method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_result_table/
+  is_hidden: false
+  label: 修改监控结果表
+  label_en: metadata modify result table
+  name: metadata_modify_result_table
+  path: /v2/monitor_v3/metadata_modify_result_table/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/is_data_label_exist/
+  is_hidden: false
+  label: 判断结果表中是否存在指定data_label
+  label_en: whether data_label exist
+  name: metadata_is_data_label_exist
+  path: /v2/monitor_v3/metadata_is_data_label_exist/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_data_id/
+  is_hidden: false
+  label: 获取监控数据源具体信息
+  label_en: metadata get data id
+  name: metadata_get_data_id
+  path: /v2/monitor_v3/metadata_get_data_id/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/query_data_source_by_space_uid/
+  is_hidden: false
+  label: 根据space_uid查询data_source
+  label_en: metadata query data source by space_uid
+  name: metadata_query_data_source_by_space_uid
+  path: /v2/monitor_v3/metadata_query_data_source_by_space_uid/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_result_table/
+  is_hidden: false
+  label: 获取监控结果表具体信息
+  label_en: metadata get result table
+  name: metadata_get_result_table
+  path: /v2/monitor_v3/metadata_get_result_table/
+  method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/upgrade_result_table/
+  is_hidden: false
+  label: 将指定的监控单业务结果表升级为全业务结果表
+  label_en: metadata upgrade result table
+  name: metadata_upgrade_result_table
+  path: /v2/monitor_v3/metadata_upgrade_result_table/
+  method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_data_id/
+  is_hidden: false
+  label: 修改指定数据源的配置信息
+  label_en: metadata modify data id
+  name: metadata_modify_data_id
+  path: /v2/monitor_v3/metadata_modify_data_id/
+  method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_datasource_result_table/
+  is_hidden: false
+  label: 修改数据源与结果表的关系
+  label_en: modify datasource result table
+  name: modify_datasource_result_table
+  path: /v2/monitor_v3/metadata_modify_datasource_result_table/
+  method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_result_table_metric_split/
+  is_hidden: false
+  label: 创建结果表的维度拆分配置
+  label_en: metadata create result table metric split
+  name: metadata_create_result_table_metric_split
+  path: /v2/monitor_v3/metadata_create_result_table_metric_split/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/label/
+  is_hidden: false
+  label: 查询当前已有的标签信息
+  label_en: metadata list label
+  name: metadata_list_label
+  path: /v2/monitor_v3/metadata_list_label/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_result_table_storage/
+  is_hidden: false
+  label: 查询指定结果表的指定存储信息
+  label_en: metadata get result table storage
+  name: metadata_get_result_table_storage
+  path: /v2/monitor_v3/metadata_get_result_table_storage/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_cluster_info/
+  is_hidden: true
+  label: 查询指定存储集群信息
+  label_en: metadata get cluster info
+  name: metadata_get_cluster_info
+  path: /v2/monitor_v3/metadata_get_cluster_info/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_cluster_info/
+  is_hidden: false
+  label: 创建存储集群信息
+  label_en: metadata create cluster info
+  name: metadata_create_cluster_info
+  path: /v2/monitor_v3/metadata_create_cluster_info/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_cluster_info/
+  is_hidden: false
+  label: 修改存储集群信息
+  label_en: metadata modify cluster info
+  name: metadata_modify_cluster_info
+  path: /v2/monitor_v3/metadata_modify_cluster_info/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_event_group/
+  is_hidden: false
+  label: 查询事件分组具体内容
+  label_en: metadata get event group
+  name: metadata_get_event_group
+  path: /v2/monitor_v3/metadata_get_event_group/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/delete_event_group/
+  is_hidden: false
+  label: 删除事件分组
+  label_en: metadata delete event group
+  name: metadata_delete_event_group
+  path: /v2/monitor_v3/metadata_delete_event_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_event_group/
+  is_hidden: false
+  label: 修改事件分组
+  label_en: metadata modify event group
+  name: metadata_modify_event_group
+  path: /v2/monitor_v3/metadata_modify_event_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_event_group/
+  is_hidden: false
+  label: 创建事件分组
+  label_en: metadata create event group
+  name: metadata_create_event_group
+  path: /v2/monitor_v3/metadata_create_event_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_event_group/
+  is_hidden: false
+  label: 查询事件分组
+  label_en: metadata query event group
+  name: metadata_query_event_group
+  path: /v2/monitor_v3/metadata_query_event_group/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_log_group/
+  is_hidden: false
+  label: 查询日志分组具体内容
+  label_en: metadata get log group
+  name: metadata_get_log_group
+  path: /v2/monitor_v3/metadata_get_log_group/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/delete_log_group/
+  is_hidden: false
+  label: 删除日志分组
+  label_en: metadata delete log group
+  name: metadata_delete_log_group
+  path: /v2/monitor_v3/metadata_delete_log_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_log_group/
+  is_hidden: false
+  label: 修改日志分组
+  label_en: metadata modify log group
+  name: metadata_modify_log_group
+  path: /v2/monitor_v3/metadata_modify_log_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_log_group/
+  is_hidden: false
+  label: 创建日志分组
+  label_en: metadata create log group
+  name: metadata_create_log_group
+  path: /v2/monitor_v3/metadata_create_log_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_log_group/
+  is_hidden: false
+  label: 查询日志分组
+  label_en: metadata query log group
+  name: metadata_query_log_group
+  path: /v2/monitor_v3/metadata_query_log_group/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/access_bk_data_by_result_table/
+  is_hidden: true
+  label: 将结果表接入到计算平台
+  label_en: access_bk_data_by_result_table
+  name: access_bk_data_by_result_table
+  path: /v2/monitor_v3/access_bk_data_by_result_table/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/models/uptime_check_task/
+  is_hidden: true
+  label: 拨测任务列表
+  label_en: get uptime check task list
+  name: get_uptime_check_task_list
+  path: /v2/monitor_v3/get_uptime_check_task_list/
+  suggest_method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/models/uptime_check_node/
+  is_hidden: true
+  label: 拨测节点列表
+  label_en: get uptime check node list
+  name: get_uptime_check_node_list
+  path: /v2/monitor_v3/get_uptime_check_node_list/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/models/uptime_check_node/{node_id}/
+  is_hidden: true
+  label: 获取拨测节点信息
+  label_en: uptime check node info
+  name: uptime_check_node_info
+  path: /v2/monitor_v3/uptime_check_node_info/
+  suggest_method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_node/edit/
+  is_hidden: true
+  label: 编辑拨测节点信息
+  label_en: edit uptime check node info
+  name: edit_uptime_check_node
+  path: /v2/monitor_v3/edit_uptime_check_node/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_node/delete/
+  is_hidden: true
+  label: 删除拨测节点
+  label_en: delete uptime check node
+  name: delete_uptime_check_node
+  path: /v2/monitor_v3/delete_uptime_check_node/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_node/add/
+  is_hidden: true
+  label: 创建拨测节点
+  label_en: create uptime check node
+  name: create_uptime_check_node
+  path: /v2/monitor_v3/create_uptime_check_node/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/models/uptime_check_task/{task_id}/
+  is_hidden: true
+  label: 获取拨测任务信息
+  label_en: uptime check task info
+  name: uptime_check_task_info
+  path: /v2/monitor_v3/uptime_check_task_info/
+  suggest_method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_task/add/
+  is_hidden: true
+  label: 创建拨测任务
+  label_en: create uptime check task
+  name: create_uptime_check_task
+  path: /v2/monitor_v3/create_uptime_check_task/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_task/edit/
+  is_hidden: true
+  label: 编辑拨测任务信息
+  label_en: edit uptime check task info
+  name: edit_uptime_check_task
+  path: /v2/monitor_v3/edit_uptime_check_task/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_task/delete/
+  is_hidden: true
+  label: 删除拨测任务
+  label_en: delete uptime check task
+  name: delete_uptime_check_task
+  path: /v2/monitor_v3/delete_uptime_check_task/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_task/test/
+  is_hidden: true
+  label: 测试连通性
+  label_en: test uptime check task
+  name: test_uptime_check_task
+  path: /v2/monitor_v3/test_uptime_check_task/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_task/deploy/
+  is_hidden: true
+  label: 下发拨测任务
+  label_en: deploy uptime check task
+  name: deploy_uptime_check_task
+  path: /v2/monitor_v3/deploy_uptime_check_task/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_task/change_status/
+  is_hidden: true
+  label: 启停拨测任务
+  label_en: change uptime check task status
+  name: change_uptime_check_task_status
+  path: /v2/monitor_v3/change_uptime_check_task_status/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/models/collect_config/
+  is_hidden: true
+  label: 采集配置列表
+  label_en: get collect config list
+  name: get_collect_config_list
+  path: /v2/monitor_v3/get_collect_config_list/
+  suggest_method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy/search/
+  is_hidden: false
+  label: 查询告警策略
+  label_en: search alarm strategy
+  name: search_alarm_strategy
+  path: /v2/monitor_v3/search_alarm_strategy/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy/save/
+  is_hidden: false
+  label: 保存告警策略
+  label_en: save alarm strategy
+  name: save_alarm_strategy
+  path: /v2/monitor_v3/save_alarm_strategy/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy/delete/
+  is_hidden: false
+  label: 删除告警策略
+  label_en: delete alarm strategy
+  name: delete_alarm_strategy
+  path: /v2/monitor_v3/delete_alarm_strategy/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy/switch/
+  is_hidden: false
+  label: 启停告警策略
+  label_en: switch alarm strategy
+  name: switch_alarm_strategy
+  path: /v2/monitor_v3/switch_alarm_strategy/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/shield/add/
+  is_hidden: false
+  label: 新增告警屏蔽
+  label_en: add shield
+  name: add_shield
+  path: /v2/monitor_v3/add_shield/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/shield/disable/
+  is_hidden: false
+  label: 解除告警屏蔽
+  label_en: disable shield
+  name: disable_shield
+  path: /v2/monitor_v3/disable_shield/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/shield/edit/
+  is_hidden: false
+  label: 编辑告警屏蔽
+  label_en: edit shield
+  name: edit_shield
+  path: /v2/monitor_v3/edit_shield/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/shield/detail/
+  is_hidden: false
+  label: 获取告警屏蔽
+  label_en: get shield
+  name: get_shield
+  path: /v2/monitor_v3/get_shield/
+  suggest_method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/shield/search/
+  is_hidden: false
+  label: 获取告警屏蔽列表
+  label_en: get shield list
+  name: list_shield
+  path: /v2/monitor_v3/list_shield/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/event/event_log/
+  is_hidden: false
+  label: 查询事件流转记录
+  label_en: get event log
+  name: get_event_log
+  path: /v2/monitor_v3/get_event_log/
+  suggest_method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/event/search/
+  is_hidden: false
+  label: 查询事件
+  label_en: search event
+  name: search_event
+  path: /v2/monitor_v3/search_event/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/event/ack_event/
+  is_hidden: true
+  label: 告警事件确认
+  label_en: ack_event
+  name: ack_event
+  path: /v2/monitor_v3/ack_event/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/notice_group/search/
+  is_hidden: false
+  label: 查询通知组
+  label_en: search notice group
+  name: search_notice_group
+  path: /v2/monitor_v3/search_notice_group/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/notice_group/delete/
+  is_hidden: false
+  label: 删除通知组
+  label_en: delete notice group
+  name: delete_notice_group
+  path: /v2/monitor_v3/delete_notice_group/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/notice_group/save/
+  is_hidden: false
+  label: 保存通知组
+  label_en: save notice group
+  name: save_notice_group
+  path: /v2/monitor_v3/save_notice_group/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/user_group/search/
+  is_hidden: false
+  label: 查询用户组(新版)
+  label_en: search user group latest
+  name: search_user_groups
+  path: /v2/monitor_v3/search_user_groups/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/user_group/search_detail/
+  is_hidden: false
+  label: 查询单个用户组详情
+  label_en: search user group detail
+  name: search_user_group_detail
+  path: /v2/monitor_v3/search_user_group_detail/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/user_group/delete/
+  is_hidden: false
+  label: 批量删除用户组
+  label_en: delete user groups
+  name: delete_user_groups
+  path: /v2/monitor_v3/delete_user_groups/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/user_group/save/
+  is_hidden: false
+  label: 保存用户组
+  label_en: save user group
+  name: save_user_group
+  path: /v2/monitor_v3/save_user_group/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_time_series_group/
+  is_hidden: false
+  label: 创建自定义时序分组
+  label_en: create time series group
+  name: metadata_create_time_series_group
+  path: /v2/monitor_v3/metadata_create_time_series_group/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_time_series_group/
+  is_hidden: false
+  label: 修改自定义时序分组
+  label_en: modify time series group
+  name: metadata_modify_time_series_group
+  path: /v2/monitor_v3/metadata_modify_time_series_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/delete_time_series_group/
+  is_hidden: false
+  label: 删除自定义时序分组
+  label_en: delete time series group
+  name: metadata_delete_time_series_group
+  path: /v2/monitor_v3/metadata_delete_time_series_group/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_time_series_metrics/
+  is_hidden: true
+  label: 获取自定义时序结果表的metrics信息
+  label_en: get metrics info for time series event result table
+  name: metadata_get_time_series_metrics
+  path: /v2/monitor_v3/metadata_get_time_series_metrics/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_time_series_group/
+  is_hidden: false
+  label: 获取自定义时序分组具体内容
+  label_en: get time series group
+  name: metadata_get_time_series_group
+  path: /v2/monitor_v3/metadata_get_time_series_group/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_time_series_group/
+  is_hidden: false
+  label: 查询事件分组
+  label_en: query time series group
+  name: metadata_query_time_series_group
+  path: /v2/monitor_v3/metadata_query_time_series_group/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/save/
+  is_hidden: true
+  label: 创建/保存采集配置
+  label_en: save collect config
+  name: save_collect_config
+  path: /v2/monitor_v3/save_collect_config/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/collect/config_detail/
+  is_hidden: true
+  label: 查询采集配置详情
+  label_en: query collect config detail
+  name: query_collect_config_detail
+  path: /v2/monitor_v3/query_collect_config_detail/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/config_list/
+  is_hidden: true
+  label: 查询采集配置
+  label_en: query collect config
+  name: query_collect_config
+  path: /v2/monitor_v3/query_collect_config/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/collect/collect_instance_status/
+  is_hidden: true
+  label: 查询采集配置节点状态
+  label_en: get collect status
+  name: get_collect_status
+  path: /v2/monitor_v3/get_collect_status/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_tag_values/
+  is_hidden: false
+  label: 获取自定义时序分组具体内容
+  label_en: get time series group values
+  name: metadata_query_tag_values
+  path: /v2/monitor_v3/metadata_query_tag_values/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/toggle/
+  is_hidden: true
+  label: 启停采集配置
+  label_en: toggle collect config status
+  name: toggle_collect_config_status
+  path: /v2/monitor_v3/toggle_collect_config_status/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/delete/
+  is_hidden: true
+  label: 删除采集配置
+  label_en: delete collect config
+  name: delete_collect_config
+  path: /v2/monitor_v3/delete_collect_config/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/retry/
+  is_hidden: true
+  label: 重试部分实例或主机
+  label_en: retry target nodes
+  name: retry_target_nodes
+  path: /v2/monitor_v3/retry_target_nodes/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/batch_retry/
+  is_hidden: true
+  label: 批量重试采集配置的失败实例
+  label_en: batch retry config
+  name: batch_retry_config
+  path: /v2/monitor_v3/batch_retry_config/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/upgrade/
+  is_hidden: true
+  label: 采集配置插件升级
+  label_en: upgrade collect plugin
+  name: upgrade_collect_plugin
+  path: /v2/monitor_v3/upgrade_collect_plugin/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/rollback/
+  is_hidden: true
+  label: 采集配置回滚
+  label_en: rollback deployment config
+  name: rollback_deployment_config
+  path: /v2/monitor_v3/rollback_deployment_config/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/collect/running_status/
+  is_hidden: true
+  label: 获取采集配置主机的运行状态
+  label_en: collect running status
+  name: collect_running_status
+  path: /v2/monitor_v3/collect_running_status/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/collect/get_collect_log_detail/
+  is_hidden: true
+  label: 获取采集下发详细日志
+  label_en: get collect log detail
+  name: get_collect_log_detail
+  path: /v2/monitor_v3/get_collect_log_detail/
+  suggest_method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collect/batch_retry_detailed/
+  is_hidden: true
+  label: 重试失败的节点步骤
+  label_en: batch retry instance step
+  name: batch_retry_instance_step
+  path: /v2/monitor_v3/batch_retry_instance_step/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/custom_event/proxy_host_info/
+  is_hidden: true
+  label: 获取自定义上报的proxy主机信息
+  label_en: proxy host info
+  name: proxy_host_info
+  path: /v2/monitor_v3/proxy_host_info/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/custom_event/query_custom_event_group/
+  is_hidden: true
+  label: 获取业务下自定义事件列表
+  label_en: query_custom_event_group
+  name: query_custom_event_group
+  path: /v2/monitor_v3/query_custom_event_group/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/custom_event/get_custom_event_group/
+  is_hidden: true
+  label: 获取自定义事件详情
+  label_en: get_custom_event_group
+  name: get_custom_event_group
+  path: /v2/monitor_v3/get_custom_event_group/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/custom_event/validate_custom_event_group_name/
+  is_hidden: true
+  label: 校验自定义事件名称是否合法
+  label_en: validate_custom_event_group_name
+  name: validate_custom_event_group_name
+  path: /v2/monitor_v3/validate_custom_event_group_name/
+  suggest_method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/custom_event/create_custom_event_group/
+  is_hidden: true
+  label: 创建自定义事件
+  label_en: create_custom_event_group
+  name: create_custom_event_group
+  path: /v2/monitor_v3/create_custom_event_group/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/custom_event/modify_custom_event_group/
+  is_hidden: true
+  label: 修改自定义事件
+  label_en: modify_custom_event_group
+  name: modify_custom_event_group
+  path: /v2/monitor_v3/modify_custom_event_group/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/custom_event/delete_custom_event_group/
+  is_hidden: true
+  label: 删除自定义事件
+  label_en: delete_custom_event_group
+  name: delete_custom_event_group
+  path: /v2/monitor_v3/delete_custom_event_group/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/custom_metric/custom_time_series/
+  is_hidden: true
+  label: 自定义指标列表
+  label_en: custom_time_series
+  name: custom_time_series
+  path: /v2/monitor_v3/custom_time_series/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/custom_metric/custom_time_series_detail/
+  is_hidden: true
+  label: 自定义指标详情
+  label_en: custom_time_series_detail
+  name: custom_time_series_detail
+  path: /v2/monitor_v3/custom_time_series_detail/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/custom_metric/validate_custom_ts_group_name/
+  is_hidden: true
+  label: 校验自定义指标名称是否合法
+  label_en: validate_custom_ts_group_name
+  name: validate_custom_ts_group_name
+  path: /v2/monitor_v3/validate_custom_ts_group_name/
+  suggest_method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/custom_metric/create_custom_time_series/
+  is_hidden: true
+  label: 创建自定义指标
+  label_en: create_custom_time_series
+  name: create_custom_time_series
+  path: /v2/monitor_v3/create_custom_time_series/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/custom_metric/modify_custom_time_series/
+  is_hidden: true
+  label: 修改自定义指标
+  label_en: modify_custom_time_series
+  name: modify_custom_time_series
+  path: /v2/monitor_v3/modify_custom_time_series/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/custom_metric/delete_custom_time_series/
+  is_hidden: true
+  label: 删除自定义指标
+  label_en: delete_custom_time_series
+  name: delete_custom_time_series
+  path: /v2/monitor_v3/delete_custom_time_series/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_transfer_cluster/
+  is_hidden: false
+  label: 获取所有transfer集群信息
+  label_en: list transfer cluster
+  name: metadata_list_transfer_cluster
+  path: /v2/monitor_v3/metadata_list_transfer_cluster/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/collector_plugin/
+  is_hidden: true
+  label: 采集插件列表
+  label_en: collector_plugin_list
+  name: collector_plugin_list
+  path: /v2/monitor_v3/collector_plugin_list/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/collector_plugin/{plugin_id}/
+  is_hidden: true
+  label: 获取采集插件详情
+  label_en: collector_plugin_detail
+  name: collector_plugin_detail
+  path: /v2/monitor_v3/collector_plugin_detail/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/mail_report/get_statistics_by_json/
+  is_hidden: true
+  label: 查询运营数据
+  label_en: get statistics by json
+  name: get_statistics_by_json
+  path: /v2/monitor_v3/get_statistics_by_json/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/mail_report/test_report_mail/
+  is_hidden: true
+  label: 订阅报表测试
+  label_en: test report mail
+  name: test_report_mail
+  path: /v2/monitor_v3/test_report_mail/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/mail_report/group_list/
+  is_hidden: true
+  label: 查询组内人员
+  label_en: group list
+  name: group_list
+  path: /v2/monitor_v3/group_list/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/mail_report/is_superuser/
+  is_hidden: true
+  label: 判断用户是否超级管理员
+  label_en: is superuser
+  name: is_superuser
+  path: /v2/monitor_v3/is_superuser/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/mail_report/get_setting_and_notify_group/
+  is_hidden: true
+  label: 获取配置管理员及其业务、告警接收人及其业务
+  label_en: get setting and notify group
+  name: get_setting_and_notify_group
+  path: /v2/monitor_v3/get_setting_and_notify_group/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/query/permission/
+  is_hidden: true
+  label: 获取用户拥有给定权限的业务列表
+  label_en: business_list_by_actions
+  name: business_list_by_actions
+  path: /v2/monitor_v3/business_list_by_actions/
+  suggest_method: POST
+
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collector_plugin/delete/
+  is_hidden: true
+  label: 删除插件
+  label_en: collector_plugin_delete
+  name: collector_plugin_delete
+  path: /v2/monitor_v3/collector_plugin_delete/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/plugin_upgrade_info/search/
+  is_hidden: true
+  label: 获取插件升级日志
+  label_en: plugin_upgrade_info
+  name: plugin_upgrade_info
+  path: /v2/monitor_v3/collector_plugin_upgrade_info/
+  suggest_method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/base/remote_call/
+  is_hidden: true
+  label: 远程调用
+  label_en: remote_call
+  name: remote_call
+  path: /v2/monitor_v3/remote_call/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v2/search/
+  is_hidden: false
+  label: 查询告警策略
+  label_en: search alarm strategy
+  name: search_alarm_strategy_v2
+  path: /v2/monitor_v3/search_alarm_strategy_v2/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v2/save/
+  is_hidden: false
+  label: 保存告警策略
+  label_en: save alarm strategy
+  name: save_alarm_strategy_v2
+  path: /v2/monitor_v3/save_alarm_strategy_v2/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v2/delete/
+  is_hidden: false
+  label: 删除告警策略
+  label_en: delete alarm strategy
+  name: delete_alarm_strategy_v2
+  path: /v2/monitor_v3/delete_alarm_strategy_v2/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v2/update_bulk/
+  is_hidden: false
+  label: 批量更新策略局部配置
+  label_en: update partial strategy
+  name: update_partial_strategy_v2
+  path: /v2/monitor_v3/update_partial_strategy_v2/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v3/search/
+  is_hidden: false
+  label: 查询告警策略
+  label_en: search alarm strategy
+  name: search_alarm_strategy_v3
+  path: /v2/monitor_v3/search_alarm_strategy_v3/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v3/save/
+  is_hidden: false
+  label: 保存告警策略
+  label_en: save alarm strategy
+  name: save_alarm_strategy_v3
+  path: /v2/monitor_v3/save_alarm_strategy_v3/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v3/delete/
+  is_hidden: false
+  label: 删除告警策略
+  label_en: delete alarm strategy
+  name: delete_alarm_strategy_v3
+  path: /v2/monitor_v3/delete_alarm_strategy_v3/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v3/update_bulk/
+  is_hidden: false
+  label: 批量更新策略局部配置
+  label_en: update partial strategy
+  name: update_partial_strategy_v3
+  path: /v2/monitor_v3/update_partial_strategy_v3/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alarm_strategy_v3/search_without_biz/
+  is_hidden: false
+  label: 查询全业务告警策略
+  label_en: search alarm strategy without biz
+  name: search_alarm_strategy_without_biz
+  path: /v2/monitor_v3/search_alarm_strategy_without_biz/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_es_snapshot_repository/
+  is_hidden: true
+  label: 创建ES快照仓库
+  label_en: create es snapshot repository
+  name: metadata_create_es_snapshot_repository
+  path: /v2/monitor_v3/metadata_create_es_snapshot_repository/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_es_snapshot_repository/
+  is_hidden: true
+  label: 修改ES快照仓库
+  label_en: modify es snapshot repository
+  name: metadata_modify_es_snapshot_repository
+  path: /v2/monitor_v3/metadata_modify_es_snapshot_repository/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/delete_es_snapshot_repository/
+  is_hidden: true
+  label: 删除ES快照仓库
+  label_en: delete es snapshot repository
+  name: metadata_delete_es_snapshot_repository
+  path: /v2/monitor_v3/metadata_delete_es_snapshot_repository/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/verify_es_snapshot_repository/
+  is_hidden: true
+  label: 验证ES快照仓库
+  label_en: verify es snapshot repository
+  name: metadata_verify_es_snapshot_repository
+  path: /v2/monitor_v3/metadata_verify_es_snapshot_repository/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/es_snapshot_repository/
+  is_hidden: true
+  label: 查询指定ES快照仓库
+  label_en: query es snapshot repository
+  name: es_snapshot_repository
+  path: /v2/monitor_v3/metadata_es_snapshot_repository/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/list_es_snapshot_repository/
+  is_hidden: true
+  label: 快照仓库列表
+  label_en: list es snapshot repository
+  name: list_es_snapshot_repository
+  path: /v2/monitor_v3/metadata_list_es_snapshot_repository/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_result_table_snapshot/
+  is_hidden: true
+  label: 创建结果表快照配置
+  label_en: create result table snapshot
+  name: create_result_table_snapshot
+  path: /v2/monitor_v3/metadata_create_result_table_snapshot/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_result_table_snapshot/
+  is_hidden: true
+  label: 修改结果表快照配置
+  label_en: modify result table snapshot
+  name: modify_result_table_snapshot
+  path: /v2/monitor_v3/metadata_modify_result_table_snapshot/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/delete_result_table_snapshot/
+  is_hidden: true
+  label: 删除结果表快照配置
+  label_en: delete result table snapshot
+  name: delete_result_table_snapshot
+  path: /v2/monitor_v3/metadata_delete_result_table_snapshot/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/list_result_table_snapshot/
+  is_hidden: true
+  label: 结果表快照配置列表
+  label_en: list result table snapshot
+  name: list_result_table_snapshot
+  path: /v2/monitor_v3/metadata_list_result_table_snapshot/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/list_result_table_snapshot_indices/
+  is_hidden: true
+  label: 结果表快照配置列表含物理索引
+  label_en: list result table snapshot indices
+  name: list_result_table_snapshot_indices
+  path: /v2/monitor_v3/metadata_list_result_table_snapshot_indices/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/get_result_table_snapshot_state/
+  is_hidden: true
+  label: 验证ES快照仓库
+  label_en: verify es snapshot repository
+  name: get_result_table_snapshot_state
+  path: /v2/monitor_v3/metadata_get_result_table_snapshot_state/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/restore_result_table_snapshot/
+  is_hidden: true
+  label: 快照回溯
+  label_en: restore result table snapshot
+  name: restore_result_table_snapshot
+  path: /v2/monitor_v3/metadata_restore_result_table_snapshot/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_restore_result_table_snapshot/
+  is_hidden: true
+  label: 修改快照回溯配置
+  label_en: modify restore result table snapshot
+  name: modify_restore_result_table_snapshot
+  path: /v2/monitor_v3/metadata_modify_restore_result_table_snapshot/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/delete_restore_result_table_snapshot/
+  is_hidden: true
+  label: 删除快照回溯配置
+  label_en: delete restore result table snapshot
+  name: delete_restore_result_table_snapshot
+  path: /v2/monitor_v3/metadata_delete_restore_result_table_snapshot/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/list_restore_result_table_snapshot/
+  is_hidden: true
+  label: 快照回溯列表
+  label_en: list restore result table snapshot
+  name: list_restore_result_table_snapshot
+  path: /v2/monitor_v3/metadata_list_restore_result_table_snapshot/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/get_restore_result_table_snapshot_state/
+  is_hidden: true
+  label: 快照回溯状态
+  label_en: restore result table snapshot state
+  name: get_restore_result_table_snapshot_state
+  path: /v2/monitor_v3/metadata_get_restore_result_table_snapshot_state/
+  method: POST
+
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/check_or_create_kafka_storage/
+  is_hidden: true
+  label: 创建实时监控表对应的kafka存储
+  label_en: check or create kafka storage
+  name: check_or_create_kafka_storage
+  path: /v2/monitor_v3/check_or_create_kafka_storage/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/action_instance/batch_create_action/
+  is_hidden: true
+  label: 批量创建处理事件
+  label_en: batch_create_action
+  name: batch_create_action
+  path: /v2/monitor_v3/batch_create_action/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/register_bcs_cluster/
+  is_hidden: true
+  label: 注册bcs集群到metadata
+  label_en: register bcs cluster
+  name: register_bcs_cluster
+  path: /v2/monitor_v3/register_bcs_cluster/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/modify_bcs_resource_info/
+  is_hidden: true
+  label: 修改metadata的bcs_resouce信息
+  label_en: modify bcs monitor info
+  name: modify_bcs_resource_info
+  path: /v2/monitor_v3/modify_bcs_resource_info/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/list_bcs_resource_info/
+  is_hidden: true
+  label: 查询metadata的bcs_resouce信息
+  label_en: list bcs monitor info
+  name: list_bcs_resource_info
+  path: /v2/monitor_v3/list_bcs_resource_info/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/apply_yaml_to_bcs_cluster/
+  is_hidden: true
+  label: 应用yaml配置到指定集群
+  label_en: apply yaml to bcs cluster
+  name: apply_yaml_to_bcs_cluster
+  path: /v2/monitor_v3/apply_yaml_to_bcs_cluster/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_bcs_cluster_info/
+  is_hidden: true
+  label: 查询metadata的bcs_cluster信息
+  label_en: list bcs cluster info
+  name: list_bcs_cluster_info
+  path: /v2/monitor_v3/list_bcs_cluster_info/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_bcs_metrics/
+  is_hidden: true
+  label: 查询metadata的bcs指标信息
+  label_en: query bcs metrics info
+  name: query_bcs_metrics
+  path: /v2/monitor_v3/query_bcs_metrics/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/delete_cluster_info/
+  is_hidden: true
+  label: 删除存储集群信息
+  label_en: delete cluster info
+  name: metadata_delete_cluster_info
+  path: /v2/monitor_v3/metadata_delete_cluster_info/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alert_info/search_alert_by_event/
+  is_hidden: true
+  label: 根据event获取告警处理信息
+  label_en: search alert by event
+  name: search_alert_by_event
+  path: /v2/monitor_v3/search_alert_by_event/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/action_config/save/
+  is_hidden: false
+  label: 保存处理套餐
+  label_en: save_action_config
+  name: save_action_config
+  path: /v2/monitor_v3/save_action_config/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/action_config/detail/
+  is_hidden: false
+  label: 获取单个处理套餐
+  label_en: get_action_config
+  name: get_action_config
+  path: /v2/monitor_v3/get_action_config/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/action_config/search/
+  is_hidden: false
+  label: 批量获取处理套餐
+  label_en: search_action_config
+  name: search_action_config
+  path: /v2/monitor_v3/search_action_config/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/action_config/edit/
+  is_hidden: false
+  label: 编辑处理套餐
+  label_en: edit_action_config
+  name: edit_action_config
+  path: /v2/monitor_v3/edit_action_config/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/action_config/delete/
+  is_hidden: false
+  label: 删除处理套餐
+  label_en: delete_action_config
+  name: delete_action_config
+  path: /v2/monitor_v3/delete_action_config/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/search_action/search_action/
+  is_hidden: false
+  label: 查询处理记录
+  label_en: search_action
+  name: search_action
+  path: /v2/monitor_v3/search_action/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/search_alert/search_alert/
+  is_hidden: false
+  label: 查询告警记录
+  label_en: search_alert
+  name: search_alert
+  path: /v2/monitor_v3/search_alert/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/create_application/
+  is_hidden: true
+  label: 创建APM应用
+  label_en: null
+  name: create_apm_application
+  path: /v2/monitor_v3/create_apm_application/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/delete_application/
+  is_hidden: true
+  label: 删除APM应用
+  label_en: null
+  name: delete_apm_application
+  path: /v2/monitor_v3/delete_apm_application/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/create_application_simple/
+  is_hidden: false
+  label: 快速创建APM应用
+  label_en: null
+  name: apm_create_application
+  path: /v2/monitor_v3/apm/create_application/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/apply_datasource/
+  is_hidden: true
+  label: 申请APM数据源
+  label_en: null
+  name: apply_apm_datasource
+  path: /v2/monitor_v3/apply_apm_datasource/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/list_application/
+  is_hidden: true
+  label: 获取应用列表
+  label_en: list apm application
+  name: list_apm_application
+  path: /v2/monitor_v3/list_apm_application/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/detail_application/
+  is_hidden: true
+  label: 应用详情
+  label_en: detail apm application
+  name: detail_apm_application
+  path: /v2/monitor_v3/detail_apm_application/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/meta_info/list_es_cluster_info/
+  is_hidden: true
+  label: 获取es集群信息
+  label_en: list apm es cluster info
+  name: list_apm_es_cluster_info
+  path: /v2/monitor_v3/list_apm_es_cluster_info/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/topo/query_topo_instance/
+  is_hidden: true
+  label: 查询topo实例
+  label_en: query apm topo instance
+  name: query_apm_topo_instance
+  path: /v2/monitor_v3/query_apm_topo_instance/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/topo/query_remote_service_relation/
+  is_hidden: true
+  label: 查询远程服务接口调用关系
+  label_en: query apm remote service relation
+  name: query_apm_remote_service_relation
+  path: /v2/monitor_v3/query_remote_service_relation/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/query_metric_dimensions/
+  is_hidden: true
+  label: 查询指标维度
+  label_en: query metric dimensions
+  name: query_metric_dimensions
+  path: /v2/monitor_v3/query_metric_dimensions/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_discover_rules/
+  is_hidden: true
+  label: 查询拓扑发现规则
+  label_en: query apm discover rules
+  name: query_apm_discover_rules
+  path: /v2/monitor_v3/query_discover_rules/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/topo/query_topo_node/
+  is_hidden: true
+  label: 查询topo节点
+  label_en: query apm topo node
+  name: query_apm_topo_node
+  path: /v2/monitor_v3/query_apm_topo_node/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/topo/query_topo_relation/
+  is_hidden: true
+  label: 查询topo关系
+  label_en: query apm topo relation
+  name: query_apm_topo_relation
+  path: /v2/monitor_v3/query_apm_topo_relation/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/query_root_endpoint/
+  is_hidden: true
+  label: 查询root入口
+  label_en: query apm root endpoint
+  name: query_apm_root_endpoint
+  path: /v2/monitor_v3/query_apm_root_endpoint/
+  method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/start_application/
+  is_hidden: true
+  label: 启动应用
+  label_en: start apm application
+  name: start_apm_application
+  path: /v2/monitor_v3/start_apm_application/
+  method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/stop_application/
+  is_hidden: true
+  label: 停止应用
+  label_en: stop apm application
+  name: stop_apm_application
+  path: /v2/monitor_v3/stop_apm_application/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_event/
+  is_hidden: true
+  label: 查询APM相关事件信息
+  label_en: query apm event
+  name: query_apm_event
+  path: /v2/monitor_v3/query_apm_event/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_span/
+  is_hidden: true
+  label: 查询span信息
+  label_en: query apm span
+  name: query_apm_span
+  path: /v2/monitor_v3/query_apm_span/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_endpoint/
+  is_hidden: true
+  label: 查询APM入口
+  label_en: query apm endpoint
+  name: query_apm_endpoint
+  path: /v2/monitor_v3/query_apm_endpoint/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/query_fields/
+  is_hidden: true
+  label: 查询字段信息
+  label_en: query apm fields
+  name: query_apm_fields
+  path: /v2/monitor_v3/query_apm_fields/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/update_metric_fields/
+  is_hidden: true
+  label: 更新apm指标字段
+  label_en: update apm metric fields
+  name: update_apm_metric_fields
+  path: /v2/monitor_v3/update_apm_metric_fields/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/es_route/
+  is_hidden: true
+  label: 转发 es get 请求
+  label_en: es route request
+  name: metadata_es_route
+  path: /v2/monitor_v3/metadata_es_route/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/kafka_tail/
+  is_hidden: true
+  label: 查询结果表MQ的最新数据
+  label_en: query result_table kafka tail data
+  name: metadata_kafka_tail
+  path: /v2/monitor_v3/metadata_kafka_tail/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_es/
+  is_hidden: true
+  label: 查询apm相关es数据
+  label_en: query apm es
+  name: query_apm_es
+  path: /v2/monitor_v3/query_apm_es/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_host_instance/
+  is_hidden: true
+  label: 查询apm主机实例
+  label_en: query apm host instance
+  name: query_apm_host_instance
+  path: /v2/monitor_v3/query_host_instance/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_es_mapping/
+  is_hidden: true
+  label: 查询apm应用es映射
+  label_en: query apm es mapping
+  name: query_apm_es_mapping
+  path: /v2/monitor_v3/query_apm_es_mapping/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_trace_list/
+  is_hidden: true
+  label: 查询trace列表
+  label_en: query apm trace list
+  name: query_apm_trace_list
+  path: /v2/monitor_v3/query_apm_trace_list/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_span_list/
+  is_hidden: true
+  label: 查询span列表
+  label_en: query apm span list
+  name: query_apm_span_list
+  path: /v2/monitor_v3/query_apm_span_list/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_span_statistics/
+  is_hidden: true
+  label: 查询接口统计列表
+  label_en: query apm span statistics
+  name: query_apm_span_statistics
+  path: /v2/monitor_v3/query_apm_span_statistics/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_service_statistics/
+  is_hidden: true
+  label: 查询服务统计列表
+  label_en: query apm service statistics
+  name: query_apm_service_statistics
+  path: /v2/monitor_v3/query_apm_service_statistics/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_trace_option_values/
+  is_hidden: true
+  label: 查询trace列表候选值
+  label_en: query apm trace option values
+  name: query_apm_trace_option_values
+  path: /v2/monitor_v3/query_apm_trace_option_values/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_span_option_values/
+  is_hidden: true
+  label: 查询span列表候选值
+  label_en: query apm span option values
+  name: query_apm_span_option_values
+  path: /v2/monitor_v3/query_apm_span_option_values/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_trace_detail/
+  is_hidden: true
+  label: 查询trace详情
+  label_en: query trace detail
+  name: query_apm_trace_detail
+  path: /v2/monitor_v3/query_apm_trace_detail/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_span_detail/
+  is_hidden: true
+  label: 查询span详情
+  label_en: query span detail
+  name: query_apm_span_detail
+  path: /v2/monitor_v3/query_apm_span_detail/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /apm_api/v1/application/application_config/
+  is_hidden: true
+  label: 查询APM应用配置
+  label_en: query apm application config
+  name: query_apm_application_config
+  path: /v2/monitor_v3/query_apm_application_config/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/release_app_config/
+  is_hidden: true
+  label: 下发APM应用配置
+  label_en: release apm app config
+  name: release_apm_app_config
+  path: /v2/monitor_v3/release_apm_app_config/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/delete_app_config/
+  is_hidden: true
+  label: 删除APM应用配置
+  label_en: delete apm app config
+  name: delete_apm_app_config
+  path: /v2/monitor_v3/delete_apm_delete_app_config/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_trace_by_ids/
+  is_hidden: true
+  label: 根据traceId列表获取trace信息
+  label_en: query trace by ids
+  name: query_trace_by_ids
+  path: /v2/monitor_v3/query_trace_by_ids/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_app_by_trace/
+  is_hidden: true
+  label: 根据traceId列表获取App关联
+  label_en: query app by trace
+  name: query_app_by_trace
+  path: /v2/monitor_v3/query_app_by_trace/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_app_by_host_instance/
+  is_hidden: true
+  label: 根据ip列表获取App关联
+  label_en: query app by host instance
+  name: query_app_by_host_instance
+  path: /v2/monitor_v3/query_app_by_host_instance/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_log_relation_by_index_set_id/
+  is_hidden: true
+  label: 根据索引集id获取服务关联
+  label_en: query log relation by index set id
+  name: query_log_relation_by_index_set_id
+  path: /v2/monitor_v3/query_log_relation/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/application/query_trace_by_host_instance/
+  is_hidden: true
+  label: 根据ip获取trace信息
+  label_en: query trace by host instance
+  name: query_trace_by_host_instance
+  path: /v2/monitor_v3/query_trace_by_host_instance/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/action_instance/get_action_params_by_config/
+  is_hidden: true
+  label: 根据套餐ID获取当前告警处理参数
+  label_en: null
+  name: get_action_params_by_config
+  path: /v2/monitor_v3/get_action_params_by_config/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/bcs/get_bcs_gray_cluster_list/
+  is_hidden: true
+  label: 获取BCS集群灰度ID名单
+  label_en: null
+  name: get_bcs_gray_cluster_list
+  path: /v2/monitor_v3/get_bcs_gray_cluster_list/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/grafana/graph_promql_query/
+  is_hidden: true
+  label: prom语法数据查询
+  label_en: null
+  name: graph_promql_query
+  path: /v2/monitor_v3/graph_promql_query/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/grafana/time_series/unify_query/
+  is_hidden: false
+  label: 视图数据查询
+  label_en: null
+  name: time_series_unify_query
+  path: /v2/monitor_v3/time_series_unify_query/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/grafana/time_series/unify_query_raw/
+  is_hidden: true
+  label: 视图数据查询(原始数据)
+  label_en: time series unify raw query
+  name: time_series_unify_query_raw
+  path: /v2/monitor_v3/time_series_unify_query_raw/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/bcs/register_cluster/
+  is_hidden: true
+  label: BCS集群接入监控
+  label_en: null
+  name: register_cluster_from_bcs
+  path: /v2/monitor_v3/register_cluster/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_space_types/
+  is_hidden: true
+  label: 查询空间类型列表
+  label_en: list space types
+  name: metadata_list_space_types
+  path: /v2/monitor_v3/metadata_list_space_types/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_spaces/
+  is_hidden: true
+  label: 查询空间实例列表
+  label_en: list spaces
+  name: metadata_list_spaces
+  path: /v2/monitor_v3/metadata_list_spaces/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_space_detail/
+  is_hidden: true
+  label: 查询空间实例详情
+  label_en: get space detail
+  name: metadata_get_space_detail
+  path: /v2/monitor_v3/metadata_get_space_detail/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_sticky_spaces/
+  is_hidden: true
+  label: 查询置顶空间列表
+  label_en: list sticky spaces
+  name: metadata_list_sticky_spaces
+  path: /v2/monitor_v3/metadata_list_sticky_spaces/
+  method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/stick_space/
+  is_hidden: true
+  label: 取消置顶/置顶空间
+  label_en: stick space
+  name: metadata_stick_space
+  path: /v2/monitor_v3/metadata_stick_space/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_clusters_by_space_uid/
+  is_hidden: true
+  label: 查询空间下的集群信息
+  label_en: get cluster by space uid
+  name: metadata_get_clusters_by_space_uid
+  path: /v2/monitor_v3/metadata_get_clusters_by_space_uid/
+  method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_space/
+  is_hidden: true
+  label: 创建空间
+  label_en: create space
+  name: metadata_create_space
+  path: /v2/monitor_v3/metadata_create_space/
+  method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/update_space/
+  is_hidden: true
+  label: 更新空间
+  label_en: update space
+  name: metadata_update_space
+  path: /v2/monitor_v3/metadata_update_space/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/event_plugin/deploy_event_plugin/
+  is_hidden: true
+  label: 部署告警源插件
+  label_en: deploy event plugin
+  name: deploy_event_plugin
+  path: /v2/monitor_v3/deploy_event_plugin/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/metrics/get_metric_list/
+  is_hidden: false
+  label: 指标通用查询
+  label_en: get metric list
+  name: get_metric_list
+  path: /v2/monitor_v3/get_metric_list/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/collector_plugin/plugin_import_without_frontend/
+  is_hidden: true
+  label: 导入插件API
+  label_en: plugin_import_without_frontend
+  name: plugin_import_without_frontend
+  path: /v2/monitor_v3/plugin_import_without_frontend/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/collector_plugin/export_plugin/
+  is_hidden: true
+  label:  导出插件
+  label_en: export_plugin
+  name: export_plugin
+  path: /v2/monitor_v3/export_plugin/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_data_pipeline/
+  is_hidden: true
+  label: 查询链路管道
+  label_en: list_data_pipeline
+  name: metadata_list_data_pipeline
+  path: /v2/monitor_v3/metadata_list_data_pipeline/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/create_data_pipeline/
+  is_hidden: true
+  label: 创建链路管道
+  label_en: create_data_pipeline
+  name: metadata_create_data_pipeline
+  path: /v2/monitor_v3/metadata_create_data_pipeline/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/update_data_pipeline/
+  is_hidden: true
+  label: 更新链路管道
+  label_en: update_data_pipeline
+  name: metadata_update_data_pipeline
+  path: /v2/monitor_v3/metadata_update_data_pipeline/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_storage_cluster_info/
+  is_hidden: true
+  label: 查询集群信息
+  label_en: get_storage_cluster_info
+  name: metadata_get_storage_cluster_info
+  path: /v2/monitor_v3/metadata_get_storage_cluster_info/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_etl_config/
+  is_hidden: true
+  label: 查询场景类型
+  label_en: get_etl_config
+  name: metadata_get_etl_config
+  path: /v2/monitor_v3/metadata_get_etl_config/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_transfer_list/
+  is_hidden: true
+  label: 查询 transfer 集群列表
+  label_en: get_transfer_list
+  name: metadata_get_transfer_list
+  path: /v2/monitor_v3/metadata_get_transfer_list/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/check_cluster_health/
+  is_hidden: true
+  label: 检测集群连通性
+  label_en: check_cluster_health
+  name: metadata_check_cluster_health
+  path: /v2/monitor_v3/metadata_check_cluster_health/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_data_source_by_data_pipeline/
+  is_hidden: true
+  label: 查询使用管道的数据源信息
+  label_en: list_data_source_by_data_pipeline
+  name: metadata_list_data_source_by_data_pipeline
+  path: /v2/monitor_v3/metadata_list_data_source_by_data_pipeline/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/list_clusters/
+  is_hidden: true
+  label: 查询已经注册的集群
+  label_en: list_clusters
+  name: metadata_list_clusters
+  path: /v2/monitor_v3/metadata_list_clusters/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/get_storage_cluster_detail/
+  is_hidden: true
+  label: 查询集群详情
+  label_en: get_storage_cluster_detail
+  name: metadata_get_storage_cluster_detail
+  path: /v2/monitor_v3/metadata_get_storage_cluster_detail/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/register_cluster/
+  is_hidden: true
+  label: 注册集群
+  label_en: register_cluster
+  name: metadata_register_cluster
+  path: /v2/monitor_v3/metadata_register_cluster/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/update_registered_cluster/
+  is_hidden: true
+  label: 注册集群
+  label_en: update_registered_cluster
+  name: metadata_update_registered_cluster
+  path: /v2/monitor_v3/metadata_update_registered_cluster/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/meta/query_data_source/
+  is_hidden: true
+  label: 查询数据源
+  label_en: query_data_source
+  name: metadata_query_data_source
+  path: /v2/monitor_v3/metadata_query_data_source/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/application_web/create_application/
+  is_hidden: true
+  label: 【APM】应用创建
+  label_en: create apm application
+  name: apm_create_web_application
+  path: /v2/monitor_v3/apm/create_web_application/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/application_web/delete_application/
+  is_hidden: true
+  label: 【APM】应用删除
+  label_en: delete apm application
+  name: apm_delete_web_application
+  path: /v2/monitor_v3/apm/delete_web_application/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/application_web/setup/
+  is_hidden: true
+  label: 【APM】应用更新
+  label_en: update apm application
+  name: apm_update_web_application
+  path: /v2/monitor_v3/apm/update_web_application/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/application_web/check_duplicate_app_name/
+  is_hidden: true
+  label: 【APM】应用名校验
+  label_en: check apm duplicate app name
+  name: apm_check_duplicate_app_name
+  path: /v2/monitor_v3/apm/check_duplicate_app_name/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/application_web/{application_id}/application_info/
+  is_hidden: true
+  label: 【APM】应用详情查询
+  label_en: apm application info
+  name: apm_application_info
+  path: /v2/monitor_v3/apm/application_info/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/application_web/{application_id}/query_bk_data_token/
+  is_hidden: true
+  label: 【APM】应用token查询
+  label_en: query apm data token
+  name: apm_query_bk_data_token
+  path: /v2/monitor_v3/apm/query_bk_data_token/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/application_web/application_info_by_app_name/
+  is_hidden: true
+  label: 【APM】根据应用名查询应用详情
+  label_en: query apm application info by app name
+  name: apm_application_info_by_app_name
+  path: /v2/monitor_v3/apm/application_info_by_app_name/
+  suggest_method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/as_code/import_config/
+  is_hidden: true
+  label: 【AS_CODE】导入配置
+  label_en: import as code config
+  name: as_code_import_config
+  path: /v2/monitor_v3/as_code/import_config/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/as_code/export_config/
+  is_hidden: true
+  label: 导出yaml配置
+  label_en: export as code config
+  name: as_code_export_config
+  path: /v2/monitor_v3/as_code/export_config/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alert_assign/search_rule_groups/
+  is_hidden: false
+  label: 查询分派组
+  label_en: search assign group
+  name: search_rule_groups
+  path: /v2/monitor_v3/assign/search_rule_groups/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alert_assign/save_rule_group/
+  is_hidden: false
+  label: 保存分派组
+  label_en: save assign group
+  name: save_rule_group
+  path: /v2/monitor_v3/assign/save_rule_group/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/alert_assign/delete_rule_group/
+  is_hidden: false
+  label: 删除分派组
+  label_en: delete assign group
+  name: delete_rule_group
+  path: /v2/monitor_v3/assign/delete_rule_group/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/grafana/log/query/
+  is_hidden: false
+  label: 事件检索
+  label_en: grafana log query
+  name: grafana_log_query
+  path: /v2/monitor_v3/log_query/
+  suggest_method: POST

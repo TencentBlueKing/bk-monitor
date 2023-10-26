@@ -1,0 +1,47 @@
+.pie-echart {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  flex-direction: column;
+  z-index: 7;
+  background-color: white;
+  &-header {
+    flex: 0 0 46px;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 46px;
+  }
+  &-content {
+    flex: 1;
+    display: flex;
+    width: 100%;
+    height: calc(100% - 46px);
+    flex-direction: column;
+    &.right-legend {
+      flex-direction: row;
+    }
+    .chart-instance {
+      flex: 1;
+      display: flex;
+      flex-grow: 2;
+    }
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      width: 40%;
+      overflow: auto;
+      height: auto;
+      min-height: 1px;
+      position: relative;
+    }
+  }
+  .empty-chart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex: 1;
+  }
+}

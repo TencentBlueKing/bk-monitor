@@ -1,0 +1,46 @@
+.simple-select-input-component-list-wrap {
+  .list-wrap {
+    max-height: 216px;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    list-style: none;
+    width: 100px;
+    min-width: 200px;
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 10px;
+      height: 32px;
+      background: #fff;
+      white-space: nowrap;
+      &:hover {
+        background: #f0f1f5;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+  .extension {
+    width: 200px;
+    display: flex;
+    background: #fafbfd;
+    border-radius: 0 0 1px 1px;
+    border-top: 1px solid #dcdee5;
+    padding: 0 16px;
+    line-height: 32px;
+    cursor: pointer;
+    &:hover {
+      background: #f0f1f5;
+    }
+  }
+  .no-data-msg {
+    width: 200px;
+    text-align: center;
+    height: 32px;
+    padding: 0 10px;
+    line-height: 32px;
+    color: #63656e;
+  }
+}

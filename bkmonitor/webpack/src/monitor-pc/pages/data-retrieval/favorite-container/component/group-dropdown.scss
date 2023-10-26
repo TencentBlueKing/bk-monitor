@@ -1,0 +1,139 @@
+.more-container {
+  .tippy-tooltip {
+    padding: 0;
+  }
+
+  &.is-group {
+    &:hover .dropdown-list {
+      display: block;
+    }
+  }
+
+  .more-box {
+    line-height: 16px;
+    border-radius: 2px;
+
+    &.is-click,
+    &:hover {
+      background: #dcdee5;
+    }
+  }
+
+  .move-group {
+    .more-icon {
+      display: inline-block;
+      margin-left: 2px;
+      font-size: 20px;
+      transform: translateY(2px);
+      color: #979ba5;
+    }
+  }
+
+  .group-div {
+    height: 31px;
+    width: 6px;
+    position: absolute;
+  }
+
+  .dropdown-list,
+  %dropdown-list {
+    padding: 4px 0;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, .1);
+
+    li {
+      color: #63656e;
+      padding: 2px 12px;
+      white-space: nowrap;
+      line-height: 24px;
+      cursor: pointer;
+      font-size: 12px;
+
+      &:hover {
+        background: #f5f7fa;
+      }
+    }
+  }
+
+  .group-dropdown-list {
+    min-width: 170px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-bottom: 42px !important;
+
+    @extend %dropdown-list;
+
+    .new-group-container {
+      color: #3A84FF;
+      background: #E1ECFF;
+    }
+
+    .new-group {
+      padding: 1px 3px;
+      color: #fff;
+      background: #FFBD50;
+      border-radius: 2px;
+      margin-left: 4px;
+      font-size: 12px;
+    }
+
+    .add-new-group {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 40px;
+      background: #fafcfe;
+
+      .icon-close-circle {
+        display: inline-block;
+        transform: rotate(45deg);
+        margin-right: 4px;
+      }
+    }
+  }
+
+  .eye-catching {
+    border-top: 1px solid #dcdee5;
+    color: #F56350 !important;
+  }
+
+  .add-new-page-container {
+    box-sizing: border-box;
+    .add-new-page-input {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .new-page-input {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      padding: 0;
+      width: 100%;
+    }
+    .operate-button {
+      font-size: 16px;
+      margin-left: 6px;
+      justify-content: space-between;
+      color: #979ba5;
+  
+      span {
+        cursor: pointer;
+      }
+  
+      > :first-child {
+        color: #33D05C;
+        margin-right: 12px;
+      }
+      > :last-child {
+        color: #979ba5;
+      }
+    }
+  }
+}

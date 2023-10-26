@@ -1,0 +1,34 @@
+name: test
+description: ""
+
+alert:
+  00:00--23:59:
+    remind:
+      type: [weixin, mail, wxwork-bot]
+      chatids: [xxxxxxxxxxx, yyyyyyyyyyy]
+    warning:
+      type: [weixin, mail]
+    fatal:
+      type: [weixin, mail]
+
+action:
+  00:00--23:59:
+    execute:
+      type: [weixin, mail, wxwork-bot]
+      chatids: [xxxxxxxxxxx, yyyyyyyyyyy]
+    execute_failed:
+      type: [weixin, mail]
+    execute_success:
+      type: [weixin, mail]
+
+duties:
+- user_groups: [[group#bk_operator, xxx]]
+  type: weekly
+  handover:
+    date: 1
+    time: 00:00
+  work:
+    days: []
+    time_range: 00:00--23:59
+  effective_time: "2022-05-24 17:35:00"
+  need_rotation: false

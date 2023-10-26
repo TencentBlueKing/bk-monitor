@@ -1,0 +1,1322 @@
+- description: ''
+  field_name: apiserver_admission_controller_admission_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: name}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_controller_admission_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: name}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_controller_admission_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: name}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_step_admission_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_step_admission_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_step_admission_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_step_admission_duration_seconds_summary
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: quantile}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_step_admission_duration_seconds_summary_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_step_admission_duration_seconds_summary_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_webhook_admission_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: name}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_webhook_admission_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: name}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_webhook_admission_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: name}
+  - {description: '', field_name: type}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: rejected}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_admission_webhook_rejection_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: error_type}
+  - {description: '', field_name: name}
+  - {description: '', field_name: operation}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: type}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: rejection_code}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_audit_event_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_audit_level_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: level}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_audit_requests_rejected_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_client_certificate_expiration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_client_certificate_expiration_seconds_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_client_certificate_expiration_seconds_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_current_inflight_requests
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: requestKind}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_envelope_encryption_dek_cache_fill_percent
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_init_events_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_longrunning_gauge
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: component}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_registered_watchers
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: version}
+  - {description: '', field_name: kind}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_request_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: dry_run}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_request_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: dry_run}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_request_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: dry_run}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_request_terminations_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: code}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_request_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: code}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: dry_run}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: contentType}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_response_sizes_bucket
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_response_sizes_count
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_response_sizes_sum
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: subresource}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: version}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: scope}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: component}
+- description: ''
+  field_name: apiserver_storage_data_key_generation_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_storage_data_key_generation_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_storage_data_key_generation_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_storage_data_key_generation_failures_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_storage_envelope_transformation_cache_misses_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_tls_handshake_errors_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_watch_events_sizes_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: version}
+  - {description: '', field_name: le}
+  - {description: '', field_name: kind}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_watch_events_sizes_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: version}
+  - {description: '', field_name: kind}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_watch_events_sizes_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: version}
+  - {description: '', field_name: kind}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_watch_events_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: version}
+  - {description: '', field_name: kind}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: group}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: apiserver_cache_list_fetched_objects_total
+  tag_list:
+  - {description: '', field_name: resource_prefix, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: index, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_cache_list_returned_objects_total
+  tag_list:
+  - {description: '', field_name: resource_prefix, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_cache_list_total
+  tag_list:
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: resource_prefix, type: string, unit: ''}
+  - {description: '', field_name: index, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_longrunning_requests
+  tag_list:
+  - {description: '', field_name: verb, type: string, unit: ''}
+  - {description: '', field_name: version, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: component, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: subresource, type: string, unit: ''}
+  - {description: '', field_name: scope, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: group, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_aborts_total
+  tag_list:
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: version, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: scope, type: string, unit: ''}
+  - {description: '', field_name: verb, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_filter_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: filter, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: le, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_filter_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: filter, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_filter_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: filter, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_post_timeout_total
+  tag_list:
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: status, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: source, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_slo_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: scope, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: verb, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: le, type: string, unit: ''}
+  - {description: '', field_name: group, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: subresource, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: component, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: version, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_slo_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: subresource, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: component, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: scope, type: string, unit: ''}
+  - {description: '', field_name: group, type: string, unit: ''}
+  - {description: '', field_name: version, type: string, unit: ''}
+  - {description: '', field_name: verb, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_request_slo_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: scope, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: subresource, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: verb, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: version, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: group, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: component, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_selfrequest_total
+  tag_list:
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: subresource, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: verb, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_storage_list_evaluated_objects_total
+  tag_list:
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_storage_list_fetched_objects_total
+  tag_list:
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_storage_list_returned_objects_total
+  tag_list:
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_storage_list_total
+  tag_list:
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+- description: ''
+  field_name: apiserver_storage_objects
+  tag_list:
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+- description: ''
+  field_name: watch_cache_capacity_decrease_total
+  tag_list:
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: resource
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+- description: ''
+  field_name: watch_cache_capacity_increase_total
+  tag_list:
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: resource
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+- description: ''
+  field_name: watch_cache_capacity
+  tag_list:
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: resource
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''

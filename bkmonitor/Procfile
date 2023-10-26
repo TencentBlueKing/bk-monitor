@@ -1,0 +1,6 @@
+# automatic generated
+web: gunicorn wsgi -w 8 -b :$PORT --max-requests 1000 --timeout 60 --access-logfile - --error-logfile - --access-logformat '[%(h)s] %({request_id}i)s %(u)s %(t)s "%(r)s" %(s)s %(D)s %(b)s "%(f)s" "%(a)s"'
+worker: env C_FORCE_ROOT=True python manage.py celery worker -c 8 --maxtasksperchild=100 --time-limit=300 -O fair --without-gossip --without-mingle --without-heartbeat
+r-worker: env C_FORCE_ROOT=True python manage.py celery worker -Q celery_resource -c 1 --maxtasksperchild=100 --time-limit=300 -O fair --without-gossip --without-mingle --without-heartbeat
+beat: python manage.py celery beat -l info
+

@@ -1,0 +1,52 @@
+.viewing-layer {
+  cursor: vertical-text;
+  position: relative;
+  z-index: 1;
+  .wiewing-layer-graph {
+    border: 1px solid #dcdee5;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    overflow: visible !important;
+    position: relative;
+    transform-origin: 0 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .viewing-layer-inactive {
+    fill: rgb(99 101 110 / 6%);
+  }
+  .viewinglayer-cursorGuide {
+    stroke: #f44;
+    stroke-width: 1;
+  }
+  .draggedShift {
+    fill-opacity: .2;
+  }
+  .draggedShift.isShiftDrag,
+  .draggedEdge.isShiftDrag {
+    fill: #3a84ff;
+  }
+  .draggedShift.isReframeDrag,
+  .draggedEdge.isReframeDrag {
+    fill: #f44;
+  }
+  .viewingLayer-fullOverlay {
+    bottom: 0;
+    cursor: col-resize;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    user-select: none;
+  }
+  .reset-zoom {
+    display: none;
+    position: absolute;
+    right: 8px;
+    top: 14px;
+    z-index: 1;
+  }
+}
+.viewing-layer:hover > .reset-zoom {
+  display: unset;
+}

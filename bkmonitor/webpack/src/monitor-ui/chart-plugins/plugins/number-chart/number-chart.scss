@@ -1,0 +1,72 @@
+.number-chart-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  .number-chart-main {
+    display: flex;
+    justify-content: space-evenly;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    .number-item {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      width: 163px;
+      color: #313238;
+      &.is-link {
+        cursor: pointer;
+      }
+      .number-item-label {
+        font-size: 30px;
+        line-height: 34px;
+        font-weight: 400;
+        white-space: nowrap;
+        position: relative;
+        height: 55%;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        .instant-icon {
+          display: none;
+          position: absolute;
+          top: 18px;
+          right: -20px;
+          font-size: 12px;
+          color: #3a84ff;
+          z-index: 1;
+        }
+      }
+      .number-item-value {
+        font-size: 14px;
+        line-height: 20px;
+        color: rgba(0,0,0,.6);
+        white-space: nowrap;
+        height: 45%;
+        padding-top: 8px;
+      }
+      &:hover {
+        .instant-icon {
+          display: block;
+        }
+      }
+    }
+  }
+  .draggable-handle-bar {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+    // background-color: #f4f6fa;
+  }
+  &:hover {
+    .draggable-handle-bar {
+      display: initial;
+    }
+  }
+}

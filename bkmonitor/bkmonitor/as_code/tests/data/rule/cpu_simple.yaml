@@ -1,0 +1,24 @@
+name: CPU单核使用率
+
+query:
+  data_source: bk_monitor
+  data_type: time_series
+  query_configs:
+  - metric: system.cpu_detail.usage
+    method: avg
+    interval: 60
+    group_by:
+    - bk_target_ip
+    - bk_target_cloud_id
+
+detect:
+  algorithm:
+    fatal:
+    - type: Threshold
+      config: ">1 and <2"
+
+  trigger: 1/5/5
+
+notice:
+  user_groups:
+  - ops.yaml

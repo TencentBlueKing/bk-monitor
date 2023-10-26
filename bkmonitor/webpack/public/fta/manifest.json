@@ -1,0 +1,31 @@
+{
+    "name": "故障自愈",
+    "short_name": "故障自愈",
+    "start_url": "${SITE_URL}",
+    "display": "standalone",
+    "background_color": "#FAFBFD",
+    "description": "故障自愈",
+    "orientation": "portrait-primary",
+    "theme_color": "#FAFBFD",
+    "icons": [
+    {
+        "src": "${STATIC_URL}fta/img/monitor-64.png",
+        "sizes": "64x64",
+        "type": "image/png"
+    }, 
+    {
+        "src": "${STATIC_URL}fta/img/monitor-128.png",
+        "sizes": "128x128",
+        "type": "image/png"
+    },
+    {
+        "src": "${STATIC_URL}fta/img/monitor-256.png",
+        "sizes": "256x256",
+        "type": "image/png"
+    },
+    {
+        "src": "${STATIC_URL}fta/img/monitor-512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+    }
+]}

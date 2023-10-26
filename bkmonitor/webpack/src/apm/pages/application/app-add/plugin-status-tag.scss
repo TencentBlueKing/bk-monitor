@@ -1,0 +1,42 @@
+@import "../../../static//scss/variate.scss";
+
+.plugin-status-tag-item {
+  display: inline-block;
+  height: 20px;
+  .plugin-status-icon {
+    display: inline-block;
+    height: 100%;
+    width: 20px;
+    border-radius: 2px 0 0 2px;
+    color: #fff;
+    background-color: $borderColor1;
+    vertical-align: middle;
+    .icon-monitor {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      font-size: 14px;
+      justify-content: center;
+      align-items: center;
+    }
+  }
+  .plugin-status-text {
+    display: inline-block;
+    height: 100%;
+    line-height: 18px;
+    padding: 0 8px;
+    border-radius: 0 2px 2px 0;
+    border-left: 0;
+    border: 1px solid $borderColor1;
+    vertical-align: middle;
+  }
+  &.is-checked {
+    .plugin-status-icon {
+      background-color: $successColor;
+    }
+    .plugin-status-text {
+      border-color: $successColor;
+      color: $successColor;
+    }
+  }
+}

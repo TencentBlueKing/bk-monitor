@@ -1,0 +1,1423 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_system",
+      "data": {
+        "id": "bk_monitorv3",
+        "name": "监控平台",
+        "name_en": "BKMonitor",
+        "description": "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，并对指标进行告警设置。",
+        "description_en": "BKMonitor is a product that monitors the host and Internet applications. The monitoring service can be used to collect monitoring metrics of host (system performance, component services, databases, logs, etc.), detect the availability of Internet application services, and set alarms for metrics.",
+        "clients": "bk_monitorv3",
+        "provider_config": {
+          "host": "",
+          "auth": "basic"
+        }
+      }
+    },
+    {
+      "operation": "upsert_resource_type",
+      "data": {
+        "id": "space",
+        "name": "空间",
+        "name_en": "Space",
+        "description": "",
+        "description_en": "",
+        "parents": [],
+        "provider_config": {
+          "path": "/rest/v2/iam/resource/"
+        },
+        "version": 1
+      }
+    },
+    {
+      "operation": "upsert_resource_type",
+      "data": {
+        "id": "apm_application",
+        "name": "APM应用",
+        "name_en": "APM Application",
+        "description": "",
+        "description_en": "",
+        "parents": [
+          {
+            "system_id": "bk_monitorv3",
+            "id": "space"
+          }
+        ],
+        "provider_config": {
+          "path": "/rest/v2/iam/resource/"
+        },
+        "version": 1
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_business_v2",
+        "name": "(已回滚)业务访问",
+        "name_en": "(Rollback)View Business",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_synthetic_v2",
+        "name": "(已回滚)拨测查看",
+        "name_en": "(Rollback)View Synthetic",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_synthetic_v2",
+        "name": "(已回滚)拨测管理",
+        "name_en": "(Rollback)Manage Synthetic",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_synthetic_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_public_synthetic_location",
+        "name": "公共拨测节点管理",
+        "name_en": "Manage Public Synthetic Location",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_host_v2",
+        "name": "(已回滚)主机详情查看",
+        "name_en": "(Rollback)View Host",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_host_v2",
+        "name": "(已回滚)主机详情管理",
+        "name_en": "(Rollback)Manage Host",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_host_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_event_v2",
+        "name": "(已回滚)事件中心查看",
+        "name_en": "(Rollback)View Event",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_event_v2",
+        "name": "(已回滚)事件中心管理",
+        "name_en": "(Rollback)Manage Event",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_event_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_plugin_v2",
+        "name": "(已回滚)指标插件查看",
+        "name_en": "(Rollback)View Metric Plugin",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_plugin_v2",
+        "name": "(已回滚)指标插件管理",
+        "name_en": "(Rollback)Manage Metric Plugin",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_plugin_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_public_plugin",
+        "name": "公共插件管理",
+        "name_en": "Manage Public Plugin",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_collection_v2",
+        "name": "(已回滚)采集查看",
+        "name_en": "(Rollback)View Collection",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_collection_v2",
+        "name": "(已回滚)采集管理",
+        "name_en": "(Rollback)Manage Collection",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_collection_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_notify_team_v2",
+        "name": "(已回滚)告警组查看",
+        "name_en": "(Rollback)View Notify Team",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_notify_team_v2",
+        "name": "(已回滚)告警组管理",
+        "name_en": "(Rollback)Manage Notify Team",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_notify_team_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_rule_v2",
+        "name": "(已回滚)策略查看",
+        "name_en": "(Rollback)View Rule",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_notify_team_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_rule_v2",
+        "name": "(已回滚)策略管理",
+        "name_en": "(Rollback)Manage Rule",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_rule_v2",
+          "view_notify_team_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_downtime_v2",
+        "name": "(已回滚)屏蔽查看",
+        "name_en": "(Rollback)View Downtime",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_downtime_v2",
+        "name": "(已回滚)屏蔽管理",
+        "name_en": "(Rollback)Manage Downtime",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_downtime_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_custom_metric_v2",
+        "name": "(已回滚)自定义指标上报查看",
+        "name_en": "(Rollback)View Custom Metric",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_custom_metric_v2",
+        "name": "(已回滚)自定义指标上报管理",
+        "name_en": "(Rollback)Manage Custom Metric",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_custom_metric_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_custom_event_v2",
+        "name": "(已回滚)自定义事件上报查看",
+        "name_en": "(Rollback)View Custom Event",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_custom_event_v2",
+        "name": "(已回滚)自定义事件上报管理",
+        "name_en": "(Rollback)Manage Custom Event",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_custom_event_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_dashboard_v2",
+        "name": "(已回滚)仪表盘查看",
+        "name_en": "(Rollback)View Dashboard",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_dashboard_v2",
+        "name": "(已回滚)仪表盘管理",
+        "name_en": "(Rollback)Manage Dashboard",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_dashboard_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_datasource_v2",
+        "name": "(已回滚)数据源管理",
+        "name_en": "(Rollback)Manage Datasource",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_dashboard_v2",
+          "manage_dashboard_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "explore_metric_v2",
+        "name": "(已回滚)指标检索",
+        "name_en": "(Rollback)Explore Metric",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "export_config_v2",
+        "name": "(已回滚)导出",
+        "name_en": "(Rollback)Export Config",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "import_config_v2",
+        "name": "(已回滚)导入",
+        "name_en": "(Rollback)Import Config",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_global_setting",
+        "name": "全局配置查看",
+        "name_en": "View Global Setting",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_global_setting",
+        "name": "全局配置编辑",
+        "name_en": "Manage Global Setting",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [
+          "view_global_setting"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_self_state",
+        "name": "自监控查看",
+        "name_en": "View Self-state",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_public_action_config",
+        "name": "公共套餐管理",
+        "name_en": "Manage Public Action Config",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_apm_application_v2",
+        "name": "(已回滚)APM应用查看",
+        "name_en": "(Rollback)APM Application View",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "apm_application",
+            "system_id": "bk_monitorv3",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_monitorv3",
+                "id": "apm_application_list_v2",
+                "ignore_iam_path":true
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_apm_application_v2",
+        "name": "(已回滚)APM应用管理",
+        "name_en": "(Rollback)APM Application Manage",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "apm_application",
+            "system_id": "bk_monitorv3",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_monitorv3",
+                "id": "apm_application_list_v2",
+                "ignore_iam_path":true
+              }
+            ]
+          }
+        ],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_calendar",
+        "name": "服务日历管理",
+        "name_en": "Calendar Manage",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_instance_selection",
+      "data": {
+        "id": "apm_application_list_v2",
+        "name": "(已回滚)APM应用列表",
+        "name_en": "(Rollback)APM Application List",
+        "resource_type_chain": [
+          {
+            "system_id": "bk_monitorv3",
+            "id": "space"
+          },
+          {
+            "system_id": "bk_monitorv3",
+            "id": "apm_application"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "upsert_instance_selection",
+      "data": {
+        "id": "space_list",
+        "name": "空间列表",
+        "name_en": "Space List",
+        "resource_type_chain": [
+          {
+            "system_id": "bk_monitorv3",
+            "id": "space"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "upsert_action_groups",
+      "data": [
+        {
+          "name": "业务",
+          "name_en": "Business",
+          "actions": [
+            {
+              "id": "view_business_v2"
+            }
+          ]
+        },
+        {
+          "name": "数据集成",
+          "name_en": "Metric",
+          "sub_groups": [
+            {
+              "name": "指标插件",
+              "name_en": "Metric Plugin",
+              "actions": [
+                {
+                  "id": "view_plugin_v2"
+                },
+                {
+                  "id": "manage_plugin_v2"
+                }
+              ]
+            },
+            {
+              "name": "采集",
+              "name_en": "Collection",
+              "actions": [
+                {
+                  "id": "view_collection_v2"
+                },
+                {
+                  "id": "manage_collection_v2"
+                }
+              ]
+            },
+            {
+              "name": "自定义上报",
+              "name_en": "Custom Report",
+              "actions": [
+                {
+                  "id": "view_custom_metric_v2"
+                },
+                {
+                  "id": "manage_custom_metric_v2"
+                },
+                {
+                  "id": "view_custom_event_v2"
+                },
+                {
+                  "id": "manage_custom_event_v2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "监控场景",
+          "name_en": "Monitor Scenario",
+          "sub_groups": [
+            {
+              "name": "主机",
+              "name_en": "Host",
+              "actions": [
+                {
+                  "id": "view_host_v2"
+                },
+                {
+                  "id": "manage_host_v2"
+                }
+              ]
+            },
+            {
+              "name": "拨测",
+              "name_en": "Synthetic",
+              "actions": [
+                {
+                  "id": "view_synthetic_v2"
+                },
+                {
+                  "id": "manage_synthetic_v2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "监控管理",
+          "name_en": "Monitor Management",
+          "sub_groups": [
+            {
+              "name": "策略",
+              "name_en": "Rule",
+              "actions": [
+                {
+                  "id": "view_rule_v2"
+                },
+                {
+                  "id": "manage_rule_v2"
+                }
+              ]
+            },
+            {
+              "name": "告警组",
+              "name_en": "Notify Team",
+              "actions": [
+                {
+                  "id": "view_notify_team_v2"
+                },
+                {
+                  "id": "manage_notify_team_v2"
+                }
+              ]
+            },
+            {
+              "name": "屏蔽",
+              "name_en": "Downtime",
+              "actions": [
+                {
+                  "id": "view_downtime_v2"
+                },
+                {
+                  "id": "manage_downtime_v2"
+                }
+              ]
+            },
+            {
+              "name": "导入导出",
+              "name_en": "Import And Export",
+              "actions": [
+                {
+                  "id": "export_config_v2"
+                },
+                {
+                  "id": "import_config_v2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "分析定位",
+          "name_en": "Analysis",
+          "sub_groups": [
+            {
+              "name": "数据检索",
+              "name_en": "Data Explorer",
+              "actions": [
+                {
+                  "id": "explore_metric_v2"
+                }
+              ]
+            },
+            {
+              "name": "事件",
+              "name_en": "Event",
+              "actions": [
+                {
+                  "id": "view_event_v2"
+                },
+                {
+                  "id": "manage_event_v2"
+                }
+              ]
+            },
+            {
+              "name": "仪表盘",
+              "name_en": "Dashboard",
+              "actions": [
+                {
+                  "id": "view_dashboard_v2"
+                },
+                {
+                  "id": "manage_dashboard_v2"
+                },
+                {
+                  "id": "manage_datasource_v2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "应用监控",
+          "name_en": "Apm",
+          "actions": [
+            {
+              "id": "view_apm_application_v2"
+            },
+            {
+              "id": "manage_apm_application_v2"
+            }
+          ]
+        },
+        {
+          "name": "全局",
+          "name_en": "Global",
+          "actions": [
+            {
+              "id": "manage_public_synthetic_location"
+            },
+            {
+              "id": "manage_public_plugin"
+            },
+            {
+              "id": "view_global_setting"
+            },
+            {
+              "id": "manage_global_setting"
+            },
+            {
+              "id": "view_self_state"
+            },
+            {
+              "id": "manage_public_action_config"
+            },
+            {
+              "id": "manage_calendar"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operation": "upsert_common_actions",
+      "data": [
+        {
+          "name": "业务运维",
+          "name_en": "Ops Actions",
+          "actions": [
+            {
+              "id": "view_business_v2"
+            },
+            {
+              "id": "view_synthetic_v2"
+            },
+            {
+              "id": "manage_synthetic_v2"
+            },
+            {
+              "id": "view_host_v2"
+            },
+            {
+              "id": "manage_host_v2"
+            },
+            {
+              "id": "view_event_v2"
+            },
+            {
+              "id": "manage_event_v2"
+            },
+            {
+              "id": "view_plugin_v2"
+            },
+            {
+              "id": "manage_plugin_v2"
+            },
+            {
+              "id": "view_collection_v2"
+            },
+            {
+              "id": "manage_collection_v2"
+            },
+            {
+              "id": "view_rule_v2"
+            },
+            {
+              "id": "manage_rule_v2"
+            },
+            {
+              "id": "view_notify_team_v2"
+            },
+            {
+              "id": "manage_notify_team_v2"
+            },
+            {
+              "id": "view_downtime_v2"
+            },
+            {
+              "id": "manage_downtime_v2"
+            },
+            {
+              "id": "view_custom_metric_v2"
+            },
+            {
+              "id": "manage_custom_metric_v2"
+            },
+            {
+              "id": "view_custom_event_v2"
+            },
+            {
+              "id": "manage_custom_event_v2"
+            },
+            {
+              "id": "view_dashboard_v2"
+            },
+            {
+              "id": "manage_dashboard_v2"
+            },
+            {
+              "id": "export_config_v2"
+            },
+            {
+              "id": "import_config_v2"
+            },
+            {
+              "id": "explore_metric_v2"
+            }
+          ]
+        },
+        {
+          "name": "业务只读",
+          "name_en": "Read-only Actions",
+          "actions": [
+            {
+              "id": "view_business_v2"
+            },
+            {
+              "id": "view_synthetic_v2"
+            },
+            {
+              "id": "view_host_v2"
+            },
+            {
+              "id": "view_event_v2"
+            },
+            {
+              "id": "view_plugin_v2"
+            },
+            {
+              "id": "view_collection_v2"
+            },
+            {
+              "id": "view_rule_v2"
+            },
+            {
+              "id": "view_notify_team_v2"
+            },
+            {
+              "id": "view_downtime_v2"
+            },
+            {
+              "id": "manage_downtime_v2"
+            },
+            {
+              "id": "view_custom_metric_v2"
+            },
+            {
+              "id": "view_custom_event_v2"
+            },
+            {
+              "id": "view_dashboard_v2"
+            },
+            {
+              "id": "explore_metric_v2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operation":"upsert_resource_creator_actions",
+      "data":{
+          "config":[
+              {
+                  "id":"apm_application",
+                  "actions":[
+                      {
+                          "id":"view_apm_application_v2",
+                          "required":true
+                      },
+                      {
+                          "id":"manage_apm_application_v2",
+                          "required":true
+                      }
+                  ]
+              }
+          ]
+      }
+    }
+  ]
+}

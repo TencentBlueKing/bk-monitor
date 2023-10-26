@@ -1,0 +1,19 @@
+.history-container {
+  box-sizing: border-box;
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+  line-height: 32px;
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+  background-color: #fff;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+
+  &:hover {
+    color: #3a84ff;
+    border-color: #3a84ff;
+  }
+}

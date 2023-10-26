@@ -1,0 +1,129 @@
+.group-select-component {
+  width: 100%;
+  &.is-readonly {
+    background: #fafafa;
+  }
+  .select-wrap {
+    display: flex;
+    cursor: pointer;
+    height: 24px;
+    border-bottom: 1px solid #c4c6cc;
+    .select-name {
+      display: flex;
+      align-items: center;
+      pointer-events: none;
+      .name {
+        .father-name {
+          color: #8e8e93;
+        }
+      }
+      .placeholder {
+        font-weight: 400;
+        color: #c4c6cc;
+        font-size: 12px;
+      }
+    }
+    .sel-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      margin: 0 0 0 auto;
+    }
+    .icon-arrow-down {
+      font-size: 24px;
+      transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+    }
+    .icon-mc-close-fill {
+      display: none;
+      font-size: 16px;
+    }
+    &.is-focus {
+      .icon-arrow-down {
+        transform: rotate(-180deg);
+      }
+    }
+    &.is-hover:hover {
+      .icon-mc-close-fill {
+        display: flex;
+      }
+      .icon-arrow-down {
+        display: none;
+      }
+    }
+  }
+}
+.group-select-panel {
+  color: #63656e;
+  display: flex;
+  flex-direction: column;
+  height: 274px;
+  opacity: 1;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 3px;
+  box-shadow: 0px 2px 6px 0px rgba(0,0,0,.10);
+  .panel-search {
+    flex: 0 0 32px;
+    padding: 0 12px;
+  }
+  .panel-list {
+    flex: 1;
+    max-height: 242px;
+    display: flex;
+    width: 100%;
+    padding-top: 6px;
+    overflow: auto;
+    .panel-item {
+      flex: 0 0 128px;
+      width: 173px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 6px 0;
+      border-right: 1px solid #dcdee5;
+      .list-item {
+        display: flex;
+        width: 100%;
+        height: 32px;
+        min-height: 32px;
+        align-items: center;
+        padding-left: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        .arrow-icon {
+          font-size: 24px;
+          display: flex;
+          width: 24px;
+          height: 24px;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+        }
+        &.item-active,
+        &:hover {
+          background-color: #f4f6fa;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+      &.child-item {
+        flex: 1;
+      }
+    }
+  }
+  .select-extension {
+    padding: 0 10px;
+    background: #fafbfd;
+    border-top: 1px solid #dcdee5;
+    display: flex;
+    align-items: center;
+    height: 38px;
+    &:hover {
+      background: #f0f1f5;
+      cursor: pointer;
+    }
+  }
+}

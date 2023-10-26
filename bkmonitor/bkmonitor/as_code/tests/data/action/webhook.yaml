@@ -1,0 +1,33 @@
+name: webhook
+description: ""
+
+type: webhook
+timeout: 600
+
+template_id: 1
+template_detail:
+  need_poll: false
+  notify_interval: 7200
+  interval_notify_mode: standard
+  method: GET
+  url: http://test.webhook.com/?a=123&b={{target.business.bk_biz_name}}
+  headers: []
+  authorize:
+    auth_type: none
+    auth_config: {}
+  body:
+    data_type: x_www_form_urlencoded
+    params:
+      - key: xxxx
+        value: xxxx
+        desc: ""
+        is_builtin: false
+        is_enabled: true
+    content: ""
+    content_type: ""
+  query_params: []
+  failed_retry:
+    is_enabled: true
+    timeout: 10
+    max_retry_times: 2
+    retry_interval: 2

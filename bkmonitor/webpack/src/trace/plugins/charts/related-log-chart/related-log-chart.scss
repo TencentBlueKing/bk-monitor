@@ -1,0 +1,142 @@
+@import '../../../../monitor-ui/chart-plugins/css/mixins.scss';
+
+.related-log-chart-wrap {
+  height: 100%;
+  padding-right: 2px;
+  overflow: auto;
+
+  .related-alert-info {
+    position: fixed;
+    bottom: 0;
+    left: 0px;
+    width: 960px;
+
+    .link {
+      margin-left: 8px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      .icon-monitor {
+        margin: 0 4px;
+      }
+    }
+
+    .bk-alert-wraper {
+      padding: 13px 10px;
+    }
+
+    .bk-alert-title {
+      text-align: center;
+    }
+
+    .bk-alert.bk-alert-info {
+      background-color: #e1ecff;
+      border-color: #e1ecff;
+    }
+  }
+
+  .related-log-chart-main {
+    margin-top: 14px;
+
+    .collapse-header {
+      display: flex;
+      justify-content: space-between;
+
+      .collapse-title {
+        display: flex;
+        align-items: baseline;
+
+        .title {
+          font-size: 12px;
+          font-weight: bold;
+        }
+
+        .interval-label {
+          margin: 0 10px 0 24px;
+        }
+      }
+
+      .title-tool {
+        display: flex;
+        align-items: center;
+      }
+
+      .icon-mc-camera {
+        font-size: 16px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    .collapse-content {
+      height: 120px;
+      margin-bottom: 32px;
+
+      .monitor-echart-common-content {
+        height: 100%;
+        margin-top: 10px;
+
+        .chart-instance {
+          background-color: #fff;
+        }
+      }
+    }
+  }
+
+  .empty-chart {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    .bk-exception-footer {
+      font-size: 24px;
+      color: #63656e;
+    }
+
+    .text-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .text-row {
+      margin: 16px 0 24px;
+      font-size: 14px;
+      color: #979ba5;
+    }
+
+    .bk-button {
+      width: 88px;
+    }
+  }
+
+  .table-search-input {
+    margin-bottom: 16px;
+  }
+
+  .query-tool {
+    display: flex;
+    margin-bottom: 16px;
+
+    .table-search-select {
+      width: 210px;
+
+      .bk-input--text {
+        background-color: #fff3e1;
+      }
+    }
+
+    .table-search-input {
+      margin: 0 8px;
+    }
+  }
+}
+
+.related-table-container {
+  height: calc(100vh - 530px);
+}

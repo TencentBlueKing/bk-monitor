@@ -1,0 +1,310 @@
+.multi-label-select {
+  .multi-label-add {
+    .add-btn-wrap {
+      display: flex;
+      align-items: center;
+      font-size: 0;
+      .icon-mc-add {
+        color: #979ba5;
+        font-size: 24px;
+      }
+      .text {
+        color: #63656e;
+        font-size: 14px;
+      }
+    }
+    .label-tree-contain-wrap {
+      position: relative;
+      width: 470px;
+      height: 257px;
+      margin-top: 8px;
+      padding-top: 9px;
+      background: #fff;
+      border: 1px solid #dcdee5;
+      border-radius: 3px;
+      overflow: hidden;
+      .label-tree-scroll-wrap {
+        height: 100%;
+        overflow: auto;
+      }
+      .resize-icon-wrap,
+      .resize-icon-inner {
+        display: inline-block;
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 10px;
+        height: 10px;
+        border-left: 1px solid #63656e;
+        transform: rotate(45deg);
+      }
+      .resize-icon-wrap {
+        cursor: nwse-resize;
+      }
+      .resize-icon-inner {
+        bottom: 0px;
+        right: 0px;
+        width: 5px;
+        height: 5px;
+      }
+    }
+  }
+  .multi-label-select-dropdown,
+  .bk-tooltip-ref {
+    display: block;
+  }
+  .multi-label-input {
+    position: relative;
+    padding: 0 0 0 5px;
+    border: 1px solid #c4c6cc;
+    padding-right: 22px;
+    min-width: 200px;
+    max-height: 32px;
+    min-height: 32px;
+    border-radius: 2px;
+    font-size: 12px;
+    position: relative;
+    z-index: 1;
+    background: #fff;
+    cursor: pointer;
+    overflow: hidden;
+    .placeholder {
+      height: 30px;
+      line-height: 30px;
+      margin: 0;
+      padding-left: 5px;
+      color: #c4c6cc;
+    }
+    .tag-list {
+      display: block;
+      max-height: 135px;
+      // float: left;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      &.no-item {
+        padding: 0 0 0 5px;
+      }
+      >li {
+        display: inline-block;
+        cursor: pointer;
+        position: relative;
+        margin: 4px 5px 4px 0;
+        border-radius: 2px;
+        float: left;
+        height: 22px;
+        overflow: hidden;
+        font-size: 0;
+        line-height: 0;
+        &.key-node {
+          border: solid 1px #f0f1f5;
+        }
+      }
+      .key-node {
+        background: #f0f1f5;
+        .remove-key {
+          display: inline-block;
+          position: relative;
+          width: 16px;
+          height: 16px;
+          line-height: 16px;
+          top: 2px;
+          right: 5px;
+          display: inline-block;
+          font-size: 18px;
+          text-align: center;
+          // color: $fnMainColor;
+          text-decoration: none;
+        }
+      }
+      .tag-overflow {
+        width: 22px;
+        background: #f0f1f5;
+        .tag {
+          display: inline-block;
+          width: 100%;
+          text-align: center;
+          padding: 0;
+        }
+      }
+    }
+    .tag {
+      display: inline-block;
+      background-color: #f0f1f5;
+      // color: $fnMainColor;
+      font-size: 12px;
+      border: 0;
+      vertical-align: middle;
+      box-sizing: border-box;
+      overflow: hidden;
+      border-radius: 2px;
+      padding: 0 5px;
+      height: 20px;
+      line-height: 20px;
+      word-break: break-all;
+      // max-width: 190px;
+      // overflow: hidden;
+      display: inline-block;
+      // text-overflow: ellipsis;
+      white-space: nowrap;
+      float: left;
+      .text {
+        height: 20px;
+        line-height: 20px;
+        display: block;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+    }
+    .staff-input {
+      position: relative;
+      min-width: 100px;
+      .input-value {
+        font-size: 12px;
+        line-height: 22px;
+      }
+      .input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        min-width: 50px;
+        font-size: 12px;
+        color: #63656e;
+        border: 0;
+        padding: 0;
+      }
+    }
+    .arrow-down-wrap {
+      position: absolute;
+      right: 2px;
+      top: 2px;
+      .icon-arrow-down {
+        font-size: 20px;
+        color: #979ba5;
+      }
+    }
+  }
+  .is-focus {
+    max-height: 250px;
+    .tag-list {
+      overflow: auto;
+    }
+  }
+}
+.multi-label-list-wrapper-theme[data-size=small] {
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 0 !important;
+  width: 100%;
+  box-shadow: 0 0 6px rgba(204, 204, 204, .3);
+  border-radius: 0;
+  .tippy-arrow {
+    display: none;
+  }
+  .menu-list-wrap {
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    background: #fff;
+    max-height: 450px;
+    overflow: auto;
+    .tree-wrap,
+    .search-result-wrap {
+      padding: 9px 0;
+      .group-item {
+        .group-title {
+          padding: 0 13px;
+          .title {
+            width: 100%;
+            height: 32px;
+            width: 100%;
+            line-height: 32px;
+            font-size: 12px;
+            color: #979ba5;
+            border-bottom: 1px solid #dcdee5;
+          }
+        }
+      }
+    }
+    .search-result-wrap {
+      .res-list {
+        .res-item {
+          height: 32px;
+          line-height: 32px;
+          padding: 0 16px;
+          color: #63656e;
+          font-size: 12px;
+          cursor: pointer;
+          &:not(:last-child) {
+            margin-bottom: 4px;
+          }
+          &:hover {
+            background-color: #e1ecff;
+            color: #3a84ff;
+          }
+          .hl {
+            color: #ff9c01;
+          }
+        }
+      }
+            
+    }
+  }
+}
+.bk-tooltip.multi-label-input {
+  display: block;
+  & > .bk-tooltip-ref {
+    display: block;
+  }
+}
+.multi-label-select.simplicit-theme {
+  .multi-label-input {
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    padding-left: 2px;
+    border-radius: initial;
+    // height: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    .tag-list {
+      .key-node,
+      .tag-overflow,
+      .staff-input {
+        margin: 2px 4px 2px 0;
+      }
+    }
+    .placeholder {
+      height: 27px;
+      line-height: 27px;
+      padding-left: 0;
+    }
+  }
+  .is-focus {
+    max-height: 250px;
+    .tag-list {
+      overflow: auto;
+    }
+  }
+}
+.multi-label-select.is-readonly {
+  .multi-label-input {
+    min-height: initial;
+    max-height: initial;
+    padding-right: 0;
+    border: 0;
+    cursor: initial;
+    .tag-list > li {
+      cursor: initial;
+    }
+    .staff-input {
+      display: none;
+    }
+    .arrow-down-wrap {
+      .icon-arrow-down {
+        display: none;
+      }
+    }
+  }
+}

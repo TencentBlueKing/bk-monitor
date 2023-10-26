@@ -1,0 +1,4 @@
+{{gettext("Summarized `%(collect_count)d %(level_name)s` Alarms", collect_count=alarm.collect_count, level_name=level_name)}} [Detail: ]({{alarm.detail_url}})
+**{{gettext("One of: ")}}**
+{{alert.alert_name | safe}} [Detail]({{alarm.example_detail_url}})
+{{user_content | safe}}

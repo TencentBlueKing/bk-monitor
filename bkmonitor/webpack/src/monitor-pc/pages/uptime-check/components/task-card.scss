@@ -1,0 +1,163 @@
+@import '../../../theme/common.scss';
+
+.uptime-check-task-card {
+  height: 198px;
+  box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
+  background: #fff;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px;
+  position: relative;
+
+  &:hover {
+    cursor: pointer;
+    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, .1);
+
+    .card-title {
+      .title-icon {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        color: #63656e;
+        transition: background-color .2s ease-in-out;
+        font-size: 18px;
+
+        &:hover {
+          background-color: #f0f1f5;
+          border-radius: 50%;
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .card-title {
+    .title-name {
+      display: flex;
+      font-size: 14px;
+      color: #313238;
+      line-height: 22px;
+      align-items: center;
+
+      .name-text {
+        max-width: calc(100% - 100px);
+
+        @include ellipsis;
+      }
+
+      &.disabled {
+        color: #979ba5;
+      }
+
+      .title-status {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #63656e;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 2px;
+        background: #f0f1f5;
+        border-radius: 2px;
+      }
+
+      .title-tip {
+        font-size: 16px;
+        color: #c4c6cc;
+        margin-left: 10px;
+      }
+    }
+
+    .title-url {
+      font-size: 12px;
+      color: #979ba5;
+      line-height: 20px;
+      margin-right: 30px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-height: 20px;
+    }
+
+    .title-icon {
+      display: none;
+    }
+  }
+
+  .card-content {
+    display: flex;
+    justify-content: space-around;
+    padding-top: 30px;
+
+    .label-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .icon-remind {
+        font-size: 36px;
+        line-height: 50px;
+        color: #ea3636;
+      }
+
+      .top-nodata {
+        font-size: 36px;
+        line-height: 50px;
+        color: #c4c6cc;
+      }
+
+      .top {
+        .num {
+          font-size: 36px;
+          line-height: 50px;
+          color: #313238;
+        }
+
+        .unit {
+          font-size: 12px;
+          color: #63656e;
+        }
+      }
+
+      .bottom {
+        color: #979ba5;
+        font-size: 12px;
+        line-height: 16px;
+      }
+    }
+  }
+
+  .popover-desc {
+    display: flex;
+    flex-direction: column;
+    color: #63656e;
+    font-size: 12px;
+    border-radius: 2px;
+    border: 1px solid #dcdee5;
+    padding: 6px 0;
+    background: #fff;
+
+    &-btn {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 10px;
+      height: 32px;
+      background: #fff;
+
+      &:hover {
+        background: #f0f1f5;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+}

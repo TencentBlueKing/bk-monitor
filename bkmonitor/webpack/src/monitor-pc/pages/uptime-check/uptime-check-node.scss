@@ -1,0 +1,32 @@
+.uptime-check-task-component {
+  height: 100%;
+  width: 100%;
+  padding: 20px 16px;
+
+  .table-data-content {
+    background: #ffff;
+    border-radius: 2px;
+    box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
+    padding: 20px 16px;
+
+    .task-num {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .status-col {
+    display: flex;
+    align-items: center;
+
+    .status-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #ff9c01;
+      margin-left: 4px;
+      cursor: pointer;
+    }
+  }
+}

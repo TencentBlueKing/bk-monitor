@@ -1,0 +1,78 @@
+.field-filtering-wrapper {
+  .field-filtering-title {
+    line-height: 20px;
+    padding-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #313238;
+    border-bottom: 1px solid #cacedb;
+  }
+  .field-search-row {
+    display: flex;
+    margin-top: 16px;
+    .line {
+      margin: 0 16px;
+      border-right: 1px solid #f0f1f5;
+    }
+    .field-type-popover {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+    .field-type-wrap {
+      display: flex;
+      align-items: center;
+      color: #3a84ff;
+      cursor: pointer;
+      .icon-filter-fill {
+        margin-right: 2px;
+      }
+      .text {
+        margin-top: -2px;
+      }
+      .count {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        margin-left: 4px;
+        text-align: center;
+        line-height: 18px;
+        border-radius: 50%;
+        background-color: #e1ecff;
+      }
+    }
+  }
+  .field-list-wrap {
+    margin-top: 16px;
+    .field-list-title {
+      margin-bottom: 10px;
+      line-height: 20px;
+      color: #63656e;
+      &.mt21 {
+        margin-top: 21px;
+      }
+    }
+  }
+}
+.field-filtering-type-content {
+  width: 210px;
+  .field-type-label {
+    line-height: 16px;
+    margin-bottom: 6px;
+  }
+  .agg-radio-group {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .field-type-btn-group {
+    height: 26px;
+    margin-top: 10px;
+    text-align: right;
+    button {
+      &:not(:last-child) {
+        margin-right: 12px;
+      }
+    }
+  }
+}

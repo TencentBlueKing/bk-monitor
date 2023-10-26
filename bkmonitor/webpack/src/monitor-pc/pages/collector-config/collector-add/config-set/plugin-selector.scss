@@ -1,0 +1,46 @@
+.collector-plugin-selector-component {
+  width: 100%;
+  .select-big {
+    width: 500px;
+  }
+}
+.collector-plugin-selector-component-options {
+  .plugin-option {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    .plugin-logo {
+      flex: 0 0 22px;
+      width: 22px;
+      height: 22px;
+      text-align: center;
+      line-height: 22px;
+      color: #fff;
+      font-weight: bold;
+      background-size: cover;
+      background-repeat: no-repeat;
+      border-radius: 50%;
+    }
+    .name {
+      margin-left: 8px; 
+    }
+    .subtitle {
+      margin-left: 8px;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #979ba5 !important;
+    }
+    .type {
+      margin: 0 0 0 auto;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #979ba5 !important;
+    }
+  }
+  .bottom-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+}

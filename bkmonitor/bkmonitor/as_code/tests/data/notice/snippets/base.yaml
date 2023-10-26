@@ -1,0 +1,17 @@
+alert:
+  00:00--23:59:
+    remind:
+      type: [weixin, mail]
+    warning:
+      type: [weixin, mail]
+    fatal:
+      type: [weixin, mail]
+action:
+  00:00--23:59:
+    execute:
+      type: [weixin, mail, wxwork-bot]
+      chatids: [xxxxxxxxxxx, yyyyyyyyyyy]
+    execute_failed:
+      type: [weixin, mail]
+    execute_success:
+      type: [weixin, mail]

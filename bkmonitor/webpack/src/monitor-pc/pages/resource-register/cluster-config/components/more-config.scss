@@ -1,0 +1,53 @@
+.more-option {
+  background: #fff;
+  margin-top: 16px;
+  padding: 16px 12px 16px;
+
+  .option-card-title {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+
+    .collapse-icon {
+      font-size: 24px;
+      transition: transform .3s;
+    }
+
+    .title-text {
+      font-size: 14px;
+      line-height: 22px;
+      letter-spacing: 0;
+      color: #63656e;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    .active {
+      transform: rotate(-90deg);
+    }
+  }
+
+  .influxdb-group-config {
+    display: flex;
+    align-items: center;
+
+    .half-item {
+      width: calc(50% - 12px);
+      margin-right: 24px;
+    }
+
+    .one-fourth-item {
+      width: 48px;
+      margin-right: 34px;
+    }
+  }
+
+  .display-none {
+    display: none;
+  }
+}
+
+.collapsed-card {
+  height: 56px;
+  overflow: hidden;
+}

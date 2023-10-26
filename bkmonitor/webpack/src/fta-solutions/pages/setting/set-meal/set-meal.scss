@@ -1,0 +1,93 @@
+@import "../../../theme/index.scss";
+
+.fta-set-meal {
+  flex: 1;
+  padding: 24px;
+  // max-height: calc(100vh - 100px);
+  margin-bottom: 45px;
+
+  @include flex-column;
+  .header-message {
+    background: #f0f8ff;
+    border: 1px solid #a3c5fd;
+    border-radius: 2px;
+    height: 36px;
+    flex: 0 0 36px;
+    padding: 0 10px;
+    margin-bottom: 12px;
+
+    @include flex-align(center);
+    .icon-tips {
+      color: $primary-color;
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 8px;
+
+      @include flex-center;
+    }
+    .message-link {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+  .header-title {
+    height: 32px;
+    flex: 0 0 32px;
+    width: 100%;
+
+    @include flex-align(center);
+    .search-input {
+      width: 300px;
+      margin-left: auto;
+    }
+  }
+  .set-table {
+    margin-top: 16px;
+    padding: 20px 20px 0 20px;
+    background: #fff;
+    width: 100%;
+    box-shadow: 0px 1px 2px 0px rgba(0,0,0,.10);
+    .meal-name-div {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .meal-name {
+      color: #3a84ff;
+      cursor: pointer;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .default-msg {
+      height: 22px;
+      border: 1px solid rgba(151,155,165,.30);
+      border-radius: 3px;
+      background: #fafbfd;
+      padding: 0 10px;
+      font-size: 12px;
+      color: #63656e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      margin-left: 4px;
+    }
+    .ml-10 {
+      margin-left: 10px;
+    }
+    .mr-10 {
+      margin-right: 10px;
+    }
+    .is-empty {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+    .operate-wrap {
+      @include flex-align(center);
+    }
+  }
+}

@@ -1,0 +1,1430 @@
+- description: ''
+  field_name: kube_daemonset_status_current_number_scheduled
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: daemonset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_daemonset_status_desired_number_scheduled
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: daemonset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_daemonset_status_number_available
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: daemonset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_daemonset_status_number_misscheduled
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: daemonset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_daemonset_status_number_ready
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: daemonset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_daemonset_status_number_unavailable
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: daemonset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_deployment_metadata_generation
+  tag_list:
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: deployment, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+- description: ''
+  field_name: kube_deployment_status_replicas_updated
+  tag_list:
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: deployment, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+- description: ''
+  field_name: kube_deployment_spec_replicas
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: deployment}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_deployment_status_observed_generation
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: deployment}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_deployment_status_replicas_available
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: deployment}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_deployment_status_replicas_unavailable
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: deployment}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_hpa_spec_max_replicas
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: hpa}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_hpa_status_current_replicas
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: hpa}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_hpa_status_desired_replicas
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: hpa}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_job_spec_completions
+  tag_list:
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: job}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: job_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: kube_job_status_active
+  tag_list:
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: job}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: job_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: kube_job_status_failed
+  tag_list:
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: job}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: job_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: kube_job_status_succeeded
+  tag_list:
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: job}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: job_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: target}
+- description: ''
+  field_name: kube_namespace_created
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: value}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_node_spec_taint
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: effect}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: value}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: key}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_node_status_allocatable_cpu_cores
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_node_status_allocatable_memory_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: kube_node_status_capacity_cpu_cores
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_node_status_capacity_memory_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: kube_node_status_capacity_pods
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: kube_node_status_condition
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: condition}
+  - {description: '', field_name: status}
+- description: ''
+  field_name: kube_node_labels
+  tag_list:
+  - {description: '', field_name: label_kubernetes_io_os}
+  - {description: '', field_name: label_node_role_kubernetes_io_master}
+  - {description: '', field_name: label_kubernetes_io_hostname}
+  - {description: '', field_name: label_kubernetes_io_arch}
+  - {description: '', field_name: label_beta_kubernetes_io_os}
+  - {description: '', field_name: label_beta_kubernetes_io_arch}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_persistentvolume_status_phase
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: phase}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: persistentvolume}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_pod_container_resource_limits
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: unit}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_resource_limits_cpu_cores
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_resource_limits_memory_bytes
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+  unit: bytes
+- description: ''
+  field_name: kube_pod_container_resource_requests
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: unit}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_resource_requests_cpu_cores
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_resource_requests_memory_bytes
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+  unit: bytes
+- description: ''
+  field_name: kube_pod_container_status_ready
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_status_restarts_total
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_status_running
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_status_terminated_reason
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: reason}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_container_status_waiting_reason
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: reason}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_info
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: unit}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: host_ip}
+  - {description: '', field_name: pod_ip}
+  - {description: '', field_name: uid}
+  - {description: '', field_name: created_by_kind}
+  - {description: '', field_name: created_by_name}
+  - {description: '', field_name: priority_class}
+- description: ''
+  field_name: kube_pod_init_container_resource_limits
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: resource}
+  - {description: '', field_name: unit}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_init_container_status_last_terminated_reason
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: reason}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_init_container_status_ready
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_init_container_status_restarts_total
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_init_container_status_running
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: exported_container}
+  - {description: '', field_name: container_name}
+- description: ''
+  field_name: kube_pod_spec_volumes_persistentvolumeclaims_readonly
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: volume}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: persistentvolumeclaim}
+- description: ''
+  field_name: kube_pod_status_phase
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: phase}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_statefulset_replicas
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: statefulset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_statefulset_status_current_revision
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: statefulset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: revision}
+- description: ''
+  field_name: kube_statefulset_status_observed_generation
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: statefulset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_statefulset_status_replicas_ready
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: statefulset}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: kube_statefulset_metadata_generation
+  tag_list:
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: statefulset, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+- description: ''
+  field_name: kube_statefulset_status_replicas_updated
+  tag_list:
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: statefulset, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+- description: ''
+  field_name: kube_statefulset_status_replicas
+  tag_list:
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: statefulset, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+- description: ''
+  field_name: kube_service_info
+  tag_list:
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: exported_service, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: cluster_ip, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+- description: ''
+  field_name: kube_pod_labels
+  tag_list:
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: exported_pod, type: string, unit: ''}
+  - {description: '', field_name: label_k8s_app, type: string, unit: ''}
+  - {description: '', field_name: label_pod_template_generation, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: label_component, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: label_chart, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: label_install_operator_istio_io_owning_resource, type: string, unit: ''}
+  - {description: '', field_name: label_app_kubernetes_io_bk_component, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: label_app, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: label_app_kubernetes_io_platform, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: label_statefulset_kubernetes_io_pod_name, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: label_version, type: string, unit: ''}
+  - {description: '', field_name: label_jobLabel, type: string, unit: ''}
+  - {description: '', field_name: pod_name, type: string, unit: ''}
+  - {description: '', field_name: label_app_kubernetes_io_instance, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: label_name, type: string, unit: ''}
+  - {description: '', field_name: label_qcloud_app, type: string, unit: ''}
+  - {description: '', field_name: label_leader, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: label_app_kubernetes_io_name, type: string, unit: ''}
+  - {description: '', field_name: label_helm_sh_chart, type: string, unit: ''}
+  - {description: '', field_name: label_app_kubernetes_io_component, type: string, unit: ''}
+  - {description: '', field_name: label_istio, type: string, unit: ''}
+  - {description: '', field_name: label_pod_template_hash, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: label_controller_revision_hash, type: string, unit: ''}
+  - {description: '', field_name: label_istio_io_rev, type: string, unit: ''}
+  - {description: '', field_name: label_release, type: string, unit: ''}
+  - {description: '', field_name: label_service_istio_io_canonical_name, type: string, unit: ''}
+  - {description: '', field_name: label_service_istio_io_canonical_revision, type: string, unit: ''}
+  - {description: '', field_name: label_app_kubernetes_io_managed_by, type: string, unit: ''}
+  - {description: '', field_name: label_heritage, type: string, unit: ''}
+  - {description: '', field_name: label_tcm_cloud_tencent_com_managed_by, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+- description: ''
+  field_name: kube_namespace_labels
+  tag_list:
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: label_kubernetes_io_metadata_name, type: string, unit: ''}
+  - {description: '', field_name: label_tcm_cloud_tencent_com_managed_by, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: label_bcs_webhook, type: string, unit: ''}
+  - {description: '', field_name: label_tbuspp_injection, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: label_g6ms_injection, type: string, unit: ''}
+  - {description: '', field_name: label_ignore_bcs_ipres_webhook, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+- description: ''
+  field_name: kube_resourcequota
+  tag_list:
+  - {description: '', field_name: target, type: string, unit: ''}
+  - {description: '', field_name: resourcequota, type: string, unit: ''}
+  - {description: '', field_name: bk_biz_id, type: string, unit: ''}
+  - {description: '', field_name: bk_instance, type: string, unit: ''}
+  - {description: '', field_name: namespace, type: string, unit: ''}
+  - {description: '', field_name: bcs_cluster_id, type: string, unit: ''}
+  - {description: '', field_name: container, type: string, unit: ''}
+  - {description: '', field_name: bk_job, type: string, unit: ''}
+  - {description: '', field_name: endpoint, type: string, unit: ''}
+  - {description: '', field_name: instance, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_url, type: string, unit: ''}
+  - {description: '', field_name: type, type: string, unit: ''}
+  - {description: '', field_name: exported_namespace, type: string, unit: ''}
+  - {description: '', field_name: monitor_type, type: string, unit: ''}
+  - {description: '', field_name: bk_monitor_name, type: string, unit: ''}
+  - {description: '', field_name: resource, type: string, unit: ''}
+  - {description: '', field_name: service, type: string, unit: ''}
+  - {description: '', field_name: job, type: string, unit: ''}
+  - {description: '', field_name: pod, type: string, unit: ''}
+  - {description: '', field_name: bk_endpoint_index, type: string, unit: ''}
+  - {description: '', field_name: target, type: string, unit: ''}
+- description: ''
+  field_name: kube_pod_container_status_last_terminated_reason
+  tag_list:
+  - description: ''
+    field_name: container
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: container_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: exported_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: exported_container
+    type: string
+    unit: ''
+  - description: ''
+    field_name: exported_pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: reason
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+- description: ''
+  field_name: kube_pod_status_ready
+  tag_list:
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: exported_pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: container
+    type: string
+    unit: ''
+  - description: ''
+    field_name: condition
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: exported_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''

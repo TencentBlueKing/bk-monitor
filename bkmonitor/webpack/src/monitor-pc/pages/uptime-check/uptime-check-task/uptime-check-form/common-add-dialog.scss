@@ -1,0 +1,28 @@
+.common-add-dialog {
+  .monitor-dialog-body {
+    .url-input {
+      width: 440px;
+      margin-top: 22px;
+      margin-bottom: 26px;
+      height: 176px;
+
+      .bk-form-textarea {
+        min-height: 176px;
+      }
+
+      &.is-error {
+        .bk-textarea-wrapper {
+          border-color: #ea3636;
+        }
+      }
+    }
+
+    .validate-tips {
+      display: flex;
+      align-items: center;
+      margin-top: -26px;
+      color: #ea3636;
+      line-height: 26px;
+    }
+  }
+}

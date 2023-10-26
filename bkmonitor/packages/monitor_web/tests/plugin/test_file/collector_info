@@ -1,0 +1,89 @@
+init_config:
+
+instances:
+
+  - url: {{ instance_url }}
+
+    catalog_checks: true
+
+    network_latency_checks: true
+
+    self_leader_check: true
+    new_leader_checks: true
+
+
+
+    ## @param tls_verify - boolean - optional - default: true
+    ## Instructs the check to validate the TLS certificate of services.
+    #
+    # tls_verify: true
+
+    ## @param tls_ignore_warning - boolean - optional - default: false
+    ## If `tls_verify` is disabled, security warnings are logged by the check.
+    ## Disable these by setting `tls_ignore_warning` to true.
+    #
+    # tls_ignore_warning: false
+
+    ## @param tls_cert - string - optional
+    ## The path to a single file in PEM format containing a certificate as well as any
+    ## number of CA certificates needed to establish the certificate’s authenticity for
+    ## use when connecting to services. It may also contain an unencrypted private key to use.
+    #
+    # tls_cert: <CERT_PATH>
+
+    ## @param tls_private_key - string - optional
+    ## The unencrypted private key to use for `tls_cert` when connecting to services. This is
+    ## required if `tls_cert` is set and it does not already contain a private key.
+    #
+    # tls_private_key: <PRIVATE_KEY_PATH>
+
+    ## @param tls_ca_cert - string - optional
+    ## The path to a file of concatenated CA certificates in PEM format or a directory
+    ## containing several CA certificates in PEM format. If a directory, the directory
+    ## must have been processed using the c_rehash utility supplied with OpenSSL. See:
+    ## https://www.openssl.org/docs/manmaster/man3/SSL_CTX_load_verify_locations.html
+    #
+    # tls_ca_cert: <CA_CERT_PATH>
+
+    ## @param headers - list of key:value elements - optional
+    ## The headers parameter allows you to send specific headers with every request.
+    ## You can use it for explicitly specifying the host header or adding headers for
+    ## authorization purposes.
+    ##
+    ## This overrides any default headers.
+    #
+    # headers:
+    #   Host: <ALTERNATIVE_HOSTNAME>
+    #   X-Auth-Token: <AUTH_TOKEN>
+
+    ## @param timeout - integer - optional - default: 10
+    ## The timeout for connecting to services.
+    #
+    # timeout: 10
+
+    ## @param log_requests - boolean - optional - default: false
+    ## Whether or not to debug log the HTTP(S) requests made, including the method and URL.
+    #
+    # log_requests: false
+
+    ## @param persist_connections - boolean - optional - default: false
+    ## Whether or not to persist cookies and use connection pooling for increased performance.
+    #
+    # persist_connections: false
+
+## Log Section (Available for Agent >=6.0)
+##
+## type - mandatory - Type of log input source (tcp / udp / file / windows_event)
+## port / path / channel_path - mandatory - Set port if type is tcp or udp. Set path if type is file. Set channel_path if type is windows_event
+## service - mandatory - Name of the service that generated the log
+## source  - mandatory - Attribute that defines which Integration sent the logs
+## sourcecategory - optional - Multiple value attribute. Used to refine the source attribute
+## tags: - optional - Add tags to the collected logs
+##
+## Discover Datadog log collection: https://docs.datadoghq.com/logs/log_collection/
+#
+# logs:
+#   - type: file
+#     path: /var/log/consul_server.log
+#     source: consul
+#     service: <SERVICE_NAME>

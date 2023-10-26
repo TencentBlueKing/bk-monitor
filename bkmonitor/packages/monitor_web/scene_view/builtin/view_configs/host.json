@@ -1,0 +1,94 @@
+{
+  "id": "host",
+  "type": "detail",
+  "mode": "auto",
+  "name": "主机",
+  "variables": [],
+  "panels": [],
+  "list": [],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "interval_select": true,
+      "split_switcher": false,
+      "method_select": true
+    },
+    "enable_index_list": true,
+    "view_editable": false,
+    "enable_group": false,
+    "variable_editable": false,
+    "alert_filterable": true,
+    "selector_panel": {
+      "title": "主机列表",
+      "type": "topo_tree",
+      "targets": [
+        {
+          "datasource": "topo_tree",
+          "dataType": "topo_tree",
+          "api": "commons.getTopoTree",
+          "data": {
+            "instance_type": "host",
+            "remove_empty_nodes": false
+          },
+          "fields": {
+            "ip": "bk_target_ip",
+            "bk_cloud_id": "bk_target_cloud_id",
+            "bk_host_id": "bk_host_id"
+          }
+        }
+      ],
+      "options": {
+        "topo_tree": {
+          "can_check_node": true,
+          "show_status_bar": false,
+          "show_overview": false
+        }
+      }
+    },
+    "overview_panel": {
+      "title": "主机概览",
+      "type": "dict",
+      "targets": [
+        {
+          "datasource": "host",
+          "dataType": "dict",
+          "api": "scene_view.getStrategyAndEventCount",
+          "data": {
+            "scene_id": "host",
+            "target": {"bk_host_id": "$bk_host_id", "bk_obj_id": "$bk_obj_id", "bk_inst_id": "$bk_inst_id"}
+          }
+        }
+      ]
+    },
+    "detail_panel": {
+      "title": "主机详情",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getHostOrTopoNodeDetail",
+          "data": {"bk_host_id": "$bk_host_id", "bk_obj_id": "$bk_obj_id", "bk_inst_id": "$bk_inst_id"}
+        }
+      ]
+    },
+    "ai_panel": {
+      "title": "主机多指标异常检测",
+      "type": "ai-panel",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "dict",
+          "api": "aiops.hostIntelligenAnomaly",
+          "data": {
+            "host": [
+              "$current_target"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

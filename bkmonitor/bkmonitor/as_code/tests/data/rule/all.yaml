@@ -1,0 +1,100 @@
+name: 测试策略
+labels:
+- label1
+- label2
+enabled: true
+active_time: "00:00 -- 23:59"
+active_calendar: []
+
+# 查询配置
+query:
+  type: bk_monitor
+  data_source: bk_monitor
+  data_type: time_series
+  expression: a + b
+  query_configs:
+  - metric: system.disk.free
+    method: avg
+    interval: 60
+    group_by: []
+    functions:
+    - delta(2m)
+    - abs
+    where: bk_target_ip="1" or bk_target_cloud_id!="2" or bk_target_ip=~"1" or bk_target_ip!~"111" or device_name="4"
+    alias: a
+  - metric: system.disk.free
+    method: avg
+    interval: 60
+    group_by: []
+    functions:
+    - delta(2m)
+    - abs
+    where: bk_target_ip="1" or bk_target_cloud_id!="2" or bk_target_ip=~"1" or bk_target_ip!~"111" or device_name="4"
+    alias: b
+
+  # 监控目标
+  target:
+    type: host
+    nodes:
+      - 127.0.0.1
+      - 127.0.0.1|0
+
+detect:
+  # 检测算法
+  algorithm:
+    operator: and
+    unit: Mb
+
+    fatal:
+    - type: Threshold
+      config: ">1 or <2"
+    warning:
+    - type: SimpleRingRatio
+      config:
+        floor: 10
+        ceil: 23
+    remind:
+    - type: AdvancedRingRatio
+      config:
+        floor: 10
+        ceil: 15
+        ceil_interval: 7
+        floor_interval: 5
+
+  # 触发条件
+  trigger: 2/10/6
+  nodata:
+    enabled: false
+    continuous: 10
+    dimensions: []
+    level: fatal
+
+# 通知
+notice:
+  signal:
+    - recovered
+    - abnormal
+  exclude_notice_ways: {}
+  user_groups: [duty.yaml]
+  biz_converge: true
+  interval: 120
+  interval_mode: standard
+  template:
+    abnormal:
+      title: "aaa"
+      content: "aaa"
+    recovered:
+      title: "aaa"
+      content: "aaa"
+    closed:
+      title: "aaa"
+      content: "aaa"
+
+# 处理套餐
+actions:
+- signal: [abnormal]
+  action: webhook.yaml
+  converge:
+    interval: 1
+    count: 1
+    func: skip_when_success

@@ -1,0 +1,9 @@
+{
+  "collector_json": {"windows":{"script_content_base64":"QGVjaG8gb2ZmDQplY2hvIDExMQ==","type":"bat","filename":"test_plugin.bat"}},
+  "config_json": [
+    {"default":"","description":"","type":"text","mode":"opt_cmd","name":"param_pos_cmd"},
+    {"default":"","description":"","type":"text","mode":"env","name":"params_env"},
+    {"default":"","description":"","type":"text","mode":"opt_cmd","name":"params_opt_cmd"}
+  ],
+  "is_support_remote": false
+}

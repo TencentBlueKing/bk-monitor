@@ -1,0 +1,99 @@
+@import '../../theme/index';
+
+@mixin layout-flex($flexDirection, $alignItems, $justifyContent) {
+  display: flex;
+  flex-direction: $flexDirection;
+  align-items: $alignItems;
+  justify-content: $justifyContent;
+}
+
+.custom-report-page {
+  position: relative;
+
+  @include layout-flex(row, stretch, flex-start);
+
+  .content-left {
+    flex: 1 1 auto;
+    padding: 0 20px;
+    height: calc(100vh - 52px);
+    overflow-y: auto;
+
+    &-operator {
+      margin-top: 20px;
+
+      @include layout-flex(row, center, space-between);
+
+      .operator-input {
+        width: 360px;
+      }
+    }
+
+    &-table {
+      margin-top: 16px;
+      border: 1px solid #dfe0e5;
+      border-radius: 2px;
+      border-top: 0;
+      background: #fff;
+
+      .col-strategy {
+        width: 48px;
+        text-align: right;
+        color: $unsetColor;
+      }
+
+      .col-btn {
+        color: $primaryFontColor;
+        cursor: pointer;
+      }
+
+      .col-change {
+        @include layout-flex(column, stretch, flex-start);
+
+        .col-change-author {
+          margin-bottom: 3px;
+        }
+      }
+
+      .col-operator {
+        padding-left: 0;
+        margin-right: 10px;
+      }
+
+      .table-empty-icon {
+        font-size: 32px;
+        color: $defaultBorderColor;
+      }
+
+      .table-empty-title {
+        font-size: $fontSmSize;
+        margin-top: 10px;
+      }
+
+      .bk-table-pagination-wrapper {
+        /* stylelint-disable-next-line declaration-no-important */
+        padding: 15px !important;
+      }
+
+      .platform-tag {
+        height: 20px;
+        padding: 4px;
+        font-size: 12px;
+        color: #fff;
+        background: #979ba5;
+        border-radius: 2px;
+        margin-left: 6px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+
+  .content-right {
+    flex-basis: 246px;
+    border-left: 1px solid $defaultBorderColor;
+    border-radius: 0 0 2px 2px;
+    background: $whiteColor;
+  }
+}

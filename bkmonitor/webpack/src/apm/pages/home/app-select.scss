@@ -1,0 +1,71 @@
+@import "../../static/scss/variate.scss";
+
+.app-select-theme {
+  .app-select-main {
+    width: 320px;
+    border: 1px solid #dcdee5;
+    color: $defaultFontColor;
+    .app-select-title {
+      height: 44px;
+      line-height: 44px;
+      padding: 0 16px;
+    }
+    .app-select-list {
+      width: 100%;
+      .app-select-item {
+        display: flex;
+        height: 64px;
+        width: 100%;
+        align-items: center;
+        cursor: pointer;
+        &:hover {
+          background-color: #e1ecff;
+          .app-select-item-icon {
+            color: $primaryColor;
+          }
+        }
+        .app-select-item-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 55px;
+          font-size: 22px;
+          flex-shrink: 0;
+          img {
+            display: inline-block;
+            max-width: 24px;
+          }
+        }
+        .app-select-content {
+          // flex: 1;
+          width: calc(100% - 55px);
+          display: flex;
+          flex-direction: column;
+          padding-right: 18px;
+          .app-select-name {
+            font-weight: bold;
+            line-height: 22px;
+          }
+          .app-select-desc {
+            margin-top: 2px;
+            line-height: 20px;
+            color: #979ba5;
+            height: 20px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+    .app-select-demo {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 40px;
+      border-top: 1px solid $borderColor;
+      background-color: $bgColor1;
+      cursor: pointer;
+    }
+  }
+}

@@ -1,0 +1,38 @@
+.span-tree-offset {
+  color: #000;
+  position: relative;
+}
+.span-tree-offset.is-parent:hover {
+  // background-color: #e8e8e8;
+  cursor: pointer;
+}
+.span-tree-offset-indent-guide {
+  /* The size of the indentGuide is based off of the iconWrapper */
+  padding-right: 26px;
+  height: 100%;
+  border-left: 1px solid transparent;
+  display: inline-flex;
+  &:first-child {
+    border-left: 0px solid transparent;
+  }
+}
+.span-tree-offset-indent-guide:before {
+  content: "";
+  padding-left: 1px;
+  background-color: #dcdee5;
+}
+.span-tree-offset-indent-guide.is-active {
+  border-left-color: darkgrey;
+}
+.span-tree-offset-indent-guide.is-active:before {
+  background-color: darkgrey;
+}
+.span-tree-offset-icon-wrapper {
+  position: absolute;
+  right: 0;
+  img {
+    margin-top: 2px;
+    width: 24px;
+    height: 24px;
+  }
+}

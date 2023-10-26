@@ -1,0 +1,26 @@
+.ui-query-container {
+  min-height: 100px;
+  padding: 8px 12px;
+  background: #F5F7FA;
+  border-radius: 2px;
+
+  &:not(:last-child) .query-item-box {
+    margin-bottom: 16px;
+  }
+
+  .query-title {
+    font-size: 12px;
+    margin-bottom: 8px;
+
+    :first-child {
+      color: #63656e;
+      margin-right: 9px;
+    }
+
+    :last-child {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ff9c01;
+    }
+  }
+};

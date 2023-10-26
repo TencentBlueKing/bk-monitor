@@ -1,0 +1,83 @@
+.cluster-config-cluster-more-config {
+  .horizontal {
+    display: flex;
+    align-items: center;
+
+    & > div {
+      &:not(:first-of-type) {
+        margin-left: 16px;
+      }
+    }
+  }
+
+  .time-select-wrap {
+    display: flex;
+    height: 32px;
+    background: #fff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    .left-wrap {
+      background: #fafbfd;
+      border-right: 1px solid #c4c6cc;
+      min-width: 46px;
+      line-height: 32px;
+      padding: 0 8px 0 10px;
+    }
+
+    .bk-select {
+      width: 100%;
+      border: 0;
+    }
+
+    .bk-form-input {
+      border: 0;
+      height: 30px;
+    }
+  }
+
+  .hint-switcher {
+    display: flex;
+    align-items: center;
+
+    .get-hint {
+      margin-left: 16px;
+
+      & > span {
+        display: inline-flex;
+
+        .button-text {
+          color: #3a84ff;
+          cursor: pointer;
+          margin: 0 4px;
+        }
+      }
+    }
+  }
+
+  .hint-lable-title {
+    display: flex;
+    align-items: center;
+
+    .lable {
+      margin-right: 6px;
+    }
+
+    .link {
+      color: #3a84ff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+
+      .icon-mc-visual {
+        margin-right: 4px;
+        font-size: 16px;
+      }
+    }
+  }
+
+  .cluster-form-item-radio {
+    margin-right: 24px;
+    font-size: 12px;
+  }
+}

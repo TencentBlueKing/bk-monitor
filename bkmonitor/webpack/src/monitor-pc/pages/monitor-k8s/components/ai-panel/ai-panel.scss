@@ -1,0 +1,122 @@
+.ai-panel-component {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  border-top: 1px solid #eaebf0;
+  padding: 0 8px 0 16px;
+
+  .ai-panel-title {
+    display: flex;
+    align-items: center;
+    height: 42px;
+    color: #313238;
+    font-size: 14px;
+    margin-top: 10px;
+
+    .icon-hint {
+      font-size: 14px;
+      margin-left: 4px;
+      color: #979ba5;
+    }
+
+    .setting-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      margin-left: auto;
+      color: #979ba5;
+    }
+  }
+
+  .ai-panel-subtitle {
+    display: flex;
+    line-height: 20px;
+    color: #979ba5;
+    margin: 6px 0 0 0;
+  }
+
+  .ai-panel-table {
+    width: 100%;
+
+    .name-col {
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .score-col {
+      color: #ea3636;
+    }
+  }
+
+  .ai-panel-list {
+    margin-top: 4px;
+
+    .ai-panel-list-item {
+      height: 48px;
+      background: #f5f7fa;
+      border-radius: 2px;
+      font-size: 12px;
+      padding: 4px 8px;
+      margin-top: 8px;
+      cursor: pointer;
+
+      .metric-name {
+        color: #63656e;
+        line-height: 20px;
+      }
+
+      .count-info {
+        color: #979ba5;
+        line-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .red {
+          color: #ea3636;
+        }
+      }
+
+      &:hover {
+        background: #f0f5ff;
+
+        .metric-name {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .no-data {
+    height: 160px;
+    background: #fafbfd;
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 6px;
+
+    .no-data-img {
+      object-fit: cover;
+      width: 176px;
+      height: 80px;
+      background-image: url('../../../../static/images/png/success.png');
+      margin-top: 24px;
+    }
+
+    .no-data-text {
+      font-size: 12px;
+      color: #c4c6cc;
+      line-height: 20px;
+      margin-top: 8px;
+    }
+  }
+}

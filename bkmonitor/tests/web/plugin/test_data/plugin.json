@@ -1,0 +1,8 @@
+{
+  "plugin_id": "test_plugin",
+  "plugin_display_name": "test_plugin",
+  "plugin_type": "Script",
+  "tag": "办公应用",
+  "bk_biz_id": 0,
+  "scripts": {"windows":{"type":"bat","filename":"test_plugin.bat"}}
+}

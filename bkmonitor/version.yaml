@@ -1,0 +1,10 @@
+version: 3.9.0
+submodules:
+  transfer: 3.8.1177
+  unify-query: 3.8.1198
+  ingester: 3.7.799
+  influxdb-proxy: 3.7.858
+  grafana: 1.0.301
+  operator: 3.6.82
+dependency:
+  open_paas: 2.14.58

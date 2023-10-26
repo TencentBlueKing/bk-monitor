@@ -1,0 +1,33 @@
+.year-round-wrap {
+  .level-select {
+    width: 400px;
+
+    .bk-select-prefix-icon {
+      top: 0;
+      left: 0;
+    }
+
+    &.is-focus {
+      box-shadow: none;
+    }
+  }
+
+  .type-radio {
+    line-height: 32px;
+
+    .bk-form-radio {
+      margin-right: 24px;
+      font-size: 12px;
+    }
+  }
+
+  .select-method {
+    margin: 0 4px;
+  }
+}
+
+.level-select-popover {
+  .name {
+    vertical-align: middle;
+  }
+}

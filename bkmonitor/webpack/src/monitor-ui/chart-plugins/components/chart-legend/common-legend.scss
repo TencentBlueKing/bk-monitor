@@ -1,0 +1,57 @@
+.common-legend {
+  &-item {
+    float: left;
+    white-space: nowrap;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    line-height: 16px;
+    font-size: 12px;
+
+    .legend-icon {
+      width: 12px;
+      height: 4px;
+      background-color: violet;
+      margin-right: 6px;
+    }
+
+    &:hover {
+      color: #999;
+      cursor: pointer;
+    }
+
+    .bk-dropdown-content {
+      position: fixed;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      top: 16px !important;
+
+      ul {
+        width: 200px;
+        max-height: 160px;
+        overflow: auto;
+
+        li {
+          height: 32px;
+          line-height: 32px;
+          padding: 0 4px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          .bk-option-icon {
+            font-size: 20px;
+          }
+        }
+
+        li:hover {
+          background-color: #f5f7fa;;
+        }
+
+        .active {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+}

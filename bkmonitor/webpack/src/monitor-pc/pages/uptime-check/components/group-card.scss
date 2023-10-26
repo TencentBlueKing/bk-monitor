@@ -1,0 +1,174 @@
+@import '../../../theme/common.scss';
+
+.uptime-check-group-card {
+  height: 198px;
+  box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
+  background: #fff;
+  border-radius: 2px;
+  position: relative;
+  padding: 9px 16px;
+  border: 1px solid #fff;
+  transition: border .3s;
+
+  &.active {
+    border: 1px dashed #3a84ff;
+  }
+
+  &:hover {
+    cursor: pointer;
+    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, .1);
+
+    .card-desc {
+      .title-icon {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        color: #63656e;
+        transition: background-color .2s ease-in-out;
+        font-size: 18px;
+
+        &:hover {
+          background-color: #f0f1f5;
+          border-radius: 50%;
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .card-desc {
+    display: flex;
+    align-items: center;
+
+    .desc-icon {
+      flex: 0 0 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      margin-right: 10px;
+      background-size: cover;
+    }
+
+    .desc-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+
+      &-title {
+        color: #313238;
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        align-items: center;
+
+        @include ellipsis;
+
+        .alarm-label {
+          display: inline-block;
+          margin-left: 10px;
+          padding: 0 9px;
+          color: #fff;
+          border-radius: 15px;
+          background: #ea3636;
+          font-size: 12px;
+        }
+      }
+
+      &-label {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        color: #979ba5;
+
+        .right-label {
+          background: #f0f1f5;
+          border-radius: 2px;
+          padding: 1px 6px;
+          margin-right: 6px;
+        }
+      }
+    }
+
+    .title-icon {
+      display: none;
+    }
+  }
+
+  .card-list {
+    color: #63656e;
+    margin-top: 17px;
+    font-size: 12px;
+    color: #979ba5;
+
+    .card-list-progress {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 16px;
+
+      .progress-desc {
+        display: flex;
+        margin-bottom: 6px;
+
+        .desc-name {
+          flex: 1;
+
+          @include ellipsis;
+        }
+      }
+
+      .progress-item {
+        .progress-bar {
+          box-shadow: none;
+        }
+      }
+    }
+  }
+
+  .card-list-empty {
+    text-align: center;
+    color: #979ba5;
+    font-size: 12px;
+    overflow: hidden;
+
+    .empty-item:first-child {
+      margin-top: 38px;
+    }
+  }
+
+  .popover-desc {
+    display: flex;
+    flex-direction: column;
+    color: #63656e;
+    font-size: 12px;
+    border-radius: 2px;
+    border: 1px solid #dcdee5;
+    padding: 6px 0;
+    background: #fff;
+
+    &-btn {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 10px;
+      height: 32px;
+      background: #fff;
+
+      &:hover {
+        background: #f0f1f5;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+}

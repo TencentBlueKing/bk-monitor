@@ -1,0 +1,40 @@
+.chat-group-dialog-wrap {
+  .bk-dialog-header {
+    padding-bottom: 10px;
+  }
+
+  .header {
+    margin: 0 10px 0 16px;
+    padding-bottom: 24px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #dcdee5;
+
+    span {
+      margin-left: 6px;
+    }
+  }
+
+  .content {
+    margin: 20px 10px 0 16px;
+
+    .title {
+      font-size: 12px;
+    }
+
+    .bk-form-checkbox {
+      margin-right: 24px;
+
+      .bk-checkbox-text {
+        font-size: 12px;
+      }
+    }
+
+    .bk-user-selector {
+      /* stylelint-disable-next-line declaration-no-important */
+      height: 76px !important;
+      width: 100%;
+      margin: 12px 0;
+    }
+  }
+}

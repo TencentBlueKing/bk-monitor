@@ -1,0 +1,166 @@
+/* stylelint-disable declaration-no-important */
+@mixin status-tab-wrap {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 4px;
+  background: #f0f1f5;
+  border-radius: 4px;
+
+  .status-tab-item {
+    box-sizing: border-box;
+    display: flex;
+    flex: 1;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    padding: 0 12px;
+    cursor: pointer;
+    border-radius: 4px;
+
+    .status-name {
+      white-space: nowrap;
+    }
+
+    &.active {
+      color: #3a84ff;
+      background-color: #fff;
+    }
+  }
+}
+
+.alarm-shield-page {
+  height: calc(100vh - 52px);
+  padding: 16px;
+  overflow-y: auto;
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .mr-6 {
+    margin-right: 6px;
+  }
+
+  .alarm-shield-wrap {
+    padding: 16px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
+
+  .top-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .left {
+      display: flex;
+      align-items: center;
+
+      .add-btn {
+        margin-right: 24px;
+      }
+
+      .status-tab-wrap {
+        @include status-tab-wrap();
+
+        .status-effct,
+        .status-overdue {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 13px;
+          height: 13px;
+          margin-right: 2px;
+          border-radius: 50%;
+
+          & > span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+          }
+        }
+
+        .status-effct {
+          background: #3fc06d29;
+
+          .effct {
+            background: #3fc06d;
+          }
+        }
+
+        .status-overdue {
+          background: #979ba529;
+
+          .overdue {
+            background: #979ba5;
+          }
+        }
+      }
+    }
+
+    .right {
+      display: flex;
+      align-items: center;
+
+      .shield-time {
+        min-width: 350px;
+        margin-right: 24px;
+      }
+
+      .shield-search {
+        min-width: 350px;
+      }
+    }
+  }
+
+  .table-wrap {
+    margin-top: 16px;
+
+    .mt-14 {
+      margin-top: 14px;
+    }
+
+    .release {
+      color: #ff9c01;
+    }
+
+    .overdue {
+      color: #c4c6cc;
+    }
+
+    .bk-table .bk-table-head table th {
+      background-color: #fafbfd;
+    }
+
+    .shield-table {
+      width: 100% !important;
+    }
+
+    .icon-filter-fill {
+      margin-left: 6px;
+      color: #64656e;
+    }
+
+    .bk-pagination .is-last {
+      margin-left: auto;
+    }
+
+    .bk-pagination-total {
+      display: flex;
+      align-items: center;
+    }
+  }
+}
+
+.bk-table-head-filter {
+  .content-list {
+    min-width: 140px;
+  }
+
+  .bk-checkbox-label {
+    font-size: 12px;
+  }
+}

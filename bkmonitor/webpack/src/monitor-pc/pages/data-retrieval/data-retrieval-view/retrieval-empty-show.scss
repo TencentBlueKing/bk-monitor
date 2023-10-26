@@ -1,0 +1,59 @@
+.empty-container {
+  margin: 20px 0;
+
+  .empty-main {
+    font-size: 12px;
+    min-width: 230px;
+    text-align: left;
+
+    .suggest-title {
+      color: #979ba5;
+      padding: 8px 0;
+
+      &.is-center {
+        padding: 0;
+        text-align: center;
+      }
+    }
+
+    .suggest-list {
+      display: flex;
+      flex-direction: column;
+      line-height: 18px;
+
+      .grammar-list {
+        margin-left: 14px;
+        display: flex;
+        flex-direction: column;
+      }
+    }
+  }
+
+  .more-rule {
+    font-size: 12px;
+    margin-top: 8px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-monitor {
+      display: inline-block;
+      transform: scale(.7) translate3d(2px, 2px, 0);
+    }
+  }
+
+  .blue-btn {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .exception-image {
+    height: 180px;
+  }
+
+  .stand-sort {
+    display: flex;
+    flex-direction: column;
+    line-height: 20px;
+    text-align-last: left;
+  }
+}

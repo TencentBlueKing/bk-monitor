@@ -1,0 +1,121 @@
+.alarm-dispatch-alarm-group-select-component {
+  width: 100%;
+
+  .tag-list {
+    min-height: 42px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+
+    .tag-list-item {
+      margin-right: 4px;
+      margin-bottom: 2px;
+      background: #f0f1f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+      color: #63656e;
+      height: 22px;
+      font-size: 12px;
+
+      .item-name {
+        white-space: nowrap;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .icon-mc-close {
+        color: #979ba5;
+        margin-left: 6px;
+      }
+
+      &:hover {
+        background: #3a84ff;
+        color: #fff;
+
+        .icon-mc-close {
+          &:hover {
+            color: #fff;
+          }
+        }
+      }
+    }
+  }
+
+  .placeholder {
+    color: #c4c6cc;
+  }
+
+  &-pop {
+    .bk-select-extension {
+      padding: 0;
+
+      &:hover {
+        background: #fafbfd;
+      }
+    }
+
+    .extension-wrap {
+      display: flex;
+      align-items: center;
+      height: 40px;
+
+      .add-wrap {
+        height: 100%;
+        flex: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #63656e;
+        font-size: 12px;
+
+        .icon-jia {
+          margin-right: 5px;
+          font-size: 14px;
+          color: #979ba5;
+        }
+
+        &:hover {
+          background: #dcdee5;
+        }
+      }
+
+      .loading-wrap {
+        width: 42px;
+        height: 100%;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+
+        .status-loading {
+          height: 16px;
+        }
+
+        &::after {
+          content: '';
+          position: absolute;
+          left: -1px;
+          top: 10px;
+          width: 1px;
+          height: 16px;
+          background: #dcdee5;
+        }
+
+        &:hover {
+          background: #dcdee5;
+
+          &::after {
+            display: none;
+          }
+        }
+      }
+    }
+  }
+}

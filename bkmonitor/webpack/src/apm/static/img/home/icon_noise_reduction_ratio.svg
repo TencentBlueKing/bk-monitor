@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="18px" height="18px" viewBox="0 0 18 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>icon/降噪比</title>
+    <g id="首页" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g transform="translate(-847.000000, -191.000000)" id="编组-4">
+            <g transform="translate(117.000000, 122.000000)">
+                <g id="编组-12备份" transform="translate(51.000000, 69.000000)">
+                    <g id="icon/降噪比" transform="translate(679.000000, 0.000000)">
+                        <polygon id="路径" points="0 0 18 0 18 18 0 18"></polygon>
+                        <path d="M4.656,5.32 L5.984,5.32 L5.984,11.96 L4.656,11.96 L4.656,5.32 Z M2,7.312 L3.328,7.312 L3.328,9.968 L2,9.968 L2,7.312 Z M7.312,2 L8.64,2 L8.64,13.952 L7.312,13.952 L7.312,2 Z M9.968,3.328 L11.296,3.328 L11.296,15.28 L9.968,15.28 L9.968,3.328 Z M12.624,5.32 L13.952,5.32 L13.952,11.96 L12.624,11.96 L12.624,5.32 Z M15.28,7.312 L16.608,7.312 L16.608,9.968 L15.28,9.968 L15.28,7.312 Z" id="形状" fill="#3A84FF" fill-rule="nonzero"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

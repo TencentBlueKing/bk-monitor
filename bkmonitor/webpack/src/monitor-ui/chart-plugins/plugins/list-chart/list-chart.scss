@@ -1,0 +1,57 @@
+.list-chart-wrap {
+  height: 100%;
+  background-color: #fff;
+  .list-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #fafbfd;
+    box-shadow: 0px 1px 0px 0px #f0f1f5; 
+    .title {
+      color: #313238;
+      line-height: 22px;
+    }
+    .view-more {
+      font-size: 12px;
+      color: #3a84ff;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      padding-left: 8px;
+      cursor: pointer;
+    }
+  }
+  .list-chart-contain {
+    margin-top: 16px;
+    padding: 0 16px;
+    height: calc(100% - 58px);
+    overflow: auto;
+    .common-table {
+      .bk-table {
+        &::before {
+          display: none;
+        }
+        .status-icon {
+          display: block;
+          width: 8px;
+          height: 8px;
+          border: 1px solid;
+          border-radius: 50%;
+        }
+        .status-success {
+          background-color: #e5f6ea;
+          border-color: #3fc06d;
+        }
+        .status-faild {
+          background-color: #ffe6e6;
+          border-color: #ea3636;
+        }
+        .status-disabled {
+          background-color: #f0f1f5;
+          border-color: #c4c6cc;
+        }
+      }
+    }
+  }
+}

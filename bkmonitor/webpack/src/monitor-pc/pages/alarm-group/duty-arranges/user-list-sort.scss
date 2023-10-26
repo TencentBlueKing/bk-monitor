@@ -1,0 +1,50 @@
+.user-sort-list-component {
+  position: relative;
+  .user-list-wrap {
+    width: 100%;
+    .flip-list-move {
+      transition: transform .5s;
+    }
+    .user-list-item {
+      display: flex;
+      width: 100%;
+      &:not(:first-of-type) {
+        margin-top: 12px;
+      }
+      .duty-user-selector-component {
+        flex: 1;
+      }
+      .right-wrap {
+        width: 26px;
+      }
+      .delete-btn {
+        display: none;
+        width: 22px;
+        height: 32px;
+        background: #f0f1f5;
+        border-radius: 2px;
+        margin-left: 4px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        .icon-mc-delete-line {
+          color: #ff5656;
+        }
+      }
+      &:hover {
+        .right-wrap {
+          .delete-btn {
+            display: flex;
+          }
+        }
+      }
+    }
+    .add-btn {
+      margin-top: 12px;
+      > div {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+}

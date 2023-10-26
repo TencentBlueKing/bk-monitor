@@ -1,0 +1,69 @@
+.resource-register-page-influxdb-child {
+  padding: 0 24px;
+
+  .expand-item {
+    box-shadow: 0 -1px 0 0 #dcdee5;
+
+    .item-header {
+      height: 32px;
+      background: #eaebf0;
+      display: flex;
+      align-items: center;
+      padding: 0 24px 0 16px;
+      cursor: pointer;
+
+      .icon-mc-triangle-down {
+        transform: rotate(-90deg);
+        color: #c4c6cc;
+        font-size: 24px;
+        transition: 100ms all;
+
+        &.active {
+          transform: rotate(0deg);
+          color: #63656e;
+        }
+      }
+
+      .name {
+        margin-left: 8px;
+      }
+
+      .icon-mc-copy {
+        margin: 0 20px 0 auto;
+        font-size: 16px;
+        height: 24px;
+        width: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+
+      .icon-bianji {
+        font-size: 24px;
+        margin: 0 0 0 0;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    .item-content {
+      height: 0px;
+      overflow: hidden;
+      transition: height .3s;
+
+      &.active {
+        height: auto;
+      }
+
+      .bk-table tr {
+        background: #fafbfd;
+      }
+    }
+  }
+}

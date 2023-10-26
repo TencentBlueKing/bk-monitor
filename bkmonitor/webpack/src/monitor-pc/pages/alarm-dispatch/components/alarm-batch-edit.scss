@@ -1,0 +1,110 @@
+.alarm-batch-edit-container {
+  font-family: MicrosoftYaHei;
+  color: #63656e;
+  letter-spacing: 0;
+  min-width: 300px;
+
+  .alarm-batch-edit-header {
+    padding: 16px;
+    height: 30px;
+    line-height: 30px;
+
+    .notice-switcher {
+      margin-left: 10px;
+    }
+  }
+
+  .alarm-batch-edit-content {
+    padding: 16px;
+
+    .verify-item-wrap {
+      .error-msg {
+        position: static;
+      }
+    }
+
+    .notice-select {
+      width: 78px;
+      margin: 0 4px; 
+      display: inline-block;
+
+      .bk-select-name {
+        padding: 0 10px;
+      }
+    }
+
+    .user-group-add {
+      max-width: 320px;
+      margin: 8px 0;
+    }
+
+    .upgrade-config-edit {
+      margin-top: 10px;
+      display: flex;
+
+      .upgrade-label {
+        font-size: 12px;
+        font-weight: 700;
+        margin-right: 4px;
+      }
+
+      .upgrade-form {
+        margin-top: -6px;
+
+        .text {
+          display: flex;
+          align-items: center;
+        }
+      }
+      
+    }
+
+    .tag-list {
+      padding: 2px 4px;
+      min-height: 32px;
+      max-width: 360px;
+    }
+
+    .placeholder {
+      padding-left: 4px;
+    }
+  }
+
+  .alarm-batch-edit-footer {
+    width: 100%;
+    padding: 10px 0;
+    border-top: 1px solid #dcdee5;
+    border-radius: 2px;
+    text-align: right;
+
+    .bk-button {
+      margin-right: 10px;
+    }
+  }
+   
+  .level-radio-group {
+    .bk-form-radio {
+      margin-right: 12px;
+
+      .bk-radio-text {
+        font-size: 12px;
+      }
+
+      .icon-level {
+        margin: 0 4px;
+        font-size: 14px;
+      }
+
+      .icon-mc-chart-alert {
+        font-size: 12px;
+      }
+
+      .icon-mc-chart-alert:before {
+        width: 12px;
+        height: 12px;
+        display: inline-block;
+      } 
+      
+    }
+  }
+}

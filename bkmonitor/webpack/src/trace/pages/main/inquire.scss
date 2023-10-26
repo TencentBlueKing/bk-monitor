@@ -1,0 +1,473 @@
+/* stylelint-disable declaration-no-important */
+.inquire-main {
+  display: flex;
+  width: 100%;
+  height: 100%;
+
+  .w-100 {
+    .bk-popover {
+      width: 100%;
+    }
+
+    .bk-popover-reference {
+      width: 100%;
+    }
+  }
+
+  .inquire-left {
+    flex-shrink: 0;
+    background-color: #fff;
+    border-right: 1px solid #dcdee5;
+  }
+
+  .inquire-left-main {
+    position: relative;
+    height: 100%;
+    padding: 16px 0;
+
+    .left-form-item {
+      margin: 16px 0;
+      font-size: 12px;
+
+      .item-label {
+        line-height: 20px;
+        color: #63656e;
+      }
+
+      .item-content {
+        margin-top: 6px;
+      }
+    }
+
+    .left-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      // margin-bottom: 16px;
+      font-size: 16px;
+    }
+
+    .left-title {
+      color: #313238;
+    }
+
+    .left-title-operate {
+      display: flex;
+      align-items: center;
+      color: #979ba5;
+    }
+
+    .icon-menu-setting {
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .icon-double-down {
+      font-size: 26px;
+      cursor: pointer;
+      transform: rotateZ(90deg) translateY(-6px);
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .icon-mc-help-fill {
+      position: relative;
+      top: 1px;
+      margin-left: 4px;
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .inquiry-button-container {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+
+      .bk-button {
+        width: 50%;
+        font-size: 12px;
+      }
+
+      .is-selected {
+        background: #e1ecff !important;
+      }
+    }
+
+    .bk-input--default {
+      box-sizing: border-box;
+    }
+
+    .icon-search {
+      padding-right: 4px;
+      line-height: 32px;
+      color: #979ba5;
+      cursor: pointer;
+    }
+
+    .label-tips {
+      margin-left: 2px;
+      font-size: 12px;
+      color: #979ba5;
+    }
+  }
+
+  .query-container {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    // padding: 0 24px 16px;
+    height: calc(100% - 45px);
+    overflow: hidden;
+
+    .top-content {
+      padding: 0 24px;
+      margin-bottom: 50px;
+    }
+
+    .bk-textarea>textarea {
+      box-sizing: border-box;
+      font: inherit;
+      color: #63656e;
+    }
+
+
+    .handle-btn-group {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      z-index: 10;
+      box-sizing: border-box;
+      display: flex;
+      width: 100%;
+      padding: 8px 24px 16px;
+      background-color: #fff;
+      box-shadow: -1px -3px 3px 0 rgb(0 0 0 / 6%);
+
+      &.is-accurate {
+        bottom: auto;
+        box-shadow: none;
+      }
+
+      .bk-button {
+        font-size: 12px;
+      }
+
+      &>:not(:last-child) {
+        margin-right: 8px;
+      }
+
+      .icon-mc-zidongsousuo,
+      .icon-mc-uncollect {
+        margin-right: 4px;
+        font-size: 14px;
+      }
+
+      .toggle-auto-button {
+        width: 32px;
+        margin-right: 2px;
+        font-size: 14px;
+
+        .status-loading {
+          width: 24px;
+          height: 24px;
+        }
+      }
+
+      .query-button {
+        padding: 0 15px;
+      }
+
+      .clear-button {
+        padding: 5px 7px;
+      }
+    }
+
+    &.scope-query-container {
+      background-color: #fafbfd;
+      // padding: 0 0 16px;
+
+      .bk-form {
+        padding: 0 24px 12px;
+        background-color: #fff;
+      }
+    }
+
+    .results-statistics {
+      padding: 0 24px 16px;
+
+      .title {
+        margin-top: 12px;
+        font-size: 14px;
+        line-height: 22px;
+        color: #313238;
+      }
+    }
+
+    .bk-input input {
+      font-size: 12px;
+    }
+  }
+
+  .scope-inquire {
+    height: 100%;
+
+    .query-container {
+      overflow-y: auto;
+    }
+  }
+
+  .inquire-right {
+    height: 100%;
+  }
+}
+
+.inquire-right-header {
+  position: relative;
+  z-index: 99;
+
+  .tool-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    font-size: 14px;
+    color: #979ba5;
+    cursor: pointer;
+    border-right: 1px solid #f0f1f5;
+
+    .arrow-right {
+      font-size: 24px;
+      color: #979ba5;
+      cursor: pointer;
+      transform: rotate(90deg);
+    }
+
+    &:hover {
+      .arrow-right {
+        color: #3a84ff;
+      }
+    }
+  }
+}
+
+.inquire-page-loading {
+  position: relative;
+  height: 100%;
+
+  .bk-loading-mask {
+    z-index: 999 !important;
+  }
+
+  .bk-loading-indicator {
+    z-index: 1000 !important;
+  }
+}
+
+.inquire-right-main {
+  overflow-y: auto;
+  background-color: #f5f6fa;
+}
+
+.create-app-guide {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: calc(100% - 16px);
+  text-align: center;
+  background-color: #fff;
+
+  .guide-box {
+    position: relative;
+    top: 20%;
+  }
+
+  img {
+    width: 440px;
+    height: 200px;
+  }
+
+  .title {
+    margin: 0 0 16px;
+    font-size: 24px;
+  }
+
+  .subTitle {
+    margin: 0;
+    color: #979ba5;
+
+    span {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}
+
+.setting-pop-centent {
+  display: flex;
+  align-items: center;
+  height: 16px;
+  padding: 1px 0;
+  margin: 0 -4px;
+
+  .text {
+    line-height: 1;
+  }
+
+  .switcher {
+    margin-left: 12px;
+  }
+
+  .icon-hint {
+    margin-left: 4px;
+  }
+
+  .i-see-btn {
+    margin-top: -1px;
+    margin-left: 8px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
+
+.query-tips-content-wrapper {
+  .tips-content-title {
+    .link {
+      margin-left: 5px;
+      color: #3a84ff;
+
+      .icon-mc-link {
+        margin-left: 2px;
+      }
+    }
+  }
+
+  .tips-content-list {
+    margin-top: 10px;
+
+    .tips-content-item {
+      &:not(:last-child) {
+        margin-bottom: 10px;
+      }
+
+      .tips-content-item-label {
+        margin-bottom: 4px;
+        font-weight: 600;
+        line-height: 16px;
+        color: #63656e;
+      }
+
+      .tips-content-item-val {
+        line-height: 18px;
+      }
+    }
+  }
+}
+
+.bk-search-select-popover {
+  .menu-item {
+    box-sizing: border-box;
+  }
+}
+
+.add-condition {
+  width: 100%;
+  font-size: 12px;
+  line-height: 20px;
+  color: #3a84ff;
+  letter-spacing: 0;
+
+  &.bk-button.bk-button-primary {
+    color: #3a84ff;
+    background: #f0f5ff;
+    border-color: #f0f5ff;
+
+    &:hover {
+      background: #e1ecff;
+      border-color: #e1ecff;
+    }
+
+    &:active {
+      background: #e1ecff;
+      border-color: #e1ecff;
+    }
+  }
+}
+
+.inquire-cascader-container {
+  position: relative;
+  margin-bottom: 20px;
+
+  .inquire-cascader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    opacity: 0;
+  }
+}
+
+.bk-cascader-panel.bk-scroll-y {
+  overflow-y: auto;
+}
+
+// 以下样式是为了覆写 Span ID 模式下的 SpanDetail 组件内的样式。
+// 因为该组件的布局样式在 Span 弹窗和 Span ID 模式下的样式会有所不同，这里将做 Span ID 模式下的特殊处理。
+.inquire-right-main {
+  .related-log-chart-wrap .related-alert-info {
+    position: absolute;
+    z-index: 1;
+    width: 100%;
+  }
+  
+  .content-list.is-log-tab {
+    padding: 0 !important;
+
+    .flex-dashboard-item {
+      height: calc(100vh - 257px) !important;
+    }
+    
+    .dashboard-panel .flex-dashboard-item {
+      margin-right: 0 !important;
+      margin-bottom: 0 !important;
+    }
+  
+    .dashboard-panel {
+      height: calc(100vh - 255px);
+    }
+    
+    .related-table-container {
+      height: calc(100vh - 568px);
+    }
+  
+    .related-log-chart-wrap .related-log-chart-main {
+      margin-right: 16px;
+      margin-left: 16px;
+    }
+  }
+
+  .content-list.is-host-tab {
+    .dashboard-panel {
+      height: calc(100vh - 255px);
+    }
+
+    .flex-dashboard-item.exception-panel {
+      height: calc(100vh - 264px) !important;
+    }
+  }
+  
+  .bk-loading-mask {
+    opacity: 1 !important;
+  }
+}

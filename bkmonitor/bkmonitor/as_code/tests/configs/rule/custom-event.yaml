@@ -1,0 +1,39 @@
+snippet: base.yaml
+
+name: 自定义事件告警测试[code]
+active_time: 10:00 -- 22:00
+
+query:
+  data_source: custom
+  data_type: event
+
+  query_configs:
+    - metric: 2_bkmonitor_event_1572869.error
+      interval: 120
+      method: sum
+      group_by: [location, module]
+      where: location="guangdong"
+
+detect:
+  trigger: 2/5/3
+
+  algorithm:
+    warning:
+      - type: Threshold
+        config: ">100"
+      - type: SimpleRingRatio
+        config:
+          ceil: 100
+          floor: 100
+    operator: or
+
+notice:
+  user_groups:
+    - operator.yaml
+  signal:
+    - abnormal
+    - execute
+    - closed
+  biz_converge: false
+  interval: 240
+  interval_mode: increasing

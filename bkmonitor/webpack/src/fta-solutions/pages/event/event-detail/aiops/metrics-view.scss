@@ -1,0 +1,135 @@
+.aiops-metrics-view {
+  width: 100%;
+
+  @keyframes select {
+    0% {
+      border-color: #3a84ff;
+      background: #fafbfd;
+    }
+
+    35% {
+      background: #fafbfd;
+      border-color: #dcdee5;
+    }
+
+    70% {
+      border-color: #3a84ff;
+      background: #fafbfd;
+    }
+
+    100% {
+      background: white;
+      border-color: #dcdee5;
+    }
+    
+  }
+
+  .correlation-metric-nav-wrap-bg {
+    width: 259px;
+    margin-right: 16px;
+    border-right: 1px solid #eaebf0;
+    position: absolute;
+    height: calc(100% - 28px);
+    background: #fafbfd;
+    border-radius: 2px 2px 0 0;
+    z-index: 1;
+  }
+
+  .correlation-metric-nav-wrap {
+    z-index: 9;
+    border-radius: 2px 2px 0 0;
+    transform: translateZ(0);
+  }
+
+  .correlation-metric-wrap {
+    display: flex;
+    flex-direction: row;
+    padding-top: 22px;
+    position: relative;
+    min-height: 260px;
+  
+    .correlation-metric-fixed {
+      position: fixed;
+      z-index: 999;
+    }
+
+    .correlation-metric-fixed-padding {
+      padding-left: 275px;
+    }
+
+    .scroll-ing {
+      pointer-events: none;
+    }
+
+    .correlation-metrics-collapse-content {
+      margin-top: 12px;
+    }
+
+    .correlation-metric-panels {
+      flex: 1;
+      width: calc(100% - 275px);
+    }
+
+    .add-more {
+      font-size: 14px;
+      color: #3a84ff;
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      cursor: pointer;
+      line-height: 24px;
+      margin-top: 2px;
+      border-radius: 2px;
+
+      &:hover {
+        background: #f0f5ff;
+      }
+    }
+  }
+
+  .metrics-err {
+    padding-top: 0px;
+    align-items: center;
+  }
+
+  .aiops-metrics-view-show {
+    display: block;
+  }
+
+  .aiops-metrics-view-hide {
+    display: none;
+  }
+
+  .bk-table-empty-text {
+    width: 100%;
+  }
+
+  .dashboard-panel {
+    width: calc(100% + 16px);
+  }
+
+  .aiops-dimension-panels {
+    padding-top: 40px;
+    margin-top: -40px;
+  }
+
+
+  .select {
+    animation: select 1s;
+    animation-delay: .5s;
+      
+    .chart-wrapper,
+    .aiops-dimension-lint {
+      background: inherit;
+    }
+  }
+
+  .flex-dashboard {
+    padding-left: 0px;
+
+    .flex-dashboard-item {
+      border: 1px solid #dcdee5;
+      border-radius: 2px; 
+    }
+  }  
+}

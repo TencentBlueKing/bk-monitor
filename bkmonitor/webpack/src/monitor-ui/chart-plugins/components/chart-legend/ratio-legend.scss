@@ -1,0 +1,42 @@
+.ratio-legend {
+  width: 80%;
+  min-width: 100px;
+  max-width: 400px;
+  user-select: none;
+
+  &-item {
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    line-height: 22px;
+    font-size: 14px;
+
+    .legend-info {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+
+    .legend-name {
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    .legend-icon {
+      width: 14px;
+      height: 14px;
+      background-color: violet;
+      border: 4px solid violet;
+      margin-right: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-value {
+      font-weight: 700;
+      margin-left: 5px
+    }
+  }
+}

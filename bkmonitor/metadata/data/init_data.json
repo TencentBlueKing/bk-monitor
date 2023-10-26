@@ -1,0 +1,2199 @@
+{
+  "result_table_list": [
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.cpu_summary",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.cpu_summary",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "device_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "usage",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "idle",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "iowait",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "stolen",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "system",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "user",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.io",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.io",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "device_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "await",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "svctm",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "r_s",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "rkb_s",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "w_s",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "wkb_s",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "util",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "avgrq_sz",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "avgqu_sz",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.env",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.env",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "city",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "uptime",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "procs",
+          "is_dimension": false
+        },
+        {
+          "field_type": "int",
+          "field_name": "timezone",
+          "is_dimension": true
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.cpu_detail",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.cpu_detail",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "device_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "usage",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "idle",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "iowait",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "stolen",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "system",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "user",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.mem",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.mem",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "buffer",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cached",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "free",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "usable",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "pct_usable",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "pct_used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "psc_used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "psc_pct_used",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.netstat",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.netstat",
+      "field_list": [
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_closewait",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_timewait",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_closed",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_closing",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_estab",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_finwait1",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_finwait2",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_lastack",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_listen",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_syn_recv",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_tcp_syn_sent",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_udp_indatagrams",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_udp_outdatagrams",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.disk",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.disk",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "device_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "free",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "in_use",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.net",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.net",
+      "field_list": [
+        {
+          "field_type": "int",
+          "field_name": "speed_packets_recv",
+          "is_dimension": false
+        },
+        {
+          "field_type": "int",
+          "field_name": "speed_packets_sent",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "device_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "speed_recv",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "speed_sent",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "PROCESS_PERF_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.proc",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.proc",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "proc_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "display_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "param_regex",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "pid",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "pgid",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "ppid",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "state",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "username",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "cpu_usage_pct",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "mem_useage_pct",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "fd_num",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "mem_res",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "mem_virt",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.inode",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.inode",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "device_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "free",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "in_use",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "SNAPSHOT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.swap",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.swap",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "free",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "pct_used",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "PROCESS_PORT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "system.proc_port",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "system.proc_port",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "proc_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "display_name",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "param_regex",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "listen",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "nonlisten",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "not_accurate_listen",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "bind_ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "protocol",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "proc_exists",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "port_health",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "APACHE_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "apache.net",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "apache.net",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "total_accesses_min",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total_accesses",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total_kbytes_min",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total_kbytes",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "bytes_per_req",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "req_per_sec",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "bytes_per_sec",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        }
+      ]
+    },
+    {
+      "data_name": "APACHE_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "apache.performance",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "apache.performance",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "cpu_load",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "closing",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "waiting",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "dns_lookup",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "gracefully_finishing",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "idle_cleanup",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "keepalive",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "logging",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "open_slot",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "reading_request",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "sending_reply",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "starting_up",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total_worker",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        }
+      ]
+    },
+    {
+      "data_name": "MYSQL_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "mysql.innodb",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "mysql.innodb",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "buffer_pool_free",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "buffer_pool_total",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "data_reads_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "data_writes_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "log_write_req_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "pg_created_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "pg_write_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "rows_read_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "rows_insert_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "rows_del_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "rows_update_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "rows_locks_wait",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "buffer_pool_used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "buffer_pool_util",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "MYSQL_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "mysql.net",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "mysql.net",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "max_used_conns",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "thread_connected",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "thread_created",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "thread_running",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "thread_cached",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "connections",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "MYSQL_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "mysql.performance",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "mysql.performance",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "open_files",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "open_tbs",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "qcache_hits_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "qcache_insert_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "not_cached_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "queries_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "questions_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "slow_queries_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_del",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_del_multi",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_insert",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_insert_select",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_replace_select",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_select",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_update",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_update_multi",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_lock_tbs",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_dro_db",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_dro_tb",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_create_db",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmd_create_tb",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "MYSQL_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "mysql.rep",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "mysql.rep",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "slave_running",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "slave_heartbeat",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "retried_transactions",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "NGINX_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "nginx.net",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "nginx.net",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "active",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "accepts",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "handled",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "requests",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "dropped",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "writing",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "reading",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "waiting",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "http_hostname",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "req_per_min",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "TOMCAT_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "tomcat.cache",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "tomcat.cache",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "access",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "hit",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "type",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "TOMCAT_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "tomcat.thread",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "tomcat.thread",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "cur_busy",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "total",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "max",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "name",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "TOMCAT_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "tomcat.jsp",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "tomcat.jsp",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "count",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "reload_count",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "web_module",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "TOMCAT_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "tomcat.net",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "tomcat.net",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "bytes_rcv",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "bytes_sent",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "req_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "err_cnt",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "max_time",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "processing_time",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "name",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "TOMCAT_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "tomcat.servlet",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "tomcat.servlet",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "err",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "processing_time",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "req",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "web_module",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "REDIS_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "redis.client",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "redis.client",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "connections",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "longest_output_list",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "biggest_input_buf",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "blocked",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "REDIS_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "redis.repl",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "redis.repl",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "connected_slaves",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "master_offset",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "backlog_histlen",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "last_io_sec_ago",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "slave_offset",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "slave_lag",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "slave",
+          "is_dimension": true
+        }
+      ]
+    },
+    {
+      "data_name": "REDIS_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "redis.mem",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "redis.mem",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "used",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "rss",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "peak",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "lua",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "fragmentation_ratio",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "REDIS_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "redis.aof",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "redis.aof",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "buffer_length",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "rewrite_buffer_length",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "last_rewrite_time",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "aof_current_size",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "REDIS_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "redis.cpu",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "redis.cpu",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "system",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "usr",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "sys_children",
+          "is_dimension": false
+        },
+        {
+          "field_type": "double",
+          "field_name": "user_children",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "REDIS_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "redis.rdb",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "redis.rdb",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "last_bgsave_time",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "changes_since_last_save",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "REDIS_METRIC_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "redis.stat",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "redis.stat",
+      "field_list": [
+        {
+          "field_type": "string",
+          "field_name": "ip",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "hostname",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "instance_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "recv_connections",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "keyspace_hits",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "keyspace_misses",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "latest_fork_usec",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "cmds_processed",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "keys_expired",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "keys_evicted",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "pubsub_channels",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "pubsub_patterns",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "db_keys",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "db_expires_keys",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "db",
+          "is_dimension": true
+        }
+      ]
+    },
+    {
+      "data_name": "UPTIMECHECK_TCP_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "uptimecheck.tcp",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "uptimecheck.tcp",
+      "field_list": [
+        {
+          "field_type": "long",
+          "field_name": "task_duration",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "error_code",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "status",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "target_host",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "target_port",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "task_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "task_type",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "node_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "available",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "UPTIMECHECK_UDP_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "uptimecheck.udp",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "uptimecheck.udp",
+      "field_list": [
+        {
+          "field_type": "long",
+          "field_name": "task_duration",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "error_code",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "status",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "target_host",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "target_port",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "task_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "task_type",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "node_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "available",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "times",
+          "is_dimension": false
+        }
+      ]
+    },
+    {
+      "data_name": "UPTIMECHECK_HTTP_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "uptimecheck.http",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "uptimecheck.http",
+      "field_list": [
+        {
+          "field_type": "long",
+          "field_name": "task_duration",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "error_code",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "status",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "task_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "task_type",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "node_id",
+          "is_dimension": true
+        },
+        {
+          "field_type": "double",
+          "field_name": "available",
+          "is_dimension": false
+        },
+        {
+          "field_type": "timestamp",
+          "field_name": "timestamp",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "chartset",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "content_length",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "media_type",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "message",
+          "is_dimension": true
+        },
+        {
+          "field_type": "string",
+          "field_name": "method",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "response_code",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "steps",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "url",
+          "is_dimension": true
+        }
+      ]
+    },
+    {
+      "data_name": "UPTIMECHECK_HEARTBEAT_DATAID",
+      "default_storage": "influxdb",
+      "table_id": "uptimecheck.heartbeat",
+      "schema_type": "fixed",
+      "is_custom_table": false,
+      "table_name_zh": "uptimecheck.heartbeat",
+      "field_list": [
+        {
+          "field_type": "long",
+          "field_name": "reload",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "running_tasks",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "status",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "success",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "uptime",
+          "is_dimension": false
+        },
+        {
+          "field_type": "string",
+          "field_name": "version",
+          "is_dimension": true
+        },
+        {
+          "field_type": "long",
+          "field_name": "fail",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "error",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "reload_timestamp",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "loaded_tasks",
+          "is_dimension": false
+        },
+        {
+          "field_type": "long",
+          "field_name": "node_id",
+          "is_dimension": true
+        }
+      ]
+    }
+  ],
+  "cluster_list": [
+    {
+      "description": "init kafka cluster",
+      "cluster_type": "kafka",
+      "domain_name": "kafka.service.consul",
+      "cluster_name": "kafka_cluster1",
+      "is_default_cluster": true,
+      "port": 9092
+    },
+    {
+      "description": "init influx cluster",
+      "cluster_type": "influxdb",
+      "domain_name": "10.1.1.1",
+      "cluster_name": "influx_cluster1",
+      "is_default_cluster": true,
+      "port": 8086
+    }
+  ],
+  "datasource_list": [
+    {
+      "data_name": "snapshot",
+      "etl": "bk_system_basereport",
+      "data_id": "SNAPSHOT_DATAID"
+    },
+    {
+      "data_name": "process_perf",
+      "etl": "bk_system_proc",
+      "data_id": "PROCESS_PERF_DATAID"
+    },
+    {
+      "data_name": "uptimecheck_http",
+      "etl": "bk_uptimecheck_http",
+      "data_id": "UPTIMECHECK_HTTP_DATAID"
+    },
+    {
+      "data_name": "process_port",
+      "etl": "bk_system_proc_port",
+      "data_id": "PROCESS_PORT_DATAID"
+    },
+    {
+      "data_name": "tomcat",
+      "etl": "bk_component_tomcat",
+      "data_id": "TOMCAT_METRIC_DATAID"
+    },
+    {
+      "data_name": "uptimecheck_tcp",
+      "etl": "bk_uptimecheck_tcp",
+      "data_id": "UPTIMECHECK_TCP_DATAID"
+    },
+    {
+      "data_name": "redis",
+      "etl": "bk_component_redis",
+      "data_id": "REDIS_METRIC_DATAID"
+    },
+    {
+      "data_name": "uptimecheck_udp",
+      "etl": "bk_uptimecheck_udp",
+      "data_id": "UPTIMECHECK_UDP_DATAID"
+    },
+    {
+      "data_name": "nginx",
+      "etl": "bk_component_nginx",
+      "data_id": "NGINX_METRIC_DATAID"
+    },
+    {
+      "data_name": "uptimecheck_heartbeat",
+      "etl": "bk_uptimecheck_heartbeat",
+      "data_id": "UPTIMECHECK_HEARTBEAT_DATAID"
+    },
+    {
+      "data_name": "mysql",
+      "etl": "bk_component_mysql",
+      "data_id": "MYSQL_METRIC_DATAID"
+    },
+    {
+      "data_name": "apache",
+      "etl": "bk_component_apache",
+      "data_id": "APACHE_METRIC_DATAID"
+    }
+  ]
+}

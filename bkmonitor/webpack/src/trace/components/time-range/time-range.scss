@@ -1,0 +1,73 @@
+.time-range-date-picker {
+  width: initial;
+  margin: 0 8px;
+
+  &.bk-date-picker {
+    width: inherit;
+  }
+
+  .time-range-trigger {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0 6px;
+    height: 24px;
+
+    &.active,
+    &:hover {
+      color: #3a84ff;
+      border-radius: 2px;
+      background-color: #eaf3ff;
+    }
+
+    .icon-time-range {
+      margin-right: 4px;
+    }
+  }
+}
+
+.time-range-tips {
+  .time-range-tips-content {
+    text-align: center;
+    line-height: 20px;
+    white-space: nowrap;
+  }
+}
+
+.time-range-popover {
+  z-index: 1500;
+
+  .time-range-footer {
+    height: 42px;
+    line-height: 42px;
+    text-align: right;
+  }
+
+  .time-range-custom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 46px;
+    padding: 0 157px 0 16px;
+    border-bottom: 1px solid #dcdee5;
+
+    .custom-input {
+      width: 200px;
+    }
+  }
+
+  .shortcuts-list {
+    .shortcuts-item {
+      height: 32px;
+      line-height: 32px;
+      color: #63656e;
+      padding-left: 16px;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+        background-color: #e1ecff;
+      }
+    }
+  }
+}

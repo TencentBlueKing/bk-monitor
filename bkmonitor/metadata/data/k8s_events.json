@@ -1,0 +1,392 @@
+[
+    {
+        "event_name": "Backoff",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Conflict",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Delete",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "DeletingAllPods",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Didn't have enough resource",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Error",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Failed",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "FailedCreate",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "FailedDelete",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "FailedMount",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "FailedSync",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Failedvalidation",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "FreeDiskSpaceFailed",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "HostPortConflict",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "InsufficientFreeCPU",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "InsufficientFreeMemory",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "InvalidDiskCapacity",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Killing",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "KubeletsetupFailed",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "NodeNotReady",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "NodeoutofDisk",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "OutofDisk",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Rebooted",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "TerminatedAllPods",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Unable",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    },
+    {
+        "event_name": "Unhealthy",
+        "dimension_list": [
+            "bcs_cluster_id",
+            "uid",
+            "type",
+            "apiVersion",
+            "namespace",
+            "bk_biz_id",
+            "kind",
+            "target",
+            "name",
+            "host"
+        ]
+    }
+]

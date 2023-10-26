@@ -1,0 +1,112 @@
+.function-menu {
+  display: flex;
+  position: relative;
+  &-anchor {
+    display: flex;
+    flex: 1;
+    cursor: pointer;
+    .menu-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      border: 1px solid #dcdee5;
+      border-radius: 0;
+      color: #979ba5;
+      &:hover {
+        color: #3a84ff;
+        border-color: #3a84ff;
+        background-color: white;
+        z-index: 9;
+      }
+    }
+    .bk-form-input {
+      /* stylelint-disable-next-line declaration-no-important */
+      border-color: #dcdee5 !important;
+      border-radius: 0;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      background-color: white !important;
+
+    }
+  }
+}
+.function-menu-panel {
+  color: #63656e;
+  display: flex;
+  flex-direction: column;
+  width: 578px;
+  height: 274px;
+  opacity: 1;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 3px;
+  box-shadow: 0px 2px 6px 0px rgba(0,0,0,.10);
+  .panel-search {
+    flex: 0 0 32px;
+    padding: 0 12px;
+  }
+  .panel-list {
+    flex: 1;
+    max-height: 242px;
+    display: flex;
+    width: 100%;
+    padding-top: 6px;
+    .panel-item {
+      flex: 0 0 128px;
+      width: 128px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 6px 0;
+      border-right: 1px solid #dcdee5;
+      .list-item {
+        display: flex;
+        width: 100%;
+        height: 32px;
+        min-height: 32px;
+        align-items: center;
+        padding-left: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        .arrow-icon {
+          font-size: 24px;
+          display: flex;
+          width: 24px;
+          height: 24px;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+        }
+        &.item-active,
+        &:hover {
+          background-color: #f4f6fa;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+    }
+    .panel-desc {
+      display: flex;
+      flex: 1;
+      height: 100%;
+      color: #c4c6cc;
+      flex-direction: column;
+      padding: 12px 10px;
+      .desc-title {
+        flex: 0 0 32px;
+        display: flex;
+        align-items: center;
+        color: #63656e;
+      }
+      .desc-content {
+        flex: 1;
+        display: flex;
+        color: #c4c6cc;
+      }
+    }
+  }
+}

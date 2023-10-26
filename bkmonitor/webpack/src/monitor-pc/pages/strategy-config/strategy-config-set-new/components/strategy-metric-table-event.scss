@@ -1,0 +1,24 @@
+.strategy-metric-table-event {
+  .bk-table {
+    width: 625px;
+    &::before {
+      display: none;
+    }
+    .bk-table-body-wrapper {
+      overflow-y: auto;
+      overflow-x: hidden;
+      height: 384px;
+      max-width: 625px;
+      .bk-table-body {
+        // width: 625px!important;
+      }
+    }
+    .bk-table-header-wrapper {
+      .bk-table-header {
+        /* stylelint-disable-next-line declaration-no-important */
+        width: 625px!important;
+      }
+    }
+  }
+    
+}

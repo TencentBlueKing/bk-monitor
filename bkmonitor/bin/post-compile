@@ -1,0 +1,5 @@
+#!/bin/bash
+python manage.py migrate --noinput
+python manage.py migrate monitor_api --noinput
+python manage.py createcachetable
+python manage.py createcachetable --database monitor_api

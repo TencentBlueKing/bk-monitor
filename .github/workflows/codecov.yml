@@ -1,0 +1,40 @@
+name: "[BKLog] CodeCov"
+
+defaults:
+  run:
+    working-directory: bklog
+
+on:
+  push:
+    paths:
+      - 'bklog/**'
+  pull_request:
+    paths:
+      - 'bklog/**'
+  schedule:
+    - cron: "0 10 * * *"
+
+jobs:
+  run:
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash
+        working-directory: bklog
+    container:
+      image: python:3.6.8
+    steps:
+    - uses: actions/checkout@v2
+    - name: Generate Report
+      run: |
+        source scripts/test_env.sh
+        sed -i '/APIGW_ENABLED/d' dev.env.yml
+        pip install --upgrade pip setuptools
+        pip install -r requirements.txt
+        pip install coverage
+        pip uninstall pycrypto -y
+        pip uninstall pycryptodome -y
+        pip install pycryptodome
+        coverage run manage.py test apps.tests
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v1

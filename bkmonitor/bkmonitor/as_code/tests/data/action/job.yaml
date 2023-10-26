@@ -1,0 +1,9 @@
+name: 测试作业
+description: ""
+
+type: job
+timeout: 600
+
+template_id: 1
+template_detail:
+  1_3: 127.0.0.1

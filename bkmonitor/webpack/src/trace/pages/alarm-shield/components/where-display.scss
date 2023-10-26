@@ -1,0 +1,18 @@
+.where-display-wrap {
+  white-space: initial;
+
+  .where-item {
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 20px;
+    color: #63656e;
+
+    .where-method {
+      color: #3a84ff;
+    }
+
+    .where-condition {
+      color: #ff9c01;
+    }
+  }
+}

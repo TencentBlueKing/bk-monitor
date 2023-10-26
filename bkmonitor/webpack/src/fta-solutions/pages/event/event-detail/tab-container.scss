@@ -1,0 +1,129 @@
+@import '../../../static/scss/mixin.scss';
+
+.event-detail-tab {
+  position: relative;
+  margin-top: 16px;
+  background: #fff;
+
+  .aiops-container {
+    padding: 20px;
+  }
+  
+  .bk-tab-header {
+    background-image: linear-gradient(transparent 47px,#dcdee5 0);
+  }
+
+  .bk-tab-header,
+  .bk-tab-label-wrapper .bk-tab-label-list {
+    height: 48px;
+  }
+
+  .bk-tab-label-wrapper .bk-tab-label-list .bk-tab-label-item .bk-tab-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 12px;
+  }
+
+  .bk-tab-label-wrapper .bk-tab-label-list .bk-tab-label-item {
+    height: 100%;
+  }
+
+  .bk-tab-section {
+    padding: 0;
+  }
+
+  .circulation-filter-btn {
+    position: absolute;
+    top: 11px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: #c4c6cc;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #c4c6cc;
+    border-radius: 3px;
+
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+
+    &:hover {
+      background: #f5f6fa;
+    }
+
+    .icon-menu-setting {
+      font-size: 16px;
+    }
+  }
+}
+
+.circulation-tool-popover {
+  margin: -7px -14px;
+  color: #63656e;
+
+  .tool-popover-title {
+    margin: 15px 24px 0;
+    font-size: 24px;
+    line-height: 32px;
+    color: #444;
+  }
+
+  .tool-popover-content {
+    display: flex;
+    flex-flow: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0;
+    margin: 15px 20px 22px 24px;
+
+    .tool-popover-content-item {
+      flex-basis: 33.33%;
+      flex-flow: 0;
+      flex-shrink: 0;
+      max-width: 200px;
+      margin: 8px 0;
+
+      @include ellipsis;
+
+      .bk-form-checkbox {
+        margin-bottom: 0;
+
+        .bk-checkbox {
+          &::after {
+            box-sizing: content-box;
+          }
+        }
+
+        .bk-checkbox-text {
+          width: 130px;
+
+          @include ellipsis;
+        }
+      }
+    }
+  }
+
+  .tool-popover-footer {
+    display: flex;
+    align-items: center;
+    height: 50px;
+    padding-right: 24px;
+    background-color: #fafbfd;
+    border-top: 1px solid #dcdee5;
+
+    .footer-btn {
+      margin-right: 10px;
+      margin-left: auto;
+    }
+  }
+}

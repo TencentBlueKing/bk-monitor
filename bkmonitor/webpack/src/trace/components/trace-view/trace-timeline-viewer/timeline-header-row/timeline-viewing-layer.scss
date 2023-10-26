@@ -1,0 +1,44 @@
+.timeline-viewing-layer {
+  bottom: 0;
+  cursor: vertical-text;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  .timeline-viewing-layer-cursorGuide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    background-color: red;
+  }
+  .timeline-viewing-layer-dragged {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+  }
+  .timeline-viewing-layer-dragged.isDraggingLeft {
+    border-left: 1px solid;
+  }
+  .timeline-viewing-layer-dragged.isDraggingRight {
+    border-right: 1px solid;
+  }
+  .timeline-viewing-layer-dragged.isShiftDrag {
+    background-color: rgba(68, 68, 255, .2);
+    border-color: #44f;
+  }
+  .timeline-viewing-layer-dragged.isReframeDrag {
+    background-color: rgba(255, 68, 68, .2);
+    border-color: #f44;
+  }
+  .timeline-viewing-layer-fullOverlay {
+    bottom: 0;
+    cursor: col-resize;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    user-select: none;
+  }
+}

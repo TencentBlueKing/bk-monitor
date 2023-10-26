@@ -1,0 +1,135 @@
+@import '../../theme';
+
+.space-manage-wrap {
+  width: 100%;
+  height: 100%;
+  padding: 24px 16px;
+
+  .space-manage-header {
+    display: flex;
+    align-items: center;
+
+    .space-add-btn {
+      min-width: 88px;
+    }
+
+    .bk-button-group {
+      margin-left: auto;
+    }
+
+    .search-input {
+      width: 320px;
+      margin-left: 16px;
+    }
+  }
+
+  .table-wrap {
+    margin-top: 16px;
+
+    &::before {
+      display: none;
+    }
+
+    .bk-table-row {
+      &:hover {
+        .space-name-wrap {
+          .icon-zhiding {
+            visibility: visible;
+          }
+        }
+      }
+    }
+
+    .space-name-wrap {
+      display: block;
+      height: 42px;
+
+      .icon-monitor {
+        cursor: pointer;
+      }
+
+      .icon-zhiding {
+        vertical-align: middle;
+        visibility: hidden;
+      }
+
+      .space-name-main {
+        padding-top: 3px;
+        vertical-align: middle;
+        display: inline-block;
+        width: calc(100% - 30px);
+        padding-left: 8px;
+        height: 100%;
+      }
+
+      .space-name {
+        font-size: 12px;
+        line-height: 20px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        @include ellipsis();
+      }
+
+      .space-enname {
+        font-size: 12px;
+        line-height: 14px;
+        color: #979ba5;
+
+        @include ellipsis();
+      }
+    }
+
+    .space-type {
+      display: inline-block;
+      height: 22px;
+      line-height: 22px;
+      padding: 0 10px;
+      border-radius: 2px;
+
+      &:not(:last-child) {
+        margin-right: 5px;
+      }
+    }
+
+    .function-wrap {
+      display: flex;
+    }
+
+    .func-item {
+      &.select {
+        cursor: pointer;
+      }
+
+      &:not(:last-child) {
+        margin-right: 16px;
+      }
+
+      .icon-copy-link {
+        color: #3a84ff;
+        margin-right: 6px;
+      }
+    }
+  }
+}
+
+.space-dialog {
+  .bk-dialog-header {
+    padding-bottom: 10px;
+
+    .bk-dialog-header-inner {
+      color: #313238;
+    }
+  }
+
+  .bk-dialog-content {
+    /* stylelint-disable-next-line declaration-no-important */
+    width: auto!important;
+  }
+
+  .bk-dialog-body {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 24px;
+  }
+}

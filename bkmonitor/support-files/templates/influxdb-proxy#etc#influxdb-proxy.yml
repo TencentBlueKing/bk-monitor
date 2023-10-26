@@ -1,0 +1,33 @@
+http:                                       # 监听配置
+  listen: __LAN_IP__                        # 监听地址
+  port: __BK_INFLUXDB_PROXY_PORT__   # 监听端口
+kafka:                                      # kafka配置
+  address: __BK_MONITOR_KAFKA_HOST__
+  port: __BK_MONITOR_KAFKA_PORT__
+  topic_prefix: bkmonitorv3_influxDB_proxy    # kafka topic前缀，实际为${prefix}_${node_name}
+  version: 0.10.2.0                         # kafka版本信息
+consul:
+  prefix: "bk_bkmonitorv3_${PLATFORM}_production/metadata/influxdb_info"
+  address: 127.0.0.1:__BK_CONSUL_HTTP_PORT__
+  health:
+    period: 10s
+    service_name: bkmonitorv3
+backend:
+  ignore_kafka: false
+  force_backup: true
+authorization:
+  enable: false
+  username: test
+  password: test123
+logger:                              # 日志配置
+  formatter:
+    name: text
+  level: warn                     # 日志级别，建议生产环境配置为INFO及以上
+  out:
+    name: file
+    options:
+      daily: true
+      file: __BK_HOME__/logs/bkmonitorv3/influxdb-proxy.log
+      max_days: 48h
+      duration: 6h
+      rotate: true

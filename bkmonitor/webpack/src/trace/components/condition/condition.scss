@@ -1,0 +1,142 @@
+.head-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+
+  // 这里原先是穿梭框，又改成了单选框，先保留以下代码
+  .cascader {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .bk-cascader-wrapper {
+      position: absolute;
+      width: 100%;
+      height: 20px;
+    }
+
+    .bk-cascader {
+      height: 20px;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      border: none !important;
+      opacity: 0;
+    }
+        
+    .bk-cascader-name {
+      min-height: 20px;
+    }
+
+    .bk-icon-angle-up {
+      /* stylelint-disable-next-line declaration-no-important */
+      display: none !important;
+    }
+
+    .bk-select {
+      display: flex;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      .bk-select-trigger {
+        display: flex;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .label {
+    margin-right: 3px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+    text-overflow: ellipsis;
+    letter-spacing: 0;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 2px;
+
+    &.label-hover {
+      background: #f0f1f5;
+    }
+
+    &.label-active {
+      color: #3a84ff;
+      background: #d8e6ff;
+    }
+
+    &.label-disabled {
+      color: #ced0d4;
+      cursor: not-allowed;
+      background: transparent;
+    }
+  }
+
+  .condition-type {
+    padding: 2px 5px;
+    margin-right: 11px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+    letter-spacing: 0;
+    cursor: pointer;
+    border-radius: 2px;
+
+    &:hover {
+      background: #f0f1f5;
+    }
+
+    &.condition-type-selected {
+      color: #ff9c01;
+    }
+
+    &.condition-type-active {
+      color: #3a84ff;
+      background: #d8e6ff;
+    }
+
+    &.condition-type-disabled {
+      color: #ced0d4;
+      cursor: not-allowed;
+      background: transparent;
+    }
+  }
+
+
+
+  i.icon-monitor {
+    margin: 0 13.5px 0 auto;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+      color: #cb2427;
+    }
+  }
+
+  .bk-switcher {
+    min-width: 20px;
+    height: 12px;
+  }
+
+  .bk-switcher {
+    &.is-checked:after {
+      transform: translate(-100%, -50%);
+    }
+
+    &.is-unchecked:after {
+      transform: translateY(-50%);
+    }
+
+    &:after {
+      top: 50%;
+      width: 10px;
+      height: 10px;
+    }
+  }
+}

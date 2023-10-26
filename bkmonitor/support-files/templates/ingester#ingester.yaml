@@ -1,0 +1,25 @@
+consul:
+  host: "127.0.0.1"
+  http_port: __BK_CONSUL_HTTP_PORT__
+  https_port: __BK_CONSUL_HTTPS_PORT__
+  data_id_path: "bk_bkmonitorv3_${PLATFORM}_production/metadata/v1"
+  service_path: "bk_bkmonitorv3_${PLATFORM}_production/ingester"
+  service_name: "bkmonitorv3"
+  service_tag: "ingester"
+  tls:
+    ca_file: "__BK_CONSUL_SERVER_CA_CERT__"
+    key_file: "__BK_CONSUL_CLIENT_KEY_FILE__"
+    cert_file: "__BK_CONSUL_CLIENT_CERT_FILE__"
+http:
+  host: "__LAN_IP__"
+  port: __BK_INGESTER_HTTP_PORT__
+  debug: false
+logging:
+  level: info  # 日志级别
+  output: file
+  options:
+    filename: "__BK_HOME__/logs/bkmonitorv3/ingester.log"  # 日志文件路径
+    maxage: 10  # 最多保留天数
+    maxsize: 100   # 单文件最大MB
+    maxbackups: 10
+    compress: true

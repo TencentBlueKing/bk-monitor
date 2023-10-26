@@ -1,0 +1,91 @@
+.span-bar-wrapper {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.span-bar {
+  border-radius: 2px;
+  min-width: 2px;
+  position: absolute;
+  height: 12px;
+  top: 32%;
+
+  // 推断服务条纹样式
+  &.is-infer {
+    background-color: #fff !important;
+    background-image: linear-gradient(135deg, #dddfe3 35%, transparent 35%,
+    transparent 50%, #dddfe3 50%, #dddfe3 85%,
+    transparent 85%, transparent);
+    background-size: 4px 4px;
+  }
+
+  .icon-span-kind {
+    &.is-left {
+      margin-left: 4px;
+    }
+
+    &.is-right {
+      margin-right: 4px;
+    }
+  }
+}
+.span-bar-rpc {
+  position: absolute;
+  top: 35%;
+  bottom: 35%;
+  z-index: 1;
+}
+.span-bar-label {
+  color: #979BA5;
+  font-size: 12px;
+  line-height: 12px;
+  white-space: nowrap;
+  padding: 0 4px;
+  position: absolute;
+}
+.span-bar-label.is-right {
+  left: 100%;
+}
+.span-bar-label.is-left {
+  right: 100%;
+}
+.span-row.is-expanded .span-bar-label,
+.span-row:hover .span-bar-label {
+  color: #000;
+}
+.span-bar-log-marker {
+  background-color: rgba(0, 0, 0, .5);
+  cursor: pointer;
+  height: 60%;
+  min-width: 1px;
+  position: absolute;
+  top: 20%;
+}
+.span-bar-log-marker:hover {
+  background-color: #000;
+}
+.span-bar-log-marker::before,
+.span-bar-log-marker::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  border: 1px solid transparent;
+}
+.span-bar-log-marker::after {
+  left: 0;
+}
+.span-bar-log-hint {
+  pointer-events: none;
+}
+
+/* Tweak the popover aesthetics - unfortunate but necessary */
+// .span-bar-log-hint .ant-popover-inner-content {
+//   padding: .25rem;
+// }

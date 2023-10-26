@@ -1,0 +1,66 @@
+.uptime-check-task-component {
+  height: 100%;
+  width: 100%;
+  padding: 20px 16px;
+  .table-data-content {
+    background: #ffff;
+    border-radius: 2px;
+    box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
+    padding: 20px 16px;
+    .task-name {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+  .card-data-content {
+    .card-container-header {
+      font-size: #979ba5;
+      font-size: 14px;
+      font-weight: 700;;
+      .header-btn {
+        cursor: pointer;
+      }
+      .header-arrow {
+        padding: 0 5px;
+        font-weight: 400;
+        cursor: default;
+      }
+      .header-name {
+        color: #313238;
+        cursor: default;
+      }
+    }
+    .no-data {
+      display: flex;
+      height: 42px;
+      border: 1px solid #dcdee5;
+      background: #fff;
+      border-radius: 2px;
+      align-items: center;
+      justify-content: center;
+      color: #63656e;
+      font-size: 14px;
+      margin-top: 26px;
+      i {
+        color: #979ba5;
+        font-size: 18px;
+        margin-right: 8px;
+      }
+    }
+  }
+}
+.uptime-check-small-dialog {
+  .dialog-form-content {
+    display: flex;
+    .form-content {
+      flex: 1;
+      .errmsg {
+        font-size: 12px;
+        color: #ea3636;
+      }
+    }
+    .upload-content {
+      margin: 3px 0 0 24px;
+    }
+  }
+}

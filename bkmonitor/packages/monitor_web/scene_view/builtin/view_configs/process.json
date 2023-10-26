@@ -1,0 +1,106 @@
+{
+  "id": "process",
+  "type": "detail",
+  "mode": "auto",
+  "name": "进程",
+  "variables": [
+    {
+      "title": "进程",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "process",
+          "dataType": "list",
+          "api": "scene_view.getHostProcessList",
+          "data": "$current_target",
+          "fields": {
+            "id": "display_name"
+          }
+        }
+      ],
+      "options": {
+        "variables": {
+          "multiple": false,
+          "required": true
+        }
+      }
+    }
+  ],
+  "panels": [],
+  "list": [],
+  "order": [],
+  "options": {
+    "enable_index_list": true,
+    "panel_tool": {
+        "compare_select": true,
+        "columns_toggle": true,
+        "interval_select": true,
+        "split_switcher": false
+    },
+    "view_editable": false,
+    "enable_group": false,
+    "variable_editable": false,
+    "selector_panel": {
+      "title": "主机列表",
+      "type": "topo_tree",
+      "targets": [
+        {
+          "datasource": "topo_tree",
+          "dataType": "topo_tree",
+          "api": "commons.getTopoTree",
+          "data": {
+            "instance_type": "host",
+            "remove_empty_nodes":  false
+          },
+          "fields": {
+            "ip": "bk_target_ip",
+            "bk_cloud_id": "bk_target_cloud_id",
+            "bk_host_id": "bk_host_id"
+          }
+        }
+      ],
+      "options": {
+        "topo_tree": {
+          "can_check_node": false,
+          "show_status_bar": false,
+          "show_overview": false
+        },
+        "selector_list": {
+          "query_update_url": true
+        }
+      }
+    },
+    "detail_panel": {
+      "title": "主机详情",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getHostOrTopoNodeDetail",
+          "data": {
+            "bk_host_id": "$bk_host_id",
+            "bk_process_name": "$display_name"
+          }
+        }
+      ]
+    },
+    "overview_panel": {
+      "title": "主机概览",
+      "type": "dict",
+      "targets": [
+        {
+          "datasource": "host",
+          "dataType": "dict",
+          "api": "scene_view.getStrategyAndEventCount",
+          "data": {
+            "scene_id": "host",
+            "target": {"bk_host_id": "$bk_host_id"}
+          }
+        }
+      ]
+    },
+    "list_panel": [
+    ]
+  }
+}

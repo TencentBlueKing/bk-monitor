@@ -1,0 +1,83 @@
+.event-detail-performance-view {
+  display: none;
+  min-height: 300px;
+
+  &.show {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+  }
+
+  .dashboard-panel {
+    min-width: calc(100% + 34px);
+    background: #f5f7fa;
+
+    &::-webkit-scrollbar-thumb {
+      display: none;
+    }
+
+    .vue-grid-layout {
+      background: #f5f7fa;
+    }
+  }
+
+  .view-bottom {
+    font-size: 12px;
+    height: 68px;
+    margin: auto 0 -68px 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .view-bottom-label {
+      height: 42px;
+      border-radius: 2px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      bottom: 0;
+      right: 0;
+      position: fixed;
+      width: 100%;
+      background-color: #e1ecff !important;
+      box-shadow: none !important;
+      z-index: 9;
+    }
+
+    .link {
+      color: #3a84ff;
+      margin: 0 4px;
+      cursor: pointer;
+
+      .icon-fenxiang {
+        font-size: 12px;
+        margin: 0 2px;
+      }
+    }
+  }
+
+  .no-data {
+    font-size: 12px;
+
+    .no-data-img {
+      width: 300px;
+    }
+
+    .no-data-01 {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .link {
+      color: #3a84ff;
+      cursor: pointer;
+      margin: 0 8px;
+    }
+
+    .row {
+      margin-bottom: 12px;
+    }
+  }
+}

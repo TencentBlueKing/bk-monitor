@@ -1,0 +1,1 @@
+{% load monitor_web_filters %}{{ metric_json | json_dumps | safe }}

@@ -1,0 +1,42 @@
+.field-filtering-wrapper {
+  .field-list-wrap {
+    margin-top: 16px;
+
+    .field-list-title {
+      margin-bottom: 10px;
+      line-height: 20px;
+      color: #63656e;
+
+      &.mt21 {
+        margin-top: 21px;
+      }
+    }
+  }
+}
+
+.field-filtering-type-content {
+  width: 210px;
+
+  .field-type-label {
+    line-height: 16px;
+    margin-bottom: 6px;
+  }
+
+  .agg-radio-group {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .field-type-btn-group {
+    height: 26px;
+    margin-top: 10px;
+    text-align: right;
+
+    button {
+      &:not(:last-child) {
+        margin-right: 12px;
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="392px" height="177px" viewBox="0 0 392 177" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>首页业务骨架屏</title>
+    <g id="首页" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g transform="translate(-141.000000, -931.000000)" id="首页业务骨架屏">
+            <g transform="translate(141.000000, 931.000000)">
+                <rect id="矩形备份-6" fill="#F7F8FA" fill-rule="nonzero" x="33" y="80" width="49" height="35"></rect>
+                <path d="M57.5,56 C79.8675324,56 98,74.1324676 98,96.5 C98,118.867532 79.8675324,137 57.5,137 C35.1324676,137 17,118.867532 17,96.5 C17,74.1324676 35.1324676,56 57.5,56 Z M57.5,66 C40.6553151,66 27,79.6553151 27,96.5 C27,113.344685 40.6553151,127 57.5,127 C74.3446849,127 88,113.344685 88,96.5 C88,79.6553151 74.3446849,66 57.5,66 Z" id="形状结合" fill="#EAEBF0"></path>
+                <rect id="矩形备份-11" fill="#F7F8FA" fill-rule="nonzero" x="33" y="150" width="49" height="15"></rect>
+                <rect id="矩形备份-7" fill="#F7F8FA" fill-rule="nonzero" x="132" y="47" width="125" height="60"></rect>
+                <rect id="矩形备份-9" fill="#F7F8FA" fill-rule="nonzero" x="132" y="117" width="125" height="60"></rect>
+                <rect id="矩形备份-8" fill="#F7F8FA" fill-rule="nonzero" x="267" y="47" width="125" height="60"></rect>
+                <rect id="矩形备份-10" fill="#F7F8FA" fill-rule="nonzero" x="267" y="117" width="125" height="60"></rect>
+                <rect id="矩形备份-4" fill="#F7F8FA" fill-rule="nonzero" x="154" y="0" width="84" height="20"></rect>
+                <rect id="矩形备份-5" fill="#F7F8FA" fill-rule="nonzero" x="308" y="0" width="84" height="20"></rect>
+                <rect id="矩形" fill="#F7F8FA" fill-rule="nonzero" x="0" y="0" width="84" height="20"></rect>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,26 @@
+.empty-table {
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+
+  .item-title {
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 22px;
+  }
+
+  .item-content {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  .item-btn {
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
+  .empty-status-container {
+    padding: 0;
+  }
+}

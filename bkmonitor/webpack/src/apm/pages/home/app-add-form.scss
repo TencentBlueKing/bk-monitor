@@ -1,0 +1,24 @@
+.app-add-dialog {
+  .app-add-dialog-main {
+    font-size: 14px;
+    color: #63656e;
+    line-height: 22px;
+    .app-add-desc {
+      padding: 0 16px;
+      margin-bottom: 32px;
+    }
+    .app-add-question {
+      font-weight: bold;
+    }
+    .app-add-answer {
+      margin-top: 8px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid #dcdee5;
+    }
+    .app-add-form {
+      .bk-label {
+        font-size: 12px;
+      }
+    }
+  }
+}

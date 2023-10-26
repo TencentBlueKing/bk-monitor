@@ -1,0 +1,919 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_business",
+        "name": "(已弃用)业务访问",
+        "name_en": "(Deprecated)View Business",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_synthetic",
+        "name": "(已弃用)拨测查看",
+        "name_en": "(Deprecated)View Synthetic",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_synthetic",
+        "name": "(已弃用)拨测管理",
+        "name_en": "(Deprecated)Manage Synthetic",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_synthetic"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_public_synthetic_location",
+        "name": "公共拨测节点管理",
+        "name_en": "Manage Public Synthetic Location",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_host",
+        "name": "(已弃用)主机详情查看",
+        "name_en": "(Deprecated)View Host",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_host",
+        "name": "(已弃用)主机详情管理",
+        "name_en": "(Deprecated)Manage Host",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_host"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_event",
+        "name": "(已弃用)事件中心查看",
+        "name_en": "(Deprecated)View Event",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_event",
+        "name": "(已弃用)事件中心管理",
+        "name_en": "(Deprecated)Manage Event",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_event"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_action_config",
+        "name": "(已弃用)处理套餐查看",
+        "name_en": "(Deprecated)View Action Config",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_action_config",
+        "name": "(已弃用)处理套餐管理",
+        "name_en": "(Deprecated)Manage Action Config",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_action_config"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_plugin",
+        "name": "(已弃用)指标插件查看",
+        "name_en": "(Deprecated)View Metric Plugin",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_plugin",
+        "name": "(已弃用)指标插件管理",
+        "name_en": "(Deprecated)Manage Metric Plugin",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_plugin"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_collection",
+        "name": "(已弃用)采集查看",
+        "name_en": "(Deprecated)View Collection",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_collection",
+        "name": "(已弃用)采集管理",
+        "name_en": "(Deprecated)Manage Collection",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_collection"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_notify_team",
+        "name": "(已弃用)告警组查看",
+        "name_en": "(Deprecated)View Notify Team",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_notify_team",
+        "name": "(已弃用)告警组管理",
+        "name_en": "(Deprecated)Manage Notify Team",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_notify_team"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_rule",
+        "name": "(已弃用)策略查看",
+        "name_en": "(Deprecated)View Rule",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_notify_team",
+          "view_action_config"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_rule",
+        "name": "(已弃用)策略管理",
+        "name_en": "(Deprecated)Manage Rule",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_rule",
+          "view_notify_team",
+          "view_action_config"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_downtime",
+        "name": "(已弃用)屏蔽查看",
+        "name_en": "(Deprecated)View Downtime",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_downtime",
+        "name": "(已弃用)屏蔽管理",
+        "name_en": "(Deprecated)Manage Downtime",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_downtime"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_custom_metric",
+        "name": "(已弃用)自定义指标上报查看",
+        "name_en": "(Deprecated)View Custom Metric",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_custom_metric",
+        "name": "(已弃用)自定义指标上报管理",
+        "name_en": "(Deprecated)Manage Custom Metric",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_custom_metric"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_custom_event",
+        "name": "(已弃用)自定义事件上报查看",
+        "name_en": "(Deprecated)View Custom Event",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_custom_event",
+        "name": "(已弃用)自定义事件上报管理",
+        "name_en": "(Deprecated)Manage Custom Event",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_custom_event"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_dashboard",
+        "name": "(已弃用)仪表盘查看",
+        "name_en": "(Deprecated)View Dashboard",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_dashboard",
+        "name": "(已弃用)仪表盘管理",
+        "name_en": "(Deprecated)Manage Dashboard",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_dashboard"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_datasource",
+        "name": "(已弃用)数据源管理",
+        "name_en": "(Deprecated)Manage Datasource",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business",
+          "view_dashboard",
+          "manage_dashboard"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "explore_metric",
+        "name": "(已弃用)指标检索",
+        "name_en": "(Deprecated)Explore Metric",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "export_config",
+        "name": "(已弃用)导出",
+        "name_en": "(Deprecated)Export Config",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "import_config",
+        "name": "(已弃用)导入",
+        "name_en": "(Deprecated)Import Config",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "biz",
+            "system_id": "bk_cmdb",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_cmdb",
+                "id": "business"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_apm_application",
+        "name": "(已弃用)APM应用查看",
+        "name_en": "(Deprecated)APM Application View",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "apm_application",
+            "system_id": "bk_monitorv3",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_monitorv3",
+                "id": "apm_application_list"
+              }
+            ]
+          }
+        ],
+        "related_actions": [
+          "view_business"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_apm_application",
+        "name": "(已弃用)APM应用管理",
+        "name_en": "(Deprecated)APM Application Manage",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+            "id": "apm_application",
+            "system_id": "bk_monitorv3",
+            "selection_mode": "instance",
+            "related_instance_selections": [
+              {
+                "system_id": "bk_monitorv3",
+                "id": "apm_application_list"
+              }
+            ]
+          }
+        ],
+        "related_actions": [],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_instance_selection",
+      "data": {
+        "id": "apm_application_list",
+        "name": "(已弃用)APM应用列表",
+        "name_en": "(Deprecated)APM Application List",
+        "resource_type_chain": [
+          {
+            "system_id": "bk_cmdb",
+            "id": "biz"
+          },
+          {
+            "system_id": "bk_monitorv3",
+            "id": "apm_application"
+          }
+        ]
+      }
+    }
+  ]
+}

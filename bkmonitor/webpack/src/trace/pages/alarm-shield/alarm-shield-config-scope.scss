@@ -1,0 +1,83 @@
+.alarm-shield-config-scope-component {
+  display: none;
+
+  .mt8 {
+    margin-top: 8px;
+  }
+
+  .mt18 {
+    margin-top: 18px;
+  }
+
+  .max-w1000 {
+    max-width: 1000px;
+  }
+
+  .max-w836 {
+    max-width: 836px;
+  }
+
+  .min-w940 {
+    min-width: 940px;
+  }
+
+  &.show {
+    display: block;
+  }
+
+  .scope-list {
+    display: flex;
+    align-items: center;
+
+    .scope-list-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-right: 30px;
+      cursor: pointer;
+
+      .icon-jia {
+        margin-right: 4px;
+        font-size: 14px;
+        color: #3a84ff;
+      }
+
+      .item-text {
+        font-size: 12px;
+        color: #3a84ff;
+      }
+
+      &:not(:last-of-type) {
+        &::after {
+          position: absolute;
+          top: 0;
+          right: -15px;
+          width: 1px;
+          height: 16px;
+          content: '';
+          background: #dcdee5;
+        }
+      }
+    }
+  }
+}
+
+.alarm-shield-config-scope-pop {
+  .scope-pop-content {
+    .mr-8 {
+      margin-right: 8px;
+    }
+
+    .msg {
+      font-size: 14px;
+      line-height: 22px;
+      color: #63656e;
+    }
+
+    .operate {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+  }
+}

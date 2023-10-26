@@ -1,0 +1,72 @@
+/*
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*/
+.resize-layout-wrapper {
+  .resize-main,
+  .resize-aside {
+    height: 100%;
+  }
+  .toggle-wrap {
+    position: relative;
+    .toggle-btn {
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 10px;
+      border-radius: 5px;
+      background-color: #dcdee5;
+      z-index: 10;
+      cursor: pointer;
+      .icon-switch {
+        color: #979ba5;
+        font-size: 12px;
+        transform: rotate(90deg) scale(.6);
+      }
+    }
+  }
+  &.bottom {
+    .toggle-wrap {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+    }
+  }
+  &.animation {
+    .bk-resize-layout-aside {
+      transition: all .2s ease-in-out;
+    }
+  }
+  &.is-resizing {
+    .bk-resize-trigger {
+      background-image: linear-gradient(180deg,transparent,transparent 2px,#3a84ff 0,#3a84ff 3px,transparent 0,transparent);
+    }
+  }
+}

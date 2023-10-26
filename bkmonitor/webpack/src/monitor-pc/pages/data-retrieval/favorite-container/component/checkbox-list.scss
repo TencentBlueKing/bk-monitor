@@ -1,0 +1,107 @@
+@import '../../../../theme/index.scss';
+
+.biz-list {
+  $bg-dark: #39455f;
+  $color-dark:#c3d0e7;
+  $border-dark: #434e68;
+  cursor: initial;
+  font-size: 12px;
+
+  .no-data {
+    padding-bottom: 24px;
+  }
+
+  .list-group {
+    position: relative;
+
+    &.no-name:not(:first-child) {
+      padding-top: 9px;
+
+      &::before {
+        display: initial;
+      }
+    }  
+
+    .list-group-name {
+      height: 32px;
+      line-height: 32px;
+      padding: 0 12px;
+      color: #979ba5;
+    }
+
+    &::before {
+      display: none;
+      position: absolute;
+      content: '';
+      top: 4px;
+      left: 9px;
+      right: 9px;
+      border-top: 1px solid #eaebf0;
+    }
+  }
+
+  .list-item-checkbox {
+    padding: 0 9px 0 12px;
+    width: 100%;
+    transition: background-color .1s ease-in-out;
+    &:hover {
+      background-color: #e1ecff;
+    }
+    .bk-checkbox-text {
+      width: calc(100% - 22px);
+    }
+  }
+
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 32px;
+    line-height: 32px;
+    padding: 0 9px 0 6px;
+    cursor: pointer;
+    color: #63656e;
+    font-size: 12px;
+
+    &.checked {
+      color: #3a84ff;
+    }
+  }
+
+  .list-item-left {
+    display: inline-flex !important;
+    flex: 1;
+    flex-wrap: nowrap;
+    margin-right: 8px;
+
+    @include ellipsis();
+
+    .list-item-name {
+      @include ellipsis();
+      // white-space: nowrap;
+    }
+
+    .list-item-id {
+      margin-left: 8px;
+      color: #C4C6CC;
+
+      @include ellipsis();
+    }
+  }
+
+  .list-item-right {
+    flex-shrink: 0;
+
+    .list-item-tag {
+      height: 23px;
+      line-height: 23px;
+      padding: 0 10px;
+      border-radius: 2px;
+
+      &:not(:last-child) {
+        margin-right: 8px;
+      }
+    }
+  }
+}

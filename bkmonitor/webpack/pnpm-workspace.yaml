@@ -1,0 +1,5 @@
+packages:
+  - 'src/*'
+  - '!**/bk-iframe/**'
+  - '!**/bk-weweb/**'
+  - '!**/mermaid/**'

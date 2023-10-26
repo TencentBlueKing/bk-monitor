@@ -1,0 +1,262 @@
+/* stylelint-disable declaration-no-important */
+.metric-dimension-settings-page {
+  padding: 16px 16px 60px 16px;
+  min-height: 100%;
+
+  &-content {
+    display: flex;
+    min-height: calc(100vh - 180px);
+    background: #fff;
+    box-shadow: 0 2px 4px 0 #1919290d;
+    border-radius: 2px;
+    padding: 16px;
+  }
+}
+
+.metric-dimension-dialog-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .mr-14 {
+    margin-right: 14px;
+  }
+
+  .mr-10 {
+    margin-right: 10px;
+  }
+
+  .mr-12 {
+    margin-right: 12px;
+  }
+
+  .mr-30 {
+    margin-right: 30px;
+  }
+
+  .mr-24 {
+    margin-right: 24px !important;
+  }
+
+  .ml-0 {
+    margin-left: 0px !important;
+  }
+
+  .ml-8 {
+    margin-left: 8px;
+  }
+
+  .blue {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .tip-text {
+    color: #63656e;
+    font-size: 12px;
+  }
+
+  .header-operate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .operate-left {
+      display: flex;
+      align-items: center;
+
+      .move {
+        padding-right: 7px;
+      }
+
+      .move-btn {
+        height: 32px;
+        padding: 0 16px;
+        line-height: 32px;
+
+        &:hover {
+          color: #3a84ff;
+          cursor: pointer;
+          background: #e1ecff;
+        }
+      }
+
+      .icon-mc-retry {
+        font-size: 14px;
+      }
+
+      .auto-collect {
+        display: flex;
+        align-items: center;
+        margin-right: 16px;
+
+        .bk-switcher {
+          margin: 0 12px 0 16px;
+        }
+      }
+
+      .icon-remind {
+        color: #979ba5;
+        font-size: 14px;
+      }
+
+      .tip-text {
+        color: #979ba5;
+      }
+    }
+
+    .operate-right {
+      .text-btn {
+        color: #3a84ff;
+        cursor: pointer;
+
+        .icon-shangchuan,
+        .icon-xiazai2 {
+          font-size: 12px;
+          margin-right: 2px;
+        }
+      }
+
+      .tingyong-swtich {
+        display: inline-flex;
+        align-items: center;
+      }
+    }
+  }
+
+  .bottom-operate {
+    margin-top: 16px;
+  }
+}
+
+.metric-dimension-add-group-dialog {
+  .metric-name {
+    .verify-input {
+      margin-bottom: 24px;
+    }
+
+    .item {
+      margin: 0 0 6px;
+      font-size: 12px;
+      color: #63656e;
+
+      &.required::after {
+        position: relative;
+        top: -1px;
+        left: 3px;
+        color: red;
+        content: '*';
+      }
+    }
+
+    .rule-desc {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .hint {
+      padding: 6px 8px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      background-color: #f0f1f5;
+      color: #63656e;
+      border-radius: 2px;
+
+      .icon-monitor {
+        margin-right: 6px;
+        font-size: 14px;
+        color: #979ba5;
+      }
+    }
+
+    .bk-tag-selector {
+      width: 100%;
+    }
+
+    .tooltips-icon {
+      top: 8px;
+      right: 4px;
+    }
+  }
+
+  .footer {
+    position: relative;
+    top: 32px;
+    right: 24px;
+    width: 480px;
+    height: 50px;
+    padding-right: 24px;
+    line-height: 50px;
+    text-align: right;
+    background-color: #fafbfd;
+    border-top: 1px solid #dcdee5;
+
+    .confirm-btn {
+      margin-right: 10px;
+    }
+  }
+}
+
+.metric-dimension-dialog-component {
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .header-title {
+    display: flex;
+    align-items: center;
+
+    .title {
+      color: #313238;
+      font-size: 20px;
+      margin-right: 20px;
+    }
+
+    .subtitle {
+      color: #979ba5;
+      font-size: 12px;
+    }
+  }
+
+  .footer-operate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .footer-tip {
+      color: #ea3636;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+
+      .icon-remind {
+        font-size: 14px;
+        margin-right: 8px;
+      }
+
+      .zhuanhuang {
+        color: #3a84ff;
+        margin-left: 8px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+
+        .icon-zhuanhuan {
+          margin-right: 2px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+}
+
+.bk-dialog-wrapper.auto-collect-info {
+  .bk-info-box .bk-dialog-type-sub-header {
+    padding-bottom: 20px;
+  }
+}

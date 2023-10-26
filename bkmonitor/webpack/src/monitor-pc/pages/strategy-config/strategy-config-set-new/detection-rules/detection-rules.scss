@@ -1,0 +1,48 @@
+.detection-rules-wrap {
+  position: relative;
+
+  .detection-header {
+    display: flex;
+    align-self: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+
+    .left-des {
+      display: flex;
+      align-items: center;
+
+      .inline-select {
+        margin: 0 4px;
+      }
+    }
+
+    .right-btn {
+      display: flex;
+      align-items: center;
+
+      .unit-select {
+        color: #3a84ff;
+
+        .icon-mc-triangle-down {
+          color: #979ba5;
+        }
+      }
+    }
+  }
+
+  .detection-list-item {
+    margin-bottom: 12px;
+  }
+
+  .i18n-path {
+    display: flex;
+    align-items: center;
+  }
+
+  .err-msg {
+    color: #ea3636;
+  }
+}

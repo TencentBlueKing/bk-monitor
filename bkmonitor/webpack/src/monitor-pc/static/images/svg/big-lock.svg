@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="56px" height="65px" viewBox="0 0 56 65" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 63.1 (92452) - https://sketch.com -->
+    <title>丑丑锁</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#D4D6DD" offset="0%"></stop>
+            <stop stop-color="#C4C6CC" offset="100%"></stop>
+        </linearGradient>
+        <path d="M983.636364,266.142857 L977.333333,266.142857 L977.333333,257.428571 C977.333333,245.809524 971.555556,240 960,240 C948.444444,240 942.666667,245.809524 942.666667,257.428571 L942.666667,266.142857 L936.363636,266.142857 C935.05625,266.142857 934,267.233232 934,268.582857 L934,298.56 C934,299.909625 935.05625,301 936.363636,301 L983.636364,301 C984.94375,301 986,299.909625 986,298.56 L986,268.582857 C986,267.233232 984.94375,266.142857 983.636364,266.142857 Z M973,266 L947,266 L947,257.2 C947,248.4 951.333333,244 960,244 C968.666667,244 973,248.4 973,257.2 L973,266 Z" id="path-2"></path>
+        <filter x="-7.7%" y="-3.3%" width="115.4%" height="113.1%" filterUnits="objectBoundingBox" id="filter-3">
+            <feOffset dx="0" dy="2" in="SourceAlpha" result="shadowOffsetOuter1"></feOffset>
+            <feGaussianBlur stdDeviation="1" in="shadowOffsetOuter1" result="shadowBlurOuter1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.0512456294 0" type="matrix" in="shadowBlurOuter1"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="02.用户端权限" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="160402.无权限访问页面" transform="translate(-932.000000, -240.000000)" fill-rule="nonzero">
+            <g id="丑丑锁">
+                <use fill="black" fill-opacity="1" filter="url(#filter-3)" xlink:href="#path-2"></use>
+                <use fill="url(#linearGradient-1)" xlink:href="#path-2"></use>
+            </g>
+        </g>
+    </g>
+</svg>

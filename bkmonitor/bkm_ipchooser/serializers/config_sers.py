@@ -1,0 +1,14 @@
+# -*- coding: utf-8 -*-
+from rest_framework import serializers
+
+
+class BatchGetSer(serializers.Serializer):
+    module_list = serializers.ListField(label="配置列表", default=[], child=serializers.CharField())
+
+
+class UpdateSer(serializers.Serializer):
+    settings_map = serializers.JSONField(label="配置")
+
+
+class BatchDeleteSer(serializers.Serializer):
+    module_list = serializers.ListField(label="配置列表", default=[], child=serializers.CharField())

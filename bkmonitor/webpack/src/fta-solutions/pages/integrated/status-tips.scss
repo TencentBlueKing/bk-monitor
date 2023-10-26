@@ -1,0 +1,21 @@
+.status-tips {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  z-index: 1;
+  .line {
+    opacity: .6;
+    width: 100%;
+  }
+  .title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: .6;
+    border-radius: 0 0 4px 4px;
+    color: #fff;
+  }
+}

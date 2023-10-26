@@ -1,0 +1,122 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+export enum EClusterType {
+  Kafka = 'kafka',
+  Transfer = 'transfer',
+  Influxdb = 'influxdb',
+  ES = 'elasticsearch',
+  Argus = 'argus'
+}
+
+/* 表格筛选项 */
+export const FILTER_LIST = [
+  {
+    id: 'all',
+    icon: '',
+    name: window.i18n.tc('全部')
+  },
+  {
+    id: EClusterType.Kafka,
+    icon: 'icon-Kafka',
+    name: window.i18n.tc('Kafka 集群')
+  },
+  {
+    id: EClusterType.Transfer,
+    icon: 'icon-Transfer',
+    name: window.i18n.tc('Transfer 集群')
+  },
+  {
+    id: EClusterType.Influxdb,
+    icon: 'icon-DB1',
+    name: window.i18n.tc('influxdb 集群')
+  },
+  {
+    id: EClusterType.ES,
+    icon: 'icon-ES',
+    name: window.i18n.tc('ES 集群')
+  }
+];
+export enum EScopes {
+  currentSpace = 'current-space',
+  multiSpace = 'multi-space',
+  allSpace = 'all-space',
+  spaceType = 'space-type'
+}
+export const EsSpaceScopes = [
+  { id: EScopes.currentSpace, name: window.i18n.tc('当前业务可见') },
+  { id: EScopes.multiSpace, name: window.i18n.tc('多业务选择') },
+  { id: EScopes.allSpace, name: window.i18n.tc('全平台') },
+  { id: EScopes.spaceType, name: window.i18n.tc('按业务属性选择') }
+];
+
+export enum ETableColumn {
+  name = 'name',
+  use = 'use',
+  pipeline = 'pipeline',
+  status = 'status',
+  operator = 'operator',
+  description = 'description',
+  operate = 'operate'
+}
+
+export interface IInfluxdbChildData {
+  id: string;
+  isExpand?: boolean;
+  name: string;
+  data: {
+    columns: { id: string; name: string }[];
+    data: any[];
+  };
+}
+
+export interface IChildDataRow {
+  host: string;
+  port: number;
+  version: any;
+  schema: any;
+}
+export interface ITableDataRow {
+  cluster_id: number;
+  cluster_name: string;
+  cluster_type: EClusterType;
+  label: string;
+  description: string;
+  labelArr: string[];
+  username: string;
+  creator: string;
+  pipeline_name?: string;
+  childData:
+    | {
+        data: IChildDataRow[];
+      }
+    | any;
+}
+
+export interface ITableRowConfig {
+  operationType: string;
+  rowData?: ITableDataRow | any;
+}

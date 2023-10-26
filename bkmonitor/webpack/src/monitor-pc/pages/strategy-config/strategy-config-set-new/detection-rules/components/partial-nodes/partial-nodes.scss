@@ -1,0 +1,20 @@
+.partial-nodes-wrap {
+  .level-select {
+    width: 400px;
+    border: none;
+    border-bottom: 1px solid #c4c6cc;
+
+    .bk-select-prefix-icon {
+      top: 0;
+      left: 0;
+    }
+
+    &.is-focus {
+      box-shadow: none;
+    }
+  }
+
+  .select-method {
+    margin: 0 4px;
+  }
+}

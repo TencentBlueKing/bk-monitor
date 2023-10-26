@@ -1,0 +1,59 @@
+.alarm-handling-new-component {
+  margin: -10px 0px -8px -30px;
+  &.readonly {
+    .form-item-label {
+      color: #979ba5;
+    }
+  }
+  .common-form-item {
+    min-height: 28px;
+  }
+  .select-warp {
+    flex: 1;
+    margin: 0 4px;
+  }
+  .defense-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: -4px;
+    padding-right: 26px;
+    &.simple {
+      padding-right: 2px;
+    }
+    .small-input {
+      width: 66px;
+      input {
+        text-align: center;
+      }
+    }
+    .select-inline {
+      flex: 1;
+    }
+  }
+  .tips-key1 {
+    background: #f0f8ff;
+    border: 1px solid #c5daff;
+    border-radius: 3px;
+    min-height: 32px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-left: 60px;
+    .icon-hint {
+      color: #3a84ff;
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tip-text {
+      flex: 1;
+    }
+  }
+}

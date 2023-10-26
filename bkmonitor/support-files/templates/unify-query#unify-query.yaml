@@ -1,0 +1,57 @@
+consul:
+  check_ttl: 30s
+  consul_address: http://127.0.0.1:__BK_CONSUL_HTTP_PORT__
+  service_name: bkmonitorv3
+  kv_base_path: bk_bkmonitorv3_${PLATFORM}_production/metadata/unify-query
+  metadata_path: bk_bkmonitorv3_${PLATFORM}_production/metadata
+  bcs_path: bk_bkmonitorv3_${PLATFORM}_production/metadata/project_id
+  metric_path: bk_bkmonitorv3_${PLATFORM}_production/metadata/influxdb_metrics
+  tls:
+    ca_file: "__BK_CONSUL_SERVER_CA_CERT__"
+    key_file: "__BK_CONSUL_CLIENT_KEY_FILE__"
+    cert_file: "__BK_CONSUL_CLIENT_CERT_FILE__"
+redis:
+  mode: "__BK_MONITOR_TRANSFER_REDIS_MODE__"  # 哨兵模式 或 单例模式
+  host: "__BK_MONITOR_TRANSFER_REDIS_HOST__"
+  port: __BK_MONITOR_TRANSFER_REDIS_PORT__
+  password: "__BK_MONITOR_TRANSFER_REDIS_PASSWORD__"
+  master_name: "__BK_MONITOR_TRANSFER_REDIS_SENTINEL_MASTER_NAME__"
+  sentinel_address:
+    - "__BK_MONITOR_TRANSFER_REDIS_SENTINEL_HOST__:__BK_MONITOR_TRANSFER_REDIS_SENTINEL_PORT__"
+  sentinel_password: "__BK_MONITOR_TRANSFER_REDIS_SENTINEL_PASSWORD__"
+  database: __BK_MONITOR_TRANSFER_REDIS_DB__
+  dial_timeout: 1s
+  read_timeout: 10s
+  service_name: bkmonitorv3:spaces
+influxdb:
+  target_address: http://__BK_INFLUXDB_PROXY_HOST__:__BK_INFLUXDB_PROXY_PORT__
+es:
+  max_concurrency: 200
+  alias_refresh_period: 1m
+http:
+  address: "__LAN_IP__"
+  flux:
+    path: /flux
+  es:
+    path: /es_query
+  password: ""
+  port: __BK_UNIFY_QUERY_PORT__
+  profile:
+    enable: false
+    path: /debug/pprof/
+  prometheus:
+    enable: true
+    path: /metrics
+  read_timeout: 3s
+  username: ""
+  write_timeout: 30s
+logger:
+  level: error
+  path: __BK_HOME__/logs/bkmonitorv3/unify-query.log
+trace:
+  dataid: __BK_TRACE_DATA_ID__
+  report:
+    host: __BK_TRACE_REPORT_HOST__
+    port: __BK_TRACE_REPORT_PORT__
+    token: __BK_TRACE_REPORT_TOKEN__
+    type: __BK_TRACE_REPORT_TYPE__

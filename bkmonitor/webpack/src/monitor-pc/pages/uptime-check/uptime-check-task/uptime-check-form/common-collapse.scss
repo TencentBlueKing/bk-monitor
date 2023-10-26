@@ -1,0 +1,90 @@
+/* stylelint-disable declaration-no-important */
+.common-collapse {
+  margin-bottom: 16px;
+
+  .bk-collapse-item {
+    &-header {
+      padding: 0;
+    }
+  }
+
+  .collapse-header {
+    display: flex;
+    align-items: center;
+    background-color: #f0f1f5;
+    width: 100%;
+    color: #63656e !important;
+    padding: 0 12px 0 12px;
+    font-size: 12px;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+
+      .collapse-icon {
+        font-size: 16px;
+        transition: all .3s ease-in-out;
+        transform: rotate(-90deg);
+
+        &.is-actived {
+          transform: rotate(0deg);
+        }
+      }
+
+      &-wrap {
+        padding-left: 12px;
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+
+      .rigth-tools {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        height: 20px;
+        width: 20px;
+
+        &::before {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          height: 20px;
+          width: 20px;
+        }
+
+        &:hover {
+          border-radius: 2px;
+          color: #3a84ff;
+          background: #e1ecff;
+          cursor: pointer;
+        }
+      }
+
+    }
+  }
+
+  .collapse-content {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 38px;
+  }
+}
+
+.common-collapse-tips {
+  .domain-select-list {
+    min-width: 74px !important;
+
+    &-item {
+      justify-content: center;
+      padding: 0;
+    }
+  }
+}

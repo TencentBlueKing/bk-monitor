@@ -1,0 +1,32 @@
+name: "[BKLog] Web"
+
+defaults:
+  run:
+    working-directory: bklog
+
+on:
+  push:
+    paths:
+      - 'bklog/web/**'
+  pull_request:
+    paths:
+      - 'bklog/web/**'
+  schedule:
+    - cron: "0 10 * * *"
+
+jobs:
+  run:
+    runs-on: self-hosted
+    env:
+      OS: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Node.js environment
+      uses: actions/setup-node@v2.2.0
+      with:
+        node-version: 16.16.0
+    - name: Run build web
+      run: |
+        cd web
+        npm install --legacy-peer-deps
+        npm run build

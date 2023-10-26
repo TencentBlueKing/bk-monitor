@@ -1,0 +1,36 @@
+.param-body {
+  .item {
+    display: flex;
+    margin-bottom: 20px;
+
+    .label {
+      flex: 0 0 140px;
+      margin-right: 24px;
+      font-size: 14px;
+      color: #979ba5;
+      text-align: right;
+    }
+
+    .value {
+      flex: 1;
+      word-break: break-all;
+    }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .bk-tag {
+    max-width: 200px;
+
+    :deep(span) {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

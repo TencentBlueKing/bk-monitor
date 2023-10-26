@@ -1,0 +1,22 @@
+echo "logging.level: error
+max_procs: 1
+output.gse:
+path.data: C:/gse/data
+path.logs: C:/gse/logs
+path.pid: C:/gse/logs
+uptimecheckbeat:
+  bk_biz_id: {bk_biz_id}
+  bk_cloud_id: {bk_cloud_id}
+  clean_up_timeout: 1s
+  event_buffer_size: 10
+  heart_beat:
+    dataid: 1008
+    period: 60s
+  ip:
+  mode: daemon
+  node_id: {node_id}" > {empty_conf}
+cd {conf_path}
+cp {old_conf} {backup_conf}.{timestamp}
+cp {empty_conf} {old_conf}
+cd {bin_path}
+./stop.bat uptimecheckbeat

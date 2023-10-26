@@ -1,0 +1,127 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Grammar
+
+Rule 0     S' -> expression
+Rule 1     expression -> expression OPERATOR expression
+Rule 2     expression -> LEFT_PARENTHESES expression RIGHT_PARENTHESES
+Rule 3     expression -> FLOAT
+Rule 4     expression -> NAME
+
+Terminals, with rules where they appear
+
+FLOAT                : 3
+LEFT_PARENTHESES     : 2
+NAME                 : 4
+OPERATOR             : 1
+RIGHT_PARENTHESES    : 2
+error                : 
+
+Nonterminals, with rules where they appear
+
+expression           : 1 1 2 0
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . expression
+    (1) expression -> . expression OPERATOR expression
+    (2) expression -> . LEFT_PARENTHESES expression RIGHT_PARENTHESES
+    (3) expression -> . FLOAT
+    (4) expression -> . NAME
+
+    LEFT_PARENTHESES shift and go to state 2
+    FLOAT           shift and go to state 3
+    NAME            shift and go to state 4
+
+    expression                     shift and go to state 1
+
+state 1
+
+    (0) S' -> expression .
+    (1) expression -> expression . OPERATOR expression
+
+    OPERATOR        shift and go to state 5
+
+
+state 2
+
+    (2) expression -> LEFT_PARENTHESES . expression RIGHT_PARENTHESES
+    (1) expression -> . expression OPERATOR expression
+    (2) expression -> . LEFT_PARENTHESES expression RIGHT_PARENTHESES
+    (3) expression -> . FLOAT
+    (4) expression -> . NAME
+
+    LEFT_PARENTHESES shift and go to state 2
+    FLOAT           shift and go to state 3
+    NAME            shift and go to state 4
+
+    expression                     shift and go to state 6
+
+state 3
+
+    (3) expression -> FLOAT .
+
+    OPERATOR        reduce using rule 3 (expression -> FLOAT .)
+    $end            reduce using rule 3 (expression -> FLOAT .)
+    RIGHT_PARENTHESES reduce using rule 3 (expression -> FLOAT .)
+
+
+state 4
+
+    (4) expression -> NAME .
+
+    OPERATOR        reduce using rule 4 (expression -> NAME .)
+    $end            reduce using rule 4 (expression -> NAME .)
+    RIGHT_PARENTHESES reduce using rule 4 (expression -> NAME .)
+
+
+state 5
+
+    (1) expression -> expression OPERATOR . expression
+    (1) expression -> . expression OPERATOR expression
+    (2) expression -> . LEFT_PARENTHESES expression RIGHT_PARENTHESES
+    (3) expression -> . FLOAT
+    (4) expression -> . NAME
+
+    LEFT_PARENTHESES shift and go to state 2
+    FLOAT           shift and go to state 3
+    NAME            shift and go to state 4
+
+    expression                     shift and go to state 7
+
+state 6
+
+    (2) expression -> LEFT_PARENTHESES expression . RIGHT_PARENTHESES
+    (1) expression -> expression . OPERATOR expression
+
+    RIGHT_PARENTHESES shift and go to state 8
+    OPERATOR        shift and go to state 5
+
+
+state 7
+
+    (1) expression -> expression OPERATOR expression .
+    (1) expression -> expression . OPERATOR expression
+
+  ! shift/reduce conflict for OPERATOR resolved as shift
+    $end            reduce using rule 1 (expression -> expression OPERATOR expression .)
+    RIGHT_PARENTHESES reduce using rule 1 (expression -> expression OPERATOR expression .)
+    OPERATOR        shift and go to state 5
+
+  ! OPERATOR        [ reduce using rule 1 (expression -> expression OPERATOR expression .) ]
+
+
+state 8
+
+    (2) expression -> LEFT_PARENTHESES expression RIGHT_PARENTHESES .
+
+    OPERATOR        reduce using rule 2 (expression -> LEFT_PARENTHESES expression RIGHT_PARENTHESES .)
+    $end            reduce using rule 2 (expression -> LEFT_PARENTHESES expression RIGHT_PARENTHESES .)
+    RIGHT_PARENTHESES reduce using rule 2 (expression -> LEFT_PARENTHESES expression RIGHT_PARENTHESES .)
+
+WARNING: 
+WARNING: Conflicts:
+WARNING: 
+WARNING: shift/reduce conflict for OPERATOR in state 7 resolved as shift

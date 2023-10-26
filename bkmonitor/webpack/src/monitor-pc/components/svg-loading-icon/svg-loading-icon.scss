@@ -1,0 +1,24 @@
+@keyframes loading-ratate {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(-360deg);
+  }
+}
+
+.loading-svg {
+  height: 60px;
+  width: 60px;
+  animation: loading-ratate 1s linear 0s infinite;
+
+  g {
+    @for $i from 1 through 8 {
+      :nth-child(#{$i}) {
+        fill: #3a84ff;
+        opacity: #{$i * .125};
+      }
+    }
+  }
+}

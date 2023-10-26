@@ -1,0 +1,42 @@
+.custom-time-range-component {
+  position: relative;
+  .bk-date-picker-rel {
+    .icon-wrapper {
+      display: none;
+    }
+    .bk-date-picker-editor {
+      padding: 0 10px;
+    }
+    .clear-action {
+      right: 46px;
+    }
+  }
+  .bk-date-picker {
+    width: 100%;
+  }
+  .time-btn {
+    position: absolute;
+    width: 36px;
+    height: 32px;
+    right: 0;
+    top: 0;
+    z-index: 1;
+    border: 1px solid #c4c6cc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafbfd;
+    .time-icon {
+      color: #979ba5;
+    }
+    &:hover,
+    &.active {
+      cursor: pointer;
+      border: 1px solid #a3c5fd;
+      background: #e1ecff;
+      .time-icon {
+        color: #699df4;
+      }
+    }
+  }
+}

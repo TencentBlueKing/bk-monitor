@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 22.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="图层_2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 64 64" style="enable-background:new 0 0 64 64;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#737987;}
+</style>
+<g id="消息队列">
+	<circle class="st0" cx="9" cy="55" r="3"/>
+	<circle class="st0" cx="32" cy="55" r="3"/>
+	<circle class="st0" cx="55" cy="55" r="3"/>
+	<circle class="st0" cx="49.5" cy="55" r="1"/>
+	<circle class="st0" cx="46.5" cy="55" r="1"/>
+	<circle class="st0" cx="43.5" cy="55" r="1"/>
+	<circle class="st0" cx="40.5" cy="55" r="1"/>
+	<circle class="st0" cx="37.5" cy="55" r="1"/>
+	<circle class="st0" cx="26.5" cy="55" r="1"/>
+	<circle class="st0" cx="23.5" cy="55" r="1"/>
+	<circle class="st0" cx="20.5" cy="55" r="1"/>
+	<circle class="st0" cx="17.5" cy="55" r="1"/>
+	<circle class="st0" cx="14.5" cy="55" r="1"/>
+	<path class="st0" d="M56,6H8C6.9,6,6,6.9,6,8v36c0,1.1,0.9,2,2,2h19.2l3.4,3.4c0.8,0.8,2,0.8,2.8,0l3.4-3.4H56c1.1,0,2-0.9,2-2V8
+		C58,6.9,57.1,6,56,6z M50,36H14v-4h36V36z M50,28H14v-4h36V28z M50,20H14v-4h36V20z"/>
+</g>
+</svg>

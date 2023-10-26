@@ -1,0 +1,1499 @@
+[
+  {
+    "info": {
+      "description_md": "### \u4f9d\u8d56\u8bf4\u660e\n\n* \u7cfb\u7edf\u652f\u6301: Linux, Windows\n* \u7248\u672c\u652f\u6301: Apache 2.2.x, 2.4.x\n\n## 1. \u786e\u4fdd mod_status \u5df2\u5b89\u88c5\n\n\u8bf7\u52a1\u5fc5\u786e\u8ba4`mod_status`\u6a21\u5757\u5df2\u5b89\u88c5\u5230\u60a8\u7684Apache\u670d\u52a1\u5668\u4e0a\uff0c\u5e76\u4e14`ExtendedStatus`\u88ab\u8bbe\u7f6e\u4e3a **ON**\u3002\n\n\u914d\u7f6e\u793a\u4f8b\uff1a\n\n```apache\nExtendedStatus On\n<Location \/server-status>\n   SetHandler server-status\n   Order deny,Allow\n   Deny from all                # \u8868\u793a\u7981\u6b62\u4efb\u4f55\u6765\u6e90\u8bbf\u95ee\n   Allow from 127.0.0.1         # \u8868\u793a\u53ea\u5141\u8bb8\u672c\u673a\u8bbf\u95ee\n<\/Location>\n```\n\n## 2. \u91c7\u96c6\u65b9\u5f0f\n\n\u5982\u4e0a\u914d\u7f6e\u6240\u793a\uff0c\u91c7\u96c6\u5668\u5c06\u4f1a\u6839\u636e\u4f60\u914d\u7f6e\u7684\u5185\u5bb9\uff0c\u5b9a\u671f\u5728\u672c\u5730\u8bbf\u95ee `http:\/\/127.0.0.1\/server-status` \u4ee5\u83b7\u53d6Apache\u7684\u6307\u6807\u6570\u636e\u3002",
+      "metric_json": [
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "cpu_load",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "",
+              "description": "CPU\u8d1f\u8f7d"
+            },
+            {
+              "conversion": 1.0,
+              "name": "closing",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "Closing\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "waiting",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "waiting\u7684workder\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "dns_lookup",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "DNS_lookup\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "gracefully_finishing",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "finishing\u72b6\u6001\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "idle_cleanup",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "idle_cleanup\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "keepalive",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "keepalive\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "logging",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "Logging\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "open_slot",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "open_slot\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "reading_request",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6355\u83b7\u8bf7\u6c42\u8fde\u63a5\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "sending_reply",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u53d1\u9001\u56de\u590d\u4e2d\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "starting_up",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u542f\u52a8\u4e2d\u7684worker\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "total_worker",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u603b\u7684worker\u6570"
+            }
+          ],
+          "table_name": "performance",
+          "table_desc": "\u6027\u80fd"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "total_accesses_min",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21",
+              "description": "\u8bf7\u6c42\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "total_kbytes_min",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "Kb",
+              "description": "\u4f20\u8f93\u5b57\u8282\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "total_accesses",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21",
+              "description": "\u603b\u8bf7\u6c42\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "total_kbytes",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "Kb",
+              "description": "\u603b\u5b57\u8282\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "bytes_per_req",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "bytes\/req",
+              "description": "\u5355\u4e2a\u8bf7\u6c42\u5904\u7406\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "bytes_per_sec",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "bytes\/s",
+              "description": "\u4f20\u8f93\u901f\u7387"
+            },
+            {
+              "conversion": 1.0,
+              "name": "req_per_sec",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/s",
+              "description": "\u8bf7\u6c42\u901f\u7387"
+            }
+          ],
+          "table_name": "net",
+          "table_desc": "\u7f51\u7edc"
+        }
+      ],
+      "plugin_display_name": "Apache"
+    },
+    "meta": {
+      "bk_biz_id": 0,
+      "tag": "HTTP\u670d\u52a1",
+      "plugin_id": "apache",
+      "is_internal": true,
+      "bk_supplier_id": 0,
+      "plugin_type": "Built-In",
+      "label": "component"
+    },
+    "config": {
+      "is_support_remote": true,
+      "config_json": [
+        {
+          "default": "127.0.0.1",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "ip",
+          "description": "\u76ee\u6807IP"
+        },
+        {
+          "default": "80",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "port",
+          "description": "\u670d\u52a1\u7aef\u53e3\u53f7"
+        },
+        {
+          "default": "\/server-status",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "uri",
+          "description": "\u63a2\u6d4bURI"
+        }
+      ],
+      "collector_json": null
+    },
+    "version": {
+      "config_version": 1,
+      "info_version": 7,
+      "stage": "release"
+    }
+  },
+  {
+    "info": {
+      "description_md": "### \u4f9d\u8d56\u8bf4\u660e\n\n* \u7cfb\u7edf\u652f\u6301: Linux, Windows\n* \u7248\u672c\u652f\u6301: MySQL 5.1 \u53ca\u66f4\u9ad8\u7248\u672c (\u6ce8\u610f\uff1aMySQL < 5.6\u5e76\u4e0d\u652f\u6301\u6240\u6709\u6536\u96c6\u65b9\u6cd5)\n\n## 1. \u4e3a\u84dd\u9cb8\u76d1\u63a7\u521b\u5efa\u8bbf\u95eeMySQL\u7684\u8bbf\u95ee\u6743\u9650\n\n\u6267\u884c\u5982\u4e0b\u547d\u4ee4\u4e3a\u4f60\u7684MySQL\u521b\u5efa\u84dd\u9cb8\u76d1\u63a7\u8d26\u53f7\u7684\u8bbf\u95ee\u6743\u9650\uff1a\n\n```bash\nsudo mysql -e \"CREATE USER 'bk'@'127.0.0.1' IDENTIFIED BY '\u4f60\u7684\u5bc6\u7801';\"\nsudo mysql -e \"GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'bk'@'127.0.0.1' WITH MAX_USER_CONNECTIONS 5;\"\nsudo mysql -e \"GRANT SELECT ON performance_schema.* TO 'bk'@'127.0.0.1';\"\n```\n\n\u4f60\u53ef\u4ee5\u901a\u8fc7\u4ee5\u4e0b\u6307\u4ee4\uff0c\u67e5\u770b\u7528\u6237\u662f\u5426\u521b\u5efa\u6210\u529f\uff0c\u4e14\u6743\u9650\u662f\u5426\u6b63\u786e\uff1a\n\n```bash\nmysql -u bk --password=\u4f60\u7684\u5bc6\u7801 -e \"show status\" | \\\ngrep Uptime && echo -e \"MySQL \u6388\u6743\u6210\u529f\uff01\" || \\\necho -e \"\u65e0\u6cd5\u8fde\u63a5\u81f3MySQL\uff0c\u8bf7\u786e\u8ba4\u914d\u7f6e\u662f\u5426\u6b63\u786e\uff01\"\nmysql -u bk --password=\u4f60\u7684\u5bc6\u7801 -e \"show slave status\" && \\\necho -e \"MySQL \u6388\u6743\u6210\u529f\uff01\" || \\\necho -e \"\u65e0\u6cd5\u8bbf\u95eeslave\u4fe1\u606f\uff0c\u8bf7\u786e\u8ba4REPLICATION CLIENT\u6743\u9650\u662f\u5426\u6b63\u5e38\u6388\u4e88\uff01\"\n```\n\n## 2. \u91c7\u96c6\u65b9\u5f0f\n\n\u91c7\u96c6\u5668\u5c06\u4f1a\u6839\u636e\u4f60\u914d\u7f6e\u7684\u6570\u636e\u5e93IP\u548c\u7aef\u53e3\uff0c\u5b9a\u671f\u5728\u672c\u5730\u6267\u884c `show status` \u548c `show slave status` \u6307\u4ee4\uff0c\u5df2\u83b7\u53d6\u76f8\u5e94\u7684\u6307\u6807\u6570\u636e\u3002",
+      "metric_json": [
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "max_used_conns",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6761",
+              "description": "\u6700\u5927\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "thread_connected",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6761",
+              "description": "\u5f53\u524d\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "thread_created",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6761",
+              "description": "\u5df2\u521b\u5efa\u7ebf\u7a0b\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "thread_running",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6761",
+              "description": "\u6d3b\u52a8\u7684\u7ebf\u7a0b\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "thread_cached",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6761",
+              "description": "\u7f13\u5b58\u7684\u7ebf\u7a0b\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "connections",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6761",
+              "description": "\u7d2f\u8ba1\u5c1d\u8bd5\u8fde\u63a5\u6570"
+            }
+          ],
+          "table_name": "net",
+          "table_desc": "\u7f51\u7edc"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "open_files",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6253\u5f00\u6587\u4ef6\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "open_tbs",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6253\u5f00\u7684\u8868\u6570\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "qcache_hits_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u67e5\u8be2\u7f13\u5b58\u547d\u4e2d\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "not_cached_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u67e5\u8be2\u7f13\u5b58\u547d\u4e2d\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "queries_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u67e5\u8be2\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "questions_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u6267\u884c\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "slow_queries_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u6162\u67e5\u8be2\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_del",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u6267\u884c\u5220\u9664\u7684\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_del_multi",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u5220\u9664\u591a\u6761\u8bed\u53e5\u7684\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_insert",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u63d2\u5165\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_insert_select",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u63d2\u5165\u5e76\u67e5\u8be2\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_replace_select",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u66ff\u4ee3\u5e76\u67e5\u8be2\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_select",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u67e5\u8be2\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_update",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u66f4\u65b0\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_update_multi",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u66f4\u65b0\u591a\u6761\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_lock_tbs",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u9501\u8868\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_dro_db",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u5220\u5e93\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_dro_tb",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u5220\u8868\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_create_db",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u5efa\u5e93\u8bed\u53e5\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmd_create_tb",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u5efa\u8868\u8bed\u53e5\u6b21\u6570"
+            }
+          ],
+          "table_name": "performance",
+          "table_desc": "\u6027\u80fd"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "retried_transactions",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21",
+              "description": "\u4ece\u673a\u91cd\u8bd5\u4e8b\u52a1\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "slave_heartbeat",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u79d2",
+              "description": "\u4ece\u673a\u7684\u5fc3\u8df3\u95f4\u9694\u65f6\u957f"
+            }
+          ],
+          "table_name": "rep",
+          "table_desc": "\u590d\u5236"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "buffer_pool_free",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "page",
+              "description": "\u7f13\u5b58\u6c60\u53ef\u7528\u9875\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "buffer_pool_total",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "page",
+              "description": "\u7f13\u51b2\u6c60\u603b\u9875\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "buffer_pool_used",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "page",
+              "description": "\u7f13\u51b2\u6c60\u4f7f\u7528\u91cf"
+            },
+            {
+              "conversion": 0.01,
+              "name": "buffer_pool_util",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "%",
+              "description": "\u7f13\u51b2\u6c60\u4f7f\u7528\u7387"
+            },
+            {
+              "conversion": 1.0,
+              "name": "data_reads_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u8bfb\u6570\u636e\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "data_writes_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u5199\u6570\u636e\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "log_write_req_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u5199\u65e5\u5fd7\u8bf7\u6c42\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "pg_created_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u9875\/min",
+              "description": "\u6bcf\u5206\u949f\u521b\u5efa\u7684\u9875\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "pg_read_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u9875\/min",
+              "description": "\u6bcf\u5206\u949f\u8bfb\u9875\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "pg_write_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u9875\/min",
+              "description": "\u6bcf\u5206\u949f\u5199\u9875\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "rows_read_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u884c\/min",
+              "description": "\u6bcf\u5206\u949f\u8bfb\u884c\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "rows_insert_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u884c\/min",
+              "description": "\u6bcf\u5206\u949f\u5199\u884c\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "rows_del_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u884c\/min",
+              "description": "\u6bcf\u5206\u949f\u5220\u884c\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "rows_update_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u884c\/min",
+              "description": "\u6bcf\u5206\u949f\u66f4\u65b0\u884c\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "rows_locks_wait",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21",
+              "description": "\u7b49\u5f85\u884c\u9501\u6b21\u6570"
+            }
+          ],
+          "table_name": "innodb",
+          "table_desc": "InnoDB"
+        }
+      ],
+      "plugin_display_name": "MySQL"
+    },
+    "meta": {
+      "bk_biz_id": 0,
+      "tag": "\u6570\u636e\u5e93",
+      "plugin_id": "mysql",
+      "is_internal": true,
+      "bk_supplier_id": 0,
+      "plugin_type": "Built-In",
+      "label": "component"
+    },
+    "config": {
+      "is_support_remote": true,
+      "config_json": [
+        {
+          "default": "127.0.0.1",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "ip",
+          "description": "\u76ee\u6807IP"
+        },
+        {
+          "default": "3306",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "port",
+          "description": "\u670d\u52a1\u7aef\u53e3\u53f7"
+        },
+        {
+          "default": "",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "username",
+          "description": "\u767b\u5f55\u7528\u6237\u540d"
+        },
+        {
+          "default": "",
+          "mode": "opt_cmd",
+          "type": "password",
+          "name": "password",
+          "description": "\u767b\u5f55\u5bc6\u7801"
+        }
+      ],
+      "collector_json": null
+    },
+    "version": {
+      "config_version": 1,
+      "info_version": 7,
+      "stage": "release"
+    }
+  },
+  {
+    "info": {
+      "description_md": "### \u4f9d\u8d56\u8bf4\u660e\n\n* \u7cfb\u7edf\u652f\u6301: Linux, Windows\n* \u7248\u672c\u652f\u6301: NginX 1.12.1\n\n## 1. \u786e\u4fdd http_stub_status_module \u5df2\u5b89\u88c5\n\n\u8bf7\u52a1\u5fc5\u786e\u8ba4 `http_stub_status_module` \u6a21\u5757\u5df2\u5b89\u88c5\u5230\u60a8\u7684NginX\u670d\u52a1\u5668\u4e0a\u3002\n\n#### \u68c0\u67e5\u662f\u5426\u5b89\u88c5\uff1a\n\u60a8\u53ef\u4ee5\u901a\u8fc7\u4ee5\u4e0b\u6307\u4ee4\u6765\u68c0\u67e5\uff0c\u5f53\u524d\u7248\u672c\u7684 NGINX \u662f\u5426\u652f\u6301\uff1a\n\n```bash\nnginx -V |& grep http_stub_status_module\n```\n\n\u82e5\u51fa\u73b0 `configure arguments:` \u5e76\u4e14\u540e\u9762\u63a5\u7684\u4e00\u8fde\u4e32\u53c2\u6570\u4e2d\uff0c\u80fd\u591f\u627e\u5230\u8be5\u6a21\u5757\u540d\uff0c\u5373\u5df2\u652f\u6301\u3002\n\n#### \u914d\u7f6e\u793a\u4f8b\uff1a\n\n\u786e\u8ba4http\u72b6\u6001\u6a21\u5757\u53ef\u7528\u540e\uff0c\u53ef\u4ee5\u901a\u8fc7\u5982\u4e0b\u914d\u7f6e\uff0c\u786e\u5b9a URL \u5730\u5740\uff1a\n\n```nginx\nserver {\n  listen 80;\n  server_name localhost;\n\n  allow 127.0.0.1;          # \u8868\u793a\u53ea\u5141\u8bb8\u672c\u673a\u8bbf\u95ee\n  deny all;                 # \u8868\u793a\u7981\u6b62\u4efb\u4f55\u6765\u6e90\u8bbf\u95ee\n\n  location \/nginx_status {\n    stub_status on;\n  }\n}\n```\n\n## 2. \u91c7\u96c6\u65b9\u5f0f\n\n\u91c7\u96c6\u5668\u5c06\u4f1a\u6839\u636e\u4f60\u914d\u7f6e\u7684\u5185\u5bb9\uff0c\u5b9a\u671f\u5728\u672c\u5730\u8bbf\u95ee `http:\/\/127.0.0.1\/nginx_status` \u4ee5\u83b7\u53d6NginX\u7684\u6307\u6807\u6570\u636e\u3002",
+      "metric_json": [
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "active",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "active\u72b6\u6001\u7684\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "accepts",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "accepts\u72b6\u6001\u7684\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "handled",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "handled\u72b6\u6001\u7684\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "requests",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5ba2\u6237\u7aef\u8bf7\u6c42\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "req_per_min",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6bcf\u5206\u949f\u5ba2\u6237\u7aef\u8bf7\u6c42\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "dropped",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u4e22\u5f03\u7684\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "writing",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u56de\u5199\u5ba2\u6237\u7aef\u7684\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "reading",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u8bfb\u53d6\u5ba2\u6237\u7aef\u8bf7\u6c42\u7684\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "waiting",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u7b49\u5f85\u4e2d\u7684\u8fde\u63a5\u6570"
+            }
+          ],
+          "table_name": "net",
+          "table_desc": "\u7f51\u7edc"
+        }
+      ],
+      "plugin_display_name": "NginX"
+    },
+    "meta": {
+      "bk_biz_id": 0,
+      "tag": "HTTP\u670d\u52a1",
+      "plugin_id": "nginx",
+      "is_internal": true,
+      "bk_supplier_id": 0,
+      "plugin_type": "Built-In",
+      "label": "component"
+    },
+    "config": {
+      "is_support_remote": true,
+      "config_json": [
+        {
+          "default": "127.0.0.1",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "ip",
+          "description": "\u76ee\u6807IP"
+        },
+        {
+          "default": "80",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "port",
+          "description": "\u670d\u52a1\u7aef\u53e3\u53f7"
+        },
+        {
+          "default": "\/nginx_status",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "uri",
+          "description": "\u63a2\u6d4bURI"
+        }
+      ],
+      "collector_json": null
+    },
+    "version": {
+      "config_version": 1,
+      "info_version": 7,
+      "stage": "release"
+    }
+  },
+  {
+    "info": {
+      "description_md": "### \u4f9d\u8d56\u8bf4\u660e\n\n* \u7cfb\u7edf\u652f\u6301: Linux, Windows\n* \u7248\u672c\u652f\u6301: Redis 2.x, 3.x\n\n## 1. \u8bbe\u7f6e\u6216\u67e5\u770bRedis\u8bbf\u95ee\u63a7\u5236\n\n\u67e5\u770b `redis.conf` \u914d\u7f6e\u6587\u4ef6\uff0c\u67e5\u770b `requirepass` \u90a3\u4e00\u884c\u662f\u5426\u5f00\u542f\uff08\u5982\u679c\u5f00\u5934\u6ca1\u6709'#'\uff0c\u65e2\u5df2\u5f00\u542f\u5bc6\u7801\u9a8c\u8bc1\uff0c\u5426\u5219\u6ca1\u5f00\uff09\uff1a\n\n```\nrequirepass redis\u5bc6\u7801\n```\n\n## 2. \u91c7\u96c6\u65b9\u5f0f\n\n\u91c7\u96c6\u5668\u5c06\u4f1a\u6839\u636e\u4f60\u914d\u7f6e\u7684\u60c5\u51b5\uff0c\u5b9a\u671f\u5728\u672c\u5730\u8bbf\u95ee `redis-cli -h 127.0.0.1 -p \u7aef\u53e3\u53f7 -a \u9a8c\u8bc1\u53e3\u4ee4` \u4ee5\u83b7\u53d6Redis\u7684\u6307\u6807\u6570\u636e\u3002\n\n\u8bf7\u786e\u4fdd\u76ee\u6807\u673a\u5668\u5df2\u7ecf\u5b89\u88c5 `redis-cli` \u5ba2\u6237\u7aef\u7a0b\u5e8f\uff0c\u4ee5\u514d\u5bfc\u81f4\u91c7\u96c6\u5668\u65e0\u6cd5\u83b7\u53d6\u6570\u636e\u3002\n\n\n",
+      "metric_json": [
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "connected_slaves",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5df2\u8fde\u63a5slave\u5b9e\u4f8b\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "slave_offset",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "",
+              "description": "slave\u7684\u504f\u79fb\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "slave_lag",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u79d2",
+              "description": "\u4ece\u673a\u7684\u5ef6\u8fdf\u65f6\u957f"
+            },
+            {
+              "conversion": 1.0,
+              "name": "master_offset",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "",
+              "description": "master\u7684\u504f\u79fb\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "backlog_histlen",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "Bytes",
+              "description": "\u56e4\u79ef\u7684\u6570\u636e\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "last_io_sec_ago",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u79d2",
+              "description": "master\u5ef6\u8fdf\u590d\u5236\u65f6\u957f"
+            }
+          ],
+          "table_name": "repl",
+          "table_desc": "\u590d\u5236"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "connections",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5df2\u8fde\u63a5\u5ba2\u6237\u7aef\u7684\u6570\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "longest_output_list",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "",
+              "description": "Redis\u5ba2\u6237\u7aef\u6700\u5927\u8f93\u51fa\u5217\u8868"
+            },
+            {
+              "conversion": 1.0,
+              "name": "biggest_input_buf",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "",
+              "description": "\u5ba2\u6237\u7aef\u6700\u5927\u8f93\u5165\u7f13\u5b58"
+            },
+            {
+              "conversion": 1.0,
+              "name": "blocked",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u88ab\u963b\u585e\u7684\u5ba2\u6237\u7aef\u6570"
+            }
+          ],
+          "table_name": "client",
+          "table_desc": "\u5ba2\u6237\u7aef"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "system",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "%",
+              "description": "Redis\u7cfb\u7edfCPU\u6d88\u8017"
+            },
+            {
+              "conversion": 1.0,
+              "name": "usr",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "%",
+              "description": "Redis\u7528\u6237CPU\u6d88\u8017"
+            },
+            {
+              "conversion": 1.0,
+              "name": "sys_children",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "%",
+              "description": "Redis CPU\u7cfb\u7edf\u5b50\u8fdb\u7a0b\u6d88\u8017"
+            },
+            {
+              "conversion": 1.0,
+              "name": "user_children",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "%",
+              "description": "Redis CPU\u7528\u6237\u5b50\u8fdb\u7a0b\u6d88\u8017"
+            }
+          ],
+          "table_name": "cpu",
+          "table_desc": "\u5904\u7406\u5668"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "recv_connections",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6bcf\u5206\u949f\u63a5\u6536\u7684\u8fde\u63a5\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "keyspace_hits",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21",
+              "description": "\u952e\u547d\u4e2d\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "keyspace_misses",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21",
+              "description": "\u952e\u672a\u547d\u4e2d\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "latest_fork_usec",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "ms",
+              "description": "\u6700\u540e\u4e00\u6b21fork\u8017\u65f6"
+            },
+            {
+              "conversion": 1.0,
+              "name": "cmds_processed",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21",
+              "description": "\u6267\u884c\u7684\u547d\u4ee4\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "db_keys",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6570\u636e\u5e93\u7684key\u603b\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "db_expires_keys",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5e26\u6709\u5b58\u6d3b\u5468\u671f\u7684key\u6570\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "keys_expired",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u8fc7\u671f\u4e86\u7684key\u6570\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "keys_evicted",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5254\u9664\u4e86\u7684key\u6570\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "pubsub_channels",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5f53\u524d\u53d1\u5e03\/\u8ba2\u9605\u9891\u9053\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "pubsub_patterns",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5f53\u524d\u53d1\u5e03\/\u8ba2\u9605\u6a21\u5f0f\u6570"
+            }
+          ],
+          "table_name": "stat",
+          "table_desc": "\u7edf\u8ba1\u6570\u636e"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "last_bgsave_time",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u79d2",
+              "description": "aof\u6700\u540e\u4e00\u6b21\u843d\u5730\u6240\u6d88\u8017\u7684\u65f6\u957f"
+            },
+            {
+              "conversion": 1.0,
+              "name": "changes_since_last_save",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6700\u8fd1\u751f\u6210rdb\u6587\u4ef6\u540e\u5199\u5165\u547d\u4ee4\u7684\u4e2a\u6570"
+            }
+          ],
+          "table_name": "rdb",
+          "table_desc": "Redis\u6301\u4e45\u5316\u5b58\u50a8"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "used",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "MB",
+              "description": "Redis\u5206\u914d\u7684\u5185\u5b58\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "rss",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "MB",
+              "description": "\u7cfb\u7edf\u5206\u914d\u7ed9Redis\u7684\u5185\u5b58"
+            },
+            {
+              "conversion": 1.0,
+              "name": "peak",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "MB",
+              "description": "\u5185\u5b58\u4f7f\u7528\u5cf0\u503c"
+            },
+            {
+              "conversion": 1.0,
+              "name": "lua",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "MB",
+              "description": "Lua\u5f15\u64ce\u4f7f\u7528\u7684\u5185\u5b58\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "fragmentation_ratio",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "",
+              "description": "\u5185\u5b58\u788e\u7247\u7387"
+            }
+          ],
+          "table_name": "mem",
+          "table_desc": "\u5185\u5b58"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "buffer_length",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "KB",
+              "description": "aof\u7f13\u51b2\u533a\u7684\u5927\u5c0f"
+            },
+            {
+              "conversion": 1.0,
+              "name": "rewrite_buffer_length",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "KB",
+              "description": "aof rewrite\u7f13\u51b2\u533a\u5927\u5c0f"
+            },
+            {
+              "conversion": 1.0,
+              "name": "last_rewrite_time",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u79d2",
+              "description": "aof\u6700\u540e\u4e00\u6b21rewrite\u6240\u6d88\u8017\u7684\u65f6\u957f"
+            },
+            {
+              "conversion": 1.0,
+              "name": "aof_current_size",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "KB",
+              "description": "aof\u5f53\u524d\u6587\u4ef6\u5927\u5c0f"
+            }
+          ],
+          "table_name": "aof",
+          "table_desc": "Redis\u6301\u4e45\u5316\u5b58\u50a8"
+        }
+      ],
+      "plugin_display_name": "Redis"
+    },
+    "meta": {
+      "bk_biz_id": 0,
+      "tag": "\u6570\u636e\u5e93",
+      "plugin_id": "redis",
+      "is_internal": true,
+      "bk_supplier_id": 0,
+      "plugin_type": "Built-In",
+      "label": "component"
+
+    },
+    "config": {
+      "is_support_remote": true,
+      "config_json": [
+        {
+          "default": "127.0.0.1",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "ip",
+          "description": "\u76ee\u6807IP"
+        },
+        {
+          "default": "3306",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "port",
+          "description": "\u670d\u52a1\u7aef\u53e3\u53f7"
+        },
+        {
+          "default": "",
+          "mode": "opt_cmd",
+          "type": "password",
+          "name": "password",
+          "description": "\u767b\u5f55\u5bc6\u7801"
+        }
+      ],
+      "collector_json": null
+    },
+    "version": {
+      "config_version": 1,
+      "info_version": 7,
+      "stage": "release"
+    }
+  },
+  {
+    "info": {
+      "description_md": "### \u4f9d\u8d56\u8bf4\u660e\n\n* \u7cfb\u7edf\u652f\u6301: Linux, Windows\n* \u7248\u672c\u652f\u6301: Tomcat 7 \u53ca\u66f4\u9ad8\u7248\u672c\n\n## 1. \u6dfb\u52a0manager\u89d2\u8272\u5e76\u8bbe\u7f6e\u7528\u6237\u540d\u548c\u5bc6\u7801\n\n\u7f16\u8f91 `conf` \u76ee\u5f55\u4e0b\u7684 `tomcat-user.xml` \u6587\u4ef6\uff0c\u6dfb\u52a0manager\u89d2\u8272\u5e76\u8bbe\u7f6e\u7528\u6237\u540d\u548c\u5bc6\u7801\uff1a\n\n\u914d\u7f6e\u793a\u4f8b\uff1a\n\n```java\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<tomcat-users>\n<role rolename=\"manager-jmx\"\/>\n<user username=\"tomcat\" password=\"tomcat\" roles=\"manager-jmx\"\/>\n<\/tomcat-users>\n```\n\n## 2. \u91c7\u96c6\u65b9\u5f0f\n\n\u5982\u4e0a\u914d\u7f6e\u6240\u793a\uff0c\u91c7\u96c6\u5668\u5c06\u4f1a\u6839\u636e\u4f60\u914d\u7f6e\u7684\u5185\u5bb9\uff0c\u5b9a\u671f\u5728\u672c\u5730\u8bbf\u95ee `http:\/\/127.0.0.1:8080\/manager\/jmxproxy` \u4ee5\u83b7\u53d6Tomcat\u7684\u6307\u6807\u6570\u636e\u3002",
+      "metric_json": [
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "count",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5df2\u52a0\u8f7d\u7684JSP\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "reload_count",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u91cd\u65b0\u52a0\u8f7d\u7684JSP\u6570"
+            }
+          ],
+          "table_name": "jsp",
+          "table_desc": "JSP"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "bytes_rcv",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "bytes\/min",
+              "description": "\u6bcf\u5206\u949f\u63a5\u6536\u7684\u5b57\u8282\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "bytes_sent",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "bytes\/min",
+              "description": "\u6bcf\u5206\u949f\u53d1\u9001\u7684\u5b57\u8282\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "req_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6bcf\u5206\u949f\u8bf7\u6c42\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "err_cnt",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u6bcf\u5206\u949f\u9519\u8bef\u8bf7\u6c42\u91cf"
+            },
+            {
+              "conversion": 1.0,
+              "name": "max_time",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "ms",
+              "description": "\u6700\u5927\u8bf7\u6c42\u5904\u7406\u65f6\u957f"
+            },
+            {
+              "conversion": 1.0,
+              "name": "processing_time",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "ms\/min",
+              "description": "\u6bcf\u5206\u949f\u8bf7\u6c42\u5904\u7406\u603b\u65f6\u957f"
+            }
+          ],
+          "table_name": "net",
+          "table_desc": "\u7f51\u7edc"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "access",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u6bcf\u5206\u949f\u7f13\u5b58\u8bbf\u95ee\u6b21\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "hit",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u6b21\/min",
+              "description": "\u6bcf\u5206\u949f\u7f13\u5b58\u547d\u4e2d\u6b21\u6570"
+            }
+          ],
+          "table_name": "cache",
+          "table_desc": "\u7f13\u5b58"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "err",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a\/min",
+              "description": "\u6bcf\u5206\u949f\u63a5\u6536\u9519\u8bef\u8bf7\u6c42\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "processing_time",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "ms\/min",
+              "description": "\u6bcf\u5206\u949f\u8bf7\u6c42\u5904\u7406\u603b\u65f6\u957f"
+            },
+            {
+              "conversion": 1.0,
+              "name": "req",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a\/min",
+              "description": "\u6bcf\u5206\u949fservlet\u603b\u8bf7\u6c42\u91cf"
+            }
+          ],
+          "table_name": "servlet",
+          "table_desc": "\u5c0f\u7a0b\u5e8f"
+        },
+        {
+          "fields": [
+            {
+              "conversion": 1.0,
+              "name": "cur_busy",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u4f7f\u7528\u4e2d\u7684\u7ebf\u7a0b\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "total",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u5f53\u524d\u7ebf\u7a0b\u603b\u6570"
+            },
+            {
+              "conversion": 1.0,
+              "name": "max",
+              "is_active": true,
+              "type": "double",
+              "monitor_type": "metric",
+              "unit": "\u4e2a",
+              "description": "\u7ebf\u7a0b\u6c60\u4e0a\u9650\u503c"
+            }
+          ],
+          "table_name": "thread",
+          "table_desc": "\u7ebf\u7a0b"
+        }
+      ],
+      "plugin_display_name": "Tomcat"
+    },
+    "meta": {
+      "bk_biz_id": 0,
+      "tag": "HTTP\u670d\u52a1",
+      "plugin_id": "tomcat",
+      "is_internal": true,
+      "bk_supplier_id": 0,
+      "plugin_type": "Built-In",
+      "label": "component"
+    },
+    "config": {
+      "is_support_remote": true,
+      "config_json": [
+        {
+          "default": "127.0.0.1",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "ip",
+          "description": "\u76ee\u6807IP"
+        },
+        {
+          "default": "3306",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "port",
+          "description": "\u670d\u52a1\u7aef\u53e3\u53f7"
+        },
+        {
+          "default": "\/manager\/jmxproxy",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "uri",
+          "description": "\u63a2\u6d4bURI"
+        },
+        {
+          "default": "",
+          "mode": "opt_cmd",
+          "type": "text",
+          "name": "username",
+          "description": "\u767b\u5f55\u7528\u6237\u540d"
+        },
+        {
+          "default": "",
+          "mode": "opt_cmd",
+          "type": "password",
+          "name": "password",
+          "description": "\u767b\u5f55\u5bc6\u7801"
+        }
+      ],
+      "collector_json": null
+    },
+    "version": {
+      "config_version": 1,
+      "info_version": 7,
+      "stage": "release"
+    }
+  }
+]

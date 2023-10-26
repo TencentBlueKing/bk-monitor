@@ -1,0 +1,341 @@
+{
+  "id": "task",
+  "type": "detail",
+  "mode": "custom",
+  "name": "任务详情",
+  "variables": [
+    {
+      "id": 1,
+      "title": "地区",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "task",
+          "dataType": "list",
+          "api": "scene_view.getUptimeCheckVarList",
+          "data": {
+            "var_type": "location"
+          },
+           "fields": {
+            "id": "location"
+          }
+        }
+      ],
+      "options": {
+        "variables": {
+          "multiple": true,
+          "required": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "运营商",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "task",
+          "dataType": "list",
+          "api": "scene_view.getUptimeCheckVarList",
+          "data": {
+            "var_type": "carrieroperator"
+          },
+           "fields": {
+            "id": "carrieroperator"
+          }
+        }
+      ],
+      "options": {
+        "variables": {
+          "multiple": true,
+          "required": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "节点",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "task",
+          "dataType": "list",
+          "api": "scene_view.getUptimeCheckVarList",
+          "data": {
+            "var_type": "node"
+          },
+           "fields": {
+            "id": "node"
+          }
+        }
+      ],
+      "options": {
+        "variables": {
+          "multiple": true,
+          "required": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "节点类型",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "task",
+          "dataType": "list",
+          "api": "scene_view.getUptimeCheckVarList",
+          "data": {
+            "var_type": "ip_type"
+          },
+           "fields": {
+            "id": "ip_type"
+          }
+        }
+      ],
+      "options": {
+        "variables": {
+          "multiple": true,
+          "required": false
+        }
+      }
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "可用率Top5",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 7
+      },
+      "type": "percentage-bar",
+      "targets": [
+        {
+          "datasource": "uptime_check_task_data",
+          "dataType": "percentage_bar",
+          "api": "scene_view.getUptimeCheckTaskData",
+          "alias": null,
+          "data": {
+            "data_format": "percentage_bar",
+            "metric_field": "available",
+            "bottom": 5,
+            "task_id": "$task_id",
+            "carrieroperator": ["$carrieroperator"],
+            "location": ["$location"],
+            "node": ["$node"],
+            "ip_type": ["$ip_type"]
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "响应时长Top5",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 7
+      },
+      "type": "percentage-bar",
+      "targets": [
+        {
+          "datasource": "uptime_check_task_data",
+          "dataType": "percentage_bar",
+          "api": "scene_view.getUptimeCheckTaskData",
+          "alias": null,
+          "data": {
+            "data_format": "percentage_bar",
+            "metric_field": "task_duration",
+            "top": 5,
+            "task_id": "$task_id",
+            "carrieroperator": ["$carrieroperator"],
+            "location": ["$location"],
+            "node": ["$node"],
+            "ip_type": ["$ip_type"]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "平均可用率",
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 12,
+        "h": 7
+      },
+      "type": "graph",
+      "options": {
+        "disable_wrap_check": true
+      },
+      "targets": [
+        {
+          "datasource": "uptime_check_task_data",
+          "dataType": "status_map",
+          "api": "scene_view.getUptimeCheckTaskData",
+          "alias": null,
+          "data": {
+            "data_format": "time_series_chart",
+            "metric_field": "available",
+            "task_id": "$task_id",
+            "carrieroperator": ["$carrieroperator"],
+            "location": ["$location"],
+            "node": ["$node"],
+            "ip_type": ["$ip_type"]
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "平均响应时长",
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 12,
+        "h": 7
+      },
+      "type": "graph",
+      "options": {
+        "disable_wrap_check": true
+      },
+      "targets": [
+        {
+          "datasource": "uptime_check_task_data",
+          "dataType": "status_map",
+          "api": "scene_view.getUptimeCheckTaskData",
+          "alias": null,
+          "data": {
+            "data_format": "time_series_chart",
+            "metric_field": "task_duration",
+            "task_id": "$task_id",
+            "carrieroperator": ["$carrieroperator"],
+            "location": ["$location"],
+            "node": ["$node"],
+            "ip_type": ["$ip_type"]
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "可用率分布",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 6
+      },
+      "type": "status-map",
+      "targets": [
+        {
+          "datasource": "uptime_check_task_data",
+          "dataType": "status_map",
+          "api": "scene_view.getUptimeCheckTaskData",
+          "alias": null,
+          "data": {
+            "data_format": "status_map",
+            "metric_field": "available",
+            "task_id": "$task_id",
+            "carrieroperator": ["$carrieroperator"],
+            "location": ["$location"],
+            "node": ["$node"],
+            "ip_type": ["$ip_type"]
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "响应时长分布",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 6
+      },
+      "type": "status-map",
+      "targets": [
+        {
+          "datasource": "uptime_check_task_data",
+          "dataType": "status_map",
+          "api": "scene_view.getUptimeCheckTaskData",
+          "alias": null,
+          "data": {
+            "data_format": "status_map",
+            "metric_field": "task_duration",
+            "task_id": "$task_id",
+            "carrieroperator": ["$carrieroperator"],
+            "location": ["$location"],
+            "node": ["$node"],
+            "ip_type": ["$ip_type"]
+          }
+        }
+      ]
+    }
+  ],
+  "list": [],
+  "order": [],
+  "options": {
+    "enable_index_list": true,
+    "panel_tool": {
+        "compare_select": false,
+        "columns_toggle": false,
+        "interval_select": false,
+        "split_switcher": false
+    },
+    "enable_group": false,
+    "variable_editable": false,
+    "view_editable": false,
+    "selector_panel": {
+      "title": "任务列表",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "uptime_check_task",
+          "dataType": "list",
+          "api": "scene_view.getUptimeCheckTaskList",
+          "data": {"group_id": "$group_id"},
+          "fields": {"id": "task_id"}
+        }
+      ],
+      "options": {
+        "selector_list": {
+          "query_update_url": true
+        }
+      }
+    },
+   "overview_panel": {
+      "title": "任务概览",
+      "type": "dict",
+      "targets": [
+        {
+          "datasource": "uptime_check_task",
+          "dataType": "int",
+          "api": "scene_view.getStrategyAndEventCount",
+          "data": {
+            "scene_id": "uptime_check",
+            "target": "$current_target"
+          }
+        }
+      ]
+    },
+    "detail_panel": {
+      "title": "任务详情",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getUptimeCheckTaskInfo",
+          "data": {"task_id": "$task_id"}
+        }
+      ]
+    }
+  }
+}

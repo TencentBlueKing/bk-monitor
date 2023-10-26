@@ -1,0 +1,35 @@
+[{
+	"fields": [{
+		"monitor_type": "metric",
+		"type": "long",
+		"name": "zk_znode_count",
+		"unit": "",
+		"description": "节点数"
+	}, {
+		"monitor_type": "metric",
+		"type": "long",
+		"name": "zk_packets_sent",
+		"unit": "",
+		"description": "包发送量"
+	}, {
+		"monitor_type": "metric",
+		"type": "long",
+		"name": "zk_packets_received",
+		"unit": "",
+		"description": "包接收量"
+	}, {
+		"monitor_type": "metric",
+		"type": "long",
+		"name": "zk_open_file_descriptor_count",
+		"unit": "",
+		"description": "文件描述符数量"		
+	}, {
+		"monitor_type": "dimension",
+		"type": "string",
+		"name": "server",
+		"unit": "",
+		"description": "服务地址"
+	}],
+	"table_name": "overview",
+	"table_desc": "总览"
+}]

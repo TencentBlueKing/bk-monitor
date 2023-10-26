@@ -1,0 +1,112 @@
+.threshold-select-wrap {
+  display: flex;
+  flex-wrap: wrap;
+
+  & > :not(:last-child) {
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+
+  .condition,
+  .method,
+  .add-btn {
+    display: inline-block;
+    min-width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+    border-radius: 2px;
+    transition: all .15s ease-in;
+  }
+
+  .method {
+    padding: 0 5px;
+    background-color: #f5f6fa;
+  }
+
+  .condition,
+  .add-btn {
+    color: #3a84ff;
+    background-color: #e8f1ff;
+  }
+
+  .condition {
+    margin-right: 8px;
+  }
+
+  .num-input {
+    position: relative;
+    display: inline-block;
+    width: 78px;
+
+    .group-append {
+      position: absolute;
+      top: 0;
+      right: 25px;
+      height: 28px;
+      line-height: 28px;
+      border: 0;
+
+      .right-unit {
+        font-size: 12px;
+        color: #3a84ff;
+      }
+    }
+
+    .bk-form-input {
+      height: 28px;
+      padding-left: 0;
+      // padding-right: 40px!important;
+      text-align: center;
+    }
+
+    .bk-input-number {
+      .input-number-option {
+        width: 20px;
+
+        .number-option-item {
+          overflow: hidden;
+          color: #63656e;
+        }
+      }
+    }
+  }
+
+  .num-input.has-unit {
+    width: 78px;
+
+    .bk-form-input {
+      /* stylelint-disable-next-line declaration-no-important */
+      padding-right: 40px !important;
+    }
+  }
+
+  .num-input.has-unit-larger {
+    width: 108px;
+
+    .bk-form-input {
+      /* stylelint-disable-next-line declaration-no-important */
+      padding-right: 70px !important;
+    }
+  }
+
+  .icon-mc-add {
+    font-size: 20px;
+  }
+
+  .desc-text {
+    display: inline-block;
+    height: 28px;
+    line-height: 28px;
+  }
+
+  &.is-readonly {
+    .condition,
+    .method,
+    .add-btn {
+      cursor: initial;
+    }
+  }
+}

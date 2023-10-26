@@ -1,0 +1,21 @@
+.trace-icon-font {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--height);
+  width: var(--width);
+  font-size: var(--font-size);
+  &.icon-hover-style:not(.icon-active-style) {
+    &:hover {
+      border-radius: 50%;
+      background-color: #f0f1f5;
+      cursor: pointer;
+    }
+  }
+  &.icon-active-style {
+    border-radius: 2px;
+    color: #3a84ff;
+    background-color: #e1ecff;
+    cursor: pointer;
+  }
+}

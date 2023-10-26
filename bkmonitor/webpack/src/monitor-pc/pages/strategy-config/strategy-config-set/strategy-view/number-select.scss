@@ -1,0 +1,30 @@
+/* stylelint-disable declaration-no-important */
+.strategy-view-number-select-pop-theme {
+  padding: 0 !important;
+  background: #fff !important;
+
+  .list-wrap {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+
+    .list-item {
+      display: flex;
+      flex: 0 0 32px;
+      align-items: center;
+      padding: 0 15px;
+
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: #e1ecff;
+      }
+    }
+  }
+}
+
+.strategy-view-number-select {
+  .width-45 {
+    width: 45px;
+  }
+}

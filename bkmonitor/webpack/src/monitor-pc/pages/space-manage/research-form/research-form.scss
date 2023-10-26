@@ -1,0 +1,102 @@
+.research-form {
+  .bk-form .bk-label {
+    font-size: 12px
+  }
+
+  .research-header {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+
+    .bk-form-control {
+      width: initial;
+
+      .bk-form-radio {
+        font-size: 12px;
+
+        &:not(:last-child) {
+          margin-right: 69px;
+        }
+      }
+    }
+
+    .research-tips {
+      display: flex;
+      align-items: center;
+      margin-left: 13px;
+      color: #979ba5;
+      line-height: 1;
+
+      .icon-monitor {
+        font-size: 16px;
+        margin-right: 9px;
+      }
+    }
+
+    .research-link {
+      margin-left: auto;
+      color: #3a84ff;
+
+      .icon-monitor {
+        margin-right: 5px;
+      }
+    }
+  }
+
+  .research-form-edit {
+    padding-top: 8px;
+    padding-bottom: 16px;
+
+    .bk-select {
+      background-color: #fff;
+    }
+
+    .label {
+      height: 20px;
+      line-height: 20px;
+      color: #63656e;
+    }
+
+    .desc-label {
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+
+    .form-edit-desc {
+      padding-top: 16px;
+
+      .label {
+        min-width: 70px;
+      }
+
+      .edit-desc-row {
+        display: flex;
+        line-height: 20px;
+        height: 20px;
+
+        &:not(:last-child) {
+          margin-bottom: 12px;
+        }
+      }
+    }
+
+    .textarea {
+      background-color: #fff;
+    }
+  }
+
+  .research-form-add {
+    padding: 16px 0;
+
+    .textarea,
+    .project-type {
+      background-color: #fff;
+    }
+  }
+
+  .btn-groups {
+    &> button:not(:last-child) {
+      margin-right: 8px;
+    }
+  }
+}

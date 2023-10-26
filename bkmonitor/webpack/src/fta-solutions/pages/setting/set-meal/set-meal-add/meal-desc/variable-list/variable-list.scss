@@ -1,0 +1,16 @@
+.variable-content {
+  .variable-table {
+    .bk-table-body-wrapper {
+      max-height: 294px;
+      overflow-y: auto;
+    }
+  }
+}
+body .meal-variable-tip {
+  /* stylelint-disable-next-line declaration-no-important */
+  left: -150px !important;
+  .tippy-tooltip {
+    padding: 8px;
+    min-width: 128px;
+  }
+}

@@ -1,0 +1,5 @@
+plugin_id: {{ plugin_id }}
+plugin_display_name: {{ plugin_display_name }}
+plugin_type: {{ plugin_type }}
+tag: {{ tag }}
+label: {{ label }}

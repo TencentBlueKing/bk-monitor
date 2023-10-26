@@ -1,0 +1,23 @@
+.common-legend {
+  &-item {
+    float: left;
+    white-space: nowrap;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    line-height: 16px;
+    font-size: 12px;
+
+    .legend-icon {
+      width: 12px;
+      height: 4px;
+      background-color: violet;
+      margin-right: 6px;
+    }
+
+    &:hover {
+      color: #999;
+      cursor: pointer;
+    }
+  }
+}

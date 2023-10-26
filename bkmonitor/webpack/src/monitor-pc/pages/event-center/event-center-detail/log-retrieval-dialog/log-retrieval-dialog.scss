@@ -1,0 +1,35 @@
+.log-retrieval-dialog {
+  .bk-label-text {
+    font-size: 12px;
+  }
+  .bk-form .bk-label {
+    padding: 0 16px 0 0;
+  }
+  .bk-date-picker {
+    &.long {
+      width: 100%;
+    }
+  }
+  .log-retrieval-tips {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    width: 100%;
+    background: #f0f8ff;
+    border: 1px solid #e1ecff;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    .icon-hint {
+      font-size: 14px;
+      color: #3a84ff;
+      margin-right: 9px;
+    }
+    .tips-top {
+      display: flex;
+      align-items: center;
+    }
+    .tips-bottom {
+      margin-left: 23px;
+    }
+  }
+}

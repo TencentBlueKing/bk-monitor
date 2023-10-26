@@ -1,0 +1,49 @@
+
+@import "../../../theme";
+
+@mixin tool-btn($color: #3a84ff) {
+  min-width: 44px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  background-color: $color;
+  border-radius: 2px;
+  margin-left: 8px;
+  padding-right: 6px;
+  &:hover {
+    cursor: pointer;
+  }
+}
+
+.alarm-tools {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  color: white;
+  font-size: 12px;
+  &-strategy {
+    @include tool-btn;
+    .tool-icon {
+      margin: 0 4px;
+
+      @include icon-size();
+    }
+  }
+  &-alarm {
+    @include tool-btn(#EA3636);
+    .tool-icon {
+      margin: -2px 4px 0 4px;
+
+      @include icon-size(16px, 12px);
+      &::before {
+        transform: scale(.9);
+      }
+    }
+    &.is-disabled {
+      background-color: #DCDEE5;
+      &:hover {
+        cursor: default;
+      }
+    }
+  }
+}

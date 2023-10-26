@@ -1,0 +1,46 @@
+.table-more-operate-component {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  .option-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    .icon-more {
+      color: #3a84ff;
+      font-size: 14px;
+    }
+    &:hover {
+      background: #ddd;
+      cursor: pointer;
+    }
+    &.active {
+      background: #ddd;
+    }
+  }
+}
+.table-more-operate-component-more-items {
+  display: flex;
+  flex-direction: column;
+  min-width: 68px;
+  color: #63656e;
+  font-size: 12px;
+  border: 1px solid #dcdee5;
+  .more-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 10px;
+    height: 32px;
+    background: #fff;
+    white-space: nowrap;
+    &:hover {
+      background: #f0f1f5;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}

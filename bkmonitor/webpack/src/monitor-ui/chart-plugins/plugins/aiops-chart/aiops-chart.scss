@@ -1,0 +1,27 @@
+.aiops-chart-wrap {
+  .aiops-chart-item {
+    position: relative;
+    height: 230px;
+    .loading-icon {
+      display: inline-block;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 20px;
+      height: 20px;
+      z-index: 1000;
+    }
+    &:not(:last-child)::after {
+      position: absolute;
+      content: "";
+      bottom: 0;
+      left: 50%;
+      width: calc(100% - 48px);
+      transform: translate(-50%, 0);
+      border-bottom: 1px solid #eaebf0;
+    }
+    &:not(:last-child) {
+      margin-bottom: 23px;
+    }
+  }
+}

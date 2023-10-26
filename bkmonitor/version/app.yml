@@ -1,0 +1,16 @@
+app_code: bk_monitorv3
+app_name: 监控平台
+is_use_celery: True
+author: 蓝鲸智云
+introduction: 蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，并对指标进行告警设置。
+app_name_en: BKMonitor
+introduction_en: BKMonitor is a product that monitors the host and Internet applications. The monitoring service can be used to collect monitoring metrics of host (system performance, component services, databases, logs, etc.), detect the availability of Internet application services, and set alarms for metrics.
+version: ${VERSION}
+category: 监控告警
+desktop:
+    is_max: True
+container:
+    memory: 4096
+env:
+    - key: BKAPP_ENABLE_SHARED_FS  # 使用共享存储
+      value: "1"

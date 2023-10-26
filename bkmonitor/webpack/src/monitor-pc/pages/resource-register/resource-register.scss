@@ -1,0 +1,227 @@
+@mixin filterList() {
+  .header-filter {
+    display: flex;
+    align-items: center;
+    background: #f0f1f5;
+    border-radius: 2px;
+    height: 32px;
+    padding: 0 4px;
+    color: #63656e;
+
+    .header-filter-item {
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      cursor: pointer;
+      position: relative;
+
+      .item-icon {
+        font-size: 16px;
+        margin-right: 2px;
+      }
+
+      &:not(:last-of-type) {
+        &::after {
+          position: absolute;
+          content: '';
+          width: 1px;
+          height: 12px;
+          background: #dcdee5;
+          top: 6px;
+          right: 0px;
+        }
+      }
+
+      &.active {
+        background: #fff;
+        color: #3a84ff;
+
+        &::after {
+          display: none;
+        }
+
+        &::before {
+          position: absolute;
+          content: '';
+          width: 1px;
+          height: 12px;
+          background: #f0f1f5;
+          top: 6px;
+          left: -1px;
+        }
+      }
+    }
+  }
+}
+
+.resource-register-page {
+  width: 100%;
+  padding: 24px 24px 0 24px;
+  position: relative;
+  color: #63656e;
+
+  .mr8 {
+    margin-right: 8px;
+  }
+
+  .mr20 {
+    margin-right: 20px;
+  }
+
+  .header-wrap {
+    width: 100%;
+
+    .header-wrap-01 {
+      width: 100%;
+      display: flex;
+      align-items: center;
+
+      .data-time {
+        margin: 0 0 0 auto;
+      }
+
+      .expand-button {
+        .expand-icon {
+          margin-right: 6px;
+        }
+      }
+    }
+
+    .header-wrap-02 {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      margin-top: 16px;
+
+      @include filterList();
+
+      .search-wrap {
+        width: 400px;
+        margin: 0 0 0 auto;
+      }
+    }
+  }
+
+  .table-content-wrap {
+    margin-top: 16px;
+
+    .cluster-name {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+
+      .icon-mc-triangle-down {
+        transform: rotate(-90deg);
+        color: #c4c6cc;
+        font-size: 24px;
+        transition: 100ms all;
+
+        &.active {
+          transform: rotate(0deg);
+          color: #63656e;
+        }
+      }
+
+      .name-wrap {
+        .name-icon {
+          font-size: 16px;
+          color: #63676c;
+          margin-right: 8px;
+        }
+
+        .name {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .used-tags {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+
+      .tags-item {
+        height: 22px;
+        display: flex;
+        align-items: center;
+        background: #f0f1f5;
+        border-radius: 2px;
+        padding: 0 8px;
+        color: #63656e;
+        margin-right: 4px;
+        margin-bottom: 4px;
+      }
+    }
+
+    .status-info {
+      display: flex;
+      align-items: center;
+
+      .status-point {
+        width: 13px;
+        height: 13px;
+        background: #3fc06d29;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        margin-right: 7px;
+
+        & > div {
+          width: 7px;
+          height: 7px;
+          background: #3fc06d;
+          border-radius: 50%;
+        }
+
+        &.failure {
+          background: #ea363629;
+
+          & > div {
+            background: #ea3636;
+          }
+        }
+      }
+    }
+
+    .is-expanded-row {
+      background: #fafbfd;
+      box-shadow: 0 -1px 0 0 #dcdee5;
+
+      .bk-table-expanded-cell {
+        background: #fafbfd;
+        padding: 0;
+
+        .bk-table-row {
+          background: #fafbfd;
+        }
+
+        &:hover {
+          background: #fafbfd;
+        }
+
+        .child-table {
+          padding: 0 24px;
+
+          .icon-trend {
+            cursor: pointer;
+            font-size: 18px;
+
+            &:hover {
+              color: #3a84ff;
+            }
+          }
+        }
+
+        .no-data {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+    }
+  }
+}

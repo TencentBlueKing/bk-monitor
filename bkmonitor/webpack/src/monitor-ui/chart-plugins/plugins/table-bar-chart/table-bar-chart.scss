@@ -1,0 +1,36 @@
+@import "../../css/mixins.scss";
+
+@include monitorEchartCommon;
+
+.table-bar-chart-wrap {
+  position: relative;
+  height: 100%;
+  background-color: #fff;
+  overflow: hidden;
+  .table-bar-chart-main {
+    height: 100%;
+    // background-color: #fff;
+  }
+  .table-bar-chart-contain {
+    padding: 0 16px;
+    height: calc(100% - 46px);
+    overflow: auto;
+    .bar-chart-wrap {
+      height: 245px;
+    }
+    .common-table {
+      .bk-table {
+        &::before {
+          display: none;
+        }
+      }
+      .bk-table-column-setting {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-top: 0!important;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        border-left: 0!important;
+      }
+    }
+  }
+}

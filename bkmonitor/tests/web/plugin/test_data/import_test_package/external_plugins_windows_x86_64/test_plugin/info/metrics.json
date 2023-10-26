@@ -1,0 +1,17 @@
+[
+    {
+        "fields": [
+            {
+                "name": "a", 
+                "is_active": true, 
+                "is_diff_metric": false, 
+                "type": "double", 
+                "monitor_type": "metric", 
+                "unit": "", 
+                "description": "a"
+            }
+        ], 
+        "table_name": "default", 
+        "table_desc": "默认分类"
+    }
+]

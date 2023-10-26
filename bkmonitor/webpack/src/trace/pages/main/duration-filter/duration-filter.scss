@@ -1,0 +1,52 @@
+.duration-filter-container {
+
+  .filter-tools {
+    display: flex;
+    justify-content: space-between;
+
+    .verify-input {
+
+      .bk-input {
+        width: 76px;
+      }
+  
+      &.is-error {
+  
+        .bk-input {
+          border-color: #ea3636;
+        }
+      }
+    }
+  
+    .duration-slider {
+      flex: 1;
+      margin: 0 12px;
+  
+      /** 重置滑动选择器样式 */
+      .bk-slider-button {
+        width: 12px;
+        height: 12px;
+        z-index: 1;
+  
+        &.horizontal {
+          top: -4px;
+        }
+  
+        .slider-button {
+          width: 6px;
+          height: 6px;
+        }
+      }
+    }
+  }
+
+  .err-msg {
+    margin-top: 2px;
+    color: #EA3636;
+
+    .exchange-btn {
+      color: #3A84FF;
+      cursor: pointer;
+    }
+  }
+}

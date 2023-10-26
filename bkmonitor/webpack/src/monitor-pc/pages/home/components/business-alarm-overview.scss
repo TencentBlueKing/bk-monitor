@@ -1,0 +1,82 @@
+@import '../common/mixins.scss';
+
+.business-alarm-component {
+  display: flex;
+  flex: 1;
+  height: 261px;
+  position: relative;
+
+  .left {
+    width: 211px;
+    height: 100%;
+    background: #fff;
+
+    .content {
+      position: relative;
+      left: 33px;
+      top: 75px;
+    }
+
+    .wall-border {
+      width: 2px;
+      height: 32px;
+      position: absolute;
+      left: 209px;
+      top: 40px;
+
+      &-serious {
+        background: $seriousColor;
+      }
+
+      &-slight {
+        background: $slightColor;
+      }
+
+      &-unset {
+        background: $unsetColor;
+      }
+
+      &-normal {
+        background: $normalColor;
+      }
+    }
+  }
+
+  .right {
+    flex: 1;
+    background: #fafbfd;
+    border-radius: 0px 2px 2px 0px;
+    overflow-y: auto;
+    max-width: 693px;
+
+    .business-panel {
+      margin: 0;
+      height: 100%;
+      padding: 24px 65px 30px 51px;
+
+      .title-name {
+        font-size: 16px;
+      }
+
+      .common-unset {
+        .title {
+          padding-bottom: 10px;
+        }
+
+        .content {
+          padding: 10px 0;
+        }
+
+        .footer {
+          padding: 10px 0;
+        }
+      }
+
+      .mainframe-serious-list {
+        padding: 0 10px 0 0;
+        max-height: 150px;
+      }
+    }
+  }
+}
+

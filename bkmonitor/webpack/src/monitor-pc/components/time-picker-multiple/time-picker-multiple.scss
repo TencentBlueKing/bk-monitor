@@ -1,0 +1,121 @@
+.time-picker-multiple-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  min-width: 240px;
+  padding-right: 40px;
+  border-bottom: 1px solid #c4c6cc;
+  cursor: pointer;
+  &:hover {
+    .icon-mc-close-fill {
+      display: initial;
+    }
+  }
+  .icon-mc-time {
+    font-size: 16px;
+    color: #c4c6cc;
+    margin-right: 8px;
+  }
+  .icon-mc-close-fill {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #c4c6cc;
+    font-size: 14px;
+    &:hover {
+      color: #979ba5;
+    }
+  }
+  .placeholder {
+    color: #c4c6cc;
+  }
+  .time-range-list {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    .time-range-item {
+      display: flex;
+      align-items: center;
+      line-height: 20px;
+      position: relative;
+      &:after {
+        position: absolute;
+        content: ",";
+        bottom: 1px;
+        right: -6px;
+      }
+      &:not(:first-child) {
+        margin-left: 8px;
+      }
+      &.no-empty-time {
+        &::after {
+          display: none;
+        }
+      }
+    }
+  }
+  .trigger-input-wrap {
+    height: 20px;
+    &.hide-second {
+      .trigger-input {
+        width: 65px;
+      }
+    }
+    .bk-date-picker {
+      width: initial;
+    }
+    .trigger-input {
+      height: 20px;
+      width: 100px;
+      padding: 0;
+      border: 0;
+      outline: none;
+    }
+  }
+}
+.time-range-multiple-popover {
+  .bk-picker-panel-body {
+    /* stylelint-disable-next-line declaration-no-important */
+    width: 348px!important;
+    .bk-picker-panel-content {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 174px!important;
+    }
+  }
+  .bk-time-picker-cells-title-wrapper {
+    .bk-time-picker-cells-title {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 50%!important;
+      &:last-child {
+        display: none;
+        
+      }
+      &:nth-last-child(2) {
+        &::before,
+        &::after {
+          display: none;
+        }
+      }
+    }
+  }
+  .bk-time-picker-with-range {
+    .bk-time-picker-cells-list {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 50%!important;
+      &:last-child {
+        display: none;
+      }
+    }
+  }
+  .timerange-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px;
+    & > button {
+      margin-left: 8px;
+    }
+  }
+}

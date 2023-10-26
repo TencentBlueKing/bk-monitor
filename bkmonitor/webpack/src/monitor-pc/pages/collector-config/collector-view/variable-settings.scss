@@ -1,0 +1,137 @@
+.collect-variable-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0;
+  .variable-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    background: #fff;
+    border: 1px solid #c4c6cc;
+    border-right: 0;
+    border-radius: 3px;
+    margin-right: 24px;
+    margin-bottom: 16px;
+    .item-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 0 9px;
+      color: #63656e;
+      font-size: 12px;
+      border-right: 1px solid #c4c6cc;
+      border-right: 0;
+      background: #f0f1f5;
+    }
+    .item-value-select {
+      min-width: 100px;
+    }
+  }
+  .variable-edit-icon {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-bottom: 16px;
+    .icon-bianji {
+      font-size: 26px;
+      color: #3a84ff;
+    }
+  }
+  .variable-edit-items {
+    .dimension-select {
+      &-title {
+        float: left;
+        opacity: .45;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+    }
+    .dimension-select {
+      width: 240px;
+      margin: 0 8px 8px 0;
+      background: #fff;
+    }
+    .display-name,
+    .preview-value {
+      height: 32px;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      &-title {
+        float: left;
+        opacity: .45;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+    }
+    .display-name {
+      width: 134px;
+      margin: 0 8px 8px 0;
+      height: 32px;
+      border: 0
+    }
+    .preview-value {
+      width: 242px;
+      margin: 0 16px 8px 0;
+      padding: 4px 10px;
+      flex-wrap: wrap;
+      overflow: hidden;
+      &-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 11px;
+        color: #63656e;
+        background: #f0f1f5;
+        border-radius: 2px;
+        height: 22px;
+        margin-right: 8px;
+        margin-bottom: 4px;
+      }
+    }
+    .add-del-btn {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      .icon-jia {
+        margin-right: 12px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .icon-jian {
+        font-size: 16px;
+        cursor: pointer;
+      }
+    }
+  }
+  .none-tip {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    .icon-hint {
+      font-size: 16px;
+      margin-right: 8px;
+      &-text {
+        color: #63656e;
+        font-size: 12px;
+      }
+    }
+  }
+  .err-red {
+    color: #ea3636;
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+  .save-cancel {
+    margin-bottom: 20px;
+  }
+}

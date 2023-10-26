@@ -1,0 +1,16 @@
+body {
+    background-color: #f5f6fa;
+    margin: 0;
+}
+.bk-mobile-landscape {
+    transform-origin: 0% 0%;
+    position: relative;
+    width: 100vh;
+    left: 100vw;
+}
+.bk-mobile-portrait {
+    transform-origin: 0% 0%;
+    position: relative;
+    top: 100vh;
+    width: 100vh;
+}

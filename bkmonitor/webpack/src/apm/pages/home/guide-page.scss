@@ -1,0 +1,93 @@
+.guide-page-wrap {
+  margin: 0 auto;
+  padding: 36px 40px 58px 40px;
+  height: 494px;
+  background-color: #fff;
+  overflow-x: auto;
+  overflow-y: hidden;
+  &.is-guide-dialog {
+    padding: 10px 40px 40px;
+    height: 450px;
+  }
+  .guide-page-main {
+    display: flex;
+    justify-content: space-between;
+    min-width: 988px;
+    max-width: 1304px
+  }
+
+  .guide-left {
+    display: flex;
+    flex-direction: column;
+    width: 450px;
+    margin-right: 24px;
+    padding: 24px 0 28px 0;
+
+    .guide-title {
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 28px;
+      height: 28px;
+    }
+
+    .guide-tips {
+      margin-top: 32px;
+
+      .guide-tips-item {
+        font-size: 14px;
+        line-height: 22px;
+      }
+    }
+
+    .guide-btn-group {
+      margin: 32px 0 58px;
+      .add-btn {
+        margin-right: 8px;
+      }
+    }
+
+    .link-title {
+      margin-top: auto;
+      font-size: 16px;
+      line-height: 24px;
+      font-weight: bold;
+    }
+
+    .guide-link {
+      // flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+
+      .link-list {
+        margin-top: 16px;
+
+        .link-item {
+          display: inline-block;
+          height: 22px;
+          font-size: 14px;
+          color: #3a84ff;
+          line-height: 22px;
+          cursor: pointer;
+
+          &:not(:last-child) {
+            margin-right: 64px;
+          }
+        }
+      }
+    }
+  }
+
+  .guide-right {
+    // flex: 1;
+    .guide-img-wrap {
+      height: 400px;
+      width: 720px;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      margin-left: auto;
+      background: url('../../static/img/topo.png');
+      background-size: cover;
+    }
+  }
+}

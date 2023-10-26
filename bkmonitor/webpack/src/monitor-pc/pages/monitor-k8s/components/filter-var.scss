@@ -1,0 +1,40 @@
+.filter-var-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  .filter-var-label {
+    display: inline-block;
+    min-width: 70px;
+    font-weight: 400;
+  }
+  .filter-var-item {
+    display: flex;
+    align-items: center;
+    &:not(:last-child) {
+      margin-right: 48px;
+    }
+    .filter-var-item-label {
+      margin-right: 8px;
+    }
+    .filter-var-item-select {
+      min-width: 141px;
+      line-height: 24px;
+      &::before {
+        left: 2px;
+      }
+      .bk-select-clear {
+        top: 6px;
+      }
+      .icon-angle-down {
+        top: 2px;
+      }
+      .bk-select-name {
+        height: 24px;
+        padding-left: 2px;
+      }
+    }
+  }
+  .filter-var-add {
+    height: 24px;
+  }
+}

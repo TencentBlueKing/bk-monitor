@@ -1,0 +1,115 @@
+.favorites-list-wrap {
+  color: #63656e;
+  font-size: 12px;
+  .fav-main {
+    position: relative;
+    display: flex;
+    padding: 0 10px 0 18px;
+    max-height: 47px;
+    min-height: 47px;
+    border-left: 1px solid #f0f1f5;
+    border-right: 1px solid #f0f1f5;
+    background-color: #fff;
+    transition: max-height .3s ease-in-out;
+    will-change: max-height;
+    z-index: 1;
+    .fav-label {
+      display: inline-block;
+      height: 47px;
+      padding-top: 15px;
+      flex-shrink: 0;
+    }
+    .box-shadow {
+      position: absolute;
+      top: 48px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      box-shadow: 0px -2px 0px 0px #fff, 2px 2px 6px 0px rgba(0,0,0,.1);
+    }
+    .fav-list-wrap {
+      flex: 1;
+      flex-shrink: 0;
+      margin: 0 10px;
+      max-height: 43px;
+      padding-top: 13px;
+      padding-bottom: 24px;
+      overflow: hidden;
+      transition: max-height .3s ease-in-out;
+      z-index: 1;
+      .fav-list {
+        display: flex;
+        flex-wrap: wrap;
+        margin-top: -10px;
+        margin-left: -10px;
+        .fav-list-item {
+          position: relative;
+          display: flex;
+          align-items: center;
+          height: 22px;
+          padding: 0 20px;
+          padding-left: 15px;
+          margin-top: 10px;
+          margin-left: 10px;
+          border: 1px solid rgba(151,155,165,.3);
+          border-radius: 3px;
+          color: #63656e;
+          background-color: #fafbfd;
+          cursor: pointer;
+          transition: all .1s ease-in;
+          .icon-mc-close {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 0;
+            font-size: 18px;
+          }
+          &:hover {
+            // padding-right: 20px;
+            .icon-mc-close {
+              display: block;
+            }
+          }
+          &.active,
+          &:hover {
+            color: #3a84ff;
+            border: 1px solid rgba(58,132,255,.3);
+            background-color: #edf4ff;
+          }
+        }
+      }
+      &.allow-scroll {
+        overflow-y: auto;
+      }
+    }
+    .arrow-down-wrap {
+      display: inline-block;
+      height: 47px;
+      padding-top: 11px;
+      .icon-arrow-down {
+        display: inline-block;
+        font-size: 20px;
+        cursor: pointer;
+        transform: rotate(0deg);
+        transition: all .1s ease-in;
+        &:hover {
+          color: #3a84ff;
+        }
+        &.is-expand {
+          transform: rotate(180deg);
+        }
+      }
+    }
+  }
+  &.is-expand {
+    .fav-main {
+      max-height: 300px;
+      border-bottom: 1px solid #f0f1f5;
+      border-bottom-right-radius: 3px;
+      border-bottom-left-radius: 3px;
+      .fav-list-wrap {
+        max-height: 300px;
+      }
+    }
+  }
+}

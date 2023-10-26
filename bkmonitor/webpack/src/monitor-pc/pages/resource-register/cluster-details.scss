@@ -1,0 +1,67 @@
+/* stylelint-disable declaration-no-important */
+.resource-register-cluster-details-sides {
+  .mr24 {
+    margin-right: 24px;
+  }
+
+  .bk-sideslider-title {
+    padding-left: 46px !important;
+
+    .header-wrap {
+      display: flex;
+      align-items: center;
+
+      .header-title {
+        font-size: 16px;
+        color: #313238;
+        max-width: 200px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .edit-btn {
+        margin: 0 8px 0 auto;
+      }
+    }
+  }
+
+  .content-wrap {
+    .content-item {
+      display: flex;
+      align-items: flex-start;
+      margin-top: 16px;
+      line-height: 14px;
+
+      .lable {
+        color: #63656e;
+        width: 115px;
+        display: flex;
+        justify-content: flex-end;
+        margin-right: 8px;
+      }
+
+      .content {
+        color: #313238;
+      }
+    }
+
+    .used-tags {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+
+      .tags-item {
+        height: 22px;
+        display: flex;
+        align-items: center;
+        background: #f0f1f5;
+        border-radius: 2px;
+        padding: 0 8px;
+        color: #63656e;
+        margin-right: 4px;
+        margin-bottom: 4px;
+      }
+    }
+  }
+}

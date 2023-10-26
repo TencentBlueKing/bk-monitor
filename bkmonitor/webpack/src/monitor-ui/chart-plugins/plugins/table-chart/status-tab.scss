@@ -1,0 +1,63 @@
+@import '../../../../monitor-pc/pages/monitor-k8s/components/common-status/common-status.scss';
+
+.status-tab-wrap {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  background: #f0f1f5;
+  border-radius: 4px;
+  padding: 3px 4px;
+
+  @include common-status-icon;
+  .status-tab-item {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    border-radius: 4px;
+    flex: 1;
+    // width: 53px;
+    padding: 0 6px;
+    cursor: pointer;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    overflow: initial!important;
+
+    
+    .common-status-icon ~ .status-count,
+    .icon-monitor ~ .status-count {
+      padding-left: 5px;
+    }
+
+    .status-count {
+      display: inline-block;
+      text-align: center;
+    }
+
+    &:not(:last-child) {
+      position: relative;
+      margin-right: 9px;
+
+      &::after {
+        position: absolute;
+        content: '';
+        right: -5px;
+        height: 14px;
+        width: 1px;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: #dcdee5;
+      }
+    }
+
+    &.active {
+      color: #3a84ff;
+      background-color: #fff;
+    }
+
+    .icon-monitor {
+      font-size: 14px;
+    }
+  }
+}

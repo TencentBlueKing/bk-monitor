@@ -1,0 +1,306 @@
+{
+  "type": "object",
+  "properties": {
+    "snippet": {
+      "type": "string",
+      "minLength": 1,
+      "description": "引用配置片段"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "版本号"
+    },
+    "name": {
+      "type": "string",
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "description": "告警组名称"
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "渠道名称"
+        }
+      },
+      "mention_list": {
+        "type": "array",
+        "description": "提醒人员",
+        "items": {
+              "type": "object",
+              "properties": {
+                "member_type": {
+                  "type": "string",
+                  "description": "人员类型"
+                }
+              },
+                "id": {
+                  "type": "string",
+                  "description": "ID"
+                }
+              }
+            }
+      },
+      "users": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^(group#)?[a-zA-Z0-9-_]+$",
+          "description": "用户或用户组，用户组使用 'group#' 前缀进行定义"
+        },
+        "minLength": 1,
+        "description": "非轮值告警组（存在轮值配置时配置无效）"
+      },
+      "description": {
+        "type": "string",
+        "default": "",
+        "description": "告警组描述"
+      },
+      "action": {
+        "type": "object",
+        "minLength": 1,
+        "additionalProperties": false,
+        "patternProperties": {
+          "^\\d{2}:\\d{2}(:\\d{2})? *-- *\\d{2}:\\d{2}(:\\d{2})?$": {
+            "type": "object",
+            "properties": {
+              "execute": {
+                "$ref": "#/$defs/channel_config",
+                "description": "执行前"
+              },
+              "execute_success": {
+                "$ref": "#/$defs/channel_config",
+                "description": "执行成功"
+              },
+              "execute_failed": {
+                "$ref": "#/$defs/channel_config",
+                "description": "执行失败"
+              }
+            }
+          }
+        },
+        "description": "执行通知方式",
+        "defaultSnippets": [
+          {
+            "label": "users",
+            "body": [
+              ",${1:username}"
+            ]
+          }
+        ]
+      },
+      "alert": {
+        "type": "object",
+        "patternProperties": {
+          "^\\d{2}:\\d{2}(:\\d{2})? *-- *\\d{2}:\\d{2}(:\\d{2})?$": {
+            "type": "object",
+            "properties": {
+              "remind": {
+                "$ref": "#/$defs/channel_config",
+                "description": "提醒"
+              },
+              "warning": {
+                "$ref": "#/$defs/channel_config",
+                "description": "预警"
+              },
+              "fatal": {
+                "$ref": "#/$defs/channel_config",
+                "description": "致命"
+              }
+            }
+          }
+        },
+        "minLength": 1,
+        "additionalProperties": false,
+        "description": "告警通知方式"
+      },
+      "duties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "user_groups": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^(group#)?[a-zA-Z0-9-_]+$"
+                }
+              },
+              "description": "告警组列表（不交接时仅能配置一组）"
+            },
+            "type": {
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly"
+              ],
+              "description": "轮值类型，daily(每天)/weekly(每周)/monthly(每月)"
+            },
+            "handover": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "integer",
+                  "description": "交接日, daily时不需要配置，weekly时1-7，monthly时1-31"
+                },
+                "time": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}$",
+                  "description": "交接时间，格式为00:00"
+                }
+              },
+              "required": [
+                "time"
+              ],
+              "additionalProperties": true,
+              "description": "交接配置，定义多个告警组间的交接时间(不配置则不进行交接)"
+            },
+            "work": {
+              "type": "object",
+              "properties": {
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "description": "工作日, daily时不需要配置，weekly时1-7，monthly时1-31"
+                },
+                "time_range": {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2} *-- *\\d{2}:\\d{2}$",
+                  "description": "工作时间范围，格式为00:00 -- 23:59"
+                }
+              },
+              "required": [
+                "time_range"
+              ],
+              "additionalProperties": true,
+              "description": "工作时间"
+            },
+            "effective_time": {
+              "type": "string",
+              "pattern": "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}",
+              "description": "轮值生效时间，格式为2022-02-01 02:00:00"
+            }
+          },
+          "required": [
+            "user_groups",
+            "type",
+            "work",
+            "effective_time"
+          ],
+          "additionalProperties": true
+        },
+        "default": [],
+        "description": "轮值配置"
+      }
+    },
+    "required": [],
+    "additionalProperties": true,
+    "$id": "bk_monitor.notice",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$defs": {
+      "channel_config": {
+        "type": "object",
+        "properties": {
+          "notice_ways": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "通知类型"
+                },
+                "receivers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "接收人"
+                }
+              }
+            },
+            "description": "通知方式"
+          },
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "通知方式"
+          },
+          "chatids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "企业微信群ID"
+          }
+        }
+      }
+    },
+    "defaultSnippets": {
+      "label": "Sepcial notice config",
+      "body": {
+        "name": "notice name",
+        "users": [
+          "user1"
+        ],
+        "alert": {
+          "00:00 -- 23:59": {
+            "remind": {
+              "notice_ways": [
+                {
+                  "name": "mail"
+                }
+              ]
+            },
+            "warning": {
+              "notice_ways": [
+                {
+                  "name": "mail"
+                }
+              ]
+            },
+            "fatal": {
+              "notice_ways": [
+                {
+                  "name": "mail"
+                }
+              ]
+            }
+          }
+        },
+        "action": {
+          "00:00 -- 23:59": {
+            "execute": {
+              "notice_ways": [
+                {
+                  "name": "mail"
+                }
+              ]
+            },
+            "execute_failed": {
+              "notice_ways": [
+                {
+                  "name": "mail"
+                }
+              ]
+            },
+            "execute_success": {
+              "notice_ways": [
+                {
+                  "name": "mail"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }

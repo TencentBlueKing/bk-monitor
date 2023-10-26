@@ -1,0 +1,36 @@
+.log-metric-info {
+  display: inline-flex;
+  align-items: center;
+  .icon-tips {
+    color: #979ba5;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 7px;
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+ 
+}
+.help-content {
+  color: #63656e;
+  width: 264px;
+  word-break: normal;
+  padding: 6px;
+  .tips-link {
+    color: #3a84ff;
+    margin-left: 5px;
+    cursor: pointer;
+    .icon-monitor {
+      margin-left: 3px;
+    }
+  }
+  .title {
+    font-weight: 600;
+    margin: 10px 0 4px;
+  }
+  .detail {
+    line-height: 18px;
+  }
+}

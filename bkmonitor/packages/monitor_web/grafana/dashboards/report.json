@@ -1,0 +1,5504 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "iteration": 1626938865315,
+  "links": [],
+  "panels": [
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "id": 98,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "7.2.2",
+      "targets": [
+        {
+          "data": {
+            "alias": "Agent正常",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "deh2qphwu0",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ec2usuv6c4",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "nf76ydmnjh",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "bvkewxdv64",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "sdv9wpldtm",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "status",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "zeimkvov2i",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "iffo6z8jic",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "RUNNING"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "D"
+        },
+        {
+          "data": {
+            "alias": "主机性能数据正常上报",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "deh2qphwu0",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ec2usuv6c4",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "nf76ydmnjh",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "bvkewxdv64",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "sdv9wpldtm",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "status",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "zeimkvov2i",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "iffo6z8jic",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "NORMAL"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        },
+        {
+          "data": {
+            "alias": "有Agent无主机性能数据",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "deh2qphwu0",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ec2usuv6c4",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "nf76ydmnjh",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "bvkewxdv64",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "sdv9wpldtm",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "status",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "zeimkvov2i",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "iffo6z8jic",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "NO_DATA_REPORT"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        },
+        {
+          "data": {
+            "alias": "主机未安装agent",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "deh2qphwu0",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "name": "target_biz_id"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ec2usuv6c4",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "nf76ydmnjh",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "bvkewxdv64",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "sdv9wpldtm",
+                  "list": [
+                    {
+                      "id": "status",
+                      "name": "status"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "zeimkvov2i",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "iffo6z8jic",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "NOT_INSTALLED"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "C"
+        },
+        {
+          "data": {
+            "alias": "Agent停用",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "deh2qphwu0",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ec2usuv6c4",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "nf76ydmnjh",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "bvkewxdv64",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "sdv9wpldtm",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "status",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "zeimkvov2i",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "iffo6z8jic",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "TERMINATED"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "F"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Agent和主机性能状态",
+      "type": "bargauge"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "hiddenSeries": false,
+      "id": 100,
+      "interval": null,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "links": [],
+      "maxDataPoints": 3,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "m9p1i552me",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "u5vjvtdnlr",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "iua76ooje1",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "14179u2eob",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "v9airdysk2",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "通知状态",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "2s54uo6ws6",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "cfq1qroxn1",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "NO_DATA_REPORT"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "AVG",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "无主机数据上报(Agent正常)TOP5",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "hiddenSeries": false,
+      "id": 101,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "deh2qphwu0",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ec2usuv6c4",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "nf76ydmnjh",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "bvkewxdv64",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "sdv9wpldtm",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "通知状态",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "zeimkvov2i",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "iffo6z8jic",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "NOT_INSTALLED",
+                    "TERMINATED"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "C"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Agent未安装TOP5",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "none",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {
+        "[100147] 蓝鲸": "red",
+        "[2005000006] 测试同学专用业务": "orange"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "decimals": 1,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 7,
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "hiddenSeries": false,
+      "id": 50,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": true,
+        "hideZero": true,
+        "max": true,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 3,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_name",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "i3h33iyhem",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "v3orpjqgoi",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "alsot4pc9r",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_name"
+            ],
+            "func": {
+              "rank": {
+                "limit": 8,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                11,
+                "operation_data_custom_series.base",
+                "event_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "事件",
+                "event_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 1800
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "未恢复的事件数(30m汇聚) TOP8",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {
+        "[100147] 蓝鲸": "red",
+        "[2005000006] 测试同学专用业务": "orange",
+        "今天总趋势": "semi-dark-orange",
+        "昨天总趋势": "light-blue"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "decimals": 1,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 7,
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "hiddenSeries": false,
+      "id": 91,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "hideEmpty": true,
+        "hideZero": true,
+        "max": true,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 3,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "今天总趋势",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "i3h33iyhem",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "v3orpjqgoi",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "alsot4pc9r",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 10
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "event_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "事件",
+                "event_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 1800
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "hide": false,
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        },
+        {
+          "data": {
+            "alias": "昨天总趋势",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "i3h33iyhem",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "v3orpjqgoi",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "alsot4pc9r",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 10
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                11,
+                "operation_data_custom_series.base",
+                "event_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "事件",
+                "event_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "1d",
+            "period": 1800
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "hide": false,
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "未恢复的总事件数对比趋势（30m汇聚）",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {
+        "mail": "blue",
+        "weixin": "green"
+      },
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "decimals": 1,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "hiddenSeries": false,
+      "hideTimeOverride": false,
+      "id": 9,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": false,
+        "max": true,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
+        "values": true
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_method",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "x5e79v0w7y",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "status",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "1oiy9gyoka",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "abnnvvsrna",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "SUCCESS"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "6gjkxtklcl",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "u4v47v4ohr",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "pj65ui8d6c",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "q44pej1662",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "method"
+            ],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "notify_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "通知",
+                "notify_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 1200
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "成功的通知数量",
+      "tooltip": {
+        "shared": true,
+        "sort": 1,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {
+        "mail": "blue",
+        "weixin": "green"
+      },
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "decimals": 1,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "hiddenSeries": false,
+      "hideTimeOverride": false,
+      "id": 104,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
+        "values": true
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_method - $tag_alert_username",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "x5e79v0w7y",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "主机状态",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "1oiy9gyoka",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "abnnvvsrna",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "SUCCESS"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "6gjkxtklcl",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "u4v47v4ohr",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "pj65ui8d6c",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "q44pej1662",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "pv4abk6o2r",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "wye0tpubez",
+                  "list": [
+                    {
+                      "id": "method",
+                      "isDimension": true,
+                      "name": "通知方式",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "method"
+                },
+                {
+                  "key": "ozf8wn015t",
+                  "list": [],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "e54uj6bvc5",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "webhook",
+                    "wxwork-bot",
+                    "wxwork_group"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "2318a25qeh",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "ptaj90g45o",
+                  "list": [
+                    {
+                      "id": "alert_username",
+                      "isDimension": true,
+                      "name": "告警接收的用户名",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "alert_username"
+                },
+                {
+                  "key": "3bqn5rkvht",
+                  "list": [],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "t8pv5slyx6",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "username"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "method",
+              "alert_username"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "notify_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "告警通知数"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 1200
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "告警接收人TOP5",
+      "tooltip": {
+        "shared": false,
+        "sort": 1,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "total"
+        ]
+      },
+      "yaxes": [
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "decimals": 1,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 200
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "id": 102,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "7.2.2",
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id - $tag_strategy_name",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "b7phdin9yl",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "pnewm7ayig",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "lpswcqp7go",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "fvt030rx0i",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "0ih4kjmcxi",
+                  "list": [
+                    {
+                      "id": "strategy_name",
+                      "isDimension": true,
+                      "name": "策略名称",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "strategy_name"
+                },
+                {
+                  "key": "9gv038kvtr",
+                  "list": [],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "zkjrrp3880",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "Gse进程托管事件告警(平台侧)"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "strategy_id",
+              "strategy_name",
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "strategy_alert_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "策略告警数"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 1200
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "告警数量统计触发的策略TOP5",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {
+        "mail - [100147] 蓝鲸": "yellow",
+        "mail - [2005000006] 测试同学专用业务": "purple",
+        "weixin - [2005000006] 测试同学专用业务": "orange"
+      },
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "decimals": 1,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "hiddenSeries": false,
+      "id": 43,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
+        "values": true
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_method - $tag_target_biz_name",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "lfhfw1zr7c",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "通知状态",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "ipesmr48ya",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "e0lmqsr81k",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "FAILED"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "4h5msk2824",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "dxnglh2ccb",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "8amziyhezr",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "0gkb1hgtfw",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "sgira9obu0",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "7g50li18ck",
+                  "list": [
+                    {
+                      "id": "method",
+                      "isDimension": true,
+                      "name": "通知方式",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "method"
+                },
+                {
+                  "key": "wsd59m2b84",
+                  "list": [],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "s79cshblxe",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "weixin"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "method",
+              "target_biz_name"
+            ],
+            "func": {
+              "rank": {
+                "limit": 8,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "notify_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "通知",
+                "notify_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 1200
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "失败的通知总数量TOP8",
+      "tooltip": {
+        "shared": true,
+        "sort": 2,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 46
+      },
+      "id": 92,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.2.2",
+      "targets": [
+        {
+          "data": {
+            "alias": "",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 5
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "cmdb_host_normal_total"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "cmdb_host_normal_total"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "管控主机总数量",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 46
+      },
+      "hiddenSeries": false,
+      "id": 103,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "总数",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "ehuzjicbzc",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "v4692ubhdc",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "ueo8osx2m1",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "l9ru6euab8",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "m5amzat1tb",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ubf51zb33t",
+                  "list": [],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "416uq7ojyq",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "100147",
+                    "591"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 5
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "use_aiops_strategy_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "使用aiops的策略数"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "hide": false,
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        },
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "ehuzjicbzc",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "v4692ubhdc",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "ueo8osx2m1",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "w3wv87yxu7",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "3r95j84a98",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "xpx6iz5z0o",
+                  "list": [],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "xg2rv0hqwe",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "100471",
+                    "591"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "102",
+                "operation_data_custom_series.base",
+                "use_aiops_strategy_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "使用aiops的策略数"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "使用AIOPS策略数TOP5(last)",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "breakPoint": "50%",
+      "cacheTimeout": null,
+      "combine": {
+        "label": "Others",
+        "threshold": 0
+      },
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "fontSize": "80%",
+      "format": "short",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 54
+      },
+      "id": 19,
+      "interval": null,
+      "legend": {
+        "show": true,
+        "sideWidth": null,
+        "values": true
+      },
+      "legendType": "Right side",
+      "links": [],
+      "maxDataPoints": 3,
+      "nullPointMode": "connected",
+      "pieType": "donut",
+      "pluginVersion": "7.2.2",
+      "strokeWidth": 1,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_plugin_type",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "twfm9myujw",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "ypfytb47r1",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "i0mr07th9m",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "plugin_type"
+            ],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "plugin_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "插件",
+                "plugin_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "插件数量类型占比(除默认的)",
+      "type": "grafana-piechart-panel",
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {},
+      "breakPoint": "50%",
+      "cacheTimeout": null,
+      "combine": {
+        "label": "Others",
+        "threshold": 0
+      },
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "fontSize": "80%",
+      "format": "short",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 54
+      },
+      "id": 11,
+      "interval": null,
+      "legend": {
+        "show": true,
+        "values": true
+      },
+      "legendType": "Right side",
+      "links": [],
+      "maxDataPoints": 3,
+      "nullPointMode": "connected",
+      "pieType": "donut",
+      "pluginVersion": "7.2.2",
+      "strokeWidth": 1,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_collect_type",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "cml9g16mzf",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "vlpeh930lu",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "39r62ihsqn",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "collect_type"
+            ],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "collect_config_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "采集配置",
+                "collect_config_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "采集类型占比",
+      "type": "grafana-piechart-panel",
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "hiddenSeries": false,
+      "id": 90,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "ehuzjicbzc",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "v4692ubhdc",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "ueo8osx2m1",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "w5bwqyhqul",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "01d3aytj2o",
+                  "list": [
+                    {
+                      "id": "status",
+                      "isDimension": true,
+                      "name": "通知状态",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "status"
+                },
+                {
+                  "key": "po9tgozdp5",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "prbbk2kagd",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "NORMAL"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "cmdb_host_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "test_test_report",
+                "test_test_report",
+                "cmdb_host_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "管控主机总数量及TOP5(last)",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cacheTimeout": null,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 62
+      },
+      "id": 93,
+      "interval": null,
+      "links": [],
+      "maxDataPoints": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.2.2",
+      "targets": [
+        {
+          "data": {
+            "alias": "总数",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "yqogb8hi5w",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "jv118imujz",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "jlex8nkr9z",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 10
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "collect_config_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "test_test_report",
+                "test_test_report",
+                "collect_config_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "采集配置总数量",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {},
+      "breakPoint": "50%",
+      "cacheTimeout": null,
+      "combine": {
+        "label": "Others",
+        "threshold": 0
+      },
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "fontSize": "80%",
+      "format": "short",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 62
+      },
+      "id": 24,
+      "interval": null,
+      "legend": {
+        "show": true,
+        "values": true
+      },
+      "legendType": "Right side",
+      "links": [],
+      "maxDataPoints": 3,
+      "nullPointMode": "connected",
+      "pieType": "donut",
+      "pluginVersion": "7.2.2",
+      "strokeWidth": 1,
+      "targets": [
+        {
+          "data": {
+            "alias": "自定义 - $tag_group_type",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "ireo8esivp",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "1ynnb1sexc",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "njo3dnnzq2",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "group_type"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "custom_report_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "custom_report",
+                "自定义数"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        },
+        {
+          "data": {
+            "alias": "拨测",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "ireo8esivp",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "1ynnb1sexc",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "njo3dnnzq2",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "11",
+                "operation_data_custom_series.base",
+                "uptimecheck_task_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "uptimecheck_task_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "其他功能",
+      "type": "grafana-piechart-panel",
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 70
+      },
+      "hiddenSeries": false,
+      "id": 10,
+      "interval": null,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "links": [],
+      "maxDataPoints": 3,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "yqogb8hi5w",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "jv118imujz",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "jlex8nkr9z",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "collect_config_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "test_test_report",
+                "test_test_report",
+                "collect_config_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "采集配置数量按业务TOP5(last)",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 0,
+        "y": 72
+      },
+      "id": 94,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.2.2",
+      "targets": [
+        {
+          "data": {
+            "alias": "总数",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "41h2b1q3dz",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "8o27g221ga",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "yp9uj4u0pg",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 5
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "strategy_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "策略",
+                "strategy_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "hide": false,
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "启用的策略总数量",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {},
+      "breakPoint": "50%",
+      "cacheTimeout": null,
+      "combine": {
+        "label": "Others",
+        "threshold": 0
+      },
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "fontSize": "80%",
+      "format": "short",
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 6,
+        "y": 72
+      },
+      "id": 22,
+      "interval": null,
+      "legend": {
+        "percentage": false,
+        "show": true,
+        "sort": "current",
+        "sortDesc": true,
+        "values": true
+      },
+      "legendType": "Right side",
+      "links": [],
+      "maxDataPoints": 3,
+      "nullPointMode": "connected",
+      "pieType": "pie",
+      "pluginVersion": "7.2.2",
+      "strokeWidth": 1,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_data_source_label - $tag_data_type_label",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "j0jug4m6hb",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "h7fqu0nbj1",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "hpgpvrrsmf",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "data_source_label",
+              "data_type_label"
+            ],
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "strategy_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "策略",
+                "strategy_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "当前启用的策略数量占比(来源-类型）",
+      "type": "grafana-piechart-panel",
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 80
+      },
+      "hiddenSeries": false,
+      "id": 21,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "j0jug4m6hb",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "h7fqu0nbj1",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "hpgpvrrsmf",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                11,
+                "operation_data_custom_series.base",
+                "strategy_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "策略",
+                "strategy_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "hide": false,
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "启用的策略TOP5(last)",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 500
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 82
+      },
+      "id": 48,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.2.2",
+      "targets": [
+        {
+          "data": {
+            "alias": "总数",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "cmqj2ct5qo",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "niks64pull",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "lrnct5nckg",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 10
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "grafana_dashboard_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "仪表盘",
+                "grafana_dashboard_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "仪表盘总数",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 500
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 90
+      },
+      "hiddenSeries": false,
+      "id": 95,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "cmqj2ct5qo",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "niks64pull",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "lrnct5nckg",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                11,
+                "operation_data_custom_series.base",
+                "grafana_dashboard_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "仪表盘",
+                "grafana_dashboard_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "仪表盘个数TOP5(last)",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 500
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 92
+      },
+      "id": 88,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.2.2",
+      "targets": [
+        {
+          "data": {
+            "alias": "总数",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "kah8w1vv30",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "target_biz_id",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "3onlirlorj",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "doaoa0kdwq",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [],
+            "func": {
+              "rank": {
+                "limit": 10
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                102,
+                "operation_data_custom_series.base",
+                "grafana_dashboard_panel_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "仪表盘",
+                "新仪表盘视图数"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "仪表盘中的视图总数",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 500
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 100
+      },
+      "hiddenSeries": false,
+      "id": 96,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.2.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_target_biz_id",
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [
+              [
+                {
+                  "key": "kah8w1vv30",
+                  "list": [
+                    {
+                      "id": "target_biz_id",
+                      "isDimension": true,
+                      "name": "目标业务ID",
+                      "type": "string"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "target_biz_id"
+                },
+                {
+                  "key": "3onlirlorj",
+                  "list": [],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "doaoa0kdwq",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$bk_biz_id"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "target_biz_id"
+            ],
+            "func": {
+              "rank": {
+                "limit": 5,
+                "sort": "desc"
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                11,
+                "operation_data_custom_series.base",
+                "grafana_dashboard_panel_count"
+              ],
+              "labels": [
+                "监控采集",
+                "监控运营数据",
+                "仪表盘",
+                "新仪表盘视图数"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 300
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "仪表盘中的视图个数TOP5(last)",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 26,
+  "style": "dark",
+  "tags": [
+    "运营"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "selected": false,
+          "text": "0d",
+          "value": "0d"
+        },
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": "对比\b时间",
+        "multi": false,
+        "name": "offset",
+        "options": [
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "2d",
+            "value": "2d"
+          },
+          {
+            "selected": false,
+            "text": "3d",
+            "value": "3d"
+          },
+          {
+            "selected": false,
+            "text": "4d",
+            "value": "4d"
+          },
+          {
+            "selected": false,
+            "text": "5d",
+            "value": "5d"
+          },
+          {
+            "selected": false,
+            "text": "6d",
+            "value": "6d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "8d",
+            "value": "8d"
+          }
+        ],
+        "query": "1d,2d,3d,4d,5d,6d,7d,8d",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": "蓝鲸监控 - 指标数据",
+        "definition": "",
+        "hide": 0,
+        "includeAll": true,
+        "label": "业务ID",
+        "multi": true,
+        "name": "bk_biz_id",
+        "options": [],
+        "query": {
+          "dimensionData": {
+            "cluster": {
+              "id": [],
+              "list": []
+            },
+            "conditions": [],
+            "dimensions": "target_biz_id",
+            "func": {
+              "rank": {
+                "limit": 0,
+                "sort": ""
+              }
+            },
+            "host": {
+              "id": [],
+              "list": []
+            },
+            "method": "AVG",
+            "metric": {
+              "id": [
+                "custom.time_series",
+                "11",
+                "operation_data_custom_series.base",
+                "strategy_count"
+              ],
+              "labels": [
+                "自定义指标",
+                "operation_data",
+                "operation_data",
+                "strategy_count"
+              ],
+              "list": []
+            },
+            "module": {
+              "id": [],
+              "list": []
+            },
+            "monitorObject": {
+              "groupId": "applications",
+              "id": "application_check",
+              "name": "服务模块"
+            },
+            "offset": "",
+            "period": 60
+          },
+          "queryType": "dimension",
+          "variables": ""
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "监控报表-运营数据",
+  "uid": "CzhKanwtf",
+  "version": 1
+}

@@ -1,0 +1,192 @@
+<!--
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
+<template>
+  <section class="mainframe-serious">
+    <div
+      class="mainframe-serious-title"
+      v-if="alarm.high_risk_count && alarm.other_count"
+    >
+      <i18n
+        v-if="alarm.high_risk_count"
+        class="serious-title"
+        path="共产生{0}个高危告警和{1}个其他告警"
+      >
+        <span class="red-num">{{ alarm.high_risk_count || 0 }}</span>
+        <span>{{ alarm.other_count || 0 }}</span>
+      </i18n>
+      <!-- <span v-if="alarm.high_risk_count && alarm.other_count">{{ $t('和') }}</span>
+      <i18n v-if="alarm.other_count" class="slight-title" path="">
+        <span>{{ alarm.other_count }}</span>
+      </i18n> -->
+      <a
+        v-if="alarm.has_more"
+        href="javascript:void(0)"
+        class="check-more"
+        @click="gotoEventCenter"
+      >
+        {{ $t('查看更多') }}
+      </a>
+    </div>
+
+    <ul class="mainframe-serious-list">
+      <li
+        class="item"
+        v-for="item in list.slice(0, 5)"
+        :key="item.id"
+        :title="item.title.content"
+      >
+        <span @click="gotoDetailHandle(item.title.event_id)">{{ item.title.content }}</span>
+      </li>
+    </ul>
+  </section>
+</template>
+
+<script>
+import { gotoPageMixin } from '../../../common/mixins';
+
+export default {
+  name: 'OsSerious',
+  mixins: [gotoPageMixin],
+  inject: ['homeItemBizId'],
+  props: {
+    alarm: {
+      type: Object,
+      default: () => ({})
+    },
+    homeDays: {
+      type: Number,
+      default: () => 7
+    }
+  },
+  computed: {
+    hasAlarms() {
+      return this.alarm.high_risk_count || this.alarm.other_count;
+    },
+    list() {
+      return this.alarm.high_risk
+        .map(item => ({
+          title: item,
+          type: 'serious'
+        }))
+        .concat(this.alarm.other.map(item => ({
+          title: item,
+          type: 'default'
+        })));
+    }
+  },
+  methods: {
+    gotoEventCenter() {
+      const conditionStr = JSON.stringify({
+        category: ['hosts', 'host_process', 'os', 'host_device']
+      });
+      const query = `activeFilterId=NOT_SHIELDED_ABNORMAL&from=now-${
+        this.homeDays || 7
+      }d&to=now&=bizIds=${this.homeItemBizId}&condition=${conditionStr}`;
+      const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center?${query}`;
+      window.open(url);
+    },
+    gotoDetailHandle(id) {
+      const query = `from=now-${
+        this.homeDays || 7
+      }d&to=now&=bizIds=${this.homeItemBizId}&queryString=id : ${id}`;
+      const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center?${query}`;
+      window.open(url);
+    }
+  }
+};
+</script>
+
+
+<style scoped lang="scss">
+@import '../common/mixins';
+
+.mainframe-serious {
+  &-title {
+    border-bottom: 1px solid $defaultBorderColor;
+    min-width: 450px;
+    font-size: $fontSmSize;
+    padding-bottom: 8px;
+    margin-right: 40px;
+    color: $defaultFontColor;
+  }
+
+  .check-more {
+    font-size: 14px;
+    color: #3a84ff;
+    float: right;
+  }
+
+  .serious-title {
+    font-weight: bold;
+
+    .red-num {
+      color: #ea3636;
+    }
+  }
+  // .slight-title {
+  //   font-weight: bold;
+  // }
+  &-list {
+    max-height: 280px;
+    padding: 0 20px 0 0;
+
+    .item {
+      margin: 14px 0;
+      color: $defaultFontColor;
+      white-space: nowrap;
+      font-size: 12px;
+      max-width: 560px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+
+      &:hover {
+        cursor: pointer;
+        color: #3a84ff;
+      }
+
+      &-icon {
+        margin-right: 6px;
+        margin-bottom: 1px;
+        width: 16px;
+        height: 16px;
+      }
+
+      &-icon-serious {
+        color: $deadlyAlarmColor;
+      }
+
+      &-icon-normal {
+        color: $warningAlarmColor;
+      }
+
+      &-icon-unset,
+      &-icon-default {
+        color: $remindAlarmColor;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,181 @@
+@import '../../../../theme/mixin.scss';
+
+.common-tree-list {
+  height: 100%;
+  padding: 0 16px;
+  overflow: hidden;
+
+  .list-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .search-select-wrap {
+      flex: 1;
+    }
+
+    .reflesh-btn {
+      margin-left: 2px;
+      width: 32px;
+      min-width: 32px;
+      padding: 0;
+    }
+  }
+
+  .status-tab {
+    .status-tab-item {
+      flex: 1;
+    }
+  }
+
+  .big-tree {
+    width: max-content;
+    min-width: 100%;
+
+    &.clear-selected {
+      .bk-big-tree-node.is-selected {
+        background-color: unset;
+
+        .node-content {
+          color: unset;
+        }
+      }
+    }
+
+    .bk-big-tree-empty {
+      display: initial;
+      top: 200px;
+      height: auto;
+
+      .search-empty-wrap {
+        pointer-events: none;
+      }
+    }
+
+    .bk-big-tree-node {
+      padding-left: calc((var(--level) * 16px) + 8px);
+
+      .bk-tree-node {
+        .host-status {
+          display: inline-block;
+          width: 6px;
+          min-width: 6px;
+          height: 6px;
+          border: 1px solid;
+          border-radius: 50%;
+        }
+
+        .node-content {
+          position: relative;
+
+          .add-compared {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 32px;
+            margin-left: auto;
+            padding-left: 16px;
+            padding-right: 8px;
+
+            .add-compared-btn {
+              display: none;
+            }
+          }
+
+          .status-icon {
+            display: flex;
+            align-items: center;
+            width: 16px;
+            height: 16px;
+            min-width: 16px;
+            margin-right: 4px;
+          }
+
+          .item-name {
+            display: inline-block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+        }
+
+        &.checked-target {
+          color: #979ba5;
+          background-color: #f5f7fa;
+
+          .node-content {
+            .add-compared {
+              background-color: #f5f7fa;
+
+              .icon-mc-check-small {
+                font-size: 20px;
+                color: #979ba5;
+              }
+            }
+          }
+        }
+
+        &.active {
+          color: #3a84ff;
+          background-color: #e1ecff;
+        }
+      }
+
+      &:hover {
+        background-color: #e1ecff;
+        color: #3a84ff;
+
+        .bk-tree-node:not(.active):not(.checked-target) {
+          .node-content {
+            .add-compared {
+              background-color: #e1ecff;
+
+              .add-compared-btn {
+                display: initial;
+              }
+            }
+          }
+        }
+      }
+
+      &.is-selected {
+        .bk-tree-node {
+          // background-color: #e1ecff;
+          .node-content {
+            .add-compared {
+              .add-compared-btn {
+                display: none;
+              }
+            }
+          }
+        }
+      }
+      
+      &.is-leaf {
+        cursor: default;
+        padding-left: 0;
+
+        .bk-tree-node {
+          height: 32px;
+          padding-left: calc((var(--level) * 16px) + 8px + 20px);
+
+          @include host-status;
+
+          .node-content {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+
+            .host-status {
+              margin-right: 10px;
+            }
+
+            .host-name {
+              color: #c4c6cc;
+            }
+          }
+        }
+      }
+    }
+  }
+}

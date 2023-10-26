@@ -1,0 +1,37 @@
+.access-requst-dialog {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 10000 !important;
+
+  .access-request-container {
+    text-align: left;
+    padding: 16px 24px;
+    font-size: 12px;
+    background-color: #f5f7fa;
+
+    .bk-link-text {
+      font-size: 12px;
+    }
+
+    .single-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      line-height: 20px;
+    }
+  }
+
+  .access-request-title {
+    margin-top: 8px;
+    margin-bottom: 16px;
+  }
+
+  .access-request-sub-title {
+    color: #979ba5;
+    margin-bottom: 8px;
+  }
+
+  .part-text {
+    width: 100%;
+  }
+
+}

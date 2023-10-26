@@ -1,0 +1,86 @@
+plugin_id: prom_alerts
+version: 1.0.0
+plugin_display_name: Prometheus
+plugin_type: http_pull
+summary: 拉取Prometheus监控告警数据到监控平台。支持用户自定义模板参数渲染方式。
+author: 蓝鲸智云
+
+tags:
+  - Restful
+  - Prometheus ALARM
+
+config_params:
+# 拉取日志数据的服务配置
+- field: url
+  value: ""
+  name: 请求url
+  is_required: true
+  is_sensitive: false
+  default_value: http://127.0.0.1:9095/api/v1/alerts
+  desc: Prometheus服务的告警数据接口
+
+# 以下配置参数为数据清洗配置，对应为normalization_config -> expr表达式的值
+- field: status
+  value: ""
+  name: 清洗规则(状态)
+  is_required: true
+  is_sensitive: false
+  default_value: "get_field({pending: 'ABNORMAL', inactive: 'RECOVERED', firing: 'ABNORMAL'}, state)"
+  desc: "状态 - 告警状态，用于控制告警的状态流转"
+- field: severity
+  value: ""
+  name: 清洗规则(级别)
+  is_required: true
+  is_sensitive: false
+  default_value: "labels.severity"
+  desc: "级别 - 告警的严重程度, severity取值为 1:致命; 2:预警; 3:提醒。"
+- field: target_type
+  value: ""
+  name: 清洗规则(目标类型)
+  is_required: true
+  is_sensitive: false
+  default_value: "labels.target_type"
+  desc: "目标类型 - 产生事件的目标类型, 主机类告警为 'HOST' "
+- field: description
+  value: ""
+  name: 清洗规则(描述)
+  is_required: false
+  is_sensitive: false
+  default_value: "annotations.description"
+  desc: "描述 - 事件的详细描述及主体内容"
+
+ingest_config:
+  source_format: json
+  method: GET
+  url: "{{ url }}"
+  multiple_events: true
+  events_path: data.alerts
+
+  interval: 60
+  overlap: 10
+  timeout: 60
+  time_format: rfc3339
+
+  body:
+    data_type: raw
+    content_type: json
+
+normalization_config:
+  - field: alert_name
+    expr: labels.alertname
+  - field: description
+    expr: "{{description}}"
+  - field: status
+    expr: "{{status}}"
+  - field: target_type
+    expr: "{{target_type}}"
+  - field: target
+    expr: labels.instance
+  - field: severity
+    expr: "{{severity}}"
+  - field: bk_biz_id
+    expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+  - field: tags
+    expr: labels
+  - field: anomaly_time
+    expr: activeAt

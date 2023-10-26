@@ -1,0 +1,55 @@
+/* stylelint-disable declaration-no-important */
+.member-selector-component-tag-input-pop {
+  padding: 0 !important;
+
+  .user-logo {
+    object-fit: cover;
+    width: 22px;
+    height: 22px;
+    margin-right: 5px;
+    border-radius: 50%;
+  }
+
+  .user-item-wrap {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 8px;
+
+    .icon-mc-user-group,
+    .icon-mc-user-one {
+      margin-right: 5px;
+      font-size: 22px;
+      color: #979ba5;
+    }
+  }
+}
+
+.member-selector-component {
+  .user-logo {
+    object-fit: cover;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    border-radius: 50%;
+  }
+
+  .bk-tag-input-trigger .tag-list > li.tag-item {
+    background: #fff !important;
+    border-color: #fff !important;
+  }
+
+  .user-item-tag {
+    display: flex;
+    align-items: center;
+    background: #fff;
+
+    .icon-mc-user-group,
+    .icon-mc-user-one {
+      margin-right: 5px;
+      font-size: 16px;
+      color: #979ba5;
+
+    }
+  }
+}

@@ -1,0 +1,131 @@
+@import '../time-series/time-series.scss';
+
+.aiops-dimension-lint {
+  .title-wrapper {
+    .chart-title {
+      padding-bottom: 16px;
+
+      .main-title {
+        .title-name {
+          display: inline-block;
+        }
+      }
+    }
+  }
+
+  .click-area {
+    position: relative;
+
+    &::before {
+      content: '';
+      display: block;
+      position: absolute;
+    }
+  }
+
+  .sub-title {
+    position: relative;
+  }
+
+  .aiops-dimension-lint-content {
+    padding-bottom: 3px;
+  }
+
+  .bottom-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .aiops-dimension-drill-down-right {
+    // float: right;
+    color: #63656e;
+
+    font {
+      color: #ea3636;
+    }
+  }
+
+  .aiops-correlation-reason {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    overflow: hidden;
+
+    span {
+      display: flex;
+      align-items: center;
+      height: 18px;
+      background: #ffe8c3;
+      border: 1px solid #fe9c00;
+      border-radius: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 10px;
+      padding: 0px 6px;
+      color: #fe9c00;
+      text-align: center;
+
+      &.err-reason {
+        background: #f7b1b14d;
+        border: 1px solid #f7b1b1;
+        color: #f7b1b1;
+      }
+    }
+
+    .max-width {
+      max-width: 45px;
+    }
+
+    .reason-len {
+      width: 28px
+    }
+  }
+
+  .sub-title-custom {
+    display: flex;
+    align-items: center;
+
+    .sub-title-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      // flex: 1;
+    }
+  }
+
+  .aiops-correlation-link-position {
+    display: inline-block;
+
+    .aiops-correlation-link {
+      color: #63656e;
+      display: flex;
+      align-items: center;
+
+      span {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      span:first-child {
+        margin-right: 17px;
+      }
+
+      .active {
+        i {
+          color: #3a84ff;
+        }
+      }
+
+      i {
+        margin-right: 5px;
+        display: inline-block;
+        font-size: 14px;
+      }
+    }
+  }
+
+}

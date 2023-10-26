@@ -1,0 +1,50 @@
+.common-form-item {
+  display: flex;
+  padding: 10px 0;
+  align-items: center;
+  width: 100%;
+  color: #63656e;
+  font-size: 12px;
+
+  .form-item-label {
+    width: 115px;
+    flex: 0 0 115px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    text-align: right;
+    position: relative;
+    margin-right: 24px;
+    white-space: nowrap;
+
+    &.is-required {
+      &::after {
+        position: absolute;
+        content: '*';
+        right: -8px;
+        top: 2px;
+        color: #ea3636;
+      }
+    }
+  }
+
+  &.title-top {
+    align-items: flex-start;
+  }
+
+  .form-item-content {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .form-item-desc {
+    font-size: 14px;
+    margin-left: 16px;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+}

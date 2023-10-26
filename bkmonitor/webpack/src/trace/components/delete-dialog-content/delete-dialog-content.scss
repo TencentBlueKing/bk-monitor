@@ -1,0 +1,48 @@
+.delete-dialog-content-component {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .sigh {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    background-color: #ffe8c3;
+    color: #ff9c01;
+    border-radius: 50%;
+    font-size: 24px;
+  }
+
+  .title {
+    color: #313238;
+    display: inline-block;
+    font-size: 20px;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    text-align: center;
+    margin: 15px 0 10px 0;
+  }
+
+  .delete-sbutitle {
+    display: inline-flex;
+    justify-content: center;
+    line-height: 22px;
+    font-size: 14px; 
+    color: #63656e;
+    width: 100%;
+
+    .subtitle {
+      white-space: nowrap;
+    }
+
+    .name {
+      font-weight: 700;
+      word-break: break-all;
+    }
+  }
+}

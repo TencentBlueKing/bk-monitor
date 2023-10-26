@@ -1,0 +1,30 @@
+.header-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  .header-date {
+    flex-shrink: 0;
+    min-width: 120px;
+    border-left: 1px solid #f0f1f5;
+    display: flex;
+    align-items: center;
+    height: 42px;
+    &-select {
+      width: 100%;
+    }
+    .date {
+      /* stylelint-disable-next-line declaration-no-important */
+      border: 0 !important;
+      &.is-focus {
+        /* stylelint-disable-next-line declaration-no-important */
+        box-shadow: none !important;
+      }
+    }
+  }
+  .time-interval {
+    border-left: 1px solid #f0f1f5;
+    min-width: 100px;
+    margin-right: 16px;
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "collector_json": {"windows": {"file_id": 1,
+                                "file_name": "test_exporter",
+                                "md5": "7c1d4ddacd44f1fcee4cf353a54c50e6",
+                                }},
+  "config_json": [],
+  "config_version": 1,
+  "info_version": 1,
+  "plugin_display_name": "test_plugin",
+  "description_md": "this is a test",
+  "metric_json": [],
+  "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAFCAYAAABmWJ3mAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAEXRFWHRTb2Z0d2FyZQBTbmlwYXN0ZV0Xzt0AAABfSURBVAiZJcHBEcIwDEXBJ1lM6IG0AAXQfzU+ZDgFYyx9Duza/fGUKtn3G5lJ7x1wvLULkhhjcJ5v5vxiZgQlpOI4XvwZVUVkLSTD3XF3JCGJiHDmp8gstu1Ka8Faix+FjzUwA+oIYQAAAABJRU5ErkJggg==",
+  "signature": "",
+  "is_support_remote": false
+}

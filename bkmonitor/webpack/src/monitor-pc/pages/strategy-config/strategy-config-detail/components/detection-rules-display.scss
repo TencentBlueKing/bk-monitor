@@ -1,0 +1,66 @@
+.detection-rules-display {
+  padding: 16px;
+  border: 1px solid #eaebf0;
+  border-radius: 2px;
+  background-color: #fafbfd;
+  .detec-rules-header {
+    .icon-monitor {
+      font-size: 14px;
+      margin-right: 8px;
+    }
+    .icon-danger {
+      color: #ea3636;
+    }
+    .icon-mind-fill {
+      color: #ff9c01;
+    }
+    .icon-tips {
+      color: #699df4;
+    }
+    .level-name,
+    .rules-name {
+      color: #313238;
+      line-height: 20px;
+    }
+    .level-name {
+      margin-right: 16px;
+    }
+  }
+  .detec-rules-content {
+    padding: 8px 24px 0 24px;
+    .threshold-item {
+      font-size: 12px;
+      color: #63656e;
+      font-weight: 400;
+      line-height: 20px;
+    }
+    .i18n-path {
+      .i18n-span {
+        margin: 0 4px;
+      }
+    }
+    .rules-item {
+      height: 20px;
+      line-height: 20px;
+      &:not(:last-child) {
+        margin-bottom: 8px;
+      }
+    }
+    .advanced-item,
+    .simple-ring-item {
+      .status-green {
+        color: #2dcb56;
+      }
+      .status-red {
+        color: #ea3636;
+      }
+    }
+    .ai-rules-item {
+      .ai-rules-label {
+        color: #63656e;
+        font-weight: 700;
+        margin-right: 8px;
+      }
+    }
+  }
+}

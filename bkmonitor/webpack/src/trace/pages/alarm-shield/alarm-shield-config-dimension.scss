@@ -1,0 +1,25 @@
+.alarm-shield-config-dimension-component {
+  display: none;
+
+  &.show {
+    display: block;
+  }
+
+  .dimension-select-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .mr-16 {
+    margin-right: 16px;
+  }
+
+  .mb-8 {
+    margin-bottom: 8px;
+  }
+
+  .max-w836 {
+    max-width: 836px;
+  }
+}

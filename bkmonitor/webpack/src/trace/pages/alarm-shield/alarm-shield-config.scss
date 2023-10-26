@@ -1,0 +1,102 @@
+.alarms-shield-config-page {
+  height: calc(100vh - 104px);
+  overflow-y: auto;
+
+  .width-413 {
+    width: 413px;
+  }
+
+  .width-940 {
+    width: 940px;
+  }
+
+  .mt24 {
+    margin-top: 24px;
+  }
+
+  .mt18 {
+    margin-top: 18px;
+  }
+
+  .mt8 {
+    margin-top: 8px;
+  }
+
+  .mt6 {
+    margin-top: 6px;
+  }
+
+  .width-68 {
+    width: 68px;
+  }
+
+  .mlr-10 {
+    margin: 0 10px;
+  }
+
+  .mt32 {
+    margin-top: 32px;
+  }
+
+  .min-w88 {
+    min-width: 88px;
+  }
+
+  .mr8 {
+    margin-right: 8px;
+  }
+
+  .detail-text {
+    display: inline-block;
+    margin-top: 8px;
+  }
+
+  .bk-checkbox-label {
+    font-size: 12px;
+  }
+
+  .alarm-shield-tip {
+    min-height: 32px;
+    padding: 6px 9px;
+    background: #f0f8ff;
+    border: 1px solid #c5daff;
+    border-radius: 2px;
+
+    .icon-tishi {
+      margin-right: 9px;
+      font-size: 14px;
+      color: #3a84ff;
+    }
+
+    .tip-text {
+      font-size: 12px;
+      color: #63656e;
+    }
+  }
+
+  .shield-config-content {
+    min-height: 500px;
+    padding-bottom: 32px;
+    margin: 12px 16px;
+    overflow: hidden;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .bk-button-text {
+      font-size: 12px;
+    }
+
+    .inline-block {
+      display: inline-block;
+    }
+
+    .event-detail-content {
+      min-width: 836px;
+      padding: 8px 0;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+    }
+  }
+}

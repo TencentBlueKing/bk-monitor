@@ -1,0 +1,324 @@
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+$green: #2dcb56;
+$red: #ff5656;
+$grey: #dcdee5;
+$blue: #3a84ff;
+$yellow: #fe9c00;
+$info-bg: #edf4ff;
+$warning-bg: #fff1db;
+$fatal-bg: #feebea;
+$fatal-red: #ea3536;
+$text: #313238;
+
+.event-detail-basic {
+  width: 100%;
+  margin-top: 24px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0px 1px 2px 0px rgba(0,0,0,.10);
+
+  .bar {
+    &-recovered {
+      height: 6px;
+      background: $green;
+    }
+
+    &-abnormal {
+      height: 6px;
+      background: $red;
+    }
+
+    &-closed {
+      height: 6px;
+      background: $grey;
+    }
+
+    &-small {
+      height: 2px;
+      background: $red;
+    }
+  }
+
+  .basic-detail {
+    display: flex;
+    padding: 18px 0 24px 32px;
+
+    .basic-left {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-width: 943px;
+      padding: 0 16px 0 36px;
+
+      .basic-title {
+        display: flex;
+        align-items: center;
+        padding-bottom: 10px;
+        border-bottom: 1px solid $grey;
+
+        .level-tag {
+          display: flex;
+          align-items: center;
+          min-width: 48px;
+          height: 22px;
+          padding: 0 11px;
+          font-size: 12px;
+          border-radius: 2px;
+
+          &-info {
+            color: $blue;
+            background: $info-bg;
+          }
+
+          &-warning {
+            color: $yellow;
+            background: $warning-bg;
+          }
+
+          &-fatal {
+            color: $fatal-red;
+            background: $fatal-bg;
+          }
+        }
+
+        .basic-title-name {
+          margin: 0 6px 0 8px;
+          font-size: 14px;
+          font-weight: 700;
+          color: #63656e;
+        }
+
+        .icon-float {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+
+      .detail-form {
+        position: relative;
+        width: 100%;
+        padding-left: 26px;
+        margin-top: 16px;
+
+        .item-col {
+          display: flex;
+          flex: 1 1;
+          align-items: center;
+          min-height: 18px;
+          margin-bottom: 10px;
+
+          &.flex-wrap {
+            align-items: flex-start;
+
+            .item-content {
+              flex-wrap: wrap;
+            }
+          }
+
+          &.no-flex {
+            align-items: flex-start;
+
+            .item-content {
+              display: inline-block;
+            }
+          }
+
+          .item-label {
+            display: flex;
+            flex: 0 0 84px;
+            align-items: center;
+            justify-content: flex-end;
+
+            /* stylelint-disable-next-line declaration-no-important */
+            color: #63656e!important;
+
+            &.fb-146 {
+              flex-basis: 146px;
+            }
+          }
+
+          .item-content {
+            position: relative;
+            display: flex;
+            align-items: center;
+            font-weight: 400;
+            color: $text;
+            word-break: break-all;
+
+            .item-time-zone {
+              height: 20px;
+              padding: 0 4px;
+              margin-left: 10px;
+              line-height: 20px;
+              color: #63656e;
+              background: #f0f1f5;
+              border-radius: 2px;
+            }
+
+            .icon-monitor {
+              margin-left: 8px;
+              font-size: 12px;
+              color: $blue;
+              white-space: nowrap;
+              cursor: pointer;
+
+              &.icon-tishi {
+                font-size: 16px;
+              }
+
+              &.icon-chuli {
+                font-size: 14px;
+              }
+            }
+
+            .alert-name {
+              max-width: 350px;
+
+              @include ellipsis;
+            }
+
+            .alert-origin {
+              max-width: 90px;
+
+              @include ellipsis;
+            }
+
+            .icon-title {
+              margin-left: 4px;
+              white-space: nowrap;
+            }
+          }
+
+          .info-check {
+            color: $blue;
+            cursor: pointer;
+          }
+
+          .alarm-dispatch {
+            margin-left: 6px;
+            color: $blue;
+            cursor: pointer;
+
+            .icon-fenpai {
+              font-size: 14px;
+            }
+          }
+        }
+
+        .detail-form-top {
+          position: relative;
+          width: 100%;
+
+          .top-form-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+          }
+        }
+
+        .detail-form-bottom {
+          position: relative;
+          width: 100%;
+          margin-top: 14px;
+        }
+      }
+    }
+
+    .basic-right {
+      display: flex;
+      justify-content: center;
+      width: 225px;
+
+      &.en-lang {
+        width: 260px;
+      }
+
+      .right-status {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 91px;
+        margin-top: 65px;
+
+        .status-icon {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+
+          .icon-monitor {
+            font-size: 32px;
+          }
+
+          .status-text {
+            margin-top: 4px;
+            font-size: 14px;
+            font-weight: 400;
+            color: #000;
+          }
+        }
+      }
+
+      .status-operate {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 16px;
+
+        .operate-click {
+          font-weight: 400;
+          color: $blue;
+          cursor: pointer;
+        }
+
+        .operate-separate {
+          margin: 0 8px;
+        }
+
+        .shielded-text {
+          font-weight: 400;
+          color: $text;
+        }
+
+        .shielded-time {
+          margin-left: 2px;
+          font-weight: 400;
+          color: #ffa10d;
+        }
+      }
+
+      .shielded-link {
+        margin-top: 5px;
+        color: $blue;
+        cursor: pointer;
+
+        .icon-fenxiang {
+          margin-left: 5px;
+          font-size: 12px;
+        }
+      }
+    }
+
+    .btn-strategy-detail {
+      padding: 4px 8px;
+      font-size: 12px;
+      color: #63656e;
+      cursor: pointer;
+      background-color: #f0f1f5;
+      border-radius: 2px;
+      transition: background-color .2s;
+
+      .icon-monitor {
+        margin-left: 6px;
+      }
+
+      &:hover {
+        background-color: #e1ecff;
+      }
+    }
+  }
+}

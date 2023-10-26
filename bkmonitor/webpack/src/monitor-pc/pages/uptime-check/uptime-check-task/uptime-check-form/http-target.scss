@@ -1,0 +1,25 @@
+/* stylelint-disable declaration-no-important */
+.http-target {
+  display: block;
+
+  .http-create {
+    display: flex;
+    align-items: center;
+
+    &-method {
+      margin-right: 24px;
+
+      &.bk-select {
+        .bk-select-name {
+          padding-right: 24px !important;
+        }
+      }
+    } 
+  }
+
+  .http-detail {
+    display: flex;
+    flex-direction: column;
+    // margin-top: 12px;
+  }
+}

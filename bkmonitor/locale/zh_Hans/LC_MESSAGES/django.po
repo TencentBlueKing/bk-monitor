@@ -1,0 +1,12117 @@
+# English translations for PROJECT.
+# Copyright (C) 2017 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2017.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2023-07-14 14:16+0800\n"
+"PO-Revision-Date: 2017-11-24 14:50+0800\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: zh_Hans <LL@li.org>\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"Generated-By: Babel 2.5.1\n"
+
+#, python-brace-format
+msgid "[无数据] {alert_name}"
+msgstr "[无数据] {alert_name}"
+
+msgid "当前告警处理正常"
+msgstr "当前告警处理正常"
+
+#, python-brace-format
+msgid "告警所属策略在当前窗口期（{window} min）内产生的告警数量({current_count})个，已大于QOS阈值({threshold})，当前告警被流控"
+msgstr "告警所属策略在当前窗口期（{window} min）内产生的告警数量({current_count})个，已大于QOS阈值({threshold})，当前告警被流控"
+
+#, python-brace-format
+msgid "告警所属策略在当前窗口期（{window} min）内产生的告警数量({current_count})个，低于QOS阈值({threshold}), 告警流控已解除，将产生新的告警"
+msgstr "告警所属策略在当前窗口期（{window} min）内产生的告警数量({current_count})个，低于QOS阈值({threshold}), 告警流控已解除，将产生新的告警"
+
+#, python-format
+msgid "告警所属策略在当前窗口期（%s min）内产生的处理次数为%s次，已超过QOS阈值(%s)，当前告警的(%s)个处理被抑制"
+msgstr "告警所属策略在当前窗口期（%s min）内产生的处理次数为%s次，已超过QOS阈值(%s)，当前告警的(%s)个处理被抑制"
+
+msgid "蓝鲸监控"
+msgstr "蓝鲸监控"
+
+msgid "查看详情{}"
+msgstr "查看详情{}"
+
+msgid "{},点击查看详情{}"
+msgstr "{},点击查看详情{}"
+
+msgid "[查看详情]({})"
+msgstr "[查看详情]({})"
+
+msgid "{},[点击查看详情]({})"
+msgstr "{},[点击查看详情]({})"
+
+msgid "套餐名称"
+msgstr "套餐名称"
+
+msgid "套餐类型"
+msgstr "套餐类型"
+
+msgid "负责人"
+msgstr "负责人"
+
+msgid "操作对象"
+msgstr "操作对象"
+
+msgid "开始时间"
+msgstr "开始时间"
+
+msgid "结束时间"
+msgstr "结束时间"
+
+msgid "执行时长"
+msgstr "执行时长"
+
+msgid "执行状态"
+msgstr "执行状态"
+
+msgid "具体内容"
+msgstr "具体内容"
+
+msgid "处理链接"
+msgstr "处理链接"
+
+msgid "发生无数据告警"
+msgstr "发生无数据告警"
+
+msgid "发生告警"
+msgstr "发生告警"
+
+msgid "实例"
+msgstr "实例"
+
+msgid "节点"
+msgstr "节点"
+
+msgid "集群"
+msgstr "集群"
+
+msgid "模块"
+msgstr "模块"
+
+msgid "新告警"
+msgstr "新告警"
+
+msgid "已持续{}"
+msgstr "已持续{}"
+
+msgid "当前告警{}"
+msgstr "当前告警{}"
+
+msgid "监控平台"
+msgstr "监控平台"
+
+msgid "日志平台"
+msgstr "日志平台"
+
+msgid "计算平台"
+msgstr "计算平台"
+
+msgid "用户自定义"
+msgstr "用户自定义"
+
+msgid "日志关键字"
+msgstr "日志关键字"
+
+msgid "事件"
+msgstr "事件"
+
+msgid "时序"
+msgstr "时序"
+
+msgid "其他"
+msgstr "其他"
+
+msgid "{}等"
+msgstr "{}等"
+
+#, python-brace-format
+msgid "{ack_operator}已确认告警【{alert_name}】"
+msgstr "{ack_operator}已确认告警【{alert_name}】"
+
+#, python-brace-format
+msgid "{ack_operator}已确认【{alert_name}】等{count}个告警"
+msgstr "{ack_operator}已确认【{alert_name}】等{count}个告警"
+
+msgid "今日"
+msgstr "今日"
+
+msgid "昨日"
+msgstr "昨日"
+
+msgid "上周"
+msgstr "上周"
+
+msgid "首次异常"
+msgstr "首次异常"
+
+msgid "最近异常"
+msgstr "最近异常"
+
+msgid "级别"
+msgstr "级别"
+
+msgid "告警级别"
+msgstr "告警级别"
+
+msgid "持续时间"
+msgstr "持续时间"
+
+msgid "告警对象"
+msgstr "告警对象"
+
+msgid "数据来源"
+msgstr "数据来源"
+
+msgid "内容"
+msgstr "内容"
+
+msgid "告警内容"
+msgstr "告警内容"
+
+msgid "所属空间"
+msgstr "所属空间"
+
+msgid "目标"
+msgstr "目标"
+
+msgid "告警目标"
+msgstr "告警目标"
+
+msgid "维度"
+msgstr "维度"
+
+msgid "告警维度"
+msgstr "告警维度"
+
+msgid "详情"
+msgstr "详情"
+
+msgid "告警ID"
+msgstr "告警ID"
+
+msgid "当前值"
+msgstr "当前值"
+
+msgid "关联信息"
+msgstr "关联信息"
+
+msgid "被分派人"
+msgstr "被分派人"
+
+msgid "分派原因"
+msgstr "分派原因"
+
+msgid "确认原因"
+msgstr "确认原因"
+
+msgid "确认人"
+msgstr "确认人"
+
+msgid "分派详情"
+msgstr "分派详情"
+
+msgid "时间范围"
+msgstr "时间范围"
+
+msgid "代表"
+msgstr "代表"
+
+msgid "告警业务"
+msgstr "告警业务"
+
+msgid "已持续{},"
+msgstr "已持续{},"
+
+msgid "[{}]{} {}告警,{}{}"
+msgstr "[{}]{} {}告警,{}{}"
+
+msgid " 同时 "
+msgstr " 同时 "
+
+msgid "当前指标({})已经有{}个周期无数据上报"
+msgstr "当前指标({})已经有{}个周期无数据上报"
+
+msgid "，并且数据上报延时{}个周期"
+msgstr "，并且数据上报延时{}个周期"
+
+msgid "--"
+msgstr "--"
+
+msgid "当前时刻不在策略生效时间范围: {}"
+msgstr "当前时刻不在策略生效时间范围: {}"
+
+msgid "当前时刻命中日历休息事项: {}"
+msgstr "当前时刻命中日历休息事项: {}"
+
+msgid "strategy({}), item({}) 监控项在快照数据中找不到"
+msgstr "strategy({}), item({}) 监控项在快照数据中找不到"
+
+msgid "AGENT心跳丢失-GSE"
+msgstr "AGENT心跳丢失-GSE"
+
+msgid "GSE AGENT 失联"
+msgstr "GSE AGENT 失联"
+
+msgid "Corefile产生-GSE"
+msgstr "Corefile产生-GSE"
+
+msgid "{}进程因为{}异常信号产生corefile：{}"
+msgstr "{}进程因为{}异常信号产生corefile：{}"
+
+msgid "{}进程产生corefile：{}"
+msgstr "{}进程产生corefile：{}"
+
+msgid "进程因为{}异常信号产生corefile：{}"
+msgstr "进程因为{}异常信号产生corefile：{}"
+
+msgid "产生corefile：{}"
+msgstr "产生corefile：{}"
+
+msgid "自定义字符型"
+msgstr "自定义字符型"
+
+msgid "磁盘写满-GSE"
+msgstr "磁盘写满-GSE"
+
+msgid "磁盘({})剩余空间只有{}%"
+msgstr "磁盘({})剩余空间只有{}%"
+
+msgid "磁盘只读-GSE"
+msgstr "磁盘只读-GSE"
+
+msgid "磁盘({})只读告警"
+msgstr "磁盘({})只读告警"
+
+msgid "Gse进程托管事件上报"
+msgstr "Gse进程托管事件上报"
+
+msgid "事件类型: {}, 事件内容: {}"
+msgstr "事件类型: {}, 事件内容: {}"
+
+msgid "OOM产生-GSE"
+msgstr "OOM产生-GSE"
+
+msgid "发现OOM异常事件发生（进程:{}），共OOM次数{}次, 信息:{}"
+msgstr "发现OOM异常事件发生（进程:{}），共OOM次数{}次, 信息:{}"
+
+msgid "PING不可达告警-GSE"
+msgstr "PING不可达告警-GSE"
+
+msgid "Ping不可达"
+msgstr "Ping不可达"
+
+#, python-brace-format
+msgid "{message}, 当前告警关闭"
+msgstr "{message}, 当前告警关闭"
+
+msgid "存在更高级别的告警，告警关闭"
+msgstr "存在更高级别的告警，告警关闭"
+
+msgid "目标类型"
+msgstr "目标类型"
+
+msgid "主机"
+msgstr "主机"
+
+msgid "主机ID"
+msgstr "主机ID"
+
+msgid "目标IP"
+msgstr "目标IP"
+
+msgid "云区域ID"
+msgstr "云区域ID"
+
+msgid "服务实例ID"
+msgstr "服务实例ID"
+
+msgid "服务实例名称"
+msgstr "服务实例名称"
+
+msgid "拓扑节点"
+msgstr "拓扑节点"
+
+msgid "采集配置ID"
+msgstr "采集配置ID"
+
+msgid "采集配置名称"
+msgstr "采集配置名称"
+
+msgid "进程路径"
+msgstr "进程路径"
+
+msgid "进程"
+msgstr "进程"
+
+msgid "异常信号"
+msgstr "异常信号"
+
+msgid "模型名称"
+msgstr "模型名称"
+
+msgid "模型实例名称"
+msgstr "模型实例名称"
+
+msgid "节点名称"
+msgstr "节点名称"
+
+msgid "bkmonitorbeat(版本低于{}, 请升级)"
+msgstr "bkmonitorbeat(版本低于{}, 请升级)"
+
+msgid "任务ID"
+msgstr "任务ID"
+
+msgid "{} (任务不存在)"
+msgstr "{} (任务不存在)"
+
+msgid "任务名称"
+msgstr "任务名称"
+
+msgid "响应状态码"
+msgstr "响应状态码"
+
+msgid "响应消息"
+msgstr "响应消息"
+
+msgid "策略已被停用或删除，告警关闭"
+msgstr "策略已被停用或删除，告警关闭"
+
+msgid "{}，告警关闭"
+msgstr "{}，告警关闭"
+
+msgid "策略监控项已被修改，告警关闭"
+msgstr "策略监控项已被修改，告警关闭"
+
+msgid "策略监控维度已被修改，告警关闭"
+msgstr "策略监控维度已被修改，告警关闭"
+
+msgid "告警级别对应的检测算法已被删除，告警关闭"
+msgstr "告警级别对应的检测算法已被删除，告警关闭"
+
+msgid "策略过滤条件已被修改，告警关闭"
+msgstr "策略过滤条件已被修改，告警关闭"
+
+msgid "无数据告警设置被关闭，告警关闭"
+msgstr "无数据告警设置被关闭，告警关闭"
+
+msgid "当前维度存在更新的告警事件({})，告警已关闭"
+msgstr "当前维度存在更新的告警事件({})，告警已关闭"
+
+msgid "在恢复检测周期内无数据上报，告警已关闭"
+msgstr "在恢复检测周期内无数据上报，告警已关闭"
+
+#, python-format
+msgid "在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已关闭"
+msgstr "在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已关闭"
+
+msgid "CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭"
+msgstr "CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭"
+
+msgid "CMDB 未查询到告警目标服务实例 ({}) 的信息，服务实例可能已被删除，告警关闭"
+msgstr "CMDB 未查询到告警目标服务实例 ({}) 的信息，服务实例可能已被删除，告警关闭"
+
+msgid "告警目标实例已不在监控目标范围内，告警关闭"
+msgstr "告警目标实例已不在监控目标范围内，告警关闭"
+
+msgid "当前维度检测到新的上报数据，无数据告警已恢复"
+msgstr "当前维度检测到新的上报数据，无数据告警已恢复"
+
+#, python-brace-format
+msgid "在恢复检测周期内无数据上报，告警已{handle}"
+msgstr "在恢复检测周期内无数据上报，告警已{handle}"
+
+msgid "关闭"
+msgstr "关闭"
+
+msgid "恢复"
+msgstr "恢复"
+
+msgid "连续 {} 个周期不满足触发条件，告警已{{handle}}"
+msgstr "连续 {} 个周期不满足触发条件，告警已{{handle}}"
+
+msgid "[处理结果] ({}) alert({}), strategy({}) 连续 {} 个周期内不满足触发条件，进行事件{}"
+msgstr "[处理结果] ({}) alert({}), strategy({}) 连续 {} 个周期内不满足触发条件，进行事件{}"
+
+msgid "接收到自定义恢复事件，告警已恢复"
+msgstr "接收到自定义恢复事件，告警已恢复"
+
+msgid "最近一个检测周期内仍满足触发条件，告警处理抑制解除"
+msgstr "最近一个检测周期内仍满足触发条件，告警处理抑制解除"
+
+msgid "最近一个检测周期内不满足触发条件，当前告警处于恢复期内，告警异常时的处理将被抑制"
+msgstr "最近一个检测周期内不满足触发条件，当前告警处于恢复期内，告警异常时的处理将被抑制"
+
+#, python-brace-format
+msgid "{description}，当前值为{record_value_display}"
+msgstr "{description}，当前值为{record_value_display}"
+
+msgid "当前不满足表达式，告警关闭"
+msgstr "当前不满足表达式，告警关闭"
+
+msgid "策略({})"
+msgstr "策略({})"
+
+#, python-brace-format
+msgid "满足表达式 {expr}"
+msgstr "满足表达式 {expr}"
+
+msgid "汇总通知"
+msgstr "汇总通知"
+
+msgid "业务汇总通知"
+msgstr "业务汇总通知"
+
+msgid "告警通知"
+msgstr "告警通知"
+
+msgid "在{}分钟内，当具有相同{}的告警超过{}条以上，在执行相同的处理套餐时，进行告警防御"
+msgstr "在{}分钟内，当具有相同{}的告警超过{}条以上，在执行相同的处理套餐时，进行告警防御"
+
+msgid "套餐处理【{}】已屏蔽， 屏蔽原因：{}"
+msgstr "套餐处理【{}】已屏蔽， 屏蔽原因：{}"
+
+msgid "套餐【{}】已收敛， 收敛原因：{}"
+msgstr "套餐【{}】已收敛， 收敛原因：{}"
+
+msgid "开始"
+msgstr "开始"
+
+msgid "结束"
+msgstr "结束"
+
+msgid "因为告警屏蔽配置({})屏蔽当前处理"
+msgstr "因为告警屏蔽配置({})屏蔽当前处理"
+
+msgid "因系统全局屏蔽配置， 默认屏蔽当前处理"
+msgstr "因系统全局屏蔽配置， 默认屏蔽当前处理"
+
+msgid "因当前主机状态为屏蔽告警，默认屏蔽当前处理"
+msgstr "因当前主机状态为屏蔽告警，默认屏蔽当前处理"
+
+msgid "当前时间({})不在设置的处理时间范围[{}]内"
+msgstr "当前时间({})不在设置的处理时间范围[{}]内"
+
+msgid "全局屏蔽未开启"
+msgstr "全局屏蔽未开启"
+
+msgid "当前可能由于发布或变更进行了全局屏蔽"
+msgstr "当前可能由于发布或变更进行了全局屏蔽"
+
+msgid "当前主机屏蔽未开启"
+msgstr "当前主机屏蔽未开启"
+
+msgid "当前主机在配置平台中设置了无告警状态"
+msgstr "当前主机在配置平台中设置了无告警状态"
+
+msgid " --- 经过二次确认后, 判定为疑似异常, 原因：对比 {} 秒前, 异常发生时存在数据缺失"
+msgstr " --- 经过二次确认后, 判定为疑似异常, 原因：对比 {} 秒前, 异常发生时存在数据缺失"
+
+#, python-brace-format
+msgid ", 当前值{value}{unit}"
+msgstr ", 当前值{value}{unit}"
+
+msgid "且"
+msgstr "且"
+
+msgid "{% if value == 1 %} {{ abnormal_clusters }} 维度值发生离群{% endif %}{% if value > 1 %} {{ abnormal_clusters }} 等{{ value }}组维度值发生离群{% endif %}"
+msgstr "{% if value == 1 %} {{ abnormal_clusters }} 维度值发生离群{% endif %}{% if value > 1 %} {{ abnormal_clusters }} 等{{ value }}组维度值发生离群{% endif %}"
+
+msgid "{% load unit %}较前{{floor_interval}}个时间点的均值({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
+msgstr "{% load unit %}较前{{floor_interval}}个时间点的均值({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
+
+msgid "{% load unit %}较前{{ceil_interval}}个时间点的均值({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
+msgstr "{% load unit %}较前{{ceil_interval}}个时间点的均值({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
+
+msgid "{% load unit %}较前{{floor_interval}}天内同一时刻绝对值的均值({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
+msgstr "{% load unit %}较前{{floor_interval}}天内同一时刻绝对值的均值({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
+
+msgid "{% load unit %}较前{{ceil_interval}}天内同一时刻绝对值的均值({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
+msgstr "{% load unit %}较前{{ceil_interval}}天内同一时刻绝对值的均值({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
+
+msgid "{% load unit %}智能模型检测到异常{% if alert_msg is not None %}, 异常类型: {{ alert_msg }}{% endif %}{% if anomaly_score is not None %}, 异常分值: {{ anomaly_score }}{% endif %}{% if previous_point is not None %}, 前一时刻值{{ previous_point.value | auto_unit:unit }}{% endif %}"
+msgstr "{% load unit %}智能模型检测到异常{% if alert_msg is not None %}, 异常类型: {{ alert_msg }}{% endif %}{% if anomaly_score is not None %}, 异常分值: {{ anomaly_score }}{% endif %}{% if previous_point is not None %}, 前一时刻值{{ previous_point.value | auto_unit:unit }}{% endif %}"
+
+msgid "当前服务器在{{data_point.value}}秒前发生系统重启事件"
+msgstr "当前服务器在{{data_point.value}}秒前发生系统重启事件"
+
+msgid "当前进程({{data_point.dimensions.display_name | safe}})不存在"
+msgstr "当前进程({{data_point.dimensions.display_name | safe}})不存在"
+
+msgid "{% load port_range %}当前进程({{data_point.dimensions.display_name | safe}})存在，端口({{data_point.dimensions.nonlisten | port_range}})不存在"
+msgstr "{% load port_range %}当前进程({{data_point.dimensions.display_name | safe}})存在，端口({{data_point.dimensions.nonlisten | port_range}})不存在"
+
+msgid "当前进程({{data_point.dimensions.display_name | safe}})和监听端口({{data_point.dimensions.not_accurate_listen | safe}})存在，监听的IP与CMDB中配置的({{data_point.dimensions.bind_ip | safe}})不符"
+msgstr "当前进程({{data_point.dimensions.display_name | safe}})和监听端口({{data_point.dimensions.not_accurate_listen | safe}})存在，监听的IP与CMDB中配置的({{data_point.dimensions.bind_ip | safe}})不符"
+
+msgid "{% load unit %} - 前一时刻值{{history_data_point.value|auto_unit:unit}}的绝对值 >= 前一时刻值{{history_data_point.value|auto_unit:unit}} * {{ratio}} + {{shock}}{{unit|unit_suffix:algorithm_unit}}"
+msgstr "{% load unit %} - 前一时刻值{{history_data_point.value|auto_unit:unit}}的绝对值 >= 前一时刻值{{history_data_point.value|auto_unit:unit}} * {{ratio}} + {{shock}}{{unit|unit_suffix:algorithm_unit}}"
+
+msgid "{% load unit %}较前一时刻({{history_data_point.value|auto_unit:unit}})下降超过{{floor}}%"
+msgstr "{% load unit %}较前一时刻({{history_data_point.value|auto_unit:unit}})下降超过{{floor}}%"
+
+msgid "{% load unit %}较前一时刻({{history_data_point.value|auto_unit:unit}})上升超过{{ceil}}%"
+msgstr "{% load unit %}较前一时刻({{history_data_point.value|auto_unit:unit}})上升超过{{ceil}}%"
+
+msgid "{% load unit %}较上周同一时刻({{history_data_point.value|auto_unit:unit}})下降超过{{floor}}%"
+msgstr "{% load unit %}较上周同一时刻({{history_data_point.value|auto_unit:unit}})下降超过{{floor}}%"
+
+msgid "{% load unit %}较上周同一时刻({{history_data_point.value|auto_unit:unit}})上升超过{{ceil}}%"
+msgstr "{% load unit %}较上周同一时刻({{history_data_point.value|auto_unit:unit}})上升超过{{ceil}}%"
+
+msgid "预测上界"
+msgstr "预测上界"
+
+msgid "预测下界"
+msgstr "预测下界"
+
+msgid "预测值"
+msgstr "预测值"
+
+#, python-brace-format
+msgid ", 将于{predict_time}后满足条件, {value_desc}{value}{unit}"
+msgstr ", 将于{predict_time}后满足条件, {value_desc}{value}{unit}"
+
+msgid " 且 "
+msgstr " 且 "
+
+msgid "{} - 前一时刻值{{{{pre_val|auto_unit:unit}}}} {{{{method_desc}}}} {}天前的同一时刻差值{{{{diffs.{}.0.value |diff:diffs.{}.1.value|auto_unit:unit}}}} * {{{{ratio}}}} + {{{{shock}}}}{{{{unit|unit_suffix:algorithm_unit}}}}"
+msgstr "{} - 前一时刻值{{{{pre_val|auto_unit:unit}}}} {{{{method_desc}}}} {}天前的同一时刻差值{{{{diffs.{}.0.value |diff:diffs.{}.1.value|auto_unit:unit}}}} * {{{{ratio}}}} + {{{{shock}}}}{{{{unit|unit_suffix:algorithm_unit}}}}"
+
+msgid "{} {{{{method_desc}}}} {}天前的同一时刻绝对值{{{{history_points.{}.value|auto_unit:unit}}}} * {{{{ratio}}}} + {{{{shock}}}}{{{{unit|unit_suffix:algorithm_unit}}}}"
+msgstr "{} {{{{method_desc}}}} {}天前的同一时刻绝对值{{{{history_points.{}.value|auto_unit:unit}}}} * {{{{ratio}}}} + {{{{shock}}}}{{{{unit|unit_suffix:algorithm_unit}}}}"
+
+msgid "当前处理套餐配置已被停用或删除，按失败处理"
+msgstr "当前处理套餐配置已被停用或删除，按失败处理"
+
+msgid "[告警异常防御审批]:是否继续执行套餐【{}】"
+msgstr "[告警异常防御审批]:是否继续执行套餐【{}】"
+
+msgid "创建异常防御审批单据失败,错误信息：{}"
+msgstr "创建异常防御审批单据失败,错误信息：{}"
+
+msgid "获取异常防御审批结果出错，错误信息：{}"
+msgstr "获取异常防御审批结果出错，错误信息：{}"
+
+msgid "异常防御审批通过"
+msgstr "异常防御审批通过"
+
+msgid "{}审批通过，继续执行处理动作，工单详情<a target = 'blank' href='{}'>{}<a/>"
+msgstr "{}审批通过，继续执行处理动作，工单详情<a target = 'blank' href='{}'>{}<a/>"
+
+msgid "审批不通过，忽略执行，审批人{}"
+msgstr "审批不通过，忽略执行，审批人{}"
+
+msgid "{}, 失败原因：{}"
+msgstr "{}, 失败原因：{}"
+
+msgid "执行任务成功"
+msgstr "执行任务成功"
+
+#, python-format
+msgid "第%s次任务执行结束"
+msgstr "第%s次任务执行结束"
+
+msgid "执行{}: {}"
+msgstr "执行{}: {}"
+
+msgid "处理执行时间超过套餐配置的最大时长{}分钟, 按失败处理"
+msgstr "处理执行时间超过套餐配置的最大时长{}分钟, 按失败处理"
+
+msgid "异常防御审批执行时间套餐配置30分钟, 按忽略处理"
+msgstr "异常防御审批执行时间套餐配置30分钟, 按忽略处理"
+
+msgid "异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}"
+msgstr "异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}"
+
+msgid "当前汇总不需要发送通知，直接忽略"
+msgstr "当前汇总不需要发送通知，直接忽略"
+
+msgid "执行汇总通知失败: {}"
+msgstr "执行汇总通知失败: {}"
+
+msgid "获取任务参数异常，错误信息：{}"
+msgstr "获取任务参数异常，错误信息：{}"
+
+msgid "[故障自愈]-{}"
+msgstr "[故障自愈]-{}"
+
+msgid "当前任务状态不可执行"
+msgstr "当前任务状态不可执行"
+
+#, python-format
+msgid "执行任务参数： %s"
+msgstr "执行任务参数： %s"
+
+msgid "以当前告警负责人[{}]执行{}时, 接口返回{}"
+msgstr "以当前告警负责人[{}]执行{}时, 接口返回{}"
+
+msgid "执行{}出错，{}"
+msgstr "执行{}出错，{}"
+
+msgid "{}阶段出错，第三方任务返回执行失败: {}"
+msgstr "{}阶段出错，第三方任务返回执行失败: {}"
+
+msgid "当前告警已屏蔽且不允许推送屏蔽告警"
+msgstr "当前告警已屏蔽且不允许推送屏蔽告警"
+
+msgid "推送至消息队列失败，失败原因 {}"
+msgstr "推送至消息队列失败，失败原因 {}"
+
+msgid "推送至消息队列成功"
+msgstr "推送至消息队列成功"
+
+msgid "当前告警通知已经汇总发送"
+msgstr "当前告警通知已经汇总发送"
+
+msgid "通知配置为空"
+msgstr "通知配置为空"
+
+msgid "当前级别[{}]通知类型为空"
+msgstr "当前级别[{}]通知类型为空"
+
+msgid "语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警"
+msgstr "语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警"
+
+msgid "发送通知成功"
+msgstr "发送通知成功"
+
+msgid "发送失败"
+msgstr "发送失败"
+
+msgid "用户已确认当前告警，系统自动忽略所有的通知和处理套餐的执行"
+msgstr "用户已确认当前告警，系统自动忽略所有的通知和处理套餐的执行"
+
+msgid "当前告警状态发生变化，系统自动忽略{}的所有通知和处理套餐的执行"
+msgstr "当前告警状态发生变化，系统自动忽略{}的所有通知和处理套餐的执行"
+
+msgid "处理套餐【{}】已经被删除或禁用，系统自动忽略该处理"
+msgstr "处理套餐【{}】已经被删除或禁用，系统自动忽略该处理"
+
+msgid "当前告警策略正在进行降噪处理中，通知被抑制，满足降噪条件之后将会重新发出"
+msgstr "当前告警策略正在进行降噪处理中，通知被抑制，满足降噪条件之后将会重新发出"
+
+msgid "在一个降噪收敛窗口（{}min）内, 未达到设置的阈值{}%, 告警通知已被抑制, 当前比值为{}%"
+msgstr "在一个降噪收敛窗口（{}min）内, 未达到设置的阈值{}%, 告警通知已被抑制, 当前比值为{}%"
+
+msgid "获取上下文参数错误: {} "
+msgstr "获取上下文参数错误: {} "
+
+msgid "请遵守公司规范，切勿泄露敏感信息，后果自负!"
+msgstr "请遵守公司规范，切勿泄露敏感信息，后果自负!"
+
+msgid "有权限的业务"
+msgstr "有权限的业务"
+
+msgid "告警接收业务"
+msgstr "告警接收业务"
+
+msgid "配置管理业务"
+msgstr "配置管理业务"
+
+#, python-brace-format
+msgid ""
+"**{title}{time_range}**\n"
+"**内容标题: **{sub_title}\n"
+"**内容说明: **{content}\n"
+"**图片列表: **\n"
+">{graph_names}\n"
+msgstr ""
+"**{title}{time_range}**\n"
+"**内容标题: **{sub_title}\n"
+"**内容说明: **{content}\n"
+"**图片列表: **\n"
+">{graph_names}\n"
+
+#, python-brace-format
+msgid "[处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
+msgstr "[处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
+
+msgid "接口返回结果超时"
+msgstr "接口返回结果超时"
+
+msgid "Resource[{}] 请求参数格式错误：{}"
+msgstr "Resource[{}] 请求参数格式错误：{}"
+
+msgid "msg_content和msg_param至少需要一项"
+msgstr "msg_content和msg_param至少需要一项"
+
+msgid "发送成功"
+msgstr "发送成功"
+
+msgid "未知"
+msgstr "未知"
+
+msgid "业务"
+msgstr "业务"
+
+#, python-format
+msgid "无法解析的端口号：%s"
+msgstr "无法解析的端口号：%s"
+
+#, python-format
+msgid "不在合法范围内的端口号：%s"
+msgstr "不在合法范围内的端口号：%s"
+
+#, python-format
+msgid "不合法的端口范围定义格式：%s"
+msgstr "不合法的端口范围定义格式：%s"
+
+#, python-format
+msgid "端口范围字符串解析失败：%s"
+msgstr "端口范围字符串解析失败：%s"
+
+msgid "蓝盾环境未部署"
+msgstr "蓝盾环境未部署"
+
+msgid "请求缺少org_id"
+msgstr "请求缺少org_id"
+
+msgid "全量查询"
+msgstr "全量查询"
+
+msgid "trace信息查询"
+msgstr "trace信息查询"
+
+msgid "异步"
+msgstr "异步"
+
+msgid "同步"
+msgstr "同步"
+
+msgid "内部"
+msgstr "内部"
+
+msgid "未指定"
+msgstr "未指定"
+
+msgid "创建dataId失败"
+msgstr "创建dataId失败"
+
+#, python-format
+msgid "%s业务下已经有EBPF应用"
+msgstr "%s业务下已经有EBPF应用"
+
+msgid "应用不存在"
+msgstr "应用不存在"
+
+msgid "业务下无ebpf应用"
+msgstr "业务下无ebpf应用"
+
+#, python-format
+msgid "不支持的查询操作符: %s"
+msgstr "不支持的查询操作符: %s"
+
+msgid "参数丢失 需要重新从第一页获取"
+msgstr "参数丢失 需要重新从第一页获取"
+
+#, python-format
+msgid "不支持的过滤KEY: %s"
+msgstr "不支持的过滤KEY: %s"
+
+msgid "APM({})虚拟指标"
+msgstr "APM({})虚拟指标"
+
+msgid "结果表授权失败"
+msgstr "结果表授权失败"
+
+msgid "APM应用{}虚拟指标清洗"
+msgstr "APM应用{}虚拟指标清洗"
+
+msgid "更新清洗配置失败: {} {}"
+msgstr "更新清洗配置失败: {} {}"
+
+msgid "创建清洗配置失败: {} {}"
+msgstr "创建清洗配置失败: {} {}"
+
+msgid "开启清洗任务失败"
+msgstr "开启清洗任务失败"
+
+msgid "APM虚拟指标: 计算平台创建数据源失败 {}"
+msgstr "APM虚拟指标: 计算平台创建数据源失败 {}"
+
+msgid "应用({}) 不存在"
+msgstr "应用({}) 不存在"
+
+msgid "应用名称(app_name) {} 在该业务({})已经存在"
+msgstr "应用名称(app_name) {} 在该业务({})已经存在"
+
+msgid "远程过程调用"
+msgstr "远程过程调用"
+
+msgid "数据库"
+msgstr "数据库"
+
+msgid "消息队列"
+msgstr "消息队列"
+
+msgid "后台任务"
+msgstr "后台任务"
+
+msgid "Trace"
+msgstr "Trace"
+
+msgid "指标"
+msgstr "指标"
+
+msgid "不支持的查询模式: {}"
+msgstr "不支持的查询模式: {}"
+
+msgid "应用名称: {}已被创建"
+msgstr "应用名称: {}已被创建"
+
+msgid "未找到对应的结果表"
+msgstr "未找到对应的结果表"
+
+msgid "字段分隔符"
+msgstr "字段分隔符"
+
+msgid "全量返回标志"
+msgstr "全量返回标志"
+
+msgid "默认模糊查询字段"
+msgstr "默认模糊查询字段"
+
+msgid "主机列表默认返回字段"
+msgstr "主机列表默认返回字段"
+
+msgid "集群列表默认返回字段"
+msgstr "集群列表默认返回字段"
+
+msgid "模块列表默认返回字段"
+msgstr "模块列表默认返回字段"
+
+msgid "主机列表简单返回字段"
+msgstr "主机列表简单返回字段"
+
+msgid "查询只为了统计主机数量限定返回bk_host_id减少请求时间"
+msgstr "查询只为了统计主机数量限定返回bk_host_id减少请求时间"
+
+msgid "空间"
+msgstr "空间"
+
+msgid "服务实例"
+msgstr "服务实例"
+
+msgid "存活"
+msgstr "存活"
+
+msgid "未存活"
+msgstr "未存活"
+
+msgid "初始安装"
+msgstr "初始安装"
+
+msgid "启动中"
+msgstr "启动中"
+
+msgid "运行中"
+msgstr "运行中"
+
+msgid "有损状态"
+msgstr "有损状态"
+
+msgid "繁忙状态"
+msgstr "繁忙状态"
+
+msgid "升级中"
+msgstr "升级中"
+
+msgid "停止中"
+msgstr "停止中"
+
+msgid "解除安装"
+msgstr "解除安装"
+
+msgid "服务模版"
+msgstr "服务模版"
+
+msgid "集群模版"
+msgstr "集群模版"
+
+msgid "秒"
+msgstr "秒"
+
+msgid "分钟"
+msgstr "分钟"
+
+msgid "小时"
+msgstr "小时"
+
+msgid "天"
+msgstr "天"
+
+msgid "周"
+msgstr "周"
+
+msgid "直连区域"
+msgstr "直连区域"
+
+msgid "参数校验失败: 请传入 host_id 或者 cloud_id + ip"
+msgstr "参数校验失败: 请传入 host_id 或者 cloud_id + ip"
+
+msgid "模板列表不能为空"
+msgstr "模板列表不能为空"
+
+msgid "批量获取含各节点主机数量的拓扑树"
+msgstr "批量获取含各节点主机数量的拓扑树"
+
+msgid "查询多个节点拓扑路径"
+msgstr "查询多个节点拓扑路径"
+
+msgid "根据多个拓扑节点与搜索条件批量分页查询所包含的主机信息"
+msgstr "根据多个拓扑节点与搜索条件批量分页查询所包含的主机信息"
+
+msgid "根据多个拓扑节点与搜索条件批量分页查询所包含的主机 ID 信息"
+msgstr "根据多个拓扑节点与搜索条件批量分页查询所包含的主机 ID 信息"
+
+msgid "根据多个拓扑节点与搜索条件批量分页查询所包含的服务实例"
+msgstr "根据多个拓扑节点与搜索条件批量分页查询所包含的服务实例"
+
+msgid "根据服务实例关键信息获取服务实例详情信息"
+msgstr "根据服务实例关键信息获取服务实例详情信息"
+
+msgid "根据用户手动输入的`IP`/`IPv6`/`主机名`/`host_id`等关键字信息获取真实存在的机器信息"
+msgstr "根据用户手动输入的`IP`/`IPv6`/`主机名`/`host_id`等关键字信息获取真实存在的机器信息"
+
+msgid "根据主机关键信息获取机器详情信息"
+msgstr "根据主机关键信息获取机器详情信息"
+
+msgid "拉取模板列表"
+msgstr "拉取模板列表"
+
+#, python-brace-format
+msgid "\"{space_uid}\" 不是合法的空间唯一标识符"
+msgstr "\"{space_uid}\" 不是合法的空间唯一标识符"
+
+msgid "告警适配到自动分派规则组${}$, 级别由【{}】调整至【{}】"
+msgstr "告警适配到自动分派规则组${}$, 级别由【{}】调整至【{}】"
+
+msgid "告警适配到自动分派规则组${}$, 级别维持【{}】不变"
+msgstr "告警适配到自动分派规则组${}$, 级别维持【{}】不变"
+
+msgid "迁移的通知套餐, 原策略: {}({})"
+msgstr "迁移的通知套餐, 原策略: {}({})"
+
+msgid "迁移的回调套餐, 原策略: {}({}), 原通知组: {}({})"
+msgstr "迁移的回调套餐, 原策略: {}({}), 原通知组: {}({})"
+
+msgid "已开启降噪，请填写正确的维度信息和降噪阈值"
+msgstr "已开启降噪，请填写正确的维度信息和降噪阈值"
+
+msgid "已开启通知升级配置，请填写正确的升级时间间隔和升级通知组成员"
+msgstr "已开启通知升级配置，请填写正确的升级时间间隔和升级通知组成员"
+
+msgid "通知方式为{}的接收人不能为空"
+msgstr "通知方式为{}的接收人不能为空"
+
+msgid "通知自定义标题格式不正确，请重新确认"
+msgstr "通知自定义标题格式不正确，请重新确认"
+
+msgid "通知自定义内容格式不正确，请重新确认"
+msgstr "通知自定义内容格式不正确，请重新确认"
+
+msgid "腾讯云API验证"
+msgstr "腾讯云API验证"
+
+msgid "提供的插件类型不正确，请重新确认"
+msgstr "提供的插件类型不正确，请重新确认"
+
+msgid "选取的周边系统模板ID不能为空"
+msgstr "选取的周边系统模板ID不能为空"
+
+#, python-brace-format
+msgid "套餐类型为{plugin_name}, 请求对应第三方平台资源({template_id})校验错误{error}"
+msgstr "套餐类型为{plugin_name}, 请求对应第三方平台资源({template_id})校验错误{error}"
+
+msgid "当前套餐名称已经存在，请重新确认"
+msgstr "当前套餐名称已经存在，请重新确认"
+
+msgid "请配置告警升级对应的告警通知组"
+msgstr "请配置告警升级对应的告警通知组"
+
+msgid "请配置告警升级对应的告警升级时间"
+msgstr "请配置告警升级对应的告警升级时间"
+
+msgid "通知升级的用户组不能包含第一次接收告警的用户组"
+msgstr "通知升级的用户组不能包含第一次接收告警的用户组"
+
+msgid "当前业务下已经存在优先级别为({})的分派规则组，请重新确认"
+msgstr "当前业务下已经存在优先级别为({})的分派规则组，请重新确认"
+
+msgid "当前业务下已经存在名称为({})的分派规则组，请重新确认"
+msgstr "当前业务下已经存在名称为({})的分派规则组，请重新确认"
+
+msgid "当前输入非日期时间格式，请按格式[年-月-日 时:分:秒]填写"
+msgstr "当前输入非日期时间格式，请按格式[年-月-日 时:分:秒]填写"
+
+msgid "当前轮值类型为每周，选择的日期格式必须为星期一至星期日（1-7）"
+msgstr "当前轮值类型为每周，选择的日期格式必须为星期一至星期日（1-7）"
+
+msgid "当前轮值类型为每月，选择的日期格式必须为1-31之间"
+msgstr "当前轮值类型为每月，选择的日期格式必须为1-31之间"
+
+msgid "设置的交接时间不正确, 正确格式为00:00--23:59"
+msgstr "设置的交接时间不正确, 正确格式为00:00--23:59"
+
+msgid "用户"
+msgstr "用户"
+
+msgid "用户组"
+msgstr "用户组"
+
+msgid "设置的排除时间范围不正确, 正确格式为00:00--23:59"
+msgstr "设置的排除时间范围不正确, 正确格式为00:00--23:59"
+
+msgid "删除代班日期格式不正确，请按照[年-月-日]填写"
+msgstr "删除代班日期格式不正确，请按照[年-月-日]填写"
+
+msgid "设置的时间范围不正确, 正确格式为00:00--23:59"
+msgstr "设置的时间范围不正确, 正确格式为00:00--23:59"
+
+msgid "需要交接的情况下，交接轮值方式与交接时间不能为空"
+msgstr "需要交接的情况下，交接轮值方式与交接时间不能为空"
+
+msgid "告警组名称长度不能超过128，请重新确认"
+msgstr "告警组名称长度不能超过128，请重新确认"
+
+msgid "当前告警组名称已经存在，请重新确认"
+msgstr "当前告警组名称已经存在，请重新确认"
+
+msgid "当前告警组已启用轮值，必须要开启内部通知渠道"
+msgstr "当前告警组已启用轮值，必须要开启内部通知渠道"
+
+msgid "{}参数数量不对"
+msgstr "{}参数数量不对"
+
+msgid "{}函数不存在"
+msgstr "{}函数不存在"
+
+msgid "不支持的条件({})"
+msgstr "不支持的条件({})"
+
+msgid "计算平台聚合周期不能低于一分钟"
+msgstr "计算平台聚合周期不能低于一分钟"
+
+msgid "维度查询参数，维度字段是必须的"
+msgstr "维度查询参数，维度字段是必须的"
+
+msgid "{}秒"
+msgstr "{}秒"
+
+msgid "{}分钟"
+msgstr "{}分钟"
+
+msgid "{}内匹配到关键字次数"
+msgstr "{}内匹配到关键字次数"
+
+msgid "均值"
+msgstr "均值"
+
+msgid "总和"
+msgstr "总和"
+
+msgid "最大值"
+msgstr "最大值"
+
+msgid "最小值"
+msgstr "最小值"
+
+msgid "{}内接收到事件次数{}"
+msgstr "{}内接收到事件次数{}"
+
+msgid "{}分钟内接收到事件次数"
+msgstr "{}分钟内接收到事件次数"
+
+msgid "50分位数"
+msgstr "50分位数"
+
+msgid "计算50分位数"
+msgstr "计算50分位数"
+
+msgid "90分位数"
+msgstr "90分位数"
+
+msgid "计算90分位数"
+msgstr "计算90分位数"
+
+msgid "95分位数"
+msgstr "95分位数"
+
+msgid "计算95分位数"
+msgstr "计算95分位数"
+
+msgid "99分位数"
+msgstr "99分位数"
+
+msgid "计算99分位数"
+msgstr "计算99分位数"
+
+msgid "指标变化"
+msgstr "指标变化"
+
+msgid "计算指标变化的相关函数"
+msgstr "计算指标变化的相关函数"
+
+msgid "数学计算"
+msgstr "数学计算"
+
+msgid "一些数学计算函数"
+msgstr "一些数学计算函数"
+
+msgid "排序"
+msgstr "排序"
+
+msgid "排序函数"
+msgstr "排序函数"
+
+msgid "时间偏移"
+msgstr "时间偏移"
+
+msgid "时间偏移函数"
+msgstr "时间偏移函数"
+
+msgid "每秒平均增长率（仅支持单调增长指标，遇到下降会从0开始计算）"
+msgstr "每秒平均增长率（仅支持单调增长指标，遇到下降会从0开始计算）"
+
+msgid "时间窗口"
+msgstr "时间窗口"
+
+msgid "每秒平均增长率(按周期内最后两个点计算，仅支持单调增长指标，仅支持单调增长指标，遇到下降会从0开始计算）"
+msgstr "每秒平均增长率(按周期内最后两个点计算，仅支持单调增长指标，仅支持单调增长指标，遇到下降会从0开始计算）"
+
+msgid "增加量(仅支持单调增长指标，仅支持单调增长指标，遇到下降会从0开始计算）"
+msgstr "增加量(仅支持单调增长指标，仅支持单调增长指标，遇到下降会从0开始计算）"
+
+msgid "导数"
+msgstr "导数"
+
+msgid "差值（按周期内第一个点和最后一个点计算）"
+msgstr "差值（按周期内第一个点和最后一个点计算）"
+
+msgid "差值（按周期内最后两个点）"
+msgstr "差值（按周期内最后两个点）"
+
+msgid "数值变化次数"
+msgstr "数值变化次数"
+
+msgid "计数器重置次数（单调增长指标，下降即为重置）"
+msgstr "计数器重置次数（单调增长指标，下降即为重置）"
+
+msgid "最大的k个维度"
+msgstr "最大的k个维度"
+
+msgid "最小的k个维度"
+msgstr "最小的k个维度"
+
+msgid "绝对值"
+msgstr "绝对值"
+
+msgid "向上取整"
+msgstr "向上取整"
+
+msgid "向下取整"
+msgstr "向下取整"
+
+msgid "四舍五入"
+msgstr "四舍五入"
+
+msgid "自然对数"
+msgstr "自然对数"
+
+msgid "以2为底的对数"
+msgstr "以2为底的对数"
+
+msgid "以10为底的对数"
+msgstr "以10为底的对数"
+
+msgid "所有的样本值，正数转为1，负数转为0，零则为0"
+msgstr "所有的样本值，正数转为1，负数转为0，零则为0"
+
+msgid "平方根"
+msgstr "平方根"
+
+msgid "直方图统计"
+msgstr "直方图统计"
+
+msgid "分位数(0 ≤ φ ≤ 1)"
+msgstr "分位数(0 ≤ φ ≤ 1)"
+
+msgid "维度数量"
+msgstr "维度数量"
+
+msgid "最大的N个维度，不可用于多指标计算"
+msgstr "最大的N个维度，不可用于多指标计算"
+
+msgid "最小的N个维度，不可用于多指标计算"
+msgstr "最小的N个维度，不可用于多指标计算"
+
+msgid "添加主机拓扑关系数据"
+msgstr "添加主机拓扑关系数据"
+
+msgid "拆分拓扑关系中模块和集群"
+msgstr "拆分拓扑关系中模块和集群"
+
+msgid "聚合指标计算"
+msgstr "聚合指标计算"
+
+msgid "平均值指标计算"
+msgstr "平均值指标计算"
+
+msgid "CMDB预聚合"
+msgstr "CMDB预聚合"
+
+msgid "统计任务"
+msgstr "统计任务"
+
+msgid "过滤无效时间"
+msgstr "过滤无效时间"
+
+msgid "场景服务"
+msgstr "场景服务"
+
+msgid "【主机场景异常检测】聚合数据源"
+msgstr "【主机场景异常检测】聚合数据源"
+
+msgid "多指标异常检测"
+msgstr "多指标异常检测"
+
+msgid "主机场景"
+msgstr "主机场景"
+
+msgid "指标推荐V2"
+msgstr "指标推荐V2"
+
+msgid "流控丢弃阈值"
+msgstr "流控丢弃阈值"
+
+msgid "处理动作流控丢弃阈值"
+msgstr "处理动作流控丢弃阈值"
+
+msgid "处理动作流控窗口大小(秒)"
+msgstr "处理动作流控窗口大小(秒)"
+
+msgid "告警生成流控丢弃阈值"
+msgstr "告警生成流控丢弃阈值"
+
+msgid "告警生成流控窗口大小(秒)"
+msgstr "告警生成流控窗口大小(秒)"
+
+msgid "SAAS 应用码"
+msgstr "SAAS 应用码"
+
+msgid "SAAS 应用密钥"
+msgstr "SAAS 应用密钥"
+
+msgid "后台处理队列的子进程数（需重启scheduler:*）"
+msgstr "后台处理队列的子进程数（需重启scheduler:*）"
+
+msgid "healthz告警配置"
+msgstr "healthz告警配置"
+
+msgid "是否开启告警通知队列"
+msgstr "是否开启告警通知队列"
+
+msgid "是否兼容老版本数据字段格式"
+msgstr "是否兼容老版本数据字段格式"
+
+msgid "是否开启Resource数据收集"
+msgstr "是否开启Resource数据收集"
+
+msgid "Resource数据采样率"
+msgstr "Resource数据采样率"
+
+msgid "同维度汇总阈值"
+msgstr "同维度汇总阈值"
+
+msgid "同维度汇总时间窗口"
+msgstr "同维度汇总时间窗口"
+
+msgid "多策略汇总阈值"
+msgstr "多策略汇总阈值"
+
+msgid "多策略汇总时间窗口"
+msgstr "多策略汇总时间窗口"
+
+msgid "Webhook超时时间"
+msgstr "Webhook超时时间"
+
+msgid "是否开启默认策略"
+msgstr "是否开启默认策略"
+
+msgid "是否开启前端视图部分的CMDB预聚合"
+msgstr "是否开启前端视图部分的CMDB预聚合"
+
+msgid "开启智能异常算法的业务白名单"
+msgstr "开启智能异常算法的业务白名单"
+
+msgid "监控在计算平台使用的公共项目ID"
+msgstr "监控在计算平台使用的公共项目ID"
+
+msgid "监控在计算平台使用的公共业务ID"
+msgstr "监控在计算平台使用的公共业务ID"
+
+msgid "监控在计算平台的数据表前缀(prefix)"
+msgstr "监控在计算平台的数据表前缀(prefix)"
+
+msgid "计算平台项目的维护人员"
+msgstr "计算平台项目的维护人员"
+
+msgid "计算平台中结果表(MYSQL)默认保存天数"
+msgstr "计算平台中结果表(MYSQL)默认保存天数"
+
+msgid "计算平台中结果表(HDFS)默认保存天数"
+msgstr "计算平台中结果表(HDFS)默认保存天数"
+
+msgid "计算平台 MYSQL 存储集群名称"
+msgstr "计算平台 MYSQL 存储集群名称"
+
+msgid "计算平台 HDFS 存储集群名称"
+msgstr "计算平台 HDFS 存储集群名称"
+
+msgid "计算平台 DRUID 存储集群名称"
+msgstr "计算平台 DRUID 存储集群名称"
+
+msgid "与计算平台对接的消息队列BROKER地址"
+msgstr "与计算平台对接的消息队列BROKER地址"
+
+msgid "数据接入计算平台后dataflow延时时间"
+msgstr "数据接入计算平台后dataflow延时时间"
+
+msgid "计算平台单指标异常检测场景ID"
+msgstr "计算平台单指标异常检测场景ID"
+
+msgid "计算平台时序预测场景ID"
+msgstr "计算平台时序预测场景ID"
+
+msgid "计算平台离群检测场景ID"
+msgstr "计算平台离群检测场景ID"
+
+msgid "计算平台多指标异常检测场景ID"
+msgstr "计算平台多指标异常检测场景ID"
+
+msgid "计算平台指标推荐场景ID"
+msgstr "计算平台指标推荐场景ID"
+
+msgid "计算平台 dataflow 计算集群组"
+msgstr "计算平台 dataflow 计算集群组"
+
+msgid "计算平台 实时节点等待时间"
+msgstr "计算平台 实时节点等待时间"
+
+msgid "维度下钻 API Serving 请求的数据处理ID"
+msgstr "维度下钻 API Serving 请求的数据处理ID"
+
+msgid "指标推荐 API Serving 请求的数据处理ID前缀"
+msgstr "指标推荐 API Serving 请求的数据处理ID前缀"
+
+#, fuzzy
+#| msgid "指标推荐"
+msgid "指标推荐 FLOW 数据源"
+msgstr "指标推荐 FLOW 数据源"
+
+msgid "Event 模块最大容忍无数据周期数"
+msgstr "Event 模块最大容忍无数据周期数"
+
+msgid "单事件异常点清理触发计数"
+msgstr "单事件异常点清理触发计数"
+
+msgid "SaaS版本号"
+msgstr "SaaS版本号"
+
+msgid "Backend版本号"
+msgstr "Backend版本号"
+
+msgid "企业微信机器人回调地址"
+msgstr "企业微信机器人回调地址"
+
+msgid "access模块策略拉取耗时限制（每10分钟）"
+msgstr "access模块策略拉取耗时限制（每10分钟）"
+
+msgid "RSA PRIVATE KEY"
+msgstr "RSA PRIVATE KEY"
+
+msgid "跳过插件调试"
+msgstr "跳过插件调试"
+
+msgid "日志采集器指标所属业务"
+msgstr "日志采集器指标所属业务"
+
+msgid "事件关联信息截断长度"
+msgstr "事件关联信息截断长度"
+
+msgid "各渠道通知消息最大长度"
+msgstr "各渠道通知消息最大长度"
+
+msgid "策略告警限流窗口(s)"
+msgstr "策略告警限流窗口(s)"
+
+msgid "策略告警限流数量"
+msgstr "策略告警限流数量"
+
+msgid "是否开启全局告警屏蔽"
+msgstr "是否开启全局告警屏蔽"
+
+msgid "第三方事件接入业务白名单"
+msgstr "第三方事件接入业务白名单"
+
+msgid "自定义指标过期时间"
+msgstr "自定义指标过期时间"
+
+msgid "是否开启数据平台指标缓存"
+msgstr "是否开启数据平台指标缓存"
+
+msgid "是否翻译snmp trap的oid维度"
+msgstr "是否翻译snmp trap的oid维度"
+
+msgid "事件型时序检测周期(默认60s，最小10s)"
+msgstr "事件型时序检测周期(默认60s，最小10s)"
+
+msgid "是否允许一键拉群"
+msgstr "是否允许一键拉群"
+
+msgid "蓝鲸插件实际调用APP"
+msgstr "蓝鲸插件实际调用APP"
+
+msgid "重新获取关联信息时间间隔(ms)"
+msgstr "重新获取关联信息时间间隔(ms)"
+
+msgid "降噪时间窗口(min)"
+msgstr "降噪时间窗口(min)"
+
+msgid "无数据告警过期时间窗口(s)"
+msgstr "无数据告警过期时间窗口(s)"
+
+msgid "APM应用默认集群ID"
+msgstr "APM应用默认集群ID"
+
+msgid "APM应用默认过期时间"
+msgstr "APM应用默认过期时间"
+
+msgid "APM应用ES索引集默认切分大小"
+msgstr "APM应用ES索引集默认切分大小"
+
+msgid "APM应用默认副本数"
+msgstr "APM应用默认副本数"
+
+msgid "APM应用默认索引分片数"
+msgstr "APM应用默认索引分片数"
+
+msgid "APM应用操作数据平台所用到的用户名"
+msgstr "APM应用操作数据平台所用到的用户名"
+
+msgid "APM虚拟指标项目id"
+msgstr "APM虚拟指标项目id"
+
+msgid "APM虚拟指标存储过期时间"
+msgstr "APM虚拟指标存储过期时间"
+
+msgid "APM虚拟指标存储集群"
+msgstr "APM虚拟指标存储集群"
+
+msgid "APM预计算存储ES分片大小"
+msgstr "APM预计算存储ES分片大小"
+
+msgid "APM预计算存储ES过期时间"
+msgstr "APM预计算存储ES过期时间"
+
+msgid "APM预计算存储ES分片数"
+msgstr "APM预计算存储ES分片数"
+
+msgid "是否已经迁移自愈"
+msgstr "是否已经迁移自愈"
+
+msgid "已经迁移的业务名单"
+msgstr "已经迁移的业务名单"
+
+msgid "APM单次查询TraceID最大的数量"
+msgstr "APM单次查询TraceID最大的数量"
+
+msgid "特别指定的AES使用密钥"
+msgstr "特别指定的AES使用密钥"
+
+msgid "企业代号"
+msgstr "企业代号"
+
+msgid "Linux Agent 安装路径"
+msgstr "Linux Agent 安装路径"
+
+msgid "Linux 数据保存路径"
+msgstr "Linux 数据保存路径"
+
+msgid "Linux PID 文件保存路径"
+msgstr "Linux PID 文件保存路径"
+
+msgid "Linux 日志保存路径"
+msgstr "Linux 日志保存路径"
+
+msgid "Linux IPC 路径"
+msgstr "Linux IPC 路径"
+
+msgid "Windows Agent 安装路径"
+msgstr "Windows Agent 安装路径"
+
+msgid "Windows IPC 路径"
+msgstr "Windows IPC 路径"
+
+msgid "分级告警业务白名单"
+msgstr "分级告警业务白名单"
+
+msgid "分级告警企业微信机器人账户"
+msgstr "分级告警企业微信机器人账户"
+
+msgid "是否启用分级机器人告警"
+msgstr "是否启用分级机器人告警"
+
+msgid "支持MD的通知方式列表"
+msgstr "支持MD的通知方式列表"
+
+msgid "ai设置单指标异常检测默认plan id"
+msgstr "ai设置单指标异常检测默认plan id"
+
+msgid "ai设置多指标异常检测默认plan id"
+msgstr "ai设置多指标异常检测默认plan id"
+
+msgid "指标推荐默认plan id"
+msgstr "指标推荐默认plan id"
+
+msgid "多指标异常检测通用flow结果输出表"
+msgstr "多指标异常检测通用flow结果输出表"
+
+msgid "机器人默认跳转链接列表"
+msgstr "机器人默认跳转链接列表"
+
+msgid "产品白皮书"
+msgstr "产品白皮书"
+
+msgid "分级机器人内容最大长度（0表示不限制）"
+msgstr "分级机器人内容最大长度（0表示不限制）"
+
+msgid "告警后台禁用策略规则{\"strategy_ids\":[],\"bk_biz_ids\":[],\"data_source_label\":\"\",\"data_type_label\":\"\"}"
+msgstr "告警后台禁用策略规则{\"strategy_ids\":[],\"bk_biz_ids\":[],\"data_source_label\":\"\",\"data_type_label\":\"\"}"
+
+msgid "access数据拉取延迟时间(s)"
+msgstr "access数据拉取延迟时间(s)"
+
+msgid "主机动态属性"
+msgstr "主机动态属性"
+
+msgid "最后一次迁移版本"
+msgstr "最后一次迁移版本"
+
+msgid "全局 Ping 告警开关"
+msgstr "全局 Ping 告警开关"
+
+msgid "全局 Agent失联 告警开关"
+msgstr "全局 Agent失联 告警开关"
+
+msgid "移动端告警的通知渠道"
+msgstr "移动端告警的通知渠道"
+
+msgid "移动端告警访问链接"
+msgstr "移动端告警访问链接"
+
+msgid "全局磁盘类型屏蔽配置"
+msgstr "全局磁盘类型屏蔽配置"
+
+msgid "可通过该配置屏蔽指定类型的磁盘的告警"
+msgstr "可通过该配置屏蔽指定类型的磁盘的告警"
+
+msgid "异常记录保留天数"
+msgstr "异常记录保留天数"
+
+msgid "异常记录表用于展示告警事件的收敛记录，清理后会导致历史事件的流转记录展示不全。后台每分钟都会对过期异常记录进行清理，每次清理不超过 1000 条。"
+msgstr "异常记录表用于展示告警事件的收敛记录，清理后会导致历史事件的流转记录展示不全。后台每分钟都会对过期异常记录进行清理，每次清理不超过 1000 条。"
+
+msgid "显示图表水印"
+msgstr "显示图表水印"
+
+msgid "开启后，页面上的数据图表将带上当前用户名的水印"
+msgstr "开启后，页面上的数据图表将带上当前用户名的水印"
+
+msgid "告警通知渠道"
+msgstr "告警通知渠道"
+
+msgid "告警通知消息队列DSN"
+msgstr "告警通知消息队列DSN"
+
+#, python-brace-format
+msgid "例如 \"redis://:${passowrd}@${host}:${port}/${db}/${key}\" ，注意用户名和密码需要进行 urlencode"
+msgstr "例如 \"redis://:${passowrd}@${host}:${port}/${db}/${key}\" ，注意用户名和密码需要进行 urlencode"
+
+msgid "监控采集数据保存天数"
+msgstr "监控采集数据保存天数"
+
+msgid "采集上报数据在influxdb的保留天数，超出保留天数的将被清理。数值越大对存储资源要求越高"
+msgstr "采集上报数据在influxdb的保留天数，超出保留天数的将被清理。数值越大对存储资源要求越高"
+
+msgid "通知消息队列长度上限"
+msgstr "通知消息队列长度上限"
+
+msgid "若队列长度超出该值，则丢弃旧消息。值为 0 代表无长度限制"
+msgstr "若队列长度超出该值，则丢弃旧消息。值为 0 代表无长度限制"
+
+msgid "自定义上报默认服务器"
+msgstr "自定义上报默认服务器"
+
+msgid "自定义上报默认服务器(域名显示)"
+msgstr "自定义上报默认服务器(域名显示)"
+
+msgid "单台机器Ping采集目标数量限制"
+msgstr "单台机器Ping采集目标数量限制"
+
+msgid "节点管理版本号"
+msgstr "节点管理版本号"
+
+msgid "拨测任务最大超时限制(ms)"
+msgstr "拨测任务最大超时限制(ms)"
+
+msgid "主机不监控字段列表"
+msgstr "主机不监控字段列表"
+
+msgid "备用机"
+msgstr "备用机"
+
+msgid "测试中"
+msgstr "测试中"
+
+msgid "故障中"
+msgstr "故障中"
+
+msgid "主机不告警字段列表"
+msgstr "主机不告警字段列表"
+
+msgid "运营中[无告警]"
+msgstr "运营中[无告警]"
+
+msgid "开发中[无告警]"
+msgstr "开发中[无告警]"
+
+msgid "操作系统全局开关"
+msgstr "操作系统全局开关"
+
+msgid "是否允许所有数据源配置CMDB聚合"
+msgstr "是否允许所有数据源配置CMDB聚合"
+
+msgid "当 ES 存在不合法别名时，是否保留该索引"
+msgstr "当 ES 存在不合法别名时，是否保留该索引"
+
+msgid "Demo业务ID"
+msgstr "Demo业务ID"
+
+msgid "Demo业务写权限"
+msgstr "Demo业务写权限"
+
+msgid "业务接入链接"
+msgstr "业务接入链接"
+
+msgid "APM接入链接"
+msgstr "APM接入链接"
+
+msgid "APM最佳实践链接"
+msgstr "APM最佳实践链接"
+
+msgid "APM指标说明"
+msgstr "APM指标说明"
+
+msgid "APM平台apdex_t默认配置"
+msgstr "APM平台apdex_t默认配置"
+
+msgid "APM中默认采样比例"
+msgstr "APM中默认采样比例"
+
+msgid "APM中应用默认QPS"
+msgstr "APM中应用默认QPS"
+
+msgid "蓝鲸监控机器人名称"
+msgstr "蓝鲸监控机器人名称"
+
+msgid "蓝鲸监控机器人发送图片"
+msgstr "蓝鲸监控机器人发送图片"
+
+msgid "对数据查询API执行流控的APP白名单"
+msgstr "对数据查询API执行流控的APP白名单"
+
+msgid "采集配置文件参数最大值(M)"
+msgstr "采集配置文件参数最大值(M)"
+
+msgid "统一查询模块地址(后台自动刷新)"
+msgstr "统一查询模块地址(后台自动刷新)"
+
+msgid "influxdb proxy默认使用集群名"
+msgstr "influxdb proxy默认使用集群名"
+
+msgid "influxdb proxy给k8s默认使用集群名"
+msgstr "influxdb proxy给k8s默认使用集群名"
+
+msgid "默认Transfer集群ID"
+msgstr "默认Transfer集群ID"
+
+msgid "Transfer内置的集群ID，不需要在页面展示(多个以逗号分隔)"
+msgstr "Transfer内置的集群ID，不需要在页面展示(多个以逗号分隔)"
+
+msgid "默认容器监控使用的Transfer集群ID"
+msgstr "默认容器监控使用的Transfer集群ID"
+
+msgid "transfer消费kafka的offset告警阈值"
+msgstr "transfer消费kafka的offset告警阈值"
+
+msgid "transfer默认消费组"
+msgstr "transfer默认消费组"
+
+msgid "订阅报表默认业务ID(为0时关闭)"
+msgstr "订阅报表默认业务ID(为0时关闭)"
+
+msgid "全业务订阅报表接收人"
+msgstr "全业务订阅报表接收人"
+
+msgid "监控平台管理员"
+msgstr "监控平台管理员"
+
+msgid "业务黑名单"
+msgstr "业务黑名单"
+
+msgid "BCS集群灰度ID名单"
+msgstr "BCS集群灰度ID名单"
+
+msgid "BCS集群元数据获取方式"
+msgstr "BCS集群元数据获取方式"
+
+msgid "指标聚合网关上报地址"
+msgstr "指标聚合网关上报地址"
+
+msgid "是否启用BCS集群灰度模式"
+msgstr "是否启用BCS集群灰度模式"
+
+msgid "告警通知标题"
+msgstr "告警通知标题"
+
+msgid "默认 kafka 存储集群ID"
+msgstr "默认 kafka 存储集群ID"
+
+msgid "BCS kafka 存储集群ID"
+msgstr "BCS kafka 存储集群ID"
+
+msgid "自定义上报存储集群ID"
+msgstr "自定义上报存储集群ID"
+
+msgid "是否启用计算平台处理influxdb降精度流程"
+msgstr "是否启用计算平台处理influxdb降精度流程"
+
+msgid "是否启用unify-query查询计算平台降精度数据"
+msgstr "是否启用unify-query查询计算平台降精度数据"
+
+msgid "自愈ES分裂索引的大小(G)"
+msgstr "自愈ES分裂索引的大小(G)"
+
+msgid "自愈ES数据保留时间"
+msgstr "自愈ES数据保留时间"
+
+msgid "适用 SUM 聚合方法二次确认的策略ID列表"
+msgstr "适用 SUM 聚合方法二次确认的策略ID列表"
+
+msgid "发送短信内容最大长度（0表示不限制）"
+msgstr "发送短信内容最大长度（0表示不限制）"
+
+msgid "是否开启与计算平台的功能对接"
+msgstr "是否开启与计算平台的功能对接"
+
+msgid "BCS 集群配置来源标签"
+msgstr "BCS 集群配置来源标签"
+
+msgid "支持ipv6的业务列表"
+msgstr "支持ipv6的业务列表"
+
+msgid "主机展示字段"
+msgstr "主机展示字段"
+
+msgid "主机视图展示字段"
+msgstr "主机视图展示字段"
+
+msgid "是否使用新的gse agent状态接口"
+msgstr "是否使用新的gse agent状态接口"
+
+msgid "拨测默认输出字段"
+msgstr "拨测默认输出字段"
+
+msgid "已屏蔽"
+msgstr "已屏蔽"
+
+msgid "已确认"
+msgstr "已确认"
+
+msgid "已通知"
+msgstr "已通知"
+
+msgid "已流控"
+msgstr "已流控"
+
+msgid "告警名称"
+msgstr "告警名称"
+
+msgid "告警名称通过匹配规则生成，是事件去重的重要依据"
+msgstr "告警名称通过匹配规则生成，是事件去重的重要依据"
+
+msgid "事件ID"
+msgstr "事件ID"
+
+msgid "事件的唯一标识符，用于识别重复事件"
+msgstr "事件的唯一标识符，用于识别重复事件"
+
+msgid "描述"
+msgstr "描述"
+
+msgid "事件的详细描述及主体内容"
+msgstr "事件的详细描述及主体内容"
+
+msgid "指标项"
+msgstr "指标项"
+
+msgid "事件对应的指标项"
+msgstr "事件对应的指标项"
+
+msgid "分类"
+msgstr "分类"
+
+msgid "事件所属的数据分层，如 \"application\", \"os\", \"others\""
+msgstr "事件所属的数据分层，如 \"application\", \"os\", \"others\""
+
+msgid "产生事件的目标类型"
+msgstr "产生事件的目标类型"
+
+msgid "产生事件的目标"
+msgstr "产生事件的目标"
+
+msgid "事件的严重程度，1:致命; 2:预警; 3:提醒"
+msgstr "事件的严重程度，1:致命; 2:预警; 3:提醒"
+
+msgid "业务ID"
+msgstr "业务ID"
+
+msgid "事件所属的业务ID，不提供则根据 target 自动解析"
+msgstr "事件所属的业务ID，不提供则根据 target 自动解析"
+
+msgid "标签"
+msgstr "标签"
+
+msgid "事件的额外属性，K-V 键值对，不支持嵌套结构"
+msgstr "事件的额外属性，K-V 键值对，不支持嵌套结构"
+
+msgid "受理人"
+msgstr "受理人"
+
+msgid "事件受理人，可作为动作的执行者"
+msgstr "事件受理人，可作为动作的执行者"
+
+msgid "事件时间"
+msgstr "事件时间"
+
+msgid "事件产生的时间，不提供则默认使用采集时间"
+msgstr "事件产生的时间，不提供则默认使用采集时间"
+
+msgid "异常时间"
+msgstr "异常时间"
+
+msgid "事件实际发生异常的时间，不提供则默认使用事件时间"
+msgstr "事件实际发生异常的时间，不提供则默认使用事件时间"
+
+msgid "状态"
+msgstr "状态"
+
+msgid "事件状态，用于控制告警状态流转。不提供则默认为 \"ABNORMAL\""
+msgstr "事件状态，用于控制告警状态流转。不提供则默认为 \"ABNORMAL\""
+
+msgid "请填写对应的参数"
+msgstr "请填写对应的参数"
+
+msgid "必填项不可为空"
+msgstr "必填项不可为空"
+
+msgid "业务访问"
+msgstr "业务访问"
+
+msgid "指标检索"
+msgstr "指标检索"
+
+msgid "拨测查看"
+msgstr "拨测查看"
+
+msgid "拨测管理"
+msgstr "拨测管理"
+
+msgid "拨测公共节点管理"
+msgstr "拨测公共节点管理"
+
+msgid "主机详情查看"
+msgstr "主机详情查看"
+
+msgid "主机详情管理"
+msgstr "主机详情管理"
+
+msgid "事件中心查看"
+msgstr "事件中心查看"
+
+msgid "事件中心管理"
+msgstr "事件中心管理"
+
+msgid "指标插件查看"
+msgstr "指标插件查看"
+
+msgid "指标插件管理"
+msgstr "指标插件管理"
+
+msgid "公共插件管理"
+msgstr "公共插件管理"
+
+msgid "采集查看"
+msgstr "采集查看"
+
+msgid "采集管理"
+msgstr "采集管理"
+
+msgid "告警组查看"
+msgstr "告警组查看"
+
+msgid "告警组管理"
+msgstr "告警组管理"
+
+msgid "策略查看"
+msgstr "策略查看"
+
+msgid "策略管理"
+msgstr "策略管理"
+
+msgid "屏蔽查看"
+msgstr "屏蔽查看"
+
+msgid "屏蔽管理"
+msgstr "屏蔽管理"
+
+msgid "自定义指标上报查看"
+msgstr "自定义指标上报查看"
+
+msgid "自定义指标上报管理"
+msgstr "自定义指标上报管理"
+
+msgid "自定义事件上报查看"
+msgstr "自定义事件上报查看"
+
+msgid "自定义事件上报管理"
+msgstr "自定义事件上报管理"
+
+msgid "仪表盘查看"
+msgstr "仪表盘查看"
+
+msgid "仪表盘管理"
+msgstr "仪表盘管理"
+
+msgid "数据源管理"
+msgstr "数据源管理"
+
+msgid "导出"
+msgstr "导出"
+
+msgid "导入"
+msgstr "导入"
+
+msgid "全局配置查看"
+msgstr "全局配置查看"
+
+msgid "全局配置编辑"
+msgstr "全局配置编辑"
+
+msgid "自监控查看"
+msgstr "自监控查看"
+
+msgid "公共套餐管理"
+msgstr "公共套餐管理"
+
+msgid "APM应用查看"
+msgstr "APM应用查看"
+
+msgid "APM应用管理"
+msgstr "APM应用管理"
+
+msgid "日历服务管理"
+msgstr "日历服务管理"
+
+msgid "Apm应用"
+msgstr "Apm应用"
+
+msgid "接收字节流量"
+msgstr "接收字节流量"
+
+msgid "网卡入流量"
+msgstr "网卡入流量"
+
+msgid "发送字节流量"
+msgstr "发送字节流量"
+
+msgid "网卡出流量"
+msgstr "网卡出流量"
+
+msgid "网络"
+msgstr "网络"
+
+msgid "内存"
+msgstr "内存"
+
+msgid "磁盘"
+msgstr "磁盘"
+
+msgid "系统"
+msgstr "系统"
+
+msgid "基础"
+msgstr "基础"
+
+msgid "静态阈值算法"
+msgstr "静态阈值算法"
+
+msgid "简易环比算法"
+msgstr "简易环比算法"
+
+msgid "高级环比算法"
+msgstr "高级环比算法"
+
+msgid "简易同比算法"
+msgstr "简易同比算法"
+
+msgid "高级同比算法"
+msgstr "高级同比算法"
+
+msgid "部分节点数算法"
+msgstr "部分节点数算法"
+
+msgid "主机重启算法"
+msgstr "主机重启算法"
+
+msgid "进程端口算法"
+msgstr "进程端口算法"
+
+msgid "Ping不可达算法"
+msgstr "Ping不可达算法"
+
+msgid "同比振幅算法"
+msgstr "同比振幅算法"
+
+msgid "同比区间算法"
+msgstr "同比区间算法"
+
+msgid "环比振幅算法"
+msgstr "环比振幅算法"
+
+msgid "智能异常检测算法"
+msgstr "智能异常检测算法"
+
+msgid "致命"
+msgstr "致命"
+
+msgid "预警"
+msgstr "预警"
+
+msgid "提醒"
+msgstr "提醒"
+
+msgid "已修复"
+msgstr "已修复"
+
+msgid "异常中"
+msgstr "异常中"
+
+msgid "已关闭"
+msgstr "已关闭"
+
+msgid "告警确认"
+msgstr "告警确认"
+
+msgid "恢复通知"
+msgstr "恢复通知"
+
+msgid "触发告警"
+msgstr "触发告警"
+
+msgid "告警收敛"
+msgstr "告警收敛"
+
+msgid "告警恢复"
+msgstr "告警恢复"
+
+msgid "告警关闭"
+msgstr "告警关闭"
+
+msgid "生成工单"
+msgstr "生成工单"
+
+msgid "成功"
+msgstr "成功"
+
+msgid "部分成功"
+msgstr "部分成功"
+
+msgid "失败"
+msgstr "失败"
+
+msgid "屏蔽"
+msgstr "屏蔽"
+
+msgid "通知中"
+msgstr "通知中"
+
+msgid "通知成功"
+msgstr "通知成功"
+
+msgid "通知失败"
+msgstr "通知失败"
+
+msgid "同维度汇总"
+msgstr "同维度汇总"
+
+msgid "同策略汇总"
+msgstr "同策略汇总"
+
+msgid "同业务汇总"
+msgstr "同业务汇总"
+
+msgid "范围屏蔽"
+msgstr "范围屏蔽"
+
+msgid "策略屏蔽"
+msgstr "策略屏蔽"
+
+msgid "事件屏蔽"
+msgstr "事件屏蔽"
+
+msgid "告警屏蔽"
+msgstr "告警屏蔽"
+
+msgid "维度屏蔽"
+msgstr "维度屏蔽"
+
+msgid "IP"
+msgstr "IP"
+
+msgid "单例"
+msgstr "单例"
+
+msgid "策略ID超过设置的默认上限"
+msgstr "策略ID超过设置的默认上限"
+
+msgid "外部邮件"
+msgstr "外部邮件"
+
+msgid "企业微信机器人"
+msgstr "企业微信机器人"
+
+msgid "内部用户"
+msgstr "内部用户"
+
+msgid "CPU使用量"
+msgstr "CPU使用量"
+
+msgid "内存使用量"
+msgstr "内存使用量"
+
+msgid "磁盘使用量"
+msgstr "磁盘使用量"
+
+msgid "CPU使用率(request)"
+msgstr "CPU使用率(request)"
+
+msgid "CPU使用率(limit)"
+msgstr "CPU使用率(limit)"
+
+msgid "内存使用率(request)"
+msgstr "内存使用率(request)"
+
+msgid "内存使用率(limit) "
+msgstr "内存使用率(limit) "
+
+msgid "cpu request"
+msgstr "cpu request"
+
+msgid "cpu limit"
+msgstr "cpu limit"
+
+msgid "memory request"
+msgstr "memory request"
+
+msgid "memory limit"
+msgstr "memory limit"
+
+msgid "正常"
+msgstr "正常"
+
+msgid "异常"
+msgstr "异常"
+
+msgid "无数据"
+msgstr "无数据"
+
+msgid "集群名称"
+msgstr "集群名称"
+
+msgid "集群ID"
+msgstr "集群ID"
+
+msgid "概览"
+msgstr "概览"
+
+msgid "运行状态"
+msgstr "运行状态"
+
+msgid "采集状态"
+msgstr "采集状态"
+
+msgid "环境"
+msgstr "环境"
+
+msgid "节点数量"
+msgstr "节点数量"
+
+msgid "CPU使用率"
+msgstr "CPU使用率"
+
+msgid "内存使用率"
+msgstr "内存使用率"
+
+msgid "磁盘使用率"
+msgstr "磁盘使用率"
+
+msgid "区域"
+msgstr "区域"
+
+msgid "创建时间"
+msgstr "创建时间"
+
+msgid "更新时间"
+msgstr "更新时间"
+
+msgid "所属项目"
+msgstr "所属项目"
+
+msgid "测试"
+msgstr "测试"
+
+msgid "正式"
+msgstr "正式"
+
+msgid "容器名称"
+msgstr "容器名称"
+
+msgid "名字空间"
+msgstr "名字空间"
+
+msgid "Pod名称"
+msgstr "Pod名称"
+
+msgid "工作负载"
+msgstr "工作负载"
+
+msgid "节点IP"
+msgstr "节点IP"
+
+msgid "镜像"
+msgstr "镜像"
+
+msgid "存活时间"
+msgstr "存活时间"
+
+msgid "名称"
+msgstr "名称"
+
+msgid "Metric路径"
+msgstr "Metric路径"
+
+msgid "端口"
+msgstr "端口"
+
+msgid "周期(s)"
+msgstr "周期(s)"
+
+msgid "Pod数量"
+msgstr "Pod数量"
+
+msgid "云区域"
+msgstr "云区域"
+
+msgid "应用内存使用率"
+msgstr "应用内存使用率"
+
+msgid "磁盘IO使用率"
+msgstr "磁盘IO使用率"
+
+msgid "磁盘空间使用率"
+msgstr "磁盘空间使用率"
+
+msgid "CPU十五分钟负载"
+msgstr "CPU十五分钟负载"
+
+msgid "污点"
+msgstr "污点"
+
+msgid "角色"
+msgstr "角色"
+
+msgid "Endpoint数量"
+msgstr "Endpoint数量"
+
+msgid "是否就绪(实例运行数/期望数)"
+msgstr "是否就绪(实例运行数/期望数)"
+
+msgid "容器数量"
+msgstr "容器数量"
+
+msgid "重启次数"
+msgstr "重启次数"
+
+msgid "Pod IP"
+msgstr "Pod IP"
+
+msgid "服务名称"
+msgstr "服务名称"
+
+msgid "类型"
+msgstr "类型"
+
+msgid "Cluster IP"
+msgstr "Cluster IP"
+
+msgid "External IP"
+msgstr "External IP"
+
+msgid "Ports"
+msgstr "Ports"
+
+msgid "Ready数量"
+msgstr "Ready数量"
+
+msgid "Up To Date数量"
+msgstr "Up To Date数量"
+
+msgid "Available数量"
+msgstr "Available数量"
+
+msgid "工作负载名称"
+msgstr "工作负载名称"
+
+msgid "资源"
+msgstr "资源"
+
+msgid "整数"
+msgstr "整数"
+
+msgid "字符串"
+msgstr "字符串"
+
+msgid "布尔值"
+msgstr "布尔值"
+
+msgid "列表"
+msgstr "列表"
+
+msgid "单选"
+msgstr "单选"
+
+msgid "多选"
+msgstr "多选"
+
+msgid "删除"
+msgstr "删除"
+
+msgid "创建"
+msgstr "创建"
+
+msgid "更新"
+msgstr "更新"
+
+msgid "通知"
+msgstr "通知"
+
+msgid "HTTP回调"
+msgstr "HTTP回调"
+
+msgid "作业平台"
+msgstr "作业平台"
+
+msgid "标准运维"
+msgstr "标准运维"
+
+msgid "流程服务"
+msgstr "流程服务"
+
+msgid "通用插件"
+msgstr "通用插件"
+
+msgid "内置"
+msgstr "内置"
+
+msgid "周边系统"
+msgstr "周边系统"
+
+msgid "蓝鲸插件"
+msgstr "蓝鲸插件"
+
+msgid "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
+msgstr "达到通知告警的执行条件【{{{{action_signal}}}}】, {}"
+
+msgid "{}点击$查看任务详情$"
+msgstr "{}点击$查看任务详情$"
+
+msgid "套餐【{{action_name}}】触发异常防御审批，点击$查看工单详情$"
+msgstr "套餐【{{action_name}}】触发异常防御审批，点击$查看工单详情$"
+
+#, python-format
+msgid "%s执行{{status_display}}"
+msgstr "%s执行{{status_display}}"
+
+msgid "处理套餐"
+msgstr "处理套餐"
+
+msgid "{}，错误信息{}"
+msgstr "{}，错误信息{}"
+
+msgid "{}，返回内容:{}"
+msgstr "{}，返回内容:{}"
+
+msgid "已发送"
+msgstr "已发送"
+
+msgid "尚未发送"
+msgstr "尚未发送"
+
+msgid "无内容"
+msgstr "无内容"
+
+msgid "收敛事件"
+msgstr "收敛事件"
+
+msgid "处理事件"
+msgstr "处理事件"
+
+msgid "处理动作"
+msgstr "处理动作"
+
+msgid "告警分派规则组"
+msgstr "告警分派规则组"
+
+msgid "HTTP 推送"
+msgstr "HTTP 推送"
+
+msgid "HTTP 拉取"
+msgstr "HTTP 拉取"
+
+msgid "Email 拉取"
+msgstr "Email 拉取"
+
+msgid "kafka 推送"
+msgstr "kafka 推送"
+
+msgid "推送"
+msgstr "推送"
+
+msgid "拉取"
+msgstr "拉取"
+
+msgid "文本"
+msgstr "文本"
+
+msgid "将下架"
+msgstr "将下架"
+
+msgid "已下架"
+msgstr "已下架"
+
+msgid "已停用"
+msgstr "已停用"
+
+msgid "可用"
+msgstr "可用"
+
+msgid "调试中"
+msgstr "调试中"
+
+msgid "监控工具"
+msgstr "监控工具"
+
+msgid "后台"
+msgstr "后台"
+
+#, python-brace-format
+msgid "{metric_field}(索引集:{item_name})"
+msgstr "{metric_field}(索引集:{item_name})"
+
+#, python-brace-format
+msgid "{keywords_query_string}(索引集:{item_name})"
+msgstr "{keywords_query_string}(索引集:{item_name})"
+
+#, python-brace-format
+msgid "{item_name}(数据ID:{result_table_id})"
+msgstr "{item_name}(数据ID:{result_table_id})"
+
+#, python-brace-format
+msgid "指标：{metric_field}；指标分类：{result_table_name}；插件名：{related_name}；数据来源：监控采集"
+msgstr "指标：{metric_field}；指标分类：{result_table_name}；插件名：{related_name}；数据来源：监控采集"
+
+msgid "数据来源：系统事件"
+msgstr "数据来源：系统事件"
+
+msgid "数据来源：采集配置"
+msgstr "数据来源：采集配置"
+
+msgid "数据来源：监控策略"
+msgstr "数据来源：监控策略"
+
+#, python-brace-format
+msgid "指标：{metric_field}；结果表：{result_table_name}；数据来源：计算平台"
+msgstr "指标：{metric_field}；结果表：{result_table_name}；数据来源：计算平台"
+
+#, python-brace-format
+msgid "索引：{result_table_name}；索引集：{related_name}；数据来源：日志平台"
+msgstr "索引：{result_table_name}；索引集：{related_name}；数据来源：日志平台"
+
+msgid "数据来源：日志平台"
+msgstr "数据来源：日志平台"
+
+#, python-brace-format
+msgid "数据ID：{result_table_id}；数据名称：{result_table_name}；数据来源：自定义事件"
+msgstr "数据ID：{result_table_id}；数据名称：{result_table_name}；数据来源：自定义事件"
+
+#, python-brace-format
+msgid "指标：{metric_field_name}；数据名称：{related_name}；数据来源：自定义时序"
+msgstr "指标：{metric_field_name}；数据名称：{related_name}；数据来源：自定义时序"
+
+msgid "数据来源：故障自愈第三方告警"
+msgstr "数据来源：故障自愈第三方告警"
+
+#, python-brace-format
+msgid "指标：{metric_field}；指标分类：{result_table_name}；数据来源：监控采集"
+msgstr "指标：{metric_field}；指标分类：{result_table_name}；数据来源：监控采集"
+
+msgid "时序预测算法"
+msgstr "时序预测算法"
+
+msgid "离群检测算法"
+msgstr "离群检测算法"
+
+msgid "多指标异常检测算法"
+msgstr "多指标异常检测算法"
+
+msgid "监控"
+msgstr "监控"
+
+msgid "故障自愈"
+msgstr "故障自愈"
+
+msgid "关联的策略已失效"
+msgstr "关联的策略已失效"
+
+msgid "关联的策略已删除"
+msgstr "关联的策略已删除"
+
+msgid "指标和检测算法的单位类型不一致"
+msgstr "指标和检测算法的单位类型不一致"
+
+msgid "监控目标全部失效"
+msgstr "监控目标全部失效"
+
+msgid "监控指标不存在"
+msgstr "监控指标不存在"
+
+msgid "策略所属业务不存在"
+msgstr "策略所属业务不存在"
+
+msgid "os"
+msgstr "os"
+
+msgid "gse"
+msgstr "gse"
+
+msgid "k8s"
+msgstr "k8s"
+
+msgid "监控维度请选择任务ID"
+msgstr "监控维度请选择任务ID"
+
+msgid "CMDB动态节点聚合暂不可用(原因：全局配置[IS_ALLOW_ALL_CMDB_LEVEL]未开启)"
+msgstr "CMDB动态节点聚合暂不可用(原因：全局配置[IS_ALLOW_ALL_CMDB_LEVEL]未开启)"
+
+msgid "主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)"
+msgstr "主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)"
+
+msgid "不可对拆分结果表再次拆分"
+msgstr "不可对拆分结果表再次拆分"
+
+msgid "通知套餐，策略ID: {}"
+msgstr "通知套餐，策略ID: {}"
+
+msgid "不存在的检测算法{}"
+msgstr "不存在的检测算法{}"
+
+msgid "标签长度超长，请调整后重试"
+msgstr "标签长度超长，请调整后重试"
+
+msgid "策略名称({})不能重复"
+msgstr "策略名称({})不能重复"
+
+msgid "策略({})不存在"
+msgstr "策略({})不存在"
+
+msgid "通知方式至少开启一项"
+msgstr "通知方式至少开启一项"
+
+msgid "智能检测算法不支持这些查询条件({})"
+msgstr "智能检测算法不支持这些查询条件({})"
+
+msgid "tsdb库名不支持下划线"
+msgstr "tsdb库名不支持下划线"
+
+msgid "联通"
+msgstr "联通"
+
+msgid "移动"
+msgstr "移动"
+
+msgid "电信"
+msgstr "电信"
+
+msgid "北京"
+msgstr "北京"
+
+msgid "天津"
+msgstr "天津"
+
+msgid "河北"
+msgstr "河北"
+
+msgid "邯郸"
+msgstr "邯郸"
+
+msgid "邢台"
+msgstr "邢台"
+
+msgid "承德"
+msgstr "承德"
+
+msgid "保定"
+msgstr "保定"
+
+msgid "唐山"
+msgstr "唐山"
+
+msgid "张家口"
+msgstr "张家口"
+
+msgid "石家庄"
+msgstr "石家庄"
+
+msgid "廊坊"
+msgstr "廊坊"
+
+msgid "秦皇岛"
+msgstr "秦皇岛"
+
+msgid "省直辖县级行政区划"
+msgstr "省直辖县级行政区划"
+
+msgid "沧州"
+msgstr "沧州"
+
+msgid "衡水"
+msgstr "衡水"
+
+msgid "山西"
+msgstr "山西"
+
+msgid "忻州"
+msgstr "忻州"
+
+msgid "运城"
+msgstr "运城"
+
+msgid "吕梁"
+msgstr "吕梁"
+
+msgid "临汾"
+msgstr "临汾"
+
+msgid "大同"
+msgstr "大同"
+
+msgid "朔州"
+msgstr "朔州"
+
+msgid "太原"
+msgstr "太原"
+
+msgid "晋城"
+msgstr "晋城"
+
+msgid "长治"
+msgstr "长治"
+
+msgid "阳泉"
+msgstr "阳泉"
+
+msgid "晋中"
+msgstr "晋中"
+
+msgid "内蒙古"
+msgstr "内蒙古"
+
+msgid "赤峰"
+msgstr "赤峰"
+
+msgid "呼和浩特"
+msgstr "呼和浩特"
+
+msgid "通辽"
+msgstr "通辽"
+
+msgid "乌兰察布"
+msgstr "乌兰察布"
+
+msgid "鄂尔多斯"
+msgstr "鄂尔多斯"
+
+msgid "兴安盟"
+msgstr "兴安盟"
+
+msgid "呼伦贝尔"
+msgstr "呼伦贝尔"
+
+msgid "乌海"
+msgstr "乌海"
+
+msgid "阿拉善盟"
+msgstr "阿拉善盟"
+
+msgid "巴彦淖尔"
+msgstr "巴彦淖尔"
+
+msgid "包头"
+msgstr "包头"
+
+msgid "锡林郭勒盟"
+msgstr "锡林郭勒盟"
+
+msgid "辽宁"
+msgstr "辽宁"
+
+msgid "阜新"
+msgstr "阜新"
+
+msgid "营口"
+msgstr "营口"
+
+msgid "朝阳"
+msgstr "朝阳"
+
+msgid "大连"
+msgstr "大连"
+
+msgid "辽阳"
+msgstr "辽阳"
+
+msgid "盘锦"
+msgstr "盘锦"
+
+msgid "丹东"
+msgstr "丹东"
+
+msgid "沈阳"
+msgstr "沈阳"
+
+msgid "本溪"
+msgstr "本溪"
+
+msgid "葫芦岛"
+msgstr "葫芦岛"
+
+msgid "铁岭"
+msgstr "铁岭"
+
+msgid "抚顺"
+msgstr "抚顺"
+
+msgid "鞍山"
+msgstr "鞍山"
+
+msgid "锦州"
+msgstr "锦州"
+
+msgid "吉林"
+msgstr "吉林"
+
+msgid "白山"
+msgstr "白山"
+
+msgid "辽源"
+msgstr "辽源"
+
+msgid "延边朝鲜族自治州"
+msgstr "延边朝鲜族自治州"
+
+msgid "四平"
+msgstr "四平"
+
+msgid "白城"
+msgstr "白城"
+
+msgid "长春"
+msgstr "长春"
+
+msgid "松原"
+msgstr "松原"
+
+msgid "通化"
+msgstr "通化"
+
+msgid "黑龙江"
+msgstr "黑龙江"
+
+msgid "齐齐哈尔"
+msgstr "齐齐哈尔"
+
+msgid "大兴安岭地区"
+msgstr "大兴安岭地区"
+
+msgid "绥化"
+msgstr "绥化"
+
+msgid "鹤岗"
+msgstr "鹤岗"
+
+msgid "鸡西"
+msgstr "鸡西"
+
+msgid "牡丹江"
+msgstr "牡丹江"
+
+msgid "黑河"
+msgstr "黑河"
+
+msgid "七台河"
+msgstr "七台河"
+
+msgid "大庆"
+msgstr "大庆"
+
+msgid "伊春"
+msgstr "伊春"
+
+msgid "哈尔滨"
+msgstr "哈尔滨"
+
+msgid "佳木斯"
+msgstr "佳木斯"
+
+msgid "双鸭山"
+msgstr "双鸭山"
+
+msgid "上海"
+msgstr "上海"
+
+msgid "江苏"
+msgstr "江苏"
+
+msgid "徐州"
+msgstr "徐州"
+
+msgid "镇江"
+msgstr "镇江"
+
+msgid "泰州"
+msgstr "泰州"
+
+msgid "扬州"
+msgstr "扬州"
+
+msgid "无锡"
+msgstr "无锡"
+
+msgid "盐城"
+msgstr "盐城"
+
+msgid "连云港"
+msgstr "连云港"
+
+msgid "淮安"
+msgstr "淮安"
+
+msgid "南通"
+msgstr "南通"
+
+msgid "苏州"
+msgstr "苏州"
+
+msgid "南京"
+msgstr "南京"
+
+msgid "常州"
+msgstr "常州"
+
+msgid "宿迁"
+msgstr "宿迁"
+
+msgid "浙江"
+msgstr "浙江"
+
+msgid "金华"
+msgstr "金华"
+
+msgid "温州"
+msgstr "温州"
+
+msgid "嘉兴"
+msgstr "嘉兴"
+
+msgid "台州"
+msgstr "台州"
+
+msgid "杭州"
+msgstr "杭州"
+
+msgid "丽水"
+msgstr "丽水"
+
+msgid "绍兴"
+msgstr "绍兴"
+
+msgid "宁波"
+msgstr "宁波"
+
+msgid "衢州"
+msgstr "衢州"
+
+msgid "舟山"
+msgstr "舟山"
+
+msgid "湖州"
+msgstr "湖州"
+
+msgid "安徽"
+msgstr "安徽"
+
+msgid "蚌埠"
+msgstr "蚌埠"
+
+msgid "亳州"
+msgstr "亳州"
+
+msgid "安庆"
+msgstr "安庆"
+
+msgid "铜陵"
+msgstr "铜陵"
+
+msgid "阜阳"
+msgstr "阜阳"
+
+msgid "芜湖"
+msgstr "芜湖"
+
+msgid "宣城"
+msgstr "宣城"
+
+msgid "淮北"
+msgstr "淮北"
+
+msgid "滁州"
+msgstr "滁州"
+
+msgid "合肥"
+msgstr "合肥"
+
+msgid "马鞍山"
+msgstr "马鞍山"
+
+msgid "六安"
+msgstr "六安"
+
+msgid "黄山"
+msgstr "黄山"
+
+msgid "宿州"
+msgstr "宿州"
+
+msgid "池州"
+msgstr "池州"
+
+msgid "淮南"
+msgstr "淮南"
+
+msgid "福建"
+msgstr "福建"
+
+msgid "莆田"
+msgstr "莆田"
+
+msgid "龙岩"
+msgstr "龙岩"
+
+msgid "福州"
+msgstr "福州"
+
+msgid "南平"
+msgstr "南平"
+
+msgid "泉州"
+msgstr "泉州"
+
+msgid "厦门"
+msgstr "厦门"
+
+msgid "宁德"
+msgstr "宁德"
+
+msgid "漳州"
+msgstr "漳州"
+
+msgid "三明"
+msgstr "三明"
+
+msgid "江西"
+msgstr "江西"
+
+msgid "萍乡"
+msgstr "萍乡"
+
+msgid "景德镇"
+msgstr "景德镇"
+
+msgid "上饶"
+msgstr "上饶"
+
+msgid "抚州"
+msgstr "抚州"
+
+msgid "南昌"
+msgstr "南昌"
+
+msgid "新余"
+msgstr "新余"
+
+msgid "九江"
+msgstr "九江"
+
+msgid "吉安"
+msgstr "吉安"
+
+msgid "赣州"
+msgstr "赣州"
+
+msgid "鹰潭"
+msgstr "鹰潭"
+
+msgid "宜春"
+msgstr "宜春"
+
+msgid "山东"
+msgstr "山东"
+
+msgid "济宁"
+msgstr "济宁"
+
+msgid "聊城"
+msgstr "聊城"
+
+msgid "淄博"
+msgstr "淄博"
+
+msgid "日照"
+msgstr "日照"
+
+msgid "潍坊"
+msgstr "潍坊"
+
+msgid "泰安"
+msgstr "泰安"
+
+msgid "德州"
+msgstr "德州"
+
+msgid "枣庄"
+msgstr "枣庄"
+
+msgid "威海"
+msgstr "威海"
+
+msgid "菏泽"
+msgstr "菏泽"
+
+msgid "济南"
+msgstr "济南"
+
+msgid "临沂"
+msgstr "临沂"
+
+msgid "东营"
+msgstr "东营"
+
+msgid "滨州"
+msgstr "滨州"
+
+msgid "青岛"
+msgstr "青岛"
+
+msgid "莱芜"
+msgstr "莱芜"
+
+msgid "烟台"
+msgstr "烟台"
+
+msgid "河南"
+msgstr "河南"
+
+msgid "洛阳"
+msgstr "洛阳"
+
+msgid "商丘"
+msgstr "商丘"
+
+msgid "焦作"
+msgstr "焦作"
+
+msgid "新乡"
+msgstr "新乡"
+
+msgid "三门峡"
+msgstr "三门峡"
+
+msgid "开封"
+msgstr "开封"
+
+msgid "鹤壁"
+msgstr "鹤壁"
+
+msgid "驻马店"
+msgstr "驻马店"
+
+msgid "漯河"
+msgstr "漯河"
+
+msgid "郑州"
+msgstr "郑州"
+
+msgid "安阳"
+msgstr "安阳"
+
+msgid "信阳"
+msgstr "信阳"
+
+msgid "周口"
+msgstr "周口"
+
+msgid "许昌"
+msgstr "许昌"
+
+msgid "濮阳"
+msgstr "濮阳"
+
+msgid "南阳"
+msgstr "南阳"
+
+msgid "平顶山"
+msgstr "平顶山"
+
+msgid "湖北"
+msgstr "湖北"
+
+msgid "十堰"
+msgstr "十堰"
+
+msgid "鄂州"
+msgstr "鄂州"
+
+msgid "随州"
+msgstr "随州"
+
+msgid "宜昌"
+msgstr "宜昌"
+
+msgid "黄石"
+msgstr "黄石"
+
+msgid "咸宁"
+msgstr "咸宁"
+
+msgid "襄阳"
+msgstr "襄阳"
+
+msgid "荆门"
+msgstr "荆门"
+
+msgid "黄冈"
+msgstr "黄冈"
+
+msgid "孝感"
+msgstr "孝感"
+
+msgid "荆州"
+msgstr "荆州"
+
+msgid "武汉"
+msgstr "武汉"
+
+msgid "恩施土家族苗族自治州"
+msgstr "恩施土家族苗族自治州"
+
+msgid "湖南"
+msgstr "湖南"
+
+msgid "湘潭"
+msgstr "湘潭"
+
+msgid "株洲"
+msgstr "株洲"
+
+msgid "湘西土家族苗族自治州"
+msgstr "湘西土家族苗族自治州"
+
+msgid "永州"
+msgstr "永州"
+
+msgid "郴州"
+msgstr "郴州"
+
+msgid "怀化"
+msgstr "怀化"
+
+msgid "长沙"
+msgstr "长沙"
+
+msgid "邵阳"
+msgstr "邵阳"
+
+msgid "娄底"
+msgstr "娄底"
+
+msgid "衡阳"
+msgstr "衡阳"
+
+msgid "张家界"
+msgstr "张家界"
+
+msgid "常德"
+msgstr "常德"
+
+msgid "岳阳"
+msgstr "岳阳"
+
+msgid "益阳"
+msgstr "益阳"
+
+msgid "广东"
+msgstr "广东"
+
+msgid "河源"
+msgstr "河源"
+
+msgid "江门"
+msgstr "江门"
+
+msgid "中山"
+msgstr "中山"
+
+msgid "深圳"
+msgstr "深圳"
+
+msgid "湛江"
+msgstr "湛江"
+
+msgid "梅州"
+msgstr "梅州"
+
+msgid "珠海"
+msgstr "珠海"
+
+msgid "肇庆"
+msgstr "肇庆"
+
+msgid "清远"
+msgstr "清远"
+
+msgid "惠州"
+msgstr "惠州"
+
+msgid "茂名"
+msgstr "茂名"
+
+msgid "汕尾"
+msgstr "汕尾"
+
+msgid "云浮"
+msgstr "云浮"
+
+msgid "汕头"
+msgstr "汕头"
+
+msgid "东莞"
+msgstr "东莞"
+
+msgid "潮州"
+msgstr "潮州"
+
+msgid "广州"
+msgstr "广州"
+
+msgid "佛山"
+msgstr "佛山"
+
+msgid "揭阳"
+msgstr "揭阳"
+
+msgid "韶关"
+msgstr "韶关"
+
+msgid "阳江"
+msgstr "阳江"
+
+msgid "广西"
+msgstr "广西"
+
+msgid "贺州"
+msgstr "贺州"
+
+msgid "贵港"
+msgstr "贵港"
+
+msgid "北海"
+msgstr "北海"
+
+msgid "来宾"
+msgstr "来宾"
+
+msgid "百色"
+msgstr "百色"
+
+msgid "梧州"
+msgstr "梧州"
+
+msgid "崇左"
+msgstr "崇左"
+
+msgid "玉林"
+msgstr "玉林"
+
+msgid "钦州"
+msgstr "钦州"
+
+msgid "桂林"
+msgstr "桂林"
+
+msgid "防城港"
+msgstr "防城港"
+
+msgid "河池"
+msgstr "河池"
+
+msgid "柳州"
+msgstr "柳州"
+
+msgid "南宁"
+msgstr "南宁"
+
+msgid "海南"
+msgstr "海南"
+
+msgid "儋州"
+msgstr "儋州"
+
+msgid "海口"
+msgstr "海口"
+
+msgid "三亚"
+msgstr "三亚"
+
+msgid "三沙"
+msgstr "三沙"
+
+msgid "重庆"
+msgstr "重庆"
+
+msgid "四川"
+msgstr "四川"
+
+msgid "广元"
+msgstr "广元"
+
+msgid "宜宾"
+msgstr "宜宾"
+
+msgid "自贡"
+msgstr "自贡"
+
+msgid "凉山彝族自治州"
+msgstr "凉山彝族自治州"
+
+msgid "乐山"
+msgstr "乐山"
+
+msgid "绵阳"
+msgstr "绵阳"
+
+msgid "遂宁"
+msgstr "遂宁"
+
+msgid "眉山"
+msgstr "眉山"
+
+msgid "攀枝花"
+msgstr "攀枝花"
+
+msgid "巴中"
+msgstr "巴中"
+
+msgid "内江"
+msgstr "内江"
+
+msgid "达州"
+msgstr "达州"
+
+msgid "成都"
+msgstr "成都"
+
+msgid "南充"
+msgstr "南充"
+
+msgid "泸州"
+msgstr "泸州"
+
+msgid "阿坝藏族羌族自治州"
+msgstr "阿坝藏族羌族自治州"
+
+msgid "雅安"
+msgstr "雅安"
+
+msgid "广安"
+msgstr "广安"
+
+msgid "资阳"
+msgstr "资阳"
+
+msgid "甘孜藏族自治州"
+msgstr "甘孜藏族自治州"
+
+msgid "德阳"
+msgstr "德阳"
+
+msgid "贵州"
+msgstr "贵州"
+
+msgid "遵义"
+msgstr "遵义"
+
+msgid "贵阳"
+msgstr "贵阳"
+
+msgid "毕节"
+msgstr "毕节"
+
+msgid "黔东南苗族侗族自治州"
+msgstr "黔东南苗族侗族自治州"
+
+msgid "六盘水"
+msgstr "六盘水"
+
+msgid "黔西南布依族苗族自治州"
+msgstr "黔西南布依族苗族自治州"
+
+msgid "铜仁"
+msgstr "铜仁"
+
+msgid "黔南布依族苗族自治州"
+msgstr "黔南布依族苗族自治州"
+
+msgid "安顺"
+msgstr "安顺"
+
+msgid "云南"
+msgstr "云南"
+
+msgid "怒江傈僳族自治州"
+msgstr "怒江傈僳族自治州"
+
+msgid "曲靖"
+msgstr "曲靖"
+
+msgid "普洱"
+msgstr "普洱"
+
+msgid "丽江"
+msgstr "丽江"
+
+msgid "红河哈尼族彝族自治州"
+msgstr "红河哈尼族彝族自治州"
+
+msgid "临沧"
+msgstr "临沧"
+
+msgid "西双版纳傣族自治州"
+msgstr "西双版纳傣族自治州"
+
+msgid "德宏傣族景颇族自治州"
+msgstr "德宏傣族景颇族自治州"
+
+msgid "玉溪"
+msgstr "玉溪"
+
+msgid "文山壮族苗族自治州"
+msgstr "文山壮族苗族自治州"
+
+msgid "昆明"
+msgstr "昆明"
+
+msgid "大理白族自治州"
+msgstr "大理白族自治州"
+
+msgid "保山"
+msgstr "保山"
+
+msgid "迪庆藏族自治州"
+msgstr "迪庆藏族自治州"
+
+msgid "昭通"
+msgstr "昭通"
+
+msgid "楚雄彝族自治州"
+msgstr "楚雄彝族自治州"
+
+msgid "西藏"
+msgstr "西藏"
+
+msgid "昌都"
+msgstr "昌都"
+
+msgid "阿里地区"
+msgstr "阿里地区"
+
+msgid "日喀则"
+msgstr "日喀则"
+
+msgid "山南"
+msgstr "山南"
+
+msgid "那曲地区"
+msgstr "那曲地区"
+
+msgid "拉萨"
+msgstr "拉萨"
+
+msgid "林芝"
+msgstr "林芝"
+
+msgid "陕西"
+msgstr "陕西"
+
+msgid "咸阳"
+msgstr "咸阳"
+
+msgid "延安"
+msgstr "延安"
+
+msgid "安康"
+msgstr "安康"
+
+msgid "商洛"
+msgstr "商洛"
+
+msgid "铜川"
+msgstr "铜川"
+
+msgid "渭南"
+msgstr "渭南"
+
+msgid "汉中"
+msgstr "汉中"
+
+msgid "西安"
+msgstr "西安"
+
+msgid "榆林"
+msgstr "榆林"
+
+msgid "宝鸡"
+msgstr "宝鸡"
+
+msgid "甘肃"
+msgstr "甘肃"
+
+msgid "武威"
+msgstr "武威"
+
+msgid "嘉峪关"
+msgstr "嘉峪关"
+
+msgid "张掖"
+msgstr "张掖"
+
+msgid "庆阳"
+msgstr "庆阳"
+
+msgid "金昌"
+msgstr "金昌"
+
+msgid "临夏回族自治州"
+msgstr "临夏回族自治州"
+
+msgid "定西"
+msgstr "定西"
+
+msgid "兰州"
+msgstr "兰州"
+
+msgid "酒泉"
+msgstr "酒泉"
+
+msgid "甘南藏族自治州"
+msgstr "甘南藏族自治州"
+
+msgid "陇南"
+msgstr "陇南"
+
+msgid "白银"
+msgstr "白银"
+
+msgid "天水"
+msgstr "天水"
+
+msgid "平凉"
+msgstr "平凉"
+
+msgid "青海"
+msgstr "青海"
+
+msgid "海南藏族自治州"
+msgstr "海南藏族自治州"
+
+msgid "玉树藏族自治州"
+msgstr "玉树藏族自治州"
+
+msgid "海东"
+msgstr "海东"
+
+msgid "黄南藏族自治州"
+msgstr "黄南藏族自治州"
+
+msgid "果洛藏族自治州"
+msgstr "果洛藏族自治州"
+
+msgid "海西蒙古族藏族自治州"
+msgstr "海西蒙古族藏族自治州"
+
+msgid "西宁"
+msgstr "西宁"
+
+msgid "海北藏族自治州"
+msgstr "海北藏族自治州"
+
+msgid "宁夏"
+msgstr "宁夏"
+
+msgid "银川"
+msgstr "银川"
+
+msgid "石嘴山"
+msgstr "石嘴山"
+
+msgid "吴忠"
+msgstr "吴忠"
+
+msgid "固原"
+msgstr "固原"
+
+msgid "中卫"
+msgstr "中卫"
+
+msgid "新疆"
+msgstr "新疆"
+
+msgid "自治区直辖县级行政区划"
+msgstr "自治区直辖县级行政区划"
+
+msgid "巴音郭楞蒙古自治州"
+msgstr "巴音郭楞蒙古自治州"
+
+msgid "阿勒泰地区"
+msgstr "阿勒泰地区"
+
+msgid "塔城地区"
+msgstr "塔城地区"
+
+msgid "克拉玛依"
+msgstr "克拉玛依"
+
+msgid "乌鲁木齐"
+msgstr "乌鲁木齐"
+
+msgid "克孜勒苏柯尔克孜自治州"
+msgstr "克孜勒苏柯尔克孜自治州"
+
+msgid "阿克苏地区"
+msgstr "阿克苏地区"
+
+msgid "哈密"
+msgstr "哈密"
+
+msgid "昌吉回族自治州"
+msgstr "昌吉回族自治州"
+
+msgid "博尔塔拉蒙古自治州"
+msgstr "博尔塔拉蒙古自治州"
+
+msgid "吐鲁番"
+msgstr "吐鲁番"
+
+msgid "喀什地区"
+msgstr "喀什地区"
+
+msgid "和田地区"
+msgstr "和田地区"
+
+msgid "伊犁哈萨克自治州"
+msgstr "伊犁哈萨克自治州"
+
+msgid "台湾"
+msgstr "台湾"
+
+msgid "香港"
+msgstr "香港"
+
+msgid "澳门"
+msgstr "澳门"
+
+msgid "中国"
+msgstr "中国"
+
+msgid "美国"
+msgstr "美国"
+
+msgid "阿根廷"
+msgstr "阿根廷"
+
+msgid "安道尔"
+msgstr "安道尔"
+
+msgid "阿联酋"
+msgstr "阿联酋"
+
+msgid "阿富汗"
+msgstr "阿富汗"
+
+msgid "安提瓜和巴布达"
+msgstr "安提瓜和巴布达"
+
+msgid "安圭拉"
+msgstr "安圭拉"
+
+msgid "阿尔巴尼亚"
+msgstr "阿尔巴尼亚"
+
+msgid "亚美尼亚"
+msgstr "亚美尼亚"
+
+msgid "安哥拉"
+msgstr "安哥拉"
+
+msgid "南极洲"
+msgstr "南极洲"
+
+msgid "美属萨摩亚"
+msgstr "美属萨摩亚"
+
+msgid "奥地利"
+msgstr "奥地利"
+
+msgid "澳大利亚"
+msgstr "澳大利亚"
+
+msgid "阿鲁巴"
+msgstr "阿鲁巴"
+
+msgid "奥兰群岛"
+msgstr "奥兰群岛"
+
+msgid "阿塞拜疆"
+msgstr "阿塞拜疆"
+
+msgid "波黑"
+msgstr "波黑"
+
+msgid "巴巴多斯"
+msgstr "巴巴多斯"
+
+msgid "孟加拉"
+msgstr "孟加拉"
+
+msgid "比利时"
+msgstr "比利时"
+
+msgid "布基纳法索"
+msgstr "布基纳法索"
+
+msgid "保加利亚"
+msgstr "保加利亚"
+
+msgid "巴林"
+msgstr "巴林"
+
+msgid "布隆迪"
+msgstr "布隆迪"
+
+msgid "贝宁"
+msgstr "贝宁"
+
+msgid "圣巴泰勒米岛"
+msgstr "圣巴泰勒米岛"
+
+msgid "百慕大"
+msgstr "百慕大"
+
+msgid "文莱"
+msgstr "文莱"
+
+msgid "玻利维亚"
+msgstr "玻利维亚"
+
+msgid "荷兰加勒比区"
+msgstr "荷兰加勒比区"
+
+msgid "巴西"
+msgstr "巴西"
+
+msgid "巴哈马"
+msgstr "巴哈马"
+
+msgid "不丹"
+msgstr "不丹"
+
+msgid "布韦岛"
+msgstr "布韦岛"
+
+msgid "博茨瓦纳"
+msgstr "博茨瓦纳"
+
+msgid "白俄罗斯"
+msgstr "白俄罗斯"
+
+msgid "伯利兹"
+msgstr "伯利兹"
+
+msgid "加拿大"
+msgstr "加拿大"
+
+msgid "科科斯群岛"
+msgstr "科科斯群岛"
+
+msgid "刚果（金）"
+msgstr "刚果（金）"
+
+msgid "中非"
+msgstr "中非"
+
+msgid "刚果（布）"
+msgstr "刚果（布）"
+
+msgid "瑞士"
+msgstr "瑞士"
+
+msgid "科特迪瓦"
+msgstr "科特迪瓦"
+
+msgid "库克群岛"
+msgstr "库克群岛"
+
+msgid "智利"
+msgstr "智利"
+
+msgid "喀麦隆"
+msgstr "喀麦隆"
+
+msgid "哥伦比亚"
+msgstr "哥伦比亚"
+
+msgid "哥斯达黎加"
+msgstr "哥斯达黎加"
+
+msgid "古巴"
+msgstr "古巴"
+
+msgid "佛得角"
+msgstr "佛得角"
+
+msgid "库拉索"
+msgstr "库拉索"
+
+msgid "圣诞岛"
+msgstr "圣诞岛"
+
+msgid "塞浦路斯"
+msgstr "塞浦路斯"
+
+msgid "捷克"
+msgstr "捷克"
+
+msgid "德国"
+msgstr "德国"
+
+msgid "吉布提"
+msgstr "吉布提"
+
+msgid "丹麦"
+msgstr "丹麦"
+
+msgid "多米尼克"
+msgstr "多米尼克"
+
+msgid "多米尼加"
+msgstr "多米尼加"
+
+msgid "阿尔及利亚"
+msgstr "阿尔及利亚"
+
+msgid "厄瓜多尔"
+msgstr "厄瓜多尔"
+
+msgid "爱沙尼亚"
+msgstr "爱沙尼亚"
+
+msgid "埃及"
+msgstr "埃及"
+
+msgid "西撒哈拉"
+msgstr "西撒哈拉"
+
+msgid "厄立特里亚"
+msgstr "厄立特里亚"
+
+msgid "西班牙"
+msgstr "西班牙"
+
+msgid "埃塞俄比亚"
+msgstr "埃塞俄比亚"
+
+msgid "芬兰"
+msgstr "芬兰"
+
+msgid "斐济群岛"
+msgstr "斐济群岛"
+
+msgid "马尔维纳斯群岛（福克兰）"
+msgstr "马尔维纳斯群岛（福克兰）"
+
+msgid "密克罗尼西亚联邦"
+msgstr "密克罗尼西亚联邦"
+
+msgid "法罗群岛"
+msgstr "法罗群岛"
+
+msgid "法国 法国"
+msgstr "法国 法国"
+
+msgid "加蓬"
+msgstr "加蓬"
+
+msgid "英国"
+msgstr "英国"
+
+msgid "格林纳达"
+msgstr "格林纳达"
+
+msgid "格鲁吉亚"
+msgstr "格鲁吉亚"
+
+msgid "法属圭亚那"
+msgstr "法属圭亚那"
+
+msgid "根西岛"
+msgstr "根西岛"
+
+msgid "加纳"
+msgstr "加纳"
+
+msgid "直布罗陀"
+msgstr "直布罗陀"
+
+msgid "格陵兰"
+msgstr "格陵兰"
+
+msgid "冈比亚"
+msgstr "冈比亚"
+
+msgid "几内亚"
+msgstr "几内亚"
+
+msgid "瓜德罗普"
+msgstr "瓜德罗普"
+
+msgid "赤道几内亚"
+msgstr "赤道几内亚"
+
+msgid "希腊"
+msgstr "希腊"
+
+msgid "南乔治亚岛和南桑威奇群岛"
+msgstr "南乔治亚岛和南桑威奇群岛"
+
+msgid "危地马拉"
+msgstr "危地马拉"
+
+msgid "关岛"
+msgstr "关岛"
+
+msgid "几内亚比绍"
+msgstr "几内亚比绍"
+
+msgid "圭亚那"
+msgstr "圭亚那"
+
+msgid "赫德岛和麦克唐纳群岛"
+msgstr "赫德岛和麦克唐纳群岛"
+
+msgid "洪都拉斯"
+msgstr "洪都拉斯"
+
+msgid "克罗地亚"
+msgstr "克罗地亚"
+
+msgid "海地"
+msgstr "海地"
+
+msgid "匈牙利"
+msgstr "匈牙利"
+
+msgid "印尼"
+msgstr "印尼"
+
+msgid "爱尔兰"
+msgstr "爱尔兰"
+
+msgid "以色列"
+msgstr "以色列"
+
+msgid "马恩岛"
+msgstr "马恩岛"
+
+msgid "印度"
+msgstr "印度"
+
+msgid "英属印度洋领地"
+msgstr "英属印度洋领地"
+
+msgid "伊拉克"
+msgstr "伊拉克"
+
+msgid "伊朗"
+msgstr "伊朗"
+
+msgid "冰岛"
+msgstr "冰岛"
+
+msgid "意大利"
+msgstr "意大利"
+
+msgid "泽西岛"
+msgstr "泽西岛"
+
+msgid "牙买加"
+msgstr "牙买加"
+
+msgid "约旦"
+msgstr "约旦"
+
+msgid "日本"
+msgstr "日本"
+
+msgid "肯尼亚"
+msgstr "肯尼亚"
+
+msgid "吉尔吉斯斯坦"
+msgstr "吉尔吉斯斯坦"
+
+msgid "柬埔寨"
+msgstr "柬埔寨"
+
+msgid "基里巴斯"
+msgstr "基里巴斯"
+
+msgid "科摩罗"
+msgstr "科摩罗"
+
+msgid "圣基茨和尼维斯"
+msgstr "圣基茨和尼维斯"
+
+msgid "朝鲜"
+msgstr "朝鲜"
+
+msgid "韩国"
+msgstr "韩国"
+
+msgid "科威特"
+msgstr "科威特"
+
+msgid "开曼群岛"
+msgstr "开曼群岛"
+
+msgid "哈萨克斯坦"
+msgstr "哈萨克斯坦"
+
+msgid "老挝"
+msgstr "老挝"
+
+msgid "黎巴嫩"
+msgstr "黎巴嫩"
+
+msgid "圣卢西亚"
+msgstr "圣卢西亚"
+
+msgid "列支敦士登"
+msgstr "列支敦士登"
+
+msgid "斯里兰卡"
+msgstr "斯里兰卡"
+
+msgid "利比里亚"
+msgstr "利比里亚"
+
+msgid "莱索托"
+msgstr "莱索托"
+
+msgid "立陶宛"
+msgstr "立陶宛"
+
+msgid "卢森堡"
+msgstr "卢森堡"
+
+msgid "拉脱维亚"
+msgstr "拉脱维亚"
+
+msgid "利比亚"
+msgstr "利比亚"
+
+msgid "摩洛哥"
+msgstr "摩洛哥"
+
+msgid "摩纳哥"
+msgstr "摩纳哥"
+
+msgid "摩尔多瓦"
+msgstr "摩尔多瓦"
+
+msgid "黑山"
+msgstr "黑山"
+
+msgid "法属圣马丁"
+msgstr "法属圣马丁"
+
+msgid "马达加斯加"
+msgstr "马达加斯加"
+
+msgid "马绍尔群岛"
+msgstr "马绍尔群岛"
+
+msgid "马其顿"
+msgstr "马其顿"
+
+msgid "马里"
+msgstr "马里"
+
+msgid "缅甸"
+msgstr "缅甸"
+
+msgid "蒙古国"
+msgstr "蒙古国"
+
+msgid "北马里亚纳群岛"
+msgstr "北马里亚纳群岛"
+
+msgid "马提尼克"
+msgstr "马提尼克"
+
+msgid "毛里塔尼亚"
+msgstr "毛里塔尼亚"
+
+msgid "蒙塞拉特岛"
+msgstr "蒙塞拉特岛"
+
+msgid "马耳他"
+msgstr "马耳他"
+
+msgid "毛里求斯"
+msgstr "毛里求斯"
+
+msgid "马尔代夫"
+msgstr "马尔代夫"
+
+msgid "马拉维"
+msgstr "马拉维"
+
+msgid "墨西哥"
+msgstr "墨西哥"
+
+msgid "马来西亚"
+msgstr "马来西亚"
+
+msgid "莫桑比克"
+msgstr "莫桑比克"
+
+msgid "纳米比亚"
+msgstr "纳米比亚"
+
+msgid "新喀里多尼亚"
+msgstr "新喀里多尼亚"
+
+msgid "尼日尔"
+msgstr "尼日尔"
+
+msgid "诺福克岛"
+msgstr "诺福克岛"
+
+msgid "尼日利亚"
+msgstr "尼日利亚"
+
+msgid "尼加拉瓜"
+msgstr "尼加拉瓜"
+
+msgid "荷兰"
+msgstr "荷兰"
+
+msgid "挪威"
+msgstr "挪威"
+
+msgid "尼泊尔"
+msgstr "尼泊尔"
+
+msgid "瑙鲁"
+msgstr "瑙鲁"
+
+msgid "纽埃"
+msgstr "纽埃"
+
+msgid "新西兰"
+msgstr "新西兰"
+
+msgid "阿曼"
+msgstr "阿曼"
+
+msgid "巴拿马"
+msgstr "巴拿马"
+
+msgid "秘鲁"
+msgstr "秘鲁"
+
+msgid "法属波利尼西亚"
+msgstr "法属波利尼西亚"
+
+msgid "巴布亚新几内亚"
+msgstr "巴布亚新几内亚"
+
+msgid "菲律宾"
+msgstr "菲律宾"
+
+msgid "巴基斯坦"
+msgstr "巴基斯坦"
+
+msgid "波兰"
+msgstr "波兰"
+
+msgid "圣皮埃尔和密克隆"
+msgstr "圣皮埃尔和密克隆"
+
+msgid "皮特凯恩群岛"
+msgstr "皮特凯恩群岛"
+
+msgid "波多黎各"
+msgstr "波多黎各"
+
+msgid "巴勒斯坦"
+msgstr "巴勒斯坦"
+
+msgid "葡萄牙"
+msgstr "葡萄牙"
+
+msgid "帕劳"
+msgstr "帕劳"
+
+msgid "巴拉圭"
+msgstr "巴拉圭"
+
+msgid "卡塔尔"
+msgstr "卡塔尔"
+
+msgid "留尼汪"
+msgstr "留尼汪"
+
+msgid "罗马尼亚"
+msgstr "罗马尼亚"
+
+msgid "塞尔维亚"
+msgstr "塞尔维亚"
+
+msgid "俄罗斯"
+msgstr "俄罗斯"
+
+msgid "卢旺达"
+msgstr "卢旺达"
+
+msgid "沙特阿拉伯"
+msgstr "沙特阿拉伯"
+
+msgid "所罗门群岛"
+msgstr "所罗门群岛"
+
+msgid "塞舌尔"
+msgstr "塞舌尔"
+
+msgid "苏丹"
+msgstr "苏丹"
+
+msgid "瑞典"
+msgstr "瑞典"
+
+msgid "新加坡"
+msgstr "新加坡"
+
+msgid "圣赫勒拿"
+msgstr "圣赫勒拿"
+
+msgid "斯洛文尼亚"
+msgstr "斯洛文尼亚"
+
+msgid "斯瓦尔巴群岛和扬马延岛"
+msgstr "斯瓦尔巴群岛和扬马延岛"
+
+msgid "斯洛伐克"
+msgstr "斯洛伐克"
+
+msgid "塞拉利昂"
+msgstr "塞拉利昂"
+
+msgid "圣马力诺"
+msgstr "圣马力诺"
+
+msgid "塞内加尔"
+msgstr "塞内加尔"
+
+msgid "索马里"
+msgstr "索马里"
+
+msgid "苏里南"
+msgstr "苏里南"
+
+msgid "南苏丹"
+msgstr "南苏丹"
+
+msgid "圣多美和普林西比"
+msgstr "圣多美和普林西比"
+
+msgid "萨尔瓦多"
+msgstr "萨尔瓦多"
+
+msgid "荷属圣马丁"
+msgstr "荷属圣马丁"
+
+msgid "叙利亚"
+msgstr "叙利亚"
+
+msgid "斯威士兰"
+msgstr "斯威士兰"
+
+msgid "特克斯和凯科斯群岛"
+msgstr "特克斯和凯科斯群岛"
+
+msgid "乍得"
+msgstr "乍得"
+
+msgid "法属南部领地"
+msgstr "法属南部领地"
+
+msgid "多哥"
+msgstr "多哥"
+
+msgid "泰国"
+msgstr "泰国"
+
+msgid "塔吉克斯坦"
+msgstr "塔吉克斯坦"
+
+msgid "托克劳"
+msgstr "托克劳"
+
+msgid "东帝汶"
+msgstr "东帝汶"
+
+msgid "土库曼斯坦"
+msgstr "土库曼斯坦"
+
+msgid "突尼斯"
+msgstr "突尼斯"
+
+msgid "汤加"
+msgstr "汤加"
+
+msgid "土耳其"
+msgstr "土耳其"
+
+msgid "特立尼达和多巴哥"
+msgstr "特立尼达和多巴哥"
+
+msgid "图瓦卢"
+msgstr "图瓦卢"
+
+msgid "坦桑尼亚"
+msgstr "坦桑尼亚"
+
+msgid "乌克兰"
+msgstr "乌克兰"
+
+msgid "乌干达"
+msgstr "乌干达"
+
+msgid "美国本土外小岛屿"
+msgstr "美国本土外小岛屿"
+
+msgid "乌拉圭"
+msgstr "乌拉圭"
+
+msgid "乌兹别克斯坦"
+msgstr "乌兹别克斯坦"
+
+msgid "梵蒂冈"
+msgstr "梵蒂冈"
+
+msgid "圣文森特和格林纳丁斯"
+msgstr "圣文森特和格林纳丁斯"
+
+msgid "委内瑞拉"
+msgstr "委内瑞拉"
+
+msgid "英属维尔京群岛"
+msgstr "英属维尔京群岛"
+
+msgid "美属维尔京群岛"
+msgstr "美属维尔京群岛"
+
+msgid "越南"
+msgstr "越南"
+
+msgid "瓦努阿图"
+msgstr "瓦努阿图"
+
+msgid "瓦利斯和富图纳"
+msgstr "瓦利斯和富图纳"
+
+msgid "萨摩亚"
+msgstr "萨摩亚"
+
+msgid "也门"
+msgstr "也门"
+
+msgid "马约特"
+msgstr "马约特"
+
+msgid "南非"
+msgstr "南非"
+
+msgid "赞比亚"
+msgstr "赞比亚"
+
+msgid "津巴布韦"
+msgstr "津巴布韦"
+
+msgid "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
+msgstr "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_PROXY_IP]未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
+
+msgid "采集器IP"
+msgstr "采集器IP"
+
+msgid "主机名"
+msgstr "主机名"
+
+msgid "设备名"
+msgstr "设备名"
+
+msgid "CPU空闲率"
+msgstr "CPU空闲率"
+
+msgid "CPU等待IO的时间占比"
+msgstr "CPU等待IO的时间占比"
+
+msgid "CPU分配给虚拟机的时间占比"
+msgstr "CPU分配给虚拟机的时间占比"
+
+msgid "CPU系统程序使用占比"
+msgstr "CPU系统程序使用占比"
+
+msgid "CPU用户程序使用占比"
+msgstr "CPU用户程序使用占比"
+
+msgid "开发商ID"
+msgstr "开发商ID"
+
+msgid "采集器云区域ID"
+msgstr "采集器云区域ID"
+
+msgid "数据上报时间"
+msgstr "数据上报时间"
+
+msgid "I/O平均等待时长"
+msgstr "I/O平均等待时长"
+
+msgid "I/O平均服务时长"
+msgstr "I/O平均服务时长"
+
+msgid "I/O读次数"
+msgstr "I/O读次数"
+
+msgid "I/O读速率"
+msgstr "I/O读速率"
+
+msgid "I/O写次数"
+msgstr "I/O写次数"
+
+msgid "I/O写速率"
+msgstr "I/O写速率"
+
+msgid "I/O使用率"
+msgstr "I/O使用率"
+
+msgid "设备每次I/O平均数据大小"
+msgstr "设备每次I/O平均数据大小"
+
+msgid "平均I/O队列长度"
+msgstr "平均I/O队列长度"
+
+msgid "时区城市"
+msgstr "时区城市"
+
+msgid "系统启动时间"
+msgstr "系统启动时间"
+
+msgid "系统总进程数"
+msgstr "系统总进程数"
+
+msgid "机器时区"
+msgstr "机器时区"
+
+msgid "CPU单核使用率"
+msgstr "CPU单核使用率"
+
+msgid "CPU单核空闲率"
+msgstr "CPU单核空闲率"
+
+msgid "CPU单核等待IO的时间占比"
+msgstr "CPU单核等待IO的时间占比"
+
+msgid "CPU单核分配给虚拟机的时间占比"
+msgstr "CPU单核分配给虚拟机的时间占比"
+
+msgid "CPU单核系统程序使用占比"
+msgstr "CPU单核系统程序使用占比"
+
+msgid "CPU单核用户程序使用占比"
+msgstr "CPU单核用户程序使用占比"
+
+msgid "内存buffered大小"
+msgstr "内存buffered大小"
+
+msgid "内存cached大小"
+msgstr "内存cached大小"
+
+msgid "物理内存空闲量"
+msgstr "物理内存空闲量"
+
+msgid "物理内存总大小"
+msgstr "物理内存总大小"
+
+msgid "应用程序内存可用量"
+msgstr "应用程序内存可用量"
+
+msgid "应用程序内存可用率"
+msgstr "应用程序内存可用率"
+
+msgid "应用程序内存使用量"
+msgstr "应用程序内存使用量"
+
+msgid "应用程序内存使用占比"
+msgstr "应用程序内存使用占比"
+
+msgid "物理内存已用量"
+msgstr "物理内存已用量"
+
+msgid "物理内存已用占比"
+msgstr "物理内存已用占比"
+
+msgid "closewait连接数"
+msgstr "closewait连接数"
+
+msgid "timewait连接数"
+msgstr "timewait连接数"
+
+msgid "closed连接数"
+msgstr "closed连接数"
+
+msgid "closing连接数"
+msgstr "closing连接数"
+
+msgid "estab连接数"
+msgstr "estab连接数"
+
+msgid "finwait1连接数"
+msgstr "finwait1连接数"
+
+msgid "finwait2连接数"
+msgstr "finwait2连接数"
+
+msgid "lastact连接数"
+msgstr "lastact连接数"
+
+msgid "listen连接数"
+msgstr "listen连接数"
+
+msgid "synrecv连接数"
+msgstr "synrecv连接数"
+
+msgid "synsent连接数"
+msgstr "synsent连接数"
+
+msgid "udp接收包量"
+msgstr "udp接收包量"
+
+msgid "udp发送包量"
+msgstr "udp发送包量"
+
+msgid "磁盘可用空间大小"
+msgstr "磁盘可用空间大小"
+
+msgid "磁盘总空间大小"
+msgstr "磁盘总空间大小"
+
+msgid "磁盘已用空间大小"
+msgstr "磁盘已用空间大小"
+
+msgid "网卡入包量"
+msgstr "网卡入包量"
+
+msgid "网卡出包量"
+msgstr "网卡出包量"
+
+msgid "进程二进制文件名称"
+msgstr "进程二进制文件名称"
+
+msgid "进程显示名称"
+msgstr "进程显示名称"
+
+msgid "进程匹配参数正则"
+msgstr "进程匹配参数正则"
+
+msgid "进程id"
+msgstr "进程id"
+
+msgid "进程组id"
+msgstr "进程组id"
+
+msgid "父进程ID"
+msgstr "父进程ID"
+
+msgid "进程状态"
+msgstr "进程状态"
+
+msgid "进程用户名"
+msgstr "进程用户名"
+
+msgid "进程CPU使用率"
+msgstr "进程CPU使用率"
+
+msgid "进程内存使用率"
+msgstr "进程内存使用率"
+
+msgid "进程文件句柄数"
+msgstr "进程文件句柄数"
+
+msgid "进程使用物理内存"
+msgstr "进程使用物理内存"
+
+msgid "进程使用虚拟内存"
+msgstr "进程使用虚拟内存"
+
+msgid "可用inode数量"
+msgstr "可用inode数量"
+
+msgid "总inode数量"
+msgstr "总inode数量"
+
+msgid "已用inode数量"
+msgstr "已用inode数量"
+
+msgid "已用inode占比"
+msgstr "已用inode占比"
+
+msgid "SWAP空闲量"
+msgstr "SWAP空闲量"
+
+msgid "SWAP总量"
+msgstr "SWAP总量"
+
+msgid "SWAP已用量"
+msgstr "SWAP已用量"
+
+msgid "SWAP已用占比"
+msgstr "SWAP已用占比"
+
+msgid "监听中的端口"
+msgstr "监听中的端口"
+
+msgid "未监听的端口"
+msgstr "未监听的端口"
+
+msgid "监听IP不匹配的端口"
+msgstr "监听IP不匹配的端口"
+
+msgid "绑定的IP地址"
+msgstr "绑定的IP地址"
+
+msgid "协议"
+msgstr "协议"
+
+msgid "进程存活状态"
+msgstr "进程存活状态"
+
+msgid "进程端口状态"
+msgstr "进程端口状态"
+
+msgid "1分钟平均负载"
+msgstr "1分钟平均负载"
+
+msgid "5分钟平均负载"
+msgstr "5分钟平均负载"
+
+msgid "15分钟平均负载"
+msgstr "15分钟平均负载"
+
+msgid "设备类型"
+msgstr "设备类型"
+
+msgid "挂载点"
+msgstr "挂载点"
+
+msgid "CMDB层级信息"
+msgstr "CMDB层级信息"
+
+msgid "网卡入流量比特速率"
+msgstr "网卡入流量比特速率"
+
+msgid "网卡出流量比特速率 "
+msgstr "网卡出流量比特速率 "
+
+msgid "网卡出流量比特速率"
+msgstr "网卡出流量比特速率"
+
+msgid "低优先级程序在用户态执行的CPU占比"
+msgstr "低优先级程序在用户态执行的CPU占比"
+
+msgid "硬件中断数的CPU占比"
+msgstr "硬件中断数的CPU占比"
+
+msgid "软件中断数的CPU占比"
+msgstr "软件中断数的CPU占比"
+
+msgid "内核在虚拟机上运行的CPU占比"
+msgstr "内核在虚拟机上运行的CPU占比"
+
+msgid "最大文件描述符"
+msgstr "最大文件描述符"
+
+msgid "登录的用户数"
+msgstr "登录的用户数"
+
+msgid "正在运行的进程总个数"
+msgstr "正在运行的进程总个数"
+
+msgid "处于等待I/O完成的进程个数"
+msgstr "处于等待I/O完成的进程个数"
+
+msgid "系统启动后所创建过的进程数量"
+msgstr "系统启动后所创建过的进程数量"
+
+msgid "系统上下文切换次数"
+msgstr "系统上下文切换次数"
+
+msgid "单核CPU的load"
+msgstr "单核CPU的load"
+
+msgid "网卡错误包"
+msgstr "网卡错误包"
+
+msgid "网卡丢弃包"
+msgstr "网卡丢弃包"
+
+msgid "网卡物理层丢弃"
+msgstr "网卡物理层丢弃"
+
+msgid "设备驱动程序检测到的载波丢失数"
+msgstr "设备驱动程序检测到的载波丢失数"
+
+msgid "网卡冲突包"
+msgstr "网卡冲突包"
+
+msgid "swap从硬盘到内存"
+msgstr "swap从硬盘到内存"
+
+msgid "swap从内存到硬盘"
+msgstr "swap从内存到硬盘"
+
+msgid "进程运行时间"
+msgstr "进程运行时间"
+
+msgid "进程监听端口"
+msgstr "进程监听端口"
+
+msgid "进程占用用户态时间"
+msgstr "进程占用用户态时间"
+
+msgid "进程占用系统态时间"
+msgstr "进程占用系统态时间"
+
+msgid "整体占用时间"
+msgstr "整体占用时间"
+
+msgid "fd_limit_soft"
+msgstr "fd_limit_soft"
+
+msgid "fd_limit_hard"
+msgstr "fd_limit_hard"
+
+msgid "进程io累计读"
+msgstr "进程io累计读"
+
+msgid "进程io累计写"
+msgstr "进程io累计写"
+
+msgid "进程io读速率"
+msgstr "进程io读速率"
+
+msgid "进程io写速率"
+msgstr "进程io写速率"
+
+msgid "共享内存使用量"
+msgstr "共享内存使用量"
+
+msgid "Agent ID"
+msgstr "Agent ID"
+
+msgid "采集主机ID"
+msgstr "采集主机ID"
+
+msgid "目标主机ID"
+msgstr "目标主机ID"
+
+msgid "耗时"
+msgstr "耗时"
+
+msgid "错误码"
+msgstr "错误码"
+
+msgid "目标主机"
+msgstr "目标主机"
+
+msgid "目标端口"
+msgstr "目标端口"
+
+msgid "任务 ID"
+msgstr "任务 ID"
+
+msgid "任务类型"
+msgstr "任务类型"
+
+msgid "节点 ID"
+msgstr "节点 ID"
+
+msgid "单点可用率"
+msgstr "单点可用率"
+
+msgid "重试次数"
+msgstr "重试次数"
+
+msgid "编码类型"
+msgstr "编码类型"
+
+msgid "响应长度"
+msgstr "响应长度"
+
+msgid "媒体类型"
+msgstr "媒体类型"
+
+msgid "请求方法"
+msgstr "请求方法"
+
+msgid "请求步骤数"
+msgstr "请求步骤数"
+
+msgid "请求网址"
+msgstr "请求网址"
+
+msgid "重载次数"
+msgstr "重载次数"
+
+msgid "运行任务数"
+msgstr "运行任务数"
+
+msgid "成功事件数"
+msgstr "成功事件数"
+
+msgid "启动时间"
+msgstr "启动时间"
+
+msgid "版本"
+msgstr "版本"
+
+msgid "失败事件数"
+msgstr "失败事件数"
+
+msgid "错误事件数"
+msgstr "错误事件数"
+
+msgid "重载时间"
+msgstr "重载时间"
+
+msgid "历史载入任务数"
+msgstr "历史载入任务数"
+
+msgid "目标地址"
+msgstr "目标地址"
+
+msgid "目标地址类型"
+msgstr "目标地址类型"
+
+msgid "丢包率"
+msgstr "丢包率"
+
+msgid "最大时延"
+msgstr "最大时延"
+
+msgid "最小时延"
+msgstr "最小时延"
+
+msgid "平均时延"
+msgstr "平均时延"
+
+msgid "上报时间"
+msgstr "上报时间"
+
+msgid "响应时间"
+msgstr "响应时间"
+
+msgid "请求域名解析结果IP"
+msgstr "请求域名解析结果IP"
+
+msgid "节点ID"
+msgstr "节点ID"
+
+msgid "目标云区域ID"
+msgstr "目标云区域ID"
+
+msgid "用户体验"
+msgstr "用户体验"
+
+msgid "业务应用"
+msgstr "业务应用"
+
+msgid "蓝鲸数据平台"
+msgstr "蓝鲸数据平台"
+
+msgid "组件"
+msgstr "组件"
+
+msgid "自定义事件类型"
+msgstr "自定义事件类型"
+
+msgid "数据中心"
+msgstr "数据中心"
+
+msgid "内置事件类型"
+msgstr "内置事件类型"
+
+msgid "硬件设备"
+msgstr "硬件设备"
+
+msgid "主机&云平台"
+msgstr "主机&云平台"
+
+msgid "主机设备"
+msgstr "主机设备"
+
+msgid "kubernetes"
+msgstr "Kubernetes"
+
+msgid "日志类型"
+msgstr "日志类型"
+
+msgid "操作系统"
+msgstr "操作系统"
+
+msgid "服务"
+msgstr "服务"
+
+msgid "服务模块"
+msgstr "服务模块"
+
+msgid "时序数据"
+msgstr "时序数据"
+
+msgid "服务拨测"
+msgstr "服务拨测"
+
+msgid "[内置]第三方告警默认规则组"
+msgstr "[内置]第三方告警默认规则组"
+
+msgid "[内置]通知人为空默认规则组"
+msgstr "[内置]通知人为空默认规则组"
+
+msgid "蓝鲸业务空间"
+msgstr "蓝鲸业务空间"
+
+msgid "容器项目"
+msgstr "容器项目"
+
+msgid "容器项目空间"
+msgstr "容器项目空间"
+
+msgid "研发项目"
+msgstr "研发项目"
+
+msgid "蓝盾研发项目空间"
+msgstr "蓝盾研发项目空间"
+
+msgid "蓝鲸应用"
+msgstr "蓝鲸应用"
+
+msgid "蓝鲸应用空间"
+msgstr "蓝鲸应用空间"
+
+msgid "监控空间"
+msgstr "监控空间"
+
+msgid "群机器人"
+msgstr "群机器人"
+
+msgid "默认"
+msgstr "默认"
+
+msgid "发送成功, 消息ID为{}"
+msgstr "发送成功, 消息ID为{}"
+
+msgid "未配置企业微信群机器人，请联系管理员"
+msgstr "未配置企业微信群机器人，请联系管理员"
+
+msgid "通知人不能为空"
+msgstr "通知人不能为空"
+
+msgid "微信公众号仅支持告警异常通知推送"
+msgstr "微信公众号仅支持告警异常通知推送"
+
+msgid "指标维度不能为空"
+msgstr "指标维度不能为空"
+
+msgid "非与保留关键字重名字段不允许以'_'开头"
+msgstr "非与保留关键字重名字段不允许以'_'开头"
+
+msgid "指标维度不允许与保留关键字重名"
+msgstr "指标维度不允许与保留关键字重名"
+
+msgid "名称校验不通过:{}"
+msgstr "名称校验不通过:{}"
+
+msgid "指标和维度不允许重名,重名内容:{}"
+msgstr "指标和维度不允许重名,重名内容:{}"
+
+msgid "表名不允许与保留关键字重名"
+msgstr "表名不允许与保留关键字重名"
+
+msgid "指标维度中指标名不允许重名"
+msgstr "指标维度中指标名不允许重名"
+
+msgid "指标维度中表名不允许重名"
+msgstr "指标维度中表名不允许重名"
+
+msgid "策略名称：{}"
+msgstr "策略名称：{}"
+
+msgid "该策略已经被删除"
+msgstr "该策略已经被删除"
+
+msgid "次"
+msgstr "次"
+
+msgid "月"
+msgstr "月"
+
+msgid "<1小时/{}"
+msgstr "<1小时/{}"
+
+msgid "{}小时/{}"
+msgstr "{}小时/{}"
+
+msgid "告警事件屏蔽"
+msgstr "告警事件屏蔽"
+
+msgid "用户配置的通知模板渲染失败，默认使用系统内置模板，渲染失败可能是使用了不正确的语法，具体请查看策略配置{}"
+msgstr "用户配置的通知模板渲染失败，默认使用系统内置模板，渲染失败可能是使用了不正确的语法，具体请查看策略配置{}"
+
+msgid "备注"
+msgstr "备注"
+
+msgid "make_userinfo: 获取用户信息失败"
+msgstr "make_userinfo: 获取用户信息失败"
+
+msgid "删除整个事项"
+msgstr "删除整个事项"
+
+msgid "删除当前事项"
+msgstr "删除当前事项"
+
+msgid "删除当前事项及未来所有事项"
+msgstr "删除当前事项及未来所有事项"
+
+msgid "修改整个事项"
+msgstr "修改整个事项"
+
+msgid "修改当前事项"
+msgstr "修改当前事项"
+
+msgid "修改当前事项及未来所有事项"
+msgstr "修改当前事项及未来所有事项"
+
+msgid "台北"
+msgstr "台北"
+
+msgid "维也纳"
+msgstr "维也纳"
+
+msgid "都柏林"
+msgstr "都柏林"
+
+msgid "雷克雅未克"
+msgstr "雷克雅未克"
+
+msgid "明斯克"
+msgstr "明斯克"
+
+msgid "索非亚"
+msgstr "索非亚"
+
+msgid "华沙"
+msgstr "华沙"
+
+msgid "柏林"
+msgstr "柏林"
+
+msgid "哥本哈根"
+msgstr "哥本哈根"
+
+msgid "莫斯科"
+msgstr "莫斯科"
+
+msgid "巴黎"
+msgstr "巴黎"
+
+msgid "赫尔辛基"
+msgstr "赫尔辛基"
+
+msgid "阿姆斯特丹"
+msgstr "阿姆斯特丹"
+
+msgid "布拉格"
+msgstr "布拉格"
+
+msgid "里加"
+msgstr "里加"
+
+msgid "维尔纽斯"
+msgstr "维尔纽斯"
+
+msgid "布加勒斯特"
+msgstr "布加勒斯特"
+
+msgid "斯科普里"
+msgstr "斯科普里"
+
+msgid "奥斯路"
+msgstr "奥斯路"
+
+msgid "里斯本"
+msgstr "里斯本"
+
+msgid "斯德哥尔摩"
+msgstr "斯德哥尔摩"
+
+msgid "布拉提斯拉发"
+msgstr "布拉提斯拉发"
+
+msgid "卢布尔雅那"
+msgstr "卢布尔雅那"
+
+msgid "基辅"
+msgstr "基辅"
+
+msgid "马德里"
+msgstr "马德里"
+
+msgid "雅典"
+msgstr "雅典"
+
+msgid "布达佩斯"
+msgstr "布达佩斯"
+
+msgid "罗马"
+msgstr "罗马"
+
+msgid "伦敦"
+msgstr "伦敦"
+
+msgid "喀布尔"
+msgstr "喀布尔"
+
+msgid "马斯喀特"
+msgstr "马斯喀特"
+
+msgid "巴库"
+msgstr "巴库"
+
+msgid "廷布"
+msgstr "廷布"
+
+msgid "平壤"
+msgstr "平壤"
+
+msgid "马尼拉"
+msgstr "马尼拉"
+
+msgid "首尔"
+msgstr "首尔"
+
+msgid "金边"
+msgstr "金边"
+
+msgid "万象"
+msgstr "万象"
+
+msgid "贝鲁特"
+msgstr "贝鲁特"
+
+msgid "吉隆坡"
+msgstr "吉隆坡"
+
+msgid "达卡"
+msgstr "达卡"
+
+msgid "仰光"
+msgstr "仰光"
+
+msgid "加德满都"
+msgstr "加德满都"
+
+msgid "东京"
+msgstr "东京"
+
+msgid "利雅得"
+msgstr "利雅得"
+
+msgid "科伦坡"
+msgstr "科伦坡"
+
+msgid "曼谷"
+msgstr "曼谷"
+
+msgid "塔什干"
+msgstr "塔什干"
+
+msgid "大马士革"
+msgstr "大马士革"
+
+msgid "德黑兰"
+msgstr "德黑兰"
+
+msgid "巴格达"
+msgstr "巴格达"
+
+msgid "耶路撒冷"
+msgstr "耶路撒冷"
+
+msgid "雅加达"
+msgstr "雅加达"
+
+msgid "安曼"
+msgstr "安曼"
+
+msgid "哈瓦那"
+msgstr "哈瓦那"
+
+msgid "波哥大"
+msgstr "波哥大"
+
+msgid "利马"
+msgstr "利马"
+
+msgid "墨西哥城"
+msgstr "墨西哥城"
+
+msgid "蒙得维的亚"
+msgstr "蒙得维的亚"
+
+msgid "加拉加斯"
+msgstr "加拉加斯"
+
+msgid "圣地亚哥"
+msgstr "圣地亚哥"
+
+msgid "阿尔及尔"
+msgstr "阿尔及尔"
+
+msgid "开罗"
+msgstr "开罗"
+
+msgid "亚的斯亚贝巴"
+msgstr "亚的斯亚贝巴"
+
+msgid "罗安达"
+msgstr "罗安达"
+
+msgid "布琼布拉"
+msgstr "布琼布拉"
+
+msgid "马拉博"
+msgstr "马拉博"
+
+msgid "布拉柴维尔"
+msgstr "布拉柴维尔"
+
+msgid "金沙萨"
+msgstr "金沙萨"
+
+msgid "科纳克里"
+msgstr "科纳克里"
+
+msgid "哈拉雷"
+msgstr "哈拉雷"
+
+msgid "内罗华"
+msgstr "内罗华"
+
+msgid "的黎波里"
+msgstr "的黎波里"
+
+msgid "塔那那利佛"
+msgstr "塔那那利佛"
+
+msgid "努瓦克肖特"
+msgstr "努瓦克肖特"
+
+msgid "温得和克"
+msgstr "温得和克"
+
+msgid "喀土穆"
+msgstr "喀土穆"
+
+msgid "摩加迪沙"
+msgstr "摩加迪沙"
+
+msgid "坎帕拉"
+msgstr "坎帕拉"
+
+msgid "卢萨卡"
+msgstr "卢萨卡"
+
+msgid "恩贾梅纳"
+msgstr "恩贾梅纳"
+
+msgid "班吉"
+msgstr "班吉"
+
+msgid "堪培拉"
+msgstr "堪培拉"
+
+msgid "莫尔兹比港"
+msgstr "莫尔兹比港"
+
+msgid "夏威夷檀香山"
+msgstr "夏威夷檀香山"
+
+msgid "阿拉斯加安克雷奇"
+msgstr "阿拉斯加安克雷奇"
+
+msgid "洛杉矶"
+msgstr "洛杉矶"
+
+msgid "凤凰城"
+msgstr "凤凰城"
+
+msgid "丹佛"
+msgstr "丹佛"
+
+msgid "圣保罗"
+msgstr "圣保罗"
+
+msgid "芝加哥"
+msgstr "芝加哥"
+
+msgid "印地安纳波利斯"
+msgstr "印地安纳波利斯"
+
+msgid "底特律"
+msgstr "底特律"
+
+msgid "纽约"
+msgstr "纽约"
+
+msgid "艾德蒙顿"
+msgstr "艾德蒙顿"
+
+msgid "温尼伯"
+msgstr "温尼伯"
+
+msgid "温哥华"
+msgstr "温哥华"
+
+msgid "多伦多"
+msgstr "多伦多"
+
+msgid "蒙特利尔"
+msgstr "蒙特利尔"
+
+msgid "圣约翰斯"
+msgstr "圣约翰斯"
+
+msgid "哈里法克斯"
+msgstr "哈里法克斯"
+
+msgid "布里斯班"
+msgstr "布里斯班"
+
+msgid "墨尔本"
+msgstr "墨尔本"
+
+msgid "悉尼"
+msgstr "悉尼"
+
+msgid "阿德莱德"
+msgstr "阿德莱德"
+
+msgid "达尔文"
+msgstr "达尔文"
+
+msgid "珀斯"
+msgstr "珀斯"
+
+msgid "符拉迪沃斯托克"
+msgstr "符拉迪沃斯托克"
+
+msgid "堪察加"
+msgstr "堪察加"
+
+msgid "阿纳德尔"
+msgstr "阿纳德尔"
+
+msgid "苏黎世"
+msgstr "苏黎世"
+
+msgid "特古西加尔巴"
+msgstr "特古西加尔巴"
+
+msgid "马那瓜"
+msgstr "马那瓜"
+
+msgid "亚丁"
+msgstr "亚丁"
+
+msgid "卡拉奇"
+msgstr "卡拉奇"
+
+msgid "查塔姆群岛"
+msgstr "查塔姆群岛"
+
+msgid "奥克兰"
+msgstr "奥克兰"
+
+msgid "自定义"
+msgstr "自定义"
+
+msgid "所选时区错误，请修改后再次尝试"
+msgstr "所选时区错误，请修改后再次尝试"
+
+msgid "循环结束时间不能小于事项开始时间，请重新尝试"
+msgstr "循环结束时间不能小于事项开始时间，请重新尝试"
+
+msgid "日历保存失败，日历名称({})已存在"
+msgstr "日历保存失败，日历名称({})已存在"
+
+msgid "日历编辑失败，日历名称({})已存在"
+msgstr "日历编辑失败，日历名称({})已存在"
+
+msgid "ID和name传入的参数为空，着两个参数必须传入一个"
+msgstr "ID和name传入的参数为空，着两个参数必须传入一个"
+
+msgid "这是内置日历，不能进行任何操作"
+msgstr "这是内置日历，不能进行任何操作"
+
+msgid "该事项属于内置日历事项，不能进行任何操作"
+msgstr "该事项属于内置日历事项，不能进行任何操作"
+
+msgid "当前事项不是第一项，无法删除全部"
+msgstr "当前事项不是第一项，无法删除全部"
+
+msgid "当重复频率为{}时，重复区间里的值应该在{}-{}之间"
+msgstr "当重复频率为{}时，重复区间里的值应该在{}-{}之间"
+
+msgid "当重复频率为day时，重复区间必须为[]"
+msgstr "当重复频率为day时，重复区间必须为[]"
+
+msgid "主备负责人"
+msgstr "主备负责人"
+
+msgid "运维"
+msgstr "运维"
+
+msgid "开发"
+msgstr "开发"
+
+msgid "产品"
+msgstr "产品"
+
+msgid "运维人员"
+msgstr "运维人员"
+
+msgid "产品人员"
+msgstr "产品人员"
+
+msgid "测试人员"
+msgstr "测试人员"
+
+msgid "开发人员"
+msgstr "开发人员"
+
+msgid "主负责人"
+msgstr "主负责人"
+
+msgid "备份负责人"
+msgstr "备份负责人"
+
+msgid "分派"
+msgstr "分派"
+
+msgid "仅通知"
+msgstr "仅通知"
+
+msgid "汇总"
+msgstr "汇总"
+
+msgid "授权"
+msgstr "授权"
+
+msgid "成功后跳过"
+msgstr "成功后跳过"
+
+msgid "执行中跳过"
+msgstr "执行中跳过"
+
+msgid "执行中等待"
+msgstr "执行中等待"
+
+msgid "超出后忽略"
+msgstr "超出后忽略"
+
+msgid "异常防御审批"
+msgstr "异常防御审批"
+
+msgid "超出后汇总"
+msgstr "超出后汇总"
+
+msgid "触发规则后，如果当前策略存在其他的告警已经处理成功，则跳过当前告警的处理"
+msgstr "触发规则后，如果当前策略存在其他的告警已经处理成功，则跳过当前告警的处理"
+
+msgid "触发规则后，如果当前策略存在其他正在处理的告警，则跳过当前告警的处理"
+msgstr "触发规则后，如果当前策略存在其他正在处理的告警，则跳过当前告警的处理"
+
+msgid "触发规则后，如果当前策略存在其他正在处理的告警，则等其他告警处理完成后再继续处理当前告警"
+msgstr "触发规则后，如果当前策略存在其他正在处理的告警，则等其他告警处理完成后再继续处理当前告警"
+
+msgid "触发规则后，超出数量的告警将不进行处理"
+msgstr "触发规则后，超出数量的告警将不进行处理"
+
+msgid "触发规则后，对于每个处理动作，都会产生一个审批单据，让负责人审批决定是否需要执行，如同意则继续执行，拒绝或者超时30分钟未审批则直接收敛不处理"
+msgstr "触发规则后，对于每个处理动作，都会产生一个审批单据，让负责人审批决定是否需要执行，如同意则继续执行，拒绝或者超时30分钟未审批则直接收敛不处理"
+
+msgid "触发规则后，超出数量的告警将不进行处理，并发送汇总通知"
+msgstr "触发规则后，超出数量的告警将不进行处理，并发送汇总通知"
+
+msgid "收敛后处理"
+msgstr "收敛后处理"
+
+msgid "跳过"
+msgstr "跳过"
+
+msgid "执行"
+msgstr "执行"
+
+msgid "处理出错（未分类）"
+msgstr "处理出错（未分类）"
+
+msgid "自愈系统异常"
+msgstr "自愈系统异常"
+
+msgid "超时"
+msgstr "超时"
+
+msgid "事件执行出错"
+msgstr "事件执行出错"
+
+msgid "任务创建失败"
+msgstr "任务创建失败"
+
+msgid "任务回调失败"
+msgstr "任务回调失败"
+
+msgid "用户终止流程"
+msgstr "用户终止流程"
+
+msgid "策略"
+msgstr "策略"
+
+msgid "机架"
+msgstr "机架"
+
+msgid "交换机"
+msgstr "交换机"
+
+msgid "机房"
+msgstr "机房"
+
+msgid "进程名称"
+msgstr "进程名称"
+
+msgid "告警特性"
+msgstr "告警特性"
+
+msgid "告警信号"
+msgstr "告警信号"
+
+msgid "通知人员"
+msgstr "通知人员"
+
+msgid "通知方式"
+msgstr "通知方式"
+
+msgid "告警信息"
+msgstr "告警信息"
+
+msgid "通知信息"
+msgstr "通知信息"
+
+msgid "告警套餐信息"
+msgstr "告警套餐信息"
+
+msgid "内部异常"
+msgstr "内部异常"
+
+msgid "等待审批"
+msgstr "等待审批"
+
+msgid "CMDB变量"
+msgstr "CMDB变量"
+
+msgid "{{target.对象.字段名}}"
+msgstr "{{target.对象.字段名}}"
+
+msgid "CMDB中定义的字段名"
+msgstr "CMDB中定义的字段名"
+
+msgid "业务名称"
+msgstr "业务名称"
+
+msgid "蓝鲸"
+msgstr "蓝鲸"
+
+msgid "开发人员字符串"
+msgstr "开发人员字符串"
+
+msgid "运维人员字符串"
+msgstr "运维人员字符串"
+
+msgid "测试人员字符串"
+msgstr "测试人员字符串"
+
+msgid "产品人员字符串"
+msgstr "产品人员字符串"
+
+msgid "操作人员字符串"
+msgstr "操作人员字符串"
+
+msgid "模块名"
+msgstr "模块名"
+
+msgid "集群名"
+msgstr "集群名"
+
+msgid "主机所在大区ID"
+msgstr "主机所在大区ID"
+
+msgid "云区域名称"
+msgstr "云区域名称"
+
+msgid "默认区域"
+msgstr "默认区域"
+
+msgid "内网IP"
+msgstr "内网IP"
+
+msgid "外网IP"
+msgstr "外网IP"
+
+msgid "操作系统名称"
+msgstr "操作系统名称"
+
+msgid "操作系统类型(枚举数值)"
+msgstr "操作系统类型(枚举数值)"
+
+msgid "备注信息"
+msgstr "备注信息"
+
+msgid "服务实例名"
+msgstr "服务实例名"
+
+msgid "第i个进程的端口"
+msgstr "第i个进程的端口"
+
+msgid "进程ID"
+msgstr "进程ID"
+
+msgid "进程1"
+msgstr "进程1"
+
+msgid "进程功能名称"
+msgstr "进程功能名称"
+
+msgid "绑定IP"
+msgstr "绑定IP"
+
+msgid "绑定端口"
+msgstr "绑定端口"
+
+msgid "内容变量"
+msgstr "内容变量"
+
+msgid "最近异常时间"
+msgstr "最近异常时间"
+
+msgid "告警持续时间"
+msgstr "告警持续时间"
+
+msgid "告警目标类型"
+msgstr "告警目标类型"
+
+msgid "告警数据来源"
+msgstr "告警数据来源"
+
+msgid "告警详情"
+msgstr "告警详情"
+
+msgid "首次异常时间"
+msgstr "首次异常时间"
+
+msgid "关联信息(短信强制发送)"
+msgstr "关联信息(短信强制发送)"
+
+msgid "告警变量"
+msgstr "告警变量"
+
+msgid "维度名"
+msgstr "维度名"
+
+msgid "维度值"
+msgstr "维度值"
+
+msgid "告警级别名称"
+msgstr "告警级别名称"
+
+msgid "告警开始时间"
+msgstr "告警开始时间"
+
+msgid "告警持续时间(秒)"
+msgstr "告警持续时间(秒)"
+
+msgid "告警持续时间字符串"
+msgstr "告警持续时间字符串"
+
+msgid "告警维度(除目标)"
+msgstr "告警维度(除目标)"
+
+msgid "磁盘=C,主机名=xxx"
+msgstr "磁盘=C,主机名=xxx"
+
+msgid "汇总事件数量"
+msgstr "汇总事件数量"
+
+msgid "消息来源"
+msgstr "消息来源"
+
+msgid "企业标识"
+msgstr "企业标识"
+
+msgid "数据来源名称"
+msgstr "数据来源名称"
+
+msgid "目标类型名称"
+msgstr "目标类型名称"
+
+msgid "IP/实例/节点"
+msgstr "IP/实例/节点"
+
+msgid "告警详情链接"
+msgstr "告警详情链接"
+
+msgid "http://paas.blueking.com/o/bk_monitorv3/?bizId=1&actionId=2#event-center"
+msgstr "http://paas.blueking.com/o/bk_monitorv3/?bizId=1&actionId=2#event-center"
+
+msgid "集群(公共组件) 模块(consul)"
+msgstr "集群(公共组件) 模块(consul)"
+
+msgid "回调数据"
+msgstr "回调数据"
+
+msgid "智能异常检测额外信息"
+msgstr "智能异常检测额外信息"
+
+msgid "策略变量"
+msgstr "策略变量"
+
+msgid "策略ID"
+msgstr "策略ID"
+
+msgid "策略名称"
+msgstr "策略名称"
+
+msgid "CPU总使用率"
+msgstr "CPU总使用率"
+
+msgid "场景"
+msgstr "场景"
+
+msgid "结果表名称"
+msgstr "结果表名称"
+
+msgid "指标名称"
+msgstr "指标名称"
+
+msgid "空闲率"
+msgstr "空闲率"
+
+msgid "指标字段"
+msgstr "指标字段"
+
+msgid "单位"
+msgstr "单位"
+
+msgid "周期"
+msgstr "周期"
+
+msgid "聚合方法"
+msgstr "聚合方法"
+
+msgid "套餐变量"
+msgstr "套餐变量"
+
+msgid "执行对象"
+msgstr "执行对象"
+
+msgid "执行耗时(秒)"
+msgstr "执行耗时(秒)"
+
+msgid "执行耗时字符串"
+msgstr "执行耗时字符串"
+
+msgid "执行中"
+msgstr "执行中"
+
+msgid "异常防御审批中"
+msgstr "异常防御审批中"
+
+msgid "部分失败"
+msgstr "部分失败"
+
+msgid "已收敛"
+msgstr "已收敛"
+
+msgid "收到"
+msgstr "收到"
+
+msgid "审批中"
+msgstr "审批中"
+
+msgid "收敛中"
+msgstr "收敛中"
+
+msgid "收敛处理等待"
+msgstr "收敛处理等待"
+
+msgid "收敛结束"
+msgstr "收敛结束"
+
+msgid "处理中"
+msgstr "处理中"
+
+msgid "短信"
+msgstr "短信"
+
+msgid "邮件"
+msgstr "邮件"
+
+msgid "微信"
+msgstr "微信"
+
+msgid "企业微信"
+msgstr "企业微信"
+
+msgid "电话"
+msgstr "电话"
+
+msgid "蓝鲸信息流"
+msgstr "蓝鲸信息流"
+
+msgid "蓝鲸信息流(企业微信机器人)"
+msgstr "蓝鲸信息流(企业微信机器人)"
+
+msgid "蓝鲸信息流(企业微信服务号)"
+msgstr "蓝鲸信息流(企业微信服务号)"
+
+msgid "蓝鲸信息流(SLACK机器人)"
+msgstr "蓝鲸信息流(SLACK机器人)"
+
+msgid "蓝鲸信息流(SLACK)"
+msgstr "蓝鲸信息流(SLACK)"
+
+msgid "蓝鲸信息流(QQ群机器人)"
+msgstr "蓝鲸信息流(QQ群机器人)"
+
+msgid "蓝鲸信息流(微信公众号)"
+msgstr "蓝鲸信息流(微信公众号)"
+
+msgid "蓝鲸信息流(飞书)"
+msgstr "蓝鲸信息流(飞书)"
+
+msgid "蓝鲸信息流(钉钉)"
+msgstr "蓝鲸信息流(钉钉)"
+
+msgid "蓝鲸信息流(邮件)"
+msgstr "蓝鲸信息流(邮件)"
+
+msgid "手动处理时"
+msgstr "手动处理时"
+
+msgid "告警触发时"
+msgstr "告警触发时"
+
+msgid "告警恢复时"
+msgstr "告警恢复时"
+
+msgid "告警关闭时"
+msgstr "告警关闭时"
+
+msgid "告警确认时"
+msgstr "告警确认时"
+
+msgid "无数据时"
+msgstr "无数据时"
+
+msgid "执行动作时"
+msgstr "执行动作时"
+
+msgid "执行成功时"
+msgstr "执行成功时"
+
+msgid "执行失败时"
+msgstr "执行失败时"
+
+msgid "调试时"
+msgstr "调试时"
+
+msgid "解除屏蔽时"
+msgstr "解除屏蔽时"
+
+msgid "告警升级"
+msgstr "告警升级"
+
+msgid "递增"
+msgstr "递增"
+
+msgid "固定间隔"
+msgstr "固定间隔"
+
+msgid "告警源"
+msgstr "告警源"
+
+msgid "监控对象"
+msgstr "监控对象"
+
+msgid "通知人员为空"
+msgstr "通知人员为空"
+
+msgid "告警标签"
+msgstr "告警标签"
+
+msgid "告警IP"
+msgstr "告警IP"
+
+msgid "集群属性"
+msgstr "集群属性"
+
+msgid "模块属性"
+msgstr "模块属性"
+
+msgid "主机属性"
+msgstr "主机属性"
+
+msgid "无"
+msgstr "无"
+
+msgid "拓扑"
+msgstr "拓扑"
+
+msgid "未恢复"
+msgstr "未恢复"
+
+msgid "已恢复"
+msgstr "已恢复"
+
+msgid "已抑制"
+msgstr "已抑制"
+
+msgid "被调"
+msgstr "被调"
+
+msgid "主调"
+msgstr "主调"
+
+msgid "异步主调"
+msgstr "异步主调"
+
+msgid "异步被调"
+msgstr "异步被调"
+
+msgid "基础信息"
+msgstr "基础信息"
+
+msgid "网页"
+msgstr "网页"
+
+msgid "远程调用"
+msgstr "远程调用"
+
+msgid "高级(Advances)"
+msgstr "高级(Advances)"
+
+msgid "HTTP协议"
+msgstr "HTTP协议"
+
+msgid "HTTP服务名称"
+msgstr "HTTP服务名称"
+
+msgid "HTTP方法"
+msgstr "HTTP方法"
+
+msgid "HTTP状态码"
+msgstr "HTTP状态码"
+
+msgid "RPC方法"
+msgstr "RPC方法"
+
+msgid "RPC服务"
+msgstr "RPC服务"
+
+msgid "RPC系统名"
+msgstr "RPC系统名"
+
+msgid "gRPC状态码"
+msgstr "gRPC状态码"
+
+msgid "数据库名称"
+msgstr "数据库名称"
+
+msgid "数据库操作"
+msgstr "数据库操作"
+
+msgid "数据库类型"
+msgstr "数据库类型"
+
+msgid "消息系统"
+msgstr "消息系统"
+
+msgid "消息目的地"
+msgstr "消息目的地"
+
+msgid "消息目的地类型"
+msgstr "消息目的地类型"
+
+msgid "Celery操作名称"
+msgstr "Celery操作名称"
+
+msgid "Celery任务名称"
+msgstr "Celery任务名称"
+
+msgid "远程服务器名称"
+msgstr "远程服务器名称"
+
+msgid "远程服务名"
+msgstr "远程服务名"
+
+msgid "服务名"
+msgstr "服务名"
+
+msgid "服务版本"
+msgstr "服务版本"
+
+msgid "SDK语言"
+msgstr "SDK语言"
+
+msgid "SDK名称"
+msgstr "SDK名称"
+
+msgid "SDK版本"
+msgstr "SDK版本"
+
+msgid "服务命名空间"
+msgstr "服务命名空间"
+
+msgid "主机IP"
+msgstr "主机IP"
+
+msgid "主机端口"
+msgstr "主机端口"
+
+msgid "主机名称"
+msgstr "主机名称"
+
+msgid "接口名称"
+msgstr "接口名称"
+
+msgid "原始查询"
+msgstr "原始查询"
+
+msgid "预计算查询"
+msgstr "预计算查询"
+
+msgid "每天"
+msgstr "每天"
+
+msgid "每周"
+msgstr "每周"
+
+msgid "每月"
+msgstr "每月"
+
+msgid "单次"
+msgstr "单次"
+
+msgid "日志"
+msgstr "日志"
+
+msgid "监控采集指标"
+msgstr "监控采集指标"
+
+msgid "Prometheus"
+msgstr "Prometheus"
+
+msgid "日志平台指标"
+msgstr "日志平台指标"
+
+msgid "系统事件"
+msgstr "系统事件"
+
+msgid "计算平台指标"
+msgstr "计算平台指标"
+
+msgid "自定义事件"
+msgstr "自定义事件"
+
+msgid "自定义指标"
+msgstr "自定义指标"
+
+msgid "日志平台关键字"
+msgstr "日志平台关键字"
+
+msgid "日志关键字事件"
+msgstr "日志关键字事件"
+
+msgid "第三方告警"
+msgstr "第三方告警"
+
+msgid "关联告警"
+msgstr "关联告警"
+
+msgid "关联策略"
+msgstr "关联策略"
+
+msgid "Trace明细指标"
+msgstr "Trace明细指标"
+
+msgid "监控采集"
+msgstr "监控采集"
+
+msgid "自定义时序数据"
+msgstr "自定义时序数据"
+
+msgid "进程重启成功"
+msgstr "进程重启成功"
+
+msgid "进程重启失败"
+msgstr "进程重启失败"
+
+msgid "进程不再托管"
+msgstr "进程不再托管"
+
+msgid "进程资源超限（单进程维度）"
+msgstr "进程资源超限（单进程维度）"
+
+msgid "进程资源超限（进程组维度）"
+msgstr "进程资源超限（进程组维度）"
+
+msgid "Resource[{}] 返回参数格式错误：{}"
+msgstr "Resource[{}] 返回参数格式错误：{}"
+
+msgid "method仅支持GET或POST或PUT或DELETE"
+msgstr "method仅支持GET或POST或PUT或DELETE"
+
+#, python-format
+msgid "resource_class参数必须提供Resource的子类, 当前类型: %s"
+msgstr "resource_class参数必须提供Resource的子类, 当前类型: %s"
+
+#, python-format
+msgid "当请求方法为 %s，且 endpoint 为空时，禁止设置 pk_field 参数"
+msgstr "当请求方法为 %s，且 endpoint 为空时，禁止设置 pk_field 参数"
+
+#, python-format
+msgid "当请求方法为 %s，且 endpoint 为空时，必须提供 pk_field 参数"
+msgstr "当请求方法为 %s，且 endpoint 为空时，必须提供 pk_field 参数"
+
+#, python-format
+msgid "不支持的请求方法: %s，请确认resource_routes配置是否正确!"
+msgstr "不支持的请求方法: %s，请确认resource_routes配置是否正确!"
+
+msgid "基础错误"
+msgstr "基础错误"
+
+msgid "系统异常，请联系管理员"
+msgstr "系统异常，请联系管理员"
+
+msgid "获取告警错误"
+msgstr "获取告警错误"
+
+#, python-brace-format
+msgid "获取处理动作({action_id})的关联告警失败"
+msgstr "获取处理动作({action_id})的关联告警失败"
+
+msgid "处理已执行"
+msgstr "处理已执行"
+
+#, python-brace-format
+msgid "当前处理动作({action_id})已经完成"
+msgstr "当前处理动作({action_id})已经完成"
+
+msgid "告警后台服务错误"
+msgstr "告警后台服务错误"
+
+#, python-brace-format
+msgid "告警后台服务错误：{msg}"
+msgstr "告警后台服务错误：{msg}"
+
+msgid "数据接入服务错误"
+msgstr "数据接入服务错误"
+
+#, python-brace-format
+msgid "数据接入服务错误：{msg}"
+msgstr "数据接入服务错误：{msg}"
+
+msgid "异常检测服务错误"
+msgstr "异常检测服务错误"
+
+#, python-brace-format
+msgid "异常检测服务错误：{msg}"
+msgstr "异常检测服务错误：{msg}"
+
+msgid "异常触发服务错误"
+msgstr "异常触发服务错误"
+
+#, python-brace-format
+msgid "异常触发服务错误：{msg}"
+msgstr "异常触发服务错误：{msg}"
+
+msgid "分布式锁错误"
+msgstr "分布式锁错误"
+
+#, python-brace-format
+msgid "分布式锁错误：{msg}"
+msgstr "分布式锁错误：{msg}"
+
+msgid "策略配置快照找不到"
+msgstr "策略配置快照找不到"
+
+#, python-brace-format
+msgid "策略配置快照找不到，key: {key}"
+msgstr "策略配置快照找不到，key: {key}"
+
+msgid "策略对应的监控项找不到"
+msgstr "策略对应的监控项找不到"
+
+#, python-brace-format
+msgid "策略对应的监控项找不到，策略ID: {strategy_id}，监控项ID：{item_id}"
+msgstr "策略对应的监控项找不到，策略ID: {strategy_id}，监控项ID：{item_id}"
+
+msgid "处理已经完成"
+msgstr "处理已经完成"
+
+#, python-brace-format
+msgid "当前处理已经结束，处理ID: {action_id}，完成状态：{action_status}"
+msgstr "当前处理已经结束，处理ID: {action_id}，完成状态：{action_status}"
+
+msgid "用户组为空"
+msgstr "用户组为空"
+
+msgid "获取当前告警策略配置的告警组用户为空，无法执行处理套餐"
+msgstr "获取当前告警策略配置的告警组用户为空，无法执行处理套餐"
+
+msgid "无效的自定义异常数据"
+msgstr "无效的自定义异常数据"
+
+#, python-brace-format
+msgid "无效的自定义异常数据：{event_data}"
+msgstr "无效的自定义异常数据：{event_data}"
+
+msgid "无效的检测数据"
+msgstr "无效的检测数据"
+
+#, python-brace-format
+msgid "无效的检测数据：{data_point}"
+msgstr "无效的检测数据：{data_point}"
+
+msgid "无效的检测算法配置"
+msgstr "无效的检测算法配置"
+
+#, python-brace-format
+msgid "无效的检测算法配置：{config}"
+msgstr "无效的检测算法配置：{config}"
+
+msgid "无效的静态阈值算法配置"
+msgstr "无效的静态阈值算法配置"
+
+#, python-brace-format
+msgid "无效的静态阈值算法配置：{config}"
+msgstr "无效的静态阈值算法配置：{config}"
+
+msgid "无效的简易环比算法配置"
+msgstr "无效的简易环比算法配置"
+
+#, python-brace-format
+msgid "无效的简易环比算法配置：{config}"
+msgstr "无效的简易环比算法配置：{config}"
+
+msgid "无效的简易同比算法配置"
+msgstr "无效的简易同比算法配置"
+
+#, python-brace-format
+msgid "无效的简易同比算法配置：{config}"
+msgstr "无效的简易同比算法配置：{config}"
+
+msgid "无效的高级环比算法配置"
+msgstr "无效的高级环比算法配置"
+
+#, python-brace-format
+msgid "无效的高级环比算法配置：{config}"
+msgstr "无效的高级环比算法配置：{config}"
+
+msgid "无效的高级同比算法配置"
+msgstr "无效的高级同比算法配置"
+
+#, python-brace-format
+msgid "无效的高级同比算法配置：{config}"
+msgstr "无效的高级同比算法配置：{config}"
+
+msgid "历史数据不存在"
+msgstr "历史数据不存在"
+
+#, python-brace-format
+msgid "历史数据不存在：item:{item_id}, timestamp:{timestamp}"
+msgstr "历史数据不存在：item:{item_id}, timestamp:{timestamp}"
+
+msgid "告警模块错误"
+msgstr "告警模块错误"
+
+msgid "告警不存在"
+msgstr "告警不存在"
+
+#, python-brace-format
+msgid "告警ID ({alert_id}) 对应的告警信息不存在"
+msgstr "告警ID ({alert_id}) 对应的告警信息不存在"
+
+msgid "事件不存在"
+msgstr "事件不存在"
+
+#, python-brace-format
+msgid "事件ID ({event_id}) 对应的告警信息不存在"
+msgstr "事件ID ({event_id}) 对应的告警信息不存在"
+
+msgid "查询语法错误"
+msgstr "查询语法错误"
+
+#, python-brace-format
+msgid "查询语法错误: {msg}"
+msgstr "查询语法错误: {msg}"
+
+msgid "AIOps结果异常"
+msgstr "AIOps结果异常"
+
+#, python-brace-format
+msgid "AIOps结果异常: {err}"
+msgstr "AIOps结果异常: {err}"
+
+msgid "AIOps功能未接入"
+msgstr "AIOps功能未接入"
+
+#, python-brace-format
+msgid "当前空间尚未接入[{func}]功能"
+msgstr "当前空间尚未接入[{func}]功能"
+
+msgid "API请求错误"
+msgstr "API请求错误"
+
+#, python-brace-format
+msgid "请求系统'{system_name}'错误，"
+msgstr "请求系统'{system_name}'错误，"
+
+#, python-brace-format
+msgid "返回错误码: {code}，"
+msgstr "返回错误码: {code}，"
+
+#, python-brace-format
+msgid "返回消息: {message}，"
+msgstr "返回消息: {message}，"
+
+#, python-brace-format
+msgid "请求URL: {url}"
+msgstr "请求URL: {url}"
+
+msgid "空"
+msgstr "空"
+
+msgid "公共模块bkmonitor错误"
+msgstr "公共模块bkmonitor错误"
+
+#, python-brace-format
+msgid "公共模块bkmonitor错误：{msg}"
+msgstr "公共模块bkmonitor错误：{msg}"
+
+msgid "公共模块bkmonitor.data_source错误"
+msgstr "公共模块bkmonitor.data_source错误"
+
+#, python-brace-format
+msgid "公共模块bkmonitor.data_source错误：{msg}"
+msgstr "公共模块bkmonitor.data_source错误：{msg}"
+
+msgid "cmdb节点聚合配置校验失败"
+msgstr "cmdb节点聚合配置校验失败"
+
+msgid "cmdb聚合不支持多指标计算，请去除维度和条件中的\"节点类型\"及\"节点名称\"字段，或使用单指标"
+msgstr "cmdb聚合不支持多指标计算，请去除维度和条件中的\"节点类型\"及\"节点名称\"字段，或使用单指标"
+
+msgid "计算函数不存在"
+msgstr "计算函数不存在"
+
+#, python-brace-format
+msgid "计算函数{func_name}不存在"
+msgstr "计算函数{func_name}不存在"
+
+msgid "参数为必填项"
+msgstr "参数为必填项"
+
+#, python-brace-format
+msgid "计算函数{func_name}的参数{param_name}是必填项"
+msgstr "计算函数{func_name}的参数{param_name}是必填项"
+
+msgid "多个时间聚合函数"
+msgstr "多个时间聚合函数"
+
+msgid "不能存在多个时间聚合函数"
+msgstr "不能存在多个时间聚合函数"
+
+msgid "计算函数不支持"
+msgstr "计算函数不支持"
+
+#, python-brace-format
+msgid "函数{func_name}不支持在多指标计算中使用"
+msgstr "函数{func_name}不支持在多指标计算中使用"
+
+msgid "DataFlow不存在"
+msgstr "DataFlow不存在"
+
+#, python-brace-format
+msgid "DataFlow{flow_id}不存在"
+msgstr "DataFlow{flow_id}不存在"
+
+msgid "DataFlow创建失败"
+msgstr "DataFlow创建失败"
+
+#, python-brace-format
+msgid "DataFlow创建失败，名称({flow_name})"
+msgstr "DataFlow创建失败，名称({flow_name})"
+
+msgid "DataFlow节点创建失败"
+msgstr "DataFlow节点创建失败"
+
+#, python-brace-format
+msgid "DataFlow节点创建失败，节点名称({node_name}): {err}"
+msgstr "DataFlow节点创建失败，节点名称({node_name}): {err}"
+
+msgid "DataFlow节点更新失败"
+msgstr "DataFlow节点更新失败"
+
+#, python-brace-format
+msgid "DataFlow节点更新失败，节点名称({node_name}): {err}"
+msgstr "DataFlow节点更新失败，节点名称({node_name}): {err}"
+
+msgid "DataFlow启动失败"
+msgstr "DataFlow启动失败"
+
+#, python-brace-format
+msgid "DataFlow({flow_name}({flow_id}))启动失败: {err}"
+msgstr "DataFlow({flow_name}({flow_id}))启动失败: {err}"
+
+msgid "bkmonitor-operator版本不支持，请升级到最新版本"
+msgstr "bkmonitor-operator版本不支持，请升级到最新版本"
+
+msgid "采集配置模块错误"
+msgstr "采集配置模块错误"
+
+#, python-brace-format
+msgid "采集配置模块错误：{msg}"
+msgstr "采集配置模块错误：{msg}"
+
+msgid "采集配置ID不存在"
+msgstr "采集配置ID不存在"
+
+#, python-brace-format
+msgid "采集配置ID不存在：{msg}"
+msgstr "采集配置ID不存在：{msg}"
+
+msgid "采集配置需要升级"
+msgstr "采集配置需要升级"
+
+#, python-brace-format
+msgid "采集配置需要升级：{msg}"
+msgstr "采集配置需要升级：{msg}"
+
+msgid "采集配置不需要升级"
+msgstr "采集配置不需要升级"
+
+#, python-brace-format
+msgid "采集配置不需要升级：{msg}"
+msgstr "采集配置不需要升级：{msg}"
+
+msgid "指标不存在"
+msgstr "指标不存在"
+
+#, python-brace-format
+msgid "指标不存在：{metric}"
+msgstr "指标不存在：{metric}"
+
+msgid "删除采集配置失败"
+msgstr "删除采集配置失败"
+
+#, python-brace-format
+msgid "删除采集配置失败: {msg}"
+msgstr "删除采集配置失败: {msg}"
+
+msgid "获取采集配置锁超时"
+msgstr "获取采集配置锁超时"
+
+msgid "请求节点管理出现错误"
+msgstr "请求节点管理出现错误"
+
+#, python-brace-format
+msgid "请求节点管理出现错误: {msg}"
+msgstr "请求节点管理出现错误: {msg}"
+
+msgid "采集配置状态切换错误"
+msgstr "采集配置状态切换错误"
+
+#, python-brace-format
+msgid "采集配置状态切换错误: {msg}"
+msgstr "采集配置状态切换错误: {msg}"
+
+msgid "采集配置无法回滚"
+msgstr "采集配置无法回滚"
+
+#, python-brace-format
+msgid "采集配置无法回滚：{msg}"
+msgstr "采集配置无法回滚：{msg}"
+
+msgid "采集配置状态查询错误"
+msgstr "采集配置状态查询错误"
+
+#, python-brace-format
+msgid "采集配置状态查询错误：{msg}"
+msgstr "采集配置状态查询错误：{msg}"
+
+msgid "采集配置参数错误"
+msgstr "采集配置参数错误"
+
+#, python-brace-format
+msgid "采集配置参数错误：{msg}"
+msgstr "采集配置参数错误：{msg}"
+
+msgid "自定义异常"
+msgstr "自定义异常"
+
+msgid "未知错误"
+msgstr "未知错误"
+
+msgid "REST API返回错误"
+msgstr "REST API返回错误"
+
+msgid "错误消息解析错误"
+msgstr "错误消息解析错误"
+
+msgid "找不到"
+msgstr "找不到"
+
+msgid "缺少用户信息"
+msgstr "缺少用户信息"
+
+msgid "权限配置错误"
+msgstr "权限配置错误"
+
+#, python-brace-format
+msgid "权限配置错误：{msg}"
+msgstr "权限配置错误：{msg}"
+
+msgid "没有修改权限"
+msgstr "没有修改权限"
+
+#, python-brace-format
+msgid "{permission}的权限不允许修改"
+msgstr "{permission}的权限不允许修改"
+
+msgid "事件分组数据校验不通过"
+msgstr "事件分组数据校验不通过"
+
+msgid "自定义时序数据校验不通过"
+msgstr "自定义时序数据校验不通过"
+
+msgid "自定义名称校验不通过"
+msgstr "自定义名称校验不通过"
+
+msgid "自定义英文名校验不通过"
+msgstr "自定义英文名校验不通过"
+
+msgid "仪表盘错误"
+msgstr "仪表盘错误"
+
+msgid "创建Grafana用户失败"
+msgstr "创建Grafana用户失败"
+
+msgid "获取Grafana用户失败"
+msgstr "获取Grafana用户失败"
+
+msgid "创建Grafana组织失败"
+msgstr "创建Grafana组织失败"
+
+msgid "获取Grafana组织失败"
+msgstr "获取Grafana组织失败"
+
+msgid "获取组织中的用户失败"
+msgstr "获取组织中的用户失败"
+
+msgid "获取文件夹或仪表盘失败"
+msgstr "获取文件夹或仪表盘失败"
+
+msgid "tsdb表名解析异常"
+msgstr "tsdb表名解析异常"
+
+#, python-brace-format
+msgid "tsdb表名解析异常：{rt_id}"
+msgstr "tsdb表名解析异常：{rt_id}"
+
+msgid "sql查询异常"
+msgstr "sql查询异常"
+
+msgid "sql查询无数据"
+msgstr "sql查询无数据"
+
+msgid "data id不存在"
+msgstr "data id不存在"
+
+#, python-brace-format
+msgid "data_id: {data_id}不存在"
+msgstr "data_id: {data_id}不存在"
+
+msgid "结果表"
+msgstr "结果表"
+
+msgid "不存在"
+msgstr "不存在"
+
+msgid "告警事件模块错误"
+msgstr "告警事件模块错误"
+
+#, python-brace-format
+msgid "告警事件模块错误：{msg}"
+msgstr "告警事件模块错误：{msg}"
+
+msgid "告警事件不存在"
+msgstr "告警事件不存在"
+
+#, python-brace-format
+msgid "告警事件不存在：{event_id}"
+msgstr "告警事件不存在：{event_id}"
+
+msgid "非时序数据类型"
+msgstr "非时序数据类型"
+
+#, python-brace-format
+msgid "{event_id}事件关联的数据类型非时序数据类型"
+msgstr "{event_id}事件关联的数据类型非时序数据类型"
+
+msgid "聚合方法是实时"
+msgstr "聚合方法是实时"
+
+#, python-brace-format
+msgid "{event_id}实时监控无关联图表"
+msgstr "{event_id}实时监控无关联图表"
+
+msgid "Kafka 连接失败"
+msgstr "Kafka 连接失败"
+
+#, python-brace-format
+msgid "Kafka 连接失败: {msg}"
+msgstr "Kafka 连接失败: {msg}"
+
+msgid "Kafka Partition 信息获取失败"
+msgstr "Kafka Partition 信息获取失败"
+
+msgid "插件 DataID 未设置"
+msgstr "插件 DataID 未设置"
+
+msgid "插件 DataID 未设置，请确认插件是否已经正确保存"
+msgstr "插件 DataID 未设置，请确认插件是否已经正确保存"
+
+msgid "插件包解析错误"
+msgstr "插件包解析错误"
+
+#, python-brace-format
+msgid "插件包解析错误: {msg}"
+msgstr "插件包解析错误: {msg}"
+
+msgid "Kafka 配置获取失败"
+msgstr "Kafka 配置获取失败"
+
+#, python-brace-format
+msgid "Kafka 配置获取失败: {msg}"
+msgstr "Kafka 配置获取失败: {msg}"
+
+msgid "插件版本已存在"
+msgstr "插件版本已存在"
+
+#, python-brace-format
+msgid "插件ID ({plugin_id}) 对应的版本({version})已存在，请修改后重试"
+msgstr "插件ID ({plugin_id}) 对应的版本({version})已存在，请修改后重试"
+
+msgid "导入导出模块错误"
+msgstr "导入导出模块错误"
+
+#, python-brace-format
+msgid "导入导出模块错误：{msg}"
+msgstr "导入导出模块错误：{msg}"
+
+msgid "导入历史不存在"
+msgstr "导入历史不存在"
+
+msgid "导入历史不存在，检查导入历史ID"
+msgstr "导入历史不存在，检查导入历史ID"
+
+msgid "添加统一监控目标失败"
+msgstr "添加统一监控目标失败"
+
+#, python-brace-format
+msgid "添加统一监控目标失败: {msg}"
+msgstr "添加统一监控目标失败: {msg}"
+
+msgid "上传导入包失败"
+msgstr "上传导入包失败"
+
+#, python-brace-format
+msgid "上传导入包失败: {msg}"
+msgstr "上传导入包失败: {msg}"
+
+msgid "导入配置失败"
+msgstr "导入配置失败"
+
+#, python-brace-format
+msgid "导入配置失败: {msg}"
+msgstr "导入配置失败: {msg}"
+
+msgid "上传导入包失败: 该包已导入过，请选择其他导入包"
+msgstr "上传导入包失败: 该包已导入过，请选择其他导入包"
+
+msgid "权限校验不通过"
+msgstr "权限校验不通过"
+
+#, python-brace-format
+msgid "当前用户无 [{action_name}] 权限"
+msgstr "当前用户无 [{action_name}] 权限"
+
+msgid "无实例"
+msgstr "无实例"
+
+#, python-brace-format
+msgid "请求[{system_name}]系统[{url}]权限校验不通过，请前往权限中心申请对应权限[{permission}]"
+msgstr "请求[{system_name}]系统[{url}]权限校验不通过，请前往权限中心申请对应权限[{permission}]"
+
+msgid "动作ID不存在"
+msgstr "动作ID不存在"
+
+#, python-brace-format
+msgid "动作ID不存在：{action_id}"
+msgstr "动作ID不存在：{action_id}"
+
+msgid "资源ID不存在"
+msgstr "资源ID不存在"
+
+#, python-brace-format
+msgid "资源ID不存在：{resource_id}"
+msgstr "资源ID不存在：{resource_id}"
+
+msgid "内置指标元数据错误"
+msgstr "内置指标元数据错误"
+
+#, python-brace-format
+msgid "指标元数据错误：{msg}"
+msgstr "指标元数据错误：{msg}"
+
+msgid "该内置指标不存在"
+msgstr "该内置指标不存在"
+
+#, python-brace-format
+msgid "该内置指标不存在：{metric_id}"
+msgstr "该内置指标不存在：{metric_id}"
+
+msgid "metric_id格式错误"
+msgstr "metric_id格式错误"
+
+#, python-brace-format
+msgid "metric_id格式错误：{metric_id}"
+msgstr "metric_id格式错误：{metric_id}"
+
+msgid "获取指标元信息参数错误"
+msgstr "获取指标元信息参数错误"
+
+msgid "获取指标元信息参数错误: metric_id和(result_table_id, metric_name)不可同时为空"
+msgstr "获取指标元信息参数错误: metric_id和(result_table_id, metric_name)不可同时为空"
+
+msgid "指标单位id无效"
+msgstr "指标单位id无效"
+
+#, python-brace-format
+msgid "指标单位id无效：{unit_id}"
+msgstr "指标单位id无效：{unit_id}"
+
+msgid "指标单位id对应分类不存在"
+msgstr "指标单位id对应分类不存在"
+
+#, python-brace-format
+msgid "指标单位id对应分类不存在：{unit_id}"
+msgstr "指标单位id对应分类不存在：{unit_id}"
+
+msgid "通知组模块错误"
+msgstr "通知组模块错误"
+
+#, python-brace-format
+msgid "通知组模块错误：{msg}"
+msgstr "通知组模块错误：{msg}"
+
+msgid "通知组ID不存在"
+msgstr "通知组ID不存在"
+
+#, python-brace-format
+msgid "通知组ID错误: 不存在的通知组，{msg}"
+msgstr "通知组ID错误: 不存在的通知组，{msg}"
+
+msgid "通知组名称已存在"
+msgstr "通知组名称已存在"
+
+msgid "通知组名称重复错误: 通知组名称已存在"
+msgstr "通知组名称重复错误: 通知组名称已存在"
+
+msgid "通知组无法删除"
+msgstr "通知组无法删除"
+
+msgid "通知组无法删除: 通知组存在关联策略"
+msgstr "通知组无法删除: 通知组存在关联策略"
+
+msgid "创建通知组失败"
+msgstr "创建通知组失败"
+
+msgid "创建通知组失败：填写内容不合规范"
+msgstr "创建通知组失败：填写内容不合规范"
+
+msgid "插件模块错误"
+msgstr "插件模块错误"
+
+#, python-brace-format
+msgid "插件模块错误：{msg}"
+msgstr "插件模块错误：{msg}"
+
+msgid "插件ID已存在"
+msgstr "插件ID已存在"
+
+#, python-brace-format
+msgid "插件ID错误: 已存在的插件ID({msg})"
+msgstr "插件ID错误: 已存在的插件ID({msg})"
+
+msgid "插件ID不存在"
+msgstr "插件ID不存在"
+
+msgid "插件ID错误: 不存在的plugin_id"
+msgstr "插件ID错误: 不存在的plugin_id"
+
+msgid "打包失败"
+msgstr "打包失败"
+
+#, python-brace-format
+msgid "打包失败: {msg}"
+msgstr "打包失败: {msg}"
+
+msgid "注册插件失败"
+msgstr "注册插件失败"
+
+#, python-brace-format
+msgid "注册插件失败: {msg}"
+msgstr "注册插件失败: {msg}"
+
+msgid "插件版本不存在"
+msgstr "插件版本不存在"
+
+msgid "插件版本不存在: 不存在的插件版本"
+msgstr "插件版本不存在: 不存在的插件版本"
+
+msgid "插件签名格式无效"
+msgstr "插件签名格式无效"
+
+msgid "插件签名解析失败，无效的签名格式"
+msgstr "插件签名解析失败，无效的签名格式"
+
+msgid "插件签名协议不存在"
+msgstr "插件签名协议不存在"
+
+#, python-brace-format
+msgid "{plugin}插件签名协议: {protocol} 不存在"
+msgstr "{plugin}插件签名协议: {protocol} 不存在"
+
+msgid "不支持签名的插件类型"
+msgstr "不支持签名的插件类型"
+
+#, python-brace-format
+msgid "不支持签名的插件类型: {plugin_type}"
+msgstr "不支持签名的插件类型: {plugin_type}"
+
+msgid "无插件编辑权限"
+msgstr "无插件编辑权限"
+
+#, python-brace-format
+msgid "编辑失败！无插件编辑权限: {plugin_id}"
+msgstr "编辑失败！无插件编辑权限: {plugin_id}"
+
+msgid "无插件删除权限"
+msgstr "无插件删除权限"
+
+#, python-brace-format
+msgid "删除失败！无插件删除权限: {plugin_id}"
+msgstr "删除失败！无插件删除权限: {plugin_id}"
+
+msgid "不支持的插件类型"
+msgstr "不支持的插件类型"
+
+#, python-brace-format
+msgid "不支持的插件类型: {plugin_type}"
+msgstr "不支持的插件类型: {plugin_type}"
+
+msgid "插件存在关联项"
+msgstr "插件存在关联项"
+
+#, python-brace-format
+msgid "插件存在关联项: {msg}"
+msgstr "插件存在关联项: {msg}"
+
+msgid "插件导出错误"
+msgstr "插件导出错误"
+
+#, python-brace-format
+msgid "插件导出错误: {msg}"
+msgstr "插件导出错误: {msg}"
+
+msgid "是否支持远程采集冲突"
+msgstr "是否支持远程采集冲突"
+
+#, python-brace-format
+msgid "是否支持远程采集冲突: {msg}"
+msgstr "是否支持远程采集冲突: {msg}"
+
+msgid "节点管理导出超时"
+msgstr "节点管理导出超时"
+
+msgid "节点管理导出超时，请联系管理员检查后台环境"
+msgstr "节点管理导出超时，请联系管理员检查后台环境"
+
+msgid "节点管理删除插件失败"
+msgstr "节点管理删除插件失败"
+
+msgid "节点管理删除插件失败，请联系管理员检查后台环境"
+msgstr "节点管理删除插件失败，请联系管理员检查后台环境"
+
+msgid "插件业务切换错误"
+msgstr "插件业务切换错误"
+
+msgid "不支持单业务之间的互相切换"
+msgstr "不支持单业务之间的互相切换"
+
+msgid "SNMP指标设置错误"
+msgstr "SNMP指标设置错误"
+
+#, python-brace-format
+msgid "SNMP设置指标数量超过{snmp_max_metric_num}，请删减非必要指标"
+msgstr "SNMP设置指标数量超过{snmp_max_metric_num}，请删减非必要指标"
+
+msgid "指标设置错误"
+msgstr "指标设置错误"
+
+#, python-brace-format
+msgid "设置指标数量超过{max_metric_num}，请删减非必要指标"
+msgstr "设置指标数量超过{max_metric_num}，请删减非必要指标"
+
+msgid "插件ID格式不规范"
+msgstr "插件ID格式不规范"
+
+#, python-brace-format
+msgid "插件ID格式错误: {msg}"
+msgstr "插件ID格式错误: {msg}"
+
+msgid "解析数据错误"
+msgstr "解析数据错误"
+
+msgid "解析节点管理返回数据异常，错误原因可能为：1. 插件采集的指标数量过多，2. 插件采集的数据量过大"
+msgstr "解析节点管理返回数据异常，错误原因可能为：1. 插件采集的指标数量过多，2. 插件采集的数据量过大"
+
+msgid "请求参数校验失败"
+msgstr "请求参数校验失败"
+
+#, python-brace-format
+msgid "请求参数{key}校验失败，接收到的参数为：{error_params}, 仅支持：{correct_params}"
+msgstr "请求参数{key}校验失败，接收到的参数为：{error_params}, 仅支持：{correct_params}"
+
+msgid "缺少必要参数"
+msgstr "缺少必要参数"
+
+#, python-brace-format
+msgid "缺少必要请求参数{key}"
+msgstr "缺少必要请求参数{key}"
+
+msgid "查询时间段校验失败"
+msgstr "查询时间段校验失败"
+
+#, python-brace-format
+msgid "查询该时间段数据的权限校验不通过，接收到的参数为：{error_params}，仅支持：{correct_params}"
+msgstr "查询该时间段数据的权限校验不通过，接收到的参数为：{error_params}，仅支持：{correct_params}"
+
+msgid "token校验失败"
+msgstr "token校验失败"
+
+msgid "当前分享链接不存在"
+msgstr "当前分享链接不存在"
+
+msgid "token已过期"
+msgstr "token已过期"
+
+msgid "当前分享链接已过期"
+msgstr "当前分享链接已过期"
+
+msgid "token已被收回"
+msgstr "token已被收回"
+
+#, python-brace-format
+msgid "当前分享链接已被{username}收回"
+msgstr "当前分享链接已被{username}收回"
+
+msgid "告警屏蔽模块错误"
+msgstr "告警屏蔽模块错误"
+
+#, python-brace-format
+msgid "告警屏蔽模块错误：{msg}"
+msgstr "告警屏蔽模块错误：{msg}"
+
+msgid "告警屏蔽ID不存在"
+msgstr "告警屏蔽ID不存在"
+
+#, python-brace-format
+msgid "告警屏蔽ID不存在：{msg}"
+msgstr "告警屏蔽ID不存在：{msg}"
+
+msgid "重复屏蔽"
+msgstr "重复屏蔽"
+
+#, python-brace-format
+msgid "该{category}已经被快捷屏蔽，请勿重复操作"
+msgstr "该{category}已经被快捷屏蔽，请勿重复操作"
+
+msgid "策略配置模块错误"
+msgstr "策略配置模块错误"
+
+#, python-brace-format
+msgid "策略配置模块错误：{msg}"
+msgstr "策略配置模块错误：{msg}"
+
+msgid "StrategyConfig实例初始化错误"
+msgstr "StrategyConfig实例初始化错误"
+
+msgid "实例化StrategyConfig的参数须为策略配置id"
+msgstr "实例化StrategyConfig的参数须为策略配置id"
+
+msgid "策略配置不存在"
+msgstr "策略配置不存在"
+
+msgid "监控对象数据结构错误"
+msgstr "监控对象数据结构错误"
+
+#, python-brace-format
+msgid "监控对象数据结构错误: {target}"
+msgstr "监控对象数据结构错误: {target}"
+
+msgid "监控目标解析失败"
+msgstr "监控目标解析失败"
+
+#, python-brace-format
+msgid "监控目标解析失败: {target}"
+msgstr "监控目标解析失败: {target}"
+
+msgid "监控目标为空"
+msgstr "监控目标为空"
+
+msgid "创建策略配置失败"
+msgstr "创建策略配置失败"
+
+#, python-brace-format
+msgid "创建策略配置失败：{msg}"
+msgstr "创建策略配置失败：{msg}"
+
+msgid "修改策略配置失败"
+msgstr "修改策略配置失败"
+
+#, python-brace-format
+msgid "修改策略配置失败：{msg}"
+msgstr "修改策略配置失败：{msg}"
+
+msgid "智能异常检测模型不存在"
+msgstr "智能异常检测模型不存在"
+
+#, python-brace-format
+msgid "智能异常检测模型不存在：{model_id}"
+msgstr "智能异常检测模型不存在：{model_id}"
+
+msgid "升级模块错误"
+msgstr "升级模块错误"
+
+#, python-brace-format
+msgid "升级模块错误：{msg}"
+msgstr "升级模块错误：{msg}"
+
+msgid "当前不允许数据迁移"
+msgstr "当前不允许数据迁移"
+
+msgid "当前不允许数据迁移，请确认并存版本号为 3.0.x 或 3.1.x"
+msgstr "当前不允许数据迁移，请确认并存版本号为 3.0.x 或 3.1.x"
+
+msgid "获取待迁移内容失败"
+msgstr "获取待迁移内容失败"
+
+#, python-brace-format
+msgid "获取待迁移内容失败：{msg}"
+msgstr "获取待迁移内容失败：{msg}"
+
+msgid "数据迁移失败"
+msgstr "数据迁移失败"
+
+#, python-brace-format
+msgid "数据迁移失败：{msg}"
+msgstr "数据迁移失败：{msg}"
+
+msgid "同步旧版本文件失败"
+msgstr "同步旧版本文件失败"
+
+#, python-brace-format
+msgid "同步旧版本文件失败：{msg}"
+msgstr "同步旧版本文件失败：{msg}"
+
+msgid "插件导出失败"
+msgstr "插件导出失败"
+
+#, python-brace-format
+msgid "插件导出失败：{msg}"
+msgstr "插件导出失败：{msg}"
+
+msgid "创建默认策略失败"
+msgstr "创建默认策略失败"
+
+#, python-brace-format
+msgid "创建默认策略失败：{msg}"
+msgstr "创建默认策略失败：{msg}"
+
+msgid "拨测模块错误"
+msgstr "拨测模块错误"
+
+#, python-brace-format
+msgid "拨测模块错误：{msg}"
+msgstr "拨测模块错误：{msg}"
+
+msgid "bkmonitorbeat进程异常，请至节点管理处理"
+msgstr "bkmonitorbeat进程异常，请至节点管理处理"
+
+msgid "未知的拨测协议类型"
+msgstr "未知的拨测协议类型"
+
+#, python-brace-format
+msgid "未知的拨测协议类型:{msg}"
+msgstr "未知的拨测协议类型:{msg}"
+
+msgid "方法已弃用"
+msgstr "方法已弃用"
+
+#, python-brace-format
+msgid "方法已弃用:{msg}"
+msgstr "方法已弃用:{msg}"
+
+msgid "告警组模块错误"
+msgstr "告警组模块错误"
+
+#, python-brace-format
+msgid "告警组模块错误：{msg}"
+msgstr "告警组模块错误：{msg}"
+
+msgid "告警组ID不存在"
+msgstr "告警组ID不存在"
+
+#, python-brace-format
+msgid "告警组ID错误: 不存在的告警组，{msg}"
+msgstr "告警组ID错误: 不存在的告警组，{msg}"
+
+msgid "告警组名称已存在"
+msgstr "告警组名称已存在"
+
+msgid "告警组名称重复错误: 告警组名称已存在"
+msgstr "告警组名称重复错误: 告警组名称已存在"
+
+msgid "告警组无法删除"
+msgstr "告警组无法删除"
+
+msgid "告警组无法删除: 告警组存在关联策略"
+msgstr "告警组无法删除: 告警组存在关联策略"
+
+msgid "创建告警组失败"
+msgstr "创建告警组失败"
+
+msgid "创建告警组失败：填写内容不合规范"
+msgstr "创建告警组失败：填写内容不合规范"
+
+msgid "移动端事件模块错误"
+msgstr "移动端事件模块错误"
+
+#, python-brace-format
+msgid "移动端事件模块错误：{msg}"
+msgstr "移动端事件模块错误：{msg}"
+
+msgid "告警汇总记录不存在"
+msgstr "告警汇总记录不存在"
+
+#, python-brace-format
+msgid "告警汇总记录({alert_collect_id})不存在"
+msgstr "告警汇总记录({alert_collect_id})不存在"
+
+#, python-brace-format
+msgid "告警事件({event_id})不存在"
+msgstr "告警事件({event_id})不存在"
+
+msgid "您暂时不能访问该站点的后台管理，这是以下原因造成的："
+msgstr "您暂时不能访问该站点的后台管理，这是以下原因造成的："
+
+msgid "你还没登录，请重新刷新页面！"
+msgstr "你还没登录，请重新刷新页面！"
+
+msgid "未激活！"
+msgstr "未激活！"
+
+msgid "没有管理员权限，请联系管理员！"
+msgstr "没有管理员权限，请联系管理员！"
+
+msgid "如有需要，请联系管理员或开发者为您解决上述问题。"
+msgstr "如有需要，请联系管理员或开发者为您解决上述问题。"
+
+msgid "result_table({}) not exists."
+msgstr "result_table({}) not exists."
+
+msgid "get result_table({}) failed, error message is {}"
+msgstr "get result_table({}) failed, error message is {}"
+
+msgid "result table({}) storage info not exists."
+msgstr "result table({}) storage info not exists."
+
+msgid "get result table({}) storage info failed, error message is {}"
+msgstr "get result table({}) storage info failed, error message is {}"
+
+msgid "删除成功"
+msgstr "删除成功"
+
+msgid "当前套餐名称已经存在，请重新确认!"
+msgstr "当前套餐名称已经存在，请重新确认!"
+
+msgid "当前操作的处理套餐不存在，请确认信息是否正确!"
+msgstr "当前操作的处理套餐不存在，请确认信息是否正确!"
+
+msgid "当前套餐关联了告警策略，无法删除!!"
+msgstr "当前套餐关联了告警策略，无法删除!!"
+
+msgid "id不能为空"
+msgstr "id不能为空"
+
+msgid "通知组不存在"
+msgstr "通知组不存在"
+
+msgid "actions 列表不能为空"
+msgstr "actions 列表不能为空"
+
+msgid "集群已经接入，请确认后重试"
+msgstr "集群已经接入，请确认后重试"
+
+msgid "创建数据源失败，请联系管理员协助"
+msgstr "创建数据源失败，请联系管理员协助"
+
+msgid "清洗配置非预期，请联系管理员协助处理"
+msgstr "清洗配置非预期，请联系管理员协助处理"
+
+#, python-format
+msgid "集群[%s]不存在"
+msgstr "集群[%s]不存在"
+
+msgid "集群[{}]不存在"
+msgstr "集群[{}]不存在"
+
+msgid "不允许传入公共dataid"
+msgstr "不允许传入公共dataid"
+
+msgid "标签[{}]不存在，请确认后重试"
+msgstr "标签[{}]不存在，请确认后重试"
+
+msgid "数据源[{}]已经被其他自定义组注册使用，请更换数据源"
+msgstr "数据源[{}]已经被其他自定义组注册使用，请更换数据源"
+
+msgid "自定义组名称已存在，请确认后重试"
+msgstr "自定义组名称已存在，请确认后重试"
+
+msgid "自定义组已删除，请确认后重试"
+msgstr "自定义组已删除，请确认后重试"
+
+msgid "事件组ID[{}]不存在，请确认后重试"
+msgstr "事件组ID[{}]不存在，请确认后重试"
+
+msgid "事件列表配置有误，请确认后重试"
+msgstr "事件列表配置有误，请确认后重试"
+
+msgid "自定义时序组ID[{}]不存在，请确认后重试"
+msgstr "自定义时序组ID[{}]不存在，请确认后重试"
+
+msgid "自定义时序列表配置有误，请确认后重试"
+msgstr "自定义时序列表配置有误，请确认后重试"
+
+msgid "已经存在默认记录，空间信息: {}, 使用场景: {}"
+msgstr "已经存在默认记录，空间信息: {}, 使用场景: {}"
+
+msgid "设置的空间部分不存在"
+msgstr "设置的空间部分不存在"
+
+msgid "标签[{} | {}]不存在，请确认后重试"
+msgstr "标签[{} | {}]不存在，请确认后重试"
+
+#, python-format
+msgid "数据源名称[%s]已经存在，请确认后重试"
+msgstr "数据源名称[%s]已经存在，请确认后重试"
+
+msgid "缺少数据源MQ集群信息，请联系管理员协助处理"
+msgstr "缺少数据源MQ集群信息，请联系管理员协助处理"
+
+msgid "数据源ID生成异常，请联系管理员协助处理"
+msgstr "数据源ID生成异常，请联系管理员协助处理"
+
+msgid "数据源ID分配达到最大上限，请联系管理员协助处理"
+msgstr "数据源ID分配达到最大上限，请联系管理员协助处理"
+
+msgid "集群配置不存在，请确认"
+msgstr "集群配置不存在，请确认"
+
+msgid "数据源名称已存在，请确认"
+msgstr "数据源名称已存在，请确认"
+
+msgid "dataid({})的消息队列未初始化，请联系管理员处理"
+msgstr "dataid({})的消息队列未初始化，请联系管理员处理"
+
+msgid "数据源已存在[{}]选项"
+msgstr "数据源已存在[{}]选项"
+
+msgid "数据源有跟结果表关联"
+msgstr "数据源有跟结果表关联"
+
+msgid "数据源不存在"
+msgstr "数据源不存在"
+
+msgid "结果表有多个关联数据源"
+msgstr "结果表有多个关联数据源"
+
+msgid "结果表: {}不存在，请确认后重试"
+msgstr "结果表: {}不存在，请确认后重试"
+
+msgid "查询结果表: {}对应的 data id 不存在，请确认后重试"
+msgstr "查询结果表: {}对应的 data id 不存在，请确认后重试"
+
+msgid "数据源: {}不存在，请确认后重试"
+msgstr "数据源: {}不存在，请确认后重试"
+
+msgid "结果表: {}数据未写入 influxdb，请确认后重试"
+msgstr "结果表: {}数据未写入 influxdb，请确认后重试"
+
+msgid "结果表不存在"
+msgstr "结果表不存在"
+
+msgid "快照仓库不存在或已经被删除"
+msgstr "快照仓库不存在或已经被删除"
+
+msgid "结果表快照存在"
+msgstr "结果表快照存在"
+
+msgid "集群不存在"
+msgstr "集群不存在"
+
+msgid "集群不是es集群"
+msgstr "集群不是es集群"
+
+msgid "仓库名称已经存在"
+msgstr "仓库名称已经存在"
+
+msgid "创建集群仓库({})失败 err({})"
+msgstr "创建集群仓库({})失败 err({})"
+
+msgid "集群还存在快照无法删除"
+msgstr "集群还存在快照无法删除"
+
+msgid "仓库不存在"
+msgstr "仓库不存在"
+
+msgid "结果表不存在快照配置"
+msgstr "结果表不存在快照配置"
+
+msgid "该时间区间内没有快照数据"
+msgstr "该时间区间内没有快照数据"
+
+msgid "回溯的索引大小加集群已经使用的容量已经超过了集群总容量的{}"
+msgstr "回溯的索引大小加集群已经使用的容量已经超过了集群总容量的{}"
+
+msgid "结果表回溯不存在"
+msgstr "结果表回溯不存在"
+
+msgid "回溯已经删除"
+msgstr "回溯已经删除"
+
+msgid "回溯已经过期"
+msgstr "回溯已经过期"
+
+msgid "回溯不存在"
+msgstr "回溯不存在"
+
+#, python-format
+msgid "主机信息[%s]已经存在，请确认"
+msgstr "主机信息[%s]已经存在，请确认"
+
+msgid "无固定字段"
+msgstr "无固定字段"
+
+msgid "动态字段"
+msgstr "动态字段"
+
+msgid "固定字段"
+msgstr "固定字段"
+
+msgid "标签[{}]不存在，请确认"
+msgstr "标签[{}]不存在，请确认"
+
+msgid "数据源ID不存在，请确认"
+msgstr "数据源ID不存在，请确认"
+
+#, python-format
+msgid "结果表ID不可以是%s开头，请确认后重试"
+msgstr "结果表ID不可以是%s开头，请确认后重试"
+
+msgid "结果表ID已经存在，请确认"
+msgstr "结果表ID已经存在，请确认"
+
+#, python-format
+msgid "结果表[%s]不符合命名规范，请确认后重试"
+msgstr "结果表[%s]不符合命名规范，请确认后重试"
+
+msgid "全业务结果表不可以数字及下划线开头，请确认后重试"
+msgstr "全业务结果表不可以数字及下划线开头，请确认后重试"
+
+msgid "存储[{}]暂不支持，请确认后重试"
+msgstr "存储[{}]暂不支持，请确认后重试"
+
+#, python-format
+msgid "结果表[%s]字段不可变更"
+msgstr "结果表[%s]字段不可变更"
+
+#, python-format
+msgid "存储类型[%s]暂不支持，请确认后重试"
+msgstr "存储类型[%s]暂不支持，请确认后重试"
+
+msgid "结果表[{}]不存在存储类型[{}]，请确认"
+msgstr "结果表[{}]不存在存储类型[{}]，请确认"
+
+msgid "结果表不可操作，请确认后重试"
+msgstr "结果表不可操作，请确认后重试"
+
+msgid "结果表[{}]不存在关联数据源"
+msgstr "结果表[{}]不存在关联数据源"
+
+msgid "公共数据源不允许配置拆分任务"
+msgstr "公共数据源不允许配置拆分任务"
+
+msgid "结果表不存在该字段拆分记录"
+msgstr "结果表不存在该字段拆分记录"
+
+msgid "整型"
+msgstr "整型"
+
+msgid "浮点型"
+msgstr "浮点型"
+
+msgid "字符型"
+msgstr "字符型"
+
+msgid "布尔型"
+msgstr "布尔型"
+
+msgid "时间字段"
+msgstr "时间字段"
+
+msgid "未知类型字段"
+msgstr "未知类型字段"
+
+msgid "维度字段"
+msgstr "维度字段"
+
+msgid "时间戳字段"
+msgstr "时间戳字段"
+
+msgid "标签字段"
+msgstr "标签字段"
+
+msgid "常量"
+msgstr "常量"
+
+msgid "CMDB层级名"
+msgstr "CMDB层级名"
+
+msgid "CMDB层级ID"
+msgstr "CMDB层级ID"
+
+msgid "字段[{}]为保留字段，不可创建"
+msgstr "字段[{}]为保留字段，不可创建"
+
+msgid "字段[{}]已在表[{}]中存在，请确认"
+msgstr "字段[{}]已在表[{}]中存在，请确认"
+
+#, python-format
+msgid "字段[%s]为保留字段，不可创建"
+msgstr "字段[%s]为保留字段，不可创建"
+
+msgid "部分维度或者指标字段不存在，请确认"
+msgstr "部分维度或者指标字段不存在，请确认"
+
+msgid "找不到结果表配置"
+msgstr "找不到结果表配置"
+
+msgid "结果表配置已失效，请确认后重试"
+msgstr "结果表配置已失效，请确认后重试"
+
+msgid "分段查询开关"
+msgstr "分段查询开关"
+
+msgid "是否为单指标单表"
+msgstr "是否为单指标单表"
+
+msgid "结果表已存在[{}]选项"
+msgstr "结果表已存在[{}]选项"
+
+msgid "结果表字段[{}]已存在[{}]选项"
+msgstr "结果表字段[{}]已存在[{}]选项"
+
+msgid "结果表[{}]已存在[{}]字段选项"
+msgstr "结果表[{}]已存在[{}]字段选项"
+
+msgid "停用"
+msgstr "停用"
+
+msgid "空间类型: {}, 空间:{} 不存在"
+msgstr "空间类型: {}, 空间:{} 不存在"
+
+msgid "绑定的资源类型下的资源不一致，不能合并"
+msgstr "绑定的资源类型下的资源不一致，不能合并"
+
+msgid "集群名【{}】与已有集群冲突，请确认后重试"
+msgstr "集群名【{}】与已有集群冲突，请确认后重试"
+
+msgid "存储集群【{}】暂不支持，请确认后重试"
+msgstr "存储集群【{}】暂不支持，请确认后重试"
+
+msgid "存在同样配置集群，请确认后重试"
+msgstr "存在同样配置集群，请确认后重试"
+
+msgid "默认集群不能删除"
+msgstr "默认集群不能删除"
+
+msgid "存在未关闭的结果表 {}"
+msgstr "存在未关闭的结果表 {}"
+
+msgid "数据源已经配置，请确认"
+msgstr "数据源已经配置，请确认"
+
+#, python-format
+msgid "请求集群[%s]不存在，请确认后重试"
+msgstr "请求集群[%s]不存在，请确认后重试"
+
+#, python-format
+msgid "创建数据库[%s]失败，请联系管理员"
+msgstr "创建数据库[%s]失败，请联系管理员"
+
+msgid "创建集群信息非结果表配置，请确认"
+msgstr "创建集群信息非结果表配置，请确认"
+
+msgid "存储集群配置有误，请确认或联系管理员处理"
+msgstr "存储集群配置有误，请确认或联系管理员处理"
+
+#, python-format
+msgid "结果表[%s]配置已存在，请确认后重试"
+msgstr "结果表[%s]配置已存在，请确认后重试"
+
+msgid "时间格式不允许包含非数字格式"
+msgstr "时间格式不允许包含非数字格式"
+
+msgid "warm_phase_settings 不能为空"
+msgstr "warm_phase_settings 不能为空"
+
+msgid "warm_phase_settings.{} 不能为空"
+msgstr "warm_phase_settings.{} 不能为空"
+
+msgid "time_zone -> [{}] 设置不合法"
+msgstr "time_zone -> [{}] 设置不合法"
+
+msgid "结果表[{}]数据未写入消息队列，请确认后重试"
+msgstr "结果表[{}]数据未写入消息队列，请确认后重试"
+
+msgid "接入配置 ({})"
+msgstr "接入配置 ({})"
+
+#, python-format
+msgid "结果表%s不存在，请确认后重试"
+msgstr "结果表%s不存在，请确认后重试"
+
+msgid "清洗配置 ({})"
+msgstr "清洗配置 ({})"
+
+msgid "参数[influxdb_storage_cluster_id]、[kafka_storage_cluster_id]、[es_storage_cluster_id]不能同时为空"
+msgstr "参数[influxdb_storage_cluster_id]、[kafka_storage_cluster_id]、[es_storage_cluster_id]不能同时为空"
+
+msgid "空间唯一标识{}错误"
+msgstr "空间唯一标识{}错误"
+
+msgid "找不到请求参数，请确认后重试"
+msgstr "找不到请求参数，请确认后重试"
+
+msgid "数据源不存在，请确认后重试"
+msgstr "数据源不存在，请确认后重试"
+
+msgid "结果表不存在，请确认后重试"
+msgstr "结果表不存在，请确认后重试"
+
+msgid "请求存储类型暂不支持，请确认"
+msgstr "请求存储类型暂不支持，请确认"
+
+msgid "需要至少提供集群ID或集群名"
+msgstr "需要至少提供集群ID或集群名"
+
+msgid "找不到指定的集群配置，请确认后重试"
+msgstr "找不到指定的集群配置，请确认后重试"
+
+msgid "事件分组不存在，请确认后重试"
+msgstr "事件分组不存在，请确认后重试"
+
+msgid "日志分组不存在，请确认后重试"
+msgstr "日志分组不存在，请确认后重试"
+
+msgid "自定义时序分组不存在，请确认后重试"
+msgstr "自定义时序分组不存在，请确认后重试"
+
+msgid "非法的url路径"
+msgstr "非法的url路径"
+
+msgid "partition获取失败"
+msgstr "partition获取失败"
+
+msgid "参数[space_uid]、[space_type_id, space_id]和[id]不能同时为空"
+msgstr "参数[space_uid]、[space_type_id, space_id]和[id]不能同时为空"
+
+msgid "空间类型:{}不存在"
+msgstr "空间类型:{}不存在"
+
+msgid "当前空间类型不允许绑定资源"
+msgstr "当前空间类型不允许绑定资源"
+
+msgid "资源类型:{}不存在"
+msgstr "资源类型:{}不存在"
+
+msgid "空间中文名称:{}或者 ID :{}已经存在"
+msgstr "空间中文名称:{}或者 ID :{}已经存在"
+
+msgid "空间类型: {}, 空间:{}不存在"
+msgstr "空间类型: {}, 空间:{}不存在"
+
+msgid "空间中文名称:{}已经存在"
+msgstr "空间中文名称:{}已经存在"
+
+msgid "类型:{}，空间:{}不存在"
+msgstr "类型:{}，空间:{}不存在"
+
+msgid "类型:{}，空间:{}不能合并"
+msgstr "类型:{}，空间:{}不能合并"
+
+msgid "空间:{}不存在"
+msgstr "空间:{}不存在"
+
+msgid "部分空间不存在"
+msgstr "部分空间不存在"
+
+msgid "置顶"
+msgstr "置顶"
+
+msgid "取消置顶"
+msgstr "取消置顶"
+
+msgid "参数[space_uid]、和[id]不能同时为空"
+msgstr "参数[space_uid]、和[id]不能同时为空"
+
+msgid "分区数量获取失败，请确认"
+msgstr "分区数量获取失败，请确认"
+
+msgid "数据({})未接入到计算平台，请先接入后再试"
+msgstr "数据({})未接入到计算平台，请先接入后再试"
+
+msgid "全部"
+msgstr "全部"
+
+msgid "网页(自定义服务)"
+msgstr "网页(自定义服务)"
+
+msgid "满意"
+msgstr "满意"
+
+msgid "可容忍"
+msgstr "可容忍"
+
+msgid "烦躁期"
+msgstr "烦躁期"
+
+msgid "禁用"
+msgstr "禁用"
+
+msgid "等待"
+msgstr "等待"
+
+msgid "已停止"
+msgstr "已停止"
+
+msgid "无告警"
+msgstr "无告警"
+
+msgid "获取"
+msgstr "获取"
+
+msgid "其他日志"
+msgstr "其他日志"
+
+msgid "随机"
+msgstr "随机"
+
+msgid "语言"
+msgstr "语言"
+
+msgid "蓝鲸DataId"
+msgstr "蓝鲸DataId"
+
+msgid "自动匹配"
+msgstr "自动匹配"
+
+msgid "手动匹配"
+msgstr "手动匹配"
+
+msgid "入口服务"
+msgstr "入口服务"
+
+msgid "入口接口"
+msgstr "入口接口"
+
+msgid "状态码"
+msgstr "状态码"
+
+msgid "调用类型"
+msgstr "调用类型"
+
+msgid "Trace视角"
+msgstr "Trace视角"
+
+msgid "span视角"
+msgstr "span视角"
+
+msgid "虚拟节点"
+msgstr "虚拟节点"
+
+msgid "其他网卡"
+msgstr "其他网卡"
+
+msgid "本机网卡"
+msgstr "本机网卡"
+
+msgid "客户端网卡"
+msgstr "客户端网卡"
+
+msgid "客户端容器节点"
+msgstr "客户端容器节点"
+
+msgid "客户端宿主机"
+msgstr "客户端宿主机"
+
+msgid "客户端到网关"
+msgstr "客户端到网关"
+
+msgid "客户端到网关宿主机"
+msgstr "客户端到网关宿主机"
+
+msgid "服务端网卡"
+msgstr "服务端网卡"
+
+msgid "服务端容器节点"
+msgstr "服务端容器节点"
+
+msgid "服务端宿主机"
+msgstr "服务端宿主机"
+
+msgid "网关到服务端"
+msgstr "网关到服务端"
+
+msgid "网关宿主机到服务端"
+msgstr "网关宿主机到服务端"
+
+msgid "客户端进程"
+msgstr "客户端进程"
+
+msgid "服务端进程"
+msgstr "服务端进程"
+
+msgid "客户端应用"
+msgstr "客户端应用"
+
+msgid "服务端应用"
+msgstr "服务端应用"
+
+msgid "应用"
+msgstr "应用"
+
+msgid "不支持的分类: {}"
+msgstr "不支持的分类: {}"
+
+msgid "此服务不存在或暂时未被发现"
+msgstr "此服务不存在或暂时未被发现"
+
+msgid "ERROR"
+msgstr "ERROR"
+
+msgid "错误"
+msgstr "错误"
+
+msgid "最大耗时 {}"
+msgstr "最大耗时 {}"
+
+#, python-brace-format
+msgid "存在不支持的分组字段: {group_fields}"
+msgstr "存在不支持的分组字段: {group_fields}"
+
+msgid "入口状态码"
+msgstr "入口状态码"
+
+msgid "入口类型"
+msgstr "入口类型"
+
+msgid "根Span接口"
+msgstr "根Span接口"
+
+msgid "根Span服务"
+msgstr "根Span服务"
+
+msgid "Span Name"
+msgstr "Span Name"
+
+msgid "无法获取日志数据，服务未关联日志或关联日志为非日志平台"
+msgstr "无法获取日志数据，服务未关联日志或关联日志为非日志平台"
+
+msgid "时间"
+msgstr "时间"
+
+msgid "日志内容"
+msgstr "日志内容"
+
+msgid "容器环境"
+msgstr "容器环境"
+
+msgid "物理环境"
+msgstr "物理环境"
+
+msgid "其它"
+msgstr "其它"
+
+msgid "Opentelemetry"
+msgstr "Opentelemetry"
+
+msgid "应用性能监控"
+msgstr "应用性能监控"
+
+msgid "OpenTelemetry（也称为 OTel）是一个开源可观测能力框架，由一系列工具、API 和 SDK 组成，使用户能够检测、生成、收集和导出远程监测数据以进行分析和了解软件性能和行为。"
+msgstr "OpenTelemetry（也称为 OTel）是一个开源可观测能力框架，由一系列工具、API 和 SDK 组成，使用户能够检测、生成、收集和导出远程监测数据以进行分析和了解软件性能和行为。"
+
+msgid ""
+"在云原生技术堆栈中，分布式和多语言架构是常态。分布式架构引入了各种运营挑战，包括如何快速解决可用性和性能问题。这些挑战导致了可观察性的兴起。\n"
+"需要遥测数据来支持可观测性产品。传统上，遥测数据由开源项目或商业供应商提供。由于缺乏标准化，最终结果是缺乏数据可移植性和用户维护仪器的负担。\n"
+"OpenTelemetry 项目通过提供与供应商无关的单一解决方案来解决这些问题。该项目得到了云提供商、供应商和最终用户的广泛行业支持和采用。\n"
+"\n"
+"# OpenTelemetry 为您提供：\n"
+"\n"
+"- 每种语言都有一个与供应商无关的仪器库，支持自动和手动仪器。\n"
+"- 可以以多种方式部署的单个收集器二进制文件，包括作为代理或网关。\n"
+"- 用于生成、发出、收集、处理和导出遥测数据的端到端实现。\n"
+"- 完全控制您的数据，能够通过配置将数据并行发送到多个目的地。\n"
+"- 开放标准语义约定，以确保与供应商无关的数据收集\n"
+"- 能够并行支持多种上下文传播格式，以帮助随着标准的发展进行迁移。\n"
+"- 无论您在可观察性旅程中的哪个位置，都是一条前进的道路。由于支持各种开源和商业协议、格式和上下文传播机制，并为 OpenTracing 和 OpenCensus 项目提供 shim，因此很容易采用 OpenTelemetry。"
+msgstr ""
+"在云原生技术堆栈中，分布式和多语言架构是常态。分布式架构引入了各种运营挑战，包括如何快速解决可用性和性能问题。这些挑战导致了可观察性的兴起。\n"
+"需要遥测数据来支持可观测性产品。传统上，遥测数据由开源项目或商业供应商提供。由于缺乏标准化，最终结果是缺乏数据可移植性和用户维护仪器的负担。\n"
+"OpenTelemetry 项目通过提供与供应商无关的单一解决方案来解决这些问题。该项目得到了云提供商、供应商和最终用户的广泛行业支持和采用。\n"
+"\n"
+"# OpenTelemetry 为您提供：\n"
+"\n"
+"- 每种语言都有一个与供应商无关的仪器库，支持自动和手动仪器。\n"
+"- 可以以多种方式部署的单个收集器二进制文件，包括作为代理或网关。\n"
+"- 用于生成、发出、收集、处理和导出遥测数据的端到端实现。\n"
+"- 完全控制您的数据，能够通过配置将数据并行发送到多个目的地。\n"
+"- 开放标准语义约定，以确保与供应商无关的数据收集\n"
+"- 能够并行支持多种上下文传播格式，以帮助随着标准的发展进行迁移。\n"
+"- 无论您在可观察性旅程中的哪个位置，都是一条前进的道路。由于支持各种开源和商业协议、格式和上下文传播机制，并为 OpenTracing 和 OpenCensus 项目提供 shim，因此很容易采用 OpenTelemetry。"
+
+#, python-brace-format
+msgid ""
+"# 注意事项\n"
+"\n"
+"- SDK的属性设置，类型必须一致，不然会出现入库失败的情况\n"
+"\n"
+"# 使用方法\n"
+"不同云区域的Push url地址\n"
+"\n"
+"```\n"
+"{push_url}\n"
+"```\n"
+"\n"
+"[opentelemetry官方文档](https://opentelemetry.io/)\n"
+"\n"
+"# SDK配置\n"
+"\n"
+"python\n"
+"\n"
+"[python-SDK](https://github.com/open-telemetry/opentelemetry-python)\n"
+"\n"
+"```\n"
+"from opentelemetry import trace\n"
+"from opentelemetry.sdk.trace import TracerProvider\n"
+"from opentelemetry.sdk.trace.export import BatchSpanProcessor\n"
+"from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter\n"
+"otlp_exporter = OTLPSpanExporter(endpoint=\"grpc 上报服务地址)\n"
+"span_processor = BatchSpanProcessor(otlp_exporter)\n"
+"tracer_provider = TracerProvider(\n"
+"    resource=Resource.create(\n"
+"        {{\n"
+"            \"service.name\": \"你的服务名称\",\n"
+"            \"bk.data.token\": \"{{secureKey}}\",\n"
+"            \"net.host.name\": \"your 服务所在的主机名称\",\n"
+"            \"net.host.ip\": \"your 服务所在主机IP\",\n"
+"            \"net.host.port\": \"your 服务监听的端口\"\n"
+"        }}\n"
+"    )\n"
+")\n"
+"tracer_provider.add_span_processor(span_processor)\n"
+"trace.set_tracer_provider(tracer_provider)\n"
+"```"
+msgstr ""
+"# 注意事项\n"
+"\n"
+"- SDK的属性设置，类型必须一致，不然会出现入库失败的情况\n"
+"\n"
+"# 使用方法\n"
+"不同云区域的Push url地址\n"
+"\n"
+"```\n"
+"{push_url}\n"
+"```\n"
+"\n"
+"[opentelemetry官方文档](https://opentelemetry.io/)\n"
+"\n"
+"# SDK配置\n"
+"\n"
+"python\n"
+"\n"
+"[python-SDK](https://github.com/open-telemetry/opentelemetry-python)\n"
+"\n"
+"```\n"
+"from opentelemetry import trace\n"
+"from opentelemetry.sdk.trace import TracerProvider\n"
+"from opentelemetry.sdk.trace.export import BatchSpanProcessor\n"
+"from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter\n"
+"otlp_exporter = OTLPSpanExporter(endpoint=\"grpc 上报服务地址)\n"
+"span_processor = BatchSpanProcessor(otlp_exporter)\n"
+"tracer_provider = TracerProvider(\n"
+"    resource=Resource.create(\n"
+"        {{\n"
+"            \"service.name\": \"你的服务名称\",\n"
+"            \"bk.data.token\": \"{{secureKey}}\",\n"
+"            \"net.host.name\": \"your 服务所在的主机名称\",\n"
+"            \"net.host.ip\": \"your 服务所在主机IP\",\n"
+"            \"net.host.port\": \"your 服务监听的端口\"\n"
+"        }}\n"
+"    )\n"
+")\n"
+"tracer_provider.add_span_processor(span_processor)\n"
+"trace.set_tracer_provider(tracer_provider)\n"
+"```"
+
+msgid "实例名配置含有重复"
+msgstr "实例名配置含有重复"
+
+msgid "应用名称"
+msgstr "应用名称"
+
+msgid "应用描述"
+msgstr "应用描述"
+
+msgid "存储计划"
+msgstr "存储计划"
+
+msgid "服务数量"
+msgstr "服务数量"
+
+msgid "Apdex"
+msgstr "Apdex"
+
+msgid "调用次数"
+msgstr "调用次数"
+
+msgid "平均响应耗时"
+msgstr "平均响应耗时"
+
+msgid "错误率"
+msgstr "错误率"
+
+msgid "错误次数"
+msgstr "错误次数"
+
+#, python-brace-format
+msgid "{no_data_period}分钟内无数据"
+msgstr "{no_data_period}分钟内无数据"
+
+msgid "服务分类"
+msgstr "服务分类"
+
+msgid "分类名称"
+msgstr "分类名称"
+
+msgid "实例数"
+msgstr "实例数"
+
+msgid "关联CMDB服务名称"
+msgstr "关联CMDB服务名称"
+
+msgid "关联CMDB一级分类名称"
+msgstr "关联CMDB一级分类名称"
+
+msgid "关联CMDB二级分类名称"
+msgstr "关联CMDB二级分类名称"
+
+msgid "关联日志类型"
+msgstr "关联日志类型"
+
+msgid "关联日志业务名称"
+msgstr "关联日志业务名称"
+
+msgid "关联日志索引集"
+msgstr "关联日志索引集"
+
+msgid "关联日志url"
+msgstr "关联日志url"
+
+msgid "关联应用(业务名称)"
+msgstr "关联应用(业务名称)"
+
+msgid "关联应用(应用名称)"
+msgstr "关联应用(应用名称)"
+
+msgid "服务类型"
+msgstr "服务类型"
+
+msgid "归属服务"
+msgstr "归属服务"
+
+msgid "查看"
+msgstr "查看"
+
+msgid "云区域 {} {} [{}]"
+msgstr "云区域 {} {} [{}]"
+
+msgid "分钟数据量"
+msgstr "分钟数据量"
+
+msgid "日数据量"
+msgstr "日数据量"
+
+msgid "无数据告警"
+msgstr "无数据告警"
+
+msgid "告警数量"
+msgstr "告警数量"
+
+msgid "配置信息不存在"
+msgstr "配置信息不存在"
+
+msgid "请求内容"
+msgstr "请求内容"
+
+msgid "请求次数"
+msgstr "请求次数"
+
+msgid "平均耗时"
+msgstr "平均耗时"
+
+msgid "最大耗时"
+msgstr "最大耗时"
+
+msgid "最小耗时"
+msgstr "最小耗时"
+
+msgid "服务+接口"
+msgstr "服务+接口"
+
+msgid "远程服务类型"
+msgstr "远程服务类型"
+
+msgid "域名匹配"
+msgstr "域名匹配"
+
+msgid "URI匹配"
+msgstr "URI匹配"
+
+msgid "匹配规则已存在"
+msgstr "匹配规则已存在"
+
+msgid "没有传递服务名称"
+msgstr "没有传递服务名称"
+
+msgid "服务名称已存在"
+msgstr "服务名称已存在"
+
+msgid "应用{}不存在"
+msgstr "应用{}不存在"
+
+msgid "%"
+msgstr "%"
+
+msgid "组件指标值查询不支持{validate_data['category']}分类"
+msgstr "组件指标值查询不支持{validate_data['category']}分类"
+
+msgid "收藏"
+msgstr "收藏"
+
+msgid "策略数"
+msgstr "策略数"
+
+msgid "告警状态"
+msgstr "告警状态"
+
+msgid "操作"
+msgstr "操作"
+
+msgid "配置"
+msgstr "配置"
+
+msgid "关联"
+msgstr "关联"
+
+msgid "有堆栈"
+msgstr "有堆栈"
+
+msgid "错误概览"
+msgstr "错误概览"
+
+msgid "首次出现时间"
+msgstr "首次出现时间"
+
+msgid "最新出现时间"
+msgstr "最新出现时间"
+
+msgid "调用链"
+msgstr "调用链"
+
+msgid "有Stack"
+msgstr "有Stack"
+
+msgid "没有Stack"
+msgstr "没有Stack"
+
+msgid "1小时内无异常"
+msgstr "1小时内无异常"
+
+msgid "1小时内有异常"
+msgstr "1小时内有异常"
+
+msgid "1小时内无数据"
+msgstr "1小时内无数据"
+
+msgid "请求数量"
+msgstr "请求数量"
+
+msgid "错误数量"
+msgstr "错误数量"
+
+msgid "响应耗时"
+msgstr "响应耗时"
+
+msgid "接口概览"
+msgstr "接口概览"
+
+msgid "接口"
+msgstr "接口"
+
+msgid "平均响应时间"
+msgstr "平均响应时间"
+
+msgid "实例概览"
+msgstr "实例概览"
+
+msgid "出现次数"
+msgstr "出现次数"
+
+msgid "请求数"
+msgstr "请求数"
+
+msgid "{}天"
+msgstr "{}天"
+
+msgid "自定义数据源"
+msgstr "自定义数据源"
+
+msgid "不存在的列: {}"
+msgstr "不存在的列: {}"
+
+msgid "列: {} 不是异步列"
+msgstr "列: {} 不是异步列"
+
+msgid "相等"
+msgstr "相等"
+
+msgid "不相等"
+msgstr "不相等"
+
+msgid "正则"
+msgstr "正则"
+
+msgid "至少需要设置一个匹配规则"
+msgstr "至少需要设置一个匹配规则"
+
+msgid "没有设置peer_service"
+msgstr "没有设置peer_service"
+
+msgid "没有传递匹配规则"
+msgstr "没有传递匹配规则"
+
+msgid "组件实例id仅支持list/str"
+msgstr "组件实例id仅支持list/str"
+
+msgid "资源不存在"
+msgstr "资源不存在"
+
+msgid "uri含有重复配置项"
+msgstr "uri含有重复配置项"
+
+msgid "{} 匹配到第{}个uri配置: {}"
+msgstr "{} 匹配到第{}个uri配置: {}"
+
+msgid "关联日志平台日志需要选择业务"
+msgstr "关联日志平台日志需要选择业务"
+
+msgid "已收藏"
+msgstr "已收藏"
+
+msgid "未收藏"
+msgstr "未收藏"
+
+msgid "1k以上"
+msgstr "1k以上"
+
+msgid "1s以上"
+msgstr "1s以上"
+
+msgid "错误率 < 10%"
+msgstr "错误率 < 10%"
+
+msgid "错误率 >= 10%"
+msgstr "错误率 >= 10%"
+
+msgid "实例数量"
+msgstr "实例数量"
+
+msgid "查看告警事件"
+msgstr "查看告警事件"
+
+msgid "查看相关指标"
+msgstr "查看相关指标"
+
+msgid "展开服务"
+msgstr "展开服务"
+
+msgid "查看服务"
+msgstr "查看服务"
+
+msgid "查看日志"
+msgstr "查看日志"
+
+msgid "查看关联应用"
+msgstr "查看关联应用"
+
+msgid "关系调用"
+msgstr "关系调用"
+
+msgid "错误数"
+msgstr "错误数"
+
+msgid "Span列表请求失败: {e.data.get('message')}"
+msgstr "Span列表请求失败: {e.data.get('message')}"
+
+msgid "Trace列表请求失败: {e.data.get('message')}"
+msgstr "Trace列表请求失败: {e.data.get('message')}"
+
+msgid "关键词"
+msgstr "关键词"
+
+msgid "trace_id: {validated_data['trace_id']} 不存在"
+msgstr "trace_id: {validated_data['trace_id']} 不存在"
+
+msgid "trace_id: {validated_request_data['trace_id']} 不存在"
+msgstr "trace_id: {validated_request_data['trace_id']} 不存在"
+
+#, python-format
+msgid "trace_id: %s 不存在"
+msgstr "trace_id: %s 不存在"
+
+#, python-brace-format
+msgid "获取接口统计失败: {message}"
+msgstr "获取接口统计失败: {message}"
+
+#, python-brace-format
+msgid "获取服务统计失败: {message}"
+msgstr "获取服务统计失败: {message}"
+
+msgid "故障自愈 | 蓝鲸智云"
+msgstr "故障自愈 | 蓝鲸智云"
+
+msgid "对应的ID{}不存在"
+msgstr "对应的ID{}不存在"
+
+#, python-brace-format
+msgid "{creator}通过页面创建{plugin_name}任务【{action_name}】进行告警处理"
+msgstr "{creator}通过页面创建{plugin_name}任务【{action_name}】进行告警处理"
+
+msgid "手动处理"
+msgstr "手动处理"
+
+msgid "磁盘=C,主机名=centos"
+msgstr "磁盘=C,主机名=centos"
+
+msgid "IP地址"
+msgstr "IP地址"
+
+msgid "进程名"
+msgstr "进程名"
+
+msgid "uwork机器重启"
+msgstr "uwork机器重启"
+
+msgid "已经创建作业平台任务，点击查看详情http://www.job.com/"
+msgstr "已经创建作业平台任务，点击查看详情http://www.job.com/"
+
+msgid "告警级别：致命"
+msgstr "告警级别：致命"
+
+msgid "首次异常: 1970-01-01 00:00:00"
+msgstr "首次异常: 1970-01-01 00:00:00"
+
+msgid "最近异常: 1970-01-01 00:00:00"
+msgstr "最近异常: 1970-01-01 00:00:00"
+
+msgid "内容: 已持续10分钟, sum(in_user) > 10"
+msgstr "内容: 已持续10分钟, sum(in_user) > 10"
+
+msgid "目标: 蓝鲸[2] 127.0.0.1,127.0.0.2 (2)"
+msgstr "目标: 蓝鲸[2] 127.0.0.1,127.0.0.2 (2)"
+
+msgid "维度: 磁盘=C"
+msgstr "维度: 磁盘=C"
+
+msgid "详情: http://example.com/"
+msgstr "详情: http://example.com/"
+
+msgid "关联信息: 集群(set1,set2) 模块(module1,module2)"
+msgstr "关联信息: 集群(set1,set2) 模块(module1,module2)"
+
+msgid "告警ID: 12345"
+msgstr "告警ID: 12345"
+
+msgid "10分钟"
+msgstr "10分钟"
+
+msgid "sum(in_user) > 10, 当前值15"
+msgstr "sum(in_user) > 10, 当前值15"
+
+msgid "蓝鲸[2]"
+msgstr "蓝鲸[2]"
+
+msgid "磁盘=C"
+msgstr "磁盘=C"
+
+msgid "内容: 已持续10分钟, sum(in_user) > 10,当前值 15%"
+msgstr "内容: 已持续10分钟, sum(in_user) > 10,当前值 15%"
+
+msgid "致命(1)、预警(2)"
+msgstr "致命(1)、预警(2)"
+
+msgid "内容: [致命]磁盘使用率 10:10告警,已持续10分钟,sum(in_user) > 10,当前值 15%"
+msgstr "内容: [致命]磁盘使用率 10:10告警,已持续10分钟,sum(in_user) > 10,当前值 15%"
+
+msgid "同维度告警通知"
+msgstr "同维度告警通知"
+
+msgid "汇总告警通知"
+msgstr "汇总告警通知"
+
+msgid "告警链接"
+msgstr "告警链接"
+
+msgid "「快捷」一键拉群"
+msgstr "「快捷」一键拉群"
+
+msgid " - 【{}】等{}个告警"
+msgstr " - 【{}】等{}个告警"
+
+#, python-brace-format
+msgid "{creator}分派告警给({appointees}), 分派原因：{reason}"
+msgstr "{creator}分派告警给({appointees}), 分派原因：{reason}"
+
+msgid "正在注册蓝鲸插件套餐，注册结果请前往日志查看"
+msgstr "正在注册蓝鲸插件套餐，注册结果请前往日志查看"
+
+msgid "告警分派"
+msgstr "告警分派"
+
+msgid "{}给您分派了告警【{{alarm.name}}({{alarm.id}})】"
+msgstr "{}给您分派了告警【{{alarm.name}}({{alarm.id}})】"
+
+msgid "{}给您分派了【{}】等{}个告警"
+msgstr "{}给您分派了【{}】等{}个告警"
+
+msgid "处理记录ID"
+msgstr "处理记录ID"
+
+msgid "收敛记录ID"
+msgstr "收敛记录ID"
+
+msgid "是否为收敛关键记录"
+msgstr "是否为收敛关键记录"
+
+msgid "失败类型"
+msgstr "失败类型"
+
+msgid "异常信息"
+msgstr "异常信息"
+
+msgid "触发信号"
+msgstr "触发信号"
+
+msgid "动作输入"
+msgstr "动作输入"
+
+msgid "动作输出"
+msgstr "动作输出"
+
+msgid "执行次数"
+msgstr "执行次数"
+
+msgid "套餐插件快照"
+msgstr "套餐插件快照"
+
+msgid "套餐配置"
+msgstr "套餐配置"
+
+msgid "套餐ID"
+msgstr "套餐ID"
+
+msgid "是否为子任务"
+msgstr "是否为子任务"
+
+msgid "关联的任务ID"
+msgstr "关联的任务ID"
+
+msgid "父记录ID"
+msgstr "父记录ID"
+
+msgid "模块ID"
+msgstr "模块ID"
+
+msgid "模块名称"
+msgstr "模块名称"
+
+msgid "原始ID"
+msgstr "原始ID"
+
+msgid "处理时长"
+msgstr "处理时长"
+
+msgid "处理内容"
+msgstr "处理内容"
+
+msgid "维度信息"
+msgstr "维度信息"
+
+msgid "处理记录"
+msgstr "处理记录"
+
+msgid "指标ID"
+msgstr "指标ID"
+
+msgid "策略标签"
+msgstr "策略标签"
+
+msgid "目标IPv6"
+msgstr "目标IPv6"
+
+msgid "目标服务实例ID"
+msgstr "目标服务实例ID"
+
+msgid "目标节点"
+msgstr "目标节点"
+
+msgid "通知人"
+msgstr "通知人"
+
+msgid "知会人"
+msgstr "知会人"
+
+msgid "是否已确认"
+msgstr "是否已确认"
+
+msgid "是否已屏蔽"
+msgstr "是否已屏蔽"
+
+msgid "屏蔽剩余时间"
+msgstr "屏蔽剩余时间"
+
+msgid "屏蔽配置ID"
+msgstr "屏蔽配置ID"
+
+msgid "是否已处理"
+msgstr "是否已处理"
+
+msgid "是否熔断"
+msgstr "是否熔断"
+
+msgid "最新事件时间"
+msgstr "最新事件时间"
+
+msgid "确认时间"
+msgstr "确认时间"
+
+msgid "数据类型"
+msgstr "数据类型"
+
+msgid "告警源名称"
+msgstr "告警源名称"
+
+msgid "处理阶段"
+msgstr "处理阶段"
+
+msgid "告警"
+msgstr "告警"
+
+msgid "我的告警"
+msgstr "我的告警"
+
+msgid "我负责的"
+msgstr "我负责的"
+
+msgid "我收到的"
+msgstr "我收到的"
+
+msgid "未恢复(已屏蔽)"
+msgstr "未恢复(已屏蔽)"
+
+msgid "告警产生"
+msgstr "告警产生"
+
+msgid "告警恢复中"
+msgstr "告警恢复中"
+
+msgid "延迟恢复"
+msgstr "延迟恢复"
+
+msgid "中断恢复"
+msgstr "中断恢复"
+
+msgid "告警级别调整"
+msgstr "告警级别调整"
+
+msgid "告警流控"
+msgstr "告警流控"
+
+msgid " 达到了触发告警条件（数据连续丢失{}个周期）"
+msgstr " 达到了触发告警条件（数据连续丢失{}个周期）"
+
+msgid " 达到了触发告警条件（{}周期内满足{}次检测算法）"
+msgstr " 达到了触发告警条件（{}周期内满足{}次检测算法）"
+
+msgid "根据系统配置，告警将于 {} 延时恢复"
+msgstr "根据系统配置，告警将于 {} 延时恢复"
+
+msgid "在延时恢复的时间窗口收到了新的异常事件，延时恢复被中断"
+msgstr "在延时恢复的时间窗口收到了新的异常事件，延时恢复被中断"
+
+msgid "延时恢复时间窗口结束，告警已恢复"
+msgstr "延时恢复时间窗口结束，告警已恢复"
+
+msgid "{}确认了该告警事件并备注："
+msgstr "{}确认了该告警事件并备注："
+
+msgid "{}确认了该告警事件"
+msgstr "{}确认了该告警事件"
+
+msgid "长时间未收到新的异常事件，系统关闭告警"
+msgstr "长时间未收到新的异常事件，系统关闭告警"
+
+msgid "收到了更高级别的事件，告警级别上升为：{}"
+msgstr "收到了更高级别的事件，告警级别上升为：{}"
+
+msgid "小于1h"
+msgstr "小于1h"
+
+msgid "大于1h且小于1d"
+msgstr "大于1h且小于1d"
+
+msgid "大于1d"
+msgstr "大于1d"
+
+msgid "全局事件ID"
+msgstr "全局事件ID"
+
+msgid "插件ID"
+msgstr "插件ID"
+
+msgid "采集时间"
+msgstr "采集时间"
+
+msgid "入库时间"
+msgstr "入库时间"
+
+msgid "当前"
+msgstr "当前"
+
+msgid "其他-其他"
+msgstr "其他-其他"
+
+msgid "监控策略"
+msgstr "监控策略"
+
+msgid "无该告警查看权限"
+msgstr "无该告警查看权限"
+
+msgid "Resource[{}] 请求参数格式错误, 请求的通知ID不存在"
+msgstr "Resource[{}] 请求参数格式错误, 请求的通知ID不存在"
+
+msgid "Resource[{}] 请求参数格式错误, 请求的token不正确"
+msgstr "Resource[{}] 请求参数格式错误, 请求的token不正确"
+
+msgid "异常事件统计"
+msgstr "异常事件统计"
+
+msgid "集群({}) "
+msgstr "集群({}) "
+
+msgid "模块({})"
+msgstr "模块({})"
+
+msgid "阈值算法"
+msgstr "阈值算法"
+
+msgid "算法无输出"
+msgstr "算法无输出"
+
+msgid "维度下钻"
+msgstr "维度下钻"
+
+msgid "指标推荐"
+msgstr "指标推荐"
+
+msgid "快捷屏蔽3小时"
+msgstr "快捷屏蔽3小时"
+
+#, python-brace-format
+msgid "完成快捷屏蔽{shield_hours}小时, 成功({success_alerts})， 失败({failed_alerts})"
+msgstr "完成快捷屏蔽{shield_hours}小时, 成功({success_alerts})， 失败({failed_alerts})"
+
+msgid "移动端通知快捷确认"
+msgstr "移动端通知快捷确认"
+
+#, python-brace-format
+msgid "完成快捷确认, 成功({success_alerts})，失败({failed_alerts})，已确认({alerts_already_ack})，已结束({alerts_not_abnormal})"
+msgstr "完成快捷确认, 成功({success_alerts})，失败({failed_alerts})，已确认({alerts_already_ack})，已结束({alerts_not_abnormal})"
+
+#, python-brace-format
+msgid "'{id}' 不是合法的告警ID"
+msgstr "'{id}' 不是合法的告警ID"
+
+#, python-brace-format
+msgid "'{id}' 不是合法的处理记录ID"
+msgstr "'{id}' 不是合法的处理记录ID"
+
+msgid "【自愈套餐】微信发送 CPU 使用率 Top N 进程"
+msgstr "【自愈套餐】微信发送 CPU 使用率 Top N 进程"
+
+msgid "【自愈套餐】微信发送内存使用率 Top N 进程"
+msgstr "【自愈套餐】微信发送内存使用率 Top N 进程"
+
+msgid "【自愈套餐】转移主机至故障机模块"
+msgstr "【自愈套餐】转移主机至故障机模块"
+
+msgid "【自愈套餐】转移主机至空闲机模块"
+msgstr "【自愈套餐】转移主机至空闲机模块"
+
+msgid "【自愈套餐】磁盘清理(适用于Linux)"
+msgstr "【自愈套餐】磁盘清理(适用于Linux)"
+
+msgid "【快捷套餐】微信发送 CPU 使用率 Top 10 进程"
+msgstr "【快捷套餐】微信发送 CPU 使用率 Top 10 进程"
+
+msgid "【快捷套餐】微信发送内存使用率 Top 10 进程"
+msgstr "【快捷套餐】微信发送内存使用率 Top 10 进程"
+
+msgid "【快捷套餐】转移主机至故障机模块"
+msgstr "【快捷套餐】转移主机至故障机模块"
+
+msgid "【快捷套餐】转移主机至空闲机模块"
+msgstr "【快捷套餐】转移主机至空闲机模块"
+
+#, python-format
+msgid "%s 文件读取失败"
+msgstr "%s 文件读取失败"
+
+msgid "{} 解析失败: {}"
+msgstr "{} 解析失败: {}"
+
+#, python-format
+msgid "插件包保存失败: %s"
+msgstr "插件包保存失败: %s"
+
+msgid "Zabbix账号密码不正确，请输入管理员账号密码"
+msgstr "Zabbix账号密码不正确，请输入管理员账号密码"
+
+msgid "初始化参数不正确，请依次输入Zabbix API地址, 管理员账号, 管理员账号密码"
+msgstr "初始化参数不正确，请依次输入Zabbix API地址, 管理员账号, 管理员账号密码"
+
+msgid "Zabbix API（{}）地址不正确"
+msgstr "Zabbix API（{}）地址不正确"
+
+#, python-format
+msgid "Zabbix API（%s）地址不正确"
+msgstr "Zabbix API（%s）地址不正确"
+
+msgid "事件插件"
+msgstr "事件插件"
+
+msgid "选择安装的插件不存在或不可用， 请重新确认"
+msgstr "选择安装的插件不存在或不可用， 请重新确认"
+
+msgid "修改的插件配置信息在当前业务下不存在， 请确认！"
+msgstr "修改的插件配置信息在当前业务下不存在， 请确认！"
+
+msgid "__用于机器ping测试的服务器，需用户填写__"
+msgstr "__用于机器ping测试的服务器，需用户填写__"
+
+msgid "暂停等待"
+msgstr "暂停等待"
+
+msgid "【自愈快捷】转移主机至故障机模块"
+msgstr "【自愈快捷】转移主机至故障机模块"
+
+msgid "【快捷】转移主机至空闲机模块"
+msgstr "【快捷】转移主机至空闲机模块"
+
+msgid "自愈通知"
+msgstr "自愈通知"
+
+msgid "故障自愈通知"
+msgstr "故障自愈通知"
+
+msgid "故障自愈获取备机"
+msgstr "故障自愈获取备机"
+
+#, python-brace-format
+msgid "故障自愈获取到备机为【${bak_ip}】"
+msgstr "故障自愈获取到备机为【${bak_ip}】"
+
+msgid "故障自愈获取备机通知"
+msgstr "故障自愈获取备机通知"
+
+msgid "【快捷】替换操作对象为备机"
+msgstr "【快捷】替换操作对象为备机"
+
+#, python-brace-format
+msgid "故障自愈后续参数更改为到备机【${bak_ip}】"
+msgstr "故障自愈后续参数更改为到备机【${bak_ip}】"
+
+msgid "故障自愈切换备机"
+msgstr "故障自愈切换备机"
+
+msgid "CC故障机替换"
+msgstr "CC故障机替换"
+
+msgid "故障自愈执行审批"
+msgstr "故障自愈执行审批"
+
+msgid "【子流程】占位（子流程）"
+msgstr "【子流程】占位（子流程）"
+
+msgid "【子流程】发送内存进程TOP10通知（占位）"
+msgstr "【子流程】发送内存进程TOP10通知（占位）"
+
+msgid "【子流程】发送CPU进程TOP10通知(占位)"
+msgstr "【子流程】发送CPU进程TOP10通知(占位)"
+
+msgid "【子流程】磁盘清理（占位）"
+msgstr "【子流程】磁盘清理（占位）"
+
+msgid "「Job作业」流程需补充"
+msgstr "「Job作业」流程需补充"
+
+msgid "执行结果"
+msgstr "执行结果"
+
+msgid "输入框"
+msgstr "输入框"
+
+msgid "故障机IP"
+msgstr "故障机IP"
+
+msgid "故障机服务大区id"
+msgstr "故障机服务大区id"
+
+msgid "主机负责人"
+msgstr "主机负责人"
+
+msgid "空闲机池"
+msgstr "空闲机池"
+
+msgid "空闲机"
+msgstr "空闲机"
+
+msgid "备机IP"
+msgstr "备机IP"
+
+msgid "故障自愈待选备机"
+msgstr "故障自愈待选备机"
+
+msgid "备机待选集群"
+msgstr "备机待选集群"
+
+msgid "备机待选模块备机待选模块备机待选模块"
+msgstr "备机待选模块备机待选模块备机待选模块"
+
+msgid "备机待选模块"
+msgstr "备机待选模块"
+
+msgid "故障机的proxy IP"
+msgstr "故障机的proxy IP"
+
+msgid "故障机的云区域ID"
+msgstr "故障机的云区域ID"
+
+msgid "通知内容"
+msgstr "通知内容"
+
+msgid "错误，不存在的组件！！{} {}"
+msgstr "错误，不存在的组件！！{} {}"
+
+msgid "回调内容"
+msgstr "回调内容"
+
+msgid "[{}]组合套餐迁移"
+msgstr "[{}]组合套餐迁移"
+
+msgid "{}（组合套餐迁移）"
+msgstr "{}（组合套餐迁移）"
+
+msgid "{}||{}【故障自愈】"
+msgstr "{}||{}【故障自愈】"
+
+msgid "迁移的通知套餐"
+msgstr "迁移的通知套餐"
+
+msgid "[{}]自愈迁移{}告警组"
+msgstr "[{}]自愈迁移{}告警组"
+
+msgid "自愈迁移"
+msgstr "自愈迁移"
+
+msgid "自愈迁移-{}"
+msgstr "自愈迁移-{}"
+
+msgid "[{}]自愈迁移-{}"
+msgstr "[{}]自愈迁移-{}"
+
+msgid "{}（迁移自愈套餐）"
+msgstr "{}（迁移自愈套餐）"
+
+msgid "系统内置快捷套餐"
+msgstr "系统内置快捷套餐"
+
+#, python-format, python-brace-format
+msgid "%s{signal_name}通知"
+msgstr "%s{signal_name}通知"
+
+#, python-format
+msgid "HTTP回调[%s]"
+msgstr "HTTP回调[%s]"
+
+msgid "请求url"
+msgstr "请求url"
+
+msgid "点赞"
+msgstr "点赞"
+
+msgid "点踩"
+msgstr "点踩"
+
+msgid "正则表达式"
+msgstr "正则表达式"
+
+msgid "通配符"
+msgstr "通配符"
+
+msgid "计算平台未安装"
+msgstr "计算平台未安装"
+
+#, python-format
+msgid "第三方组件%s异常"
+msgstr "第三方组件%s异常"
+
+msgid "请检查esb及对应组件服务是否正常"
+msgstr "请检查esb及对应组件服务是否正常"
+
+msgid "cc 不存在对应的测试用例"
+msgstr "cc 不存在对应的测试用例"
+
+#, python-brace-format
+msgid "cc中不存在{method_name}"
+msgstr "cc中不存在{method_name}"
+
+msgid "接口不具有依赖关系"
+msgstr "接口不具有依赖关系"
+
+msgid "cc中没有此接口"
+msgstr "cc中没有此接口"
+
+msgid "job不存在对应的测试用例"
+msgstr "job不存在对应的测试用例"
+
+msgid "job 中不存在接口 fast_execute_script 的相关参数"
+msgstr "job 中不存在接口 fast_execute_script 的相关参数"
+
+#, python-brace-format
+msgid "job中不存在{method_name}"
+msgstr "job中不存在{method_name}"
+
+#, python-format
+msgid "查找业务下主机失败,主机查询结果:%s"
+msgstr "查找业务下主机失败,主机查询结果:%s"
+
+msgid "job中没有此接口"
+msgstr "job中没有此接口"
+
+msgid "bk_data中不存在对应的测试用例"
+msgstr "bk_data中不存在对应的测试用例"
+
+msgid "saas的celery状态阻塞"
+msgstr "saas的celery状态阻塞"
+
+msgid "重启saas的celery服务"
+msgstr "重启saas的celery服务"
+
+msgid "rabbitmq服务未开启"
+msgstr "rabbitmq服务未开启"
+
+#, python-format
+msgid "请检查服务[%s]是否启动"
+msgstr "请检查服务[%s]是否启动"
+
+msgid "账户无权限访问rabbitmq"
+msgstr "账户无权限访问rabbitmq"
+
+#, python-format
+msgid "创建账户及v_host: %s"
+msgstr "创建账户及v_host: %s"
+
+msgid "静态阈值"
+msgstr "静态阈值"
+
+msgid "同比策略（简易）"
+msgstr "同比策略（简易）"
+
+msgid "环比策略（简易）"
+msgstr "环比策略（简易）"
+
+msgid "同比策略（高级）"
+msgstr "同比策略（高级）"
+
+msgid "环比策略（高级）"
+msgstr "环比策略（高级）"
+
+msgid "同比振幅"
+msgstr "同比振幅"
+
+msgid "同比区间"
+msgstr "同比区间"
+
+msgid "环比振幅"
+msgstr "环比振幅"
+
+msgid "关键字匹配"
+msgstr "关键字匹配"
+
+msgid "进程端口监控检测策略"
+msgstr "进程端口监控检测策略"
+
+msgid "系统重新启动监控策略"
+msgstr "系统重新启动监控策略"
+
+msgid "自定义字符型告警"
+msgstr "自定义字符型告警"
+
+msgid "用户配置信息"
+msgstr "用户配置信息"
+
+msgid "业务配置信息"
+msgstr "业务配置信息"
+
+msgid "全局配置信息"
+msgstr "全局配置信息"
+
+msgid "请先暂停或删除相关联的任务"
+msgstr "请先暂停或删除相关联的任务"
+
+#, python-format
+msgid "该节点存在以下运行中的拨测任务：%s，"
+msgstr "该节点存在以下运行中的拨测任务：%s，"
+
+#, python-format
+msgid "保存拨测节点失败，主机%(ip)s不存在：bk_host_id=%(bk_host_id)s"
+msgstr "保存拨测节点失败，主机%(ip)s不存在：bk_host_id=%(bk_host_id)s"
+
+#, python-format
+msgid "保存拨测节点失败，主机%(ip)s已存在：name=%(name)s"
+msgstr "保存拨测节点失败，主机%(ip)s已存在：name=%(name)s"
+
+#, python-format
+msgid "保存拨测节点失败，节点名称%(name)s已存在"
+msgstr "保存拨测节点失败，节点名称%(name)s已存在"
+
+#, python-format
+msgid "保存拨测节点失败，不存在id为%(id)s的节点"
+msgstr "保存拨测节点失败，不存在id为%(id)s的节点"
+
+#, python-format
+msgid "保存拨测节点失败，节点名称'%(name)s'已存在"
+msgstr "保存拨测节点失败，节点名称'%(name)s'已存在"
+
+msgid "拨测节点"
+msgstr "拨测节点"
+
+#, python-format
+msgid "拨测节点（%s）"
+msgstr "拨测节点（%s）"
+
+msgid "未保存"
+msgstr "未保存"
+
+msgid "未启用"
+msgstr "未启用"
+
+msgid "启动失败"
+msgstr "启动失败"
+
+msgid "停止失败"
+msgstr "停止失败"
+
+#, python-format
+msgid "拨测任务已删除,ID:%d"
+msgstr "拨测任务已删除,ID:%d"
+
+#, python-format
+msgid "订阅任务已更新，订阅ID:%d,任务ID:%d"
+msgstr "订阅任务已更新，订阅ID:%d,任务ID:%d"
+
+#, python-format
+msgid "订阅任务已删除，ID:%d"
+msgstr "订阅任务已删除，ID:%d"
+
+#, python-format
+msgid "订阅任务已关闭，ID:%d"
+msgstr "订阅任务已关闭，ID:%d"
+
+#, python-format
+msgid "订阅任务已启动，ID:%d"
+msgstr "订阅任务已启动，ID:%d"
+
+#, python-format
+msgid "订阅任务执行STOP，ID:%d"
+msgstr "订阅任务执行STOP，ID:%d"
+
+#, python-format
+msgid "订阅任务执行START，ID:%d"
+msgstr "订阅任务执行START，ID:%d"
+
+#, python-format
+msgid "订阅任务已创建，ID:%d"
+msgstr "订阅任务已创建，ID:%d"
+
+#, python-format
+msgid "新增拨测任务订阅完毕，任务id:%d,新增的订阅信息:%s"
+msgstr "新增拨测任务订阅完毕，任务id:%d,新增的订阅信息:%s"
+
+#, python-format
+msgid "更新拨测任务订阅完毕，任务id:%d,更新的订阅信息:%s,新增的订阅信息:%s,删除的订阅信息:%s"
+msgstr "更新拨测任务订阅完毕，任务id:%d,更新的订阅信息:%s,新增的订阅信息:%s,删除的订阅信息:%s"
+
+#, python-format
+msgid "重启采集器时部分IP失败: %s"
+msgstr "重启采集器时部分IP失败: %s"
+
+msgid "拨测任务启用失败：存在运行中的启停任务，请稍后再试"
+msgstr "拨测任务启用失败：存在运行中的启停任务，请稍后再试"
+
+msgid "拨测任务启停前置检查失败: {}"
+msgstr "拨测任务启停前置检查失败: {}"
+
+msgid "拨测任务启用失败：{}"
+msgstr "拨测任务启用失败：{}"
+
+msgid "拨测任务停用失败：存在运行中的启停任务，请稍后再试"
+msgstr "拨测任务停用失败：存在运行中的启停任务，请稍后再试"
+
+#, python-format
+msgid "拨测任务停用失败：%s"
+msgstr "拨测任务停用失败：%s"
+
+msgid "更改拨测任务状态：目标状态为空"
+msgstr "更改拨测任务状态：目标状态为空"
+
+#, python-format
+msgid "更改拨测任务状态：无效的目标状态：%s"
+msgstr "更改拨测任务状态：无效的目标状态：%s"
+
+msgid "拨测任务"
+msgstr "拨测任务"
+
+#, python-format
+msgid "拨测任务（%s）"
+msgstr "拨测任务（%s）"
+
+msgid "拨测分组"
+msgstr "拨测分组"
+
+#, python-format
+msgid "不存在的文件，获取文件类型失败：%s"
+msgstr "不存在的文件，获取文件类型失败：%s"
+
+msgid "组件实例关系"
+msgstr "组件实例关系"
+
+msgid "操作记录"
+msgstr "操作记录"
+
+msgid "正在运行"
+msgstr "正在运行"
+
+msgid "未启动"
+msgstr "未启动"
+
+msgid "关注"
+msgstr "关注"
+
+msgid "默认分组"
+msgstr "默认分组"
+
+msgid "左侧菜单"
+msgstr "左侧菜单"
+
+msgid "监控映射"
+msgstr "监控映射"
+
+msgid "时间序列"
+msgstr "时间序列"
+
+msgid "TOP排行"
+msgstr "TOP排行"
+
+msgid "状态值"
+msgstr "状态值"
+
+msgid "图表"
+msgstr "图表"
+
+msgid "脚本"
+msgstr "脚本"
+
+msgid "命令行"
+msgstr "命令行"
+
+msgid "新建未保存"
+msgstr "新建未保存"
+
+msgid "已保存"
+msgstr "已保存"
+
+msgid "脚本采集配置"
+msgstr "脚本采集配置"
+
+msgid "脚本采集实例"
+msgstr "脚本采集实例"
+
+msgid "编辑未保存"
+msgstr "编辑未保存"
+
+msgid "删除失败"
+msgstr "删除失败"
+
+msgid "定义表结构"
+msgstr "定义表结构"
+
+msgid "编写采集脚本"
+msgstr "编写采集脚本"
+
+msgid "选择服务器"
+msgstr "选择服务器"
+
+msgid "下发采集测试"
+msgstr "下发采集测试"
+
+msgid "设置采集周期"
+msgstr "设置采集周期"
+
+msgid "完成"
+msgstr "完成"
+
+msgid "任务创建成功"
+msgstr "任务创建成功"
+
+msgid "任务正在执行"
+msgstr "任务正在执行"
+
+msgid "任务执行成功"
+msgstr "任务执行成功"
+
+msgid "任务执行失败"
+msgstr "任务执行失败"
+
+msgid "任务执行过程异常"
+msgstr "任务执行过程异常"
+
+msgid "任务就绪"
+msgstr "任务就绪"
+
+msgid "检查并创建结果表"
+msgstr "检查并创建结果表"
+
+msgid "检查并创建DataSet"
+msgstr "检查并创建DataSet"
+
+msgid "检查并生成清洗配置"
+msgstr "检查并生成清洗配置"
+
+msgid "检查并创建TSDB"
+msgstr "检查并创建TSDB"
+
+msgid "启动入库程序"
+msgstr "启动入库程序"
+
+msgid "创建脚本托管任务"
+msgstr "创建脚本托管任务"
+
+msgid "取消老版本配置的IP托管"
+msgstr "取消老版本配置的IP托管"
+
+msgid "任务流程完成"
+msgstr "任务流程完成"
+
+msgid "脚本采集托管任务"
+msgstr "脚本采集托管任务"
+
+msgid "自定义组件"
+msgstr "自定义组件"
+
+msgid "正在托管exporter"
+msgstr "正在托管exporter"
+
+msgid "Exporter托管任务"
+msgstr "Exporter托管任务"
+
+msgid "组件分类"
+msgstr "组件分类"
+
+msgid "组件分类关系"
+msgstr "组件分类关系"
+
+msgid "解压文件"
+msgstr "解压文件"
+
+msgid "校验组件名称"
+msgstr "校验组件名称"
+
+msgid "校验组件描述"
+msgstr "校验组件描述"
+
+msgid "校验指标项文件"
+msgstr "校验指标项文件"
+
+msgid "校验配置项文件"
+msgstr "校验配置项文件"
+
+msgid "读取并压缩LOGO"
+msgstr "读取并压缩LOGO"
+
+msgid "校验二进制exporter"
+msgstr "校验二进制exporter"
+
+msgid "保存组件配置"
+msgstr "保存组件配置"
+
+msgid "组件导入任务"
+msgstr "组件导入任务"
+
+msgid "启用中"
+msgstr "启用中"
+
+msgid "停用中"
+msgstr "停用中"
+
+msgid "日志接入配置"
+msgstr "日志接入配置"
+
+msgid "日志接入主机状态"
+msgstr "日志接入主机状态"
+
+msgid "无效的告警事件链接"
+msgstr "无效的告警事件链接"
+
+msgid "进程端口"
+msgstr "进程端口"
+
+msgid "系统重新启动"
+msgstr "系统重新启动"
+
+msgid "检测算法"
+msgstr "检测算法"
+
+#, python-format
+msgid "告警策略(%s)的检测算法"
+msgstr "告警策略(%s)的检测算法"
+
+#, python-format
+msgid "当前值%(cur_val)s阈值:%(threshold)s%(unit)s"
+msgstr "当前值%(cur_val)s阈值:%(threshold)s%(unit)s"
+
+msgid " 或 "
+msgstr " 或 "
+
+msgid "指标当前值"
+msgstr "指标当前值"
+
+msgid "较上周同一时刻值"
+msgstr "较上周同一时刻值"
+
+msgid "较前一时刻值"
+msgstr "较前一时刻值"
+
+#, python-format
+msgid "较%s天内同一时刻绝对值的均值"
+msgstr "较%s天内同一时刻绝对值的均值"
+
+#, python-format
+msgid "较%s个时间点的均值"
+msgstr "较%s个时间点的均值"
+
+#, python-format
+msgid "上升%s%%"
+msgstr "上升%s%%"
+
+#, python-format
+msgid "下降%s%%"
+msgstr "下降%s%%"
+
+#, python-format
+msgid "-前一时刻值%(method)s过去%(num_of_day)s天内任一天同时刻差值* %(times)s + (%(shock)s)"
+msgstr "-前一时刻值%(method)s过去%(num_of_day)s天内任一天同时刻差值* %(times)s + (%(shock)s)"
+
+#, python-format
+msgid "%(method)s过去%(num_of_day)s天内同一时刻绝对值* %(ratio)s%% + (%(shock)s)"
+msgstr "%(method)s过去%(num_of_day)s天内同一时刻绝对值* %(ratio)s%% + (%(shock)s)"
+
+#, python-format
+msgid "和前一时刻均>=%(threshold)s,且之间差值>=前一时刻值 *%(ratio)s%% + (%(shock)s)"
+msgstr "和前一时刻均>=%(threshold)s,且之间差值>=前一时刻值 *%(ratio)s%% + (%(shock)s)"
+
+#, python-format
+msgid "%(num)s分钟内%(method)s%(threshold)s次"
+msgstr "%(num)s分钟内%(method)s%(threshold)s次"
+
+msgid "默认参数"
+msgstr "默认参数"
+
+msgid "CPU"
+msgstr "CPU"
+
+msgid "网卡"
+msgstr "网卡"
+
+msgid "系统环境"
+msgstr "系统环境"
+
+msgid "主机监控"
+msgstr "主机监控"
+
+msgid "物理机"
+msgstr "物理机"
+
+msgid "脚本采集"
+msgstr "脚本采集"
+
+msgid "自定义监控"
+msgstr "自定义监控"
+
+msgid "有开启的检测未填写参数"
+msgstr "有开启的检测未填写参数"
+
+msgid "无该事件权限"
+msgstr "无该事件权限"
+
+msgid "维度信息：{}"
+msgstr "维度信息：{}"
+
+msgid "告警内容：{}"
+msgstr "告警内容：{}"
+
+msgid "{}前"
+msgstr "{}前"
+
+msgid "模块({}) "
+msgstr "模块({}) "
+
+msgid "回调"
+msgstr "回调"
+
+msgid "受到相关屏蔽规则影响"
+msgstr "受到相关屏蔽规则影响"
+
+msgid "主机的运营状态为不告警状态"
+msgstr "主机的运营状态为不告警状态"
+
+msgid "存在相同配置的基于静态IP配置的监控策略"
+msgstr "存在相同配置的基于静态IP配置的监控策略"
+
+msgid "受到相关屏蔽策略影响"
+msgstr "受到相关屏蔽策略影响"
+
+msgid "不在告警时间段内"
+msgstr "不在告警时间段内"
+
+msgid "已达到发起告警通知条件（告警未恢复及未关闭，每隔{}分钟发送一次通知），但由于{}，系统已将通知屏蔽"
+msgstr "已达到发起告警通知条件（告警未恢复及未关闭，每隔{}分钟发送一次通知），但由于{}，系统已将通知屏蔽"
+
+msgid "已达到发起告警通知的条件（告警未恢复及未关闭，每隔{}分钟发送一次通知），接收通知的告警组"
+msgstr "已达到发起告警通知的条件（告警未恢复及未关闭，每隔{}分钟发送一次通知），接收通知的告警组"
+
+msgid ", 通知状态"
+msgstr ", 通知状态"
+
+msgid ", 失败原因: {}"
+msgstr ", 失败原因: {}"
+
+msgid "达到了触发告警条件（数据连续丢失{}个周期）"
+msgstr "达到了触发告警条件（数据连续丢失{}个周期）"
+
+msgid "达到了触发告警条件（{}周期内满足{}次检测算法）"
+msgstr "达到了触发告警条件（{}周期内满足{}次检测算法）"
+
+msgid "通知状态"
+msgstr "通知状态"
+
+msgid "未恢复(已确认)"
+msgstr "未恢复(已确认)"
+
+msgid "告警汇总ID"
+msgstr "告警汇总ID"
+
+msgid "触发策略"
+msgstr "触发策略"
+
+msgid "主机【{}】"
+msgstr "主机【{}】"
+
+msgid "服务【{}】"
+msgstr "服务【{}】"
+
+msgid "文件格式错误，仅支持tar.gz、tgz、zip格式"
+msgstr "文件格式错误，仅支持tar.gz、tgz、zip格式"
+
+msgid "文件大小超过20M"
+msgstr "文件大小超过20M"
+
+msgid "创建导入记录..."
+msgstr "创建导入记录..."
+
+msgid "解压中..."
+msgstr "解压中..."
+
+msgid "配置导入中..."
+msgstr "配置导入中..."
+
+#, python-format
+msgid "业务信息获取失败: %s"
+msgstr "业务信息获取失败: %s"
+
+msgid "日志采集"
+msgstr "日志采集"
+
+msgid "当前有其他用户正在编辑该采集配置，请稍后重试"
+msgstr "当前有其他用户正在编辑该采集配置，请稍后重试"
+
+msgid "采集配置未处于已启用/已停用状态"
+msgstr "采集配置未处于已启用/已停用状态"
+
+msgid "采集配置未停用"
+msgstr "采集配置未停用"
+
+msgid "未找到节点管理的日志"
+msgstr "未找到节点管理的日志"
+
+msgid "主机id和ip/bk_cloud_id不能同时为空"
+msgstr "主机id和ip/bk_cloud_id不能同时为空"
+
+msgid "当前操作不支持回滚，或采集配置正处于执行中"
+msgstr "当前操作不支持回滚，或采集配置正处于执行中"
+
+msgid "采集配置 CollectConfigMeta: {} 查询订阅{}结果出错: {}"
+msgstr "采集配置 CollectConfigMeta: {} 查询订阅{}结果出错: {}"
+
+msgid "采集配置 CollectConfigMeta: {} 对应订阅{}不存在"
+msgstr "采集配置 CollectConfigMeta: {} 对应订阅{}不存在"
+
+msgid "当前订阅ID未被删除，无法操作。可增加 \"is_force=1\" 参数强制操作 "
+msgstr "当前订阅ID未被删除，无法操作。可增加 \"is_force=1\" 参数强制操作 "
+
+msgid "订阅ID不存在"
+msgstr "订阅ID不存在"
+
+msgid "无法识别节点"
+msgstr "无法识别节点"
+
+msgid "主机内网IP"
+msgstr "主机内网IP"
+
+msgid "主机云区域ID"
+msgstr "主机云区域ID"
+
+msgid "主机云区域名称"
+msgstr "主机云区域名称"
+
+msgid "主机备份负责人"
+msgstr "主机备份负责人"
+
+msgid "ISP名称"
+msgstr "ISP名称"
+
+msgid "操作系统版本"
+msgstr "操作系统版本"
+
+msgid "服务分类ID"
+msgstr "服务分类ID"
+
+msgid "进程别名"
+msgstr "进程别名"
+
+msgid "功能ID"
+msgstr "功能ID"
+
+msgid "启动用户"
+msgstr "启动用户"
+
+msgid "工作路径"
+msgstr "工作路径"
+
+msgid "进程数量"
+msgstr "进程数量"
+
+msgid "PID文件路径"
+msgstr "PID文件路径"
+
+msgid "自动启动"
+msgstr "自动启动"
+
+msgid "开启主机监控"
+msgstr "开启主机监控"
+
+msgid "默认录入到蓝鲸配置平台的主机，将会采集操作系统和进程相关的指标数据和事件数据，所以开启主机监控需要关联业务资源。"
+msgstr "默认录入到蓝鲸配置平台的主机，将会采集操作系统和进程相关的指标数据和事件数据，所以开启主机监控需要关联业务资源。"
+
+msgid "采集的指标丰富多达100个指标和8种系统事件"
+msgstr "采集的指标丰富多达100个指标和8种系统事件"
+
+msgid "可以按集群和模块拓扑进行数据的汇总"
+msgstr "可以按集群和模块拓扑进行数据的汇总"
+
+msgid "提供默认的主机和事件策略"
+msgstr "提供默认的主机和事件策略"
+
+msgid "接入主机"
+msgstr "接入主机"
+
+msgid "快速接入"
+msgstr "快速接入"
+
+msgid "产品白皮书/scene-host/host_monitor.md"
+msgstr "产品白皮书/scene-host/host_monitor.md"
+
+msgid "进程配置"
+msgstr "进程配置"
+
+msgid "产品白皮书/scene-process/process_monitor_overview.md"
+msgstr "产品白皮书/scene-process/process_monitor_overview.md"
+
+msgid "操作系统指标"
+msgstr "操作系统指标"
+
+msgid "产品白皮书/scene-host/host_metrics.md"
+msgstr "产品白皮书/scene-host/host_metrics.md"
+
+msgid "进程指标"
+msgstr "进程指标"
+
+msgid "产品白皮书/scene-process/process_metrics.md"
+msgstr "产品白皮书/scene-process/process_metrics.md"
+
+msgid "操作系统事件"
+msgstr "操作系统事件"
+
+msgid "产品白皮书/scene-host/host_events.md"
+msgstr "产品白皮书/scene-host/host_events.md"
+
+msgid "开启拨测"
+msgstr "开启拨测"
+
+msgid "拨测是主动探测应用可用性的监控方式，通过拨测节点对目标进行周期性探测，通过可用性和响应时间来度量目标的状态。帮助业务主动发现问题和提升用户体验。"
+msgstr "拨测是主动探测应用可用性的监控方式，通过拨测节点对目标进行周期性探测，通过可用性和响应时间来度量目标的状态。帮助业务主动发现问题和提升用户体验。"
+
+msgid "支持HTTP(s)、TCP、UDP、ICMP协议"
+msgstr "支持HTTP(s)、TCP、UDP、ICMP协议"
+
+msgid "提供单点可用率、响应时长、期望响应码等指标"
+msgstr "提供单点可用率、响应时长、期望响应码等指标"
+
+msgid "提供节点TOP和地图等图表"
+msgstr "提供节点TOP和地图等图表"
+
+msgid "新建拨测"
+msgstr "新建拨测"
+
+msgid "产品白皮书/scene-synthetic/synthetic_monitor.md"
+msgstr "产品白皮书/scene-synthetic/synthetic_monitor.md"
+
+msgid "拨测指标说明"
+msgstr "拨测指标说明"
+
+msgid "产品白皮书/scene-synthetic/synthetic_metrics.md"
+msgstr "产品白皮书/scene-synthetic/synthetic_metrics.md"
+
+msgid "拨测策略说明"
+msgstr "拨测策略说明"
+
+msgid "产品白皮书/scene-synthetic/synthetic_default_rules.md"
+msgstr "产品白皮书/scene-synthetic/synthetic_default_rules.md"
+
+msgid "开启APM"
+msgstr "开启APM"
+
+msgid "APM即应用性能监控，通过Trace数据分析应用中各服务的运行情况，尤其是在微服务和云原生情况下非常依赖Trace数据的发现来解决接口级别的调用问题。"
+msgstr "APM即应用性能监控，通过Trace数据分析应用中各服务的运行情况，尤其是在微服务和云原生情况下非常依赖Trace数据的发现来解决接口级别的调用问题。"
+
+msgid "通过应用拓扑图，可以了解服务之间调用的关系和出现问题的节点"
+msgstr "通过应用拓扑图，可以了解服务之间调用的关系和出现问题的节点"
+
+msgid "通过调用次数、耗时、错误率等指标可以了解服务本身的运行状况"
+msgstr "通过调用次数、耗时、错误率等指标可以了解服务本身的运行状况"
+
+msgid "可以添加告警即时的发现问题"
+msgstr "可以添加告警即时的发现问题"
+
+msgid "新建应用"
+msgstr "新建应用"
+
+msgid "产品白皮书/scene-apm/apm_monitor_overview.md"
+msgstr "产品白皮书/scene-apm/apm_monitor_overview.md"
+
+msgid "产品白皮书/scene-apm/apm_metrics.md"
+msgstr "产品白皮书/scene-apm/apm_metrics.md"
+
+msgid "APM策略说明"
+msgstr "APM策略说明"
+
+msgid "产品白皮书/scene-apm/apm_default_rules.md"
+msgstr "产品白皮书/scene-apm/apm_default_rules.md"
+
+msgid "开启Kubernetes监控"
+msgstr "开启Kubernetes监控"
+
+msgid "基于Kubernetes的云原生场景，提供了围绕云平台本身及上的应用数据监控解决方案。兼容了Prometheus的使用并且解决了原本的一些短板问题。开启容器监控需要将Kubernetes接入到蓝鲸容器管理平台中。"
+msgstr "基于Kubernetes的云原生场景，提供了围绕云平台本身及上的应用数据监控解决方案。兼容了Prometheus的使用并且解决了原本的一些短板问题。开启容器监控需要将Kubernetes接入到蓝鲸容器管理平台中。"
+
+msgid "提供开箱即用的K8s服务组件的各种监控视角"
+msgstr "提供开箱即用的K8s服务组件的各种监控视角"
+
+msgid "兼容serviceMonitor、podMonitor的使用"
+msgstr "兼容serviceMonitor、podMonitor的使用"
+
+msgid "提供了Events、Log、Metrics的采集方案"
+msgstr "提供了Events、Log、Metrics的采集方案"
+
+msgid "提供远程服务注册的方式"
+msgstr "提供远程服务注册的方式"
+
+msgid "提供本地拉取和均衡拉取的能力"
+msgstr "提供本地拉取和均衡拉取的能力"
+
+msgid "接入Kubernetes"
+msgstr "接入Kubernetes"
+
+msgid "开启容器监控"
+msgstr "开启容器监控"
+
+msgid "产品白皮书/scene-k8s/k8s_monitor_overview.md"
+msgstr "产品白皮书/scene-k8s/k8s_monitor_overview.md"
+
+msgid "容器指标说明"
+msgstr "容器指标说明"
+
+msgid "产品白皮书/scene-k8s/k8s_metrics.md"
+msgstr "产品白皮书/scene-k8s/k8s_metrics.md"
+
+msgid "k8s策略说明"
+msgstr "k8s策略说明"
+
+msgid "产品白皮书/scene-k8s/k8s_default_rules.md"
+msgstr "产品白皮书/scene-k8s/k8s_default_rules.md"
+
+msgid "自定义场景"
+msgstr "自定义场景"
+
+msgid "自定义场景是除了平台自带的场景之外可以根据监控需求来自定义监控场景，平台提供了快速定义场景的能力，从数据源接入到数据可视化、关联功能联动都可以很快速的完成。"
+msgstr "自定义场景是除了平台自带的场景之外可以根据监控需求来自定义监控场景，平台提供了快速定义场景的能力，从数据源接入到数据可视化、关联功能联动都可以很快速的完成。"
+
+msgid "基于数据源提供默认的数据可视化"
+msgstr "基于数据源提供默认的数据可视化"
+
+msgid "支持快速进行数据查看和检验"
+msgstr "支持快速进行数据查看和检验"
+
+msgid "支持指标分组和标签配置"
+msgstr "支持指标分组和标签配置"
+
+msgid "支持变量过滤和数据分组"
+msgstr "支持变量过滤和数据分组"
+
+msgid "开始自定义"
+msgstr "开始自定义"
+
+msgid "开始数据采集"
+msgstr "开始数据采集"
+
+msgid "数据采集是通过下发监控插件或配置来实现数据采集，并且提供插件和配置的全生命周期管理，所以依赖服务器安装bkmonitorbeat采集器。"
+msgstr "数据采集是通过下发监控插件或配置来实现数据采集，并且提供插件和配置的全生命周期管理，所以依赖服务器安装bkmonitorbeat采集器。"
+
+msgid "结合插件提供本地和远程采集两种方式"
+msgstr "结合插件提供本地和远程采集两种方式"
+
+msgid "提供基于配置平台节点的动态扩缩容"
+msgstr "提供基于配置平台节点的动态扩缩容"
+
+msgid "提供物理和容器环境的采集"
+msgstr "提供物理和容器环境的采集"
+
+msgid "新建数据采集"
+msgstr "新建数据采集"
+
+msgid "什么是指标和维度"
+msgstr "什么是指标和维度"
+
+msgid "产品白皮书/integrations-metrics/what_metrics.md"
+msgstr "产品白皮书/integrations-metrics/what_metrics.md"
+
+msgid "开始指标数据采集"
+msgstr "开始指标数据采集"
+
+msgid "产品白皮书/integrations-metrics/collect_tasks.md"
+msgstr "产品白皮书/integrations-metrics/collect_tasks.md"
+
+msgid "插件制作快速入门"
+msgstr "插件制作快速入门"
+
+msgid "产品白皮书/integrations-metric-plugins/plugins.md"
+msgstr "产品白皮书/integrations-metric-plugins/plugins.md"
+
+msgid "ip和bk_host_id不能同时为空"
+msgstr "ip和bk_host_id不能同时为空"
+
+msgid "集群模板"
+msgstr "集群模板"
+
+msgid "服务模板"
+msgstr "服务模板"
+
+msgid "Agent正常"
+msgstr "Agent正常"
+
+msgid "Agent未安装"
+msgstr "Agent未安装"
+
+msgid "获取CC信息"
+msgstr "获取CC信息"
+
+msgid "获取服务分类"
+msgstr "获取服务分类"
+
+msgid "获取数目"
+msgstr "获取数目"
+
+msgid "获取分类标签失败：{}"
+msgstr "获取分类标签失败：{}"
+
+msgid "获取{}一级标签失败"
+msgstr "获取{}一级标签失败"
+
+msgid "拓扑层级"
+msgstr "拓扑层级"
+
+msgid "拓扑ID"
+msgstr "拓扑ID"
+
+msgid "服务类别ID"
+msgstr "服务类别ID"
+
+msgid "远程采集目标IP"
+msgstr "远程采集目标IP"
+
+msgid "不存在指定文件"
+msgstr "不存在指定文件"
+
+#, python-format
+msgid "%s模块下不存在指定文件"
+msgstr "%s模块下不存在指定文件"
+
+msgid "非法的plugin_id"
+msgstr "非法的plugin_id"
+
+msgid "文件操作异常"
+msgstr "文件操作异常"
+
+#, python-brace-format
+msgid "{host_name} 主机不属于该业务"
+msgstr "{host_name} 主机不属于该业务"
+
+#, python-brace-format
+msgid "{host_name} 操作系统类型不能为空"
+msgstr "{host_name} 操作系统类型不能为空"
+
+#, python-brace-format
+msgid "{host_name} 不支持的操作系统类型：{bk_os_type}"
+msgstr "{host_name} 不支持的操作系统类型：{bk_os_type}"
+
+#, python-format
+msgid "【模块：job】执行任务结果查询返回格式异常 %s"
+msgstr "【模块：job】执行任务结果查询返回格式异常 %s"
+
+msgid "任务执行超时"
+msgstr "任务执行超时"
+
+msgid "必填项"
+msgstr "必填项"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "告警次数"
+msgstr "告警次数"
+
+msgid "发生时间"
+msgstr "发生时间"
+
+msgid "最近通知状态"
+msgstr "最近通知状态"
+
+msgid "告警等级"
+msgstr "告警等级"
+
+msgid "是否确认"
+msgstr "是否确认"
+
+msgid "确认用户"
+msgstr "确认用户"
+
+msgid "确认信息"
+msgstr "确认信息"
+
+msgid "是否屏蔽"
+msgstr "是否屏蔽"
+
+msgid "屏蔽类型"
+msgstr "屏蔽类型"
+
+msgid "自定义事件名称已存在"
+msgstr "自定义事件名称已存在"
+
+msgid "自定义事件英文名不允许为空"
+msgstr "自定义事件英文名不允许为空"
+
+msgid "自定义事件英文名允许包含字母、数字、下划线，且必须以字母开头"
+msgstr "自定义事件英文名允许包含字母、数字、下划线，且必须以字母开头"
+
+msgid "自定义事件英文名已存在"
+msgstr "自定义事件英文名已存在"
+
+msgid "自定义指标名称已存在"
+msgstr "自定义指标名称已存在"
+
+msgid "自定义指标英文名不允许为空"
+msgstr "自定义指标英文名不允许为空"
+
+msgid "自定义指标英文名允许包含字母、数字、下划线，且必须以字母开头"
+msgstr "自定义指标英文名允许包含字母、数字、下划线，且必须以字母开头"
+
+msgid "自定义指标英文名已存在"
+msgstr "自定义指标英文名已存在"
+
+msgid "数据源名称[{}]已存在"
+msgstr "数据源名称[{}]已存在"
+
+msgid "自定义指标分组名{}不可重复"
+msgstr "自定义指标分组名{}不可重复"
+
+msgid "总览"
+msgstr "总览"
+
+msgid "数据检索"
+msgstr "数据检索"
+
+msgid "{} - 事件数据"
+msgstr "{} - 事件数据"
+
+msgid "事件数据"
+msgstr "事件数据"
+
+msgid "事件检索图表"
+msgstr "事件检索图表"
+
+msgid "收藏组({})名称重复"
+msgstr "收藏组({})名称重复"
+
+msgid "未分组"
+msgstr "未分组"
+
+msgid "个人收藏"
+msgstr "个人收藏"
+
+msgid "保留名称，不可使用"
+msgstr "保留名称，不可使用"
+
+msgid "收藏记录({})名称重复"
+msgstr "收藏记录({})名称重复"
+
+msgid "只有创建者才能将收藏记录移动到个人收藏"
+msgstr "只有创建者才能将收藏记录移动到个人收藏"
+
+msgid "按名称A-Z"
+msgstr "按名称A-Z"
+
+msgid "收藏组({})不存在"
+msgstr "收藏组({})不存在"
+
+msgid "收藏记录({})不存在"
+msgstr "收藏记录({})不存在"
+
+#, python-brace-format
+msgid "您没有权限分享到业务ID为{bk_biz_id}的业务"
+msgstr "您没有权限分享到业务ID为{bk_biz_id}的业务"
+
+msgid "关联插件不存在"
+msgstr "关联插件不存在"
+
+msgid "关联插件导入失败"
+msgstr "关联插件导入失败"
+
+msgid "关联采集配置{}未导入成功"
+msgstr "关联采集配置{}未导入成功"
+
+msgid "缺少依赖的插件"
+msgstr "缺少依赖的插件"
+
+msgid "关联插件信息不完整"
+msgstr "关联插件信息不完整"
+
+msgid "无法解析插件类型"
+msgstr "无法解析插件类型"
+
+msgid "关联插件信息解析失败"
+msgstr "关联插件信息解析失败"
+
+msgid "缺少通知组名称"
+msgstr "缺少通知组名称"
+
+msgid "业务ID不可为空"
+msgstr "业务ID不可为空"
+
+msgid "未选择任何配置"
+msgstr "未选择任何配置"
+
+msgid "准备文件中..."
+msgstr "准备文件中..."
+
+msgid "文件打包中..."
+msgstr "文件打包中..."
+
+msgid "导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)"
+msgstr "导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)"
+
+msgid "导入包目录结构不对"
+msgstr "导入包目录结构不对"
+
+msgid "关联采集配置未发现"
+msgstr "关联采集配置未发现"
+
+msgid "插件包不能大于500M"
+msgstr "插件包不能大于500M"
+
+msgid "没有找到对应的解析文件内容"
+msgstr "没有找到对应的解析文件内容"
+
+msgid "所选目标与配置需求目标不一致"
+msgstr "所选目标与配置需求目标不一致"
+
+msgid "私人仪表盘"
+msgstr "私人仪表盘"
+
+msgid "蓝鲸监控 - 时序数据"
+msgstr "蓝鲸监控 - 时序数据"
+
+msgid "默认仪表盘"
+msgstr "默认仪表盘"
+
+msgid "事件名"
+msgstr "事件名"
+
+msgid "事件内容"
+msgstr "事件内容"
+
+msgid "告警名称不能为空"
+msgstr "告警名称不能为空"
+
+msgid "策略ID不能为空"
+msgstr "策略ID不能为空"
+
+msgid "仪表盘"
+msgstr "仪表盘"
+
+msgid "文件夹"
+msgstr "文件夹"
+
+msgid "设置失败，找不到该仪表盘"
+msgstr "设置失败，找不到该仪表盘"
+
+msgid "事件统计"
+msgstr "事件统计"
+
+msgid "事件名称"
+msgstr "事件名称"
+
+msgid "展示名"
+msgstr "展示名"
+
+msgid "任务({})已删除"
+msgstr "任务({})已删除"
+
+msgid "欢迎使用仪表盘"
+msgstr "欢迎使用仪表盘"
+
+msgid "所有仪表盘"
+msgstr "所有仪表盘"
+
+msgid "收藏和最近查看的仪表盘"
+msgstr "收藏和最近查看的仪表盘"
+
+msgid "快速创建您的仪表盘吧！"
+msgstr "快速创建您的仪表盘吧！"
+
+msgid "你可以通过创建目录来管理仪表盘。"
+msgstr "你可以通过创建目录来管理仪表盘。"
+
+msgid "你可以直接导入，如果本地有仪表盘文件"
+msgstr "你可以直接导入，如果本地有仪表盘文件"
+
+msgid "查看产品文档"
+msgstr "查看产品文档"
+
+msgid "仪表盘使用指引"
+msgstr "仪表盘使用指引"
+
+msgid "应用ID(application_id)或者应用名称(application_name)不能同时为空"
+msgstr "应用ID(application_id)或者应用名称(application_name)不能同时为空"
+
+msgid "无法解析plugin_id"
+msgstr "无法解析plugin_id"
+
+msgid "meta.yaml不存在，无法解析"
+msgstr "meta.yaml不存在，无法解析"
+
+#, python-format
+msgid "节点%s拨测配置文件迁移完成"
+msgstr "节点%s拨测配置文件迁移完成"
+
+#, python-format
+msgid "节点拨测配置文件迁移失败：%s"
+msgstr "节点拨测配置文件迁移失败：%s"
+
+#, python-format
+msgid "不存在节点%s对应的主机，请联系节点管理进行处理"
+msgstr "不存在节点%s对应的主机，请联系节点管理进行处理"
+
+msgid "已启用"
+msgstr "已启用"
+
+msgid "升级"
+msgstr "升级"
+
+msgid "回滚"
+msgstr "回滚"
+
+msgid "启用"
+msgstr "启用"
+
+msgid "新增"
+msgstr "新增"
+
+msgid "编辑"
+msgstr "编辑"
+
+msgid "增删目标"
+msgstr "增删目标"
+
+msgid "全部成功"
+msgstr "全部成功"
+
+msgid "全部失败"
+msgstr "全部失败"
+
+msgid "下发中"
+msgstr "下发中"
+
+msgid "准备中"
+msgstr "准备中"
+
+msgid "导入完成"
+msgstr "导入完成"
+
+msgid "导入中"
+msgstr "导入中"
+
+msgid "没有导入成功的配置，无法添加目标"
+msgstr "没有导入成功的配置，无法添加目标"
+
+msgid "存在正在导入的配置，无法添加"
+msgstr "存在正在导入的配置，无法添加"
+
+msgid "所选配置的监控目标不一致，无法统一添加"
+msgstr "所选配置的监控目标不一致，无法统一添加"
+
+msgid "导入成功"
+msgstr "导入成功"
+
+msgid "导入失败"
+msgstr "导入失败"
+
+msgid "插件配置"
+msgstr "插件配置"
+
+msgid "采集配置"
+msgstr "采集配置"
+
+msgid "策略配置"
+msgstr "策略配置"
+
+msgid "视图配置"
+msgstr "视图配置"
+
+msgid "文件检测成功"
+msgstr "文件检测成功"
+
+msgid "文件检测失败"
+msgstr "文件检测失败"
+
+msgid "Trap服务端口"
+msgstr "Trap服务端口"
+
+msgid "绑定地址"
+msgstr "绑定地址"
+
+msgid "Yaml配置文件"
+msgstr "Yaml配置文件"
+
+msgid "团体名"
+msgstr "团体名"
+
+msgid "安全名"
+msgstr "安全名"
+
+msgid "上下文名称"
+msgstr "上下文名称"
+
+msgid "安全级别"
+msgstr "安全级别"
+
+msgid "验证协议"
+msgstr "验证协议"
+
+msgid "验证口令"
+msgstr "验证口令"
+
+msgid "隐私协议"
+msgstr "隐私协议"
+
+msgid "私钥"
+msgstr "私钥"
+
+msgid "认证设备"
+msgstr "认证设备"
+
+msgid "是否汇聚"
+msgstr "是否汇聚"
+
+msgid "未注册版本"
+msgstr "未注册版本"
+
+msgid "调试版本"
+msgstr "调试版本"
+
+msgid "发布版本"
+msgstr "发布版本"
+
+msgid "平铺"
+msgstr "平铺"
+
+msgid "修改通知组失败"
+msgstr "修改通知组失败"
+
+msgid "获取详情失败"
+msgstr "获取详情失败"
+
+msgid "{}前{}修改了告警策略：{}"
+msgstr "{}前{}修改了告警策略：{}"
+
+msgid "主机“{}”的{}{}"
+msgstr "主机“{}”的{}{}"
+
+msgid "应用内存使用占比"
+msgstr "应用内存使用占比"
+
+msgid "磁盘只读"
+msgstr "磁盘只读"
+
+msgid "磁盘写满"
+msgstr "磁盘写满"
+
+msgid "PING不可达"
+msgstr "PING不可达"
+
+msgid "主机“{}”的{}"
+msgstr "主机“{}”的{}"
+
+msgid "当前用户无变更权限"
+msgstr "当前用户无变更权限"
+
+msgid "消息中间件"
+msgstr "消息中间件"
+
+msgid "HTTP服务"
+msgstr "HTTP服务"
+
+msgid "办公应⽤"
+msgstr "办公应⽤"
+
+msgid "脚本运行报错,原因是{}"
+msgstr "脚本运行报错,原因是{}"
+
+msgid "脚本命令不合法,原因是{}"
+msgstr "脚本命令不合法,原因是{}"
+
+msgid "解析脚本标准输出报错,原因是{}"
+msgstr "解析脚本标准输出报错,原因是{}"
+
+msgid "导入版本不大于当前版本"
+msgstr "导入版本不大于当前版本"
+
+msgid "插件类型冲突"
+msgstr "插件类型冲突"
+
+msgid "远程采集配置项冲突"
+msgstr "远程采集配置项冲突"
+
+#, python-format
+msgid "插件已关联%s个采集配置"
+msgstr "插件已关联%s个采集配置"
+
+msgid "导入插件与当前插件内容完全一致"
+msgstr "导入插件与当前插件内容完全一致"
+
+#, python-format
+msgid "文件夹不存在：%s"
+msgstr "文件夹不存在：%s"
+
+msgid "指标维度存在重名,{}"
+msgstr "指标维度存在重名,{}"
+
+msgid "已开启远程采集的插件无法关闭远程采集"
+msgstr "已开启远程采集的插件无法关闭远程采集"
+
+msgid "该插件没有release版本可导出"
+msgstr "该插件没有release版本可导出"
+
+#, python-format
+msgid "%s文件读取失败"
+msgstr "%s文件读取失败"
+
+msgid "不存在info文件夹，无法解析插件包"
+msgstr "不存在info文件夹，无法解析插件包"
+
+msgid "meta.yaml 缺少 datadog_check_name"
+msgstr "meta.yaml 缺少 datadog_check_name"
+
+msgid "缺少 lib 文件夹"
+msgstr "缺少 lib 文件夹"
+
+msgid "缺少 conf.yaml.tpl 配置模板文件"
+msgstr "缺少 conf.yaml.tpl 配置模板文件"
+
+#, python-format
+msgid "采集配置中配置的参数 %s 未定义"
+msgstr "采集配置中配置的参数 %s 未定义"
+
+msgid "缺少 conf.yaml.example 配置模板文件"
+msgstr "缺少 conf.yaml.example 配置模板文件"
+
+msgid "缺少 meta.yaml 配置模板文件"
+msgstr "缺少 meta.yaml 配置模板文件"
+
+msgid "文件{}不是windows下的可执行文件"
+msgstr "文件{}不是windows下的可执行文件"
+
+msgid "文件{}不是linux下的可执行文件"
+msgstr "文件{}不是linux下的可执行文件"
+
+msgid "无法获取JMX对应的配置文件"
+msgstr "无法获取JMX对应的配置文件"
+
+msgid "日志关键字采集"
+msgstr "日志关键字采集"
+
+msgid "默认分类"
+msgstr "默认分类"
+
+msgid "目标机器云区域ID"
+msgstr "目标机器云区域ID"
+
+msgid "进程序号"
+msgstr "进程序号"
+
+msgid "监听地址"
+msgstr "监听地址"
+
+msgid "监听端口"
+msgstr "监听端口"
+
+msgid "物理内存"
+msgstr "物理内存"
+
+msgid "物理内存使用率"
+msgstr "物理内存使用率"
+
+msgid "共享内存"
+msgstr "共享内存"
+
+msgid "虚拟内存"
+msgstr "虚拟内存"
+
+msgid "打开的文件描述符数量"
+msgstr "打开的文件描述符数量"
+
+msgid "进程启动时间"
+msgstr "进程启动时间"
+
+msgid "端口存活"
+msgstr "端口存活"
+
+msgid "进程采集"
+msgstr "进程采集"
+
+msgid "无法解析脚本内容"
+msgstr "无法解析脚本内容"
+
+msgid "无法获取SNMP对应的配置文件"
+msgstr "无法获取SNMP对应的配置文件"
+
+msgid "SNMP Trap 服务"
+msgstr "SNMP Trap 服务"
+
+msgid "SNMP Trap插件版本错误，请重新检查插件版本"
+msgstr "SNMP Trap插件版本错误，请重新检查插件版本"
+
+msgid "文件正在打包中..."
+msgstr "文件正在打包中..."
+
+msgid "文件正在上传中..."
+msgstr "文件正在上传中..."
+
+msgid "文件正在注册中..."
+msgstr "文件正在注册中..."
+
+msgid "轮询插件包注册任务超时，请检查节点管理celery是否正常运行"
+msgstr "轮询插件包注册任务超时，请检查节点管理celery是否正常运行"
+
+msgid "配置模板正在注册中..."
+msgstr "配置模板正在注册中..."
+
+msgid ", 且"
+msgstr ", 且"
+
+msgid "插件ID长度不能超过30"
+msgstr "插件ID长度不能超过30"
+
+msgid "插件ID只允许包含字母、数字、下划线，且必须以字母开头"
+msgstr "插件ID只允许包含字母、数字、下划线，且必须以字母开头"
+
+msgid "该插件诞生了!"
+msgstr "该插件诞生了!"
+
+msgid "用户很懒,没有说明哦."
+msgstr "用户很懒,没有说明哦."
+
+msgid "开关必须传布尔型"
+msgstr "开关必须传布尔型"
+
+msgid "文件参数必须传base64"
+msgstr "文件参数必须传base64"
+
+msgid "collector_json不合法，至少添加一项操作系统相关内容"
+msgstr "collector_json不合法，至少添加一项操作系统相关内容"
+
+msgid "bk_host_id和ip不能同时为空"
+msgstr "bk_host_id和ip不能同时为空"
+
+msgid "存在其余业务的关联项"
+msgstr "存在其余业务的关联项"
+
+msgid "暂不支持获取所有指标下维度值的label_values方法"
+msgstr "暂不支持获取所有指标下维度值的label_values方法"
+
+msgid "解析promql失败，请检查是否存在语法错误: {}"
+msgstr "解析promql失败，请检查是否存在语法错误: {}"
+
+msgid "不存在的指标名{}"
+msgstr "不存在的指标名{}"
+
+msgid "变量转换失败"
+msgstr "变量转换失败"
+
+msgid "导入失败，未上传grafana仪表盘json文件"
+msgstr "导入失败，未上传grafana仪表盘json文件"
+
+msgid "变量转换失败："
+msgstr "变量转换失败："
+
+msgid "存在转换失败情况，下载promql直查模式转换后json文件,并尝试创建仪表盘..."
+msgstr "存在转换失败情况，下载promql直查模式转换后json文件,并尝试创建仪表盘..."
+
+msgid "导入仪表盘创建成功"
+msgstr "导入仪表盘创建成功"
+
+msgid "导入仪表盘创建失败: {}"
+msgstr "导入仪表盘创建失败: {}"
+
+msgid "创建仪表盘请求异常:{}"
+msgstr "创建仪表盘请求异常:{}"
+
+msgid "导入失败，未上传告警规则文件"
+msgstr "导入失败，未上传告警规则文件"
+
+msgid "k8s_导入"
+msgstr "k8s_导入"
+
+#, python-format
+msgid "创建策略失败: %s"
+msgstr "创建策略失败: %s"
+
+msgid "映射配置名称{}已存在"
+msgstr "映射配置名称{}已存在"
+
+msgid "创建映射规则需指定映射范围"
+msgstr "创建映射规则需指定映射范围"
+
+msgid "映射配置{}不存在"
+msgstr "映射配置{}不存在"
+
+msgid "您无权限访问此页面"
+msgstr "您无权限访问此页面"
+
+msgid "您无权限访问此业务的图表列表接口"
+msgstr "您无权限访问此业务的图表列表接口"
+
+msgid "此订阅不存在"
+msgstr "此订阅不存在"
+
+msgid "配置管理人员"
+msgstr "配置管理人员"
+
+msgid "告警接收人员"
+msgstr "告警接收人员"
+
+msgid "Kubernetes监控"
+msgstr "Kubernetes监控"
+
+msgid "暂未关联主机"
+msgstr "暂未关联主机"
+
+msgid ""
+"关联主机方法\n"
+"1. SDK上报IP信息，通过resource.net.host.ip增加ip信息\n"
+"2. 关联蓝鲸配置平台服务模版"
+msgstr ""
+"关联主机方法\n"
+"1. SDK上报IP信息，通过resource.net.host.ip增加ip信息\n"
+"2. 关联蓝鲸配置平台服务模版"
+
+msgid " 关联服务模版"
+msgstr " 关联服务模版"
+
+msgid "对象列表"
+msgstr "对象列表"
+
+msgid "事件列表"
+msgstr "事件列表"
+
+msgid "目标列表"
+msgstr "目标列表"
+
+msgid "搜索"
+msgstr "搜索"
+
+msgid "系统进程"
+msgstr "系统进程"
+
+msgid "未分组的指标"
+msgstr "未分组的指标"
+
+msgid "端口状态"
+msgstr "端口状态"
+
+msgid "运行时长"
+msgstr "运行时长"
+
+msgid "暂未发现任何ServiceMonitor"
+msgstr "暂未发现任何ServiceMonitor"
+
+msgid ""
+"1. 确认集群中是否已经安装bkmonitor-operator\n"
+"2. 确认ServiceMonitor Yaml配置文件已经正确应用"
+msgstr ""
+"1. 确认集群中是否已经安装bkmonitor-operator\n"
+"2. 确认ServiceMonitor Yaml配置文件已经正确应用"
+
+msgid "暂未发现任何PodMonitor"
+msgstr "暂未发现任何PodMonitor"
+
+msgid ""
+"1. 确认集群中是否已经安装bkmonitor-operator\n"
+"2. 确认PodMonitor Yaml配置文件已经正确应用"
+msgstr ""
+"1. 确认集群中是否已经安装bkmonitor-operator\n"
+"2. 确认PodMonitor Yaml配置文件已经正确应用"
+
+msgid "bk_host_id和(bk_obj_id/bk_inst_id)不能同时为空"
+msgstr "bk_host_id和(bk_obj_id/bk_inst_id)不能同时为空"
+
+msgid "别名"
+msgstr "别名"
+
+msgid "绑定信息"
+msgstr "绑定信息"
+
+msgid "内网IPv6"
+msgstr "内网IPv6"
+
+msgid "外网IPv6"
+msgstr "外网IPv6"
+
+msgid "OS名称"
+msgstr "OS名称"
+
+msgid "运营状态"
+msgstr "运营状态"
+
+msgid "所属模块"
+msgstr "所属模块"
+
+msgid "节点类型"
+msgstr "节点类型"
+
+msgid "子级数量"
+msgstr "子级数量"
+
+msgid "主机数量"
+msgstr "主机数量"
+
+msgid "主要维护人"
+msgstr "主要维护人"
+
+msgid "备份维护人"
+msgstr "备份维护人"
+
+msgid "bk_host_id or bk_target_ip and bk_target_cloud_id must be provided"
+msgstr "bk_host_id or bk_target_ip and bk_target_cloud_id must be provided"
+
+msgid "bk_host_id和ip/bk_cloud_id必须有一个"
+msgstr "bk_host_id和ip/bk_cloud_id必须有一个"
+
+msgid "命名空间"
+msgstr "命名空间"
+
+msgid "节点(Node)"
+msgstr "节点(Node)"
+
+msgid "Pod"
+msgstr "Pod"
+
+msgid "Master节点"
+msgstr "Master节点"
+
+msgid "Worker节点"
+msgstr "Worker节点"
+
+msgid "容器"
+msgstr "容器"
+
+msgid "健康"
+msgstr "健康"
+
+msgid "CPU实际使用率(avg)"
+msgstr "CPU实际使用率(avg)"
+
+msgid "内存实际使用率(avg)"
+msgstr "内存实际使用率(avg)"
+
+msgid "Namespace"
+msgstr "Namespace"
+
+msgid "Workload"
+msgstr "Workload"
+
+msgid "Time"
+msgstr "Time"
+
+msgid "Namespace/Name"
+msgstr "Namespace/Name"
+
+msgid "Event Name"
+msgstr "Event Name"
+
+msgid "Count"
+msgstr "Count"
+
+msgid "网卡进流量(avg)"
+msgstr "网卡进流量(avg)"
+
+msgid "网卡出流量(avg)"
+msgstr "网卡出流量(avg)"
+
+msgid "CPU预分配率(avg)"
+msgstr "CPU预分配率(avg)"
+
+msgid "内存预分配率(avg)"
+msgstr "内存预分配率(avg)"
+
+msgid "Warning"
+msgstr "Warning"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "事件数量"
+msgstr "事件数量"
+
+msgid "事件分布"
+msgstr "事件分布"
+
+msgid "Top {} 事件"
+msgstr "Top {} 事件"
+
+msgid "事件类型"
+msgstr "事件类型"
+
+msgid "核"
+msgstr "核"
+
+msgid "CPU request 核数"
+msgstr "CPU request 核数"
+
+msgid "CPU limit 核数"
+msgstr "CPU limit 核数"
+
+msgid "CPU总核数"
+msgstr "CPU总核数"
+
+msgid "CPU预分配率"
+msgstr "CPU预分配率"
+
+msgid "内存 request 量"
+msgstr "内存 request 量"
+
+msgid "内存 limit 量"
+msgstr "内存 limit 量"
+
+msgid "内存总量"
+msgstr "内存总量"
+
+msgid "内存预分配率"
+msgstr "内存预分配率"
+
+msgid "磁盘总量"
+msgstr "磁盘总量"
+
+msgid "磁盘已使用量"
+msgstr "磁盘已使用量"
+
+msgid "不足"
+msgstr "不足"
+
+msgid "充足"
+msgstr "充足"
+
+msgid "CPU资源是否充足"
+msgstr "CPU资源是否充足"
+
+msgid "内存资源是否充足"
+msgstr "内存资源是否充足"
+
+msgid "CPU节流次数"
+msgstr "CPU节流次数"
+
+msgid "内存触顶次数"
+msgstr "内存触顶次数"
+
+msgid "节点CPU使用率"
+msgstr "节点CPU使用率"
+
+msgid "节点内存使用率"
+msgstr "节点内存使用率"
+
+msgid "硬盘空间使用率"
+msgstr "硬盘空间使用率"
+
+msgid "硬盘IO使用率"
+msgstr "硬盘IO使用率"
+
+msgid "任务名"
+msgstr "任务名"
+
+msgid "拨测类型"
+msgstr "拨测类型"
+
+msgid "拨测地址"
+msgstr "拨测地址"
+
+msgid "创建人"
+msgstr "创建人"
+
+msgid "最快响应时长"
+msgstr "最快响应时长"
+
+msgid "最慢响应时长"
+msgstr "最慢响应时长"
+
+msgid "最大可用率"
+msgstr "最大可用率"
+
+msgid "最小可用率"
+msgstr "最小可用率"
+
+msgid "(其他)"
+msgstr "(其他)"
+
+msgid "目标IP : {} AND 目标云区域ID : {}"
+msgstr "目标IP : {} AND 目标云区域ID : {}"
+
+msgid "时序型数据"
+msgstr "时序型数据"
+
+msgid "表格"
+msgstr "表格"
+
+#, python-brace-format
+msgid "搜索到 {count} 处理记录"
+msgstr "搜索到 {count} 处理记录"
+
+#, python-brace-format
+msgid "搜索到 {count} 告警事件"
+msgstr "搜索到 {count} 告警事件"
+
+#, python-brace-format
+msgid "搜索到 {count} APM 应用"
+msgstr "搜索到 {count} APM 应用"
+
+#, python-brace-format
+msgid "搜索到 {count} APM 服务"
+msgstr "搜索到 {count} APM 服务"
+
+#, python-brace-format
+msgid "搜索到 {count} 仪表盘"
+msgstr "搜索到 {count} 仪表盘"
+
+#, python-brace-format
+msgid "{bk_cloud_id}:{ip}"
+msgstr "{bk_cloud_id}:{ip}"
+
+#, python-brace-format
+msgid "搜索到 {count} 主机"
+msgstr "搜索到 {count} 主机"
+
+#, python-brace-format
+msgid "搜索到 {count} {obj}"
+msgstr "搜索到 {count} {obj}"
+
+#, python-brace-format
+msgid "搜索到 {count} Cluster"
+msgstr "搜索到 {count} Cluster"
+
+#, python-brace-format
+msgid "[Cluster] {name}"
+msgstr "[Cluster] {name}"
+
+#, python-brace-format
+msgid "搜索到 {count} 告警策略"
+msgstr "搜索到 {count} 告警策略"
+
+#, python-brace-format
+msgid "[拨测节点] {name}"
+msgstr "[拨测节点] {name}"
+
+#, python-brace-format
+msgid "搜索到 {count} 拨测节点"
+msgstr "搜索到 {count} 拨测节点"
+
+#, python-brace-format
+msgid "[拨测任务] {name}"
+msgstr "[拨测任务] {name}"
+
+#, python-brace-format
+msgid "搜索到 {count} 拨测任务"
+msgstr "搜索到 {count} 拨测任务"
+
+msgid "屏蔽中"
+msgstr "屏蔽中"
+
+msgid "已过期"
+msgstr "已过期"
+
+msgid "被解除"
+msgstr "被解除"
+
+msgid "详情链接"
+msgstr "详情链接"
+
+msgid "k8s_系统内置"
+msgstr "k8s_系统内置"
+
+msgid "Gse进程托管事件告警(业务侧)"
+msgstr "Gse进程托管事件告警(业务侧)"
+
+msgid "Gse进程托管事件告警(平台侧)"
+msgstr "Gse进程托管事件告警(平台侧)"
+
+msgid "[kube daemonset] daemonset 部分 node 未调度 KubeDaemonSetNotScheduled"
+msgstr "[kube daemonset] daemonset 部分 node 未调度 KubeDaemonSetNotScheduled"
+
+msgid "SUM(重启次数)"
+msgstr "SUM(重启次数)"
+
+msgid "[kube pod] pod近30分钟重启次数过多 KubePodCrashLooping"
+msgstr "[kube pod] pod近30分钟重启次数过多 KubePodCrashLooping"
+
+msgid "[kube node]-磁盘使用率告警"
+msgstr "[kube node]-磁盘使用率告警"
+
+msgid "[kube node] node 状态异常 KubeNodeNotReady"
+msgstr "[kube node] node 状态异常 KubeNodeNotReady"
+
+msgid "[kube node] 内存使用率告警"
+msgstr "[kube node] 内存使用率告警"
+
+msgid "[kube daemonset] daemonset 部分 node 被错误调度 KubeDaemonSetMisScheduled"
+msgstr "[kube daemonset] daemonset 部分 node 被错误调度 KubeDaemonSetMisScheduled"
+
+msgid "[kube node] 磁盘inode使用率告警"
+msgstr "[kube node] 磁盘inode使用率告警"
+
+msgid "[kube node] 服务器负载告警(load average 15min)"
+msgstr "[kube node] 服务器负载告警(load average 15min)"
+
+msgid "[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"
+msgstr "[kube master] apiserver证书过期监控 KubeClientCertificateExpiration"
+
+msgid "[kube node] FD使用率告警"
+msgstr "[kube node] FD使用率告警"
+
+msgid "[kube daemonset] daemonSet处于就绪状态的百分比 KubeDaemonSetRolloutStuck"
+msgstr "[kube daemonset] daemonSet处于就绪状态的百分比 KubeDaemonSetRolloutStuck"
+
+msgid "[kube kubelet] job执行失败的数量KubeJobFailed"
+msgstr "[kube kubelet] job执行失败的数量KubeJobFailed"
+
+msgid "[kube node] 磁盘只读告警"
+msgstr "[kube node] 磁盘只读告警"
+
+msgid "[kube node] CPU使用率告警"
+msgstr "[kube node] CPU使用率告警"
+
+msgid "[kube node] 磁盘IO使用率告警"
+msgstr "[kube node] 磁盘IO使用率告警"
+
+msgid "max_without_time(内存使用量(rss))/max_without_time(container_spec_memory_limit_bytes)*100"
+msgstr "max_without_time(内存使用量(rss))/max_without_time(container_spec_memory_limit_bytes)*100"
+
+msgid "内存使用量(rss)"
+msgstr "内存使用量(rss)"
+
+msgid "[kube资源] pod的内存使用率高"
+msgstr "[kube资源] pod的内存使用率高"
+
+msgid "[kube kubelet] 运行的pod过多 KubeletTooManyPods"
+msgstr "[kube kubelet] 运行的pod过多 KubeletTooManyPods"
+
+msgid "[kube Master] 客户端访问 APIServer 出错 rest_client_requests_total_5xx"
+msgstr "[kube Master] 客户端访问 APIServer 出错 rest_client_requests_total_5xx"
+
+msgid "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
+msgstr "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
+
+msgid "内存 requests"
+msgstr "内存 requests"
+
+msgid "k8s_集群资源"
+msgstr "k8s_集群资源"
+
+msgid "[kube 集群资源] 集群的内存资源分配过载-KubeMemoryOvercommit"
+msgstr "[kube 集群资源] 集群的内存资源分配过载-KubeMemoryOvercommit"
+
+msgid "[kube集群资源] 集群的CPU资源分配过载-KubeCPUOvercommit"
+msgstr "[kube集群资源] 集群的CPU资源分配过载-KubeCPUOvercommit"
+
+msgid "sum_without_time(CPU节流周期间隔数)/sum_without_time(CPU执行周期间隔时间数) * 100"
+msgstr "sum_without_time(CPU节流周期间隔数)/sum_without_time(CPU执行周期间隔时间数) * 100"
+
+msgid "CPU节流周期间隔数"
+msgstr "CPU节流周期间隔数"
+
+msgid "CPU执行周期间隔时间数"
+msgstr "CPU执行周期间隔时间数"
+
+msgid "[kube pod] pod的CPU 执行周期受限占比高CPUThrottlingHigh"
+msgstr "[kube pod] pod的CPU 执行周期受限占比高CPUThrottlingHigh"
+
+msgid "[kube kubelet]  job运行太久"
+msgstr "[kube kubelet]  job运行太久"
+
+msgid "SUM(CPU使用量) /  sum_without_time(CPU limits) * 100"
+msgstr "SUM(CPU使用量) /  sum_without_time(CPU limits) * 100"
+
+msgid "[kube pod] pod 的 CPU 使用率高"
+msgstr "[kube pod] pod 的 CPU 使用率高"
+
+msgid "[kube pod] pod 因OOM重启"
+msgstr "[kube pod] pod 因OOM重启"
+
+msgid "[kube pod] 容器状态异常"
+msgstr "[kube pod] 容器状态异常"
+
+msgid "[kube pod] pod 状态异常"
+msgstr "[kube pod] pod 状态异常"
+
+msgid "[kube hpa] 副本数和HPA不匹配"
+msgstr "[kube hpa] 副本数和HPA不匹配"
+
+msgid "[kube hpa] 副本数达到HPA最大值"
+msgstr "[kube hpa] 副本数达到HPA最大值"
+
+msgid "[kube deployment] deployment 副本数不匹配"
+msgstr "[kube deployment] deployment 副本数不匹配"
+
+msgid "[kube deployment] deployment 部署版本不匹配"
+msgstr "[kube deployment] deployment 部署版本不匹配"
+
+msgid "[kube statefulset] statefulset 副本数不匹配"
+msgstr "[kube statefulset] statefulset 副本数不匹配"
+
+msgid "[kube statefulset] statefulset 部署版本不匹配"
+msgstr "[kube statefulset] statefulset 部署版本不匹配"
+
+msgid "[kube node] 网卡状态不稳定"
+msgstr "[kube node] 网卡状态不稳定"
+
+msgid "[kube node] 网卡接收出错"
+msgstr "[kube node] 网卡接收出错"
+
+msgid "[kube node] 网卡发送出错"
+msgstr "[kube node] 网卡发送出错"
+
+msgid "[kube node]-机器时钟漂移"
+msgstr "[kube node]-机器时钟漂移"
+
+msgid "[kube kubelet] PLEG 耗时高 kubelet_pleg_relist"
+msgstr "[kube kubelet] PLEG 耗时高 kubelet_pleg_relist"
+
+msgid "[kube node] 使用大量Conntrack条目"
+msgstr "[kube node] 使用大量Conntrack条目"
+
+msgid "[kube节点] node不可用 KubeNodeUnreachable"
+msgstr "[kube节点] node不可用 KubeNodeUnreachable"
+
+msgid "[kube节点] node状态抖动 KubeNodeReadinessFlapping"
+msgstr "[kube节点] node状态抖动 KubeNodeReadinessFlapping"
+
+msgid "[kube kubelet] pod 启动耗时高 kubelet_pod_worker_duration"
+msgstr "[kube kubelet] pod 启动耗时高 kubelet_pod_worker_duration"
+
+msgid "[kube volume] persistentVolume 处于 Failed 或 Pending状态"
+msgstr "[kube volume] persistentVolume 处于 Failed 或 Pending状态"
+
+msgid "磁盘I/O使用率"
+msgstr "磁盘I/O使用率"
+
+msgid "Agent心跳丢失"
+msgstr "Agent心跳丢失"
+
+msgid "Corefile产生"
+msgstr "Corefile产生"
+
+msgid "PING不可达告警"
+msgstr "PING不可达告警"
+
+msgid "OOM异常告警"
+msgstr "OOM异常告警"
+
+msgid "主机重启"
+msgstr "主机重启"
+
+msgid "节点地址"
+msgstr "节点地址"
+
+msgid "节点云区域id"
+msgstr "节点云区域id"
+
+msgid "期望响应码"
+msgstr "期望响应码"
+
+msgid "期望响应内容"
+msgstr "期望响应内容"
+
+msgid "trace请求耗时"
+msgstr "trace请求耗时"
+
+msgid "trace分钟请求数"
+msgstr "trace分钟请求数"
+
+msgid "trace总请求数"
+msgstr "trace总请求数"
+
+msgid "trace分钟请求最大耗时"
+msgstr "trace分钟请求最大耗时"
+
+msgid "trace分钟请求最小耗时"
+msgstr "trace分钟请求最小耗时"
+
+msgid "trace分钟请求总耗时"
+msgstr "trace分钟请求总耗时"
+
+msgid "trace分钟请求耗时bucket"
+msgstr "trace分钟请求耗时bucket"
+
+msgid "需要过滤的事件数"
+msgstr "需要过滤的事件数"
+
+msgid "接收到的采集事件数"
+msgstr "接收到的采集事件数"
+
+msgid "正常发送事件数"
+msgstr "正常发送事件数"
+
+msgid "接收到的采集进度事件数"
+msgstr "接收到的采集进度事件数"
+
+msgid "按任务计算发送次数"
+msgstr "按任务计算发送次数"
+
+msgid "sender接收到的事件数"
+msgstr "sender接收到的事件数"
+
+msgid "sender发送的采集事件包数"
+msgstr "sender发送的采集事件包数"
+
+msgid "sender发送的采集进度包数"
+msgstr "sender发送的采集进度包数"
+
+msgid "按任务计算发送失败次数"
+msgstr "按任务计算发送失败次数"
+
+msgid "beat-CPU资源占比"
+msgstr "beat-CPU资源占比"
+
+msgid "beat-CPU资源单核占比"
+msgstr "beat-CPU资源单核占比"
+
+msgid "beat-采集器运行时间"
+msgstr "beat-采集器运行时间"
+
+msgid "beat-内存使用情况"
+msgstr "beat-内存使用情况"
+
+msgid "bkbeat-已过滤的事件数"
+msgstr "bkbeat-已过滤的事件数"
+
+msgid "bkbeat-已接收的采集事件数"
+msgstr "bkbeat-已接收的采集事件数"
+
+msgid "bkbeat-已发送的事件数"
+msgstr "bkbeat-已发送的事件数"
+
+msgid "bkbeat-已接收的采集进度数"
+msgstr "bkbeat-已接收的采集进度数"
+
+msgid "bkbeat-启动任务异常的次数"
+msgstr "bkbeat-启动任务异常的次数"
+
+msgid "bkbeat-启动processors异常的次数"
+msgstr "bkbeat-启动processors异常的次数"
+
+msgid "bkbeat-启动sender异常的次数"
+msgstr "bkbeat-启动sender异常的次数"
+
+msgid "bkbeat-采集DB的解析异常的次数"
+msgstr "bkbeat-采集DB的解析异常的次数"
+
+msgid "gse_client-接收gse_agent异常的次数"
+msgstr "gse_client-接收gse_agent异常的次数"
+
+msgid "gse_client-接收到gse_agent的次数"
+msgstr "gse_client-接收到gse_agent的次数"
+
+msgid "gse_client-gse_agent重连次数"
+msgstr "gse_client-gse_agent重连次数"
+
+msgid "gse_client-gse_agent连接失败的次数"
+msgstr "gse_client-gse_agent连接失败的次数"
+
+msgid "gse_client-gse_agent连接成功的次数"
+msgstr "gse_client-gse_agent连接成功的次数"
+
+msgid "gse_client-已接收的事件数"
+msgstr "gse_client-已接收的事件数"
+
+msgid "gse_client-发送重试的次数"
+msgstr "gse_client-发送重试的次数"
+
+msgid "gse_client-发送超时的次数"
+msgstr "gse_client-发送超时的次数"
+
+msgid "gse_client-已发送的事件数"
+msgstr "gse_client-已发送的事件数"
+
+msgid "gse_client-发送失败的事件数"
+msgstr "gse_client-发送失败的事件数"
+
+msgid "gse_client-gse_agent断开次数"
+msgstr "gse_client-gse_agent断开次数"
+
+msgid "publish-已接收的采集事件数"
+msgstr "publish-已接收的采集事件数"
+
+msgid "publish-已发送的采集事件数"
+msgstr "publish-已发送的采集事件数"
+
+msgid "publish-已丢弃的采集事件数"
+msgstr "publish-已丢弃的采集事件数"
+
+msgid "publish-发送失败的采集事件数"
+msgstr "publish-发送失败的采集事件数"
+
+msgid "publish-已接收的心跳事件数"
+msgstr "publish-已接收的心跳事件数"
+
+msgid "publish-已发送的心跳事件数"
+msgstr "publish-已发送的心跳事件数"
+
+msgid "publish-发送失败的心跳事件数"
+msgstr "publish-发送失败的心跳事件数"
+
+msgid "publish-发给gse_client的事件数"
+msgstr "publish-发给gse_client的事件数"
+
+msgid "bkbeat-当前有效的任务数"
+msgstr "bkbeat-当前有效的任务数"
+
+msgid "bkbeat-周期内Reload的任务数"
+msgstr "bkbeat-周期内Reload的任务数"
+
+msgid "bkbeat-周期内启动的任务数"
+msgstr "bkbeat-周期内启动的任务数"
+
+msgid "bkbeat-周期内停止的任务数"
+msgstr "bkbeat-周期内停止的任务数"
+
+msgid "bkbeat-周期内启动异常的任务数"
+msgstr "bkbeat-周期内启动异常的任务数"
+
+msgid "bkbeat-采集DB注册的文件数"
+msgstr "bkbeat-采集DB注册的文件数"
+
+msgid "bkbeat-采集DB的刷新次数"
+msgstr "bkbeat-采集DB的刷新次数"
+
+msgid "bkbeat-sender-已接收的采集事件数"
+msgstr "bkbeat-sender-已接收的采集事件数"
+
+msgid "bkbeat-sender-已发送的事件数"
+msgstr "bkbeat-sender-已发送的事件数"
+
+msgid "bkbeat-sender-已发送的采集进度数"
+msgstr "bkbeat-sender-已发送的采集进度数"
+
+msgid "beat-已释放的文件数"
+msgstr "beat-已释放的文件数"
+
+msgid "beat-已打开的文件数"
+msgstr "beat-已打开的文件数"
+
+msgid "beat-正在采集的文件数"
+msgstr "beat-正在采集的文件数"
+
+msgid "beat-已过滤的文件数"
+msgstr "beat-已过滤的文件数"
+
+msgid "beat-renamed的文件数"
+msgstr "beat-renamed的文件数"
+
+msgid "beat-truncated的文件数"
+msgstr "beat-truncated的文件数"
+
+msgid "beat-正在发送的采集事件数"
+msgstr "beat-正在发送的采集事件数"
+
+msgid "beat-已发送的采集事件数"
+msgstr "beat-已发送的采集事件数"
+
+msgid "beat-已接收的采集事件数"
+msgstr "beat-已接收的采集事件数"
+
+msgid "beat-已确认的采集事件数"
+msgstr "beat-已确认的采集事件数"
+
+msgid "beat-采集目标1分钟负载"
+msgstr "beat-采集目标1分钟负载"
+
+msgid "beat-采集目标15分钟负载"
+msgstr "beat-采集目标15分钟负载"
+
+msgid "beat-采集目标5分钟负载"
+msgstr "beat-采集目标5分钟负载"
+
+msgid "数据ID"
+msgstr "数据ID"
+
+msgid "版本号"
+msgstr "版本号"
+
+msgid "不监控"
+msgstr "不监控"
+
+msgid "进程组ID"
+msgstr "进程组ID"
+
+msgid "进程索引"
+msgstr "进程索引"
+
+msgid "Gse进程托管事件"
+msgstr "Gse进程托管事件"
+
+msgid "PING服务"
+msgstr "PING服务"
+
+msgid "构建机"
+msgstr "构建机"
+
+msgid "事件描述"
+msgstr "事件描述"
+
+msgid "标签{}已存在"
+msgstr "标签{}已存在"
+
+msgid "参数缺少label_name"
+msgstr "参数缺少label_name"
+
+msgid "常用"
+msgstr "常用"
+
+msgid "依赖exceptionbeat采集器, 在节点管理安装"
+msgstr "依赖exceptionbeat采集器, 在节点管理安装"
+
+msgid "通过对挂载磁盘的文件状态ro进行判断，类似Linux命令：fgrep ' ro,' /proc/mounts"
+msgstr "通过对挂载磁盘的文件状态ro进行判断，类似Linux命令：fgrep ' ro,' /proc/mounts"
+
+msgid "查看corefile生成路径：cat /proc/sys/kernel/core_pattern，确保在某一个目录下，例如 /data/corefile/core_%e_%t"
+msgstr "查看corefile生成路径：cat /proc/sys/kernel/core_pattern，确保在某一个目录下，例如 /data/corefile/core_%e_%t"
+
+msgid "依赖exceptionbeat采集器, 在节点管理安装,会自动根据core_pattern监听文件目录"
+msgstr "依赖exceptionbeat采集器, 在节点管理安装,会自动根据core_pattern监听文件目录"
+
+msgid "通过蓝鲸Agent目录中的gsecmdline命令上报自定义字符型告警。用法：{}plugins/bin/gsecmdline -d {} -l \"This service is offline.\""
+msgstr "通过蓝鲸Agent目录中的gsecmdline命令上报自定义字符型告警。用法：{}plugins/bin/gsecmdline -d {} -l \"This service is offline.\""
+
+msgid "gse每隔60秒检查一次agent心跳数据。gse从agent最后一次心跳数据更新开始，第5分钟、第10分钟、第12小时各触发一次告警事件。从第24小时起，如果心跳依然未更新则重复上述第5分钟、第10分钟、第12小时各触发一次告警事件的过程。"
+msgstr "gse每隔60秒检查一次agent心跳数据。gse从agent最后一次心跳数据更新开始，第5分钟、第10分钟、第12小时各触发一次告警事件。从第24小时起，如果心跳依然未更新则重复上述第5分钟、第10分钟、第12小时各触发一次告警事件的过程。"
+
+msgid "通过调用内核syslog接口获取系统日志，对ut of memory:关键字匹配告警，应用进程触发的OOM告警"
+msgstr "通过调用内核syslog接口获取系统日志，对ut of memory:关键字匹配告警，应用进程触发的OOM告警"
+
+msgid "通过对/proc/vmstat的oom_kill计数器进行判断告警，如递增则判断产生OOM告警，操作系统触发的OOM告警"
+msgstr "通过对/proc/vmstat的oom_kill计数器进行判断告警，如递增则判断产生OOM告警，操作系统触发的OOM告警"
+
+msgid "依赖basereport采集器的安装 ，在节点管理进行安装"
+msgstr "依赖basereport采集器的安装 ，在节点管理进行安装"
+
+msgid "检测原理：通过最近2次的uptime数据对比，满足cur_uptime < pre_uptime，则判断为重启"
+msgstr "检测原理：通过最近2次的uptime数据对比，满足cur_uptime < pre_uptime，则判断为重启"
+
+msgid "依赖bkmonitorproxy采集器的安装，在节点管理进行安装"
+msgstr "依赖bkmonitorproxy采集器的安装，在节点管理进行安装"
+
+msgid "由监控后台bkmonitorproxy去探测目标IP是否存活，当前(2021年1月前)上云监控直连区域(包含IDC、自研云等公司内)该策略未生效。非直连区域该策略生效"
+msgstr "由监控后台bkmonitorproxy去探测目标IP是否存活，当前(2021年1月前)上云监控直连区域(包含IDC、自研云等公司内)该策略未生效。非直连区域该策略生效"
+
+msgid "依赖bkmonitorbeat(V2)采集器的安装，在节点管理进行安装"
+msgstr "依赖bkmonitorbeat(V2)采集器的安装，在节点管理进行安装"
+
+msgid "对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警"
+msgstr "对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警"
+
+msgid "此接口已被弃用，请联系管理员"
+msgstr "此接口已被弃用，请联系管理员"
+
+msgid "检测算法不允许为空"
+msgstr "检测算法不允许为空"
+
+msgid "存在非法的策略ID, {}"
+msgstr "存在非法的策略ID, {}"
+
+msgid "- 未配置 -"
+msgstr "- 未配置 -"
+
+msgid "告警中"
+msgstr "告警中"
+
+msgid "已失效"
+msgstr "已失效"
+
+msgid "依赖bkmonitorproxy采集器的安装，直连区域请联系管理员进行安装，非直连区域自动安装"
+msgstr "依赖bkmonitorproxy采集器的安装，直连区域请联系管理员进行安装，非直连区域自动安装"
+
+msgid "由监控后台bkmonitorproxy去探测目标IP是否存活"
+msgstr "由监控后台bkmonitorproxy去探测目标IP是否存活"
+
+msgid "监控条件包含or语句时无法转换为PromQL语句"
+msgstr "监控条件包含or语句时无法转换为PromQL语句"
+
+msgid "不支持的函数({})"
+msgstr "不支持的函数({})"
+
+msgid "只能进行一次维度聚合，如sum、avg等"
+msgstr "只能进行一次维度聚合，如sum、avg等"
+
+msgid "不支持的方法({})"
+msgstr "不支持的方法({})"
+
+msgid "如果时间聚合函数使用{}，那么维度聚合函数必须使用{}"
+msgstr "如果时间聚合函数使用{}，那么维度聚合函数必须使用{}"
+
+msgid "解析promql失败，请检查是否存在语法错误"
+msgstr "解析promql失败，请检查是否存在语法错误"
+
+msgid "策略({})不存在)"
+msgstr "策略({})不存在)"
+
+msgid "该策略未接入智能异常检测，请确认"
+msgstr "该策略未接入智能异常检测，请确认"
+
+msgid "{}接入任务未创建，请尝试重新保存策略，若问题仍然存在请联系系统管理员"
+msgstr "{}接入任务未创建，请尝试重新保存策略，若问题仍然存在请联系系统管理员"
+
+msgid "{}接入任务等待创建中，预计10分钟生效，如超过30分钟未生效请联系系统管理员"
+msgstr "{}接入任务等待创建中，预计10分钟生效，如超过30分钟未生效请联系系统管理员"
+
+msgid "{}接入任务创建中，预计10分钟生效，如超过30分钟未生效请联系系统管理员"
+msgstr "{}接入任务创建中，预计10分钟生效，如超过30分钟未生效请联系系统管理员"
+
+msgid "{}接入中，预计10分钟生效，如超过30分钟未生效请联系系统管理员"
+msgstr "{}接入中，预计10分钟生效，如超过30分钟未生效请联系系统管理员"
+
+msgid "{}接入失败，请联系系统管理员"
+msgstr "{}接入失败，请联系系统管理员"
+
+msgid "未创建，请尝试重新保存策略，若问题仍然存在请联系系统管理员"
+msgstr "未创建，请尝试重新保存策略，若问题仍然存在请联系系统管理员"
+
+msgid "未启动，请重新保存策略"
+msgstr "未启动，请重新保存策略"
+
+msgid "启动中，预计10分钟内生效"
+msgstr "启动中，预计10分钟内生效"
+
+msgid "运行异常，请联系系统管理员"
+msgstr "运行异常，请联系系统管理员"
+
+msgid "运行失败，请联系系统管理员"
+msgstr "运行失败，请联系系统管理员"
+
+msgid "重启中，预计10分钟内生效"
+msgstr "重启中，预计10分钟内生效"
+
+msgid "target结构不符合要求"
+msgstr "target结构不符合要求"
+
+msgid "检测算法不符合要求，周期为正整数，值为正数"
+msgstr "检测算法不符合要求，周期为正整数，值为正数"
+
+msgid "检测算法的计算方法不符合要求"
+msgstr "检测算法的计算方法不符合要求"
+
+msgid "静态阈值检测算法结构不符合要求"
+msgstr "静态阈值检测算法结构不符合要求"
+
+msgid "触发条件满足条件次数不能大于所填周期数,且为正整数"
+msgstr "触发条件满足条件次数不能大于所填周期数,且为正整数"
+
+msgid "恢复周期需要是正整数"
+msgstr "恢复周期需要是正整数"
+
+msgid "启用无数据告警的周期数不能为空，且大于0"
+msgstr "启用无数据告警的周期数不能为空，且大于0"
+
+msgid "无数据告警周期需要为正整数"
+msgstr "无数据告警周期需要为正整数"
+
+msgid "通知间隔需要是正整数"
+msgstr "通知间隔需要是正整数"
+
+msgid "监控条件填写错误，需要key、method、value键"
+msgstr "监控条件填写错误，需要key、method、value键"
+
+msgid "多个条件时，聚合条件中需要condition参数，且为and或or"
+msgstr "多个条件时，聚合条件中需要condition参数，且为and或or"
+
+msgid "【蓝鲸】官方插件管理员"
+msgstr "【蓝鲸】官方插件管理员"
+
+msgid "【蓝鲸】GSE管理员"
+msgstr "【蓝鲸】GSE管理员"
+
+msgid "{}创建异常检测"
+msgstr "{}创建异常检测"
+
+msgid "{} {}创建异常检测"
+msgstr "{} {}创建异常检测"
+
+msgid "查询采集器版本失败"
+msgstr "查询采集器版本失败"
+
+msgid "采集器下发失败"
+msgstr "采集器下发失败"
+
+msgid "采集器安装失败"
+msgstr "采集器安装失败"
+
+#, python-format
+msgid "执行脚本 %s 失败"
+msgstr "执行脚本 %s 失败"
+
+msgid "配置下发失败"
+msgstr "配置下发失败"
+
+msgid "节点测试失败: 目标服务为空"
+msgstr "节点测试失败: 目标服务为空"
+
+msgid "测试任务失败"
+msgstr "测试任务失败"
+
+msgid "脚本测试执行失败"
+msgstr "脚本测试执行失败"
+
+msgid "初始化状态（-1）"
+msgstr "初始化状态（-1）"
+
+msgid "已成功探测目标服务，保存任务中..."
+msgstr "已成功探测目标服务，保存任务中..."
+
+msgid "测试任务执行失败：未知错误（1）"
+msgstr "测试任务执行失败：未知错误（1）"
+
+msgid "采集器任务取消（2）"
+msgstr "采集器任务取消（2）"
+
+msgid "目标响应时间大于期望响应时间（3）"
+msgstr "目标响应时间大于期望响应时间（3）"
+
+msgid "请检查任务参数是否有误，或确认目标服务是否可访问（1000）"
+msgstr "请检查任务参数是否有误，或确认目标服务是否可访问（1000）"
+
+msgid "请检查任务参数是否有误，或网络/目标服务是否可访问（1001）"
+msgstr "请检查任务参数是否有误，或网络/目标服务是否可访问（1001）"
+
+msgid "请检查代理是否配置正确，或网络是否可达（1002）"
+msgstr "请检查代理是否配置正确，或网络是否可达（1002）"
+
+msgid "DNS解析失败，请检查域名格式是否正确（1004）"
+msgstr "DNS解析失败，请检查域名格式是否正确（1004）"
+
+msgid "请检查任务参数是否有误，或网络/目标服务是否可访问（2000）"
+msgstr "请检查任务参数是否有误，或网络/目标服务是否可访问（2000）"
+
+msgid "请求超时，请确认网络/目标服务是否可访问（2001）"
+msgstr "请求超时，请确认网络/目标服务是否可访问（2001）"
+
+msgid "目标服务请求超过超时设置（2002）"
+msgstr "目标服务请求超过超时设置（2002）"
+
+msgid "拨测采集器配置异常，请联系管开发者（2003）"
+msgstr "拨测采集器配置异常，请联系管开发者（2003）"
+
+msgid "目标服务无响应返回（3000）"
+msgstr "目标服务无响应返回（3000）"
+
+msgid "请确认网络/目标服务是否可访问（3001）"
+msgstr "请确认网络/目标服务是否可访问（3001）"
+
+msgid "请确认响应内容是否正确（3002）"
+msgstr "请确认响应内容是否正确（3002）"
+
+msgid "请确认返回码是否正确（3003）"
+msgstr "请确认返回码是否正确（3003）"
+
+msgid "临时响应失败（3004）"
+msgstr "临时响应失败（3004）"
+
+msgid "服务无响应（3005）"
+msgstr "服务无响应（3005）"
+
+msgid "响应处理失败（3006）"
+msgstr "响应处理失败（3006）"
+
+msgid "响应失败，请确认端口是否存在（3007）"
+msgstr "响应失败，请确认端口是否存在（3007）"
+
+msgid "响应读取失败（3008）"
+msgstr "响应读取失败（3008）"
+
+msgid "响应头部为空（3009）"
+msgstr "响应头部为空（3009）"
+
+msgid "响应头部不符合（3010）"
+msgstr "响应头部不符合（3010）"
+
+msgid "未解析出ipv4地址（3011）"
+msgstr "未解析出ipv4地址（3011）"
+
+msgid "未解析出ipv6地址（3012）"
+msgstr "未解析出ipv6地址（3012）"
+
+msgid "url解析失败（3013）"
+msgstr "url解析失败（3013）"
+
+msgid "链接失败，host 或者端口非法（1000）"
+msgstr "链接失败，host 或者端口非法（1000）"
+
+msgid "请求写失败，syscall.write 返回错误（2000）"
+msgstr "请求写失败，syscall.write 返回错误（2000）"
+
+msgid "请求初始化失败，'request'/'request_format' 解析出错（2003）"
+msgstr "请求初始化失败，'request'/'request_format' 解析出错（2003）"
+
+msgid "响应读取超时，请确认网络/目标服务是否可访问（3001）"
+msgstr "响应读取超时，请确认网络/目标服务是否可访问（3001）"
+
+msgid "响应内容匹配失败，请确认响应内容是否正确（3002）"
+msgstr "响应内容匹配失败，请确认响应内容是否正确（3002）"
+
+msgid "响应失败，ICMP unreachable（3007）"
+msgstr "响应失败，ICMP unreachable（3007）"
+
+msgid "可用率"
+msgstr "可用率"
+
+msgid "采集器版本"
+msgstr "采集器版本"
+
+msgid "响应时长"
+msgstr "响应时长"
+
+msgid "本机IP"
+msgstr "本机IP"
+
+msgid "拨测节点ID"
+msgstr "拨测节点ID"
+
+msgid "检测结果"
+msgstr "检测结果"
+
+msgid "目标ip或域名"
+msgstr "目标ip或域名"
+
+msgid "目标端口号"
+msgstr "目标端口号"
+
+msgid "拨测任务ID"
+msgstr "拨测任务ID"
+
+msgid "拨测任务类型"
+msgstr "拨测任务类型"
+
+msgid "检测类型"
+msgstr "检测类型"
+
+msgid "运行错误数"
+msgstr "运行错误数"
+
+msgid "任务id"
+msgstr "任务id"
+
+msgid "云区域id"
+msgstr "云区域id"
+
+msgid "任务状态"
+msgstr "任务状态"
+
+#, python-format
+msgid "生成yaml配置文件时出错：%s"
+msgstr "生成yaml配置文件时出错：%s"
+
+#, python-format
+msgid "不存在的节点id:%s"
+msgstr "不存在的节点id:%s"
+
+msgid " 节点:"
+msgstr " 节点:"
+
+#, python-format
+msgid "部分节点测试失败:%s"
+msgstr "部分节点测试失败:%s"
+
+#, python-brace-format
+msgid "node:{node}, log:{log}"
+msgstr "node:{node}, log:{log}"
+
+msgid "采集器无返回"
+msgstr "采集器无返回"
+
+msgid "采集器返回结果校验失败，请重试"
+msgstr "采集器返回结果校验失败，请重试"
+
+msgid "校验测试结果时发生异常，请联系系统管理员"
+msgstr "校验测试结果时发生异常，请联系系统管理员"
+
+#, python-format
+msgid "不存在的节点ip=%s"
+msgstr "不存在的节点ip=%s"
+
+msgid "拨测任务配置"
+msgstr "拨测任务配置"
+
+#, python-format
+msgid "不存在的任务id:%s"
+msgstr "不存在的任务id:%s"
+
+msgid "任务配置为空，请检查任务参数是否正确"
+msgstr "任务配置为空，请检查任务参数是否正确"
+
+#, python-format
+msgid "未找到拨测任务ID=%s"
+msgstr "未找到拨测任务ID=%s"
+
+#, python-format
+msgid "生成图表时发生异常: %s"
+msgstr "生成图表时发生异常: %s"
+
+#, python-format
+msgid "拨测任务(id=%s)获取失败"
+msgstr "拨测任务(id=%s)获取失败"
+
+msgid "(未知)"
+msgstr "(未知)"
+
+msgid "响应内容"
+msgstr "响应内容"
+
+#, python-format
+msgid "未找到拨测任务: %s"
+msgstr "未找到拨测任务: %s"
+
+msgid "暂无数据，请在展示设置中添加拨测任务"
+msgstr "暂无数据，请在展示设置中添加拨测任务"
+
+msgid "不合规的参数，请使用逗号拼接数字"
+msgstr "不合规的参数，请使用逗号拼接数字"
+
+msgid "任务名称（必填）"
+msgstr "任务名称（必填）"
+
+msgid "协议（必填）"
+msgstr "协议（必填）"
+
+msgid "方法（必填）"
+msgstr "方法（必填）"
+
+msgid "地址（必填,小写）"
+msgstr "地址（必填,小写）"
+
+msgid "节点（必填）"
+msgstr "节点（必填）"
+
+msgid "提交内容（POST、PUT、PATCH方法必填）"
+msgstr "提交内容（POST、PUT、PATCH方法必填）"
+
+msgid "SSL证书校验"
+msgstr "SSL证书校验"
+
+msgid "否"
+msgstr "否"
+
+msgid "期望响应时间（ms）"
+msgstr "期望响应时间（ms）"
+
+msgid "任务分组"
+msgstr "任务分组"
+
+msgid "周期（默认分钟）"
+msgstr "周期（默认分钟）"
+
+msgid "周期是否为秒级"
+msgstr "周期是否为秒级"
+
+msgid "期望返回码"
+msgstr "期望返回码"
+
+msgid "期望响应信息"
+msgstr "期望响应信息"
+
+msgid "包含:"
+msgstr "包含:"
+
+msgid "地理位置"
+msgstr "地理位置"
+
+msgid "头信息"
+msgstr "头信息"
+
+msgid "地址（地址与域名至少一个必填）"
+msgstr "地址（地址与域名至少一个必填）"
+
+msgid "域名（地址与域名至少一个必填）"
+msgstr "域名（地址与域名至少一个必填）"
+
+msgid "端口（必填）"
+msgstr "端口（必填）"
+
+msgid "DNS解析IP类型"
+msgstr "DNS解析IP类型"
+
+msgid "DNS查询模式"
+msgstr "DNS查询模式"
+
+msgid "single"
+msgstr "single"
+
+msgid "请求内容（默认十六进制）"
+msgstr "请求内容（默认十六进制）"
+
+msgid "请求内容格式"
+msgstr "请求内容格式"
+
+msgid "期望响应格式"
+msgstr "期望响应格式"
+
+msgid "拨测节点（必填）"
+msgstr "拨测节点（必填）"
+
+msgid "超时时间（ms）"
+msgstr "超时时间（ms）"
+
+msgid "周期内连续探测次数"
+msgstr "周期内连续探测次数"
+
+msgid "探测包大小"
+msgstr "探测包大小"
+
+msgid "包含"
+msgstr "包含"
+
+msgid "不包含"
+msgstr "不包含"
+
+#, python-format
+msgid "当前业务下不存在拨测节点[%s]"
+msgstr "当前业务下不存在拨测节点[%s]"
+
+msgid "拨测节点未填写"
+msgstr "拨测节点未填写"
+
+msgid "是"
+msgstr "是"
+
+msgid "是否支持秒级填写错误"
+msgstr "是否支持秒级填写错误"
+
+msgid "期望响应信息内容填写错误"
+msgstr "期望响应信息内容填写错误"
+
+msgid "方法内容填写错误"
+msgstr "方法内容填写错误"
+
+msgid "头信息内容填写错误"
+msgstr "头信息内容填写错误"
+
+msgid "SSL证书校验内容填写错误"
+msgstr "SSL证书校验内容填写错误"
+
+msgid "地址/域名内容填写错误"
+msgstr "地址/域名内容填写错误"
+
+msgid "地址/域名至少填写一项"
+msgstr "地址/域名至少填写一项"
+
+msgid "请求内容填写错误，不符合请求格式"
+msgstr "请求内容填写错误，不符合请求格式"
+
+msgid "地址/域名内容填写错误，无法解析"
+msgstr "地址/域名内容填写错误，无法解析"
+
+msgid "内网"
+msgstr "内网"
+
+msgid "未填写业务ID,请检查配置"
+msgstr "未填写业务ID,请检查配置"
+
+msgid "业务下没有该主机，请检查配置"
+msgstr "业务下没有该主机，请检查配置"
+
+msgid "下发配置缺少节点信息，请填写node_list或node_id_list"
+msgstr "下发配置缺少节点信息，请填写node_list或node_id_list"
+
+msgid "节点{}不存在，请检查节点信息"
+msgstr "节点{}不存在，请检查节点信息"
+
+msgid "节点创建失败，请检查节点创建信息，{}"
+msgstr "节点创建失败，请检查节点创建信息，{}"
+
+msgid "节点不存在，请检查节点配置"
+msgstr "节点不存在，请检查节点配置"
+
+msgid "config缺少参数url_list或method，请检查参数"
+msgstr "config缺少参数url_list或method，请检查参数"
+
+msgid "config缺少参数ip_list/url_list，请检查参数"
+msgstr "config缺少参数ip_list/url_list，请检查参数"
+
+msgid "不处理，仅通知"
+msgstr "不处理，仅通知"
+
+#, python-format
+msgid "不存在id为%s的拨测任务"
+msgstr "不存在id为%s的拨测任务"
+
+msgid "{}(业务id:{})"
+msgstr "{}(业务id:{})"
+
+#, python-format
+msgid "不能取消公共节点勾选，若要取消，请先删除以下任务的当前节点：%s"
+msgstr "不能取消公共节点勾选，若要取消，请先删除以下任务的当前节点：%s"
+
+msgid "已存在相同名称的拨测任务"
+msgstr "已存在相同名称的拨测任务"
+
+#, python-format
+msgid "分组 %s 已存在！"
+msgstr "分组 %s 已存在！"
+
+msgid "拨测分组({})已存在任务({})"
+msgstr "拨测分组({})已存在任务({})"
+
+msgid "拨测分组({})添加任务({})成功"
+msgstr "拨测分组({})添加任务({})成功"
+
+msgid "非微信访问，或应用未启动微信访问"
+msgstr "非微信访问，或应用未启动微信访问"
+
+msgid "State验证失败"
+msgstr "State验证失败"
+
+msgid "登录失败"
+msgstr "登录失败"
+
+msgid "Personal info"
+msgstr "Personal info"
+
+msgid "Extra info"
+msgstr "Extra info"
+
+msgid "移动端确认"
+msgstr "移动端确认"
+
+msgid "语法错误: 查询字段不能为空"
+msgstr "语法错误: 查询字段不能为空"
+
+#, python-format
+msgid "结果表[%s]对应的物理存储不存在"
+msgstr "结果表[%s]对应的物理存储不存在"
+
+msgid "无效的rt表名"
+msgstr "无效的rt表名"
+
+msgid "动态字段表查询的指标项最多只能指定一个"
+msgstr "动态字段表查询的指标项最多只能指定一个"
+
+msgid "minuteX字段不能设置别名"
+msgstr "minuteX字段不能设置别名"
+
+msgid "minuteX字段必须保持一致"
+msgstr "minuteX字段必须保持一致"
+
+#, python-format
+msgid "%s只能使用一个minuteX/time字段"
+msgstr "%s只能使用一个minuteX/time字段"
+
+#, python-format
+msgid "结果表[%s]不存在"
+msgstr "结果表[%s]不存在"
+
+#, python-format
+msgid "结果表[%s]未配置物理存储"
+msgstr "结果表[%s]未配置物理存储"
+
+#, python-format
+msgid "存储[%s]对应的查询引擎不存在"
+msgstr "存储[%s]对应的查询引擎不存在"
+
+#~ msgid "接入 VM 的空间白名单，格式为: 空间类型__空间ID"
+#~ msgstr "接入 VM 的空间白名单，格式为: 空间类型__空间ID"
+
+#~ msgid "BCS 集群k8s指标"
+#~ msgstr "BCS 集群k8s指标"
+
+#~ msgid "BCS 集群自定义指标"
+#~ msgstr "BCS 集群自定义指标"
+
+#~ msgid "用户自定义指标"
+#~ msgstr "用户自定义指标"
+
+#~ msgid "接入VM记录表"
+#~ msgstr "接入VM记录表"
+
+msgid "关联指标"
+msgstr "关联指标"

@@ -1,0 +1,26 @@
+.custom-date-pick-component {
+  width: 100%;
+  .bk-date-picker {
+    width: 100%;
+  }
+}
+.custom-date-pick-component-slot-header {
+  display: flex;
+  align-items: center;
+  height: 46px;
+  padding: 0 15px;
+  width: 261px;
+  position: relative;
+  .left,
+  .right {
+    flex: 1;
+  }
+  .center {
+    width: 10px;
+  }
+  .right {
+    .bk-date-picker {
+      width: 100%;
+    }
+  }
+}

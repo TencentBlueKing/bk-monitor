@@ -1,0 +1,53 @@
+.meal-basic-info {
+  display: flex;
+  flex-direction: column;
+  .info-item-top {
+    display: flex;
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      &.auto {
+        flex: auto;
+        margin-right: 48px;
+      }
+      &.glcl {
+        margin-right: 54px;
+        .item-input {
+          margin-top: 4px;
+          &.link {
+            color: #3a84ff;
+            span {
+              cursor: pointer;
+            }
+          }
+        }
+      }
+    }
+    .bk-form-input {
+      //   padding: 0 10px 0 0;
+    }
+    .bk-select .bk-select-name {
+      //   padding: 0 36px 0 0;
+    }
+  }
+  .info-item-bottom {
+    margin-top: 24px;
+  }
+  .item-title {
+    font-size: 12px;
+    color: #63656e;
+    margin-bottom: 8px;
+    .required {
+      position: relative;
+      &::after {
+        position: absolute;
+        right: -8px;
+        top: -1px;
+        font-size: 14px;
+        content: "*";
+        color: #ea3636;
+        font-size: 12px;
+      }
+    }
+  }
+}

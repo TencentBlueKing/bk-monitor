@@ -1,0 +1,26 @@
+- description: ''
+  field_name: kubernetes_build_info
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: gitCommit}
+  - {description: '', field_name: gitTreeState}
+  - {description: '', field_name: minor}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: compiler}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: gitVersion}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: goVersion}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: major}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: buildDate}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: platform}
+  - {description: '', field_name: kube_resourcequota}

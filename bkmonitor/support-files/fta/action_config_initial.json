@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1000,
+    "is_deleted": true,
+    "name": "内置占位",
+    "desc": "1000以内用来内置， 1000以上为用户自定义",
+    "execute_config": {},
+    "is_enabled": false,
+    "bk_biz_id": 0
+  }
+]

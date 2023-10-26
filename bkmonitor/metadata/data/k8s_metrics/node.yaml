@@ -1,0 +1,562 @@
+- description: ''
+  field_name: node_cpu_seconds_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: cpu}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: mode}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_disk_io_time_seconds_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_disk_reads_completed_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_disk_read_bytes_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_disk_writes_completed_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_disk_written_bytes_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_filefd_allocated
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_filefd_maximum
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_filesystem_avail_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: fstype}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: mountpoint}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_filesystem_files
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: fstype}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: mountpoint}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_filesystem_files_free
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: fstype}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: mountpoint}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_filesystem_free_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: fstype}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: mountpoint}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_filesystem_size_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: fstype}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: mountpoint}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_load15
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_memory_Buffers_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_memory_Cached_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_memory_MemFree_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_memory_MemTotal_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_memory_Shmem_bytes
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_network_receive_bytes_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_network_receive_errs_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_network_transmit_bytes_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+  unit: bytes
+- description: ''
+  field_name: node_network_transmit_errs_total
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_network_up
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: device}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_nf_conntrack_entries
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_nf_conntrack_entries_limit
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_timex_offset_seconds
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_timex_sync_status
+  tag_list:
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
+- description: ''
+  field_name: node_uname_info
+  tag_list:
+  - {description: '', field_name: job}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: version}
+  - {description: '', field_name: container}
+  - {description: '', field_name: nodename}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: machine}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: sysname}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: target}
+  - {description: '', field_name: release}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: domainname}
+- description: ''
+  field_name: node_network_info
+  tag_list:
+  - {description: '', field_name: job}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: container}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: target}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: domainname}
+  - {description: '', field_name: address}
+  - {description: '', field_name: broadcast}
+  - {description: '', field_name: device}
+  - {description: '', field_name: duplex}
+  - {description: '', field_name: ifalias}
+  - {description: '', field_name: operstate}

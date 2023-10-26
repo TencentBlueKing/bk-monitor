@@ -1,0 +1,16 @@
+.trace-view-legend {
+  padding: 6px;
+  .length-item {
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    display: flex;
+    color: #63656e;
+    height: 26px;
+    box-sizing: border-box;
+    .legend-icon {
+      margin-right: 6px;
+      font-size: 14px;
+    }
+  }
+}

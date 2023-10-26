@@ -1,0 +1,240 @@
+@mixin icon-style {
+  .icon-monitor {
+    margin-right: 4px;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  
+  .icon-danger {
+    color: #ea3636;
+  }
+  
+  .icon-mind-fill {
+    color: #ff9c01;
+  }
+  
+  .icon-tips {
+    color: #699df4;
+  }
+}
+
+.rule-wrapper {
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  @include icon-style();
+  
+  &.valid-error {
+    border-color: #ea3636;
+
+    .header {
+      background-color: #fee;
+    }
+
+    &:hover {
+      border-color: #ea3636;
+
+      .header {
+        background-color: #fee;
+      }
+    }
+  }
+
+  &:hover {
+    border-color: #699df4;
+
+    .header {
+      background-color: #f0f5ff;
+
+      .del-btn {
+        display: block;
+      }
+    }
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 13.5px 0 7px;
+    background-color: #f5f7fa;
+
+    .title-wrap {
+      display: flex;
+      align-items: center;
+
+      .type-icon {
+        width: 24px;
+        height: 24px;
+      }
+
+      .title {
+        margin: 0 8px;
+      }
+    }
+
+    .del-btn {
+      display: none;
+      font-size: 14px;
+      color: #ff5656;
+      cursor: pointer;
+    }
+  }
+
+  .content {
+    padding: 14px 0 24px;
+
+    .bk-form-item + .bk-form-item {
+      margin-top: 8px;
+    }
+
+    .bk-form-item.is-error {
+      input[type='text'] {
+        border-color: transparent transparent #ff5656;
+      }
+    }
+
+    .bk-label {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .select-method {
+      width: 28px;
+      height: 28px;
+      line-height: 28px;
+      background-color: #f5f6fa;
+      border: 0;
+
+      .icon-angle-down {
+        display: none;
+      }
+
+      .bk-select-name {
+        height: 28px;
+        padding: 0;
+        text-align: center;
+      }
+    }
+
+    .select-method.is-focus {
+      box-shadow: none;
+    }
+
+    .number-handle-input {
+      .bk-input-number {
+        .bk-form-input {
+          padding-left: 0;
+        }
+
+        .input-number-option {
+          right: 4px;
+          width: 10px;
+
+          .number-option-item {
+            color: #63656e;
+          }
+        }
+      }
+    }
+
+    .inline-select {
+      height: 22px;
+      line-height: 22px;
+
+      .bk-select-name {
+        min-width: 30px;
+        height: 21px;
+        padding: 0 30px 0 2px;
+        line-height: 21px;
+      }
+
+      .icon-angle-down {
+        top: 0;
+      }
+    }
+
+    .inline-input {
+      display: inline-block;
+      width: auto;
+
+      .bk-form-input {
+        height: 22px;
+      }
+    }
+
+    .input-align-center {
+      min-width: 52px;
+
+      .bk-form-input {
+        text-align: center;
+
+        &[readonly] {
+          /* stylelint-disable-next-line declaration-no-important */
+          padding: 0 !important;
+        }
+      }
+    }
+
+    .input-arrow {
+      display: flex;
+      align-items: center;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      background-color: transparent !important;
+
+      .group-prepend {
+        height: 22px;
+        border: 0;
+
+        .left-text {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          margin-right: 4px;
+          font-size: 12px;
+          color: #3fc06d;
+          background-color: #e5f6ea;
+        }
+
+        .left-text-red {
+          color: #ea3636;
+          background-color: #fdd;
+        }
+      }
+
+      .group-append {
+        height: 22px;
+        line-height: 22px;
+        border: 0;
+      }
+
+      .bk-input-number {
+        width: 60px;
+
+        .bk-form-input {
+          /* stylelint-disable-next-line declaration-no-important */
+          padding: 0 !important;
+        }
+      }
+    }
+
+    .i18n-path {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .bk-form-control {
+      font-size: 12px;
+    }
+  }
+}
+
+.level-select-popover {
+  @include icon-style();
+}
+

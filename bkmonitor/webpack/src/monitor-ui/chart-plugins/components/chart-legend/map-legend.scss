@@ -1,0 +1,16 @@
+.map-legend {
+  .map-legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .legend-icon {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+  }
+  .legend-name {
+    margin-left: 8px;
+    color: #63656e;
+  }
+}

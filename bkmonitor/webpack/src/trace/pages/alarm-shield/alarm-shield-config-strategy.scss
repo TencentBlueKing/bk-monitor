@@ -1,0 +1,15 @@
+.alarm-shield-config-strategy-component {
+  display: none;
+
+  .mt10 {
+    margin-top: 10px;
+  }
+
+  .max-w836 {
+    max-width: 836px;
+  }
+
+  &.show {
+    display: block;
+  }
+}

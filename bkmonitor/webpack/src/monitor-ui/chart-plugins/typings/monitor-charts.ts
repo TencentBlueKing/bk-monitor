@@ -1,0 +1,60 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+export interface ICommonCharts {
+  // 图表宽度
+  width: number;
+  // 图表高度
+  height: number;
+  // 获取图表数据
+  /**
+   * @description: 获取图表数据
+   * @param {*} 数据开始时间
+   * @return {*} 数据结束时间
+   */
+  getPanelData: (timeFrom?: string, timeTo?: string) => Promise<any>;
+}
+export interface ICommonChartTipsItem {
+  name: string; // item name
+  value: string; // 值
+  unit?: string; // 单位
+  color: string; // 颜色
+  isCurrent: boolean; // 是否是当前hover值
+  style?: string; // 自定义样式
+}
+export interface ICommonChartTips {
+  title: string; // tips title
+  style?: string; // 自定义样式
+  list: ICommonChartTipsItem[];
+}
+
+export interface ICurPoint {
+  xAxis: string | number;
+  yAxis: string | number;
+  dataIndex: number;
+  color: string;
+  name: string;
+  seriesIndex: number;
+}

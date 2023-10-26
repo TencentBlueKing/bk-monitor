@@ -1,0 +1,142 @@
+.data-pipeline-config-sides {
+  .content-wrap {
+    color: #63656e;
+
+    .content-item {
+      margin: 24px 40px 0 40px;
+
+      .content-item-title {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 22px;
+      }
+
+      .content-item-form {
+        .form-item {
+          display: flex;
+          flex-direction: column;
+          font-size: 12px;
+          margin-top: 24px;
+
+          &:first-of-type {
+            margin-top: 16px;
+          }
+
+          .form-item-title {
+            line-height: 20px;
+
+            .require {
+              position: relative;
+
+              &::after {
+                position: absolute;
+                top: -2px;
+                right: -17px;
+                content: '*';
+                color: #ea3636;
+                height: 12px;
+                width: 12px;
+              }
+            }
+
+            .check-title {
+              .bk-checkbox-text {
+                font-size: 12px;
+              }
+            }
+          }
+
+          .form-item-content {
+            margin-top: 6px;
+          }
+
+          .form-item-errmsg {
+            color: #ea3636;
+            margin-top: 4px;
+            height: 0;
+          }
+        }
+
+        .horizontal {
+          display: flex;
+          align-items: center;
+
+          .form-item {
+            flex: 1;
+            margin-top: 24px;
+
+            &:not(:first-of-type) {
+              margin-left: 16px;
+            }
+          }
+
+          .width270 {
+            width: 270px;
+          }
+        }
+      }
+
+      .is-defalut {
+        margin-top: 20px;
+
+        .bk-checkbox-text {
+          font-size: 12px;
+        }
+
+        .default-tip {
+          min-height: 32px;
+          background: #f0f8ff;
+          border: 1px solid #c5daff;
+          border-radius: 2px;
+          padding: 0 8px;
+          margin-top: 8px;
+
+          span {
+            line-height: 30px;
+          }
+
+          .icon-hint {
+            font-size: 16px;
+            margin-right: 8px;
+            color: #3a84ff;
+          }
+
+          .link {
+            color: #3a84ff;
+            margin-left: 8px;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+
+    .line-between {
+      height: 1px;
+      background: #dcdee5;
+      margin: 24px 40px 0 40px;
+    }
+  }
+
+  .bk-sideslider-content {
+    padding-bottom: 54px;
+  }
+
+  .bk-sideslider-footer {
+    position: absolute;
+    bottom: 0;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+
+    .footer-content {
+      padding-left: 24px;
+
+      .submit,
+      .cancel {
+        min-width: 88px;
+      }
+
+      .submit {
+        margin-right: 8px;
+      }
+    }
+  }
+}

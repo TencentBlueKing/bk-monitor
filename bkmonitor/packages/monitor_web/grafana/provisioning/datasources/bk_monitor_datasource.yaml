@@ -1,0 +1,23 @@
+apiVersion: 1
+datasources:
+  - name: 蓝鲸监控 - 指标数据
+    type: bkmonitor-timeseries-datasource
+    access: direct
+    isDefault: true
+    url: ""
+    jsonData:
+      baseUrl: /${SETTINGS_SITE_URL}query-api/rest/v2/grafana/
+  - name: 蓝鲸监控 - 事件数据
+    type: bkmonitor-event-datasource
+    access: direct
+    isDefault: false
+    url: ""
+    jsonData:
+      baseUrl: /${SETTINGS_SITE_URL}query-api/rest/v2/grafana/
+  - name: 日志平台
+    type: bk_log_datasource
+    access: direct
+    isDefault: false
+    url: ""
+    jsonData:
+      baseUrl: /${SETTINGS_SITE_URL}query-api/rest/v2/grafana/bk_log_search/

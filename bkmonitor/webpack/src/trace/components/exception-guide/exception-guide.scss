@@ -1,0 +1,46 @@
+.exception-guide-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex: 1;
+
+  .bk-exception-page {
+    .bk-exception-footer {
+      margin-top: 0;
+
+      .title {
+        color: rgb(99, 101, 110);
+        font-size: 24px;
+      }
+    }
+  }
+
+  .custom-icon {
+    width: 120px;
+    height: 100px;
+  }
+
+  .title {
+    justify-content: center;
+    font-size: 14px !important;
+    color: #63656E;
+  }
+
+  .text-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .text-row {
+    margin: 16px 0 24px;
+    font-size: 12px;
+    text-align: left;
+    color: #979ba5;
+  }
+
+  .bk-exception-img {
+    height: 106px !important;
+  }
+}

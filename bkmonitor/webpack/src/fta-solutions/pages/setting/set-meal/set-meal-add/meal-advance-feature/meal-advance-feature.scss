@@ -1,0 +1,63 @@
+/* stylelint-disable declaration-no-important */
+.meal-advance-feature {
+  position: relative;
+  .config-item {
+    display: flex;
+    position: relative;
+    margin-top: 11px;
+    &.mt24 {
+      margin-top: 24px;
+    }
+    &.mt16 {
+      margin-top: 16px;
+    }
+    .title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #63656e;
+      padding-top: 8px;
+    }
+    .content {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      flex: 1 1;
+      position: relative;
+      font-size: 12px;
+      color: #63656e;
+      padding-top: 5px;
+      .input-wrapper-small {
+        width: 40px;
+        margin: 0 8px;
+      }
+      .select-wrapper-small {
+        margin: 0 8px;
+        .verify-item {
+          display: inline-block;
+        }
+        .bk-select {
+          min-width: 80px;
+        }
+      }
+      .bk-form-input {
+        text-align: center;
+        padding: 0 !important;
+      }
+      .input-number-option {
+        display: none;
+      }
+    }
+  }
+  //   .bk-form-control {
+  //     // input样式
+  //     .bk-input-text,
+  //     .bk-input-number {
+  //       .bk-form-input {
+  //         box-sizing: initial;
+  //         border-top: 0;
+  //         height: 20px;
+  //         padding-left: 2px;
+  //       }
+  //     }
+  //   }
+}

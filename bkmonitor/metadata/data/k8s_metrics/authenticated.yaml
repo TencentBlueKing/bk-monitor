@@ -1,0 +1,16 @@
+- description: ''
+  field_name: authenticated_user_requests
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: username}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}

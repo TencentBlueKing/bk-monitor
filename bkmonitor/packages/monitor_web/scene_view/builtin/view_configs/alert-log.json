@@ -1,0 +1,76 @@
+{
+  "id": "log",
+  "type": "overview",
+  "mode": "custom",
+  "name": "日志",
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "related-log-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": [
+        {
+          "dataType": "log_predicate",
+          "api": "alert_events.isHostExistsIndex",
+          "data": {
+            "bk_host_innerip": "${bk_host_innerip}",
+            "bk_cloud_id": "${bk_cloud_id}",
+            "bk_host_id": "${bk_host_id}",
+            "bk_biz_id": "${bk_biz_id}"
+          }
+        },
+        {
+          "dataType": "condition",
+          "api": "alert_events.listIndexByHost",
+          "data": {
+            "bk_host_innerip": "${bk_host_innerip}",
+            "bk_cloud_id": "${bk_cloud_id}",
+            "bk_host_id": "${bk_host_id}",
+            "bk_biz_id": "${bk_biz_id}"
+          }
+        },
+        {
+          "dataType": "time_series",
+          "api": "scene_view.getIndexSetLogSeries",
+          "datasource": "time_series",
+          "alias": "总趋势",
+          "data": {
+            "bk_biz_id": "${bk_biz_id}",
+            "index_set_id": "${index_set_id}",
+            "start_time": "${start_time}",
+            "end_time": "${end_time}",
+            "interval": "${interval}",
+            "keyword": "${keyword}"
+          }
+        },
+        {
+          "dataType": "table-chart",
+          "api": "scene_view.listIndexSetLog",
+          "data": {
+            "bk_biz_id": "${bk_biz_id}",
+            "index_set_id": "${index_set_id}",
+            "start_time": "${start_time}",
+            "end_time": "${end_time}",
+            "offset": "${offset}",
+            "limit": "${limit}",
+            "keyword": "${keyword}"
+          },
+          "options": {
+            "table_chart": {
+              "json_viewer_data_key": "data",
+              "show_expand": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "panels": [],
+  "order": []
+}

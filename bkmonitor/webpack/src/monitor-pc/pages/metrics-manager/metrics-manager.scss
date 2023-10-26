@@ -1,0 +1,81 @@
+.metrics-manager-page {
+  width: 100%;
+  height: 100%;
+  padding: 16px 16px 24px 16px;
+
+  .metrics-manager-content {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
+
+    .content-left {
+      position: relative;
+      width: 250px;
+      padding: 16px;
+      border-right: 1px solid #dcdee5;
+
+      &-drag {
+        position: absolute;
+        right: 0;
+        width: 10px;
+        height: 100%;
+
+        &::after {
+          position: absolute;
+          top: calc(50% - 22px);
+          right: 8px;
+          height: 22px;
+          border-right: 2px dotted #63656e;
+          content: '';
+        }
+
+        &:hover {
+          cursor: col-resize;
+        }
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .left {
+          font-size: 14px;
+          line-height: 22px;
+          color: #313238;
+        }
+
+        .right {
+          font-size: 24px;
+          cursor: pointer;
+          transform: rotate(-90deg);
+        }
+      }
+
+      .filter-panel {
+        height: 100%;
+      }
+
+      &.drapActive {
+        border-right: 1px solid #3a84ff;
+      }
+    }
+
+    .content-right {
+      flex: 1;
+      overflow: hidden;
+
+      .icon-double-up {
+        margin-right: 14px;
+        font-size: 24px;
+        cursor: pointer;
+        transform: rotate(90deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+}

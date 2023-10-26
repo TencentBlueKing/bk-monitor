@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16px" height="16px" viewBox="0 0 16 16" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>gray-</title>
+    <defs>
+        <path d="M8,1 C4.134,1 1,4.134 1,8 C1,11.866 4.134,15 8,15 C11.866,15 15,11.866 15,8 C15,4.134 11.866,1 8,1 M8,2 C11.30825,2 14,4.69175 14,8 C14,11.30825 11.30825,14 8,14 C4.69175,14 2,11.30825 2,8 C2,4.69175 4.69175,2 8,2 M4.5,8.5 L11.5,8.5 L11.5,7.50025 L4.5,7.50025 L4.5,8.5 Z" id="path-1"></path>
+    </defs>
+    <g id="🀄️-交付版本" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="精准查询-节点拓扑-2" transform="translate(-1244.000000, -629.000000)">
+            <g id="gray-" transform="translate(1244.000000, 629.000000)">
+                <circle id="椭圆形" fill="#FFFFFF" cx="8" cy="8" r="8"></circle>
+                <g id="Icon/1-常用图标/3-圆-减">
+                    <mask id="mask-2" fill="white">
+                        <use xlink:href="#path-1"></use>
+                    </mask>
+                    <use id="删除" fill="#979BA5" xlink:href="#path-1"></use>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

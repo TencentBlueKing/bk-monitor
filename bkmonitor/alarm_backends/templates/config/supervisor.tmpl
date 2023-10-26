@@ -1,0 +1,319 @@
+[inet_http_server]
+port = 127.0.0.1:{{ settings.SUPERVISOR_PORT }}
+
+
+[supervisorctl]
+configuration = {{ settings.BASE_DIR }}/etc/supervisord.conf
+serverurl = http://127.0.0.1:{{ settings.SUPERVISOR_PORT }}
+
+
+[supervisord]
+directory = {{ settings.BASE_DIR }}
+environment = DJANGO_SETTINGS_MODULE="settings",DJANGO_CONF_MODULE="conf.worker.{{ ENVIRONMENT }}.{{ PLATFORM }}",LOGGER_WITHOUT_CONSOLE="1"
+logfile = {{ settings.BASE_DIR }}/logs/supervisord.log
+pidfile = {{ settings.BASE_DIR }}/logs/supervisord.pid
+
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+
+[program:logging]
+command=bash -c "sleep 10 && exec python manage.py run_service -s selfmonitor log"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=900                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:healthz]
+command=bash -c "sleep 10 && exec python manage.py run_service -s selfmonitor healthz"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=false
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:healthz_daemon]
+command=bash -c "sleep 10 && exec python manage.py healthz -d -i 600"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=false
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:access_data]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_access -s access -H celery --access-type=data --hash-ring=1 --min-interval 30"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=800                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:access_real_time_data]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_access -s access --access-type=real_time_data --min-interval 30"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=800                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:access_gse_event]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_access -s access --access-type=gse_event --min-interval 30"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=800                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:access_custom_event]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_access -s access --access-type=custom_event --min-interval 30"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=800                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:detect]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_service -s detect -H celery"
+numprocs=2                    ; number of processes copies to start (def 1)
+priority=700                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must s  tay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:nodata]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_service -s nodata -H celery --min-interval 0"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=700                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must s  tay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:trigger]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_service -s trigger --min-interval 0"
+numprocs=2                    ; number of processes copies to start (def 1)
+priority=300                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:event_generator]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_service -s event generator --min-interval 0"
+numprocs=2                    ; number of processes copies to start (def 1)
+priority=200                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:event_manager]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_service -s event manager --min-interval 0"
+numprocs=2                    ; number of processes copies to start (def 1)
+priority=150                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:action]
+process_name = %(program_name)s%(process_num)s
+command=bash -c "sleep 10 && exec python manage.py run_service -s action --min-interval 0"
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+autostart=false
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:celery_beat]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app beat -l info  -S redbeat.RedBeatScheduler" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+[program:celery_worker_api_cron]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app worker -l info -P gevent -Q celery_api_cron -c 2 -O fair" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=false
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+
+[program:celery_worker_action]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app worker -l info -Q celery_action -c 2 --maxtasksperchild=2000 -O fair" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:celery_worker_converge]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app worker -l info -Q celery_converge -c 2 --maxtasksperchild=2000 -O fair" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:celery_worker_action_cron]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app worker -l info -Q celery_action_cron -c 2 --maxtasksperchild=2000 -O fair" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:celery_worker_service]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app worker -l info -Q celery_service --maxtasksperchild=1000 -O fair" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:celery_worker_cron]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app worker -l info -Q celery_cron --maxtasksperchild=1 -O fair" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+
+[program:celery_image_exporter]
+command=bash -c "sleep 10 && exec celery -A alarm_backends.service.scheduler.app worker -l info -c 2 -Q celery_image_exporter --maxtasksperchild=1 -O fair" ; "start" is a flag to differ from cronjob
+numprocs=1                    ; number of processes copies to start (def 1)
+priority=100                  ; the relative start priority (default 999)
+startsecs=0                   ; number of secs prog must stay running (def. 1)
+stopwaitsecs=30
+autostart=true
+autorestart=true
+stdout_logfile=/dev/null
+redirect_stderr=true
+stopasgroup=true
+killasgroup=true
+
+[group:scheduler]
+programs=celery_beat,celery_worker_service,celery_worker_cron,celery_image_exporter,celery_worker_api_cron,celery_worker_action,celery_worker_action_cron
+
+
+[group:service]
+programs=access_data,access_real_time_data,access_gse_event,access_custom_event,detect,nodata,trigger,event_generator,event_manager,action
+
+[group:selfmonitor]
+programs=healthz,logging,healthz_daemon

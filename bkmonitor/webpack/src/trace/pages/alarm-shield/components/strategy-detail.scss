@@ -1,0 +1,116 @@
+.alarm-shield-stratrgy-detail {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding-left: 16px;
+    background: #f5f7fa;
+  }
+
+  .stratrgy-detail {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5px;
+
+    .item-label {
+      width: 56px;
+      margin-bottom: 8px;
+    }
+
+    .item-content {
+      display: flex;
+      flex-direction: column;
+      min-width: 625px;
+      padding: 7px 21px;
+      border-top: 1px solid #dcdee5;
+      border-radius: 2px;
+
+      .column-item {
+        display: flex;
+        align-items: center;
+        min-height: 32px;
+      }
+
+      .column-label {
+        min-width: 80px;
+        margin-right: 7px;
+        color: #979ba5;
+        text-align: right;
+      }
+
+      .column-target {
+        height: 32px;
+        line-height: 32px;
+      }
+
+      .column-content {
+        .item-source {
+          margin-top: 3px;
+          font-size: 12px;
+          color: #979ba5;
+        }
+
+        .item-center {
+          height: 19px;
+          line-height: 19px;
+        }
+      }
+
+      .item-font {
+        height: 19px;
+        line-height: 19px;
+      }
+
+      .column-agg-dimension {
+        height: 32px;
+        padding: 7px 12px 9px 12px;
+        margin: 0 2px 2px 0;
+        font-size: 12px;
+        line-height: 16px;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+      }
+
+      .column-agg-condition {
+        display: flex;
+        flex-wrap: wrap;
+        max-width: calc(100vw - 322px);
+
+        .item-blue {
+          color: #3a84ff;
+        }
+
+        .item-yellow {
+          color: #ff9c01;
+        }
+      }
+
+      .column-item-agg-condition {
+        align-items: flex-start;
+      }
+    }
+  }
+
+  &.simple {
+    background: #f0f1f5;
+    border: 0;
+
+    .detail-header {
+      display: none;
+    }
+
+    .stratrgy-detail:first-of-type {
+      .item-content {
+        border-top: 0;
+      }
+    }
+  }
+}

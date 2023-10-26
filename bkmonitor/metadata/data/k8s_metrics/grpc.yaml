@@ -1,0 +1,171 @@
+- description: ''
+  field_name: grpc_client_handled_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: grpc_code}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: grpc_client_msg_received_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: grpc_client_msg_sent_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: grpc_client_started_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: grpc_server_handled_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: grpc_code}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: grpc_server_handling_seconds_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: grpc_code}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: le}
+- description: ''
+  field_name: grpc_server_msg_received_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: grpc_server_msg_sent_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: grpc_server_started_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: grpc_type}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: grpc_service}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: grpc_method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}

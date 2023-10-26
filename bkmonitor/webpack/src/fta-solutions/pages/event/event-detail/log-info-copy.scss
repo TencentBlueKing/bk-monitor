@@ -1,0 +1,78 @@
+.event-detail-log-info-component {
+  display: none;
+  padding: 17px 24px;
+  flex-direction: column;
+
+  &.show {
+    display: flex;
+  }
+
+  .log-table {
+    margin-top: 16px;
+
+    .link {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .run-status {
+      display: flex;
+      align-items: center;
+
+      .status {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f0f1f5;
+        border: 1px solid #c4c6cc;
+        margin-right: 10px;
+
+        &.RUNNING
+        &.PREPARE {
+          background: #ff9c01;
+          border: 1px solid #ff9c01;
+        }
+
+        &.SUCCESS {
+          background: #e5f6ea;
+          border: 1px solid #3fc06d;
+        }
+
+        &.FAILED,
+        &.PARTFAILED {
+          background: #ffe6e6;
+          border: 1px solid #ea3636;
+        }
+
+        &.TERMINATED,
+        &.UNKNOWN {
+          background: #f0f1f5;
+          border: 1px solid #c4c6cc;
+        }
+      }
+
+      .status-text {
+        color: #63656e;
+      }
+    }
+  }
+
+  .no-data {
+    margin: 50px 0;
+
+    .no-data-msg {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .title {
+        font-size: 24px;
+        color: #63656e;
+      }
+
+      .btn {
+        margin-top: 24px;
+      }
+    }
+  }
+}

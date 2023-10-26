@@ -1,0 +1,451 @@
+/* stylelint-disable declaration-no-important */
+@import '../../../theme';
+
+$rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a4a6 #e88c8d #e77474;
+
+.trace-detail-wrapper {
+  position: relative;
+  box-sizing: border-box !important;
+  height: 100%;
+  padding: 0 16px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  .icon-page-close {
+    font-size: 116px;
+    color: #fff;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+
+    &.fullscreen-close {
+      top: 0;
+      right: 28px;
+    }
+  }
+
+  .header {
+    position: relative;
+    margin-top: 12px;
+    margin-right: 100px;
+    white-space: nowrap;
+
+    .trace-id {
+      font-size: 16px;
+      line-height: 24px;
+      color: #313238;
+      letter-spacing: 0;
+    }
+
+    .icon-monitor {
+      margin-left: 12px;
+      font-size: 16px;
+      color: #979ba5;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  .base-message {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    max-width: 734px;
+    padding-right: 24px;
+    margin-top: 8px;
+
+    .message-item {
+      display: flex;
+      align-items: center;
+      margin-right: 8px;
+      font-size: 12px;
+      white-space: nowrap;
+
+      label {
+        margin-right: 6px;
+        color: #979ba5;
+      }
+
+      .icon-tips {
+        margin-left: 4px;
+        color: #ff9c01;
+      }
+    }
+
+    &.is-wrap {
+      .message-item:last-child {
+        margin-right: auto;
+      }
+    }
+
+    &.is-wrap {
+      .message-item:last-child {
+        margin-right: auto;
+      }
+    }
+  }
+
+  .overview-content {
+    display: inline-block;
+    margin-top: 8px;
+
+    .item-card {
+      position: relative;
+      box-sizing: content-box;
+      display: flex;
+      align-items: center;
+      float: left;
+      height: 28px;
+      padding: 0 8px;
+      margin: 0 8px 6px 0;
+      font-size: 12px;
+      cursor: pointer;
+      background: #fff;
+      border: 1px solid #eaebf0;
+      border-radius: 2px;
+
+      &:hover {
+        border-color: #c4c6cc;
+      }
+
+      &:last-child {
+        padding-right: 12px;
+      }
+
+      .card-count {
+        padding: 0 4px;
+        margin-left: 4px;
+        color: #979ba5;
+        background-color: #f5f5f5;
+        border-radius: 12px;
+      }
+
+      .card-icon {
+        margin: 0 8px 0 6px;
+        font-size: 14px;
+        color: #979ba5;
+
+        &.icon-mind-fill {
+          margin-left: 4px;
+          color: #ea3636;
+        }
+      }
+
+      .service-mark {
+        position: absolute;
+        top: -1px;
+        left: -1px;
+        width: 4px;
+        height: 30px;
+      }
+
+      .service-icon {
+        width: 14px;
+        height: 14px;
+        margin: 0 8px 0 4px;
+      }
+
+      &.is-selected {
+        color: #fff;
+        background-color: #979ba5;
+        border-color: #979ba5;
+
+        .card-count {
+          background-color: #dcdee5;
+        }
+
+        .card-icon {
+          color: #fff;
+        }
+
+        .icon-mind-fill {
+          color: #ea3636;
+        }
+      }
+    }
+  }
+
+  .trace-main {
+    position: relative;
+    margin-top: 4px;
+    background-color: #fff;
+
+    .bk-tab {
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      background-color: #f5f6fa;
+      
+      .tab-label {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+
+        &:hover {
+          color: #3a84ff;
+        }
+
+        .icon-monitor {
+          margin-right: 4px;
+          font-size: 14px;
+        }
+      }
+
+      .bk-tab-content {
+        display: none;
+      }
+    }
+
+    .tab-panel-content {
+      position: relative;
+      box-sizing: border-box;
+      padding: 0 16px 16px;
+      background-color: #fff;
+
+      .bk-nested-loading {
+        height: 100%;
+      }
+
+      .statistics-container {
+        position: relative;
+        box-sizing: border-box;
+        height: 100%;
+      }
+
+      .bk-loading-wrapper {
+        position: static !important;
+      }
+
+      .bk-exception-description {
+        margin-top: -30px;
+      }
+    }
+
+    .view-tools {
+      position: sticky;
+      top: 42px;
+      z-index: 99;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-height: 48px;
+      padding: 16px; // 16px 第三期不显示工具栏 暂时改为 8px
+      background-color: #fff;
+
+      &.hide-tools {
+        padding: 8px;
+      }
+      
+      .span-kind-filters {
+        white-space: nowrap;
+
+        @include flex-align;
+
+        .label.is-required {
+          position: relative;
+          margin-right: 12px;
+
+          &::after {
+            position: absolute;
+            top: 4px;
+            left: 100%;
+            width: 14px;
+            color: #ea3636;
+            text-align: center;
+            content: '*';
+          }
+        }
+
+        .span-kind-checkbox {
+          .bk-checkbox {
+            margin-left: 16px;
+
+            &:first-child {
+              margin-left: 10px;
+            }
+          }
+
+          .bk-checkbox-label {
+            font-size: 12px;
+            color: #63656e;
+            white-space: nowrap;
+          }
+        }
+
+        &.is-hidden {
+          visibility: hidden;
+        }
+      }
+
+      .compare-legend {
+        display: flex;
+
+        .tag {
+          width: 66px;
+          height: 22px;
+          font-size: 12px;
+          color: #fff;
+          border-radius: 2px;
+
+          @include flex-center;
+
+          &-new {
+            background-color: #46a28c;
+          }
+
+          &-removed {
+            background-color: #d74747;
+          }
+        }
+
+        .percent-queue {
+          margin: 0 4px;
+          border-radius: 2px;
+
+          @include flex-center;
+
+          .percent-tag {
+            width: 40px;
+            height: 22px;
+            font-size: 12px;
+            color: #000;
+
+            @include flex-center;
+
+            @for $i from 1 through 11 {
+              &.tag-#{$i} {
+                background-color: nth($rateColor, $i);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  &.is-table-detail {
+    position: unset;
+
+    .bk-tab-header-setting {
+      padding-right: 0 !important;
+    }
+
+    .trace-view {
+      padding-right: 0;
+    }
+  }
+
+  &.is-fix {
+    .virtualized-trace-view-spans {
+      padding-left: 16px;
+      margin-left: -16px;
+    }
+  }
+
+  .tab-setting {
+    padding-left: 12px;
+    width: 100%;
+    overflow: hidden;
+
+    @include flex-justify(flex-end);
+
+
+    .ellipsis-direction {
+      width: 56px;
+      height: 32px;
+      padding: 0 4px;
+      margin-left: 8px;
+      cursor: pointer;
+      background: #f0f1f5;
+      border-radius: 2px;
+  
+      @include flex-center;
+  
+      .item {
+        width: 24px;
+        height: 24px;
+        font-size: 16px;
+        color: #979ba5;
+        border-radius: 2px;
+  
+        @include flex-center;
+  
+        &.active {
+          color: #3a84ff;
+          background-color: #fff;
+        }
+      }
+    }
+  }
+
+  &.is-sticky {
+    &.is-table-detail {
+      .tab-setting {
+        padding-right: 52px;
+      }
+    }
+
+    .view-tools {
+      box-shadow: 0 1px 2px 0 #0000001f;
+    }
+  }
+
+  .back-top {
+    position: fixed;
+    right: 10px;
+    bottom: 56px;
+    z-index: 100;
+    width: 52px;
+    height: 52px;
+    cursor: pointer;
+    background-color: #3a84ff;
+    border-radius: 50%;
+    
+    @include flex-center;
+
+    .icon-monitor {
+      font-size: 40px;
+      color: #fff;
+    }
+  }
+
+  .trace-main-tab {
+    .bk-tab-header {
+      .bk-tab-header-nav {
+        flex: 1;
+        overflow-x: visible;
+      }
+      .bk-tab-header-setting {
+        flex: 1;
+        overflow: hidden;
+      }
+    }
+  }
+}
+
+.trace-graph-resize {
+  position: fixed;
+  top: 1000px;
+  right: 20px;
+  bottom: 0;
+  z-index: 99;
+  width: 100%;
+  pointer-events: none;
+  visibility: hidden;
+
+  &.is-visibility {
+    visibility: visible;
+  }
+
+  .bk-resize-layout-aside {
+    pointer-events: all;
+    background-color: #fff;
+    border: 0;
+  }
+}

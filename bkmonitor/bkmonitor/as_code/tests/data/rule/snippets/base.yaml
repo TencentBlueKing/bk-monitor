@@ -1,0 +1,19 @@
+labels:
+- 主机
+
+active_time: 06:00 -- 23:59
+
+detect:
+  trigger: 3/5/5
+
+query:
+  data_source: bk_monitor
+  data_type: time_series
+
+notice:
+  signal:
+  - abnormal
+  - recovered
+
+  user_groups:
+  - ops.yaml

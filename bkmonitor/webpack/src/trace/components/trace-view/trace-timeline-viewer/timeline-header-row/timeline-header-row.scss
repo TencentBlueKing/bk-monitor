@@ -1,0 +1,23 @@
+.timeline-header-row {
+  background: #eaebf0;
+  // border-bottom: 1px solid #dcdee5;
+  height: 32px;
+  position: absolute;
+  width: 100%;
+  z-index: 4;
+}
+.ub-flex {
+  display: flex;
+}
+.timeline-header-row-title {
+  padding-left: 10px;
+  flex: 1;
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 32px;
+  font-weight: normal;
+  color: #313238;
+}

@@ -1,0 +1,893 @@
+{
+  "id": "cluster",
+  "type": "detail",
+  "mode": "custom",
+  "name": "Cluster",
+  "variables": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "集群信息",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 2,
+      "title": "",
+      "type": "number-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": "k8s_resource_count",
+          "dataType": "number-chart",
+          "api": "scene_view.getKubernetesObjectCount",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "resources": ["master_node", "work_node", "namespace", "pod", "container"]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "集群资源使用率",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 31,
+      "title": "CPU",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesUsageRatio",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "usage_type": "cpu"
+          }
+        },
+        {
+          "api": "scene_view.getKubernetesPreAllocatableUsageRatio",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "usage_type": "cpu",
+            "scope": "cluster"
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "内存",
+      "gridPos": {
+        "x": 8,
+        "y": 5,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesUsageRatio",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "usage_type": "memory"
+          }
+        },
+        {
+          "api": "scene_view.getKubernetesPreAllocatableUsageRatio",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "usage_type": "memory",
+            "scope": "cluster"
+          }
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "流量",
+      "gridPos": {
+        "x": 16,
+        "y": 5,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "alias": "网卡进流量(avg)",
+          "api": "scene_view.getKubernetesNetworkTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "scope": "cluster",
+            "usage_type": "receive_bytes_total"
+          }
+        },
+        {
+          "alias": "网卡出流量(avg)",
+          "api": "scene_view.getKubernetesNetworkTimeSeries",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "scope": "cluster",
+            "usage_type": "transmit_bytes_total"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "集群资源分析",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 41,
+      "title": "CPU",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesCpuAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          }
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "title": "内存",
+      "gridPos": {
+        "x": 6,
+        "y": 12,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesMemoryAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          }
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "title": "硬盘",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesDiskAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          }
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "title": "使用情况",
+      "gridPos": {
+        "x": 18,
+        "y": 12,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesOverCommitAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "节点资源",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 51,
+      "title": "节点CPU使用率",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesNodeCpuUsage",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "top_n": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "title": "节点内存使用率",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 6,
+        "y": 19,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesNodeMemoryUsage",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "top_n": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "title": "磁盘空间使用率",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 12,
+        "y": 19,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesNodeDiskSpaceUsage",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "top_n": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "title": "磁盘IO使用率",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 18,
+        "y": 19,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesNodeDiskIoUsage",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "top_n": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "工作负载",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 61,
+      "title": "Deployment",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "type": "Deployment"
+          }
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "title": "StatefulSet",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 6,
+        "y": 28,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "type": "StatefulSet"
+          }
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "title": "DaemonSet",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "type": "DaemonSet"
+          }
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "title": "Job",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 18,
+        "y": 28,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "type": "Job"
+          }
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "title": "CPU request / namespace",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesCpuAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "group_by": "namespace",
+            "data_type": "percentage-bar",
+            "usage_type": "requests_cpu_cores",
+            "top_n": 1000
+          }
+        }
+      ]
+    },
+    {
+      "id": 66,
+      "title": "CPU limits / namespace",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 6,
+        "y": 34,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesCpuAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "group_by": "namespace",
+            "data_type": "percentage-bar",
+            "usage_type": "limits_cpu_cores",
+            "top_n": 1000
+          }
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "title": "内存 request / namespace",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 12,
+        "y": 34,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesMemoryAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "group_by": "namespace",
+            "data_type": "percentage-bar",
+            "usage_type": "requests_memory_bytes",
+            "top_n": 1000
+          }
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "title": "内存 limits / namespace",
+      "type": "percentage-bar",
+      "gridPos": {
+        "x": 18,
+        "y": 34,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesMemoryAnalysis",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "group_by": "namespace",
+            "data_type": "percentage-bar",
+            "usage_type": "limits_memory_bytes",
+            "top_n": 1000
+          }
+        }
+      ]
+    }
+  ],
+  "overview_panels": [
+    {
+      "id": 101,
+      "title": "Cluster Resource Info（实时）",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 102,
+      "title": "",
+      "type": "number-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": "k8s_resource_count",
+          "dataType": "number-chart",
+          "api": "scene_view.getKubernetesObjectCount",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "title": "Cluster Control Plane Status（实时）",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 104,
+      "title": "",
+      "type": "icon-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": "k8s_resource_status",
+          "dataType": "icon-chart",
+          "api": "scene_view.getKubernetesControlPlaneStatus",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 110,
+      "title": "集群资源使用率",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 111,
+      "title": "CPU",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesUsageRatio",
+          "data": {
+            "usage_type": "cpu"
+          }
+        },
+        {
+          "api": "scene_view.getKubernetesPreAllocatableUsageRatio",
+          "data": {
+            "usage_type": "cpu",
+            "scope": "cluster"
+          }
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "title": "内存",
+      "gridPos": {
+        "x": 8,
+        "y": 9,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesUsageRatio",
+          "data": {
+            "usage_type": "memory"
+          }
+        },
+        {
+          "api": "scene_view.getKubernetesPreAllocatableUsageRatio",
+          "data": {
+            "usage_type": "memory",
+            "scope": "cluster"
+          }
+        }
+      ]
+    },
+    {
+      "id": 113,
+      "title": "流量",
+      "gridPos": {
+        "x": 16,
+        "y": 9,
+        "w": 8,
+        "h": 6
+      },
+      "type": "graph",
+      "targets": [
+        {
+          "alias": "网卡进流量(avg)",
+          "api": "scene_view.getKubernetesNetworkTimeSeries",
+          "data": {
+            "scope": "cluster",
+            "usage_type": "receive_bytes_total"
+          }
+        },
+        {
+          "alias": "网卡出流量(avg)",
+          "api": "scene_view.getKubernetesNetworkTimeSeries",
+          "data": {
+            "scope": "cluster",
+            "usage_type": "transmit_bytes_total"
+          }
+        }
+      ]
+    },
+    {
+      "id": 120,
+      "title": "工作负载",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 121,
+      "title": "Deployment",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "type": "Deployment"
+          }
+        }
+      ]
+    },
+    {
+      "id": 122,
+      "title": "StatefulSet",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 6,
+        "y": 16,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "type": "StatefulSet"
+          }
+        }
+      ]
+    },
+    {
+      "id": 123,
+      "title": "DaemonSet",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "type": "DaemonSet"
+          }
+        }
+      ]
+    },
+    {
+      "id": 124,
+      "title": "Job",
+      "type": "ratio-ring",
+      "gridPos": {
+        "x": 18,
+        "y": 16,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": "k8s_workload_status",
+          "dataType": "ratio-ring",
+          "api": "scene_view.getKubernetesWorkloadStatus",
+          "data": {
+            "type": "Job"
+          }
+        }
+      ]
+    },
+    {
+      "id": 130,
+      "title": "集群资源分析",
+      "type": "tag-chart",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 131,
+      "title": "CPU",
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesCpuAnalysis",
+          "data": {
+          }
+        }
+      ]
+    },
+    {
+      "id": 132,
+      "title": "内存",
+      "gridPos": {
+        "x": 6,
+        "y": 23,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesMemoryAnalysis",
+          "data": {
+          }
+        }
+      ]
+    },
+    {
+      "id": 133,
+      "title": "硬盘",
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesDiskAnalysis",
+          "data": {
+          }
+        }
+      ]
+    },
+    {
+      "id": 134,
+      "title": "使用情况",
+      "gridPos": {
+        "x": 18,
+        "y": 23,
+        "w": 6,
+        "h": 6
+      },
+      "type": "resource",
+      "targets": [
+        {
+          "api": "scene_view.getKubernetesOverCommitAnalysis",
+          "data": {
+          }
+        }
+      ]
+    }
+  ],
+  "order": [],
+  "options": {
+    "show_panel_count": false,
+    "enable_index_list": true,
+    "panel_tool": {
+      "compare_select": false,
+      "columns_toggle": false,
+      "method_select": false,
+      "interval_select": true,
+      "split_switcher": false
+    },
+    "selector_panel": {
+      "title": "clusters",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": "cluster_list",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesClusterList",
+          "data": {
+            "instance_type": "host",
+            "remove_empty_nodes": false
+          },
+          "fields": {
+            "bcs_cluster_id": "bcs_cluster_id"
+          }
+        }
+      ],
+      "options": {
+        "selector_list": {
+          "query_update_url": true,
+          "status_filter": true,
+          "field_sort": true,
+          "default_sort_field": "-cpu_usage_ratio"
+        }
+      }
+    },
+    "detail_panel": {
+      "title": "Cluster Info",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getKubernetesCluster",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          }
+        }
+      ]
+    }
+  }
+}

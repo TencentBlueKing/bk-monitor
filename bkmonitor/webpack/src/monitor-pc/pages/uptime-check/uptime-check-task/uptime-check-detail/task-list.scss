@@ -1,0 +1,84 @@
+.uptime-check-task-list {
+  height: 100%;
+  overflow: hidden;
+  .task-list-wrap {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .task-list-search-row {
+    display: flex;
+    margin-bottom: 12px;
+    .refresh-btn {
+      margin-left: 2px;
+      width: 32px;
+      min-width: 32px;
+      padding: 0;
+      .icon-shuaxin {
+        font-size: 14px;
+        color: #63656e;
+      }
+    }
+  }
+  .task-list-content {
+    overflow: auto;
+  }
+  .task-item {
+    padding: 0 8px;
+    line-height: 20px;
+    height: 32px;
+    color: #63656e;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    &.active,
+    &:hover {
+      background-color: #e1ecff;
+      border-radius: 2px;
+      color: #3a84ff;
+      &:not(.active) {
+        .add-compared {
+          .add-compared-btn {
+            display: initial;
+          }
+        }
+      }
+    }
+    .add-compared {
+      height: 32px;
+      margin-left: auto;
+      margin-right: 0;
+      padding-left: 16px;
+      padding-right: 8px;
+      display: flex;
+      align-items: center;
+      .add-compared-btn {
+        display: none;
+      }
+    }
+    &.checked-target {
+      .add-compared {
+        .icon-mc-check-small {
+          font-size: 20px;
+          color: #979ba5;
+        }
+      }
+    }
+  }
+  .exception-wrap-item {
+    margin-top: 160px;
+  }
+  .overview-item {
+    height: 32px;
+    line-height: 32px;
+    padding-left: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    &.active {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+  }
+}

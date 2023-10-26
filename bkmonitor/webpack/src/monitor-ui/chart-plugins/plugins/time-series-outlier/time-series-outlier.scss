@@ -1,0 +1,9 @@
+.time-series-outliter {
+  .chart-legend {
+    /* stylelint-disable-next-line declaration-no-important */
+    min-height: 30px !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}

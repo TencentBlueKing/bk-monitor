@@ -1,0 +1,49 @@
+.custom-select-wrap {
+  display: inline-block;
+  position: relative;
+
+  .custom-select-target {
+    &.active {
+      .custom-select-add {
+        border-color: #3a84ff;
+      }
+    }
+
+    .custom-select-add {
+      display: inline-block;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      color: #63656e;
+      transition: border-color .2s ease-in-out;
+
+      .icon-mc-add {
+        font-size: 22px;
+      }
+    }
+  }
+
+  .bk-select-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    opacity: 0;
+    line-height: 22px;
+    pointer-events: none;
+
+    .bk-select-name {
+      height: 22px;
+    }
+  }
+
+  &.dark {
+    
+  }
+}

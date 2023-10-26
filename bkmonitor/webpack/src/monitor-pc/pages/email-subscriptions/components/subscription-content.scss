@@ -1,0 +1,46 @@
+.subscription-content-component {
+  .bk-tab-section {
+    padding: 8px;
+  }
+  .content-tip {
+    color: #63656e;
+    margin-bottom: 16px;
+    .icon-hint {
+      font-size: 16px;
+      margin-right: 8px;
+      margin-top: -2px;
+      position: relative;
+      top: 2px;
+    }
+  }
+  .content-table {
+    margin-top: 10px;
+    .drag-table-wrap {
+      .sortable-chosen {
+        td {
+          background-color: #eef5ff;
+        }
+      }
+    }
+    .icon-drag {
+      display: inline-block;
+      height: 14px;
+      position: relative;
+      cursor: move;
+      &::after {
+        content: " ";
+        height: 14px;
+        width: 2px;
+        position: absolute;
+        top: 0;
+        border-left: 2px dotted #979ba5;
+        border-right: 2px dotted #979ba5;
+      }
+    }
+    .status-loading {
+      width: 14px;
+      height: 14px;
+      background: url(../../../static/images/svg/spinner.svg);
+    }
+  }
+}

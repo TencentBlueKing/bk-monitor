@@ -1,0 +1,9 @@
+{
+  "collector_json": {"windows":{"file_id":1,"filename":"test_plugin.exe", "md5":  "202cb962ac59075b964b07152d234b70"}},
+  "config_json": [
+    {"default":"","description":"","type":"text","mode":"opt_cmd","name":"param_pos_cmd"},
+    {"default":"","description":"","type":"text","mode":"env","name":"params_env"},
+    {"default":"","description":"","type":"text","mode":"opt_cmd","name":"params_opt_cmd"}
+  ],
+  "is_support_remote": false
+}

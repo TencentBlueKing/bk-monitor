@@ -1,0 +1,57 @@
+.fta-navigation-header {
+  display: flex;
+  width: 100vw;
+  height: 50px;
+  align-items: center;
+  background-color: #182132;
+  .nav-header {
+    flex: 0 0 180px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    &-icon {
+      flex: 0 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      font-size: 32px;
+      background-color: #979ba5;
+      margin-left: 10px;
+      border-radius: 2px;
+    }
+    &-title {
+      flex: 1;
+      color: #96a2b9;
+      font-size: 18px;
+      line-height: 24px;
+      margin-left: 8px;
+    }
+  }
+  .nav-list {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 24px 0 46px;
+    color: #96a2b9;
+    font-size: 16px;
+    &-item {
+      padding: 0 40px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      &.nav-active {
+        color: white;
+        background-color: rgba(8,17,34,.8);
+      }
+      &:hover {
+        cursor: pointer;
+        color: white;
+      }
+    }
+  }
+}

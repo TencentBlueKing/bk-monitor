@@ -1,0 +1,1648 @@
+<!--
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
+<template>
+  <div
+    class="monitor-echart-wrap"
+    :style="{ 'background-image': backgroundUrl }"
+    v-bkloading="{ isLoading: loading, zIndex: 2000 }"
+    @mouseenter="showTitleTool = true"
+    @mouseleave="showTitleTool = false"
+  >
+    <div
+      class="echart-header"
+      v-if="chartTitle || $slots.title"
+    >
+      <chart-title
+        class="chart-title-wrap"
+        :title="chartTitle"
+        :subtitle="chartSubTitle"
+        :menu-list="chartOption.tool.list"
+        :show-more="!readonly && showTitleTool"
+        @menuClick="handleMoreToolItemSet"
+        @selectChild="handleSelectChildMenu"
+      />
+    </div>
+    <div
+      class="chart-wrapper-echarts"
+      tabindex="-1"
+      ref="charWrapRef"
+      :style="{
+        flexDirection: !chartOption.legend.toTheRight ? 'column' : 'row',
+        minHeight: chartWrapHeight + 'px',
+        maxHeight: chartWrapHeight + 'px'
+      }"
+      @blur="handleCharBlur"
+    >
+      <div
+        v-if="!noData"
+        class="echart-instance-wrap"
+        :style="{ height: chartHeight + 'px' }"
+      >
+        <div
+          @dblclick.prevent="handleChartDblClick"
+          @click.stop="handleChartClick"
+          class="echart-instance"
+          ref="chartRef"
+        >
+          <status-chart
+            v-if="chartType === 'status'"
+            :series="statusSeries"
+          />
+          <text-chart
+            v-else-if="chartType === 'text'"
+            :series="textSeries"
+          />
+          <table-chart
+            v-else-if="chartType === 'table'"
+            :series="tableSeries"
+            :max-height="chartHeight + 'px'"
+          />
+        </div>
+        <span
+          v-if="showRestore"
+          class="chart-restore"
+          @click="handleChartRestore"
+        >
+          {{ $t('复位') }}
+        </span>
+      </div>
+      <div
+        v-if="!noData"
+        :style="{
+          maxHeight: (chartOption.legend.toTheRight ? chartHeight : chartOption.legend.maxHeight) + 'px'
+        }"
+        class="echart-legend"
+      >
+        <chart-legend
+          :legend-data="legend.list"
+          :to-the-right="chartOption.legend.toTheRight"
+          :legend-type="chartOption.legend.asTable ? 'table' : 'common'"
+          @legend-event="handleLegendEvent"
+          v-if="legend.show"
+        />
+      </div>
+      <div
+        class="echart-pie-center"
+        v-if="chartType === 'pie'"
+      >
+        <slot name="chartCenter" />
+      </div>
+      <chart-annotation
+        v-if="!readonly && chartOption.annotation.show"
+        :annotation="annotation"
+      />
+    </div>
+    <div
+      v-if="setNoData"
+      class="echart-content"
+      v-show="noData"
+    >
+      <slot name="noData">
+        {{ emptyText }}
+      </slot>
+    </div>
+    <div
+      v-if="scatterTips.show && hasTraceInfo"
+      class="scatter-tips"
+      :style="{
+        left: `${scatterTips.left}px`,
+        top: `${scatterTips.top}px`
+      }"
+      ref="scatterTipsRef"
+      v-bk-clickoutside="handleScatterTipOutside"
+    >
+      <div class="time">
+        {{ scatterTips.data.time }}
+      </div>
+      <div
+        class="info-item"
+        v-for="(item, index) in scatterTips.data.list"
+        :key="index"
+      >
+        <span class="label">{{ item.label }}: </span>
+        <span
+          class="content"
+          v-if="item.type === 'link'"
+        >
+          <span
+            :class="['link', { pointer: item.label === 'traceID' }]"
+            @click="() => handleTraceLink(item)"
+          >
+            {{ item.content }}
+          </span>
+          <span
+            class="icon-monitor copy icon-mc-copy"
+            @click="() => handleCopy(item.content)"
+          />
+        </span>
+        <span v-else-if="item.type === 'string'">
+          {{ item.content }}
+        </span>
+      </div>
+      <div class="bottom">
+        <span
+          class="point"
+          :style="{ background: scatterTips.data.target.color }"
+        />
+        <span class="label">{{ scatterTips.data.target.label }}</span>
+      </div>
+    </div>
+    <span
+      class="is-error"
+      v-if="errorMsg"
+      v-bk-tooltips="{ content: errorMsg, placement: 'top-start', extCls: 'monitor-wrapper-error-tooltip' }"
+    />
+    <div
+      v-if="hasResize"
+      class="chart-resize-line"
+      @mousedown="handleResize"
+    />
+
+    <div
+      v-if="hasTable"
+      class="chart-table-box"
+    >
+      <div class="chart-table-title">
+        <span>{{ $t('原始数据') }}</span>
+        <span class="title-count">{{ $t('共 {num} 条', { num: tableData?.length || 0 }) }}</span>
+        <bk-button
+          class="export-csv-btn"
+          size="small"
+          @click="handleExportCsv"
+        >
+          {{ $t('导出CSV') }}
+        </bk-button>
+      </div>
+
+      <bk-table
+        class="chart-table"
+        :data="tableData"
+        :height="tableHeight"
+        :virtual-render="{
+          lineHeight: 32
+        }"
+      >
+        <bk-table-column
+          prop="date"
+          min-width="180"
+          :label="$t('时间')"
+        />
+        <bk-table-column
+          v-for="item of seriesData"
+          :key="item.target"
+          :label="item.target"
+          :prop="item.target"
+          sortable
+          min-width="120"
+        >
+          <template #default="{ row }">
+            {{ row[item.target] }}
+          </template>
+        </bk-table-column>
+      </bk-table>
+    </div>
+  </div>
+</template>
+<script lang="ts">
+import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import deepMerge from 'deepmerge';
+import Echarts, { EChartOption } from 'echarts';
+import { toBlob, toPng } from 'html-to-image';
+import moment from 'moment';
+import { addListener, removeListener, ResizeCallback } from 'resize-detector';
+import { debounce } from 'throttle-debounce';
+
+import { traceListById } from '../../monitor-api/modules/apm_trace';
+import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
+import {
+  downCsvFile,
+  IUnifyQuerySeriesItem,
+  transformSrcData,
+  transformTableDataToCsvStr
+} from '../../monitor-pc/pages/view-detail/utils';
+import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
+
+import ChartAnnotation from './components/chart-annotation.vue';
+import ChartLegend from './components/chart-legend.vue';
+import ChartTools from './components/chart-tools.vue';
+import StatusChart from './components/status-chart.vue';
+import TableChart from './components/table-chart';
+import TextChart from './components/text-chart.vue';
+import { colorList } from './options/constant';
+import EchartOptions from './options/echart-options';
+import {
+  ChartType,
+  IAnnotation,
+  ILegendItem,
+  IMoreToolItem,
+  IStatusChartOption,
+  IStatusSeries,
+  ITableSeries,
+  ITextChartOption,
+  ITextSeries
+} from './options/type-interface';
+import watermarkMaker from './utils/watermarkMaker';
+import { getValueFormat } from './valueFormats';
+
+interface ICurValue {
+  xAxis: string | number;
+  yAxis: string | number;
+  dataIndex: number;
+  color: string;
+  name: string;
+  seriesIndex: number;
+  seriesType?: string;
+}
+// eslint-disable-next-line camelcase
+interface IAlarmStatus {
+  status: number;
+  alert_number: number;
+  strategy_number: number;
+}
+@Component({
+  name: 'monitor-echarts',
+  components: {
+    ChartLegend,
+    ChartTools,
+    ChartAnnotation,
+    StatusChart,
+    TextChart,
+    ChartTitle,
+    TableChart
+  }
+})
+export default class MonitorEcharts extends Vue {
+  @Ref() readonly chartRef!: HTMLDivElement;
+  @Ref() readonly charWrapRef!: HTMLDivElement;
+
+  // echarts配置项
+  @Prop() readonly options: Echarts.EChartOption | IStatusChartOption | ITextChartOption;
+  // 是否自动resize
+  @Prop({ default: true }) readonly autoresize: boolean;
+  // 是否需要设置全屏
+  @Prop({ default: true }) readonly needFullScreen: boolean;
+  // 当前业务id （用于告警详情视图信息）
+  @Prop({ default: '' }) readonly curBizId: string;
+  // 是有fullscreen递归
+  @Prop({ default: true }) readonly needChild: boolean;
+  // echarts配置项是否深度监听
+  @Prop({ default: true }) readonly watchOptionsDeep: boolean;
+  // 是使用组件内的无数据设置
+  @Prop({ default: true }) readonly setNoData: boolean;
+  // 图表刷新间隔
+  @Prop({ default: 0 }) readonly refleshInterval: number;
+  @Prop({ default: '' }) readonly subtitle: string;
+  // 图表类型
+  @Prop({ default: 'line' }) readonly chartType: ChartType;
+  // 图表title
+  @Prop({ default: '' }) readonly title: string;
+  @Prop({ default: '', type: String }) readonly errorMsg: string;
+  // 图表系列数据
+  @Prop() readonly series: EChartOption.SeriesLine | EChartOption.SeriesBar | IStatusSeries | ITextSeries;
+
+  // 背景图
+  @Prop({
+    type: String,
+    default() {
+      return window.graph_watermark ? `url('${watermarkMaker(window.user_name || window.username)}')` : '';
+    }
+  })
+    backgroundUrl: String;
+
+  // 获取图标数据
+  @Prop() getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<any[]>;
+  // 获取指标告警状态信息
+  @Prop() getAlarmStatus: (param: any) => Promise<IAlarmStatus>;
+
+  @Prop({
+    default: () => colorList
+  })
+  // 图标系列颜色集合
+    colors: string[];
+
+  @Prop({
+    default() {
+      return this.$t('查无数据');
+    }
+  })
+    emptyText: string;
+
+  /* line chart 是否包含trace信息散点图 */
+  @Prop({ type: Boolean, default: false }) hasTraceInfo: boolean;
+
+  // 图表高度
+  @Prop({ default: 310, type: [Number, String] }) height: number | string;
+  @Prop({ default: 1, type: [Number, String] }) lineWidth: number;
+  // 是否需要展示头部工具栏
+  @Prop({ default: false, type: Boolean }) needTools: boolean;
+  /** 分组id */
+  @Prop({ type: String }) groupId: string;
+  /* 调用trace接口需要传入时间范围 */
+  @Prop({ type: Object, default: () => ({}) }) traceInfoTimeRange: { start_time: number; end_time: number };
+  /** 是否需要高度拉伸功能 */
+  @Prop({ type: Boolean, default: false }) hasResize: boolean;
+  /** 是否需要图表表格功能 */
+  @Prop({ type: Boolean, default: false }) hasTable: boolean;
+  @InjectReactive('readonly') readonly readonly: boolean;
+  // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
+  @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+  @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: string[]) => void;
+  @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
+  // chart: Echarts.ECharts = null
+  resizeHandler: ResizeCallback<HTMLDivElement>;
+  unwatchOptions: () => void;
+  unwatchSeries: () => void;
+  needObserver = true;
+  intersectionObserver: IntersectionObserver = null;
+  loading = false;
+  noData = false;
+  timeRange: string[] = [];
+  chartTitle = '';
+  isFullScreen = false;
+  childProps = {};
+  annotation: IAnnotation = { x: 0, y: 0, show: false, title: '', name: '', color: '', list: [] };
+  curValue: ICurValue = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1, seriesType: '' };
+  chartSubTitle = '';
+  chartOptionInstance = null;
+  hasInitChart = false;
+  refleshIntervalInstance = 0;
+  legend: { show: boolean; list: ILegendItem[] } = {
+    show: false,
+    list: []
+  };
+  textSeries: ITextSeries = {}; // status图表数据
+  tableSeries: ITableSeries = {}; // table图表数据
+  curChartOption: any;
+  statusSeries: IStatusSeries[] = []; // status图表数据
+  chart = null;
+  localChartHeight = 0; //
+  clickTimer = null;
+  showTitleTool = false;
+  extendMetricData: any = null;
+  alarmStatus: IAlarmStatus = { status: 0, alert_number: 0, strategy_number: 0 };
+  // tooltips大小 [width, height]
+  tooltipSize: number[];
+  // tableToolSize
+  tableToolSize = 0;
+  tableHeight = 0;
+  /** 导出csv数据时候使用 */
+  seriesData: IUnifyQuerySeriesItem[] = [];
+  /*  */
+  scatterTips = {
+    show: false,
+    top: 100,
+    left: 0,
+    data: {
+      time: '',
+      list: [],
+      target: {
+        color: 'red',
+        label: 'CPU: 0.99'
+      }
+    }
+  };
+  /* 是否展示复位按钮 */
+  showRestore = false;
+  /** 图表拉伸记录 */
+  drawRecord = {
+    /** 上一次Y轴坐标 */
+    lastY: 0,
+    // 是否处于移动中
+    moving: false
+  };
+  // 监控图表默认配置
+  get defaultOptions() {
+    if (this.chartType === 'bar' || this.chartType === 'line') {
+      return {
+        tooltip: {
+          axisPointer: {
+            axis: 'auto',
+            type: 'cross',
+            label: {
+              show: false,
+              formatter: (params) => {
+                if (this.chartType !== 'line') return;
+                if (params.axisDimension === 'y') {
+                  this.curValue.yAxis = params.value;
+                } else {
+                  this.curValue.xAxis = params.value;
+                  this.curValue.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
+                }
+              }
+            },
+            crossStyle: {
+              opacity: 0,
+              width: 0,
+              color: 'transparent'
+            }
+          },
+          formatter: this.handleSetTooltip,
+          appendToBody: true,
+          position: (pos, params, dom, rect, size: any) => {
+            const { contentSize } = size;
+            const chartRect = this.$el.getBoundingClientRect();
+            const posRect = {
+              y: chartRect.y + +pos[1],
+              x: chartRect.x + +pos[0]
+            };
+            const position = {
+              top: 0,
+              left: 0
+            };
+            const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
+            if (canSetBootom) {
+              position.top = +pos[1] - Math.min(20, canSetBootom);
+            } else {
+              position.top = +pos[1] + canSetBootom - 20;
+            }
+            const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
+            if (canSetLeft) {
+              position.left = +pos[0] + Math.min(20, canSetLeft);
+            } else {
+              position.left = +pos[0] - contentSize[0] - 20;
+            }
+            if (contentSize[0]) this.tooltipSize = contentSize;
+            return position;
+          }
+        }
+      };
+    }
+    return {};
+  }
+  get chartOption(): any {
+    return deepMerge(
+      {
+        legend: {
+          asTable: false, // 是否转换为table图例
+          toTheRight: false, // 图例位置在右侧
+          maxHeight: 30 // 图例最大高度 只对toTheRight为false有效
+        },
+        tool: {
+          show: true, // 工具栏是否显示
+          moreList: ['explore', 'set', 'strategy', 'area'], // 要显示的多工具栏的配置id 空数组则为不显示
+          list: ['save', 'screenshot', 'fullscreen', 'explore', 'set', 'strategy', 'area', 'relate-alert']
+        },
+        annotation: {
+          show: false, // 是否显示annotation
+          list: ['ip', 'process', 'strategy'] // 要显示的anotation配置id 空数组则为不显示
+        }
+      },
+      (this.options || {}) as any,
+      {
+        arrayMerge: (destinationArray, sourceArray) => sourceArray
+      }
+    );
+  }
+  get chartWrapHeight() {
+    let { localChartHeight } = this;
+    if (this.chartTitle) {
+      localChartHeight = Number(localChartHeight) - 36;
+    }
+    if (this.hasResize) {
+      localChartHeight = Number(localChartHeight) - 10;
+    }
+    return localChartHeight;
+  }
+  get chartHeight() {
+    let { chartWrapHeight } = this;
+    if (!this.chartOption.legend.toTheRight && this.legend.show) {
+      chartWrapHeight = Number(chartWrapHeight) - this.chartOption.legend.maxHeight;
+    }
+    return chartWrapHeight;
+  }
+  get isEchartsRender() {
+    return !['status', 'text', 'table'].includes(this.chartType);
+  }
+
+  get tableData() {
+    /** { time: 各个图表在同一时间点的值 } */
+    const data: { [key: string]: { [key: string]: number } } = this.seriesData.reduce((pre, cur) => {
+      cur.datapoints.forEach((item) => {
+        pre[item[1]] = { ...pre[item[1]], [cur.target]: item[0] };
+      });
+      return pre;
+    }, {});
+    return Object.entries(data).map(([time, columnData]) => {
+      return {
+        date: moment(Number(time)).format('YYYY-MM-DD HH:mm:ss'),
+        ...columnData
+      };
+    });
+  }
+
+  @Watch('chartTy')
+  @Watch('height', { immediate: true })
+  onHeightChange(val) {
+    this.localChartHeight = val ?? 0;
+  }
+  @Watch('localChartHeight')
+  onLocalChartHeightChange() {
+    this?.chart?.resize?.();
+  }
+  @Watch('refleshInterval', { immediate: true })
+  onRefleshIntervalChange(v) {
+    if (this.refleshIntervalInstance) {
+      window.clearInterval(this.refleshIntervalInstance);
+    }
+    if (v <= 0 || !this.getSeriesData) return;
+    this.refleshIntervalInstance = window.setInterval(() => {
+      // 上次接口未返回时不执行请求
+      !this.loading && this.chart && this.handleSeriesData();
+    }, this.refleshInterval);
+  }
+  @Watch('series')
+  onSeriesChange(v) {
+    this.handleSetChartData(deepMerge({}, { series: v }));
+  }
+  @Watch('showRestoreInject', { immediate: true })
+  handleShowRestoreInject(v: boolean) {
+    this.showRestore = v;
+  }
+
+  mounted() {
+    if (this.series) {
+      this.initChart();
+      this.handleSetChartData(deepMerge({}, { series: this.series }));
+    } else if (this.chartOption?.series?.length) {
+      this.initChart();
+      this.handleSetChartData(deepMerge({}, this.chartOption));
+    }
+    if (this.getSeriesData) {
+      this.registerObserver();
+      this.intersectionObserver.observe(this.$el);
+    }
+  }
+
+  activated() {
+    this.onRefleshIntervalChange(this.refleshInterval);
+    if (this.autoresize) {
+      this.chart?.resize?.();
+    }
+  }
+  deactivated() {
+    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+  }
+  beforeDestroy() {
+    this.timeRange = [];
+    this.unwatchSeries?.();
+    this.unwatchOptions?.();
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.$el);
+      this.intersectionObserver.disconnect();
+    }
+    this.annotation.show = false;
+    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+  }
+  destroyed() {
+    this.chart && this.destroy();
+    document.removeEventListener('mousemove', this.documentMousemove);
+    document.removeEventListener('mouseup', this.documentMouseup);
+  }
+
+  /** 图表拉伸 */
+  documentMousemove(e) {
+    this.drawRecord.moving = true;
+    this.localChartHeight += e.clientY - this.drawRecord.lastY;
+    this.drawRecord.lastY = e.clientY;
+  }
+  /** 拉伸停止 */
+  documentMouseup() {
+    this.drawRecord.moving = false;
+    document.removeEventListener('mousemove', this.documentMousemove);
+    document.removeEventListener('mouseup', this.documentMouseup);
+  }
+  handleResize(e) {
+    this.drawRecord.lastY = e.clientY;
+    document.addEventListener('mousemove', this.documentMousemove);
+    document.addEventListener('mouseup', this.documentMouseup);
+  }
+
+  /** 初始化图表表格高度 */
+  initTableHeight() {
+    // 只会获取一次高度
+    if (this.tableHeight !== 0) return;
+    this.$nextTick(() => {
+      const listHeight = (document.querySelector('.dashboard-panels-list') as HTMLDivElement)?.offsetHeight;
+      const headerHeight = (document.querySelector('.echart-header') as HTMLDivElement)?.offsetHeight;
+      const resizeLineHeight = (document.querySelector('.chart-resize-line') as HTMLDivElement)?.offsetHeight;
+      const chartTableTitle = (document.querySelector('.chart-table-title') as HTMLDivElement)?.offsetHeight;
+      // 35： margin + padding + border
+      this.tableHeight = listHeight - headerHeight - resizeLineHeight - this.chartWrapHeight - chartTableTitle - 36;
+    });
+  }
+
+  initChart() {
+    this.initTableHeight();
+    this.chartTitle = this.title;
+    this.chartSubTitle = this.subtitle;
+    if (this.isEchartsRender && this.chartRef) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const echarts = require('echarts');
+      if (this.chartType === 'map') {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('./map/china');
+      }
+      const chart: any = echarts.init(this.chartRef);
+      this.chart = chart;
+      this.groupId && (this.chart.group = this.groupId);
+      if (this.autoresize) {
+        const handler = debounce(300, false, () => this.resize());
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        this.resizeHandler = async () => {
+          await this.$nextTick();
+          this.chartRef?.offsetParent !== null && handler();
+        };
+        addListener(this.chartRef, this.resizeHandler);
+      }
+    }
+    this.initPropsWatcher();
+  }
+  // 注册Intersection监听
+  registerObserver(): void {
+    this.intersectionObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (this.needObserver) {
+          if (entry.intersectionRatio > 0) {
+            this.handleSeriesData();
+          } else {
+            // 解决临界点、慢滑不加载数据问题
+            const { top, bottom } = this.$el.getBoundingClientRect();
+            if (top === 0 && bottom === 0) return;
+            const { innerHeight } = window;
+            const isVisiable = (top > 0 && top <= innerHeight) || (bottom >= 0 && bottom < innerHeight);
+            isVisiable && this.handleSeriesData();
+          }
+        }
+      });
+    });
+  }
+  // 获取seriesData
+  async handleSeriesData(startTime?: string, endTime?: string) {
+    this.loading = true;
+    if (this.chartType === 'line' && !this.enableSelectionRestoreAll) {
+      this.showRestore = !!startTime;
+    }
+    this.intersectionObserver?.unobserve?.(this.$el);
+    this.intersectionObserver?.disconnect?.();
+    this.needObserver = false;
+    try {
+      const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
+      const data = await this.getSeriesData(startTime, endTime, isRange).catch((e) => {
+        console.info(e);
+        return [];
+      });
+      this.seriesData = [...data];
+      !this.chart && this.initChart();
+      if (!this.isEchartsRender || Array.isArray(data)) {
+        await this.handleSetChartData(data);
+      } else {
+        this.noData = true;
+      }
+    } catch (e) {
+      console.info(e);
+      this.noData = true;
+    } finally {
+      this.chartTitle = this.title;
+      this.chartSubTitle = this.subtitle;
+      this.loading = false;
+    }
+  }
+  handleTransformSeries(data) {
+    if (data?.series) {
+      return data;
+    }
+    const mapData = {};
+    return {
+      series: data?.map(({ datapoints, target, ...item }) => {
+        mapData[target] !== undefined ? (mapData[target] += 1) : (mapData[target] = 0);
+        return {
+          ...item,
+          data: datapoints.map(set => (Array.isArray(set) ? set.slice().reverse() : [])),
+          name: !mapData[target] ? target : target + mapData[target],
+          symbolSize: 6,
+          showSymbol: false // 默认不显示点，只有hover时候显示该点
+        };
+      })
+    };
+  }
+  // 设置chart配置
+  async handleSetChartData(data) {
+    return new Promise((resolve) => {
+      if (!this.chart) {
+        this.initChart();
+      }
+      if (this.isEchartsRender) {
+        const series: any = deepMerge([], data || []);
+        const hasSeries =          (series && series.length > 0 && series.some(item => item?.datapoints?.length))
+          || (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+        if (!hasSeries) {
+          this.noData = !hasSeries;
+          resolve(undefined);
+          return;
+        }
+        const realSeries = Object.prototype.hasOwnProperty.call(series, 'series') ? series.series : series;
+        if (this.chartType === 'line' && realSeries[0]?.metric) {
+          const [
+            {
+              metric: { metric_field: metricFiled, extend_data: extendData }
+            }
+          ] = realSeries;
+          // 获取图表的指标信息 多指标情况下不显示
+          const hasExtendMetricData = extendData && realSeries.every(item => item?.metric?.metric_field === metricFiled);
+          this.extendMetricData = hasExtendMetricData ? extendData : null;
+          if (hasExtendMetricData && typeof this.getAlarmStatus === 'function') {
+            this.getAlarmStatus(extendData.metric_id)
+              .then(status => (this.alarmStatus = status))
+              .catch(() => (this.alarmStatus = { status: 0, alert_number: 0, strategy_number: 0 }));
+          }
+        }
+        this.chartOptionInstance = new EchartOptions({
+          lineWidth: this.lineWidth,
+          chartType: this.chartType,
+          colors: this.colors,
+          showExtremum: this.chartOption.legend.asTable,
+          chartOption: this.chartOption
+        });
+        const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(series), {});
+        if (['bar', 'line'].includes(this.chartType)) {
+          this.legend.show = hasSeries && optionData.legendData.length > 0;
+        } else {
+          // eslint-disable-next-line no-nested-ternary
+          this.legend.show = optionData.options.lengend
+            ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+              ? optionData.options.lengend.show
+              : true
+            : false;
+        }
+        this.legend.list = optionData.legendData || [];
+        if (this.chartOption.grid) {
+          optionData.options.grid.bottom = (this.chartOption.grid as EChartOption.Grid).bottom;
+        }
+        setTimeout(() => {
+          if (this.chart) {
+            let options = deepMerge(optionData.options, this.defaultOptions) as EChartOption;
+            const width = (this.$refs?.chartRef as any)?.clientWidth;
+            if (['line', 'bar'].includes(this.chartType) && width) {
+              options = deepMerge(options, {
+                xAxis: {
+                  splitNumber: Math.ceil(width / 100),
+                  min: 'dataMin'
+                }
+              });
+            }
+            this.chart.setOption(options, {
+              notMerge: true,
+              lazyUpdate: false,
+              silent: false
+            });
+            if (!this.hasInitChart) {
+              this.hasInitChart = true;
+              if (optionData.options.toolbox) {
+                this.initChartAction();
+                this.chart.on('dataZoom', async (event) => {
+                  if (this.showTitleTool) {
+                    this.loading = true;
+                    const [batch] = event.batch;
+                    if (batch.startValue && batch.endValue) {
+                      const timeFrom = moment(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      const timeTo = moment(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      this.timeRange = [timeFrom, timeTo];
+                      if (this.getSeriesData) {
+                        this.chart.dispatchAction({
+                          type: 'restore'
+                        });
+                        if (this.enableSelectionRestoreAll) {
+                          this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
+                        } else {
+                          await this.handleSeriesData(timeFrom, timeTo);
+                        }
+                      }
+                      this.$emit('data-zoom', this.timeRange);
+                    }
+                    this.loading = false;
+                  } else {
+                    this.chart.dispatchAction({
+                      type: 'restore'
+                    });
+                  }
+                });
+              }
+              this.initChartEvent();
+            }
+            this.noData = !hasSeries;
+            resolve(undefined);
+            this.curChartOption = Object.freeze(Object.assign({}, this.chart.getOption()));
+          }
+        }, 320);
+      } else if (this.chartType === 'status') {
+        this.statusSeries = data || [];
+        this.curChartOption = {};
+        resolve(undefined);
+      } else if (this.chartType === 'text') {
+        const setData = Array.isArray(data) ? data[0] : data;
+        const datapoints = setData?.datapoints || [''];
+        const [value] = datapoints[datapoints.length - 1];
+        const formater = getValueFormat(setData?.unit || '')(+value);
+        this.textSeries = {
+          value: +formater.text || '',
+          unit: formater.suffix
+        };
+        this.curChartOption = {};
+        resolve(undefined);
+      } else if (this.chartType === 'table') {
+        this.tableSeries = data[0] || {
+          columns: [
+            { text: 'time', type: 'time' },
+            { text: 'content', type: 'string' }
+          ],
+          rows: []
+        };
+        this.curChartOption = {};
+        resolve(undefined);
+      }
+    });
+  }
+  // 设置tooltip
+  handleSetTooltip(params) {
+    if (!this.showTitleTool) return undefined;
+    if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
+      this.chartType === 'line'
+        && (this.curValue = {
+          color: '',
+          name: '',
+          seriesIndex: -1,
+          dataIndex: -1,
+          xAxis: '',
+          yAxis: ''
+        });
+      return;
+    }
+    const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const data = params
+      .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
+      .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
+    const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
+    const liHtmls = list
+      .slice(0, 50)
+      .sort((a, b) => b.value[1] - a.value[1])
+      .map((item) => {
+        let markColor = 'color: #fafbfd;';
+        if (data[0].value === item.value[1]) {
+          markColor = 'color: #ffffff;font-weight: bold;';
+          this.chartType === 'line'
+            && (this.curValue = {
+              color: item.color,
+              name: item.seriesName,
+              seriesIndex: item.seriesIndex,
+              dataIndex: item.dataIndex,
+              xAxis: item.value[0],
+              yAxis: item.value[1],
+              seriesType: params.seriesType
+            });
+        }
+        if (item.value[1] === null) return '';
+        const curSeries = this.curChartOption.series[item.seriesIndex];
+        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const minBase = curSeries.minBase || 0;
+        const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
+        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        return `<li class="tooltips-content-item">
+                <span class="item-series"
+                 style="background-color:${item.color};">
+                </span>
+                <span class="item-name" style="${markColor}">${item.seriesName}:</span>
+                <span class="item-value" style="${markColor}">
+                ${valueObj.text} ${valueObj.suffix || ''}</span>
+                </li>`;
+      });
+    if (liHtmls?.length < 1) return '';
+    // 如果超出屏幕高度，则分列展示
+    let ulStyle = '';
+    const maxLen = Math.ceil((window.innerHeight - 100) / 20);
+    if (list.length > maxLen && this.tooltipSize) {
+      const cols = Math.ceil(list.length / maxLen);
+      this.tableToolSize = this.tableToolSize ? Math.min(this.tableToolSize, this.tooltipSize[0]) : this.tooltipSize[0];
+      ulStyle = `display:flex; flex-wrap:wrap; width: ${5 + cols * this.tableToolSize}px;`;
+    }
+    const hasTrace = params.some(item => item.seriesName === 'bk_trace_value' && item.seriesType === 'scatter');
+    /* 如果包含trace散点则不出现tooltip */
+    if (hasTrace || (this.hasTraceInfo && this.scatterTips.show)) {
+      return '';
+    }
+    return `<div class="monitor-chart-tooltips">
+            <p class="tooltips-header">
+                ${pointTime}
+            </p>
+            <ul class="tooltips-content" style="${ulStyle}">
+                ${liHtmls?.join('')}
+            </ul>
+            </div>`;
+  }
+  // 双击触发重置选择数据
+  handleChartDblClick() {
+    clearTimeout(this.clickTimer);
+    if (this.timeRange.length > 0) {
+      this.timeRange = [];
+      this.chart.dispatchAction({
+        type: 'restore'
+      });
+      this.getSeriesData
+        && setTimeout(() => {
+          this.handleSeriesData();
+        }, 100);
+    }
+    this.$emit('dblclick');
+  }
+  /* 复位 */
+  handleChartRestore() {
+    if (this.enableSelectionRestoreAll) {
+      this.handleRestoreEvent();
+    } else {
+      this.handleChartDblClick();
+    }
+  }
+
+  // 单击图表触发
+  handleChartClick() {
+    clearTimeout(this.clickTimer);
+    this.clickTimer = setTimeout(() => {
+      this.$emit('click');
+      if (!this.chartOption.annotation.show) {
+        return;
+      }
+      if (this.chartType === 'line' && this.chart && this.curValue.dataIndex >= 0) {
+        const { series } = this.chart.getOption() as any;
+        if (series?.length) {
+          const setPixel = this.chart.convertToPixel({ seriesIndex: this.curValue.seriesIndex }, [
+            this.curValue.xAxis,
+            this.curValue.yAxis
+          ]);
+          const { dimensions = {}, metric = {} } = series[this.curValue.seriesIndex];
+          const { annotation } = this.chartOption;
+          const chartWidth = this.chart.getWidth();
+          const fineTuning = -10;
+          this.annotation = {
+            x: setPixel[0] + fineTuning + 220 > chartWidth ? setPixel[0] - fineTuning - 220 : setPixel[0] + fineTuning,
+            y: setPixel[1] + 5,
+            title: moment(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+            name: this.curValue.name,
+            color: this.curValue.color,
+            show: true,
+            list: [
+              {
+                id: 'ip',
+                show: annotation.list.includes('ip') && !!dimensions.bk_target_ip,
+                value: `${dimensions.bk_target_ip}${
+                  dimensions.bk_target_cloud_id ? `-${dimensions.bk_target_cloud_id}` : ''
+                }`
+              },
+              {
+                id: 'process',
+                show: annotation.list.includes('process') && (!!dimensions.process_name || !!dimensions.display_name),
+                value: {
+                  processId: dimensions.process_name || dimensions.display_name || '',
+                  id: `${dimensions.bk_target_ip}-${dimensions.bk_target_cloud_id}`
+                }
+              },
+              {
+                id: 'strategy',
+                show: annotation.list.includes('strategy') && !!metric.metric_field,
+                value: `${metric.result_table_id}.${metric.metric_field}`
+              }
+            ]
+          };
+          this.charWrapRef.focus();
+          this.chart.dispatchAction({ type: 'hideTip' });
+        }
+      } else {
+        this.annotation.show = false;
+      }
+    }, 300);
+  }
+  // 点击更多工具栏触发
+  handleMoreToolItemSet(item: IMoreToolItem) {
+    switch (item.id) {
+      case 'save':
+        this.handleCollectChart();
+        break;
+      case 'screenshot':
+        this.handleStoreImage();
+        break;
+      case 'fullscreen':
+        this.handleFullScreen();
+        break;
+      case 'area':
+        this.handleTransformArea(item.checked);
+        break;
+      case 'set':
+        this.handleSetYAxisSetScale(!item.checked);
+        break;
+      case 'explore':
+        this.handleExplore();
+        break;
+      case 'strategy':
+        this.handleAddStrategy();
+        break;
+      case 'relate-alert':
+        this.$emit('relate-alert');
+      default:
+        break;
+    }
+  }
+  /**
+   * 点击更多菜单的子菜单
+   * @param data 菜单数据
+   */
+  handleSelectChildMenu(data) {
+    switch (data.menu.id) {
+      case 'more' /** 更多操作 */:
+        if (data.child.id === 'screenshot') {
+          /** 截图 */
+          setTimeout(() => {
+            this.handleStoreImage();
+          }, 300);
+        } else if (data.child.id === 'export-csv') {
+          /** 导出csv */
+          this.handleExportCsv();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  /**
+   * 根据图表接口响应数据下载csv文件
+   */
+  handleExportCsv() {
+    if (!!this.seriesData?.length) {
+      const { tableThArr, tableTdArr } = transformSrcData(this.seriesData);
+      const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
+      downCsvFile(csvString, this.title);
+    }
+  }
+  // 点击title 告警图标跳转
+  handleTitleAlarmClick() {
+    switch (this.alarmStatus.status) {
+      case 0:
+        this.handleAddStrategy();
+        break;
+      case 1:
+        // eslint-disable-next-line vue/max-len
+        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${this.extendMetricData.metric_id}`));
+        break;
+      case 2:
+        // eslint-disable-next-line vue/max-len
+        window.open(location.href.replace(location.hash, `#/event-center?metricId=${this.extendMetricData.metric_id}`));
+        break;
+    }
+  }
+  handleSetYAxisSetScale(needScale) {
+    this.$emit('on-yaxis-set-scale', needScale);
+    if (this.chartType === 'line' && this.chart) {
+      const options = this.chart.getOption();
+      this.chart.setOption({
+        ...options,
+        yAxis: {
+          scale: needScale,
+          min: needScale ? 'dataMin' : 0
+        }
+      });
+    }
+  }
+  handleTransformArea(isArea: boolean) {
+    this.$emit('on-transform-area', isArea);
+    if (this.chartType === 'line' && this.chart) {
+      const options = this.chart.getOption();
+      this.chart.setOption({
+        ...options,
+        series: options.series.map((item, index) => ({
+          ...item,
+          areaStyle: {
+            color: isArea ? hexToRgbA(this.colors[index % this.colors.length], 0.2) : 'transparent'
+          }
+        }))
+      });
+    }
+  }
+  handleExplore() {
+    this.$emit('export-data-retrieval');
+  }
+  handleAddStrategy() {
+    this.$emit('add-strategy');
+  }
+  handleCharBlur() {
+    this.annotation.show = false;
+  }
+
+  handleLegendEvent({ actionType, item }: { actionType: string; item: ILegendItem }) {
+    if (this.legend.list.length < 2) {
+      return;
+    }
+    if (actionType === 'shift-click') {
+      this.chart.dispatchAction({
+        type: !item.show ? 'legendSelect' : 'legendUnSelect',
+        name: item.name
+      });
+      item.show = !item.show;
+    } else if (actionType === 'click') {
+      const hasOtherShow = this.legend.list
+        .filter(item => !item.hidden)
+        .some(set => set.name !== item.name && set.show);
+      this.legend.list.forEach((legend) => {
+        this.chart.dispatchAction({
+          type:
+            legend.name === item.name
+            || !hasOtherShow
+            || (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
+              ? 'legendSelect'
+              : 'legendUnSelect',
+          name: legend.name
+        });
+        legend.show = legend.name === item.name || !hasOtherShow;
+      });
+    }
+  }
+
+  // 下载图表为png图片
+  async handleStoreImage() {
+    if (window.navigator.msSaveOrOpenBlob) {
+      toBlob(this.$el as HTMLDivElement)
+        .then(blob => window.navigator.msSaveOrOpenBlob(blob, `${this.title}.png`))
+        .catch(() => {});
+    } else {
+      if (this.chartType === 'table') {
+        await this.$nextTick();
+        const cloneEl = this.$el.cloneNode(true) as HTMLDivElement;
+        (cloneEl.querySelector('.chart-wrapper-echarts') as HTMLDivElement).style.maxHeight = 'none';
+        (cloneEl.querySelector('.echart-instance') as HTMLDivElement).style.height = 'auto';
+        (cloneEl.querySelector('.echart-legend') as HTMLDivElement).style.maxHeight = 'none';
+        (cloneEl.querySelector('.bk-table-fit') as HTMLDivElement).style.maxHeight = 'none';
+        (cloneEl.querySelector('.bk-table-body-wrapper') as HTMLDivElement).style.maxHeight = 'none';
+        const divEl = document.createElement('div');
+        divEl.setAttribute('style', 'position: fixed; top: -10000px');
+        divEl.setAttribute('class', 'clone-chart-wrapper');
+        divEl.appendChild(cloneEl);
+        this.$el.appendChild(divEl);
+        const width = cloneEl.clientWidth;
+        const height = cloneEl.clientHeight;
+        toPng(this.$el.querySelector('.clone-chart-wrapper')?.firstElementChild as HTMLDivElement, { width, height })
+          .then((dataUrl) => {
+            const tagA = document.createElement('a');
+            tagA.download = `${this.title}.png`;
+            tagA.href = dataUrl;
+            document.body.appendChild(tagA);
+            tagA.click();
+            tagA.remove();
+            divEl.remove();
+          })
+          .catch(() => {
+            divEl.remove();
+          });
+      } else {
+        toPng(this.$el as HTMLDivElement)
+          .then((dataUrl) => {
+            const tagA = document.createElement('a');
+            tagA.download = `${this.title}.png`;
+            tagA.href = dataUrl;
+            document.body.appendChild(tagA);
+            tagA.click();
+            tagA.remove();
+          })
+          .catch(e => console.info(e));
+      }
+    }
+  }
+
+  handleCollectChart() {
+    this.$emit('collect-chart');
+  }
+
+  // 设置全屏
+  handleFullScreen() {
+    this.$emit('full-screen');
+  }
+
+  // resize
+  resize(options: EChartOption = null) {
+    this.chartRef && this.delegateMethod('resize', options);
+  }
+
+  dispatchAction(payload) {
+    this.delegateMethod('dispatchAction', payload);
+  }
+
+  delegateMethod(name: string, ...args) {
+    return this.chart[name](...args);
+  }
+
+  delegateGet(methodName: string) {
+    return this.chart[methodName]();
+  }
+
+  // 初始化Props监听
+  initPropsWatcher() {
+    this.unwatchOptions = this.$watch(
+      'options',
+      (v, ov) => {
+        if (this.getSeriesData) {
+          const newV = Object.assign({}, v, { tool: 0, legend: 0, annotation: 0 });
+          const oldV = Object.assign({}, ov, { tool: 0, legend: 0, annotation: 0 });
+          JSON.stringify(newV) !== JSON.stringify(oldV) && this.handleSeriesData();
+        } else {
+          this.handleSetChartData(deepMerge({}, { series: this.series }));
+        }
+      },
+      { deep: !this.watchOptionsDeep }
+    );
+  }
+
+  // 初始化chart事件
+  initChartEvent() {
+    if (this.hasTraceInfo) {
+      this.chart.on('click', 'series.scatter', (e) => {
+        const chartOptions = this.chart.getOption();
+        this.scatterTips.data.target.color = chartOptions.color[0];
+        const labelList = ['bk_trace_id', 'bk_span_id', 'bk_trace_value'];
+        const displayNames = {
+          bk_trace_id: 'traceID',
+          bk_span_id: 'spanID',
+          bk_trace_value: 'traceValue'
+        };
+        const { scatterData } = e.data;
+        this.scatterTips.data.list = labelList.map(item => ({
+          type: item === labelList[2] ? 'string' : 'link',
+          label: displayNames[item] || item,
+          content: scatterData[item]
+        }));
+        this.scatterTips.data.target.label = `${chartOptions.series[0].name}: ${
+          scatterData._value || scatterData.metric_value || '--'
+        }`;
+        this.scatterTips.data.time = moment(e.data.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        this.scatterTips.top = -9999;
+        this.scatterTips.show = true;
+        this.$nextTick(() => {
+          const chartWidth = this.$refs.charWrapRef.clientWidth + 10;
+          const scatterTipW = this.$refs.scatterTipsRef.clientWidth;
+          const { offsetY } = e.event;
+          const offsetX = e.event.offsetX + 10;
+          const left = chartWidth - offsetX < scatterTipW ? offsetX - scatterTipW - 10 : offsetX + 10;
+          const top = offsetY;
+          this.scatterTips.left = left;
+          this.scatterTips.top = top;
+          this.scatterTips.show = true;
+          const { series } = chartOptions;
+          series.forEach((item) => {
+            if (item.type === 'scatter' && item.name === 'bk_trace_value') {
+              item.data.forEach((d) => {
+                if (JSON.stringify(d.value) === JSON.stringify(e.data.value)) {
+                  d.itemStyle.color = '#699DF4';
+                }
+              });
+            }
+          });
+          this.chart.setOption({
+            series
+          });
+        });
+      });
+      this.chart.on('mouseover', 'series.scatter', () => {
+        this.$el.querySelector('canvas').style.cursor = 'pointer';
+      });
+      this.chart.on('mouseout', 'series.scatter', () => {
+        this.$el.querySelector('canvas').style.removeProperty('cursor');
+      });
+    }
+    this.chart.on('click', (e) => {
+      this.$emit('chart-click', e);
+    });
+  }
+
+  // 初始化chart Action
+  initChartAction() {
+    this.dispatchAction({
+      type: 'takeGlobalCursor',
+      key: 'dataZoomSelect',
+      dataZoomSelectActive: true
+    });
+  }
+
+  // echarts 实例销毁
+  destroy() {
+    if (this.autoresize && this.chartRef) {
+      removeListener(this.chartRef, this.resizeHandler);
+    }
+    this.delegateMethod('dispose');
+    this.chart = null;
+  }
+
+  handleScatterTipOutside() {
+    this.scatterTips.show = false;
+    const { series } = this.chart.getOption();
+    series.forEach((item) => {
+      if (item.type === 'scatter' && item.name === 'bk_trace_value') {
+        item.data.forEach((d) => {
+          d.itemStyle.color = '#E1ECFF';
+        });
+      }
+    });
+    this.chart.setOption({
+      series
+    });
+  }
+
+  handleCopy(value: string) {
+    copyText(value);
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('复制成功')
+    });
+  }
+
+  /* trace id 跳转 */
+  handleTraceLink(item) {
+    if (item.type === 'link' && item.label === 'traceID') {
+      const traceId = item.content;
+      traceListById({
+        bk_biz_id: this.curBizId,
+        trace_ids: [traceId],
+        ...this.traceInfoTimeRange
+      }).then((data) => {
+        const url = data?.[0]?.url || '';
+        if (url) {
+          window.open(`${location.origin}${url}`);
+        }
+      });
+    }
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.monitor-echart-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding-left: 10px;
+  color: #63656e;
+  background-color: #fff;
+  background-repeat: repeat;
+  background-position: center;
+  border-radius: 2px;
+
+  .echart-header {
+    display: flex;
+    align-items: center;
+    min-width: 100%;
+    font-weight: 700;
+    color: #63656e;
+
+    :deep(.chart-title-wrap) {
+      cursor: pointer;
+
+      .chart-title {
+        padding: 0;
+      }
+    }
+  }
+
+  .chart-wrapper-echarts {
+    position: relative;
+    display: flex;
+
+    .echart-instance-wrap {
+      position: relative;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-width: 100px;
+      overflow: hidden;
+
+      .chart-restore {
+        position: absolute;
+        top: 5px;
+        right: 8px;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 20px;
+        font-size: 12px;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+
+        &:hover {
+          color: #63656e;
+          cursor: pointer;
+          border-color: #979ba5;
+        }
+      }
+    }
+
+    .echart-instance {
+      display: flex;
+      flex: 1;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .echart-legend {
+      margin-top: 8px;
+      margin-left: 16px;
+      overflow: auto;
+    }
+
+    .echart-pie-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translate3d(-50%, -50%, 0);
+    }
+  }
+
+  .echart-content {
+    position: absolute;
+    top: 36px;
+    right: 1px;
+    bottom: 1px;
+    left: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0);
+  }
+
+  .scatter-tips {
+    position: absolute;
+    padding: 10px 6px 6px 6px;
+    background: #000;
+    border-radius: 2px;
+    opacity: .8;
+
+    .time {
+      margin-bottom: 4px;
+      font-size: 12px;
+      font-weight: Bold;
+      color: #fff;
+    }
+
+    .info-item {
+      font-size: 12px;
+      line-height: 20px;
+      color: #fff;
+
+      .content {
+        .link,
+        .copy {
+          color: #a3c5fd;
+        }
+
+        .link {
+          &.pointer {
+            cursor: pointer;
+          }
+        }
+
+        .copy {
+          cursor: pointer;
+        }
+      }
+    }
+
+    .bottom {
+      margin-top: 8px;
+
+      .point {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 10px;
+        border-radius: 50%;
+      }
+
+      .label {
+        color: #fff;
+      }
+    }
+  }
+
+  .is-error {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    z-index: 999;
+    display: block;
+    color: #fff;
+    cursor: pointer;
+    border-color: #e0226e transparent transparent #e0226e;
+    border-style: solid;
+    border-width: 12px;
+    border-radius: 2px;
+
+    &::after {
+      position: absolute;
+      top: -12px;
+      left: -6px;
+      width: 4px;
+      height: 8px;
+      content: '!';
+    }
+  }
+
+  .chart-resize-line {
+    position: relative;
+    height: 20px;
+    margin-top: 5px;
+    cursor: row-resize;
+
+    &:hover {
+      &::before {
+        border-color: #5794f2;
+      }
+
+      &::after {
+        background: #3a84ff;
+      }
+    }
+
+    &::before {
+      position: absolute;
+      top: 50%;
+      width: 100%;
+      content: '';
+      border-top: 1px solid transparent;
+      transition: border-color .2s ease-in-out 0s;
+      transform: translateY(-50%);
+    }
+
+    &::after {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 24px;
+      height: 3px;
+      content: '';
+      background: #c4c6cc;
+      border-radius: 2px;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  .chart-table-box {
+    border-top: 1px solid #eaebf0;
+
+    .chart-table-title {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 54px;
+      // justify-content: space-between;
+      font-weight: bold;
+
+      .title-count {
+        margin-left: 16px;
+        font-weight: normal;
+        color: #979ba5;
+      }
+
+      .export-csv-btn {
+        margin-left: auto;
+      }
+    }
+
+    .chart-table {
+      ::v-deep td,
+      ::v-deep th.is-leaf {
+        height: 32px;
+      }
+    }
+  }
+}
+</style>

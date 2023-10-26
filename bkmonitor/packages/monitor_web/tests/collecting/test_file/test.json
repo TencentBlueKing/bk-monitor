@@ -1,0 +1,39 @@
+{
+  "name": "xxxx",
+  "bk_biz_id": 2,
+  "collect_type": "Log",
+  "target_object_type": "SERVICE",
+  "plugin_id": "default_log",
+  "params": {
+    "collector": {
+      "period": 60
+    },
+    "plugin": {},
+    "log": {
+      "log_path": [
+        "/var/log/messages.*",
+        "/var/{{log_path}}/vsftpd.log"
+      ],
+      "charset": "UTF-8",
+      "rules": [
+        {
+          "name": "IO_error",
+          "pattern": "(?P<moudle>.*) init_module: Input/output error"
+        }
+      ],
+      "collect_method": {
+        "method": "increment/whole",
+        "period": "10m"
+      }
+    }
+  },
+  "label": "component",
+  "target_node_type": "TOPO",
+  "target_nodes": [
+    {
+      "bk_inst_id": 5,
+      "bk_obj_id": "module"
+    }
+  ],
+  "remote_collecting_host": null
+}

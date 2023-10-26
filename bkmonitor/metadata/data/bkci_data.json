@@ -1,0 +1,232 @@
+{
+    "db_name": "agentmetric",
+    "metrics_and_dimensions": {
+        "swap": {
+            "metric": {
+                "free": "int",
+                "in": "int",
+                "out": "int",
+                "pct_used": "float",
+                "total": "int",
+                "used": "int"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "host": "string"
+            }
+        },
+        "disk": {
+            "metric": {
+                "free": "int",
+                "in_use": "float",
+                "inodes_free": "int",
+                "inodes_total": "int",
+                "inodes_used": "int",
+                "total": "int",
+                "used": "int"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "device": "string",
+                "fstype": "string",
+                "host": "string",
+                "mode": "string",
+                "path": "string"
+            }
+        },
+        "io": {
+            "metric": {
+                "io_time": "int",
+                "iops_in_progress": "int",
+                "merged_reads": "int",
+                "merged_writes": "int",
+                "rkb_s": "int",
+                "read_time": "int",
+                "reads": "int",
+                "weighted_io_time": "int",
+                "wkb_s": "int",
+                "write_time": "int",
+                "writes": "int",
+                "Current_Disk_Queue_Length": "float",
+                "Disk_Reads_persec": "float",
+                "Disk_Writes_persec": "float",
+                "Percent_Disk_Time": "float",
+                "Percent_Disk_Read_Time": "float",
+                "Percent_Disk_Write_Time": "float"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "host": "string",
+                "name": "string",
+                "instance": "string"
+            }
+        },
+        "mem": {
+            "metric": {
+                "active": "int",
+                "available": "int",
+                "available_percent": "float",
+                "buffered": "int",
+                "cached": "int",
+                "commit_limit": "int",
+                "committed_as": "int",
+                "dirty": "int",
+                "free": "int",
+                "high_free": "int",
+                "high_total": "int",
+                "huge_page_size": "int",
+                "huge_pages_free": "int",
+                "huge_pages_total": "int",
+                "inactive": "int",
+                "low_free": "int",
+                "low_total": "int",
+                "mapped": "int",
+                "page_tables": "int",
+                "pct_used": "float",
+                "shared": "int",
+                "slab": "int",
+                "sreclaimable": "int",
+                "sunreclaim": "int",
+                "swap_cached": "int",
+                "swap_free": "int",
+                "swap_total": "int",
+                "total": "int",
+                "used": "int",
+                "vmalloc_chunk": "int",
+                "vmalloc_total": "int",
+                "vmalloc_used": "int",
+                "write_back": "int",
+                "write_back_tmp": "int"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "host": "string"
+            }
+        },
+        "net": {
+            "metric": {
+                "drop_in": "int",
+                "drop_out": "int",
+                "err_in": "int",
+                "err_out": "int",
+                "speed_packets_recv": "int",
+                "speed_packets_sent": "int",
+                "speed_recv": "int",
+                "speed_sent": "int"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "host": "string",
+                "instance": "string"
+            }
+        },
+        "load": {
+            "metric": {
+                "load1": "float",
+                "load5": "float",
+                "load15": "float",
+                "n_cpus": "int",
+                "n_users": "int",
+                "uptime": "int",
+                "uptime_format": "int"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "host": "string"
+            }
+        },
+        "cpu_detail": {
+            "metric": {
+                "usage_guest": "float",
+                "usage_guest_nice": "float",
+                "idle": "float",
+                "iowait": "float",
+                "usage_irq": "float",
+                "usage_nice": "float",
+                "usage_softirq": "float",
+                "usage_steal": "float",
+                "system": "float",
+                "user": "float",
+                "Percent_Interrupt_Time": "float",
+                "Percent_Processor_Time": "float",
+                "Percent_DPC_Time": "float"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "cpu": "string",
+                "host": "string",
+                "instance": "string"
+            }
+        },
+        "env": {
+            "metric": {
+                "context_switches": "int",
+                "entropy_avail": "int",
+                "interrupts": "int",
+                "procs": "int",
+                "uptime": "int"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "host": "string"
+            }
+        },
+        "netstat": {
+            "metric": {
+                "cur_tcp_closed": "int",
+                "cur_tcp_closewait": "int",
+                "cur_tcp_closing": "int",
+                "cur_tcp_estab": "int",
+                "cur_tcp_finwait1": "int",
+                "cur_tcp_finwait2": "int",
+                "cur_tcp_lastack": "int",
+                "cur_tcp_listen": "int",
+                "cur_tcp_syn_recv": "int",
+                "cur_tcp_syn_sent": "int",
+                "cur_tcp_timewait": "int",
+                "tcp_none": "int",
+                "udp_socket": "int"
+            },
+            "dimension": {
+                "agentId": "string",
+                "agentSecret": "string",
+                "hostIp": "string",
+                "hostName": "string",
+                "projectId": "string",
+                "host": "string"
+            }
+        }
+    }
+}

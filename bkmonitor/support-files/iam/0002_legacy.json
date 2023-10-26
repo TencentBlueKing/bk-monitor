@@ -1,0 +1,64 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "view_dashboard_v2",
+        "name": "(已废弃)仪表盘查看",
+        "name_en": "View Dashboard",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    },
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "manage_dashboard_v2",
+        "name": "(已废弃)仪表盘管理",
+        "name_en": "Manage Dashboard",
+        "type": "manage",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2",
+          "view_dashboard_v2"
+        ],
+        "description": "",
+        "description_en": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" class="design-iconfont">
+  <defs>
+    <linearGradient x1="86.0191288%" y1="4.78231483%" x2="50%" y2="100%" id="74dysmz3i__fan1an7vuc">
+      <stop stop-color="#FB0" stop-opacity=".6" offset="0%"/>
+      <stop stop-color="#FFEFD7" stop-opacity=".4" offset="100%"/>
+    </linearGradient>
+    <filter x="-40.9%" y="-31.8%" width="181.8%" height="181.8%" filterUnits="objectBoundingBox" id="74dysmz3i__vkvs7rfesa">
+      <feMorphology radius="1" operator="dilate" in="SourceAlpha" result="shadowSpreadOuter1"/>
+      <feOffset dy="1" in="shadowSpreadOuter1" result="shadowOffsetOuter1"/>
+      <feGaussianBlur stdDeviation="1" in="shadowOffsetOuter1" result="shadowBlurOuter1"/>
+      <feComposite in="shadowBlurOuter1" in2="SourceAlpha" operator="out" result="shadowBlurOuter1"/>
+      <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0" in="shadowBlurOuter1"/>
+    </filter>
+    <path d="M13,0 L13,11 L24,11 C24,4.92481391 19.0751331,0 13,0 L13,0 Z" id="74dysmz3i__i0mse0oybb"/>
+  </defs>
+  <g fill="none" fill-rule="evenodd">
+    <rect fill="#FFF" width="32" height="32" rx="2"/>
+    <path d="M10.9999868,2 C4.92489657,2 0,6.92483171 0,13.0000397 C0,19.0750623 4.92489657,24 10.9999868,24 C17.0751829,24 22,19.0750623 22,13.0000397 L10.9999603,13.0000397 L10.9999603,2 L10.9999868,2 Z" fill="#3A84FF" fill-rule="nonzero" transform="translate(4 4)"/>
+    <path fill="#FFF" d="M7 14A3 3 0 1 0 7 20A3 3 0 1 0 7 14Z" transform="translate(4 4)"/>
+    <g stroke-linecap="round" transform="translate(4 4)">
+      <use fill="#000" filter="url(#74dysmz3i__vkvs7rfesa)" xlink:href="#74dysmz3i__i0mse0oybb"/>
+      <path stroke-opacity=".8" stroke="#FFF" d="M12.5,-0.48939483 C15.8731448,-0.632297038 18.9419505,0.678474038 21.1317413,2.86826485 C23.3215221,5.05804567 24.6322967,8.12683858 24.4893949,11.5 L12.5,11.5 Z" fill="url(#74dysmz3i__fan1an7vuc)"/>
+    </g>
+  </g>
+</svg>

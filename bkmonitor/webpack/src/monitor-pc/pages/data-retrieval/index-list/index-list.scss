@@ -1,0 +1,93 @@
+@import '../../../theme/index.scss';
+
+.index-list-tree-wrap {
+  position: relative;
+
+  .bk-big-tree-node {
+    position: relative;
+
+    &::before {
+      position: absolute;
+      content: '';
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 100%;
+      background-color: #dcdee5;
+    }
+
+    &.is-selected {
+      background-color: initial;
+
+      &::before {
+        background-color: #3a84ff;
+      }
+    }
+  }
+
+  &.list {
+    .bk-big-tree-node {
+      padding-left: 10px;
+    }
+
+    .bk-big-tree-empty {
+      display: initial;
+
+      .exception-image {
+        height: 123px;
+      }
+    }
+  }
+
+  &.tree {
+    .bk-big-tree-node {
+      position: relative;
+
+      &:not(.is-leaf) {
+        color: #63656e;
+        font-weight: bold;
+
+        &:not(.is-root) {
+          padding-left: calc(var(--level)*var(--padding) + 26px);
+
+          .node-options {
+            left: calc(var(--level)*var(--padding) + 6px)
+          }
+        }
+      }
+
+      &.is-root {
+        padding-left: 32px;
+      }
+
+      .node-options {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 8px;
+      }
+    }
+
+    .exception-image {
+      height: 123px;
+    }
+  }
+
+  &:hover {
+    &.tree {
+      .bk-big-tree-node {
+        .node-options {
+          display: inline-block;
+        }
+      }
+    }
+  }
+
+  .index-list-item-text {
+    display: block;
+    font-size: 12px;
+
+    @include ellipsis;
+  }
+}

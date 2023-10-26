@@ -1,0 +1,22 @@
+{
+  "description_md": "this is a test",
+  "plugin_display_name": "test_plugin",
+  "metric_json": [
+    {
+        "fields": [
+            {
+                "name": "a",
+                "is_active": true,
+                "is_diff_metric": false,
+                "type": "double",
+                "monitor_type": "metric",
+                "unit": "",
+                "description": "a"
+            }
+        ],
+        "table_name": "default",
+        "table_desc": "默认分类"
+    }
+],
+  "logo": ""
+}

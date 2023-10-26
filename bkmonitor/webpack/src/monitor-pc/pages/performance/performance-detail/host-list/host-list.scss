@@ -1,0 +1,124 @@
+@import  '../../../../theme/mixin.scss';
+
+.host-list-wrap {
+  height: 100%;
+  overflow: hidden;
+
+  .host-list-main {
+    // height: calc(100% - 32px);
+    height: 100%;
+    padding: 0 16px;
+  }
+
+  .host-list-tool {
+    .target-compare-tips {
+      max-height: 32px;
+      overflow: hidden;
+    }
+
+    &>* {
+      margin-bottom: 8px;
+    }
+  }
+
+  .overview-btn {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 16px;
+    font-size: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    border-radius: 2px;
+    background-color: #fafbfd;
+
+    .icon-mc-overview {
+      font-size: 14px;
+      margin-right: 5px;
+    }
+
+    &.active,
+    &:hover {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+  }
+
+  .host-item-wrap {
+    position: relative;
+    display: block;
+    height: 100%;
+    padding: 0 12px;
+    cursor: pointer;
+    line-height: 32px;
+
+    @include host-status;
+    @include ellipsis;
+
+    .host-status {
+      margin-right: 6px;
+    }
+
+    .host-item-host-name {
+      flex-shrink: 0;
+      color: #c4c6cc;
+    }
+
+    .compare-btn-wrap {
+      display: flex;
+      align-items: center;
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      padding: 0 8px;
+
+      .compare-btn-text {
+        display: none;
+        font-size: 14px;
+      }
+    }
+
+    &:hover:not(.active) {
+      .compare-btn-wrap {
+        background-color: #e1ecff;
+
+        .compare-btn-text {
+          display: initial;
+        }
+      }
+    }
+
+    &.checked-target {
+      color: #979ba5;
+      background-color: #f5f7fa;
+
+      .compare-btn-wrap {
+        background-color: #f5f7fa;
+
+        .icon-mc-check-small {
+          font-size: 20px;
+          color: #979ba5;
+        }
+      }
+    }
+
+    &:hover {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+
+    &.active {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+  }
+
+  .bk-scroll-home {
+    width: 100%;
+
+    .bk-scroll {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 100% !important;
+    }
+  }
+}

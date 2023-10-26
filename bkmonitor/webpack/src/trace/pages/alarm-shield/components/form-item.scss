@@ -1,0 +1,39 @@
+.alarm-shield-form-item {
+  display: flex;
+  align-items: flex-start;
+
+  .form-item-label {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100px;
+    min-width: 100px;
+    height: 32px;
+    padding-right: 20px;
+    font-size: 12px;
+    color: #63656e;
+
+    &.require {
+      &::after {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        color: #ea3636;
+        content: '*';
+      }
+    }
+  }
+
+  .form-item-content {
+    position: relative;
+  }
+
+  .form-item-errmsg {
+    position: absolute;
+    bottom: -20px;
+    font-size: 12px;
+    color: #ea3636;
+  }
+}

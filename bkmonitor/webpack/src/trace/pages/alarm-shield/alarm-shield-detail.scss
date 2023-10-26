@@ -1,0 +1,107 @@
+.alarm-shield-detail-side {
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .alarm-shield-detail-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      margin: 0 24px 0 auto;
+    }
+  }
+
+  .alarm-shield-detail-content {
+    padding: 28px 0 24px 0;
+    overflow-x: hidden;
+
+    .detail-text {
+      display: inline-block;
+      margin-top: 8px;
+      color: #313238;
+    }
+
+    .item-highlight {
+      font-weight: bold;
+      color: #3a84ff;
+    }
+
+    .mt-9 {
+      margin-top: 9px;
+    }
+
+    .description {
+      white-space: pre-wrap;
+    }
+
+    .notice-user {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-top: 4px;
+      word-break: break-all;
+    }
+
+    .personnel-choice {
+      display: flex;
+      align-items: center;
+      margin: 0 21px 10px 0;
+
+      img {
+        width: 24px;
+        height: 24px;
+        margin-right: 5px;
+        border-radius: 16px;
+      }
+
+      .no-img {
+        margin-right: 5px;
+        font-size: 24px;
+        color: #c4c6cc;
+        background: #fafbfd;
+        border-radius: 16px;
+      }
+    }
+
+    .scope-content {
+      padding-right: 24px;
+      margin-top: 8px;
+    }
+
+    .strategy-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      padding-right: 24px;
+
+      .strategy-item {
+        margin-right: 8px;
+
+        .icon-fenxiang {
+          margin-left: 6px;
+          font-size: 12px;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+        
+      }
+    }
+
+    .event-detail-content {
+      max-width: 524px;
+      padding: 8px 0;
+      margin-top: 8px;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+    }
+
+    .alarm-shield-stratrgy-detail .stratrgy-detail .item-content {
+      min-width: 510px;
+    }
+  }
+}

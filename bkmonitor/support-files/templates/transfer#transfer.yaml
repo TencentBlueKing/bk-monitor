@@ -1,0 +1,133 @@
+consul:
+  host: "127.0.0.1"
+  http_port: __BK_CONSUL_HTTP_PORT__
+  https_port: __BK_CONSUL_HTTPS_PORT__
+  service_name: "bkmonitorv3"
+  service_tag: "transfer"
+  data_id_path: "bk_bkmonitorv3_${PLATFORM}_production/metadata"
+  service_path: "bk_bkmonitorv3_${PLATFORM}_production/service"
+  tls:
+    ca_file: "__BK_CONSUL_SERVER_CA_CERT__"
+    key_file: "__BK_CONSUL_CLIENT_KEY_FILE__"
+    cert_file: "__BK_CONSUL_CLIENT_CERT_FILE__"
+debug: false
+cluster: "default"
+kafka:
+  consumer_group_prefix: "bkmonitorv3_transfer"
+argus:
+  capacity: 20000
+  max_samples_per_send: 3000
+  batch_send_deadline: 5s
+  max_retries: 3
+  min_backoff: 30ms
+  max_backoff: 100ms
+esb:
+  address: "__BK_PAAS_PRIVATE_URL__"
+  bk_app_code: "__BK_MONITOR_APP_CODE__"
+  bk_app_secret: "__BK_MONITOR_APP_SECRET__"
+  user_name: "admin"
+  bk_supplier_account: "0"
+http:
+  host: "__LAN_IP__"
+  port: __BK_TRANSFER_HTTP_PORT__
+  auto_shutdown: false
+  auth:
+    token: "__BK_MONITOR_APP_CODE__:__BK_MONITOR_APP_SECRET__"
+logger:
+  level: "error"
+  out:
+    name: "file"
+    options:
+      daily: true
+      file: "__BK_HOME__/logs/bkmonitorv3/transfer.log"
+      level: "error"
+      max_days: 10
+      max_size: 104857600
+      rotate: true
+scheduler:
+  cc_batch_size: 100
+  cc_cache_expires: 1h
+  cc_check_interval: 10s
+  check_interval: 1s
+  clean_up_duration: 1s
+storage:
+  type: "redis"
+  redis:
+    type: "__BK_MONITOR_TRANSFER_REDIS_MODE__"  # 哨兵模式 或 单例模式
+    host: "__BK_MONITOR_TRANSFER_REDIS_HOST__"
+    port: __BK_MONITOR_TRANSFER_REDIS_PORT__
+    password: "__BK_MONITOR_TRANSFER_REDIS_PASSWORD__"
+    master_name: "__BK_MONITOR_TRANSFER_REDIS_SENTINEL_MASTER_NAME__"
+    sentinel_addrs:
+      - "__BK_MONITOR_TRANSFER_REDIS_SENTINEL_HOST__:__BK_MONITOR_TRANSFER_REDIS_SENTINEL_PORT__"
+    sentinel_password: "__BK_MONITOR_TRANSFER_REDIS_SENTINEL_PASSWORD__"
+    database: __BK_MONITOR_TRANSFER_REDIS_DB__
+    cc_cache_key: "bkmonitorv3.transfer.cmdb.cache"
+    mem_check_period: 15m  # 内存数据维护周期
+    wait_time: 0  # cmdb默认等待时间，默认无限等待
+    clean_data_period: 1h  # redis中数据清理周期
+etl:
+  time:
+    formats:
+    - name: "yyyy-MM-dd HH:mm:ss"
+      layout: "2006-01-02 15:04:05"
+    - name: "yyyy-MM-dd HH:mm:ss.SSS"
+      layout: "2006-01-02 15:04:05.000"
+    - name: "yyyy-MM-dd HH:mm:ss.SSSSSS"
+      layout: "2006-01-02 15:04:05.000000"
+    - name: "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
+      layout: "2006-01-02 15:04:05.000000000"
+    - name: "yyyy-MM-dd+HH:mm:ss"
+      layout: "2006-01-02+15:04:05"
+    - name: "MM/dd/yyyy HH:mm:ss"
+      layout: "01/02/2006 15:04:05"
+    - name: "yyyy-MM-dd"
+      layout: "2006-01-02"
+    - name: "yyyyMMdd"
+      layout: "20060102"
+    - name: "yyyyMMddHHmmss"
+      layout: "20060102150405"
+    - name: "yyyyMMdd HHmmss"
+      layout: "20060102 150405"
+    - name: "yyyyMMdd HHmmss.SSS"
+      layout: "20060102 150405.000"
+    - name: "yyyyMMdd HHmmss.SSSSSS"
+      layout: "20060102 150405.000000"
+    - name: "yyyy/MM/dd HH:mm:ss"
+      layout: "2006/01/02 15:04:05"
+    - name: "dd/MMM/yyyy:HH:mm:ss"
+      layout: "02/Jan/2006:15:04:05"
+    - name: "dd/MMM/yyyy:HH:mm:ssZ"
+      layout: "02/Jan/2006:15:04:05-0700"
+    - name: "dd/MMM/yyyy:HH:mm:ss Z"
+      layout: "02/Jan/2006:15:04:05 -0700"
+    - name: "dd/MMM/yyyy:HH:mm:ssZZ"
+      layout: "02/Jan/2006:15:04:05-07:00"
+    - name: "dd/MMM/yyyy:HH:mm:ss ZZ"
+      layout: "02/Jan/2006:15:04:05 -07:00"
+    - name: "rfc3339"
+      layout: "2006-01-02T15:04:05Z07:00"
+    - name: "date_hour_minute_second"
+      layout: "2006-01-02T15:04:05"
+    - name: "date_hour_minute_second_millis"
+      layout: "2006-01-02T15:04:05.000"
+    - name: "basic_date_time"
+      layout: "20060102T150405.000-0700"
+    - name: "basic_date_time_no_millis"
+      layout: "20060102T150405-0700"
+    - name: "basic_date_time_micros"
+      layout: "20060102T150405.000000-0700"
+    - name: "strict_date_time"
+      layout: "2006-01-02T15:04:05.000-07:00"
+    - name: "strict_date_time_no_millis"
+      layout: "2006-01-02T15:04:05-07:00"
+    - name: "strict_date_time_micros"
+      layout: "2006-01-02T15:04:05.000000-07:00"
+    - name: "epoch_micros"
+      layout: "epoch_micros"
+    - name: "epoch_millis"
+      layout: "epoch_millis"
+    - name: "epoch_second"
+      layout: "epoch_second"
+    - name: "epoch_minute"
+      layout: "epoch_minute"

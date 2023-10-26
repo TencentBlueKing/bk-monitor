@@ -1,0 +1,50 @@
+.filter-var-select-group {
+  display: flex;
+  overflow: hidden;
+
+  .filter-var-select-group-label {
+    display: inline-block;
+    width: 70px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 26px;
+    color: #313238;
+    position: relative;
+    top: 6px;
+  }
+
+  .filter-var-select-main {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    margin-top: -12px;
+    margin-left: -48px;
+
+    .filter-var-select-wrap {
+      margin-top: 12px;
+      margin-left: 48px;
+    }
+
+    .filter-var-add,
+    .filter-add-btn {
+      margin-top: 12px;
+      margin-left: 48px;
+    }
+
+    .filter-add-btn {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      margin-top: 14px;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      position: relative;
+      top: 6px;
+
+      .icon-mc-add {
+        font-size: 20px;
+        cursor: pointer;
+      }
+    }
+  }
+}

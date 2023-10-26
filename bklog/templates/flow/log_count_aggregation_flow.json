@@ -1,0 +1,76 @@
+[
+    {
+      "result_table_id": "{{log_count_aggregation.result_table_id}}",
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "name": "{{log_count_aggregation.table_name_no_id}}",
+      "id": 447364,
+      "from_nodes": [ ],
+      "node_type": "stream_source",
+      "frontend_info": {
+        "x": 206,
+        "y": 217
+      }
+    },
+    {
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "sql": "SELECT COUNT(*) as log_count, CONCAT('__', sensitivity) as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_deal_model_json(log_signature)) as T(sensitivity,signature) {{log_count_aggregation.log_count_aggregation.filter_rule}} GROUP BY sensitivity, signature",
+      "table_name": "{{log_count_aggregation.log_count_aggregation.table_name}}",
+      "name": "日志数量统计",
+      "count_freq": 60,
+      "waiting_time": 300,
+      "window_time": null,
+      "window_type": "scroll",
+      "counter": null,
+      "output_name": "{{log_count_aggregation.log_count_aggregation.result_table_id}}",
+      "session_gap": null,
+      "expired_time": null,
+      "window_lateness": {
+        "allowed_lateness": false,
+        "lateness_time": 1,
+        "lateness_count_freq": 60
+      },
+      "correct_config_id": null,
+      "is_open_correct": false,
+      "id": 447374,
+      "from_nodes": [
+        {
+          "id": 447364,
+          "from_result_table_ids": [
+            "{{log_count_aggregation.result_table_id}}"
+          ]
+        }
+      ],
+      "node_type": "realtime",
+      "frontend_info": {
+        "x": 513,
+        "y": 176
+      }
+    },
+    {
+      "name": "{{log_count_aggregation.log_count_aggregation.table_name}}({{log_count_aggregation.storage_type}})",
+      "result_table_id": "{{log_count_aggregation.log_count_aggregation.result_table_id}}",
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "indexed_fields": [
+        "sensitivity",
+        "signature"
+      ],
+      "cluster": "{{log_count_aggregation.tspider_storage.cluster}}",
+      "expires": {{log_count_aggregation.tspider_storage.expires}},
+      "has_unique_key": false,
+      "storage_keys": [ ],
+      "id": 447376,
+      "from_nodes": [
+        {
+          "id": 447374,
+          "from_result_table_ids": [
+            "{{log_count_aggregation.log_count_aggregation.result_table_id}}"
+          ]
+        }
+      ],
+      "node_type": "{{log_count_aggregation.storage_type}}",
+      "frontend_info": {
+        "x": 796,
+        "y": 172
+      }
+    }
+]

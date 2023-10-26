@@ -1,0 +1,160 @@
+@mixin font-config($font-size: 12px, $color: #63656E, $line-height: 20px) {
+  font-size: $font-size;
+  color: $color;
+  line-height: $line-height;
+}
+
+@mixin stat-mark {
+  content: '*';
+  color: #ea3636;
+  position: relative;
+  top: 2px;
+  left: 4px;
+}
+
+@mixin flex-item {
+  display: flex;
+  align-items: center;
+}
+
+.influxdb-group {
+  margin-top: 16px;
+  background: #fff;
+  padding: 12px 16px 24px 16px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+  border-radius: 2px;
+
+  .info-title {
+    font-weight: 700;
+    margin-bottom: 16px;
+
+    @include font-config(14px, #63656E, 22px);
+  }
+
+  .group-form-item {
+    display: flex;
+    flex-direction: column;
+
+    &-content {
+      font-size: 12px;
+      color: #63656e;
+      letter-spacing: 0;
+      line-height: 20px;
+      display: flex;
+    }
+
+    .required {
+      &::after {
+        @include stat-mark;
+      }
+    }
+
+    &-error-msg {
+      color: #ea3636;
+
+      @include font-config();
+    }
+
+    .error-item {
+      border-color: #ff5656;
+
+      .bk-input-text,
+      .bk-input-password {
+        & > input {
+          border-color: #ff5656;
+        }
+      }
+    }
+  }
+
+  .half-form-item {
+    width: calc(50% - 8px);
+  }
+
+  .add-group-button {
+    height: 32px;
+    font-size: 12px;
+    line-height: 20px;
+    width: 100%;
+    border: 1px dashed #c4c6cc;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    margin: 10px 0 24px 0;
+    cursor: pointer;
+    color: #3a84ff;
+
+    .plus-icon {
+      margin-right: 6px;
+    }
+  }
+
+  .group-flex {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  &-list {
+    .group-item {
+      border-radius: 2px;
+      padding: 8px 16px 16px 16px;
+      margin-bottom: 10px;
+      background: #f5f7fa;
+
+      .group-header {
+        justify-content: space-between;
+        margin-bottom: 8px;
+
+        @include flex-item;
+
+        .group-title {
+          letter-spacing: 0;
+          font-weight: 700;
+
+          @include font-config(12px, #63656E, 20px);
+        }
+
+        .group-operation {
+          @include flex-item;
+
+          .operation-icon {
+            font-size: 14px;
+            color: #63656e;
+            cursor: pointer;
+          }
+
+          .disabled-icon {
+            color: #c4c6cc;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+  }
+
+  .connection-test {
+    @include flex-item;
+
+    .connection-tips {
+      margin-left: 14px;
+
+      @include flex-item;
+
+      .success-icon {
+        color: #2dcb56;
+        margin-right: 9px;
+        font-size: 14px;
+      }
+
+      .fail-icon {
+        color: #ea3636;
+        margin-right: 9px;
+        font-size: 14px;
+      }
+
+      .tips {
+        @include font-config(12px, 20px, #63656E);
+      }
+    }
+  }
+}

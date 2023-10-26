@@ -1,0 +1,132 @@
+.compare-select-wrap {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  flex: 1;
+  margin-right: 30px;
+
+  .compare-select-label {
+    margin-right: 8px;
+    margin-bottom: 2px;
+    font-size: 12px;
+    font-weight: 400;
+    color: #63656e;
+    flex-shrink: 0;
+  }
+
+  .compare-select {
+    min-width: 141px;
+  }
+
+  .compare-select-content {
+    flex: 1;
+    padding-left: 8px;
+
+    .bk-tag-input-simplicity {
+      min-width: 139px;
+      min-height: 26px;
+
+      .bk-tag-input {
+        min-height: 26px;
+        padding-left: 0;
+        border-color: transparent;
+
+        .tag-list {
+          max-height: 30px;
+          margin-top: -4px;
+          padding-bottom: 3px;
+
+          .key-node,
+          .staff-input {
+            margin-top: 5px;
+            margin-bottom: 0;
+
+            .tag {
+              margin-right: 6px;
+              max-width: 100px;
+            }
+          }
+        }
+
+        .placeholder {
+          line-height: 24px;
+        }
+      }
+    }
+
+    .time-compare-select {
+      max-width: 141px;
+    }
+  }
+}
+
+.compare-time-select-custom {
+  margin-bottom: 6px;
+
+  .custom-text {
+    display: inline-block;
+    width: 100%;
+    height: 32px;
+    padding: 0 16px;
+    line-height: 32px;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+      background-color: #eaf3ff;
+    }
+  }
+
+  .time-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 32px;
+    padding: 0 16px;
+
+    .bk-form-control {
+      line-height: 26px;
+    }
+
+    .help-icon {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      font-size: 12px;
+      transform: translate(0, -50%);
+    }
+  }
+}
+
+.compare-target-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 250px;
+
+  .compare-target-ip {
+    display: inline-block;
+    height: 22px;
+    max-width: 150px;
+    padding: 0 5px;
+    margin-right: 8px;
+    overflow: hidden;
+    font-size: 12;
+    font-weight: 700;
+    line-height: 22px;
+    color: #63656e;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-color: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .target-compare-select {
+    display: flex;
+    align-items: flex-start;
+    height: 30px;
+    flex: 1;
+    position: relative;
+    top: -1px;
+  }
+}

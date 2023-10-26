@@ -1,0 +1,278 @@
+{
+    "container_cpu_system_seconds_total": {
+        "metric_field": "container_cpu_system_seconds_total",
+        "metric_field_name": "CPU system使用量",
+        "description": "System CPU累积占用时间（单位：秒）",
+        "unit": ""
+    },
+    "container_cpu_usage_seconds_total": {
+        "metric_field": "container_cpu_usage_seconds_total",
+        "metric_field_name": "CPU使用量",
+        "description": "每个CPU内核上的累积占用时间 (单位：秒)，使用rate函数可计算出CPU每分钟使用量",
+        "unit": ""
+    },
+    "container_cpu_user_seconds_total": {
+        "metric_field": "container_cpu_user_seconds_total",
+        "metric_field_name": "CPU user使用量",
+        "description": "User CPU累积占用时间（单位：秒）",
+        "unit": ""
+    },
+    "kube_pod_container_resource_requests_cpu_cores": {
+        "metric_field": "kube_pod_container_resource_requests_cpu_cores",
+        "metric_field_name": "CPU requests",
+        "description": "cpu最低需求",
+        "unit": ""
+    },
+    "kube_pod_container_resource_limits_cpu_cores": {
+        "metric_field": "kube_pod_container_resource_limits_cpu_cores",
+        "metric_field_name": "CPU limits",
+        "description": "cpu最大限制",
+        "unit": ""
+    },
+    "container_memory_usage_bytes": {
+        "metric_field": "container_memory_usage_bytes",
+        "metric_field_name": "内存使用量",
+        "description": "当前的内存使用量（单位：字节）",
+        "unit": "bytes"
+    },
+    "kube_pod_container_resource_requests_memory_bytes": {
+        "metric_field": "kube_pod_container_resource_requests_memory_bytes",
+        "metric_field_name": "内存 requests",
+        "description": "内存最低需求",
+        "unit": "bytes"
+    },
+    "kube_pod_container_resource_limits_memory_bytes": {
+        "metric_field": "kube_pod_container_resource_limits_memory_bytes",
+        "metric_field_name": "内存 limits",
+        "description": "内存最大限制",
+        "unit": "bytes"
+    },
+    "container_network_receive_bytes_total": {
+        "metric_field": "container_network_receive_bytes_total",
+        "metric_field_name": "网络接收数据总量",
+        "description": "网络接收数据总量",
+        "unit": "bytes"
+    },
+    "container_network_transmit_bytes_total": {
+        "metric_field": "container_network_transmit_bytes_total",
+        "metric_field_name": "网络发送数据总量",
+        "description": "发送传输的累计字节数。",
+        "unit": "bytes"
+    },
+    "container_fs_usage_bytes": {
+        "metric_field": "container_fs_usage_bytes",
+        "metric_field_name": "磁盘使用量",
+        "description": "中文件系统的使用量",
+        "unit": "bytes"
+    },
+    "container_cpu_cfs_periods_total": {
+        "metric_field": "container_cpu_cfs_periods_total",
+        "metric_field_name": "CPU执行周期间隔时间数",
+        "description": "生命周期中度过的 cpu 周期总数",
+        "unit": ""
+    },
+    "container_cpu_cfs_throttled_periods_total": {
+        "metric_field": "container_cpu_cfs_throttled_periods_total",
+        "metric_field_name": "CPU节流周期间隔数",
+        "description": "生命周期中度过的受限的 cpu 周期总数",
+        "unit": ""
+    },
+    "container_cpu_cfs_throttled_seconds_total": {
+        "metric_field": "container_cpu_cfs_throttled_seconds_total",
+        "metric_field_name": "被节流的总时间",
+        "description": "被节流的总时间",
+        "unit": ""
+    },
+    "container_memory_rss": {
+        "metric_field": "container_memory_rss",
+        "metric_field_name": "内存使用量(rss)",
+        "description": "RSS的大小",
+        "unit": "bytes"
+    },
+    "container_memory_swap": {
+        "metric_field": "container_memory_swap",
+        "metric_field_name": "虚拟内存使用量",
+        "description": "虚拟内存（swap）指的是用磁盘来模拟内存使用。当物理内存快要使用完或者达到一定比例，就可以把部分不用的内存数据交换到硬盘保存，需要使用时再调入物理内存",
+        "unit": "bytes"
+    },
+    "container_memory_working_set_bytes": {
+        "metric_field": "container_memory_working_set_bytes",
+        "metric_field_name": "内存使用量(working_set)",
+        "description": "内存使用量(working_set)",
+        "unit": "bytes"
+    },
+    "container_memory_cache": {
+        "metric_field": "container_memory_cache",
+        "metric_field_name": "高速缓存（cache）的使用量",
+        "description": "高速缓存（cache）的使用量。cache是位于CPU与主内存间的一种容量较小但速度很高的存储器，是为了提高cpu和内存之间的数据交换速度而设计的。",
+        "unit": "bytes"
+    },
+    "container_network_receive_errors_total": {
+        "metric_field": "container_network_receive_errors_total",
+        "metric_field_name": "网络接收数据错误数",
+        "description": "网络接收数据错误数",
+        "unit": ""
+    },
+    "container_network_receive_packets_dropped_total": {
+        "metric_field": "container_network_receive_packets_dropped_total",
+        "metric_field_name": "网络接收数据丢包量",
+        "description": "网络接收数据丢包",
+        "unit": ""
+    },
+    "container_network_receive_packets_total": {
+        "metric_field": "container_network_receive_packets_total",
+        "metric_field_name": "网络接收数据包量",
+        "description": "网络累积接收数据总包量",
+        "unit": ""
+    },
+    "container_network_transmit_errors_total": {
+        "metric_field": "container_network_transmit_errors_total",
+        "metric_field_name": "传输时遇到的累积错误数",
+        "description": "传输时遇到的累积错误数",
+        "unit": ""
+    },
+    "container_network_transmit_packets_dropped_total": {
+        "metric_field": "container_network_transmit_packets_dropped_total",
+        "metric_field_name": "传输时丢弃的累计包数",
+        "description": "传输时丢弃的累计包数",
+        "unit": ""
+    },
+    "container_network_transmit_packets_total": {
+        "metric_field": "container_network_transmit_packets_total",
+        "metric_field_name": "网络发送数据包量",
+        "description": "网络累积发送数据总包量",
+        "unit": ""
+    },
+    "container_fs_inodes_free": {
+        "metric_field": "container_fs_inodes_free",
+        "metric_field_name": "可用的Inode数量",
+        "description": "可用的Inode数量",
+        "unit": ""
+    },
+    "container_fs_inodes_total": {
+        "metric_field": "container_fs_inodes_total",
+        "metric_field_name": "inode数",
+        "description": "inode数",
+        "unit": ""
+    },
+    "container_fs_io_current": {
+        "metric_field": "container_fs_io_current",
+        "metric_field_name": "当前正在进行的I/O数",
+        "description": "当前正在进行的I/O数",
+        "unit": ""
+    },
+    "container_fs_io_time_seconds_total": {
+        "metric_field": "container_fs_io_time_seconds_total",
+        "metric_field_name": "I/O花费的秒数累计",
+        "description": "I/O花费的秒数累计",
+        "unit": ""
+    },
+    "container_fs_io_time_weighted_seconds_total": {
+        "metric_field": "container_fs_io_time_weighted_seconds_total",
+        "metric_field_name": "磁盘累积加权I/O时间",
+        "description": "磁盘累积加权I/O时间",
+        "unit": "s"
+    },
+    "container_fs_reads_total": {
+        "metric_field": "container_fs_reads_total",
+        "metric_field_name": "磁盘累计读取次数",
+        "description": "磁盘累计读取次数",
+        "unit": ""
+    },
+    "container_fs_sector_reads_total": {
+        "metric_field": "container_fs_sector_reads_total",
+        "metric_field_name": "磁盘扇区已完成读取的累计计数",
+        "description": "磁盘扇区已完成读取的累计计数",
+        "unit": ""
+    },
+    "container_fs_sector_writes_total": {
+        "metric_field": "container_fs_sector_writes_total",
+        "metric_field_name": "磁盘扇区写入累计计数",
+        "description": "磁盘扇区写入累计计数",
+        "unit": ""
+    },
+    "container_fs_write_seconds_total": {
+        "metric_field": "container_fs_write_seconds_total",
+        "metric_field_name": "磁盘写操作时间",
+        "description": "磁盘写操作时间",
+        "unit": ""
+    },
+    "container_fs_writes_bytes_total": {
+        "metric_field": "container_fs_writes_bytes_total",
+        "metric_field_name": "磁盘累积写入数据的总量",
+        "description": "磁盘累积写入数据的总量",
+        "unit": "bytes"
+    },
+    "container_fs_writes_merged_total": {
+        "metric_field": "container_fs_writes_merged_total",
+        "metric_field_name": "磁盘合并的累计写入数",
+        "description": "磁盘合并的累计写入数",
+        "unit": ""
+    },
+    "container_fs_writes_total": {
+        "metric_field": "container_fs_writes_total",
+        "metric_field_name": "磁盘累计写入次数",
+        "description": "磁盘累计写入次数",
+        "unit": ""
+    },
+    "container_fs_limit_bytes": {
+        "metric_field": "container_fs_limit_bytes",
+        "metric_field_name": "可以使用的文件系统总量",
+        "description": "可以使用的文件系统总量",
+        "unit": "bytes"
+    },
+    "container_fs_read_seconds_total": {
+        "metric_field": "container_fs_read_seconds_total",
+        "metric_field_name": "磁盘读操作时间",
+        "description": "磁盘读操作时间",
+        "unit": "s"
+    },
+    "container_fs_reads_bytes_total": {
+        "metric_field": "container_fs_reads_bytes_total",
+        "metric_field_name": "磁盘磁盘读取数据的总量",
+        "description": "磁盘读取数据的总量",
+        "unit": "bytes"
+    },
+    "container_fs_reads_merged_total": {
+        "metric_field": "container_fs_reads_merged_total",
+        "metric_field_name": "合并的累计读取数",
+        "description": "合并的累计读取数",
+        "unit": ""
+    },
+    "kube_pod_container_status_restarts_total": {
+        "metric_field": "kube_pod_container_status_restarts_total",
+        "metric_field_name": "重启次数",
+        "description": "重启次数",
+        "unit": ""
+    },
+    "kubelet_container_log_filesystem_used_bytes": {
+        "metric_field": "kubelet_container_log_filesystem_used_bytes",
+        "metric_field_name": "日志大小",
+        "description": "日志大小",
+        "unit": "bytes"
+    },
+    "kube_pod_status_ready": {
+        "metric_field": "kube_pod_status_ready",
+        "metric_field_name": "Pod就绪状态",
+        "description": "Pod就绪状态",
+        "unit": ""
+    },
+    "container_file_descriptors": {
+        "metric_field": "container_file_descriptors",
+        "metric_field_name": "打开文件描述符个数",
+        "description": "打开文件描述符个数",
+        "unit": ""
+    },
+    "container_processes": {
+        "metric_field": "container_processes",
+        "metric_field_name": "进程数",
+        "description": "进程数",
+        "unit": ""
+    },
+    "container_threads": {
+        "metric_field": "container_threads",
+        "metric_field_name": "线程数",
+        "description": "线程数",
+        "unit": ""
+    }
+}

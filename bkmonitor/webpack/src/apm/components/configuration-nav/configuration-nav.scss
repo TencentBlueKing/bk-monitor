@@ -1,0 +1,45 @@
+.configuration-nav {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+
+  .bk-tab.monitor-tab {
+    /* stylelint-disable-next-line declaration-no-important */
+    height: auto !important;
+
+    .bk-tab-section {
+      display: none;
+    }
+  }
+
+  .info-alert {
+    position: absolute;
+    right: 0;
+    background: #fff;
+    border: 0;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .icon-info {
+      margin-right: 4px;
+      color: #979ba5;
+    }
+
+    .link {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .configuration-main {
+    display: flex;
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "collector_json": {"windows":{"file_id":1,"filename":"test_plugin.exe", "md5":  "202cb962ac59075b964b07152d234b70"}},
+  "config_json": [
+    {"default":"127.0.0.1","mode":"collector","type":"text","description":"\u91c7\u96c6URL\u7684host","name":"host"},
+    {"default":"9272","mode":"collector","type":"text","description":"\u91c7\u96c6URL\u7684port","name":"port"},
+    {"default":"http:\/\/localhost:9200","mode":"opt_cmd","type":"text","description":"\u76d1\u63a7\u76ee\u6807url","name":"url"}],
+  "is_support_remote": false
+}

@@ -1,0 +1,48 @@
+.diff-color-list {
+  display: flex;
+  align-items: center;
+  height: 22px;
+
+  .pre-color,
+  %pre-color {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #46a28c;
+    border-radius: 2px;
+    color: white;
+    margin: 0 4px;
+    width: 66px;
+    height: 22px;
+  }
+
+  .next-color {
+    background-color: #d74747;
+
+    @extend %pre-color;
+  }
+
+  .color-list {
+    display: flex;
+    flex-direction: row;
+    color: #000;
+
+    .color-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      background-color: #9fd7cc;
+      height: 22px;
+
+      &:first-child {
+        border-radius: 2px 0 0 2px;
+      }
+
+      &:last-child {
+        border-radius: 0 2px 2px 0;
+      }
+    }
+
+  }
+}

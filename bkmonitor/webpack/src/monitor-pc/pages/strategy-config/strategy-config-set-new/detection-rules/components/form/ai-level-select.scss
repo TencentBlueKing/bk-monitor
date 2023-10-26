@@ -1,0 +1,65 @@
+.al-level {
+  display: flex;
+  align-items: center;
+
+  .level-type-select {
+    width: 120px;
+    margin-right: 8px;
+  }
+
+  .icon-setting {
+    color: #3a84ff;
+    cursor: pointer;
+
+    &.disabled {
+      cursor: no-drop;
+    }
+  }
+
+  .level-select {
+    width: 120px;
+    height: 24px;
+    line-height: 24px;
+
+    .bk-select-prefix-icon {
+      top: 0;
+    }
+
+    &.is-focus {
+      box-shadow: none;
+    }
+  }
+}
+
+.level-select-popover {
+  .name {
+    vertical-align: middle;
+  }
+}
+
+.al-level-popover-theme {
+  padding: 12px 12px 17px 16px;
+
+  .title {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 9px;
+    line-height: 20px;
+
+    &::after {
+      position: absolute;
+      right: -8px;
+      color: #ea3636;
+      content: '*';
+    }
+  }
+
+  .bk-form-checkbox + .bk-form-checkbox {
+    margin-left: 24px;
+  }
+
+  .msg {
+    margin-bottom: 0;
+    color: #ea3636;
+  }
+}

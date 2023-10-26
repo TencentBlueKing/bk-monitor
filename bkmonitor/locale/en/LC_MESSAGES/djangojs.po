@@ -1,0 +1,487 @@
+# Translations template for PROJECT.
+# Copyright (C) 2020 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2020.
+#
+msgid ""
+msgstr "Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2020-05-25 21:44+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.5.1\n"
+
+msgid "请选择"
+msgstr "please choose"
+
+msgid "指标加载中..."
+msgstr "Indicators Loading ..."
+
+msgid "指标对应的维度超过展示最大值【"
+msgstr "Indicators show the corresponding dimensions exceed the maximum value ["
+
+msgid "】 部分维度未展示。"
+msgstr "] Section dimensions are not shown."
+
+msgid "暂无指标"
+msgstr "No targets"
+
+msgid "创建成功"
+msgstr "Creating Success"
+
+msgid "拉取业务下指标信息失败"
+msgstr "Pull down the index information service failure"
+
+msgid "<option value=\"\">暂无字段</option>"
+msgstr "<Option value = \" \"> No field </ option>"
+
+msgid "<option value=\"\">请选择...</option>"
+msgstr "<Option value = \" \"> Select ... </ option>"
+
+msgid "无"
+msgstr "no"
+
+msgid "加载失败"
+msgstr "Failed to load"
+
+msgid "保存失败: "
+msgstr "Save failed:"
+
+msgid "编辑成功"
+msgstr "Editing success"
+
+msgid "加载视图失败: "
+msgstr "Failed to load view:"
+
+msgid "删除视图失败: "
+msgstr "Delete View failed:"
+
+msgid "删除成功"
+msgstr "successfully deleted"
+
+msgid "提交"
+msgstr "submit"
+
+msgid "取消"
+msgstr "cancel"
+
+msgid "从"
+msgstr "From"
+
+msgid "到"
+msgstr "To"
+
+msgid "周"
+msgstr "week"
+
+msgid "自定义范围"
+msgstr "Custom Range"
+
+msgid "日"
+msgstr "day"
+
+msgid "一"
+msgstr "One"
+
+msgid "二"
+msgstr "two"
+
+msgid "三"
+msgstr "three"
+
+msgid "四"
+msgstr "four"
+
+msgid "五"
+msgstr "Fives"
+
+msgid "六"
+msgstr "six"
+
+msgid "一月"
+msgstr "January"
+
+msgid "二月"
+msgstr "February"
+
+msgid "三月"
+msgstr "March"
+
+msgid "四月"
+msgstr "April"
+
+msgid "五月"
+msgstr "May"
+
+msgid "六月"
+msgstr "June"
+
+msgid "七月"
+msgstr "July"
+
+msgid "八月"
+msgstr "August"
+
+msgid "九月"
+msgstr "September"
+
+msgid "十月"
+msgstr "October"
+
+msgid "十一月"
+msgstr "November"
+
+msgid "十二月"
+msgstr "December"
+
+msgid "正在加载..."
+msgstr "loading..."
+
+msgid "无数据"
+msgstr "no data"
+
+msgid "<div class=\"dashboard-panel-label\">指标</div>"
+msgstr "<Div class = \" dashboard-panel-label \"> index </ div>"
+
+msgid "数据来源"
+msgstr "Data Sources"
+
+msgid "监控对象"
+msgstr "Monitoring Objects"
+
+msgid "服务名称"
+msgstr "service name"
+
+msgid "指标类型"
+msgstr "Type Indicators"
+
+msgid "指标项"
+msgstr "Index item"
+
+msgid "含义描述"
+msgstr "Meaning Description"
+
+msgid "新增"
+msgstr "What's New"
+
+msgid "数值格式"
+msgstr "Numeric Format"
+
+msgid "取整数"
+msgstr "Taken integer"
+
+msgid "1个小数位"
+msgstr "1 decimal place."
+
+msgid "2个小数位"
+msgstr "2 decimal places."
+
+msgid "3个小数位"
+msgstr "3 decimal places."
+
+msgid "原始数值"
+msgstr "Original value"
+
+msgid "单位"
+msgstr "unit"
+
+msgid "默认不显示单位"
+msgstr "The default does not display the unit"
+
+msgid "关联策略"
+msgstr "Relevance"
+
+msgid "新增策略"
+msgstr "New Strategy"
+
+msgid "设置规则"
+msgstr "Set rules"
+
+msgid "指标"
+msgstr "index"
+
+msgid "指标别名"
+msgstr "Indicators alias"
+
+msgid "显示条数"
+msgstr "Shows the number of"
+
+msgid "排序方式"
+msgstr "Sort by"
+
+msgid "正序"
+msgstr "Positive-sequence"
+
+msgid "倒序"
+msgstr "Reverse"
+
+msgid "选择范围"
+msgstr "Choice"
+
+msgid "请选择选项"
+msgstr "Please select the option"
+
+msgid "请选择周期"
+msgstr "Please select cycle"
+
+msgid "新建仪表盘"
+msgstr "New Dashboard"
+
+msgid ""
+"<div class=\"create-dashboard-dialog\"><p class=\"dialog-"
+"title\">请为你的自定义仪表盘命名</p><p class=\"dialog-content\"><input type=\"text\" "
+"id=\"new_dashboard\" class=\"form-control\"><span id=\"dialog-error\" "
+"class=\"pl10\" style=\"color: red;\"></span></p></div>"
+msgstr "<Div class = \" create-dashboard-dialog \"> <p class = \" dialog-title \"> Please name </ p> for your custom dashboard <p class = \" dialog-content \"> <input type = \" text \"id = \" new_dashboard \"class = \" form-control \"> <span id = \" dialog-error \"class = \" pl10 \"style = \" color: red; \"> </ span> </ p> </ div>"
+
+msgid "创建"
+msgstr "create"
+
+msgid "删除"
+msgstr "delete"
+
+msgid "图形类型"
+msgstr "Graph Type"
+
+msgid "曲线图"
+msgstr "Graph"
+
+msgid "柱状图"
+msgstr "Histogram"
+
+msgid "面积图"
+msgstr "Area map"
+
+msgid "标记"
+msgstr "mark"
+
+msgid "Line\" checked>线条"
+msgstr "Line \" checked> Line "
+
+msgid "Range\">区间"
+msgstr "Range \"> interval "
+
+msgid "线条样式"
+msgstr "Line style"
+
+msgid "Solid\" checked>实线"
+msgstr "Solid\" checked>实线"
+
+msgid "Dash\">虚线"
+msgstr "Dash \"> dotted line. "
+
+msgid "Dot\">点状线"
+msgstr "Dot \"> the dotted line "
+
+msgid "标记值"
+msgstr "Tag value"
+
+msgid "下限值"
+msgstr "lower limit"
+
+msgid "上限值"
+msgstr "Upper limit"
+
+msgid "标记命名"
+msgstr "Tag name"
+
+msgid "用于备注标记用途，可不填!"
+msgstr "Remarks for labeling purposes, do not fill!"
+
+msgid "填充颜色"
+msgstr "Fill Color"
+
+msgid "<div class=\"dashboard-panel-label\">规则</div>"
+msgstr "<Div class = \" dashboard-panel-label \"> regular </ div>"
+
+msgid "<span class=\"label-title\">当指标值</span>"
+msgstr "<Span class = \" label-title \"> When the index value </ span>"
+
+msgid "<option value=\"<\">小于</option>"
+msgstr "<Option value = \" <\"> less than </ option>"
+
+msgid "<option value=\"<=\">小于等于</option>"
+msgstr "<Option value = \" <= \"> less </ option>"
+
+msgid "<option value=\">\">大于</option>"
+msgstr "<Option value = \"> \"> larger than </ option>"
+
+msgid "<option value=\">=\">大于等于</option>"
+msgstr "<Option value = \"> = \"> greater than or equal </ option>"
+
+msgid ""
+"<input type=\"text\" name=\"top_threshold\" value=\"\" "
+"placeholder=\"输入指定的阈值\" class=\"top_rank_threshold form-control\">"
+msgstr "<Input type = \" text \"name = \" top_threshold \"value = \" \"placeholder = \" Enter a specified threshold value \"class = \" top_rank_threshold form-control \">"
+
+msgid "<span class=\"label-title\">时，柱条颜色为</span>"
+msgstr "<Span class = \" label-title \">, the color bins </ span>"
+
+msgid "规则"
+msgstr "rule"
+
+msgid "当指标值"
+msgstr "When the index value"
+
+msgid "小于"
+msgstr "Less than"
+
+msgid "小于等于"
+msgstr "Less than equal"
+
+msgid "大于"
+msgstr "more than the"
+
+msgid "大于等于"
+msgstr "greater or equal to"
+
+msgid "输入指定的阈值"
+msgstr "Enter the specified threshold."
+
+msgid "时，背景颜色为"
+msgstr ", The background color is"
+
+msgid "是否删除视图: "
+msgstr "Delete view:"
+
+msgid "<div class=\"pull-right pagination-text\">显示条目 "
+msgstr "<Div class = \" pull-right pagination-text \"> Show item"
+
+msgid " 共"
+msgstr "Total"
+
+msgid "页</div>"
+msgstr "Page </ div>"
+
+msgid "保存失败"
+msgstr "Save failed"
+
+msgid "确认删除当前分享？"
+msgstr "OK to delete the current share?"
+
+msgid "删除失败"
+msgstr "failed to delete"
+
+msgid "静态阈值"
+msgstr "Static threshold"
+
+msgid "同比策略（简易）"
+msgstr "Year strategy (Easy)"
+
+msgid "环比策略（简易）"
+msgstr "Sequential strategy (Easy)"
+
+msgid "同比策略（高级）"
+msgstr "Year strategy (Advanced)"
+
+msgid "环比策略（高级）"
+msgstr "Sequential strategy (Advanced)"
+
+msgid "当数据连续丢失"
+msgstr "When data is continuously lost"
+
+msgid "个周期时，触发告警"
+msgstr "When the cycles, an alarm is triggered."
+
+msgid "未启用"
+msgstr "Not activated"
+
+msgid "启用"
+msgstr "Enable"
+
+msgid "停用"
+msgstr "Disable"
+
+msgid "确认"
+msgstr "confirm"
+
+msgid "<span class='text-danger'>未启用</span>"
+msgstr "<Span class = 'text-danger'> is not enabled </ span>"
+
+msgid "<span class='text-success'>已启用</span>"
+msgstr "<Span class = 'text-success'> Enabled </ span>"
+
+msgid "成功"
+msgstr "success"
+
+msgid "失败"
+msgstr "failure"
+
+msgid "请选择指标"
+msgstr "Please select targets"
+
+msgid "提醒"
+msgstr "remind"
+
+msgid "预警"
+msgstr "Early warning"
+
+msgid "致命"
+msgstr "fatal"
+
+msgid "15分钟"
+msgstr "15 minutes"
+
+msgid "加载中..."
+msgstr "Loading..."
+
+msgid "请选择..."
+msgstr "please choose..."
+
+msgid "获取任务列表失败："
+msgstr "Get task list failed:"
+
+msgid "加载失败..."
+msgstr "Failed to load..."
+
+msgid "操作成功"
+msgstr "Successful operation"
+
+msgid "周期值必须填数字"
+msgstr "Cycle value must fill in the number"
+
+msgid "周期值必须大于0"
+msgstr "Period must be greater than 0"
+
+msgid "请勾选至少一种通知方式"
+msgstr "Please check at least one notification method"
+
+msgid "请至少选择一个电话通知人"
+msgstr "Please select at least one phone call Man"
+
+msgid "保存提交"
+msgstr "Save submit"
+
+msgid "请选择至少一个通知角色"
+msgstr "Please select at least one notification role"
+
+msgid "请选择至少一个其他通知人"
+msgstr "Please select at least one other person notice"
+
+msgid "保存中..."
+msgstr "Saving ..."
+
+msgid "保存"
+msgstr "Save"
+
+msgid "操作确认"
+msgstr "Action confirmation"
+
+msgid "确定"
+msgstr "determine"
+
+msgid "1分钟"
+msgstr "1minute"
+
+msgid "2分钟"
+msgstr "2minute"
+
+msgid "5分钟"
+msgstr "5minute"
+
+msgid "周期"
+msgstr "Period"

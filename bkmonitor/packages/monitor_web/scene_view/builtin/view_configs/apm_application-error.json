@@ -1,0 +1,241 @@
+{
+  "id": "error",
+  "type": "overview",
+  "mode": "custom",
+  "name": "错误",
+  "variables": [
+    {
+      "title": "服务实例",
+      "type": "list",
+      "targets": [
+        {
+          "datasource": "instance_list",
+          "dataType": "list",
+          "api": "apm_metric.instanceList",
+          "data": {
+            "app_name": "$app_name"
+          },
+          "fields": {
+            "id": "bk_instance_id"
+          }
+        }
+      ]
+    }
+  ],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "错误信息",
+      "type": "api_message",
+      "targets": [
+        {
+          "data": {
+            "app_name": "$app_name",
+            "filter_params": {
+              "resource.bk.instance.id": "$bk_instance_id"
+            }
+          },
+          "dataType": "table",
+          "api": "apm_meta.queryExceptionDetailEvent"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 18
+      },
+      "options": {
+        "table_chart": {
+          "json_viewer_data_key": "data",
+          "show_expand": true
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "错误趋势",
+      "type": "graph",
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "apm_meta.queryExceptionTypeGraph",
+          "datasource": "time_series",
+          "alias": "出现次数",
+          "data": {
+            "app_name": "${app_name}",
+            "bk_biz_id": "${bk_biz_id}",
+            "filter_params": {
+              "resource.bk.instance.id": "$bk_instance_id"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "服务+接口",
+      "type": "ratio-ring",
+      "targets": [
+        {
+          "data": {
+            "app_name": "$app_name",
+            "filter_params": {
+              "resource.bk.instance.id": "$bk_instance_id"
+            }
+          },
+          "dataType": "list",
+          "api": "apm_meta.queryExceptionEndpoint"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "hideLabel": true
+      }
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "错误信息",
+      "type": "api_message",
+      "targets": [
+        {
+          "data": {
+            "app_name": "$app_name",
+            "filter_params": {
+              "resource.bk.instance.id": "$bk_instance_id"
+            },
+            "exception_type": "$exception_type"
+          },
+          "dataType": "table",
+          "api": "apm_meta.queryExceptionDetailEvent"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 18
+      },
+      "options": {
+        "table_chart": {
+          "json_viewer_data_key": "data",
+          "show_expand": true
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "错误趋势",
+      "type": "graph",
+      "targets": [
+        {
+          "data_type": "time_series",
+          "api": "apm_meta.queryExceptionTypeGraph",
+          "datasource": "time_series",
+          "alias": "出现次数",
+          "data": {
+            "app_name": "${app_name}",
+            "bk_biz_id": "${bk_biz_id}",
+            "exception_type": "$exception_type",
+            "filter_params": {
+              "resource.bk.instance.id": "$bk_instance_id"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "time_series": {
+          "type": "bar"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "服务+接口",
+      "type": "ratio-ring",
+      "targets": [
+        {
+          "data": {
+            "app_name": "$app_name",
+            "filter_params": {
+              "resource.bk.instance.id": "$bk_instance_id"
+            },
+            "exception_type": "$exception_type"
+          },
+          "dataType": "list",
+          "api": "apm_meta.queryExceptionEndpoint"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "hideLabel": true
+      }
+    }
+  ],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "method_select": false,
+      "compare_select": false,
+      "columns_toggle": false,
+      "interval_select": false,
+      "split_switcher": false
+    },
+    "selector_panel": {
+      "title": "错误",
+      "type": "table",
+      "options": {
+        "selector_list": {
+          "status_filter": true,
+          "field_sort": true,
+          "default_sort_field": "-error_count"
+        }
+      },
+      "targets": [
+        {
+          "datasource": "error_list",
+          "dataType": "table",
+          "api": "apm_metric.errorList",
+          "data": {
+            "app_name": "$app_name"
+          },
+          "fields": {
+            "endpoint": "endpoint",
+            "app_name": "app_name",
+            "exception_type": "exception_type",
+            "message": "message"
+          }
+        }
+      ]
+    }
+  }
+}

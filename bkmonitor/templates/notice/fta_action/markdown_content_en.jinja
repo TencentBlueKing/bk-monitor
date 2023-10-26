@@ -1,0 +1,10 @@
+**{{gettext("Solution Name")}}: **{{action_instance.name | safe}}
+**{{gettext("Solution Type")}}: **{{action_instance.plugin_type_name | safe}}
+**{{gettext("Principal")}}: **{{action_instance.assignees | safe}}
+**{{gettext("Target")}}: **{{action_instance.operate_target_string | safe}}
+**{{gettext("Start time")}}: **{{action_instance.start_time | safe}}
+**{{gettext("End time")}}: **{{action_instance.end_time | safe}}
+**{{gettext("Duration")}}: **{{action_instance.duration_string | safe}}
+**{{gettext("Status")}}: **{{action_instance.status_display | safe}}
+**{{gettext("Content")}}: **{{action_instance.opt_content_markdown | safe}}
+[{{gettext("Detail")}}]({{action_instance.detail_url | safe}})    [{{gettext("告警详情")}}]({{alarm.detail_url | safe}})

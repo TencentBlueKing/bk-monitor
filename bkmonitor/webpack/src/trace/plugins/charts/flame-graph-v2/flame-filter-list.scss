@@ -1,0 +1,29 @@
+.flame-filter-list {
+  // display: flex;
+  width: 100%;
+  height: 100%;
+
+
+  &.bk-table {
+    .cell {
+      padding: 0 6px !important;
+    }
+  }
+
+  .col-label {
+    display: flex;
+    align-items: center;
+  }
+
+  .col-value {
+    display: flex;
+    align-items: center;
+  }
+
+  .bk-select {
+    .bk-input--text {
+      font-size: 12px;
+      background-color: transparent;
+    }
+  }
+}

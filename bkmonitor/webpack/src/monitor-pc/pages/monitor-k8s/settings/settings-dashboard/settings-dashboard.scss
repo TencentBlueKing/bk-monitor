@@ -1,0 +1,243 @@
+@import '../../../../theme/mixin.scss';
+
+.settings-dashboard-wrap {
+  height: calc(100vh - 124px);
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  @include flex-column;
+
+  .settings-title {
+    display: flex;
+    align-items: center;
+    padding: 14px 24px 0;
+    font-size: 14px;
+    line-height: 22px;
+    color: #313238;
+  }
+
+  .settings-tab {
+    .bk-tab-header {
+      padding: 0 10px;
+    }
+
+    .bk-tab-section {
+      display: none;
+    }
+
+    .tab-label-count {
+      display: inline-block;
+      height: 18px;
+      padding: 0 8px;
+      margin-left: 4px;
+      font-weight: 400;
+      line-height: 18px;
+      color: #63656e;
+      background-color: #f0f1f5;
+      border-radius: 11px;
+    }
+
+    .tab-label-wrap {
+      .tab-label-count {
+        display: inline-block;
+        height: 18px;
+        padding: 0 8px;
+        margin-left: 4px;
+        font-weight: 400;
+        line-height: 18px;
+        color: #63656e;
+        background-color: #f0f1f5;
+        border-radius: 11px;
+      }
+
+      &.active {
+        .tab-label-count {
+          color: #3a84ff;
+          background-color: #edf4ff;
+        }
+      }
+    }
+
+    .bk-tab-label-wrapper {
+      .bk-tab-scroll-controller {
+        border: 0;
+      }
+    }
+  }
+
+  .settings-dashboard-content {
+    padding: 20px 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    @include flex-column;
+
+    .bk-button-group {
+      width: 100%;
+      padding: 0 30px;
+
+      .range-button {
+        width: 50%;
+      }
+    }
+  }
+
+  .sort-setting-title {
+    margin-top: 20px;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    @include flex-column;
+
+    .title-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      color: #3a84ff;
+
+      .add-btn {
+        cursor: pointer;
+      }
+
+      .import-or-export {
+        .import-btn {
+          margin-right: 24px;
+          cursor: pointer;
+        }
+
+        .export-btn {
+          cursor: pointer;
+        }
+
+        .icon-shangchuan,
+ 
+        .icon-xiazai2 {
+          margin-right: 4px;
+        }
+      }
+    }
+
+    .icon-plus-circle-shape {
+      margin-right: 4px;
+      font-size: 14px;
+    }
+
+    .create-input {
+      display: flex;
+      align-items: center;
+      padding: 0 30px;
+    }
+
+    .icon-check-1,
+    .icon-mc-close {
+      font-size: 24px;
+      color: #979ba5;
+      cursor: pointer;
+    }
+  }
+
+  .sort-setting-content {
+    display: flex;
+    align-items: center;
+    padding: 20px 30px 0;
+
+    .setting-content-select {
+      flex: 1;
+      margin-right: 16px;
+    }
+  }
+
+  .add-group-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    margin: 14px 30px 0 30px;
+    background: #e2ecff;
+
+    .count-msg {
+      color: #737788;
+
+      .blod {
+        font-weight: bold;
+      }
+    }
+
+    .add-group {
+      .prepend-add-btn {
+        color: #3a84ff;
+
+        .icon-mc-triangle-down {
+          position: relative;
+          top: 3px;
+          font-size: 20px;
+          line-height: 12px;
+        }
+      }
+    }
+  }
+
+  .set-var-no-data {
+    padding-top: 37px;
+    padding-bottom: 50px;
+  }
+  // 重置组件折叠面板样式
+  .not-dialog {
+    padding: 30px 30px 60px 30px;
+    overflow: auto;
+
+    .dialog-content {
+      /* stylelint-disable-next-line declaration-no-important */
+      padding: 0 !important;
+    }
+
+    .dialog-footer {
+      width: 960px;
+    }
+
+    .bk-collapse {
+      margin-bottom: 20px;
+      border: 1px solid #dcdee5;
+      border-radius: 3px;
+      box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05);
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .group-item {
+        border: 0;
+      }
+
+      .bk-collapse-item-header {
+        height: 40px;
+        line-height: 40px;
+        background-color: #f0f1f5;  
+      }
+
+      .drag-list {
+        &.is-check {
+          /* stylelint-disable-next-line declaration-no-important */
+          padding: 20px 40px !important;
+        }
+
+        .content-item {
+          width: 612px;
+          padding: 0 10px 0 4px;
+          margin-bottom: 10px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+    }
+  }
+}
+
+.bk-dialog-wrapper.reset-default {
+  .bk-dialog-header-inner {
+    white-space: normal;
+  }
+}

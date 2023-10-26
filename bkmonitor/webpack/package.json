@@ -1,0 +1,116 @@
+{
+  "name": "blueking-monitor",
+  "description": "blueking-monitor",
+  "private": "true",
+  "version": "1.0.0",
+  "author": "bkfe",
+  "license": "MIT",
+  "scripts": {
+    "debug": "node --inspect-brk  node_modules/@blueking/bkmonitor-cli/bin/index.js dev -f",
+    "preinstall": "npx only-allow pnpm",
+    "postinstall": "npm run change:modules",
+    "install-build": "pnpm i",
+    "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
+    "change:modules": "node ./webpack/change-modules-code.js",
+    "prod": "pnpm i && run-s build",
+    "trace:dev": "nodemon --exec \"bkmonitor-cli dev -t\"",
+    "trace:build": "bkmonitor-cli build -t",
+    "mobile:dev": "nodemon --exec \"bkmonitor-cli dev -m\"",
+    "mobile:build": "bkmonitor-cli build -m",
+    "pc:dev": "nodemon --exec \"bkmonitor-cli dev\"",
+    "pc:build": "bkmonitor-cli build",
+    "fta:dev": "nodemon --exec \"bkmonitor-cli dev -f\"",
+    "fta:build": "bkmonitor-cli build -f",
+    "apm:dev": "nodemon --exec \"bkmonitor-cli dev -apm\"",
+    "apm:build": "bkmonitor-cli build -apm",
+    "external:dev": "nodemon --exec \"bkmonitor-cli dev -external\"",
+    "external:build": "bkmonitor-cli build -external",
+    "dev": "nodemon --exec \"bkmonitor-cli dev\"",
+    "build": "run-p fta:build mobile:build apm:build pc:build trace:build external:build",
+    "clean": "rimraf ../static/monitor/* && rimraf mobile/*",
+    "clean:mobile": "rimraf weixin/*",
+    "clean:pc": "rimraf ../static/monitor/*",
+    "clean-dll": "rimraf ../static/monitor/dll/*",
+    "analyze": "npm run clean && bkmonitor-cli build -a",
+    "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
+    "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
+    "replace": "cross-env execMode=move node ./webpack/exec-shell.js",
+    "fix": "eslint --fix --ext .js,.vue src/",
+    "iconfont": "node ./webpack/update-iconfont.js"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged --concurrent false",
+    "commit-msg": "node ./bkmonitor/webpack/webpack/verify-commit.js $1"
+  },
+  "lint-staged": {
+    "src/**/*.(vue|ts|tsx)": [
+      "eslint --ext .js,.tsx,.ts,.vue --cache --fix"
+    ],
+    "src/**/*.(vue|scss|css|sass)": [
+      "stylelint --cache --fix"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.20.0",
+    "@typescript-eslint/parser": "^5.20.0",
+    "babel-plugin-import": "^1.13.5",
+    "babel-plugin-import-bkui-vue": "^0.0.7",
+    "eslint": "^8.47.0",
+    "lint-staged": "^12.3.7",
+    "nodemon": "^2.0.9",
+    "npm-run-all": "^4.1.5",
+    "picocolors": "^1.0.0",
+    "portfinder": "^1.0.28",
+    "prettier": "^3.0.2",
+    "simple-git-hooks": "^2.7.0",
+    "stylelint": "^15.10.3"
+  },
+  "dependencies": {
+    "@blueking/bkmonitor-cli": "1.0.0-beta.47",
+    "core-js": "^3.21.1",
+    "cross-env": "^7.0.3"
+  },
+  "nodemonConfig": {
+    "watch": [
+      "local.settings.js",
+      "webpack.config.js",
+      "pnpm-lock.yaml"
+    ],
+    "extentions": []
+  },
+  "engines": {
+    "node": ">= 14.18.0",
+    "npm": ">= 6.14.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@blueking/stylelint-config": "0.0.3",
+      "@blueking/user-selector>vue": "2.7.14",
+      "@typescript-eslint/eslint-plugin": "^5.20.0",
+      "@typescript-eslint/parser": "^5.20.0",
+      "bk-magic-vue": "^2.5.8-beta.5",
+      "eslint": "^8.47.0",
+      "eslint-config-prettier": "^9.0.0",
+      "eslint-config-tencent": "^1.0.4",
+      "eslint-plugin-codecc": "^0.3.0",
+      "eslint-plugin-prettier": "^5.0.0",
+      "eslint-plugin-simple-import-sort": "^10.0.0",
+      "eslint-plugin-vue": "^9.17.0",
+      "moment": "^2.29.2",
+      "postcss-html": "^1.5.0",
+      "postcss-scss": "^4.0.7",
+      "prettier": "^3.0.2",
+      "stylelint": "^15.10.3",
+      "stylelint-config-recess-order": "^4.3.0",
+      "stylelint-config-recommended-vue": "1.5.0",
+      "stylelint-config-standard": "^34.0.0",
+      "stylelint-order": "^6.0.3",
+      "stylelint-scss": "^5.1.0",
+      "typescript": "^4.6.3",
+      "vue-class-component": "^7.2.6",
+      "vue-property-decorator": "^9.1.2",
+      "vue-tsx-support": "^3.1.0",
+      "vuex-module-decorators": "^1.2.0"
+    }
+  }
+}

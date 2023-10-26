@@ -1,0 +1,7 @@
+{
+  "plugin_id": "test_plugin",
+  "plugin_display_name": "test_plugin",
+  "plugin_type": "DataDog",
+  "tag": "办公应用",
+  "bk_biz_id": 0
+}

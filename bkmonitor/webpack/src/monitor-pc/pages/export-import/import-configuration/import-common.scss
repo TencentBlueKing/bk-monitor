@@ -1,0 +1,267 @@
+@import '../../../theme/index';
+
+$statusColors: #94f5a4 #fd9c9c #3a84ff;
+$statusBorderColors: #2dcb56 #ea3636 #3a84ff;
+$collapseHeaderBackground: #f0f1f5;
+$whiteColor: #fff;
+$directionIconColor: #313238;
+$markBackground: #caddff;
+
+@mixin layout-flex($flexDirection: row, $alignItems: stretch, $justifyContent: flex-start) {
+  display: flex;
+  flex-direction: $flexDirection;
+  align-items: $alignItems;
+  justify-content: $justifyContent;
+}
+
+@mixin icon-direction($size: 6px) {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border: $size solid transparent;
+}
+
+@mixin button-fixed {
+  position: fixed;
+  bottom: 11px;
+  z-index: 2;
+}
+
+@mixin collapse-item-right($colorIndex) {
+  font-weight: bold;
+  color: nth($statusBorderColors, $colorIndex);
+}
+
+@mixin col-row-status($i: 1) {
+  width: 8px;
+  height: 8px;
+  margin-right: 10px;
+  background: nth($statusColors, $i);
+  border: 1px solid nth($statusBorderColors, $i);
+  border-radius: 50%;
+}
+
+.bk-button-icon-loading::before {
+  content: '';
+}
+
+.bk-collapse-item {
+  &-header {
+    position: relative;
+    padding: 0 20px;
+    font-size: 12px;
+    background: $collapseHeaderBackground;
+    border: 1px solid $defaultBorderColor;
+    border-radius: 2px 2px 0px 0px;
+
+    @include layout-flex(row, center, space-between);
+
+    .fr {
+      display: none;
+    }
+
+    &:hover {
+      color: $defaultFontColor;
+    }
+  }
+
+  &-content {
+    padding: 0;
+  }
+}
+
+.bk-table {
+  border-top: 0;
+
+  .bk-table-row .cell {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .is-first .cell {
+    padding-right: 0;
+    padding-left: 20px;
+  }
+
+  .is-left:not(.is-first) .cell {
+    padding-left: 10px;
+  }
+}
+
+.collapse-disabled {
+  cursor: not-allowed;
+
+  .bk-collapse-item-header {
+    pointer-events: none;
+  }
+}
+
+.import-config {
+  min-height: 100%;
+  padding: 24px;
+
+  &-tag {
+    margin-bottom: 10px;
+
+    .config-tag {
+      display: flex;
+    }
+  }
+
+  &-content {
+    .collapse-item {
+      &:not(:first-child) {
+        margin-top: 10px;
+      }
+
+      &-left {
+        @include layout-flex(row, center);
+      }
+
+      &-right {
+        .total-success {
+          @include collapse-item-right(1);
+        }
+
+        .total-failed {
+          @include collapse-item-right(2);
+        }
+
+        .total-importing {
+          @include collapse-item-right(3);
+        }
+
+        .separator {
+          margin-right: 5px;
+        }
+      }
+
+      &-icon {
+        position: relative;
+        top: -1px;
+        display: inline-block;
+        font-size: 12px;
+        transition: transform .2s ease-in-out;
+      }
+
+      &-title {
+        margin-left: 6px;
+        font-weight: bold;
+      }
+
+      &-mark {
+        width: 45px;
+        height: 22px;
+        margin-left: 10px;
+        line-height: 22px;
+        color: $primaryFontColor;
+        text-align: center;
+        background: $markBackground;
+        border-radius: 2px;
+      }
+
+      .icon-rotate {
+        transform: rotate(90deg)
+      }
+    }
+
+    .item-icon-left {
+      border-left-color: $directionIconColor;
+
+      @include icon-direction;
+    }
+
+    .item-icon-top {
+      border-top-color: $directionIconColor;
+
+      @include icon-direction;
+    }
+
+    .status-col {
+      height: 20px;
+
+      @include layout-flex(row, center);
+    }
+
+    .status-runing {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      margin-left: -4px;
+      font-size: 16px;
+      color: nth($statusColors, 3);
+      animation: button-icon-loading 1s linear infinite;
+    }
+
+    .status-success {
+      @include col-row-status(1);
+    }
+
+    .status-failed {
+      @include col-row-status(2);
+    }
+
+    .detail-col {
+      padding-right: 12px;
+
+      @include layout-flex(row, center, space-between);
+    }
+
+    .detail-col-button {
+      min-width: 38px;
+    }
+
+    .render-header {
+      @include layout-flex(row, center);
+
+      .header-icon {
+        margin-left: 6px;
+      }
+
+      .bk-select {
+        position: absolute;
+        right: 15px;
+        left: 0;
+        opacity: 0;
+      }
+    }
+  }
+
+  &-footer {
+    padding: 11px 0;
+
+    .footer-banner {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
+      width: 100%;
+      height: 54px;
+      background: $whiteColor;
+      box-shadow: 0px -3px 6px 0px rgba(49,50,56,.05);
+    }
+
+    .button1-wrap {
+      display: inline-block;
+    }
+
+    .footer-button1 {
+      @include button-fixed;
+    }
+
+    .footer-button2 {
+      margin-left: 100px;
+
+      @include button-fixed;
+    }
+  }
+
+  &-empty {
+    height: 360px;
+    margin-bottom: 9px;
+    background: $whiteColor;
+    border: 1px solid $defaultBorderColor;
+
+    @include layout-flex(row, center, center);
+  }
+}

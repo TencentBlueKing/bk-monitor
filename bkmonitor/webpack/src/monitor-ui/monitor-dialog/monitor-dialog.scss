@@ -1,0 +1,122 @@
+.monitor-dialog-mask {
+  background-color: rgba(0, 0, 0, .6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .3s;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+
+  .monitor-dialog {
+    min-height: 200px;
+    box-sizing: border-box;
+    background-color: rgb(255, 255, 255);
+    background-clip: padding-box;
+    box-shadow: rgba(0, 0, 0, .15) 0px 4px 12px;
+    border-width: 0px;
+    border-radius: 2px;
+    color: #63656e;
+    padding: 20px 24px 0 24px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: opacity .3s;
+
+    &.full-screen {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      right: 0;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 0 !important;
+      min-width: 100%;
+      min-height: 100%;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      height: 0 !important;
+      z-index: 2001;
+    }
+
+    &-header {
+      font-size: 20px;
+    }
+
+    &-body {
+      flex: 1;
+    }
+
+    &-footer {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      border-top: 1px solid #dcdee5;
+      margin: 0 -24px;
+      padding-right: 24px;
+      background-color: #fafbfd;
+
+      .footer-btn {
+        margin-left: auto;
+        margin-right: 10px;
+      }
+    }
+
+    &-close {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      height: 24px;
+      width: 24px;
+      font-size: 28px;
+      overflow: hidden;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+
+      &:hover {
+        border-radius: 50%;
+        background-color: #f0f1f5;
+        cursor: pointer;
+      }
+    }
+  }
+}
+
+.monitor-dialog-enter-active {
+  animation: monitor-dialog-in .3s;
+}
+
+.monitor-dialog-leave-active {
+  animation: monitor-dialog-out .3s;
+}
+
+@keyframes monitor-dialog-in {
+  0% {
+    transform: translate3d(0, -20px, 0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes monitor-dialog-out {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(0, -20px, 0);
+    opacity: 0;
+  }
+}

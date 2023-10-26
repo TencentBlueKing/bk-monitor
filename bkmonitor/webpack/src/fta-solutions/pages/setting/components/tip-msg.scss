@@ -1,0 +1,20 @@
+.tip-msg-component {
+  position: relative;
+  padding: 6px 10px;
+  display: flex;
+  background: #f0f8ff;
+  border: 1px solid #c5daff;
+  border-radius: 3px;
+  width: 100%;
+  flex: 1;
+  .tip-icon {
+    font-size: 16px;
+    color: #3a84ff;
+    margin-right: 8px;
+  }
+  .msg-text {
+    font-size: 12px;
+    font-weight: 400;
+    color: #63656e;
+  }
+}

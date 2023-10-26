@@ -1,0 +1,91 @@
+.filter-condition-wrapper {
+  .filter-conditon-ref {
+    display: flex;
+    justify-content: space-between;
+    .filter-ref-btn {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+  .selected-condition-list {
+    margin-left: -8px;
+    margin-top: -2px;
+    padding-top: 6px;
+    .selected-condition-item {
+      position: relative;
+      display: inline-block;
+      padding: 0 22px 0 8px;
+      border-radius: 2px;
+      margin-left: 8px;
+      margin-top: 2px;
+      background: #eceef5;
+      cursor: pointer;
+      user-select: none;
+      span {
+        display: inline-block;
+        line-height: 32px;
+        vertical-align: middle;
+        max-width: 108px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        &:not(:nth-last-of-type(1)) {
+          margin-right: 8px;
+        }
+      }
+      .selected-condition-condition {
+        color: #ff9c01;
+      }
+      .icon-mc-close {
+        display: none;
+        position: absolute;
+        right: 2px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 20px;
+      }
+      &:hover {
+        .icon-mc-close {
+          display: initial;
+        }
+      }
+    }
+  }
+}
+.filter-condition-content {
+  .filter-condition-main {
+    padding: 24px;
+    .filter-title {
+      margin-bottom: 22px;
+      font-size: 16px;
+      color: #313238;
+    }
+    .filter-select-wrap {
+      display: flex;
+      .filter-select {
+        &:not(:last-child) {
+          margin-right: 10px;
+        }
+        .select-label {
+          margin-bottom: 4px;
+        }
+      }
+      .filter-select-label,
+      .filter-select-value {
+        width: 240px;
+      }
+      .filter-select-condition {
+        width: 120px;
+      }
+    }
+  }
+  .filter-condition-btn {
+    padding: 8px 24px;
+    text-align: right;
+    border-top: 1px solid #dcdee5;
+    background: #fafbfd;
+    &> button {
+      margin-left: 8px;
+    }
+  }
+}

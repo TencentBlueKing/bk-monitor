@@ -1,0 +1,122 @@
+.table-chart-wrap {
+  position: relative;
+  height: 100%;
+  background-color: #fff;
+  overflow: hidden;
+
+  .drag-area {
+    height: 16px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  
+  .table-chart-contain {
+    height: calc(100% - 40px);
+    padding: 0 16px;
+    overflow: auto;
+
+    .common-table {
+      .bk-table {
+        &::before {
+          display: none;
+        }
+      }
+
+      .bk-table-column-setting {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-top: 0!important;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        border-left: 0!important;
+      }
+    }
+
+    .search-wrapper {
+      margin: 0 0 16px auto;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 15px;
+
+      .filter-tab {
+        margin-left: 24px;
+      }
+
+      &-input {
+        flex: 1;
+      }
+
+      .check-filter-group {
+        width: auto;
+        margin-left: 24px;
+        display: inline-flex;
+
+        .bk-form-checkbox .bk-checkbox-text {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .header-wrapper {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 15px;
+
+      .filter-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 3px 4px 0 4px;
+        background-color: #f0f1f5;
+        border-radius: 4px;
+        min-height: 32px;
+        margin-right: 15px;
+
+        li {
+          height: 26px;
+          position: relative;
+          padding: 4px 6px;
+          color: #63656e;
+          cursor: pointer;
+          margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+
+          &.active {
+            background: #fff;
+          }
+
+          img {
+            height: 12px;
+          }
+
+          span {
+            line-height: 16px;
+            margin-left: 2px;
+          }
+
+          &:not(:last-of-type) {
+            margin-right: 9px;
+
+            &::after {
+              content: '';
+              position: absolute;
+              right: -5px;
+              top: 5px;
+              width: 1px;
+              height: 14px;
+              background: #dcdee5;
+            }
+          }
+        }
+      }
+      
+    }
+
+    &.no-title {
+      height: 100%;
+      padding: 16px;
+    }
+  }
+}

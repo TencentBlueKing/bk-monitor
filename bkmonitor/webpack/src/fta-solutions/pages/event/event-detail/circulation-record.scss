@@ -1,0 +1,154 @@
+.event-detail-circulation {
+  margin-top: 16px;
+  min-height: 400px;
+  &.displaynone {
+    display: none;
+  }
+  .log-list {
+    padding: 20px 20px 10px 55px;
+    display: flex;
+    flex-direction: column;
+    color: #63656e;
+    font-size: 12px;
+    background-color: #fff;
+    &-item {
+      display: flex;
+      flex-direction: column;
+      min-height: 70px;
+      position: relative;
+      margin-bottom: 2px;
+      .item-title {
+        flex: 0 0 30px;
+        margin-left: -14px;
+        display: flex;
+        align-items: center;
+        &-set {
+          position: absolute;
+          font-size: 16px;
+          color: #98999f;
+          left: -36px;
+          &:hover {
+            color: #707279;
+            cursor: pointer;
+          }
+        }
+        &-icon {
+          height: 30px;
+          width: 30px;
+          background-color: #c4c6cc;
+          color: #fff;
+          border-radius: 50%;
+          font-size: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 10px;
+        }
+      }
+      .item-content {
+        flex: 1 0 40px;
+        margin-top: 2px;
+        border-left: 2px solid #dcdee5;
+        padding-left: 24px;
+        position: relative;
+        &-desc {
+          margin-bottom: 16px;
+          .tip-dashed {
+            padding-bottom: 2px;
+            border-bottom: 1px dashed;
+            border-color: #c4c6cc;
+            cursor: pointer;
+          }
+          .notice-group {
+            padding-left: 9px;
+            padding-right: 9px;
+            background-color: #f1f1f1;
+            border-radius: 2px;
+            height: 20px;
+            line-height: 20px;
+            display: inline-block;
+            text-align: center;
+            color: #313238;
+            margin-left: 4px;
+          }
+          .notice-status {
+            color: #878787;
+            display: inline-block;
+            margin-left: 4px;
+          }
+          .alarm-ack {
+            color: #313238;
+            display: inline-block;
+            margin-left: 2px;
+          }
+          .can-click {
+            color: #3a84ff;
+            cursor: pointer;
+            margin-left: 4px;
+          }
+          .action-text {
+            display: inline-flex;
+            align-items: center;
+            .tag {
+              height: 22px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 0 11px;
+              border-radius: 2px;
+              margin: 0 4px;
+            }
+            .running {
+              color: #3a84ff;
+              background: #edf4ff;
+            }
+            .success {
+              color: #14a568;
+              background: #e4faf0;
+            }
+            .failure {
+              color: #ea3536;
+              background: #feebea;
+            }
+            .skipped {
+              color: #63656e;
+              background-color: #f0f1f5;
+            }
+            .shield {
+              color: #fe9c00;
+              background-color: #fff1db;
+            }
+            .partial_success {
+              color: #63656e;
+              background: #f0f1f5;
+            }
+          }
+        }
+        .item-border {
+          border: 1px dashed #dcdee5;
+          height: 0;
+          position: absolute;
+          right: 20px;
+          left: 24px;
+          bottom: 7px;
+        }
+      }
+    }
+    &-loading {
+      background-color: #ebedf0;
+      border-radius: 2px;
+      display: flex;
+      width: 160px;
+      height: 32px;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+      color: #979ba5;
+      margin-top: 16px;
+      .loading-img {
+        width: 16px;
+        margin-right: 5px;
+      }
+    }
+  }
+}

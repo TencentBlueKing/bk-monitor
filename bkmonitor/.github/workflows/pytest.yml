@@ -1,0 +1,67 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: alarm backend pytest
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.6]
+
+    steps:
+    - name: Set Timezone
+      uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Shanghai"
+        timezoneMacos: "Asia/Shanghai"
+        timezoneWindows: "Singapore Standard Time"
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Init Mysql
+      run: |
+        sudo mkdir -v /var/run/mysqld && sudo chown mysql /var/run/mysqld
+        sudo mysqld_safe --skip-grant-tables &
+    - name: Setup Mysql
+      run: |
+        mysql -u root mysql -V
+        update_sql="UPDATE mysql.user SET authentication_string=PASSWORD('') WHERE USER='root';FLUSH PRIVILEGES;"
+        mysql -u root -e "${update_sql}"
+        sudo mysqladmin -S /var/run/mysqld/mysqld.sock shutdown
+        sudo /etc/init.d/mysql start
+        mysql -u root -e "create database saas_dev character set UTF8 collate utf8_general_ci"
+        mysql -u root -e "create database backend_dev character set UTF8 collate utf8_general_ci"
+        mysql -u root -e "show databases;"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cat requirements.txt |grep -v '#' >> requirements_test_ci.txt
+        cat requirements_test.txt >> requirements_test_ci.txt
+        pip install support-files/pkgs/*
+        pip install -r requirements_test_ci.txt
+    - name: Migrate DB
+      run: |
+        mkdir -p logs/bkmonitor/
+        env DJANGO_CONF_MODULE=conf.development DJANGO_SETTINGS_MODULE=settings BKAPP_DEPLOY_PLATFORM=enterprise python manage.py migrate --fake iam_migration
+        env DJANGO_CONF_MODULE=conf.development DJANGO_SETTINGS_MODULE=settings BKAPP_DEPLOY_PLATFORM=enterprise python manage.py migrate
+    - name: Test with pytest alarm_backends
+      run: |
+        source .pytest_local.sh
+        pytest alarm_backends/tests/ --cov=alarm_backends/service --cov=alarm_backends/core -vv
+    - name: Test with pytest query_api
+      run: |
+        source .pytest_local.sh
+        pytest query_api --cov=query_api -vv
+#        pytest bkmonitor/data_source/tests --cov=bkmonitor/data_source -vv

@@ -1,0 +1,122 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { defineComponent, nextTick, PropType, ref, watch } from 'vue';
+
+import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
+import { IIpV6Value } from '../../../components/monitor-ip-selector/typing';
+import { Ipv6FieldMap } from '../typing';
+
+export default defineComponent({
+  name: 'AlarmShieldIpv6',
+  props: {
+    showDialog: { type: Boolean, default: false },
+    showViewDiff: { type: Boolean, default: false },
+    shieldDimension: { type: String, default: '' },
+    checkedValue: { type: Object as PropType<IIpV6Value>, default: () => ({}) },
+    originCheckedValue: { type: Object as PropType<IIpV6Value>, default: () => ({}) },
+    onChange: { type: Function as PropType<(v: { value: IIpV6Value }) => void>, default: () => {} },
+    onCloseDialog: { type: Function as PropType<(v: boolean) => void>, default: () => {} }
+  },
+  setup(props) {
+    const panelList = ref<string[]>([]);
+    const ipCheckValue = ref<IIpV6Value>({});
+    const inited = ref(false);
+    watch(
+      () => props.shieldDimension,
+      (v: string) => {
+        panelList.value = [];
+        inited.value = false;
+        nextTick(() => {
+          ipCheckValue.value = {
+            [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]]
+          };
+          panelList.value = getPanelListByDimension(v);
+          setTimeout(() => (inited.value = true), 100);
+        });
+      },
+      { immediate: true }
+    );
+    watch(
+      () => props.checkedValue,
+      () => {
+        ipCheckValue.value = {
+          [Ipv6FieldMap[props.shieldDimension]]: props.checkedValue?.[Ipv6FieldMap[props.shieldDimension]]
+        };
+      },
+      { immediate: true }
+    );
+    function getPanelListByDimension(v: string) {
+      if (v === 'instance') return ['serviceInstance'];
+      if (v === 'ip') return ['staticTopo', 'manualInput'];
+      if (v === 'node') return ['dynamicTopo'];
+      return [];
+    }
+    function clearMask() {
+      const clear = (els: NodeListOf<Element> | Element[]) => {
+        els.forEach((el: Element) => {
+          el.parentNode.removeChild(el);
+        });
+      };
+      clear(document.querySelectorAll('[data-bk-mask-uid]'));
+      clear(document.querySelectorAll('[data-bk-backup-uid]'));
+    }
+    function handleIpChange(v: IIpV6Value) {
+      props.onChange({ value: v });
+      clearMask();
+    }
+    function closeDialog(v: boolean) {
+      props.onCloseDialog(v);
+    }
+    function renderFn() {
+      return (
+        <div class='alarm-shield-ipv6-component'>
+          {!!panelList.value.length && (
+            <MonitorIpSelector
+              mode={'dialog'}
+              panelList={panelList.value}
+              showView={true}
+              showDialog={inited.value && props.showDialog}
+              value={ipCheckValue.value}
+              originalValue={props.originCheckedValue}
+              showViewDiff={props.showViewDiff}
+              onChange={handleIpChange}
+              onCloseDialog={closeDialog}
+            ></MonitorIpSelector>
+          )}
+        </div>
+      );
+    }
+    return {
+      renderFn,
+      inited,
+      panelList,
+      ipCheckValue
+    };
+  },
+  render() {
+    return this.renderFn();
+  }
+});

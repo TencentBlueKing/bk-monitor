@@ -1,0 +1,436 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Grammar
+
+Rule 0     S' -> expression
+Rule 1     expression -> expression OR term
+Rule 2     expression -> term
+Rule 3     term -> term AND condition
+Rule 4     term -> condition
+Rule 5     condition -> NAME EQ STRING
+Rule 6     condition -> NAME NEQ STRING
+Rule 7     condition -> NAME REGEQ STRING
+Rule 8     condition -> NAME REGNEQ STRING
+Rule 9     condition -> NAME INCLUDE STRING
+Rule 10    condition -> NAME EXCLUDE STRING
+Rule 11    condition -> NAME GT STRING
+Rule 12    condition -> NAME GTE STRING
+Rule 13    condition -> NAME LT STRING
+Rule 14    condition -> NAME LTE STRING
+Rule 15    condition -> NAME EQ NUMBER
+Rule 16    condition -> NAME NEQ NUMBER
+Rule 17    condition -> NAME GT NUMBER
+Rule 18    condition -> NAME GTE NUMBER
+Rule 19    condition -> NAME LT NUMBER
+Rule 20    condition -> NAME LTE NUMBER
+
+Terminals, with rules where they appear
+
+AND                  : 3
+EQ                   : 5 15
+EXCLUDE              : 10
+GT                   : 11 17
+GTE                  : 12 18
+INCLUDE              : 9
+LT                   : 13 19
+LTE                  : 14 20
+NAME                 : 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+NEQ                  : 6 16
+NUMBER               : 15 16 17 18 19 20
+OR                   : 1
+REGEQ                : 7
+REGNEQ               : 8
+STRING               : 5 6 7 8 9 10 11 12 13 14
+error                : 
+
+Nonterminals, with rules where they appear
+
+condition            : 3 4
+expression           : 1 0
+term                 : 1 2 3
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . expression
+    (1) expression -> . expression OR term
+    (2) expression -> . term
+    (3) term -> . term AND condition
+    (4) term -> . condition
+    (5) condition -> . NAME EQ STRING
+    (6) condition -> . NAME NEQ STRING
+    (7) condition -> . NAME REGEQ STRING
+    (8) condition -> . NAME REGNEQ STRING
+    (9) condition -> . NAME INCLUDE STRING
+    (10) condition -> . NAME EXCLUDE STRING
+    (11) condition -> . NAME GT STRING
+    (12) condition -> . NAME GTE STRING
+    (13) condition -> . NAME LT STRING
+    (14) condition -> . NAME LTE STRING
+    (15) condition -> . NAME EQ NUMBER
+    (16) condition -> . NAME NEQ NUMBER
+    (17) condition -> . NAME GT NUMBER
+    (18) condition -> . NAME GTE NUMBER
+    (19) condition -> . NAME LT NUMBER
+    (20) condition -> . NAME LTE NUMBER
+
+    NAME            shift and go to state 4
+
+    expression                     shift and go to state 1
+    term                           shift and go to state 2
+    condition                      shift and go to state 3
+
+state 1
+
+    (0) S' -> expression .
+    (1) expression -> expression . OR term
+
+    OR              shift and go to state 5
+
+
+state 2
+
+    (2) expression -> term .
+    (3) term -> term . AND condition
+
+    OR              reduce using rule 2 (expression -> term .)
+    $end            reduce using rule 2 (expression -> term .)
+    AND             shift and go to state 6
+
+
+state 3
+
+    (4) term -> condition .
+
+    AND             reduce using rule 4 (term -> condition .)
+    OR              reduce using rule 4 (term -> condition .)
+    $end            reduce using rule 4 (term -> condition .)
+
+
+state 4
+
+    (5) condition -> NAME . EQ STRING
+    (6) condition -> NAME . NEQ STRING
+    (7) condition -> NAME . REGEQ STRING
+    (8) condition -> NAME . REGNEQ STRING
+    (9) condition -> NAME . INCLUDE STRING
+    (10) condition -> NAME . EXCLUDE STRING
+    (11) condition -> NAME . GT STRING
+    (12) condition -> NAME . GTE STRING
+    (13) condition -> NAME . LT STRING
+    (14) condition -> NAME . LTE STRING
+    (15) condition -> NAME . EQ NUMBER
+    (16) condition -> NAME . NEQ NUMBER
+    (17) condition -> NAME . GT NUMBER
+    (18) condition -> NAME . GTE NUMBER
+    (19) condition -> NAME . LT NUMBER
+    (20) condition -> NAME . LTE NUMBER
+
+    EQ              shift and go to state 7
+    NEQ             shift and go to state 8
+    REGEQ           shift and go to state 9
+    REGNEQ          shift and go to state 10
+    INCLUDE         shift and go to state 11
+    EXCLUDE         shift and go to state 12
+    GT              shift and go to state 13
+    GTE             shift and go to state 14
+    LT              shift and go to state 15
+    LTE             shift and go to state 16
+
+
+state 5
+
+    (1) expression -> expression OR . term
+    (3) term -> . term AND condition
+    (4) term -> . condition
+    (5) condition -> . NAME EQ STRING
+    (6) condition -> . NAME NEQ STRING
+    (7) condition -> . NAME REGEQ STRING
+    (8) condition -> . NAME REGNEQ STRING
+    (9) condition -> . NAME INCLUDE STRING
+    (10) condition -> . NAME EXCLUDE STRING
+    (11) condition -> . NAME GT STRING
+    (12) condition -> . NAME GTE STRING
+    (13) condition -> . NAME LT STRING
+    (14) condition -> . NAME LTE STRING
+    (15) condition -> . NAME EQ NUMBER
+    (16) condition -> . NAME NEQ NUMBER
+    (17) condition -> . NAME GT NUMBER
+    (18) condition -> . NAME GTE NUMBER
+    (19) condition -> . NAME LT NUMBER
+    (20) condition -> . NAME LTE NUMBER
+
+    NAME            shift and go to state 4
+
+    term                           shift and go to state 17
+    condition                      shift and go to state 3
+
+state 6
+
+    (3) term -> term AND . condition
+    (5) condition -> . NAME EQ STRING
+    (6) condition -> . NAME NEQ STRING
+    (7) condition -> . NAME REGEQ STRING
+    (8) condition -> . NAME REGNEQ STRING
+    (9) condition -> . NAME INCLUDE STRING
+    (10) condition -> . NAME EXCLUDE STRING
+    (11) condition -> . NAME GT STRING
+    (12) condition -> . NAME GTE STRING
+    (13) condition -> . NAME LT STRING
+    (14) condition -> . NAME LTE STRING
+    (15) condition -> . NAME EQ NUMBER
+    (16) condition -> . NAME NEQ NUMBER
+    (17) condition -> . NAME GT NUMBER
+    (18) condition -> . NAME GTE NUMBER
+    (19) condition -> . NAME LT NUMBER
+    (20) condition -> . NAME LTE NUMBER
+
+    NAME            shift and go to state 4
+
+    condition                      shift and go to state 18
+
+state 7
+
+    (5) condition -> NAME EQ . STRING
+    (15) condition -> NAME EQ . NUMBER
+
+    STRING          shift and go to state 19
+    NUMBER          shift and go to state 20
+
+
+state 8
+
+    (6) condition -> NAME NEQ . STRING
+    (16) condition -> NAME NEQ . NUMBER
+
+    STRING          shift and go to state 21
+    NUMBER          shift and go to state 22
+
+
+state 9
+
+    (7) condition -> NAME REGEQ . STRING
+
+    STRING          shift and go to state 23
+
+
+state 10
+
+    (8) condition -> NAME REGNEQ . STRING
+
+    STRING          shift and go to state 24
+
+
+state 11
+
+    (9) condition -> NAME INCLUDE . STRING
+
+    STRING          shift and go to state 25
+
+
+state 12
+
+    (10) condition -> NAME EXCLUDE . STRING
+
+    STRING          shift and go to state 26
+
+
+state 13
+
+    (11) condition -> NAME GT . STRING
+    (17) condition -> NAME GT . NUMBER
+
+    STRING          shift and go to state 27
+    NUMBER          shift and go to state 28
+
+
+state 14
+
+    (12) condition -> NAME GTE . STRING
+    (18) condition -> NAME GTE . NUMBER
+
+    STRING          shift and go to state 29
+    NUMBER          shift and go to state 30
+
+
+state 15
+
+    (13) condition -> NAME LT . STRING
+    (19) condition -> NAME LT . NUMBER
+
+    STRING          shift and go to state 31
+    NUMBER          shift and go to state 32
+
+
+state 16
+
+    (14) condition -> NAME LTE . STRING
+    (20) condition -> NAME LTE . NUMBER
+
+    STRING          shift and go to state 33
+    NUMBER          shift and go to state 34
+
+
+state 17
+
+    (1) expression -> expression OR term .
+    (3) term -> term . AND condition
+
+    OR              reduce using rule 1 (expression -> expression OR term .)
+    $end            reduce using rule 1 (expression -> expression OR term .)
+    AND             shift and go to state 6
+
+
+state 18
+
+    (3) term -> term AND condition .
+
+    AND             reduce using rule 3 (term -> term AND condition .)
+    OR              reduce using rule 3 (term -> term AND condition .)
+    $end            reduce using rule 3 (term -> term AND condition .)
+
+
+state 19
+
+    (5) condition -> NAME EQ STRING .
+
+    AND             reduce using rule 5 (condition -> NAME EQ STRING .)
+    OR              reduce using rule 5 (condition -> NAME EQ STRING .)
+    $end            reduce using rule 5 (condition -> NAME EQ STRING .)
+
+
+state 20
+
+    (15) condition -> NAME EQ NUMBER .
+
+    AND             reduce using rule 15 (condition -> NAME EQ NUMBER .)
+    OR              reduce using rule 15 (condition -> NAME EQ NUMBER .)
+    $end            reduce using rule 15 (condition -> NAME EQ NUMBER .)
+
+
+state 21
+
+    (6) condition -> NAME NEQ STRING .
+
+    AND             reduce using rule 6 (condition -> NAME NEQ STRING .)
+    OR              reduce using rule 6 (condition -> NAME NEQ STRING .)
+    $end            reduce using rule 6 (condition -> NAME NEQ STRING .)
+
+
+state 22
+
+    (16) condition -> NAME NEQ NUMBER .
+
+    AND             reduce using rule 16 (condition -> NAME NEQ NUMBER .)
+    OR              reduce using rule 16 (condition -> NAME NEQ NUMBER .)
+    $end            reduce using rule 16 (condition -> NAME NEQ NUMBER .)
+
+
+state 23
+
+    (7) condition -> NAME REGEQ STRING .
+
+    AND             reduce using rule 7 (condition -> NAME REGEQ STRING .)
+    OR              reduce using rule 7 (condition -> NAME REGEQ STRING .)
+    $end            reduce using rule 7 (condition -> NAME REGEQ STRING .)
+
+
+state 24
+
+    (8) condition -> NAME REGNEQ STRING .
+
+    AND             reduce using rule 8 (condition -> NAME REGNEQ STRING .)
+    OR              reduce using rule 8 (condition -> NAME REGNEQ STRING .)
+    $end            reduce using rule 8 (condition -> NAME REGNEQ STRING .)
+
+
+state 25
+
+    (9) condition -> NAME INCLUDE STRING .
+
+    AND             reduce using rule 9 (condition -> NAME INCLUDE STRING .)
+    OR              reduce using rule 9 (condition -> NAME INCLUDE STRING .)
+    $end            reduce using rule 9 (condition -> NAME INCLUDE STRING .)
+
+
+state 26
+
+    (10) condition -> NAME EXCLUDE STRING .
+
+    AND             reduce using rule 10 (condition -> NAME EXCLUDE STRING .)
+    OR              reduce using rule 10 (condition -> NAME EXCLUDE STRING .)
+    $end            reduce using rule 10 (condition -> NAME EXCLUDE STRING .)
+
+
+state 27
+
+    (11) condition -> NAME GT STRING .
+
+    AND             reduce using rule 11 (condition -> NAME GT STRING .)
+    OR              reduce using rule 11 (condition -> NAME GT STRING .)
+    $end            reduce using rule 11 (condition -> NAME GT STRING .)
+
+
+state 28
+
+    (17) condition -> NAME GT NUMBER .
+
+    AND             reduce using rule 17 (condition -> NAME GT NUMBER .)
+    OR              reduce using rule 17 (condition -> NAME GT NUMBER .)
+    $end            reduce using rule 17 (condition -> NAME GT NUMBER .)
+
+
+state 29
+
+    (12) condition -> NAME GTE STRING .
+
+    AND             reduce using rule 12 (condition -> NAME GTE STRING .)
+    OR              reduce using rule 12 (condition -> NAME GTE STRING .)
+    $end            reduce using rule 12 (condition -> NAME GTE STRING .)
+
+
+state 30
+
+    (18) condition -> NAME GTE NUMBER .
+
+    AND             reduce using rule 18 (condition -> NAME GTE NUMBER .)
+    OR              reduce using rule 18 (condition -> NAME GTE NUMBER .)
+    $end            reduce using rule 18 (condition -> NAME GTE NUMBER .)
+
+
+state 31
+
+    (13) condition -> NAME LT STRING .
+
+    AND             reduce using rule 13 (condition -> NAME LT STRING .)
+    OR              reduce using rule 13 (condition -> NAME LT STRING .)
+    $end            reduce using rule 13 (condition -> NAME LT STRING .)
+
+
+state 32
+
+    (19) condition -> NAME LT NUMBER .
+
+    AND             reduce using rule 19 (condition -> NAME LT NUMBER .)
+    OR              reduce using rule 19 (condition -> NAME LT NUMBER .)
+    $end            reduce using rule 19 (condition -> NAME LT NUMBER .)
+
+
+state 33
+
+    (14) condition -> NAME LTE STRING .
+
+    AND             reduce using rule 14 (condition -> NAME LTE STRING .)
+    OR              reduce using rule 14 (condition -> NAME LTE STRING .)
+    $end            reduce using rule 14 (condition -> NAME LTE STRING .)
+
+
+state 34
+
+    (20) condition -> NAME LTE NUMBER .
+
+    AND             reduce using rule 20 (condition -> NAME LTE NUMBER .)
+    OR              reduce using rule 20 (condition -> NAME LTE NUMBER .)
+    $end            reduce using rule 20 (condition -> NAME LTE NUMBER .)
+

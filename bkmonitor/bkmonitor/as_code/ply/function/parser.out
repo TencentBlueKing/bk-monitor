@@ -1,0 +1,167 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Grammar
+
+Rule 0     S' -> expression
+Rule 1     expression -> FUNCTION LEFT_PARENTHESES params RIGHT_PARENTHESES
+Rule 2     expression -> FUNCTION
+Rule 3     expression -> FUNCTION LEFT_PARENTHESES RIGHT_PARENTHESES
+Rule 4     params -> params COMMA param
+Rule 5     params -> param
+Rule 6     param -> STRING
+Rule 7     param -> NUMBER
+Rule 8     param -> FLOAT
+Rule 9     param -> TIME
+
+Terminals, with rules where they appear
+
+COMMA                : 4
+FLOAT                : 8
+FUNCTION             : 1 2 3
+LEFT_PARENTHESES     : 1 3
+NUMBER               : 7
+RIGHT_PARENTHESES    : 1 3
+STRING               : 6
+TIME                 : 9
+error                : 
+
+Nonterminals, with rules where they appear
+
+expression           : 0
+param                : 4 5
+params               : 1 4
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . expression
+    (1) expression -> . FUNCTION LEFT_PARENTHESES params RIGHT_PARENTHESES
+    (2) expression -> . FUNCTION
+    (3) expression -> . FUNCTION LEFT_PARENTHESES RIGHT_PARENTHESES
+
+    FUNCTION        shift and go to state 2
+
+    expression                     shift and go to state 1
+
+state 1
+
+    (0) S' -> expression .
+
+
+
+state 2
+
+    (1) expression -> FUNCTION . LEFT_PARENTHESES params RIGHT_PARENTHESES
+    (2) expression -> FUNCTION .
+    (3) expression -> FUNCTION . LEFT_PARENTHESES RIGHT_PARENTHESES
+
+    LEFT_PARENTHESES shift and go to state 3
+    $end            reduce using rule 2 (expression -> FUNCTION .)
+
+
+state 3
+
+    (1) expression -> FUNCTION LEFT_PARENTHESES . params RIGHT_PARENTHESES
+    (3) expression -> FUNCTION LEFT_PARENTHESES . RIGHT_PARENTHESES
+    (4) params -> . params COMMA param
+    (5) params -> . param
+    (6) param -> . STRING
+    (7) param -> . NUMBER
+    (8) param -> . FLOAT
+    (9) param -> . TIME
+
+    RIGHT_PARENTHESES shift and go to state 5
+    STRING          shift and go to state 7
+    NUMBER          shift and go to state 8
+    FLOAT           shift and go to state 9
+    TIME            shift and go to state 10
+
+    params                         shift and go to state 4
+    param                          shift and go to state 6
+
+state 4
+
+    (1) expression -> FUNCTION LEFT_PARENTHESES params . RIGHT_PARENTHESES
+    (4) params -> params . COMMA param
+
+    RIGHT_PARENTHESES shift and go to state 11
+    COMMA           shift and go to state 12
+
+
+state 5
+
+    (3) expression -> FUNCTION LEFT_PARENTHESES RIGHT_PARENTHESES .
+
+    $end            reduce using rule 3 (expression -> FUNCTION LEFT_PARENTHESES RIGHT_PARENTHESES .)
+
+
+state 6
+
+    (5) params -> param .
+
+    RIGHT_PARENTHESES reduce using rule 5 (params -> param .)
+    COMMA           reduce using rule 5 (params -> param .)
+
+
+state 7
+
+    (6) param -> STRING .
+
+    RIGHT_PARENTHESES reduce using rule 6 (param -> STRING .)
+    COMMA           reduce using rule 6 (param -> STRING .)
+
+
+state 8
+
+    (7) param -> NUMBER .
+
+    RIGHT_PARENTHESES reduce using rule 7 (param -> NUMBER .)
+    COMMA           reduce using rule 7 (param -> NUMBER .)
+
+
+state 9
+
+    (8) param -> FLOAT .
+
+    RIGHT_PARENTHESES reduce using rule 8 (param -> FLOAT .)
+    COMMA           reduce using rule 8 (param -> FLOAT .)
+
+
+state 10
+
+    (9) param -> TIME .
+
+    RIGHT_PARENTHESES reduce using rule 9 (param -> TIME .)
+    COMMA           reduce using rule 9 (param -> TIME .)
+
+
+state 11
+
+    (1) expression -> FUNCTION LEFT_PARENTHESES params RIGHT_PARENTHESES .
+
+    $end            reduce using rule 1 (expression -> FUNCTION LEFT_PARENTHESES params RIGHT_PARENTHESES .)
+
+
+state 12
+
+    (4) params -> params COMMA . param
+    (6) param -> . STRING
+    (7) param -> . NUMBER
+    (8) param -> . FLOAT
+    (9) param -> . TIME
+
+    STRING          shift and go to state 7
+    NUMBER          shift and go to state 8
+    FLOAT           shift and go to state 9
+    TIME            shift and go to state 10
+
+    param                          shift and go to state 13
+
+state 13
+
+    (4) params -> params COMMA param .
+
+    RIGHT_PARENTHESES reduce using rule 4 (params -> params COMMA param .)
+    COMMA           reduce using rule 4 (params -> params COMMA param .)
+

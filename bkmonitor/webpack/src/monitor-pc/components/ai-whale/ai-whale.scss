@@ -1,0 +1,196 @@
+
+@mixin header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  .left {
+    line-height: 20px;
+  }
+
+  .right {
+    cursor: pointer;
+    color: #3a84ff;
+  }
+}
+
+@mixin bold-color($color: #3a84ff) {
+  color: $color;
+  font-weight: bold;
+  margin: 0 4px;
+}
+
+@mixin help-list {
+  .help-list {
+    color: #3a84ff;
+
+    .help-item {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      line-height: 16px;
+
+      .icon-monitor {
+        font-size: 16px;
+        margin-right: 8px;
+      }
+    }
+  }
+}
+
+.ai-small-whale {
+  .robot-img {
+    position: fixed;
+    z-index: 1;
+    width: 64px;
+    height: 64px;
+    box-shadow: 0 4px 10px 0 rgba(0,0,0,.20);
+    border-radius: 50%;
+    z-index: 2000;
+    background-repeat: round;
+    cursor: move;
+    transition: 50ms all;
+
+    &.blue {
+      background-image: url(../../static/images/png/ai-whale-blue.png);
+    }
+
+    &.red {
+      background-image: url(../../static/images/png/ai-whale-red.png);
+    }
+
+    &.yellow {
+      background-image: url(../../static/images/png/ai-whale-yellow.png);
+    }
+  }
+}
+
+.ai-small-whale-tip-content {
+  min-width: 240px;
+  padding: 12px 16px;
+  color: #63656e;
+
+  .blue-bold {
+    @include bold-color();
+  }
+
+  .red-bold {
+    @include bold-color(#EA3636);
+  }
+
+  .grey-bold {
+    @include bold-color(#68696D);
+  }
+
+  .link {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .click-message {
+    margin: 0 -22px;
+
+    &.click-message-blue-type {
+      padding-left: 22px;
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #f0f1f5;
+    }
+  }
+
+  .can-click {
+    padding: 0 22px;
+    line-height: 22px;
+    cursor: pointer;
+  }
+
+  .blue-content {
+    color: #63656e;
+
+    .header {
+      @include header();
+    }
+
+    .content {
+      margin-top: 16px;
+
+      @include help-list();
+    }
+  }
+
+  .red-content {
+    .header {
+      @include header();
+    }
+
+    .host-detail {
+      min-width: 388px;
+
+      .table-content {
+        margin-top: 8px;
+
+        .bottom-options {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          color: #3a84ff;
+          margin-top: 10px;
+
+          .option {
+            margin-left: 16px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+
+            .icon-monitor {
+              margin-right: 4px;
+              font-size: 16px;
+            }
+
+            .icon-back-left {
+              font-size: 24px;
+              margin-right: 0;
+            }
+          }
+        }
+
+        .icon-mc-copy {
+          font-size: 14px;
+          color: #aeb0b4;
+          margin-left: 2px;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .alert-overview {
+      line-height: 22px;
+
+      .icon-fenxiang {
+        font-size: 12px;
+        color: #3a84ff;
+        margin-left: 4px;
+        cursor: pointer;
+      }
+
+      .icon-double-down {
+        font-size: 20px;
+        color: #3a84ff;
+        position: relative;
+        top: 2px;
+        cursor: pointer;
+      }
+    }
+
+    .content {
+      @include help-list();
+
+      .mt16 {
+        margin-top: 16px;
+      }
+    }
+  }
+}

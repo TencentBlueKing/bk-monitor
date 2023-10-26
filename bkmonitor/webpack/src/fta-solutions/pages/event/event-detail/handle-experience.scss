@@ -1,0 +1,38 @@
+.event-detail-handleexperience {
+  width: 100%;
+  margin-top: 16px;
+  padding: 17px 16px 24px 16px;
+  background: #ffff;
+  &.displaynone {
+    display: none;
+  }
+  .detail-content-editor {
+    border-radius: 2px;
+    margin-bottom: 16px;
+  }
+  .handleexperience-tip {
+    width: 100%;
+    height: 32px;
+    background: #f0f8ff;
+    border: 1px solid #c5daff;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    margin-bottom: 16px;
+    .tip-text {
+      font-size: 12px;
+      font-weight: 400;
+      color: #63656e;
+    }
+    .icon-hint {
+      margin-right: 8px;
+      font-size: 16px;
+      color: #3a84ff;
+    }
+  }
+  .handleexperience-btn {
+    width: 139px;
+    height: 32px;
+  }
+}

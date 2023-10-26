@@ -1,0 +1,67 @@
+{
+  "id": "workload",
+  "type": "detail",
+  "mode": "auto",
+  "name": "Workload",
+  "variables": [],
+  "panels": [],
+  "order": [],
+  "options": {
+    "show_panel_count": false,
+    "enable_index_list": true,
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "method_select": true,
+      "interval_select": true,
+      "split_switcher": false
+    },
+    "enable_group": true,
+    "alert_filterable": true,
+    "selector_panel": {
+      "title": "workloads",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": "workload_list",
+          "dataType": "list",
+          "api": "scene_view.getKubernetesWorkloadList",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id"
+          },
+          "fields": {
+            "bcs_cluster_id": "bcs_cluster_id",
+            "namespace": "namespace",
+            "workload_name": "name",
+            "workload_type": "type"
+          }
+        }
+      ],
+      "options": {
+        "selector_list": {
+          "query_update_url": true,
+          "status_filter": true,
+          "field_sort": true,
+          "default_sort_field": "-pod_count"
+        }
+      }
+    },
+    "detail_panel": {
+      "title": "workload",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "scene_view.getKubernetesWorkload",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "workload_name": "$workload_name",
+            "workload_type": "$workload_type"
+          }
+        }
+      ]
+    }
+  }
+}

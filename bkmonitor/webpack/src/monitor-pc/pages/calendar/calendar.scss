@@ -1,0 +1,187 @@
+.calendar-wrapper {
+  display: flex;
+  width: 100%;
+
+  .calendar-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 240px;
+    box-shadow: 1px 0 0 0 #dcdee5;
+
+    .calendar-list-wrap {
+      padding: 24px 16px 0 24px;
+
+      .calendar-list-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #979ba5;
+        height: 20px;
+        margin-bottom: 13px;
+
+        .icon-mc-add {
+          font-size: 20px;
+          cursor: pointer;
+        }
+      }
+
+      .calendar-list {
+        .calendar-list-item {
+          display: flex;
+          justify-content: space-between;
+          height: 20px;
+          line-height: 20px;
+          color: #63656e;
+
+          .delete-icon {
+            display: none;
+            font-size: 13px;
+            color: #63656e;
+          }
+
+          &:not(:last-child) {
+            margin-bottom: 12px;
+          }
+
+          .calendar-checkedbox {
+            &.color-theme {
+              .bk-checkbox {
+                &:focus {
+                  // border-color: #ffb848;
+                  border-color: var(--color);
+                }
+              }
+
+              &.is-checked {
+                .bk-checkbox {
+                  // border-color: #ffb848;
+                  // background-color: #ffb848;
+                  border-color: var(--color);
+                  background-color: var(--color);
+                }
+              }
+            }
+          }
+
+          .calendar-list-item-left {
+            display: flex;
+          }
+
+          .calendar-name-text {
+            display: flex;
+            align-items: center;
+
+            .name {
+              overflow: hidden;
+              max-width: 150px;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            .icon-bianji {
+              display: none;
+            }
+          }
+
+          &:hover {
+            .delete-icon {
+              display: initial;
+              cursor: pointer;
+            }
+
+            .calendar-name-text {
+              &.editable {
+                .icon-bianji {
+                  display: inline-block;
+                  font-size: 20px;
+                  cursor: pointer;
+
+                }
+              }
+            }
+          }
+
+          .calendar-name-text,
+          .calendar-name-input {
+            margin-left: 8px;
+          }
+
+          .calendar-name-input {
+            border: 0;
+          }
+        }
+      }
+    }
+
+    .date-panel {
+      padding: 12px 0 8px 0;
+      box-shadow: 0 -1px 0 0 #dcdee5;
+    }
+  }
+
+  .calendar-right {
+    flex: 1;
+    padding: 24px;
+
+    .calendar-radio-group {
+      display: flex;
+
+      .bk-form-radio-button {
+        flex: 1;
+
+        .bk-radio-button-text {
+          width: 100%;
+        }
+      }
+    }
+  }
+}
+
+.calendar-info-schedule {
+  padding: 0 5px;
+  color: #3a84ff;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 0;
+}
+
+.calendar-info-btn-groups {
+  &>*:not(:last-child) {
+    margin-right: 10px;
+  }
+
+  .merge-btn {
+    span {
+      display: flex;
+      align-items: center;
+      color: #63656e;
+    }
+  }
+
+  .icon-arrow-down {
+    font-size: 20px;
+    color: #979ba5;
+    margin-left: 5px;
+  }
+
+  .custom-select-wrap {
+    .bk-select-wrap {
+      .bk-select-name {
+        height: 32px;
+      }
+    }
+  }
+}
+
+.calendar-add-popover-content {
+  padding: 5px 0;
+  margin: 0 -2px;
+
+  .add-title {
+    height: 22px;
+    line-height: 22px;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+}

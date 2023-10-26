@@ -1,0 +1,77 @@
+.inquire-left-layout-component {
+  height: 100%;
+  background-color: #fff;
+  position: relative;
+
+  .bk-resize-layout-border {
+    border: none;
+  }
+
+  .bk-resize-layout-top > .bk-resize-layout-aside {
+    border-bottom: 1px solid #fafbfd;
+    // overflow-y: auto;
+  }
+
+  .top-content,
+  .bottom-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .bottom-content {
+    height: 100%;
+  }
+
+  .bottom-content {
+    background: #fafbfd;
+  }
+
+  .bk-resize-layout-aside-content {
+    /* stylelint-disable-next-line declaration-no-important */
+    overflow-y: auto !important;
+  }
+
+  .bk-resize-layout-top > .bk-resize-layout-aside:after {
+    bottom: -6px;
+    z-index: 9;
+  }
+}
+
+.create-app-extension {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 12px;
+  width: 100%;
+  color: #63656e;
+  cursor: pointer;
+  &:hover {
+    color: #3A84FF;
+  }
+  .icon-monitor {
+    font-size: 16px;
+    margin-right: 4px;
+  }
+}
+
+.app-option-wrap {
+  display: flex;
+  justify-content: space-between;
+  .app-name {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .apply-btn {
+    color: #3A84FF;
+    cursor: pointer;
+  }
+  &.is-disabled {
+    cursor: not-allowed;
+    color: #C4C6CC;
+  }
+}
+
+.trace-search-select-popover {
+  z-index: 998 !important;
+}

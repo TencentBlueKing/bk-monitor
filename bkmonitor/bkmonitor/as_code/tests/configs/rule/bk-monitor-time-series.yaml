@@ -1,0 +1,32 @@
+snippet: base.yaml
+
+name: 监控采集时序告警测试[code]
+
+query:
+  data_source: bk_monitor
+  data_type: time_series
+
+  query_configs:
+    - metric: system.cpu_detail.usage
+      method: avg
+      dimension: [bk_target_ip, bk_target_cloud_id, device_name]
+      interval: 60
+      functions:
+        - abs
+
+  target:
+    type: topo
+    nodes:
+      - 空闲机池/空闲机
+
+detect:
+  algorithm:
+    fatal:
+      - type: Threshold
+        config: ">0"
+
+  trigger: 1/6/3
+
+notice:
+  user_groups:
+    - operator.yaml

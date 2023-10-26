@@ -1,0 +1,48 @@
+.dialog-content {
+  font-size: 12px;
+
+  .bk-form-control {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bk-radio-text {
+    font-size: 12px;
+  }
+
+  .all-biz .bk-radio-text {
+    width: calc(100% - 22px);
+  }
+
+  .biz-select {
+    display: flex;
+    align-items: center;
+
+    .bk-select {
+      flex: 1;
+    }
+  }
+
+  .installed-tips {
+    display: block;
+    height: 42px;
+    line-height: 42px;
+    padding: 0 16px;
+    background: #fafbfd;
+    border-radius: 2px;
+    margin-top: 24px;
+
+    .count {
+      font-weight: 700;
+    }
+  }
+}
+
+.integrated-install-plugin-dialog {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 3000 !important;
+
+  .dialog-form-content {
+    min-height: 50px;
+  }
+}

@@ -1,0 +1,50 @@
+.calendar-list-wrapper {
+  .calendar-list-header {
+    display: flex;
+    justify-content: flex-end;
+    .time-range-tab {
+      margin-right: auto;
+    }
+    .search-input {
+      width: 240px;
+      margin-right: 24px;
+    }
+  }
+  .calendar-table {
+    .del-btn {
+      margin-left: 8px;
+    }
+  }
+}
+.time-zone-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  .time-zone-select {
+    width: 200px;
+  }
+}
+.add-calendar-dialog-wrap {
+  .form-item-des {
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+    margin-top: 4px;
+  }
+  .form-start,
+  .form-end {
+    .date-picker {
+      width: 240px;
+    }
+    .time-picker {
+      width: 134px;
+      margin-left: 8px;
+    }
+    .all-day {
+      margin-left: 16px;
+    }
+  }
+  .repeat-select {
+    width: 240px;
+  }
+}

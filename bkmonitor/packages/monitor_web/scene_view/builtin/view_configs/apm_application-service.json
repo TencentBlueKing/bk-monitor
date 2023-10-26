@@ -1,0 +1,72 @@
+{
+  "id": "service",
+  "type": "overview",
+  "mode": "custom",
+  "name": "服务",
+  "panels": [],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "Workload",
+      "type": "table-chart",
+      "instant": true,
+      "targets": [
+        {
+          "data": {
+            "app_name": "$app_name"
+          },
+          "dataType": "table",
+          "api": "apm_metric.serviceList",
+          "filter_dict": {}
+        },
+        {
+          "data": {
+            "app_name": "$app_name"
+          },
+          "dataType": "field",
+          "api": "apm_metric.serviceListAsync",
+          "filter_dict": {},
+          "options": {
+            "table_chart": {
+              "async_dict_key": "service_metric_async",
+              "async_columns": [
+                "request_count",
+                "error_rate",
+                "avg_duration"
+              ]
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "options": {
+        "table_chart": {
+          "need_filters": true,
+          "query_update_url": true,
+          "async_config": {
+            "service_metric_async": {
+              "async_field_key": "column",
+              "async_field_request_name": "service_names",
+              "async_field": "service_name"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "method_select": false,
+      "compare_select": false,
+      "columns_toggle": false,
+      "interval_select": false,
+      "split_switcher": false
+    }
+  }
+}

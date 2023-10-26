@@ -1,0 +1,45 @@
+.select-menu-content {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+  background-color: #fff;
+  //   min-width: 98px;
+  .default-content-list {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    box-sizing: border-box;
+    max-height: 210px;
+    overflow: auto;
+    .list-item {
+      flex: 0 0 32px;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      &:hover {
+        background-color: #e1ecff;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+  .no-list {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 15px;
+  }
+  .del-btn {
+    flex: 0 0 32px;
+    line-height: 32px;
+    // border-top: 1px solid #dcdee5;
+    display: flex;
+    align-items: center;
+    background-color: #fafbfd;
+    padding: 0 15px;
+    cursor: pointer;
+    &-icon {
+      margin-right: 4px;
+    }
+  }
+}

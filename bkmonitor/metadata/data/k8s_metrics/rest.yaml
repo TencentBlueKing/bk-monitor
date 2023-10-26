@@ -1,0 +1,127 @@
+- description: ''
+  field_name: rest_client_exec_plugin_certificate_rotation_age_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: le}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: rest_client_exec_plugin_certificate_rotation_age_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: rest_client_exec_plugin_certificate_rotation_age_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: rest_client_requests_total
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: target}
+  - {description: '', field_name: code}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: node}
+  - {description: '', field_name: host}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: method}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: rest_client_request_duration_seconds_bucket
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: le}
+  - {description: '', field_name: metrics_path}
+  - {description: '', field_name: target}
+  - {description: '', field_name: url}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: node}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: rest_client_request_duration_seconds_count
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: url}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+- description: ''
+  field_name: rest_client_request_duration_seconds_sum
+  tag_list:
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: verb}
+  - {description: '', field_name: target}
+  - {description: '', field_name: url}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}

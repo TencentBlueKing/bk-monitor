@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="18px" height="18px" viewBox="0 0 18 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>icon/执行数</title>
+    <g id="首页" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g transform="translate(-676.000000, -191.000000)" id="编组-4">
+            <g transform="translate(117.000000, 122.000000)">
+                <g id="编组-12备份" transform="translate(51.000000, 69.000000)">
+                    <g id="icon/执行数" transform="translate(508.000000, 0.000000)">
+                        <rect id="矩形" x="0" y="0" width="18" height="18"></rect>
+                        <path d="M10.296,14.28 L10.296,15.608 L2.328,15.608 L2.328,14.28 L10.296,14.28 Z M10.685104,1.455504 L15.849696,6.620096 L14.9108,7.56032 L14.20696,7.325264 L12.562232,8.968 L16.31848,12.724248 L15.379584,13.663144 L11.624,9.906896 L10.027744,11.503152 L10.215656,12.2548 L9.276096,13.193696 L4.111504,8.029104 L5.051064,7.090208 L5.801384,7.277456 L9.9806,3.098904 L9.746208,2.395064 L10.685104,1.455504 Z M11.154552,3.803408 L6.459408,8.497888 L8.806648,10.845792 L13.501792,6.151312 L11.154552,3.803408 Z" id="形状" fill="#3A84FF" fill-rule="nonzero"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

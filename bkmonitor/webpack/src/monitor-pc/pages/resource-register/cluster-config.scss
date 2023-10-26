@@ -1,0 +1,194 @@
+/* stylelint-disable declaration-no-important */
+@mixin flex-item {
+  display: flex;
+  align-items: center;
+}
+
+@mixin font-config($font-size: 12px, $line-height: 20px, $color: #63656E) {
+  font-size: $font-size;
+  line-height: $line-height;
+  color: $color;
+  letter-spacing: 0;
+}
+
+.cluster-config-wrapper-component {
+  .cluster-config-content {
+    background-color: #f5f7fa;
+    padding: 8px 24px 20px 24px;
+    height: 100%;
+  
+    .cluster-resource-type {
+      .resource-type-title {
+        margin-bottom: 6px;
+  
+        @include font-config(12px, 20px);
+      }
+  
+      .type-selector {
+        display: flex;
+        //justify-content: space-between;
+  
+        .resource-type-card {
+          margin-right: 12px;
+          width: 140px;
+          height: 52px;
+          background: #fff;
+          box-shadow: 0 2px 4px 0 #1919290d;
+          border-radius: 2px;
+          cursor: pointer;
+          padding: 12px 8px 8px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+  
+          &:not(.disabled-card):hover {
+            box-shadow: 0 2px 4px 0 #0000001a, 0 2px 4px 0 #1919290d;
+          }
+  
+          .resource-name {
+            font-size: 14px;
+            color: #63656e;
+            display: flex;
+            align-items: flex-start;
+          }
+  
+          .resource-icon {
+            color: rgb(163, 197, 253);
+            font-size: 32px;
+          }
+        }
+  
+        .disabled-card {
+          cursor: not-allowed;
+  
+          .disabled {
+            color: #c4c6cc;
+          }
+        }
+  
+        .selected-card {
+          background: #e1ecff;
+          border: 1px solid #3a84ff;
+  
+          .selected-name {
+            color: #3a84ff;
+          }
+        }
+      }
+    }
+  
+    .cluster-basic-info {
+      margin-top: 16px;
+      background: #fff;
+      padding: 12px 16px 24px 16px;
+      box-shadow: 0 2px 4px 0 #1919290d;
+      border-radius: 2px;
+  
+      .horizontal {
+        display: flex;
+        align-items: center;
+  
+        & > div {
+          &:not(:first-of-type) {
+            margin-left: 16px;
+          }
+        }
+      }
+  
+      .info-title {
+        font-weight: 700;
+        margin-bottom: 16px;
+  
+        @include font-config(14px, 22px, #63656E);
+      }
+  
+      .usage-checkbox {
+        &-item {
+          margin-right: 24px;
+        }
+      }
+  
+      .connection-test {
+        display: flex;
+        align-items: center;
+        margin-top: 24px;
+  
+        .connection-tips {
+          margin-left: 14px;
+  
+          @include flex-item;
+
+          .icon-mc-check-fill,
+          .icon-mc-close-fill {
+            margin-right: 9px;
+            font-size: 14px;
+          }
+  
+          .icon-mc-check-fill {
+            color: #2dcb56;
+          }
+  
+          .icon-mc-close-fill {
+            color: #ea3636;
+          }
+  
+          .tips {
+            @include font-config(12px, 20px, #63656E);
+          }
+        }
+      }
+    }
+  
+    .cluster-more-option {
+      background: #fff;
+      margin-top: 16px;
+      padding: 16px 12px 24px;
+  
+      .option-card-title {
+        @include flex-item;
+  
+        .collapse-icon {
+          font-size: 24px;
+          cursor: pointer;
+          transform: rotate(0);
+        }
+  
+        .title-text {
+          font-weight: 700;
+          margin-left: 8px;
+  
+          @include font-config(14px, 22px, #63656E);
+        }
+  
+        .active {
+          transform: rotate(-90deg);
+        }
+      }
+    }
+  }
+
+  .bk-sideslider-content {
+    padding-bottom: 54px;
+  }
+
+  .bk-sideslider-footer {
+    position: absolute;
+    bottom: 0;
+    border-top-color: #dcdee5 !important;
+
+    .footer-operation-wrapper {
+      height: 100%;
+
+      .button-wrapper {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        margin-left: 24px;
+      }
+    
+      .footer-button {
+        margin-right: 8px;
+      }
+    }
+  }
+}

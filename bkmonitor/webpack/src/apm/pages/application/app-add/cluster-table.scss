@@ -1,0 +1,136 @@
+@import '../../../theme/index.scss';
+
+.cluster-container {
+  min-width: 1010px;
+  line-height: 14px;
+
+  &.is-animation {
+    transition: margin .3s ease-in-out;
+  }
+  
+  .cluster-title {
+    height: 32px;
+    font-size: 12px;
+    color: #626369;
+    background: #eff1f5;
+    border: 1px solid #dcdee5;
+    border-bottom: none;
+  
+    .cluster-title-container {
+      height: 100%;
+      cursor: pointer;
+  
+      @include flex-align;
+  
+      &.is-hidden {
+        border-bottom: 1px solid #dcdee5;
+  
+        .icon-angle-up-fill {
+          transform: rotateZ(-90deg);
+        }
+      }
+    }
+  
+    .icon-angle-up-fill {
+      margin: 0 10px;
+      font-size: 16px;
+    }
+  }
+  
+  .cluster-main {
+    display: flex;
+    min-height: 170px;
+
+    &.is-hidden {
+      display: none;
+    }
+  
+    .cluster-table {
+      width: 58%;
+      min-width: 420px;
+  
+      .bk-form-radio {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  
+    .cluster-illustrate {
+      width: 42%;
+      min-width: 460px;
+      max-height: 254px;
+      padding: 16px;
+      overflow: hidden;
+      font-size: 12px;
+      border: 1px solid #dcdee5;
+      border-left: none;
+  
+      .illustrate-title {
+        margin: 0;
+        font-weight: 700;
+        color: #63656e;
+      }
+  
+      .illustrate-container {
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+  
+        @include flex-justify(space-between);
+      }
+  
+      .illustrate-label {
+        color: #979ba5;
+      }
+  
+      .illustrate-value {
+        color: #313238;
+      }
+  
+      .illustrate-list {
+        height: calc(100% - 46px);
+        overflow-y: auto;
+        color: #63656e;
+      }
+    }
+  
+    .bk-radio-text {
+      font-size: 12px;
+    }
+  
+    .noData-container {
+      width: 100%;
+      border: 1px solid #dcdee5;
+  
+      @include flex-center;
+  
+      .noData-message {
+        flex-direction: column;
+        padding: 20px 0;
+        font-size: 12px;
+  
+        @include flex-center;
+  
+        .empty-message {
+          margin-bottom: 6px;
+          color: #63656e;
+        }
+      }
+  
+      .icon-empty {
+        font-size: 65px;
+        color: #c3cdd7;
+      }
+    }
+  
+    .percent {
+      display: flex;
+      align-items: center;
+  
+      .percent-progress {
+        width: 40px;
+        margin-right: 4px;
+      }
+    }
+  }
+}

@@ -1,0 +1,189 @@
+.flame-graph-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+
+  .diff-color-list {
+    margin-left: auto;
+    margin-bottom: 16px;
+  }
+
+  .flame-graph {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    // overflow: hidden;
+    border-radius: 2px;
+    position: relative;
+    padding-top: 6px;
+    padding-right: 6px;
+    padding-left: 6px;
+    background: #f5f6f9;
+  
+    &-chart {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      flex: 1;
+    }
+  
+    &-blur {
+      display: flex;
+      background-color: rgba(0,0,0,.33);
+      position: absolute;
+      left: 2px;
+      right: 2px;
+      top: 0;
+      margin: 26px 6px 0 12px;
+      height: 0px;
+      border-radius: 2px;
+      pointer-events: none;
+    }
+  
+    &-axis {
+      position: absolute;
+      z-index: 999;
+      font-size: 12px;
+      top: 0;
+      bottom: 0px;
+      width: 1px;
+      height: 100%;
+      pointer-events: none;
+      background-image: linear-gradient(to bottom, #dcdee5 0%, #dcdee5 50%, transparent 50%);
+      background-size: 1px 10px;
+      background-repeat: repeat-y;
+  
+      .axis-label {
+        position: absolute;
+        top: 6px;
+        left: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #000;
+        color: white;
+        border-radius: 2px;
+        padding: 4px;
+        white-space: nowrap;
+      }
+    }
+  
+    &-menu {
+      position: absolute;
+      z-index: 9999999999;
+      font-size: 12px;
+      top: 0;
+      left: 0;
+      width: 160px;
+      // height: 100%;
+      background: #fff;
+      border: 1px solid #dddfe3;
+      box-shadow: 0 2px 6px 0 #0000001a;
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      padding: 4px 0;
+  
+      .menu-item {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding-left: 14px;
+        color: #63656e;
+  
+        &:hover {
+          background-color: #f5f7fa;
+          cursor: pointer;
+        }
+  
+        &.is-active {
+          color: #3a84ff;
+          background-color: #e1ecff;
+        }
+  
+        &-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          margin-right: 4px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  .graph-tools {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+  }
+}
+
+
+.flame-graph-tips {
+  width: 220px;
+  background: #000;
+  border-radius: 2px;
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+  display: block;
+  height: 100%;
+
+  .tips-title {
+    color: #fff;
+    background-color: #d8d8d8;
+    border-top-right-radius: 4px;
+    border-top-left-radius: 4px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 8px;
+  }
+
+  .funtion-name {
+    padding: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tips-table {
+    width: calc(100% - 16px);
+    margin: 0 8px;
+    display: table;
+    border-collapse: collapse;
+
+    th,
+    td {
+      background-color: #000;
+      border: 1px solid #63656e;
+      font-weight: 400;
+      padding-left: 4px;
+    }
+  }
+
+  .tips-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-wrap: nowrap;
+    margin: 5px 0 8px 0;
+
+    &-icon {
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+    }
+  }
+}

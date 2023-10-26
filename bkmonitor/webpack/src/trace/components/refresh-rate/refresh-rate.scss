@@ -1,0 +1,79 @@
+.refresh-rate-wrap {
+  .refresh-rate-main {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+
+    .trigger-name {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-right: 8px;
+      padding: 0 4px 0 5px;
+      height: 24px;
+
+      &.active,
+      &:hover {
+        border-radius: 2px;
+        color: #3a84ff;
+        background-color: #eaf3ff;
+        cursor: pointer;
+      }
+    }
+
+    .refresh-text {
+      &.active-text {
+        color: #3a84ff;
+      }
+
+      &:before {
+        content: "";
+        width: 1px;
+        height: 14px;
+        background-color: #dcdee5;
+        display: flex;
+        position: absolute;
+        right: -8px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
+  }
+
+  .icon-refresh {
+    margin-right: 2px;
+  }
+
+  .icon-arrow {
+    margin-left: 5px;
+    transition: transform .2s ease-in-out;
+
+    &.is-show {
+      transform: rotate(180deg);
+    }
+  }
+
+  .icon-mc-alarm-recovered {
+    margin-left: 8px;
+    width: 24px;
+    height: 24px;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      border-radius: 2px;
+      background-color: #eaf3ff;
+    }
+  
+    &.active {
+      border-radius: 2px;
+      background-color: #eaf3ff;
+      color: #3a84ff;
+    }
+  }
+}

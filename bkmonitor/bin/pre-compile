@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "Delete blueking component dir..."
+rm -rf blueking

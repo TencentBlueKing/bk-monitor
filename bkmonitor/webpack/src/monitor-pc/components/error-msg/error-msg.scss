@@ -1,0 +1,17 @@
+.errors-msg-wrap {
+  position: relative;
+  .errors-msg {
+    position: absolute;
+    bottom: -18px;
+    left: 0;
+    color: #ea3636;
+    font-size: 12px;
+    line-height: 16px;
+  }
+}
+.errors-msg-wrap.is-error {
+  .bk-select,
+  .bk-form-input {
+    border-bottom-color: #ea3636;
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "collector_json": {"config_yaml":  "this is a test"},
+  "config_json": [
+    {"default": "127.0.0.1", "mode": "collector", "type": "text", "name": "host", "description": "监听IP","visible": false},
+    {"name": "port", "mode": "collector", "type": "text", "default": "", "description": "监听端口"},
+    {"name": "jmx_url", "mode": "opt_cmd", "type": "text", "default": "", "description": "链接字符串"},
+    {"name": "username", "mode": "opt_cmd", "type": "text", "default": "", "description": "用户名"},
+    {"name": "password", "mode": "opt_cmd", "type": "password", "default": "", "description": "密码"}
+  ],
+  "is_support_remote": true
+}

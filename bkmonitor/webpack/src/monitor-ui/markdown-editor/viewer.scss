@@ -1,0 +1,109 @@
+.markdown-viewer {
+  &.md-veiwer-flowchart-wrap,
+  &.md-editor-flowchart-wrap {
+    pre {
+      font-family: Menlo,Monaco,Consolas,Courier,monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #888;
+      padding: 0 16px;
+      background-color: #f9fafc;
+    }
+
+    a {
+      color: #3c96ff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    p {
+      font-size: 14px;
+      color: #5e6d82;
+      margin: initial;
+      color: #63656e;
+    }
+
+    .toastui-editor-contents {
+      ol {
+        padding-left: 0;
+        counter-reset: section;                /* 为每个ol元素创建新的计数器实例 */
+        list-style-type: none;
+        // list-style: none;
+        li {
+          position: relative;
+          padding-left: 28px;
+          margin-bottom: 24px;
+          color: #63656e;
+          font-size: 14px;
+          line-height: 20px;
+
+          a {
+            text-decoration: none;
+            color: #3a84ff;
+          }
+
+          code {
+            background: none;
+            color: #ff9c01;
+            padding: 0;
+          }
+
+          p {
+            color: #63656e;
+            line-height: 20px;
+
+            code {
+              background: none;
+              color: #ff9c01;
+              padding: 0;
+            }
+
+            a {
+              text-decoration: none;
+              color: #3a84ff;
+            }
+
+            p {
+              color: #63656e;
+            }
+          }
+
+          &:not(:last-child)::after {
+            position: absolute;
+            content: '';
+            top: 27px;
+            left: 9px;
+            width: 1px;
+            height: calc(100% - 10px);
+            border-left: 1px dashed #c4c6cc;
+          }
+
+          &::before {
+            content: ' ' counter(li);
+            margin-left: -28px;
+            background: #3a84ff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 20px;
+            width: 20px;
+            color: #fff;
+            position: absolute;
+          }
+
+          pre {
+            margin-top: 8px;
+            margin-bottom: 0;
+            padding: 5px;
+            font-size: 12px;
+
+            code {
+              color: #63656e;
+            }
+          }
+        }
+      }
+    }
+  }
+}

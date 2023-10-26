@@ -1,0 +1,5528 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_蓝鲸监控_- 指标数据",
+      "label": "蓝鲸监控 - 指标数据",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "bkmonitor-timeseries-datasource",
+      "pluginName": "蓝鲸监控-时序数据"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "bkmonitor-timeseries-datasource",
+      "name": "蓝鲸监控-时序数据",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.1.0"
+    },
+    {
+      "type": "panel",
+      "id": "grafana-piechart-panel",
+      "name": "Pie Chart (old)",
+      "version": "1.6.2"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "$$hashKey": "object:8",
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "vt2FOkRVk"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 16,
+      "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "vt2FOkRVk"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 39,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_device_name",
+            "conditions": [
+              [
+                {
+                  "key": "w7q2hfzovl",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "city",
+                      "name": "时区城市"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    },
+                    {
+                      "id": "timezone",
+                      "name": "机器时区"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "v0e6zcghpu",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "87u9cesqbr",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.env",
+                "uptime"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "系统环境",
+                "启动时间"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "启动时间",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "city",
+                  "name": "时区城市"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                },
+                {
+                  "id": "timezone",
+                  "name": "机器时区"
+                }
+              ],
+              "extendFields": {},
+              "id": "uptime",
+              "metricField": "uptime",
+              "metricFieldName": "启动时间",
+              "name": "启动时间",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.env",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "系统环境",
+              "unit": "s"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 2,
+        "x": 4,
+        "y": 1
+      },
+      "id": 33,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_device_name",
+            "conditions": [
+              [
+                {
+                  "key": "mdvk6cjog1",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "tvlq4ta4ka",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "dhaky02yxj",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "COUNT",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.cpu_detail",
+                "usage"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "单核CPU",
+                "单核处理器使用率"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id",
+                "device_name"
+              ],
+              "description": "单核CPU使用的时间占比",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "usage",
+              "metricField": "usage",
+              "metricFieldName": "单核处理器使用率",
+              "name": "单核处理器使用率",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.cpu_detail",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "单核CPU",
+              "unit": "%"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU Cores",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 9,
+        "x": 6,
+        "y": 1
+      },
+      "id": 29,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$metric_id",
+            "conditions": [
+              [
+                {
+                  "key": "2ijdggapje",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "6qjehq2d24",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "27qyuuiik7",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.load",
+                "load1"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "负载",
+                "1分钟平均负载"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "CPU 1分钟内任务队列负荷均值",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "load1",
+              "metricField": "load1",
+              "metricFieldName": "1分钟平均负载",
+              "name": "1分钟平均负载",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.load",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "负载",
+              "unit": ""
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        },
+        {
+          "data": {
+            "alias": "$metric_id",
+            "conditions": [
+              [
+                {
+                  "key": "8k53sju714",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "pkb748qen9",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "2n49h0u0k8",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.load",
+                "load5"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "负载",
+                "5分钟平均负载"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "CPU 5分钟内任务队列负荷均值",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "load5",
+              "metricField": "load5",
+              "metricFieldName": "5分钟平均负载",
+              "name": "5分钟平均负载",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.load",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "负载",
+              "unit": ""
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        },
+        {
+          "data": {
+            "alias": "$metric_id",
+            "conditions": [
+              [
+                {
+                  "key": "8gobvxr2ht",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "m0mpi5ggwt",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "ndkb38c8fe",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.load",
+                "load15"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "负载",
+                "15分钟平均负载"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "CPU 15分钟内任务队列负荷均值",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "load15",
+              "metricField": "load15",
+              "metricFieldName": "15分钟平均负载",
+              "name": "15分钟平均负载",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.load",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "负载",
+              "unit": ""
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "C"
+        }
+      ],
+      "title": "系统负载",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 3,
+        "x": 15,
+        "y": 1
+      },
+      "id": 14,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "conditions": [
+              [
+                {
+                  "key": "eh3ht9ls7v",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "device_type",
+                      "name": "设备类型"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    },
+                    {
+                      "id": "mount_point",
+                      "name": "挂载点"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "8u6u950tn1",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "3h5js8kmnd",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "MAX",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.disk",
+                "in_use"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "磁盘",
+                "已用空间占比"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id",
+                "mount_point"
+              ],
+              "description": "已用的磁盘空间占比",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "device_type",
+                  "name": "设备类型"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                },
+                {
+                  "id": "mount_point",
+                  "name": "挂载点"
+                }
+              ],
+              "extendFields": {},
+              "id": "in_use",
+              "metricField": "in_use",
+              "metricFieldName": "已用空间占比",
+              "name": "已用空间占比",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.disk",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "磁盘",
+              "unit": "%"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "最大磁盘使用率",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 3,
+        "x": 18,
+        "y": 1
+      },
+      "id": 2,
+      "links": [],
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "max"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$target_ip $metric_name",
+            "conditions": [
+              [
+                {
+                  "key": "iwtudx0vud",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "tpf7pgizf6",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "eknvxtujlx",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.cpu_summary",
+                "usage"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "CPU",
+                "使用率"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "CPU 使用的时间占比",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "usage",
+              "metricField": "usage",
+              "metricFieldName": "使用率",
+              "name": "使用率",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.cpu_summary",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "CPU",
+              "unit": "%"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A",
+          "unit": ""
+        }
+      ],
+      "title": "CPU使用率",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 3,
+        "x": 21,
+        "y": 1
+      },
+      "id": 12,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "conditions": [
+              [
+                {
+                  "key": "j7fkzhppnj",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "rrkr9d4utu",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "r8wtu2dwua",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.mem",
+                "pct_usable"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "内存",
+                "应用程序内存可用率"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "应用程序的内存可用占比（公式：free+buffer+cache/total*100）",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "pct_usable",
+              "metricField": "pct_usable",
+              "metricFieldName": "应用程序内存可用率",
+              "name": "应用程序内存可用率",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.mem",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "内存",
+              "unit": "%"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "应用内存可用率",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      },
+      "id": 34,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_device_name",
+            "conditions": [
+              [
+                {
+                  "key": "56v3bvnx8y",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "device_type",
+                      "name": "设备类型"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    },
+                    {
+                      "id": "mount_point",
+                      "name": "挂载点"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "rmegrhshcr",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "dsr24o56uo",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.disk",
+                "total"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "磁盘",
+                "总空间大小"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "磁盘的总空间大小",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "device_type",
+                  "name": "设备类型"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                },
+                {
+                  "id": "mount_point",
+                  "name": "挂载点"
+                }
+              ],
+              "extendFields": {},
+              "id": "total",
+              "metricField": "total",
+              "metricFieldName": "总空间大小",
+              "name": "总空间大小",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.disk",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "磁盘",
+              "unit": "MB"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "Disk Total",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "vt2FOkRVk"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 26,
+      "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "vt2FOkRVk"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "DISK & IO",
+      "type": "row"
+    },
+    {
+      "aliasColors": {},
+      "breakPoint": "50%",
+      "combine": {
+        "label": "Others",
+        "threshold": 0
+      },
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fontSize": "80%",
+      "format": "percent",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "id": 4,
+      "legend": {
+        "percentage": false,
+        "show": true,
+        "values": true
+      },
+      "legendType": "Right side",
+      "links": [],
+      "maxDataPoints": 3,
+      "nullPointMode": "connected",
+      "pieType": "pie",
+      "pluginVersion": "6.7.1",
+      "strokeWidth": 1,
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_mount_point",
+            "conditions": [
+              [
+                {
+                  "key": "dkkwacrt7x",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "device_type",
+                      "name": "设备类型"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    },
+                    {
+                      "id": "mount_point",
+                      "name": "挂载点"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "t7jq814bn4",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "gpi4pmm83b",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id",
+              "mount_point"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.disk",
+                "in_use"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "磁盘",
+                "已用空间占比"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id",
+                "mount_point"
+              ],
+              "description": "已用的磁盘空间占比",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "device_type",
+                  "name": "设备类型"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                },
+                {
+                  "id": "mount_point",
+                  "name": "挂载点"
+                }
+              ],
+              "extendFields": {},
+              "id": "in_use",
+              "metricField": "in_use",
+              "metricFieldName": "已用空间占比",
+              "name": "已用空间占比",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.disk",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "磁盘",
+              "unit": "%"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A",
+          "unit": ""
+        }
+      ],
+      "title": "磁盘占用",
+      "type": "grafana-piechart-panel",
+      "valueName": "current"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 6,
+        "y": 8
+      },
+      "id": 28,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_device_name",
+            "conditions": [
+              [
+                {
+                  "key": "jtglcu7cc4",
+                  "list": [
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "so2em1js14",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "1g93okv5cn",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id",
+              "device_name"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.io",
+                "util"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "磁盘I/O",
+                "IO使用率"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id",
+                "device_name"
+              ],
+              "description": "磁盘每秒用于I/O操作的占比",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "util",
+              "metricField": "util",
+              "metricFieldName": "IO使用率",
+              "name": "IO使用率",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.io",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "磁盘I/O",
+              "unit": "%"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "磁盘IO使用率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "$$hashKey": "object:1624",
+              "id": 0,
+              "op": "=",
+              "text": "N/A",
+              "type": 1,
+              "value": "null"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 10000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      },
+      "id": 37,
+      "links": [],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$target_ip",
+            "conditions": [
+              [
+                {
+                  "key": "0x98m0oq8n",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "3mfs7437nr",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "msmht2lz8w",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.inode",
+                "free"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "文件句柄",
+                "可用inode数量"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "系统当前可用的inode文件句柄",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "free",
+              "metricField": "free",
+              "metricFieldName": "可用inode数量",
+              "name": "可用inode数量",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.inode",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "文件句柄",
+              "unit": "个"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "inode可用数",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "vt2FOkRVk"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 22,
+      "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "vt2FOkRVk"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "NET",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 30000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 0,
+        "y": 16
+      },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "conditions": [
+              [
+                {
+                  "key": "zcykq0qvaj",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "1rmtemn7jk",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "ql74504exx",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.netstat",
+                "cur_tcp_listen"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "连接状态",
+                "listen连接数"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "系统当前处于listen状态的TCP连接数",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "cur_tcp_listen",
+              "metricField": "cur_tcp_listen",
+              "metricFieldName": "listen连接数",
+              "name": "listen连接数",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.netstat",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "连接状态",
+              "unit": "个"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "当前连接数",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 11,
+        "x": 4,
+        "y": 16
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "$tag_device_name 入流量",
+            "conditions": [
+              [
+                {
+                  "key": "ex8pw1qkas",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "97u5sagteg",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "ep4ln3fpfx",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "gtv5w119ue",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "5255dlhfdd",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "device_name"
+                },
+                {
+                  "key": "wen7amipic",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "g00w6pv20p",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "lo"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id",
+              "device_name"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.net",
+                "speed_recv"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "网络",
+                "网卡入流量"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id",
+                "device_name"
+              ],
+              "description": "网卡每秒接收的字节数",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "speed_recv",
+              "metricField": "speed_recv",
+              "metricFieldName": "网卡入流量",
+              "name": "网卡入流量",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.net",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "网络",
+              "unit": "KB/s"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        },
+        {
+          "data": {
+            "alias": "$tag_device_name 入流量",
+            "conditions": [
+              [
+                {
+                  "key": "083lxh4zhw",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "jtl6704wlw",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "0qu72pddpv",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ],
+              [
+                {
+                  "key": "4plcbs0yn0",
+                  "list": [
+                    {
+                      "id": "and",
+                      "name": "AND"
+                    },
+                    {
+                      "id": "or",
+                      "name": "OR"
+                    }
+                  ],
+                  "type": "condition",
+                  "value": "and"
+                },
+                {
+                  "key": "bv03az5lnh",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "device_name",
+                      "name": "设备名"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "device_name"
+                },
+                {
+                  "key": "ihmiwt6z5f",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "neq"
+                },
+                {
+                  "key": "81motk9mav",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "lo"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id",
+              "device_name"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.net",
+                "speed_sent"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "网络",
+                "网卡出流量"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id",
+                "device_name"
+              ],
+              "description": "网卡每秒发送的字节数",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "device_name",
+                  "name": "设备名"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                }
+              ],
+              "extendFields": {},
+              "id": "speed_sent",
+              "metricField": "speed_sent",
+              "metricFieldName": "网卡出流量",
+              "name": "网卡出流量",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.net",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "网络",
+              "unit": "KB/s"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "B"
+        }
+      ],
+      "title": "网卡出入流量",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_蓝鲸监控_- 指标数据}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 9,
+        "x": 15,
+        "y": 16
+      },
+      "id": 38,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "data": {
+            "alias": "",
+            "conditions": [
+              [
+                {
+                  "key": "dksnpeo174",
+                  "list": [
+                    {
+                      "id": "bk_biz_id",
+                      "name": "业务ID"
+                    },
+                    {
+                      "id": "bk_cloud_id",
+                      "name": "采集器云区域ID"
+                    },
+                    {
+                      "id": "bk_target_cloud_id",
+                      "name": "云区域ID"
+                    },
+                    {
+                      "id": "bk_target_ip",
+                      "name": "目标IP"
+                    },
+                    {
+                      "id": "city",
+                      "name": "时区城市"
+                    },
+                    {
+                      "id": "hostname",
+                      "name": "主机名"
+                    },
+                    {
+                      "id": "ip",
+                      "name": "采集器IP"
+                    },
+                    {
+                      "id": "timezone",
+                      "name": "机器时区"
+                    }
+                  ],
+                  "open": false,
+                  "type": "key",
+                  "value": "bk_target_ip"
+                },
+                {
+                  "key": "ks5br1rjnc",
+                  "list": [
+                    {
+                      "id": "eq",
+                      "name": "="
+                    },
+                    {
+                      "id": "gt",
+                      "name": ">"
+                    },
+                    {
+                      "id": "gte",
+                      "name": ">="
+                    },
+                    {
+                      "id": "lt",
+                      "name": "<"
+                    },
+                    {
+                      "id": "lte",
+                      "name": "<="
+                    },
+                    {
+                      "id": "neq",
+                      "name": "!="
+                    },
+                    {
+                      "id": "include",
+                      "name": "include"
+                    },
+                    {
+                      "id": "exclude",
+                      "name": "exclude"
+                    },
+                    {
+                      "id": "reg",
+                      "name": "regex"
+                    }
+                  ],
+                  "type": "method",
+                  "value": "eq"
+                },
+                {
+                  "key": "m4ofwc087e",
+                  "list": [],
+                  "type": "value",
+                  "value": [
+                    "$host"
+                  ]
+                }
+              ]
+            ],
+            "dimensions": [
+              "bk_target_ip",
+              "bk_target_cloud_id"
+            ],
+            "method": "SUM",
+            "metric": {
+              "id": [
+                "bk_monitor_time_series",
+                "system",
+                "system.env",
+                "procs"
+              ],
+              "labels": [
+                "监控采集",
+                "system",
+                "系统环境",
+                "进程数"
+              ],
+              "list": []
+            },
+            "metricDetail": {
+              "collectInterval": 1,
+              "dataSourceLabel": "bk_monitor",
+              "dataSourceLabelName": "监控采集",
+              "defaultCondition": [],
+              "defaultDimensions": [
+                "bk_target_ip",
+                "bk_target_cloud_id"
+              ],
+              "description": "系统当前正在运行的进程数量",
+              "dimensions": [
+                {
+                  "id": "bk_biz_id",
+                  "name": "业务ID"
+                },
+                {
+                  "id": "bk_cloud_id",
+                  "name": "采集器云区域ID"
+                },
+                {
+                  "id": "bk_target_cloud_id",
+                  "name": "云区域ID"
+                },
+                {
+                  "id": "bk_target_ip",
+                  "name": "目标IP"
+                },
+                {
+                  "id": "city",
+                  "name": "时区城市"
+                },
+                {
+                  "id": "hostname",
+                  "name": "主机名"
+                },
+                {
+                  "id": "ip",
+                  "name": "采集器IP"
+                },
+                {
+                  "id": "timezone",
+                  "name": "机器时区"
+                }
+              ],
+              "extendFields": {},
+              "id": "procs",
+              "metricField": "procs",
+              "metricFieldName": "进程数",
+              "name": "进程数",
+              "relatedId": "system",
+              "relatedName": "system",
+              "resultTableId": "system.env",
+              "resultTableLabel": "os",
+              "resultTableLabelName": "操作系统",
+              "resultTableName": "系统环境",
+              "unit": "个"
+            },
+            "monitorObject": {
+              "groupId": "hosts",
+              "id": "os",
+              "list": [
+                {
+                  "children": [
+                    {
+                      "id": "application_check",
+                      "index": 2,
+                      "name": "业务应用"
+                    },
+                    {
+                      "id": "uptimecheck",
+                      "index": 1,
+                      "name": "服务拨测"
+                    }
+                  ],
+                  "id": "applications",
+                  "index": 1,
+                  "name": "用户体验"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "component",
+                      "index": 2,
+                      "name": "组件"
+                    },
+                    {
+                      "id": "service_module",
+                      "index": 1,
+                      "name": "服务模块"
+                    }
+                  ],
+                  "id": "services",
+                  "index": 2,
+                  "name": "服务"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "host_process",
+                      "index": 1,
+                      "name": "进程"
+                    },
+                    {
+                      "id": "os",
+                      "index": 2,
+                      "name": "操作系统"
+                    }
+                  ],
+                  "id": "hosts",
+                  "index": 3,
+                  "name": "主机"
+                },
+                {
+                  "children": [
+                    {
+                      "id": "other_rt",
+                      "index": 2,
+                      "name": "其他"
+                    }
+                  ],
+                  "id": "others",
+                  "index": 4,
+                  "name": "其他"
+                }
+              ],
+              "name": "服务模块"
+            },
+            "period": 60,
+            "target": {
+              "expandKeys": [],
+              "realValues": [],
+              "treeData": [],
+              "values": []
+            }
+          },
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_蓝鲸监控_- 指标数据}"
+          },
+          "datasourceId": "bkmonitor-timeseries-datasource",
+          "name": "蓝鲸监控-时序数据",
+          "refId": "A"
+        }
+      ],
+      "title": "进程数",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "bkmonitor-timeseries-datasource",
+          "uid": "${DS_蓝鲸监控_- 指标数据}"
+        },
+        "definition": "",
+        "hide": 0,
+        "includeAll": false,
+        "label": "集群",
+        "multi": false,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "$$hashKey": "object:140",
+          "conditions": [],
+          "queryType": "set",
+          "showField": "bk_set_name",
+          "valueField": "bk_set_id",
+          "variables": ""
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "bkmonitor-timeseries-datasource",
+          "uid": "${DS_蓝鲸监控_- 指标数据}"
+        },
+        "definition": "",
+        "hide": 0,
+        "includeAll": false,
+        "label": "模块",
+        "multi": false,
+        "name": "module",
+        "options": [],
+        "query": {
+          "$$hashKey": "object:275",
+          "conditions": [
+            [
+              {
+                "key": "52srsoy8cb",
+                "list": [
+                  {
+                    "id": "bk_set_id",
+                    "name": "集群ID"
+                  }
+                ],
+                "open": false,
+                "type": "key",
+                "value": "bk_set_id"
+              },
+              {
+                "key": "zrmcw4qz4t",
+                "list": [
+                  {
+                    "id": "eq",
+                    "name": "="
+                  },
+                  {
+                    "id": "gt",
+                    "name": ">"
+                  },
+                  {
+                    "id": "gte",
+                    "name": ">="
+                  },
+                  {
+                    "id": "lt",
+                    "name": "<"
+                  },
+                  {
+                    "id": "lte",
+                    "name": "<="
+                  },
+                  {
+                    "id": "neq",
+                    "name": "!="
+                  },
+                  {
+                    "id": "include",
+                    "name": "include"
+                  },
+                  {
+                    "id": "exclude",
+                    "name": "exclude"
+                  },
+                  {
+                    "id": "reg",
+                    "name": "regex"
+                  }
+                ],
+                "type": "method",
+                "value": "eq"
+              },
+              {
+                "key": "96yiztxrp6",
+                "list": [],
+                "type": "value",
+                "value": [
+                  "$cluster"
+                ]
+              }
+            ]
+          ],
+          "queryType": "module",
+          "showField": "bk_module_name",
+          "valueField": "bk_module_id",
+          "variables": "$cluster"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "bkmonitor-timeseries-datasource",
+          "uid": "${DS_蓝鲸监控_- 指标数据}"
+        },
+        "definition": "",
+        "hide": 0,
+        "includeAll": false,
+        "label": "主机",
+        "multi": false,
+        "name": "host",
+        "options": [],
+        "query": {
+          "$$hashKey": "object:327",
+          "conditions": [
+            [
+              {
+                "key": "2e8ve693ri",
+                "list": [
+                  {
+                    "id": "bk_module_ids",
+                    "name": "模块ID"
+                  }
+                ],
+                "open": false,
+                "type": "key",
+                "value": "bk_module_ids"
+              },
+              {
+                "key": "3w82cji4qm",
+                "list": [
+                  {
+                    "id": "eq",
+                    "name": "="
+                  },
+                  {
+                    "id": "gt",
+                    "name": ">"
+                  },
+                  {
+                    "id": "gte",
+                    "name": ">="
+                  },
+                  {
+                    "id": "lt",
+                    "name": "<"
+                  },
+                  {
+                    "id": "lte",
+                    "name": "<="
+                  },
+                  {
+                    "id": "neq",
+                    "name": "!="
+                  },
+                  {
+                    "id": "include",
+                    "name": "include"
+                  },
+                  {
+                    "id": "exclude",
+                    "name": "exclude"
+                  },
+                  {
+                    "id": "reg",
+                    "name": "regex"
+                  }
+                ],
+                "type": "method",
+                "value": "eq"
+              },
+              {
+                "key": "tzoyh3buwt",
+                "list": [],
+                "type": "value",
+                "value": [
+                  "$module"
+                ]
+              }
+            ],
+            [
+              {
+                "key": "4445tcumk4",
+                "list": [
+                  {
+                    "id": "and",
+                    "name": "AND"
+                  },
+                  {
+                    "id": "or",
+                    "name": "OR"
+                  }
+                ],
+                "type": "condition",
+                "value": "and"
+              },
+              {
+                "key": "am35yhdzyh",
+                "list": [
+                  {
+                    "id": "bk_set_ids",
+                    "name": "集群ID"
+                  }
+                ],
+                "open": false,
+                "type": "key",
+                "value": "bk_set_ids"
+              },
+              {
+                "key": "yabz7p8rwl",
+                "list": [
+                  {
+                    "id": "eq",
+                    "name": "="
+                  },
+                  {
+                    "id": "gt",
+                    "name": ">"
+                  },
+                  {
+                    "id": "gte",
+                    "name": ">="
+                  },
+                  {
+                    "id": "lt",
+                    "name": "<"
+                  },
+                  {
+                    "id": "lte",
+                    "name": "<="
+                  },
+                  {
+                    "id": "neq",
+                    "name": "!="
+                  },
+                  {
+                    "id": "include",
+                    "name": "include"
+                  },
+                  {
+                    "id": "exclude",
+                    "name": "exclude"
+                  },
+                  {
+                    "id": "reg",
+                    "name": "regex"
+                  }
+                ],
+                "type": "method",
+                "value": "eq"
+              },
+              {
+                "key": "owrzb3j9qi",
+                "list": [],
+                "type": "value",
+                "value": [
+                  "$cluster"
+                ]
+              }
+            ]
+          ],
+          "queryType": "host",
+          "showField": "bk_host_innerip",
+          "valueField": "bk_host_innerip",
+          "variables": "$module  $cluster"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "主机查看",
+  "version": 2,
+  "weekStart": ""
+}

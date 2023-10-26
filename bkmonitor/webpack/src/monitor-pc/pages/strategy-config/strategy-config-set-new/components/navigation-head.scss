@@ -1,0 +1,50 @@
+@import "../../../../theme";
+
+$right-btn-bg:  #f0f1f5;
+
+.strategy-page-navigation-head {
+  height: 52px;
+  background: #fff;
+  box-shadow: 0px 3px 4px 0px rgba(64,112,203,.06);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  .title {
+    color: #313238;
+    line-height: 24px;
+    font-size: 16px;
+  }
+  .icon-back-left {
+    width: 32px;
+    height: 32px;
+    color: #3a84ff;
+    font-size: 32px;
+    margin-left: 27px;
+    cursor: pointer;
+  }
+  .right-btn {
+    margin: 0 24px 0 auto;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+
+    @include flex-center;
+    .icon-audit {
+      color: $primary-color;
+      font-size: 16px;
+    }
+    &:hover {
+      background: $right-btn-bg;
+      border-radius: 50%;
+    }
+    &.active {
+      background: $right-btn-bg;
+      border-radius: 2px;
+      &:hover {
+        border-radius: 2px;
+      }
+    }
+  }
+}
