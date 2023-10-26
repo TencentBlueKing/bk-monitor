@@ -67,11 +67,11 @@
           <div v-bk-overflow-tips="{ placement: 'right' }" class="item-text text-overflow-hidden">
             {{ item }}
           </div>
-          <!-- <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
+          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
             <i18n path="筛选包含{0}的结果">
               <span class="item-callout">{{ item }}</span>
             </i18n>
-          </div> -->
+          </div>
         </li>
       </template>
       <!-- 字段对应值 -->

@@ -31,15 +31,6 @@
           </label> -->
           <div class="bk-form-content">
             <bk-checkbox
-              v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen"
-              :checked="false"
-              :true-value="true"
-              :false-value="false"
-              v-model="retainExtraText"
-              @change="handleKeepField">
-              <span class="bk-label" style="margin-right: 20px;">{{ $t('保留未定义字段') }}</span>
-            </bk-checkbox>
-            <bk-checkbox
               :checked="true"
               :true-value="true"
               :false-value="false"
@@ -475,14 +466,6 @@ export default {
       type: Boolean,
       default: false,
     },
-    retainExtraJson: {
-      type: Boolean,
-      default: false,
-    },
-    selectEtlConfig: {
-      type: String,
-      default: 'bk_log_json',
-    },
     isSetDisabled: {
       type: Boolean,
       default: false,
@@ -504,7 +487,6 @@ export default {
       timeCheckResult: false,
       checkLoading: false,
       retainOriginalText: true, // 保留原始日志
-      retainExtraText: false,
       rules: {
         field_name: [ // 存在bug，暂时启用
           // {
@@ -595,9 +577,6 @@ export default {
     getParticipleWidth() {
       return this.$store.getters.isEnLanguage ? '65' : '50';
     },
-    retainExtraJsonIsOpen() {
-      return this.globalsData?.retain_extra_json ?? false;
-    },
   },
   watch: {
     fields: {
@@ -609,13 +588,9 @@ export default {
     retainOriginalValue(newVal) {
       this.retainOriginalText = newVal;
     },
-    retainExtraJson(newVal) {
-      this.retainExtraText = newVal;
-    },
   },
   async mounted() {
     this.retainOriginalText = this.retainOriginalValue;
-    this.retainExtraText = this.retainExtraJson;
     this.reset();
   },
   methods: {
@@ -982,9 +957,6 @@ export default {
     },
     handleKeepLog(value) {
       this.$emit('handleKeepLog', value);
-    },
-    handleKeepField(value) {
-      this.$emit('handleKeepField', value);
     },
     renderHeaderAliasName(h) {
       return h('div', {

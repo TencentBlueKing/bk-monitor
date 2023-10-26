@@ -348,7 +348,6 @@ class GlobalTypeEnum(ChoicesEnum):
     IS_K8S_DEPLOY = "is_k8s_deploy"
     PAAS_API_HOST = "paas_api_host"
     BK_DOMAIN = "bk_domain"
-    RETAIN_EXTRA_JSON = "retain_extra_json"
 
     _choices_labels = (
         (CATEGORY, _("数据分类")),
@@ -370,7 +369,6 @@ class GlobalTypeEnum(ChoicesEnum):
         (IS_K8S_DEPLOY, _("是否容器化部署")),
         (PAAS_API_HOST, _("网关地址")),
         (BK_DOMAIN, _("蓝鲸域名")),
-        (RETAIN_EXTRA_JSON, _("是否开启保留额外JSON字段开关")),
     )
 
 
@@ -857,6 +855,14 @@ class TimeFieldUnitEnum(ChoicesEnum):
     _choices_labels = ((SECOND, _("second")), (MILLISECOND, _("millisecond")), (MICROSECOND, _("microsecond")))
 
 
+# 时间单位倍数映射关系
+TIME_FIELD_MULTIPLE_MAPPING = {
+    TimeFieldUnitEnum.SECOND.value: 1000,
+    TimeFieldUnitEnum.MILLISECOND.value: 1,
+    TimeFieldUnitEnum.MICROSECOND.value: 1 / 1000,
+}
+
+
 class FieldDataTypeEnum(ChoicesEnum):
     """
     字段类型
@@ -1153,7 +1159,6 @@ RT_RESERVED_WORD_EXAC = [
     "gseIndex",
     "iterationIndex",
     "__ext",
-    "__ext_json",
     "log",
     "dtEventTimeStamp",
     "datetime",
@@ -1252,6 +1257,17 @@ class UserFunctionGuideType(ChoicesEnum):
     SEARCH_FAVORITE = "search_favorite"
 
     _choices_keys = (SEARCH_FAVORITE,)
+
+
+class IndexSetType(ChoicesEnum):
+    """
+    索引集类型
+    """
+
+    SINGLE = "single"
+    UNION = "union"
+
+    _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
 
 
 # 索引集无数据检查缓存前缀

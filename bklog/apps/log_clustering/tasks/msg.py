@@ -52,9 +52,7 @@ def send(index_set_id):
         msg = _("[待审批] 有新聚类创建，请关注！索引集id: {}, 索引集名称: {}, 业务id: {}, 业务名称: {}, 创建者: {}, 过去一天的数据量doc_count={}").format(
             index_set_id,
             log_index_set.index_set_name,
-            clustering_config.bk_biz_id
-            if not clustering_config.related_space_pre_bk_biz_id
-            else clustering_config.related_space_pre_bk_biz_id,
+            clustering_config.bk_biz_id,
             space.space_name,
             clustering_config.created_by,
             doc_count,
@@ -76,9 +74,7 @@ def send(index_set_id):
         ).format(
             index_set_id,
             log_index_set.index_set_name,
-            clustering_config.bk_biz_id
-            if not clustering_config.related_space_pre_bk_biz_id
-            else clustering_config.related_space_pre_bk_biz_id,
+            clustering_config.bk_biz_id,
             space.space_name,
             clustering_config.created_by,
             doc_count,

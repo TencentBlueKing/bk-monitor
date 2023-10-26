@@ -23,39 +23,52 @@ from django.test import TestCase
 
 from apps.log_desensitize.constants import DesensitizeOperator
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
+from apps.log_desensitize.handlers.entity.desensitize_config_entity import DesensitizeConfigEntity
 
 
 class TestDesensitizeOperator(TestCase):
     """
     脱敏工厂单元测试
     """
-    def test_transform_dict(self):
-        param_1 = {
-            "field_name": "test_field_1",
-            "rule_id": 0,
-            "operator": DesensitizeOperator.MASK_SHIELD.value,
-            "params": {
+
+    def test_transform_text(self):
+        entity_test1 = DesensitizeConfigEntity(
+            operator=DesensitizeOperator.MASK_SHIELD.value,
+            params={
                 "preserve_head": 3,
                 "preserve_tail": 3,
-            },
-            "match_pattern": "",
-            "sort_index": 0
-        }
-        param_2 = {
-            "field_name": "test_field_2",
-            "rule_id": 0,
-            "operator": DesensitizeOperator.TEXT_REPLACE.value,
-            "params": {
+            }
+        )
+        text = "13234345678"
+        desensitize_config_list = [entity_test1]
+
+        self.assertEqual(
+            DesensitizeHandler(
+                desensitize_config_list=desensitize_config_list
+            ).transform_text(text), "132*****678")
+
+    def test_transform_dict(self):
+        entity_param_1 = DesensitizeConfigEntity(
+            field_name="test_field_1",
+            operator=DesensitizeOperator.MASK_SHIELD.value,
+            params={
+                "preserve_head": 3,
+                "preserve_tail": 3,
+            }
+        )
+        entity_param_2 = DesensitizeConfigEntity(
+            field_name="test_field_2",
+            operator=DesensitizeOperator.TEXT_REPLACE.value,
+            params={
                 "template_string": "abc${partNum}defg",
             },
-            "match_pattern": r"\d{3}(?P<partNum>\d{4})\d{4}",
-            "sort_index": 1
-        }
+            match_pattern=r"\d{3}(?P<partNum>\d{4})\d{4}"
+        )
 
         text = {"test_field_1": "13234345678", "test_field_2": "13234345678"}
-        desensitize_config_info = [param_1, param_2]
+        desensitize_config_list = [entity_param_1, entity_param_2]
 
-        result = DesensitizeHandler(desensitize_config_info=desensitize_config_info).transform_dict(text)
+        result = DesensitizeHandler(desensitize_config_list=desensitize_config_list).transform_dict(text)
 
         self.assertEqual(result.get("test_field_1"), "132*****678")
         self.assertEqual(result.get("test_field_2"), "abc3434defg")

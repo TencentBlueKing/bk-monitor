@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import IS_AUTO_DEPLOY_PLUGIN
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import LogPluginInfo, EtlConfig
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 from apps.utils.log import logger
@@ -109,17 +109,11 @@ class WinEventLogScenario(CollectorScenario):
                 "winlog_level": first_event["level"].split(",") if first_event["level"] else [],
                 "winlog_event_id": first_event["event_id"].split(",") if first_event["event_id"] else [],
                 "winlog_source": local["provider_name"],
-                "winlog_content": [local["filters"][0]["conditions"][0]["key"]] if local["filters"] else [],
+                "winlog_content": [local["filters"][0]["conditions"][0]["key"]] if local["filters"] else []
             }
         except (IndexError, KeyError, ValueError) as e:
             logger.exception(f"parse step config failed config => {steps}，error => {e}")
-            return {
-                "winlog_name": [],
-                "winlog_level": [],
-                "winlog_event_id": [],
-                "winlog_source": [],
-                "winlog_content": [],
-            }
+            return {"winlog_name": [], "winlog_level": [], "winlog_event_id": [], "winlog_source": [], "winlog_content": []}
 
     @classmethod
     def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):
@@ -135,7 +129,6 @@ class WinEventLogScenario(CollectorScenario):
                     "winEventChannel",
                     "winEventRecordId",
                     "bk_host_id",
-                    "dtEventTimeStamp",
                 ],
                 "separator_node_source": "",
                 "separator_node_action": "",

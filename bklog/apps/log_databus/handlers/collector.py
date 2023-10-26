@@ -129,12 +129,14 @@ from apps.log_databus.models import (
 from apps.log_databus.serializers import ContainerCollectorYamlSerializer
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_esquery.utils.es_route import EsRoute
-from apps.log_measure.events import NOTIFY_EVENT
 from apps.log_search.constants import (
     CMDB_HOST_SEARCH_FIELDS,
+    DEFAULT_TIME_FIELD,
     CollectorScenarioEnum,
     CustomTypeEnum,
     GlobalCategoriesEnum,
+    TimeFieldTypeEnum,
+    TimeFieldUnitEnum,
 )
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
@@ -886,7 +888,6 @@ class CollectorHandler(object):
 
         if is_create:
             self._authorization_collector(self.data)
-            self.send_create_notify(self.data)
         try:
             collector_scenario = CollectorScenario.get_instance(self.data.collector_scenario_id)
             self._update_or_create_subscription(
@@ -2370,7 +2371,7 @@ class CollectorHandler(object):
         # create custom Log Group
         if custom_type == CustomTypeEnum.OTLP_LOG.value:
             self.create_custom_log_group(self.data)
-        self.send_create_notify(self.data)
+
         return {
             "collector_config_id": self.data.collector_config_id,
             "index_set_id": self.data.index_set_id,
@@ -2792,7 +2793,7 @@ class CollectorHandler(object):
         """
         该函数是为了获取容器采集项, 但是不是通过BCS规则创建的采集项
         """
-        # 通用函数, 获取非BCS创建的容器采集项, 以及对应容器采集的map
+        # 过滤掉BCS创建的采集项
         queryset = CollectorConfig.objects.filter(
             rule_id=0,
             environment=Environment.CONTAINER,
@@ -3036,7 +3037,7 @@ class CollectorHandler(object):
             conf=conf,
             async_bkdata=False,
         )
-        new_path_cls_index_set, new_std_cls_index_set = self.get_or_create_bcs_project_index_set(
+        new_path_cls_index_set, new_std_cls_index_set = self.create_or_update_bcs_project_index_set(
             bcs_project_id=data["project_id"],
             bcs_cluster_id=data["bcs_cluster_id"],
             bk_biz_id=data["bk_biz_id"],
@@ -3103,9 +3104,6 @@ class CollectorHandler(object):
                 )
 
         ContainerCollectorConfig.objects.bulk_create(container_collector_config_list)
-
-        self.send_create_notify(path_collector_config)
-
         return {
             "rule_id": bcs_rule.id,
             "rule_file_index_set_id": path_collector_config.index_set_id,
@@ -3152,28 +3150,81 @@ class CollectorHandler(object):
         if data["rule_std_collector_config_id"]:
             async_create_bkdata_data_id.delay(data["rule_std_collector_config_id"])
 
-    @staticmethod
-    def get_or_create_bcs_project_index_set(bcs_cluster_id, bk_biz_id, storage_cluster_id, bcs_project_id=""):
-        """
-        获取或创建BCS项目索引集
-        """
-        path_index_set = IndexSetHandler.get_or_create_bcs_project_path_index_set(
-            bcs_cluster_id=bcs_cluster_id,
-            bk_biz_id=bk_biz_id,
-            storage_cluster_id=storage_cluster_id,
-            bcs_project_id=bcs_project_id,
-        )
-        std_index_set = IndexSetHandler.get_or_create_bcs_project_std_index_set(
-            bcs_cluster_id=bcs_cluster_id,
-            bk_biz_id=bk_biz_id,
-            storage_cluster_id=storage_cluster_id,
-            bcs_project_id=bcs_project_id,
-        )
+    def create_or_update_bcs_project_index_set(self, bcs_project_id, bcs_cluster_id, bk_biz_id, storage_cluster_id):
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        lower_cluster_id = self.convert_lower_cluster_id(bcs_cluster_id)
+
+        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid, bcs_project_id=bcs_project_id)
+
+        path_index_set_name = f"{bcs_cluster_id}_path"
+        path_index_set = src_index_list.filter(index_set_name=path_index_set_name).first()
+        if not path_index_set:
+            path_index_set = IndexSetHandler.create(
+                index_set_name=path_index_set_name,
+                space_uid=space_uid,
+                storage_cluster_id=storage_cluster_id,
+                scenario_id=Scenario.ES,
+                view_roles=None,
+                indexes=[
+                    {
+                        "bk_biz_id": bk_biz_id,
+                        "result_table_id": build_result_table_id(bk_biz_id, f"{lower_cluster_id}_*_path_*").replace(
+                            ".", "_"
+                        ),
+                        "result_table_name": path_index_set_name,
+                        "time_field": DEFAULT_TIME_FIELD,
+                    }
+                ],
+                username="admin",
+                category_id="kubernetes",
+                bcs_project_id=bcs_project_id,
+                is_editable=False,
+                time_field=DEFAULT_TIME_FIELD,
+                time_field_type=TimeFieldTypeEnum.DATE.value,
+                time_field_unit=TimeFieldUnitEnum.MILLISECOND.value,
+            )
+
+        std_index_set_name = f"{bcs_cluster_id}_std"
+        std_index_set = src_index_list.filter(index_set_name=std_index_set_name).first()
+        if not std_index_set:
+            std_index_set = IndexSetHandler.create(
+                index_set_name=std_index_set_name,
+                space_uid=space_uid,
+                storage_cluster_id=storage_cluster_id,
+                scenario_id=Scenario.ES,
+                view_roles=None,
+                indexes=[
+                    {
+                        "bk_biz_id": bk_biz_id,
+                        "result_table_id": build_result_table_id(bk_biz_id, f"{lower_cluster_id}_*_std_*").replace(
+                            ".", "_"
+                        ),
+                        "result_table_name": std_index_set_name,
+                        "time_field": DEFAULT_TIME_FIELD,
+                    }
+                ],
+                username="admin",
+                category_id="kubernetes",
+                bcs_project_id=bcs_project_id,
+                is_editable=False,
+                time_field=DEFAULT_TIME_FIELD,
+                time_field_type=TimeFieldTypeEnum.DATE.value,
+                time_field_unit=TimeFieldUnitEnum.MILLISECOND.value,
+            )
+
         return path_index_set, std_index_set
+
+    @staticmethod
+    def convert_lower_cluster_id(bcs_cluster_id: str):
+        """
+        将集群ID转换为小写
+        例如: BCS-K8S-12345 -> bcs_k8s_12345
+        """
+        return bcs_cluster_id.lower().replace("-", "_")
 
     @classmethod
     def generate_collector_config_name(cls, bcs_cluster_id, collector_config_name, collector_config_name_en):
-        lower_cluster_id = convert_lower_cluster_id(bcs_cluster_id)
+        lower_cluster_id = cls.convert_lower_cluster_id(bcs_cluster_id)
         return {
             "bcs_path_collector": {
                 "collector_config_name": f"{bcs_cluster_id}_{collector_config_name}_path",
@@ -3735,11 +3786,9 @@ class CollectorHandler(object):
 
     @classmethod
     def generate_label(cls, obj_dict):
-        if not obj_dict or not obj_dict["items"]:
+        if not obj_dict["items"]:
             return []
         obj_item, *_ = obj_dict["items"]
-        if not obj_item["metadata"]["labels"]:
-            return []
         return [
             {"key": label_key, "value": label_valus}
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
@@ -4078,7 +4127,6 @@ class CollectorHandler(object):
 
         params["table_id"] = params["collector_config_name_en"]
         index_set_id = self.create_or_update_clean_config(False, params).get("index_set_id", 0)
-        self.send_create_notify(self.data)
         return {
             "collector_config_id": self.data.collector_config_id,
             "bk_data_id": self.data.bk_data_id,
@@ -4337,26 +4385,6 @@ class CollectorHandler(object):
 
         return yaml.safe_dump_all(result)
 
-    @classmethod
-    def send_create_notify(cls, collector_config: CollectorConfig):
-        try:
-            space = Space.objects.get(bk_biz_id=collector_config.bk_biz_id)
-            space_uid = space.space_uid
-            space_name = space.space_name
-        except Space.DoesNotExist:
-            space_uid = collector_config.bk_biz_id
-            space_name = collector_config.bk_biz_id
-        content = _("有新采集项创建，请关注！采集项ID: {}, 采集项名称: {}, 空间ID: {}, 空间名称: {}, 创建者: {}, 来源: {}").format(
-            collector_config.collector_config_id,
-            collector_config.collector_config_name,
-            space_uid,
-            space_name,
-            collector_config.created_by,
-            collector_config.bk_app_code,
-        )
-
-        NOTIFY_EVENT(content=content, dimensions={"space_uid": space_uid, "msg_type": "create_collector_config"})
-
 
 def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:
     """
@@ -4439,11 +4467,3 @@ def build_result_table_id(bk_biz_id: int, collector_config_name_en: str) -> str:
             f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
         )
     return result_table_id
-
-
-def convert_lower_cluster_id(bcs_cluster_id: str):
-    """
-    将集群ID转换为小写
-    例如: BCS-K8S-12345 -> bcs_k8s_12345
-    """
-    return bcs_cluster_id.lower().replace("-", "_")

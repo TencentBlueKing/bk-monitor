@@ -19,15 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import ApiResultError
-from apps.log_search.constants import BkDataErrorCode
-from apps.log_search.models import LogIndexSet
-from apps.utils.log import logger
 from celery.schedules import crontab
 from celery.task import periodic_task, task
 
+from apps.utils.log import logger
+from apps.exceptions import ApiResultError
+from apps.log_search.constants import BkDataErrorCode
+from apps.log_search.models import LogIndexSet
 
-@periodic_task(run_every=crontab(minute="*/10"))
+
+@periodic_task(run_every=crontab(minute="*/5"))
 def sync_index_set_mapping_snapshot():
     logger.info("[sync_index_set_mapping_snapshot] task publish start")
     index_set_list = LogIndexSet.objects.filter(is_active=True)

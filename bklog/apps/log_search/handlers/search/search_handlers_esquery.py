@@ -20,18 +20,22 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import functools
 import hashlib
 import json
+from operator import itemgetter
 from typing import Any, Dict, List, Union
 
 from apps.api import BcsCcApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
+from apps.log_desensitize.handlers.utils import desensitize_params_init
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_search.constants import (
     ASYNC_SORTED,
@@ -44,7 +48,9 @@ from apps.log_search.constants import (
     MAX_RESULT_WINDOW,
     MAX_SEARCH_SIZE,
     SCROLL,
+    TIME_FIELD_MULTIPLE_MAPPING,
     FieldDataTypeEnum,
+    IndexSetType,
     OperatorEnum,
     TimeEnum,
     TimeFieldTypeEnum,
@@ -61,7 +67,10 @@ from apps.log_search.exceptions import (
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
     SearchNotTimeFieldType,
+    SearchUnKnowTimeField,
     SearchUnKnowTimeFieldType,
+    UnionSearchErrorException,
+    UnionSearchFieldsFailException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslBkDataCreateSearchContextBody,
@@ -88,6 +97,7 @@ from apps.utils.ipchooser import IPChooser
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.log import logger
 from apps.utils.lucene import generate_query_string
+from apps.utils.thread import MultiExecuteFunc
 from bkm_ipchooser.constants import CommonEnum
 from django.conf import settings
 from django.core.cache import cache
@@ -146,8 +156,6 @@ class SearchHandler(object):
             self.search_dict.update(
                 PreSearchHandlers.pre_check_fields(self.indices, self.scenario_id, self.storage_cluster_id)
             )
-        # 是否包含嵌套字段
-        self.include_nested_fields: bool = self.search_dict.get("include_nested_fields", True)
 
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
@@ -155,7 +163,7 @@ class SearchHandler(object):
 
         self.use_time_range = search_dict.get("use_time_range", True)
         # 构建时间字段
-        self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
+        self.time_field, self.time_field_type, self.time_field_unit = self._init_time_field(
             index_set_id, self.scenario_id
         )
         if not self.time_field:
@@ -244,7 +252,7 @@ class SearchHandler(object):
         self.request_username = get_request_username()
 
         # 透传脱敏配置
-        self.desensitize_config_list = self.search_dict.get("desensitize_configs", [])
+        desensitize_configs = self.search_dict.get("desensitize_configs", [])
 
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
@@ -259,18 +267,17 @@ class SearchHandler(object):
                 "rule_id": field_config_obj.rule_id or 0,
                 "operator": field_config_obj.operator,
                 "params": field_config_obj.params,
-                "match_pattern": field_config_obj.match_pattern,
-                "sort_index": field_config_obj.sort_index,
             }
             for field_config_obj in desensitize_field_config_objs
         ]
-        if field_configs:
-            self.desensitize_config_list.extend(field_configs)
 
-        # 初始化脱敏工厂对象
-        self.desensitize_handler = DesensitizeHandler(self.desensitize_config_list)
+        desensitize_configs.extend(field_configs)
+
+        # 初始化脱敏工厂参数
+        self.desensitize_config_list = desensitize_params_init(desensitize_configs=desensitize_configs)
 
     def fields(self, scope="default"):
+        is_union_search = self.search_dict.get("is_union_search", False)
         mapping_handlers = MappingHandlers(
             self.indices,
             self.index_set_id,
@@ -280,8 +287,13 @@ class SearchHandler(object):
             start_time=self.start_time,
             end_time=self.end_time,
         )
-        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(scope=scope)
-        sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=self.index_set_id, scope=scope)
+        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
+            scope=scope, is_union_search=is_union_search
+        )
+        if not is_union_search:
+            sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=self.index_set_id, scope=scope)
+        else:
+            sort_list = list()
 
         # 校验sort_list字段是否存在
         field_result_list = [i["field_name"] for i in field_result]
@@ -299,6 +311,10 @@ class SearchHandler(object):
             "time_field_unit": self.time_field_unit,
             "config": [],
         }
+
+        if is_union_search:
+            return result_dict
+
         for fields_config in [
             self.bcs_web_console(field_result_list),
             self.bk_log_to_trace(),
@@ -489,7 +505,6 @@ class SearchHandler(object):
                     "time_field_unit": self.time_field_unit,
                     "scroll": self.scroll,
                     "collapse": self.collapse,
-                    "include_nested_fields": self.include_nested_fields,
                 }
             )
         except ApiResultError as e:
@@ -508,7 +523,9 @@ class SearchHandler(object):
 
         # 保存检索历史，按用户、索引集、检索条件缓存5分钟
         # 保存首页检索和trace通用查询检索历史
-        if search_type:
+        # 联合检索不保存单个索引集的检索历史
+        is_union_search = self.search_dict.get("is_union_search", False)
+        if search_type and not is_union_search:
             self._save_history(result, search_type)
 
         # 补充scroll id
@@ -587,6 +604,7 @@ class SearchHandler(object):
         )
 
     def _scroll(self, search_result):
+
         scroll_result = copy.deepcopy(search_result)
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = len(search_result["hits"]["hits"])
@@ -784,30 +802,49 @@ class SearchHandler(object):
         return cache_key
 
     @staticmethod
-    def search_history(index_set_id=None, **kwargs):
+    def search_history(index_set_id=None, index_set_ids=None, is_union_search=False, **kwargs):
         """
         search_history
         @param index_set_id:
+        @param is_union_search:
+        @param index_set_ids:
         @param kwargs:
         @return:
         """
         username = get_request_username()
-        if index_set_id:
-            history_obj = (
-                UserIndexSetSearchHistory.objects.filter(
-                    is_deleted=False, created_by=username, index_set_id=index_set_id, search_type="default"
+        if not is_union_search:
+            if index_set_id:
+                history_obj = (
+                    UserIndexSetSearchHistory.objects.filter(
+                        is_deleted=False,
+                        created_by=username,
+                        index_set_id=index_set_id,
+                        search_type="default",
+                        index_set_type=IndexSetType.SINGLE.value,
+                    )
+                    .order_by("-rank", "-created_at")[:10]
+                    .values("id", "params")
                 )
-                .order_by("-rank", "-created_at")[:10]
-                .values("id", "params")
-            )
+            else:
+                history_obj = (
+                    UserIndexSetSearchHistory.objects.filter(
+                        is_deleted=False,
+                        search_type="default",
+                        created_at__range=[kwargs["start_time"], kwargs["end_time"]],
+                        index_set_type=IndexSetType.SINGLE.value,
+                    )
+                    .order_by("created_by", "-created_at")
+                    .values("id", "params", "created_by", "created_at")
+                )
         else:
             history_obj = (
                 UserIndexSetSearchHistory.objects.filter(
                     is_deleted=False,
                     search_type="default",
-                    created_at__range=[kwargs["start_time"], kwargs["end_time"]],
+                    index_set_ids=index_set_ids,
+                    index_set_type=IndexSetType.UNION.value,
                 )
-                .order_by("created_by", "-created_at")
+                .order_by("-rank", "-created_at")[:10]
                 .values("id", "params", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
@@ -1081,10 +1118,7 @@ class SearchHandler(object):
             )
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
-    @staticmethod
-    def init_time_field(index_set_id: int, scenario_id: str = None) -> tuple:
-        if not scenario_id:
-            scenario_id = LogIndexSet.objects.filter(index_set_id=index_set_id).first().scenario_id
+    def _init_time_field(self, index_set_id: int, scenario_id: str) -> tuple:
         # get timestamp field
         if scenario_id in [Scenario.BKDATA, Scenario.LOG]:
             return "dtEventTimeStamp", TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
@@ -1105,16 +1139,20 @@ class SearchHandler(object):
         index_set_id = self.search_dict.get("index_set_id")
         # 获取用户对sort的排序需求
         sort_list: List = self.search_dict.get("sort_list", [])
+        is_union_search = self.search_dict.get("is_union_search", False)
+
         if sort_list:
             return sort_list
-        # 用户已设置排序规则
-        username = get_request_username()
+
+        # 用户已设置排序规则  （联合检索时不使用用户在单个索引集上设置的排序规则）
         scope = self.search_dict.get("search_type", "default")
-        config_obj = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=username, scope=scope)
-        if config_obj:
-            sort_list = config_obj.sort_list
-            if sort_list:
-                return sort_list
+        if not is_union_search:
+            username = get_request_username()
+            config_obj = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=username, scope=scope)
+            if config_obj:
+                sort_list = config_obj.sort_list
+                if sort_list:
+                    return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
         from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
@@ -1344,6 +1382,9 @@ class SearchHandler(object):
             # 脱敏处理
             if self.desensitize_config_list:
                 log = self._log_desensitize(log)
+            # 联合检索补充索引集信息
+            if self.search_dict.get("is_union_search", False):
+                log["__index_set_id__"] = self.index_set_id
             log = self._add_cmdb_fields(log)
             if self.export_fields:
                 new_origin_log = {}
@@ -1365,7 +1406,8 @@ class SearchHandler(object):
                 log_list.append(log)
                 continue
             if not self.desensitize_config_list:
-                log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
+                for key in hit["highlight"]:
+                    log[key] = "".join(hit["highlight"][key])
             log_list.append(log)
 
         result.update(
@@ -1381,27 +1423,6 @@ class SearchHandler(object):
         result.update({"aggs": agg_dict})
         return result
 
-    @staticmethod
-    def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
-        result = {}
-        for key, value in dotted_dict.items():
-            parts = key.split('.')
-            current_level = result
-            for part in parts[:-1]:
-                if part not in current_level:
-                    current_level[part] = {}
-                current_level = current_level[part]
-            current_level[parts[-1]] = "".join(value)
-        return result
-
-    def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        兼容Object类型字段的高亮
-        ES层会返回打平后的高亮字段, 该函数将其高亮的字段更新至对应Object字段
-        """
-        log.update(self.nested_dict_from_dotted_key(dotted_dict=highlight))
-        return log
-
     def _log_desensitize(self, log: dict = None):
         """
         字段脱敏
@@ -1413,7 +1434,7 @@ class SearchHandler(object):
         log_content_tmp = copy.deepcopy(log)
 
         # 字段脱敏处理
-        log = self.desensitize_handler.transform_dict(log)
+        log = DesensitizeHandler(self.desensitize_config_list).transform_dict(log)
 
         # 处理原文字段
         if not self.text_fields:
@@ -1424,8 +1445,8 @@ class SearchHandler(object):
             if text_field not in log.keys():
                 continue
 
-            for _config in self.desensitize_config_list:
-                field_name = _config["field_name"]
+            for entity in self.desensitize_config_list:
+                field_name = entity.field_name
                 if field_name not in log.keys():
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
@@ -1487,6 +1508,7 @@ class SearchHandler(object):
         mark_gseIndex: int = None
         # pylint: disable=invalid-name
     ) -> Dict[str, Any]:
+
         log_list_reversed: list = log_list
         if self.start < 0:
             log_list_reversed = list(reversed(log_list))
@@ -1690,3 +1712,307 @@ class SearchHandler(object):
             user_sort_list.append([sorted_field, ASYNC_SORTED])
 
         return user_sort_list
+
+
+class UnionSearchHandler(object):
+    """
+    联合检索
+    """
+
+    def __init__(self, search_dict=None):
+        if search_dict is None:
+            search_dict = {}
+        self.search_dict = search_dict
+        self.union_configs = search_dict.get("union_configs", [])
+        self.sort_list = search_dict.get("sort_list", [])
+        if search_dict.get("index_set_ids", []):
+            self.index_set_ids = list(set(search_dict["index_set_ids"]))
+        else:
+            self.index_set_ids = list({info["index_set_id"] for info in self.union_configs})
+
+    def _init_sort_list(self, index_set_id):
+        sort_list = self.search_dict.get("sort_list", [])
+        if not sort_list:
+            return sort_list
+
+        new_sort_list = list()
+        # 判断是否指定了自定义的时间字段
+        for sort_info in copy.deepcopy(sort_list):
+            _time_field, _sort = sort_info
+            if _time_field == "unionSearchTimeStamp":
+                sort_info[0] = MappingHandlers.get_time_field(index_set_id=index_set_id)
+            new_sort_list.append(sort_info)
+
+        return new_sort_list
+
+    def union_search(self, is_export=False):
+
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
+        if not index_set_objs:
+            raise BaseSearchIndexSetException(
+                BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_ids)
+            )
+
+        # 权限校验逻辑
+        self._iam_check()
+
+        index_set_obj_mapping = {obj.index_set_id: obj for obj in index_set_objs}
+
+        # 构建请求参数
+        params = {
+            "ip_chooser": self.search_dict.get("ip_chooser"),
+            "bk_biz_id": self.search_dict.get("bk_biz_id"),
+            "addition": self.search_dict.get("addition"),
+            "start_time": self.search_dict.get("start_time"),
+            "end_time": self.search_dict.get("end_time"),
+            "time_range": self.search_dict.get("time_range"),
+            "keyword": self.search_dict.get("keyword"),
+            "size": self.search_dict.get("size"),
+            "is_union_search": True,
+        }
+
+        multi_execute_func = MultiExecuteFunc()
+        if is_export:
+            for index_set_id in self.index_set_ids:
+                search_dict = copy.deepcopy(params)
+                search_dict["begin"] = self.search_dict.get("begin", 0)
+                search_dict["sort_list"] = self._init_sort_list(index_set_id=index_set_id)
+                search_handler = SearchHandler(
+                    index_set_id=index_set_id,
+                    search_dict=search_dict,
+                    export_fields=self.search_dict.get("export_fields", []),
+                )
+                multi_execute_func.append(f"union_search_{index_set_id}", search_handler.search)
+        else:
+            for union_config in self.union_configs:
+                search_dict = copy.deepcopy(params)
+                search_dict["begin"] = union_config.get("begin", 0)
+                search_dict["sort_list"] = self._init_sort_list(index_set_id=union_config["index_set_id"])
+                search_handler = SearchHandler(index_set_id=union_config["index_set_id"], search_dict=search_dict)
+                multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
+
+        # 执行线程
+        multi_result = multi_execute_func.run()
+
+        if not multi_result:
+            raise UnionSearchErrorException()
+
+        # 处理返回结果
+        result_log_list = list()
+        result_origin_log_list = list()
+        total = 0
+        took = 0
+        for index_set_id in self.index_set_ids:
+            ret = multi_result.get(f"union_search_{index_set_id}")
+            result_log_list.extend(ret["list"])
+            result_origin_log_list.extend(ret["origin_log_list"])
+            total += int(ret["total"])
+            took = max(took, ret["took"])
+
+        # 数据排序处理  兼容第三方ES检索排序
+        time_fields = set()
+        time_fields_type = set()
+        time_fields_unit = set()
+        for index_set_obj in index_set_objs:
+            if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
+                raise SearchUnKnowTimeField()
+            time_fields.add(index_set_obj.time_field)
+            time_fields_type.add(index_set_obj.time_field_type)
+            time_fields_unit.add(index_set_obj.time_field_unit)
+
+        is_use_custom_time_field = False
+
+        if len(time_fields) != 1 or len(time_fields_type) != 1 or len(time_fields_unit) != 1:
+            # 标准化时间字段
+            is_use_custom_time_field = True
+            for info in result_log_list:
+                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
+                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
+                info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
+
+            for info in result_origin_log_list:
+                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
+                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
+                info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
+
+        if not self.sort_list:
+            # 默认使用时间字段排序
+            if not is_use_custom_time_field:
+                # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
+                result_log_list = sorted(result_log_list, key=itemgetter(list(time_fields)[0]), reverse=True)
+                result_origin_log_list = sorted(
+                    result_origin_log_list, key=itemgetter(list(time_fields)[0]), reverse=True
+                )
+            else:
+                # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
+                result_log_list = sorted(result_log_list, key=itemgetter("unionSearchTimeStamp"), reverse=True)
+                result_origin_log_list = sorted(
+                    result_origin_log_list, key=itemgetter("unionSearchTimeStamp"), reverse=True
+                )
+        else:
+            result_log_list = sorted(result_log_list, key=functools.cmp_to_key(self._sort_compare))
+            result_origin_log_list = sorted(result_origin_log_list, key=functools.cmp_to_key(self._sort_compare))
+
+        # 处理分页
+        result_log_list = result_log_list[: self.search_dict.get("size")]
+        result_origin_log_list = result_origin_log_list[: self.search_dict.get("size")]
+
+        # 日志导出提前返回
+        if is_export:
+            return {"origin_log_list": result_origin_log_list}
+
+        # 统计返回的数据中各个索引集分别占了多少条数据  用于下次begin查询
+        result_log_index_set_ids = [result_log["__index_set_id__"] for result_log in result_log_list]
+
+        for union_config in self.union_configs:
+            union_config["begin"] = union_config["begin"] + result_log_index_set_ids.count(union_config["index_set_id"])
+
+        res = {
+            "total": total,
+            "took": took,
+            "list": result_log_list,
+            "origin_log_list": result_origin_log_list,
+            "union_configs": self.union_configs,
+        }
+
+        # 保存联合检索检索历史
+        self._save_union_search_history(res)
+
+        return res
+
+    def _sort_compare(self, x, y):
+        """
+        排序比较函数
+        """
+        for sort_info in self.sort_list:
+            field_name, order = sort_info
+            if x[field_name] != y[field_name]:
+                if order == "desc":
+                    return (x[field_name] < y[field_name]) - (x[field_name] > y[field_name])
+                else:
+                    return (x[field_name] > y[field_name]) - (x[field_name] < y[field_name])
+        return 0
+
+    def _iam_check(self):
+        """
+        权限校验逻辑 要求拥有所有索引集检索权限
+        """
+        if settings.IGNORE_IAM_PERMISSION:
+            return True
+        client = Permission()
+        resources = [{"type": ResourceEnum.INDICES.id, "id": index_set_id} for index_set_id in self.index_set_ids]
+        resources = client.batch_make_resource(resources)
+        is_allowed = client.is_allowed(ActionEnum.SEARCH_LOG.id, resources, raise_exception=True)
+        return is_allowed
+
+    def _save_union_search_history(self, result, search_type="default"):
+        params = {
+            "keyword": self.search_dict.get("keyword"),
+            "ip_chooser": self.search_dict.get("ip_chooser"),
+            "addition": self.search_dict.get("addition"),
+            "start_time": self.search_dict.get("start_time"),
+            "end_time": self.search_dict.get("end_time"),
+            "time_range": self.search_dict.get("time_range"),
+        }
+
+        result.update(
+            {
+                "union_search_history_obj": {
+                    "params": params,
+                    "index_set_ids": sorted(self.index_set_ids),
+                    "search_type": search_type,
+                }
+            }
+        )
+
+        return result
+
+    @staticmethod
+    def union_search_fields(data):
+        """
+        获取字段mapping信息
+        """
+        index_set_ids = data.get("index_set_ids")
+        start_time = data.get("start_time", "")
+        end_time = data.get("end_time", "")
+
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
+
+        if not index_set_objs:
+            raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_ids))
+
+        multi_execute_func = MultiExecuteFunc()
+
+        # 构建请求参数
+        params = {"start_time": start_time, "end_time": end_time, "is_union_search": True}
+
+        for index_set_id in index_set_ids:
+
+            search_handler = SearchHandler(index_set_id, params)
+            multi_execute_func.append(f"union_search_fields_{index_set_id}", search_handler.fields)
+
+        multi_result = multi_execute_func.run()
+
+        if not multi_result:
+            raise UnionSearchFieldsFailException()
+
+        # 处理返回结果
+        total_fields = list()
+        fields_info = dict()
+        union_field_names = list()
+        union_display_fields = list()
+        union_time_fields = set()
+        union_time_fields_type = set()
+        union_time_fields_unit = set()
+        for index_set_id in index_set_ids:
+            result = multi_result[f"union_search_fields_{index_set_id}"]
+            fields = result["fields"]
+            fields_info[index_set_id] = fields
+            display_fields = result["display_fields"]
+            for field_info in fields:
+                field_name = field_info["field_name"]
+                field_type = field_info["field_type"]
+                if field_name not in union_field_names:
+                    total_fields.append(field_info)
+                    union_field_names.append(field_info["field_name"])
+                else:
+                    # 判断字段类型是否一致  不一致则标记为类型冲突
+                    _index = union_field_names.index(field_name)
+                    if field_type != total_fields[_index]["field_type"]:
+                        total_fields[_index]["field_type"] = "conflict"
+
+            # 处理默认显示字段
+            union_display_fields.extend(display_fields)
+
+        # 处理公共的默认显示字段
+        union_display_fields = list(
+            {display_field for display_field in union_display_fields if union_display_fields.count(display_field) > 1}
+        )
+
+        # 处理时间字段
+        for index_set_obj in index_set_objs:
+            if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
+                raise SearchUnKnowTimeField()
+            union_time_fields.add(index_set_obj.time_field)
+            union_time_fields_type.add(index_set_obj.time_field_type)
+            union_time_fields_unit.add(index_set_obj.time_field_unit)
+
+        # 处理公共的时间字段
+        if len(union_time_fields) != 1 or len(union_time_fields_type) != 1 or len(union_time_fields_unit) != 1:
+            time_field = "unionSearchTimeStamp"
+            time_field_type = "date"
+            time_field_unit = "millisecond"
+        else:
+            time_field = list(union_time_fields)[0]
+            time_field_type = list(union_time_fields_type)[0]
+            time_field_unit = list(union_time_fields_unit)[0]
+
+        ret = {
+            "fields": total_fields,
+            "fields_info": fields_info,
+            "display_fields": union_display_fields,
+            "time_field": time_field,
+            "time_field_type": time_field_type,
+            "time_field_unit": time_field_unit,
+        }
+        return ret

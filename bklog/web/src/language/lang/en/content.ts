@@ -70,6 +70,7 @@ export default {
   "系统出现异常": "System exception occurred",
   "了解接入详情": "Learn about access details",
   "设置显示字段": "Set display fields",
+  "设置排序权重": "Set sorting weight",
   "暂未进行检索": "No search yet",
   "优化查询语句": "Optimize query statements",
   "近24H新增": "Added in the last 24 hours",
@@ -490,6 +491,5 @@ export default {
   "* 表示匹配多个（包括 0 个）任意字符": "* means match multiple (including 0) any characters",
   "例：a*d 可匹配 ad、abcd、a123d": "Example: a*d matches ad, abcd, a123d",
   "? 表示匹配单个任意字符": "? means match any single character",
-  "例：a?d 可匹配 abd、a1d": "Example: a?d matches abd, a1d",
-  "请前往 {0}": "Go to {0}",
+  "例：a?d 可匹配 abd、a1d": "Example: a?d matches abd, a1d"
 }

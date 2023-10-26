@@ -19,18 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import ugettext_lazy as _  # noqa
+
 from apps.api import MonitorApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
-from apps.log_clustering.constants import (
-    DEFAULT_NOTICE_WAY,
-    DEFAULT_NOTIFY_RECEIVER_TYPE,
-)
+from apps.log_clustering.constants import DEFAULT_NOTIFY_RECEIVER_TYPE, DEFAULT_NOTICE_WAY
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.models import NoticeGroup
 from apps.log_databus.constants import ADMIN_REQUEST_USER, EMPTY_REQUEST_USER
 from apps.log_search.models import LogIndexSet
-from django.utils.translation import ugettext_lazy as _  # noqa
 
 
 class MonitorUtils(object):
@@ -60,14 +58,12 @@ class MonitorUtils(object):
         notice_receiver = cls.generate_notice_receiver(receivers=maintainers, notice_tye=DEFAULT_NOTIFY_RECEIVER_TYPE)
         group = cls.save_notice_group(
             bk_biz_id=bk_biz_id,
-            name=_("{}_{}运维人员").format(log_index_set_id, log_index_set.index_set_name),
+            name=_("{}_{}运维人员").format(bk_biz_id, log_index_set.index_set_name),
             message="",
             notice_receiver=notice_receiver,
             notice_way=DEFAULT_NOTICE_WAY,
         )
-        NoticeGroup.objects.get_or_create(
-            index_set_id=log_index_set_id, notice_group_id=group["id"], bk_biz_id=bk_biz_id
-        )
+        NoticeGroup.objects.create(index_set_id=log_index_set_id, notice_group_id=group["id"], bk_biz_id=bk_biz_id)
         return group["id"]
 
     @classmethod

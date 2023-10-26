@@ -30,7 +30,7 @@ import {
 import { Button } from 'bk-magic-vue';
 // import { deepClone } from '../../../components/monitor-echarts/utils';
 import './handle-btn.scss';
-import { deepEqual, Debounce } from '../../../common/util';
+import { deepEqual } from '../../../common/util';
 import $http from '../../../api';
 
 interface IProps {
@@ -115,7 +115,6 @@ export default class HandleBtn extends tsc<IProps> {
   }
 
   // 检索
-  @Debounce(300)
   @Emit('retrieveLog')
   handleRetrieveLog() {}
 
@@ -129,7 +128,7 @@ export default class HandleBtn extends tsc<IProps> {
   handleChangeSearchType() {
     if (this.tableLoading) return;
     this.handleUserOperate('isAutoQuery', !this.isAutoQuery);
-    localStorage.setItem('logAutoQuery', `${!this.isAutoQuery}`);
+    localStorage.setItem('closeAutoQuery', `${this.isAutoQuery}`);
   }
 
   // 当前检索监听的收藏参数
@@ -141,13 +140,6 @@ export default class HandleBtn extends tsc<IProps> {
         keyword: this.retrieveParams.keyword,
       },
     };
-  }
-
-  // 点击查询
-  handleQuery() {
-    if (!this.tableLoading) {
-      this.handleRetrieveLog();
-    }
   }
 
   // 点击新建收藏
@@ -245,7 +237,7 @@ export default class HandleBtn extends tsc<IProps> {
           theme="primary"
           data-test-id="dataQuery_button_filterSearch"
           class={{ 'query-search': true, loading: this.tableLoading }}
-          onClick={this.handleQuery}>
+          onClick={this.handleRetrieveLog}>
           { this.getSearchType.text }
         </Button>
         <div class="favorite-btn-container">

@@ -58,8 +58,7 @@ interface IProps {
   isShowUiType: boolean;
   favSearchList: Array<string>;
   datePickerValue:  Array<any>;
-  fieldAliasMap: object;
-  totalFields: Array<any>;
+  fieldAliasMap: object;totalFields: Array<any>;
 }
 
 @Component
@@ -114,9 +113,7 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   get filterFields() { // 所有的过滤条件列表
-    // 判断当前列表是否需要展示ip选择器
-    const isShowIpSelect = this.totalFields.some(item => item.field_name === '__ext.container_id');
-    const result = !isShowIpSelect ? [{
+    const result = [{
       id: 'ip-select',
       name: window.mainComponent.$t('IP目标'),
       fullName: window.mainComponent.$t('IP目标'),
@@ -131,8 +128,7 @@ export default class SearchComp extends tsc<IProps> {
       value: [], // 值
       valueList: [], // taginput的输入框列表
       esDocValues: false,
-    }] : [];
-
+    }];
     this.totalFields.forEach((item) => {
       // 操作符列表为undefined或者没数据时不加入过滤条件
       if (!Array.isArray(item.field_operator) || !item.field_operator.length) return;

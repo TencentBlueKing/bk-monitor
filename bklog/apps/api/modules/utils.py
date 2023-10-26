@@ -175,8 +175,7 @@ else:
 
     def add_esb_info_before_request_for_bkdata_token(params):  # pylint: disable=function-name-too-long
         req = get_request()
-        skip_check = getattr(req, "skip_check", False)
-        if settings.BKAPP_IS_BKLOG_API and not skip_check:
+        if settings.BKAPP_IS_BKLOG_API:
             auth_info = EsquerySearchPermissions.get_auth_info(req)
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 # 在白名单内的 app 使用超级权限

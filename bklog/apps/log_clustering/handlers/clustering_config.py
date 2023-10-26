@@ -56,10 +56,6 @@ from apps.utils.function import map_if
 from apps.utils.local import activate_request
 from apps.utils.log import logger
 from apps.utils.thread import generate_request
-from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
-from bkm_space.errors import NoRelatedResourceError
-from bkm_space.utils import bk_biz_id_to_space_uid
 from django.utils.translation import ugettext_lazy as _
 
 
@@ -120,9 +116,6 @@ class ClusteringConfigHandler(object):
         bk_biz_id = params["bk_biz_id"]
         filter_rules = params["filter_rules"]
         signature_enable = params["signature_enable"]
-        # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
-        related_space_pre_bk_biz_id = params["bk_biz_id"]
-        bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
         from apps.log_clustering.handlers.pipline_service.aiops_service import (
             operator_aiops_service,
         )
@@ -208,7 +201,6 @@ class ClusteringConfigHandler(object):
             signature_enable=signature_enable,
             source_rt_name=source_rt_name,
             category_id=category_id,
-            related_space_pre_bk_biz_id=related_space_pre_bk_biz_id,  # 查询space关联的真实业务之前的业务id
         )
         if signature_enable:
             self.create_service(
@@ -378,22 +370,3 @@ class ClusteringConfigHandler(object):
             raise ValueError(BkdataFieldsException(BkdataFieldsException.MESSAGE.format(field=clustering_fields)))
 
         return True
-
-    @staticmethod
-    def validate_bk_biz_id(bk_biz_id: int) -> int:
-        """
-        注入业务id校验
-        :return:
-        """
-
-        # 业务id为正数，表示空间类型是bkcc，可以调用cmdb相关接口
-        bk_biz_id = int(bk_biz_id)
-        if bk_biz_id > 0:
-            return bk_biz_id
-        # 业务id为负数，需要获取空间关联的真实业务id
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
-        if space:
-            return space.bk_biz_id
-        # 无业务关联的空间，不允许创建日志聚类 当前抛出异常
-        raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建日志聚类").format(bk_biz_id=bk_biz_id))

@@ -668,7 +668,7 @@
       "bk_biz_id": {{predict.bk_biz_id}},
       "name": "合并日志",
       "table_name": "{{predict.merge_log.table_name}}",
-      "output_name": "{{predict.merge_log.table_name}}",
+      "output_name": "{{predict.merge_log.result_table_id}}",
       "description": "合并日志",
       "config": [],
       "id": 431246,

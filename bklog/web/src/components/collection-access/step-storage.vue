@@ -309,7 +309,6 @@ export default {
         etl_config: 'bk_log_text',
         etl_params: {
           retain_original_text: true,
-          retain_extra_json: false,
           separator_regexp: '',
           separator: '',
           // separator_field_list: ''
@@ -479,7 +478,6 @@ export default {
         view_roles,
         etl_params: {
           retain_original_text: etl_params.retain_original_text,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
           separator_regexp: etl_params.separator_regexp,
           separator: etl_params.separator,
         },
@@ -495,8 +493,7 @@ export default {
       /* eslint-disable */
       if (etl_config !== 'bk_log_text') {
         const etlParams = {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
+          retain_original_text: etl_params.retain_original_text
         }
         if (etl_config === 'bk_log_delimiter') {
           etlParams.separator = etl_params.separator
@@ -632,7 +629,6 @@ export default {
         etl_config: this.fieldType,
         etl_params: Object.assign({
           retain_original_text: true,
-          retain_extra_json: false,
           separator_regexp: '',
           separator: '',
           // separator_field_list: ''

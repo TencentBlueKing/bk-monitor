@@ -21,26 +21,18 @@ the project delivered to anyone in the future.
 """
 import re
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
-from apps.log_databus.constants import (
-    STORAGE_CLUSTER_TYPE,
-    ContainerCollectorType,
-    Environment,
-)
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.storage import StorageHandler
-from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
+from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.constants import MODEL_TO_DICT_EXCLUDE_FIELD
-from apps.log_desensitize.models import (
-    DesensitizeConfig,
-    DesensitizeFieldConfig,
-    DesensitizeRule,
-)
+from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_search.constants import (
     BKDATA_INDEX_RE,
@@ -54,9 +46,6 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
 )
 from apps.log_search.exceptions import (
-    DesensitizeConfigCreateOrUpdateException,
-    DesensitizeConfigDoseNotExistException,
-    DesensitizeRuleException,
     IndexCrossClusterException,
     IndexListDataException,
     IndexSetDoseNotExistException,
@@ -68,6 +57,8 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
+    DesensitizeConfigDoseNotExistException,
+    DesensitizeConfigCreateOrUpdateException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
@@ -87,12 +78,10 @@ from apps.utils.db import array_hash
 from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
-from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
+from apps.utils.time_handler import strftime_local
+from bkm_space.utils import space_uid_to_bk_biz_id
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
 from django.utils.translation import ugettext as _
 
 
@@ -132,29 +121,8 @@ class IndexSetHandler(APIModel):
             user_operation_record.delay(operation_record)
 
     @classmethod
-    def get_all_related_space_uids(cls, space_uid):
-        """
-        获取当前空间所关联的所有空间ID列表，包括自身
-        """
-        space_uids = [space_uid]
-        space = SpaceApi.get_space_detail(space_uid=space_uid)
-        if space and space.space_type_id == SpaceTypeEnum.BKCC.value:
-            # 如果查询的是业务空间，则将其关联的其他类型空间的索引集也一并查询出来
-            related_space_list = space.extend.get("resources") or []
-            space_uids.extend(
-                [
-                    SpaceApi.gen_space_uid(
-                        space_type=relate_space["resource_type"], space_id=relate_space["resource_id"]
-                    )
-                    for relate_space in related_space_list
-                ]
-            )
-        return space_uids
-
-    @classmethod
     def get_user_index_set(cls, space_uid, scenarios=None):
-        space_uids = cls.get_all_related_space_uids(space_uid)
-        index_sets = LogIndexSet.get_index_set(scenarios=scenarios, space_uids=space_uids)
+        index_sets = LogIndexSet.get_index_set(scenarios=scenarios, space_uid=space_uid)
         # 补充采集场景
         collector_config_ids = [
             index_set["collector_config_id"] for index_set in index_sets if index_set["collector_config_id"]
@@ -571,88 +539,36 @@ class IndexSetHandler(APIModel):
         """
         创建或更新脱敏配置
         """
+        # 校验索引集是否存在
+
+        index_obj_exists = LogIndexSet.objects.filter(index_set_id=self.index_set_id).exists()
+        if not index_obj_exists:
+            raise IndexSetDoseNotExistException()
 
         try:
-            obj, created = DesensitizeConfig.objects.update_or_create(
-                index_set_id=self.index_set_id, defaults={"text_fields": params["text_fields"]}
+            DesensitizeConfig.objects.update_or_create(
+                index_set_id=self.index_set_id,
+                defaults={
+                    "text_fields": params["text_fields"]
+                }
             )
 
-            # 兼容以脱敏配置直接入库
             # 创建&更新脱敏字段配置信息 先删除在创建
-            if not created:
-                DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id, rule_id=0).delete()
+            DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
 
-            if not created:
-                # 更新操作 查询出当前业务下和全局的脱敏规则 包含已删除的
-                rule_objs = DesensitizeRule.origin_objects.filter(
-                    Q(space_uid=self.data.space_uid) | Q(is_public=True)
-                ).all()
-            else:
-                # 创建操作 查询出当前业务下和全局的脱敏规则 不包含已删除的
-                rule_objs = DesensitizeRule.objects.filter(Q(space_uid=self.data.space_uid) | Q(is_public=True)).all()
-
-            rules_mapping = {rule_obj.id: model_to_dict(rule_obj) for rule_obj in rule_objs}
-
-            # 构建配置直接入库批量创建参数列表
+            # 构建入库参数
             bulk_create_list = list()
             for field_config in params["field_configs"]:
-                field_name = field_config.get("field_name")
-                sort_index = 0
-                rule_ids = list()
-                for rule in field_config.get("rules"):
-                    rule_id = rule.get("rule_id")
-                    rule_state = rule.get("state")
-                    model_params = {
-                        "operator": "",
-                        "params": "",
-                        "match_pattern": "",
-                    }
-                    if rule_id:
-                        # 根据规则状态执行不同的操作
-                        if rule_state in ["add", "update"]:
-                            if rule_id not in rules_mapping.keys():
-                                raise DesensitizeRuleException(
-                                    DesensitizeRuleException.MESSAGE.format(field_name=field_name, rule_id=rule_id)
-                                )
-                            # 读最新的配置入库
-                            rule_info = rules_mapping[rule_id]
-                            model_params["operator"] = rule_info["operator"]
-                            model_params["params"] = rule_info["params"]
-                            model_params["match_pattern"] = rule_info["match_pattern"]
-                            model_params["sort_index"] = sort_index
-                            DesensitizeFieldConfig.objects.update_or_create(
-                                index_set_id=self.index_set_id,
-                                field_name=field_name,
-                                rule_id=rule_id,
-                                defaults=model_params,
-                            )
-                        else:
-                            # 只更新优先级
-                            DesensitizeFieldConfig.objects.filter(
-                                index_set_id=self.index_set_id, field_name=field_name, rule_id=rule_id
-                            ).update(sort_index=sort_index)
-                        rule_ids.append(rule_id)
+                model_params = {
+                    "index_set_id": self.index_set_id,
+                    "field_name": field_config.get("field_name"),
+                    "rule_id": field_config.get("rule_id") or 0,
+                    "operator": field_config.get("operator"),
+                    "params": field_config.get("params"),
+                }
+                bulk_create_list.append(DesensitizeFieldConfig(**model_params))
 
-                    else:
-                        bulk_create_params = {
-                            "index_set_id": self.index_set_id,
-                            "field_name": field_name,
-                            "rule_id": 0,
-                            "operator": rule.get("operator"),
-                            "params": rule.get("params"),
-                            "sort_index": sort_index,
-                        }
-                        bulk_create_list.append(DesensitizeFieldConfig(**bulk_create_params))
-
-                    sort_index += 1
-                if rule_ids and not created:
-                    # 处理删除的字段配置 删除字段绑定库里存在但是更新时不存在的规则ID
-                    DesensitizeFieldConfig.objects.filter(
-                        index_set_id=self.index_set_id, field_name=field_name
-                    ).exclude(rule_id__in=rule_ids).delete()
-
-            if bulk_create_list:
-                DesensitizeFieldConfig.objects.bulk_create(bulk_create_list)
+            DesensitizeFieldConfig.objects.bulk_create(bulk_create_list)
         except Exception as e:
             raise DesensitizeConfigCreateOrUpdateException(DesensitizeConfigCreateOrUpdateException.MESSAGE.format(e=e))
 
@@ -671,17 +587,8 @@ class IndexSetHandler(APIModel):
         # 构建返回数据
         ret = model_to_dict(desensitize_obj)
         ret["field_configs"] = list()
-
-        # 构建字段绑定的 rules {"field_name": [{rule_id: 1}]}
-        field_info_mapping = dict()
-        for _obj in desensitize_field_config_objs:
-            field_name = _obj.field_name
-            if field_name not in field_info_mapping.keys():
-                field_info_mapping[field_name] = list()
-            field_info_mapping[field_name].append(model_to_dict(_obj, exclude=MODEL_TO_DICT_EXCLUDE_FIELD))
-
-        for _field_name, _rules in field_info_mapping.items():
-            ret["field_configs"].append({"field_name": _field_name, "rules": _rules})
+        for field_config_obj in desensitize_field_config_objs:
+            ret["field_configs"].append(model_to_dict(field_config_obj, exclude=MODEL_TO_DICT_EXCLUDE_FIELD))
 
         return ret
 
@@ -797,6 +704,7 @@ class IndexSetHandler(APIModel):
         time_field_type=None,
         time_field_unit=None,
     ):
+
         # 检查索引集是否存在
         index_set_obj = LogIndexSet.objects.filter(index_set_name=index_set_name).first()
         if index_set_obj and index_set_obj.source_app_code != bk_app_code:
@@ -897,243 +805,6 @@ class IndexSetHandler(APIModel):
         user_operation_record.delay(operation_record)
 
         return index_set
-
-    @staticmethod
-    def get_or_create_bcs_project_std_index_set(bcs_cluster_id, bk_biz_id, storage_cluster_id, bcs_project_id=""):
-        """
-        创建或获取 bcs project std 索引集
-        """
-        from apps.log_databus.handlers.collector import (
-            build_result_table_id,
-            convert_lower_cluster_id,
-        )
-
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        lower_cluster_id = convert_lower_cluster_id(bcs_cluster_id)
-        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid)
-        std_index_set_name = f"{bcs_cluster_id}_std"
-        std_index_set = src_index_list.filter(index_set_name=std_index_set_name).first()
-        if not std_index_set:
-            std_index_set = IndexSetHandler.create(
-                index_set_name=std_index_set_name,
-                space_uid=space_uid,
-                storage_cluster_id=storage_cluster_id,
-                scenario_id=Scenario.ES,
-                view_roles=None,
-                indexes=[
-                    {
-                        "bk_biz_id": bk_biz_id,
-                        "result_table_id": build_result_table_id(bk_biz_id, f"{lower_cluster_id}_*_std_*").replace(
-                            ".", "_"
-                        ),
-                        "result_table_name": std_index_set_name,
-                        "time_field": DEFAULT_TIME_FIELD,
-                    }
-                ],
-                username="admin",
-                category_id="kubernetes",
-                bcs_project_id=bcs_project_id,
-                is_editable=False,
-                time_field=DEFAULT_TIME_FIELD,
-                time_field_type=TimeFieldTypeEnum.DATE.value,
-                time_field_unit=TimeFieldUnitEnum.MILLISECOND.value,
-            )
-        return std_index_set
-
-    @staticmethod
-    def get_or_create_bcs_project_path_index_set(bcs_cluster_id, bk_biz_id, storage_cluster_id, bcs_project_id=""):
-        """
-        创建或获取 bcs project path 索引集
-        """
-        from apps.log_databus.handlers.collector import (
-            build_result_table_id,
-            convert_lower_cluster_id,
-        )
-
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        lower_cluster_id = convert_lower_cluster_id(bcs_cluster_id)
-
-        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid)
-
-        path_index_set_name = f"{bcs_cluster_id}_path"
-        path_index_set = src_index_list.filter(index_set_name=path_index_set_name).first()
-        if not path_index_set:
-            path_index_set = IndexSetHandler.create(
-                index_set_name=path_index_set_name,
-                space_uid=space_uid,
-                storage_cluster_id=storage_cluster_id,
-                scenario_id=Scenario.ES,
-                view_roles=None,
-                indexes=[
-                    {
-                        "bk_biz_id": bk_biz_id,
-                        "result_table_id": build_result_table_id(bk_biz_id, f"{lower_cluster_id}_*_path_*").replace(
-                            ".", "_"
-                        ),
-                        "result_table_name": path_index_set_name,
-                        "time_field": DEFAULT_TIME_FIELD,
-                    }
-                ],
-                username="admin",
-                category_id="kubernetes",
-                bcs_project_id=bcs_project_id,
-                is_editable=False,
-                time_field=DEFAULT_TIME_FIELD,
-                time_field_type=TimeFieldTypeEnum.DATE.value,
-                time_field_unit=TimeFieldUnitEnum.MILLISECOND.value,
-            )
-        return path_index_set
-
-    @classmethod
-    def list_non_bcs_cluster_indexes(cls, bcs_cluster_id: str, bk_biz_id: int) -> Dict[str, List[str]]:
-        """
-        获取非BCS创建的容器索引集, 按照std和path分类
-        :param bcs_cluster_id: bcs集群ID
-        :param bk_biz_id: 业务ID
-        """
-        indexes: Dict[str, List[str]] = {"std": [], "path": []}
-        # 通用函数, 获取非BCS创建的容器采集项, 以及对应容器采集的map
-        queryset = CollectorConfig.objects.filter(
-            rule_id=0,
-            environment=Environment.CONTAINER,
-            bk_biz_id=bk_biz_id,
-            bcs_cluster_id=bcs_cluster_id,
-            # 过滤掉未完成的采集项, 因为未完成的采集项table_id会为空
-            table_id__isnull=False,
-        )
-        collectors = queryset.all()
-        if not collectors:
-            return indexes
-        # 获取采集项对应的容器采集配置
-        container_collector_config_queryset = ContainerCollectorConfig.objects.filter(
-            collector_config_id__in=list(collectors.values_list("collector_config_id", flat=True)),
-            collector_type__in=[ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT],
-        )
-        container_collector_configs = container_collector_config_queryset.all()
-        container_config_map: Dict[int, ContainerCollectorConfig] = {
-            c.collector_config_id: c for c in container_collector_configs
-        }
-
-        for collector in collectors:
-            if not container_config_map.get(collector.collector_config_id):
-                continue
-            container_config = container_config_map[collector.collector_config_id]
-            result_table_id = "{table_id}_*".format(table_id=collector.table_id.replace(".", "_"))
-            if container_config.collector_type == ContainerCollectorType.STDOUT:
-                indexes["std"].append(result_table_id)
-            else:
-                indexes["path"].append(result_table_id)
-        return indexes
-
-    @classmethod
-    def is_bcs_index_set(cls, index_set: LogIndexSet) -> Tuple[bool, Optional[CollectorConfig]]:
-        if not index_set.collector_config_id:
-            return False, None
-        # 判断是否是容器采集
-        collector_config = (
-            CollectorConfig.objects.filter(
-                collector_config_id=index_set.collector_config_id,
-                environment=Environment.CONTAINER,
-            )
-            .exclude(rule_id=0)
-            .first()
-        )
-        if not collector_config:
-            return False, None
-        return True, collector_config
-
-    @classmethod
-    def is_container_index_set(
-        cls, index_set: LogIndexSet
-    ) -> Tuple[bool, Optional[CollectorConfig], Optional[ContainerCollectorConfig]]:
-        if not index_set.collector_config_id:
-            return False, None, None
-        # 判断是否是容器采集
-        collector_config = CollectorConfig.objects.filter(
-            collector_config_id=index_set.collector_config_id,
-            environment=Environment.CONTAINER,
-        ).first()
-        if not collector_config:
-            return False, None, None
-        # 判断是否是std或者path的容器采集
-        queryset = ContainerCollectorConfig.objects.filter(
-            collector_config_id=collector_config.collector_config_id,
-            collector_type__in=[ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT],
-        )
-        container_config = queryset.first()
-        if not container_config:
-            return False, None, None
-        return True, collector_config, container_config
-
-    @classmethod
-    def sync_container_indexes(cls, index_set: LogIndexSet):
-        """
-        同步非BCS创建的索引, 将其添加到对应的BCS索引集中
-        """
-        is_container_index_set, collector_config, container_config = cls.is_container_index_set(index_set=index_set)
-        if not is_container_index_set:
-            return
-        indexes: Dict[str, List[str]] = IndexSetHandler.list_non_bcs_cluster_indexes(
-            bk_biz_id=collector_config.bk_biz_id,
-            bcs_cluster_id=collector_config.bcs_cluster_id,
-        )
-        enable_std = container_config.collector_type == ContainerCollectorType.STDOUT
-        if enable_std:
-            bcs_index_set = cls.get_or_create_bcs_project_std_index_set(
-                bcs_cluster_id=collector_config.bcs_cluster_id,
-                bk_biz_id=collector_config.bk_biz_id,
-                storage_cluster_id=index_set.storage_cluster_id,
-                bcs_project_id=index_set.bcs_project_id,
-            )
-            IndexSetHandler.sync_bcs_indexes(index_set=bcs_index_set, bcs_indexes=indexes, enable_std=True)
-        else:
-            bcs_index_set = cls.get_or_create_bcs_project_path_index_set(
-                bcs_cluster_id=collector_config.bcs_cluster_id,
-                bk_biz_id=collector_config.bk_biz_id,
-                storage_cluster_id=index_set.storage_cluster_id,
-                bcs_project_id=index_set.bcs_project_id,
-            )
-            IndexSetHandler.sync_bcs_indexes(index_set=bcs_index_set, bcs_indexes=indexes, enable_std=False)
-
-    @classmethod
-    def sync_bcs_indexes(cls, index_set: LogIndexSet, bcs_indexes: Dict[str, List[str]], enable_std: bool = True):
-        """
-        同步BCS创建的索引集索引, 拉取符合规则的所有std和path的索引集, 添加到这个索引集中
-        """
-        is_bcs_index_set, collector_config = cls.is_bcs_index_set(index_set=index_set)
-        if not is_bcs_index_set:
-            return
-        if enable_std:
-            indexes = bcs_indexes.get("std", [])
-            result_table_name = f"{collector_config.bcs_cluster_id}_std"
-        else:
-            indexes = bcs_indexes.get("path", [])
-            result_table_name = f"{collector_config.bcs_cluster_id}_path"
-        if not indexes:
-            return
-        # 获取BCS索引集已有的索引
-        bcs_indexes = (
-            LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
-            .exclude(result_table_name=result_table_name)
-            .all()
-        )
-        # 删除不在索引列表中的索引
-        for index in bcs_indexes:
-            if index.result_table_id in bcs_indexes:
-                continue
-            index.delete()
-        # 获取要添加的索引
-        diff_rt_id_list = list(set(indexes).difference({index.result_table_id for index in bcs_indexes}))
-        for rt in diff_rt_id_list:
-            LogIndexSetDataHandler(
-                index_set_data=index_set,
-                bk_biz_id=collector_config.bk_biz_id,
-                time_filed=DEFAULT_TIME_FIELD,
-                result_table_id=rt,
-                storage_cluster_id=index_set.storage_cluster_id,
-                result_table_name=result_table_name,
-                bk_username=get_request_username(),
-            ).add_index()
 
 
 class BaseIndexSetHandler(object):
@@ -1238,7 +909,6 @@ class BaseIndexSetHandler(object):
 
         self.pre_delete()
         self.delete()
-        self.post_delete(index_set=index_set_obj)
 
     def pre_create(self):
         """
@@ -1445,32 +1115,9 @@ class BkDataIndexSetHandler(BaseIndexSetHandler):
 class EsIndexSetHandler(BaseIndexSetHandler):
     scenario_id = Scenario.ES
 
-    def post_create(self, index_set: LogIndexSet):
-        super(EsIndexSetHandler, self).post_create(index_set)
-        is_bcs_index_set, collector_config = IndexSetHandler.is_bcs_index_set(index_set)
-        if not is_bcs_index_set:
-            return
-        indexes: Dict[str, List[str]] = IndexSetHandler.list_non_bcs_cluster_indexes(
-            bk_biz_id=collector_config.bk_biz_id,
-            bcs_cluster_id=collector_config.bcs_cluster_id,
-        )
-        IndexSetHandler.sync_bcs_indexes(index_set=index_set, bcs_indexes=indexes, enable_std=True)
-        IndexSetHandler.sync_bcs_indexes(index_set=index_set, bcs_indexes=indexes, enable_std=False)
-
 
 class LogIndexSetHandler(BaseIndexSetHandler):
     scenario_id = Scenario.LOG
-
-    def post_create(self, index_set: LogIndexSet):
-        """
-        LOG场景创建索引集后，判断如果是容器采集索引, 且非BCS创建的容器采集索引, 则需要将该索引的通配形式添加到对应集群的std和path索引集中
-        """
-        super(LogIndexSetHandler, self).post_create(index_set)
-        IndexSetHandler.sync_container_indexes(index_set=index_set)
-
-    def post_delete(self, index_set: LogIndexSet):
-        super(LogIndexSetHandler, self).post_delete(index_set)
-        IndexSetHandler.sync_container_indexes(index_set=index_set)
 
 
 class LogIndexSetDataHandler(object):

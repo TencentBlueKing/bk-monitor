@@ -22,11 +22,11 @@ the project delivered to anyone in the future.
 from django.conf.urls import include, url
 from rest_framework import routers
 
-from apps.log_desensitize.views import desensitize_rule_views
+from apps.log_databus.views import collector_views
 
 router = routers.DefaultRouter(trailing_slash=True)
 
-router.register(r"desensitize/rule", desensitize_rule_views.DesensitizeRuleViesSet, basename="rule")
+router.register(r"collectors", collector_views.CollectorViewSet, basename="collectors")
 
 
 urlpatterns = [

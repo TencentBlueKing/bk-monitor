@@ -71,7 +71,6 @@
               <table-column
                 :is-wrap="isWrap"
                 :content="tableRowDeepView(row, field.field_name, field.field_type)"
-                :field-name="field.field_name"
                 :field-type="field.field_type"
                 @iconClick="(type, content) => handleIconClick(type, content, field, row)"
                 @computedHeight="handleOverColumn(field.field_name)" />

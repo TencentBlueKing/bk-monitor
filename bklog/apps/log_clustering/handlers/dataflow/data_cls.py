@@ -426,8 +426,10 @@ class LogCountAggregationFlowCls(object):
     table_name_no_id: str
     result_table_id: str
     log_count_aggregation: RealTimeCls
+    log_count_pattern_format: RealTimeCls
     tspider_storage: TspiderStorageCls
     storage_type: str
+    hdfs_storage: HDFSStorageCls
     bk_biz_id: int
     cluster: str = ""
 

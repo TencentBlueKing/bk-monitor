@@ -78,23 +78,6 @@ DEFAULT_ALGORITHMS = [
 ]
 DEFAULT_CLUSTERING_ITEM_NAME = _("日志聚类新类(近24H)")
 DEFAULT_METRIC = "event_time"
-
-# 保存告警策略 v3部分参数
-DEFAULT_AGG_METHOD = "SUM"
-ITEM_NAME_CLUSTERING = "SUM(log_count)"
-DEFAULT_METRIC_CLUSTERING = "log_count"
-ALARM_INTERVAL_CLUSTERING = 7200
-AGG_DIMENSION = ["sensitivity", "signature"]
-AGG_CONDITION = [
-    {"key": "sensitivity", "dimension_name": "sensitivity", "value": ["__dist_05"], "method": "eq", "condition": "and"}
-]
-TRIGGER_CONFIG = {
-    "count": 1,
-    "check_window": 5,
-    "uptime": {"calendars": [], "time_ranges": [{"start": "00:00", "end": "23:59"}]},
-}
-
-
 DEFAULT_DETECTS = [
     {
         "level": 2,
@@ -111,6 +94,7 @@ DEFAULT_ACTION_CONFIG = {
     "alarm_interval": 1440,
     "send_recovery_alarm": False,
 }
+
 NOT_NEED_EDIT_NODES = ["format_signature"]
 
 DEFAULT_PATTERN_MONITOR_MSG = """{{content.level}}

@@ -84,7 +84,6 @@ export default {
     },
     handleActiveDetails(state) {
       this.$emit('handleActiveDetails', state ? state : !this.isOpenWindow);
-      this.$store.commit('updateChartSize');
     },
   },
 };

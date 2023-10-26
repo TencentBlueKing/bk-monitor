@@ -36,13 +36,11 @@
         }"
       ></span>
       <!-- 字段名 -->
-      <span class="overflow-tips field-name">
-        <span class="" v-bk-overflow-tips>
-          {{ showFieldAlias ? fieldAliasMap[fieldItem.field_name] : fieldItem.field_name }}
-        </span>
-        <span class="field-count" v-show="isShowFieldsCount">({{ gatherFieldsCount }})</span>
+      <span class="overflow-tips field-name" v-bk-overflow-tips>
+        {{ showFieldAlias ? fieldAliasMap[fieldItem.field_name] : fieldItem.field_name }}
       </span>
       <!-- 聚合字段数量 -->
+      <span class="field-count" v-if="isShowFieldsCount">{{ gatherFieldsCount }}</span>
       <!-- 设置字段显示或隐藏 -->
       <div
         :class="['operation-text', { 'disable-hidden': isDisabledHiddenField }]"
@@ -205,24 +203,20 @@ export default {
         color: #979ba5;
       }
 
-      .field-name {
-        display: flex;
-
-        span:first-child {
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-      }
-
       .icon-ext {
         width: 18px;
         transform: scale(.8)
       }
 
       .field-count {
+        min-width: 22px;
+        line-height: 16px;
         text-align: center;
         padding: 0 4px;
         margin-left: 4px;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+        background-color: #fafbfd;
       }
 
       .operation-text {

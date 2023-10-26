@@ -19,12 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import arrow
+
+from django.test import TestCase
 from unittest.mock import patch
 
-import arrow
 from apps.log_search.constants import LOG_ASYNC_FIELDS
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from django.test import TestCase
 
 INDEX_SET_ID = 0
 SEARCH_DICT = {"size": 100000}
@@ -80,11 +81,11 @@ class TestSearchHandler(TestCase):
         lambda _, index_set_id: "",
     )
     @patch(
-        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler.init_time_field",
+        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._init_time_field",
         lambda _, index_set_id, scenario_id: ("dtEventTimeStamp", "time", "s"),
     )
     @patch(
-        "apps.log_search.handlers.search.mapping_handlers.MappingHandlers._get_time_field", lambda _: "dtEventTimeStamp"
+        "apps.log_search.handlers.search.mapping_handlers.MappingHandlers.get_time_field", lambda _: "dtEventTimeStamp"
     )
     def setUp(self) -> None:
         self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False)

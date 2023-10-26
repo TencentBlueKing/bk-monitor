@@ -25,11 +25,11 @@
     <li
       v-for="item in spaceList"
       :key="item.id"
-      v-if="item.permission && item.permission[authorityMap.VIEW_BUSINESS]"
       :class="[
         'list-item',
         {
           'is-select': item.space_uid === spaceUid,
+          'is-disable': !(item.permission && item.permission[authorityMap.VIEW_BUSINESS]),
         },
       ]"
       @mousedown="handleProjectChange(item)"
@@ -52,6 +52,12 @@
         >
           {{ tag.name }}
         </span>
+      </span>
+      <span
+        v-if="!(item.permission && item.permission[authorityMap.VIEW_BUSINESS])"
+        class="apply-text"
+        @mousedown.stop="applyProjectAccess(item)">
+        {{ $t("申请权限") }}
       </span>
     </li>
   </ul>

@@ -232,11 +232,6 @@ class DesensitizeConfigCreateOrUpdateException(BaseIndexSetException):
     MESSAGE = _("创建或者更新索引集脱敏配置失败：{e}")
 
 
-class DesensitizeRuleException(BaseIndexSetException):
-    ERROR_CODE = "326"
-    MESSAGE = _("[{field_name}] 选定的脱敏规则 [ID:{rule_id}] 不存在或未启用")
-
-
 # =================================================
 # 管理-检索
 # =================================================
@@ -430,6 +425,16 @@ class IntegerMaxErrorException(BaseException):
 class IntegerErrorException(BaseException):
     ERROR_CODE = "438"
     MESSAGE = _("{num} 不是一个合法的数值, 请输入合法数值")
+
+
+class UnionSearchFieldsFailException(BaseSearchException):
+    ERROR_CODE = "439"
+    MESSAGE = _("联合检索获取索引Mapping字段信息失败")
+
+
+class UnionSearchErrorException(BaseSearchException):
+    ERROR_CODE = "440"
+    MESSAGE = _("联合检索API异常")
 
 
 # =================================================

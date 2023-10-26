@@ -34,10 +34,11 @@
         @change="handleSearch"
         data-test-id="fieldFilter_input_searchFieldName"
       ></bk-input>
+      <div class="gap"></div>
       <bk-popover
         ref="filterPopover"
         trigger="click"
-        placement="bottom-start"
+        placement="top"
         theme="light"
         animation="slide-toggle"
         :tippy-options="{ hideOnClick: false }"
@@ -51,7 +52,7 @@
             @click="closePopoverIfOpened"
             data-test-id="fieldFilter_div_phrasesSearch">
             <span class="bk-icon icon-funnel"></span>
-            <span class="text">{{ $t('字段类型') }}</span>
+            <span class="text">{{ $t('字段类型过滤') }}</span>
             <span v-if="filterTypeCount" class="count">{{ filterTypeCount }}</span>
           </div>
         </slot>
@@ -306,7 +307,6 @@ export default {
         display: flex;
         align-items: center;
         height: 32px;
-        margin-left: 16px;
         line-height: 18px;
         color: #3a84ff;
         font-size: 12px;
@@ -328,7 +328,7 @@ export default {
           text-align: center;
           min-width: 18px;
           height: 18px;
-          border-radius: 50%;
+          border-radius: 8px;
           background-color: #e1ecff;
         }
       }

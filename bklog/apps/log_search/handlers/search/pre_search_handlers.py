@@ -21,7 +21,6 @@ the project delivered to anyone in the future.
 """
 
 from apps.api import BkLogApi
-from apps.log_search.constants import FieldDataTypeEnum
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_trace.handlers.trace_field_handlers import TraceMappingAdapter
 from apps.utils.cache import cache_one_day
@@ -34,30 +33,23 @@ class PreSearchHandlers(object):
     @classmethod
     def pre_check_fields(cls, indices: str, scenario_id: str, storage_cluster_id: int) -> dict:
         trace_type = None
-        default_sort_tag: bool = False
         result_table_id_list: list = indices.split(",")
         if not result_table_id_list:
-            return {"default_sort_tag": default_sort_tag, "trace_type": trace_type}
+            return {"default_sort_tag": False, "trace_type": trace_type}
         result_table_id, *_ = result_table_id_list
         # get fields from cache
         fields = cls._get_fields(
             result_table_id=result_table_id, scenario_id=scenario_id, storage_cluster_id=storage_cluster_id
         )
-        # 是否包含嵌套字段
-        include_nested_fields: bool = [x["field_type"] for x in fields].count(FieldDataTypeEnum.NESTED.value) > 0
         # Trace type
         trace_type = TraceMappingAdapter.adapter(fields)
+
         fields_list: list = [x["field"] for x in fields]
         if ("gseindex" in fields_list and "_iteration_idx" in fields_list) or (
             "gseIndex" in fields_list and "iterationIndex" in fields_list
         ):
-            default_sort_tag = True
-        return {
-            "default_sort_tag": default_sort_tag,
-            "trace_type": trace_type,
-            "fields_from_es": fields,
-            "include_nested_fields": include_nested_fields,
-        }
+            return {"default_sort_tag": True, "trace_type": trace_type, "fields_from_es": fields}
+        return {"default_sort_tag": False, "trace_type": trace_type, "fields_from_es": fields}
 
     @staticmethod
     @cache_one_day("fields_{result_table_id}")

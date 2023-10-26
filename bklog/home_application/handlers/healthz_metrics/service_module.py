@@ -19,17 +19,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import logging
+import os
 import time
+import logging
 
 import requests
-from django.conf import settings
+from settings import SERVICE_LISTENING_DOMAIN
 from django.utils.translation import ugettext as _
-from home_application.handlers.metrics import (
-    HealthzMetric,
-    NamespaceData,
-    register_healthz_metric,
-)
+
+from home_application.handlers.metrics import register_healthz_metric, HealthzMetric, NamespaceData
 
 logger = logging.getLogger()
 
@@ -52,19 +50,20 @@ class HomeMetric(object):
         data = []
         result = HealthzMetric(status=False, metric_name="home")
         start_time = time.time()
-        url = settings.BK_IAM_RESOURCE_API_HOST
-        if not url:
+        if not SERVICE_LISTENING_DOMAIN:
             result.status = True
             result.message = _("监听域名未配置, 跳过检查")
             data.append(result)
             return data
+        port = os.environ.get("PORT", 8000)
+        url = f"{SERVICE_LISTENING_DOMAIN}:{port}/"
         try:
             resp = requests.get(url)
             if resp.status_code == 200:
                 result.status = True
             else:
                 result.message = f"failed to call {url}, status_code: {resp.status_code}, msg: {resp.text}"
-                result.suggestion = _("确认服务是否异常, 若无异常, 则检查配置settings.BK_IAM_RESOURCE_API_HOST是否正确")
+                result.suggestion = _("确认服务是否异常, 若无异常, 则检查环境变量SERVICE_LISTENING_DOMAIN是否配置正确")
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"failed to call {url}, err: {e}")
             return data

@@ -436,16 +436,6 @@ export default {
           name: this.$t('级别'),
           isSelect: false,
         },
-        {
-          id: 'winlog_source',
-          name: this.$t('事件来源'),
-          isSelect: false,
-        },
-        {
-          id: 'winlog_content',
-          name: this.$t('事件内容'),
-          isSelect: false,
-        },
       ],
       eventSettingList: [
         { type: 'winlog_event_id', list: [], isCorrect: true },
@@ -651,9 +641,6 @@ export default {
           break;
         case 'winlog_level':
           this.eventSettingList[index].isCorrect =  item.list.every(Boolean);
-          break;
-        default:
-          this.eventSettingList[index].isCorrect = true;
           break;
       }
     },

@@ -83,8 +83,6 @@
   }
 
   .loading {
-    cursor: not-allowed;
-
     &.bk-primary {
       /* stylelint-disable-next-line declaration-no-important */
       background: #a3c5fd !important;
@@ -104,7 +102,6 @@
     margin-right: 2px;
 
     .loading {
-      cursor: not-allowed;
       transform: scale(.2) translateY(78px);
     }
   }

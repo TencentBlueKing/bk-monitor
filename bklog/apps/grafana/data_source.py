@@ -20,16 +20,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import json
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
 from apps.api import BkDataQueryApi
-from apps.constants import ApiTokenAuthType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import GRAFANA_CUSTOM_ES_DATASOURCE
-from apps.log_commons.models import ApiAuthToken
 from apps.log_esquery.esquery.client.QueryClient import QueryClient
 from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
@@ -46,22 +43,13 @@ from django.conf import settings
 class CustomIndexSetESDataSource:
     """可以转换成Grafana DataSource的索引集"""
 
-    space_uid: str = ""
     index_set_id: int = 0
     index_set_name: str = ""
     time_field: str = DEFAULT_TIME_FIELD
-    token: str = ""
-
-    @classmethod
-    def get_token(cls, space_uid: str):
-        """获取token"""
-        token_obj, __ = ApiAuthToken.objects.get_or_create(space_uid=space_uid, type=ApiTokenAuthType.GRAFANA.value)
-        return token_obj.token
 
     @classmethod
     def list(cls, space_uid: str) -> List["CustomIndexSetESDataSource"]:
         """获取列表"""
-        token = cls.get_token(space_uid=space_uid)
         index_sets: List["CustomIndexSetESDataSource"] = []
         index_set_objs = LogIndexSet.objects.filter(space_uid=space_uid).iterator()
         for index_set_obj in index_set_objs:
@@ -73,13 +61,11 @@ class CustomIndexSetESDataSource:
                 continue
             index_sets.append(
                 cls(
-                    space_uid=space_uid,
                     index_set_id=index_set_obj.index_set_id,
                     index_set_name=cls.generate_datasource_name(
                         scenario_id=index_set_obj.scenario_id, index_set_name=index_set_obj.index_set_name
                     ),
                     time_field=index_set_obj.time_field,
-                    token=token,
                 )
             )
         return index_sets
@@ -96,25 +82,14 @@ class CustomIndexSetESDataSource:
 
     def to_datasource(self) -> Datasource:
         """索引 -> Grafana ES数据源"""
-        json_data = {
-            "timeField": self.time_field,
-            # 因为监控的Grafana版本已经到10, 默认支持的ES版本是7.10+, 但是日志的Grafana是8, 兼容两边将自定义ES数据源的版本固定住7.10
-            "esVersion": "7.10.0",
-            "tlsSkipVerify": True,
-            "httpHeaderName1": "X-BKLOG-SPACE-UID",
-            "httpHeaderName2": "X-BKLOG-TOKEN",
-        }
+        json_data = {"timeField": self.time_field}
         return Datasource(
             name=self.index_set_name,
             database=str(self.index_set_id),
-            access="proxy",
+            access="direct",
             type="elasticsearch",
-            url=f"{settings.BK_IAM_RESOURCE_API_HOST}/grafana/custom_es_datasource",
+            url="custom_es_datasource",
             jsonData=json_data,
-            secureJsonData={
-                "httpHeaderValue1": self.space_uid,
-                "httpHeaderValue2": self.token,
-            },
         )
 
     @classmethod
@@ -149,52 +124,6 @@ class CustomIndexSetESDataSource:
             feature_toggle_obj.save()
 
 
-class ESBodyAdapter:
-    """该类用于兼容Grafana ES7的语法与日志检索的body查询语法"""
-
-    def __init__(self, body: Dict[str, Any]):
-        self.body = body
-
-    @staticmethod
-    def adapt_interval(body: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        data_histogram的时间间隔字段名为fixed_interval, 但是我们的接口是interval
-        """
-        new_dict = {}
-        for k, v in body.items():
-            if k == "date_histogram" and "fixed_interval" in v:
-                v["interval"] = v.pop("fixed_interval")
-            if isinstance(v, dict):
-                new_dict[k] = ESBodyAdapter.adapt_interval(v)
-            else:
-                new_dict[k] = v
-        return new_dict
-
-    @staticmethod
-    def adapt_aggs(body: Dict[str, Any] = None):
-        """
-        聚合的时候, order的字段名为_key, 但是我们的接口是_term
-        """
-        if isinstance(body, dict):
-            for k, v in body.items():
-                if k == "aggs":
-                    for agg_key in v:
-                        if (
-                            "terms" in v[agg_key]
-                            and "order" in v[agg_key]["terms"]
-                            and "_key" in v[agg_key]["terms"]["order"]
-                        ):
-                            v[agg_key]["terms"]["order"] = {"_term": v[agg_key]["terms"]["order"]["_key"]}
-                ESBodyAdapter.adapt_aggs(v)
-
-    def adapt(self):
-        """适配Grafana ES请求"""
-        body = deepcopy(self.body)
-        body = self.adapt_interval(body=body)
-        self.adapt_aggs(body=body)
-        return body
-
-
 class CustomESDataSourceTemplate:
     """
     自定义ES数据源模板模板, 各个Scenario的数据源都继承这个模板
@@ -223,42 +152,10 @@ class CustomESDataSourceTemplate:
             ]
         )
 
-    @staticmethod
-    def compatible_mapping(mapping: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        兼容Grafana高版本只支持7.10+以上的情况, mapping结构需要调整
-        """
-        result = dict()
-        for index, value in mapping.items():
-            mapping_dict: dict = value.get("mappings", {})
-            # 日志接口返回的mapping结构中有一层是索引名,
-            if len(mapping_dict) == 1 and list(mapping_dict.keys())[0] in index:
-                result[index] = {"mappings": list(mapping_dict.values())[0]}
-                continue
-            result[index] = value
-        return result
-
     def mapping(self):
-        """
-        获取mapping
-        """
-        mapping = self._mapping()
-        return self.compatible_mapping(mapping=mapping)
-
-    def _mapping(self):
-        """
-        各个继承类如果需要自定义mapping, 重写这个方法
-        """
         return self.get_client().mapping(index=self.index)
 
     def query(self, body: Dict[str, Any]):
-        body = ESBodyAdapter(body=body).adapt()
-        return self._query(body=body)
-
-    def _query(self, body: Dict[str, Any]):
-        """
-        各个继承类如果需要自定义查询逻辑, 重写这个方法
-        """
         return self.get_client().query(index=self.index, body=body)
 
     def msearch(self, sql_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -309,10 +206,10 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
             params.update({"bkdata_authentication_method": "user", "bk_username": "admin", "operator": "admin"})
         return BkDataQueryApi.query(params, request_cookies=False)["list"]
 
-    def _query(self, body: Dict[str, Any]):
+    def query(self, body: Dict[str, Any]):
         return self.query_bkdata(body=body)
 
-    def _mapping(self):
+    def mapping(self):
         return self.query_bkdata()
 
 

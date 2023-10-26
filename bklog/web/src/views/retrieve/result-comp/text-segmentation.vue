@@ -54,12 +54,12 @@
       <div ref="moreTools" class="event-icons">
         <span
           class="icon bk-icon icon-close-circle"
-          v-bk-tooltips.top="{ content: `${fieldName} = ${curValue}`, delay: 300 }"
+          v-bk-tooltips.top="{ content: $t('添加 {n} 过滤项', { n: '=' }), delay: 300 }"
           @click="handleMenuClick('is')">
         </span>
         <span
           class="icon bk-icon icon-minus-circle"
-          v-bk-tooltips.top="{ content: `${fieldName} != ${curValue}`, delay: 300 }"
+          v-bk-tooltips.top="{ content: $t('添加 {n} 过滤项', { n: '!=' }), delay: 300 }"
           @click="handleMenuClick('not')">
         </span>
         <span
@@ -84,10 +84,6 @@ export default {
       type: [String, Number],
       required: true,
     },
-    fieldName: {
-      type: String,
-      default: '',
-    },
     fieldType: {
       type: String,
       default: '',
@@ -97,7 +93,7 @@ export default {
   data() {
     return {
       curValue: '', // 当前选中分词
-      segmentReg: /<mark>(.*?)<\/mark>|([,&*+:;?^=!$<>'"{}()|[\]/\\|\s\r\n\t]|[-])/,
+      segmentReg: /([,&*+:;?^=!$<>'"{}()|[\]/\\|\s\r\n\t]|[-])/,
       segmentLimitIndex: 0, // 分词超出最大数量边界下标
       limitCount: 256, // 支持分词最大数量
       currentEvent: null,
@@ -108,9 +104,14 @@ export default {
       return ['text'].includes(this.fieldType);
     },
     splitList() {
-      const value = this.content;
+      let value = this.content;
+      // 高亮显示
+      if (this.markList.length) {
+        value = String(value).replace(/<mark>/g, '')
+          .replace(/<\/mark>/g, '');
+      }
       let arr = value.split(this.segmentReg);
-      arr = arr.filter(val => val && val.length);
+      arr = arr.filter(val => val.length);
       this.getLimitValidIndex(arr);
       return arr;
     },
@@ -223,10 +224,6 @@ export default {
 
     .bk-icon {
       transform: rotate(45deg);
-    }
-
-    .icon-minus-circle {
-      transform: rotate(0);
     }
 
     .icon-minus-circle,

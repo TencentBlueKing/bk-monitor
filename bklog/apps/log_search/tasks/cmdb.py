@@ -22,7 +22,7 @@ from celery.schedules import crontab  # noqa
 from celery.task import periodic_task  # noqa
 
 
-@periodic_task(run_every=crontab(minute="0", hour="*/12"))
+@periodic_task(run_every=crontab(hour="*/12"))
 def refresh_cmdb():
     from apps.utils.core.cache.cmdb_host import CmdbHostCache
 

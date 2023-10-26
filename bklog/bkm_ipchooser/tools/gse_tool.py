@@ -39,9 +39,7 @@ class GseAdapterV1(GseAdapter):
 
             host_map[f"{bk_cloud_id}:{ip}"] = index
             index += 1
-        # 如果没有有效的主机，则直接返回
-        if not hosts:
-            return cc_hosts
+
         try:
             # 添加no_request参数, 多线程调用时，保证用户信息不漏传
             status_map = BkApi.get_agent_status({"hosts": hosts, "no_request": True})
@@ -70,9 +68,7 @@ class GseAdapterV2(GseAdapter):
             agent_id_list.append(bk_agent_id)
             host_map[bk_agent_id] = index
             index += 1
-        # 如果没有有效的主机，则直接返回
-        if not agent_id_list:
-            return cc_hosts
+
         try:
             # 添加no_request参数, 多线程调用时，保证用户信息不漏传
             agents = BkApi.get_agent_status_v2({"agent_id_list": agent_id_list, "no_request": True})

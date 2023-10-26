@@ -55,30 +55,18 @@
       <span>
         <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
         <span>{{toolMessage.realTimeLog}}</span>
-        <!-- <i18n path="请前往 {0}">
-          <span class="clean-str">{{$t('清洗')}}</span>
-        </i18n>
-        <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
       </span>
     </div>
     <div id="contextLog-html">
       <span>
         <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
         <span>{{toolMessage.contextLog}}</span>
-        <!-- <i18n path="请前往 {0}">
-          <span class="clean-str">{{$t('清洗')}}</span>
-        </i18n>
-        <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
       </span>
     </div>
     <div id="monitorWeb-html">
       <span>
         <span v-if="!isActiveMonitorWeb" class="bk-icon icon-exclamation-circle-shape"></span>
         <span>{{toolMessage.monitorWeb}}</span>
-        <!-- <i18n path="请前往 {0}">
-          <span class="clean-str">{{$t('清洗')}}</span>
-        </i18n>
-        <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
       </span>
     </div>
   </div>
@@ -171,10 +159,5 @@ export default {
 
     /* stylelint-disable-next-line declaration-no-important */
     cursor: no-drop !important;
-  }
-
-  .clean-str {
-    color: #3a84ff;
-    cursor: pointer;
   }
 </style>

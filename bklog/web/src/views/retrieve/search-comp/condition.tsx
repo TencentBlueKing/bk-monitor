@@ -30,7 +30,7 @@ import {
 } from 'vue-property-decorator';
 import { Switcher, Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
 import './condition.scss';
-import { Debounce } from '../../../common/util';
+
 
 interface IProps {
 }
@@ -170,7 +170,6 @@ export default class Condition extends tsc<IProps> {
     return v;
   }
 
-  @Debounce(300)
   @Emit('additionValueChange')
   handleAdditionChange(v: any, key: string, isQuery = true) {
     return { v, key, isQuery };

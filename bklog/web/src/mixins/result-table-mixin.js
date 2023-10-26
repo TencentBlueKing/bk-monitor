@@ -31,7 +31,6 @@ import RetrieveLoader from '@/skeleton/retrieve-loader';
 import TableColumn from '@/views/retrieve/result-comp/table-column';
 import ExpandView from '@/views/retrieve/result-table-panel/original-log/expand-view.vue';
 import EmptyView from '@/views/retrieve/result-table-panel/original-log/empty-view';
-import TimeFormatterSwitcher from '@/views/retrieve/result-table-panel/original-log/time-formatter-switcher';
 
 export default {
   components: {
@@ -43,7 +42,6 @@ export default {
     ExpandView,
     RegisterColumn,
     EmptyView,
-    TimeFormatterSwitcher,
   },
   mixins: [tableRowDeepViewMixin],
   props: {
@@ -146,7 +144,7 @@ export default {
           }
 
           list.forEach((el, index) => {
-            el.width = widthObj[index] || el.width;
+            el.width = widthObj[index] === undefined ? 'default' : widthObj[index];
           });
         }
       },
@@ -238,7 +236,6 @@ export default {
     // eslint-disable-next-line no-unused-vars
     renderHeaderAliasName(h, { column, $index }) {
       const field = this.visibleFields[$index - 1];
-      const isShowSwitcher = field.field_type === 'date';
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
@@ -261,33 +258,6 @@ export default {
             ],
           }),
           h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
-          h(TimeFormatterSwitcher, {
-            class: 'timer-formatter',
-            style: {
-              display: isShowSwitcher ? 'inline-block' : 'none',
-            },
-          }),
-          h('i', {
-            class: `bk-icon icon-minus-circle-shape toggle-display ${this.visibleFields.length === 1 ? 'is-hidden' : ''}`,
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('将字段从表格中移除'),
-              },
-            ],
-            on: {
-              click: (e) => {
-                e.stopPropagation();
-                const displayFieldNames = [];
-                this.visibleFields.forEach((field) => {
-                  if (field.field_name !== fieldName) {
-                    displayFieldNames.push(field.field_name);
-                  }
-                });
-                this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
-              },
-            },
-          }),
         ]);
       }
     },
@@ -361,7 +331,7 @@ export default {
         descending: 'desc',
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
-      this.$emit('shouldRetrieve', { sort_list: sortList }, false);
+      this.$emit('shouldRetrieve', { sort_list: sortList });
     },
   },
 };

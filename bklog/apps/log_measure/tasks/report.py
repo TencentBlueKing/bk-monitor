@@ -21,14 +21,16 @@ the project delivered to anyone in the future.
 """
 import time
 
-from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS
-from apps.log_measure.utils.metric import MetricUtils
-from bk_monitor.handler.monitor import BKMonitor
-from bk_monitor.utils.metric import clear_registered_metrics
+from django.conf import settings
 from celery.schedules import crontab
 from celery.task import periodic_task, task
+
+from apps.log_measure.utils.metric import MetricUtils
+from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS
+from bk_monitor.utils.metric import clear_registered_metrics
+
 from config.domains import MONITOR_APIGATEWAY_ROOT
-from django.conf import settings
+from bk_monitor.handler.monitor import BKMonitor
 
 
 @periodic_task(run_every=crontab(minute="*/1"))

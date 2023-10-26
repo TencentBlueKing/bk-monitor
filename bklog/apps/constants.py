@@ -177,13 +177,3 @@ class SpacePropertyEnum(ChoicesEnum):
     SPACE_TYPE = "space_type"
 
     _choices_labels = (SPACE_TYPE, _("空间类型"))
-
-
-class ApiTokenAuthType(ChoicesEnum):
-    """
-    API Token鉴权类型
-    """
-
-    GRAFANA = "Grafana"
-
-    _choices_labels = ((GRAFANA, _("Grafana")),)

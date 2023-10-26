@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import IS_AUTO_DEPLOY_PLUGIN
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import LogPluginInfo, EtlConfig
 from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
 from apps.utils.log import logger
 from django.utils.translation import ugettext as _
@@ -119,14 +119,7 @@ class RedisSlowLogCollectorScenario(CollectorScenario):
         """
         return {
             "option": {
-                "es_unique_field_list": [
-                    "cloudId",
-                    "serverIp",
-                    "gseIndex",
-                    "iterationIndex",
-                    "bk_host_id",
-                    "dtEventTimeStamp",
-                ],
+                "es_unique_field_list": ["cloudId", "serverIp", "gseIndex", "iterationIndex", "bk_host_id"],
                 "separator_node_source": "",
                 "separator_node_action": "",
                 "separator_node_name": "",

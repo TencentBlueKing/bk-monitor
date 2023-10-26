@@ -132,7 +132,7 @@ export default {
     getIconPopover(operator, value) {
       if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
       if (this.filterIsExist(operator, value)) return this.$t('已添加过滤条件');
-      return `${this.fieldName} ${operator} ${value}`;
+      return operator;
     },
     filterIsExist(operator, value) {
       if (this.fieldType === '__virtual__') return true;

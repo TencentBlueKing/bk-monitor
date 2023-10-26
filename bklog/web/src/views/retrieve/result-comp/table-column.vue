@@ -35,7 +35,6 @@
       <text-segmentation
         v-if="isInViewPort"
         :content="content"
-        :field-name="fieldName"
         :field-type="fieldType"
         :menu-click="handleMenuClick" />
       <!-- <span v-else>{{ formatterStr(content) }}</span> -->
@@ -70,10 +69,6 @@ export default {
     hasClickEvent: {
       type: Boolean,
       default: false,
-    },
-    fieldName: {
-      type: String,
-      default: '',
     },
     fieldType: {
       type: String,

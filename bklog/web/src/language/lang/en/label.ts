@@ -186,7 +186,7 @@ export default {
   "执行人": "Executor",
   "用户名": "Username",
   "管控区域": "BK-Net",
-  "是否可聚合": "Is Aggregable",
+  "可聚合": "Aggregable",
   "创建人": "Created By",
   "字段名": "Field Name",
   "空闲率": "Idle Ratio",
@@ -531,11 +531,5 @@ export default {
   "不过滤": "No filter",
   "IP目标": "IP target",
   "使用通配符": "Use wildcards",
-  "文件来源主机": "File source host",
-  "将字段添加至表格中": "Add fields to table",
-  "将字段从表格中移除": "Remove fields from table",
-  "查询结果统计": "Query result statistics",
-  "排序权重": "Sorting weight",
-  "事件来源": "Event source",
-  "事件内容": "Event content"
+  "文件来源主机": "File source host"
 };

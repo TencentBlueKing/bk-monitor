@@ -123,7 +123,7 @@
               </div>
               <div class="tab-content-item" data-test-id="retrieve_div_fieldFilterBox">
                 <!-- 字段过滤 -->
-                <div class="tab-item-title field-filter-title" style="color: #313238;">{{ $t('查询结果统计') }}</div>
+                <div class="tab-item-title field-filter-title" style="color: #313238;">{{ $t('字段过滤') }}</div>
                 <field-filter
                   :retrieve-params="retrieveParams"
                   :total-fields="totalFields"
@@ -247,14 +247,12 @@ import SettingModal from './setting-modal/index.vue';
 import CollectIndex from './collect/collect-index';
 import AddCollectDialog from './collect/add-collect-dialog';
 import SearchComp from './search-comp';
-import { formatDate, readBlobRespToJson, parseBigNumberList, calculateTableColsWidth } from '@/common/util';
+import { formatDate, readBlobRespToJson, parseBigNumberList } from '@/common/util';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
-import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import axios from 'axios';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone } from '../../components/monitor-echarts/utils';
-import CancelToken from 'axios/lib/cancel/CancelToken';
 
 export default {
   name: 'Retrieve',
@@ -271,7 +269,7 @@ export default {
     AddCollectDialog,
     SearchComp,
   },
-  mixins: [indexSetSearchMixin, tableRowDeepViewMixin],
+  mixins: [indexSetSearchMixin],
   data() {
     const currentTime = Date.now();
     const startTime = formatDate(currentTime - 15 * 60 * 1000);
@@ -343,9 +341,13 @@ export default {
       asyncExportUsable: true, // 是否支持异步导出
       asyncExportUsableReason: '', // 无法异步导出原因
       isInitPage: true, // 是否初始化页面
-      isAutoQuery: localStorage.getItem('logAutoQuery') === 'true',
+      isAutoQuery: localStorage.getItem('closeAutoQuery') !== 'true',
       isPollingStart: false,
+      startTimeStamp: 0,
+      endTimeStamp: 0,
       logList: [], // 当前搜索结果的日志
+      isNextTime: false,
+      timer: null,
       isShowSettingModal: false,
       clickSettingChoice: '',
       timeField: '',
@@ -392,15 +394,17 @@ export default {
         is: 'contains match phrase',
         'is not': 'not contains match phrase',
       },
+      /** keyword类型字段类型的下钻映射 */
+      keywordMappingKey: {
+        is: 'contains',
+        'is not': 'not contains',
+      },
       monitorOperatorMappingKey: { // 监控告警跳转过来的操作符映射
         eq: '=',
         neq: '!=',
       },
       activeTableTab: 'origin', // 当前活跃的table-tab 参数: origin clustering
       clusterRouteParams: {}, // 路由回填的数据指纹参数
-      isSetDefaultTableColumn: false,
-      /** 是否还需要分页 */
-      finishPolling: false,
     };
   },
   computed: {
@@ -449,7 +453,6 @@ export default {
       val && this.requestSearchHistory(val);
       this.clearCondition('*', false);
       this.$refs.searchCompRef?.clearAllCondition();
-      this.isSetDefaultTableColumn = false;
     },
     spaceUid: {
       async handler() {
@@ -475,11 +478,6 @@ export default {
         this.localIframeQuery = val;
       },
     },
-    'visibleFields.length'() {
-      if (this.isSetDefaultTableColumn) {
-        this.setDefaultTableColumn();
-      }
-    },
   },
   created() {
     this.getGlobalsData();
@@ -489,11 +487,10 @@ export default {
   },
   beforeDestroy() {
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
+    clearTimeout(this.timer);
+    this.timer = null;
   },
   methods: {
-    /** 搜索取消请求方法 */
-    searchCancelFn() {
-    },
     // 子组件改父组件的值或调用方法;
     emitChangeValue({ type, value, isFunction }) {
       if (isFunction) {
@@ -688,8 +685,6 @@ export default {
       this.indexId = val;
       this.activeFavoriteID = -1;
       this.activeFavorite = {};
-      // 在切换索引集之前 需要把表格里的table数据清空 数据不为空的话 table的empty骨架loading会不生效
-      this.$refs.resultMainRef.reset();
       this.retrieveLog();
     },
     // 切换索引时重置检索数据
@@ -766,6 +761,9 @@ export default {
         case 'text':
           mappingKey = this.textMappingKey;
           break;
+        case 'keyword':
+          mappingKey = this.keywordMappingKey;
+          break;
         default:
           break;
       }
@@ -781,7 +779,7 @@ export default {
       const startIndex = index > -1 ? index : this.retrieveParams.addition.length;
       const deleteCount = index > -1 ? 1 : 0;
       this.retrieveParams.addition.splice(startIndex, deleteCount, { field, operator: mapOperator, value });
-      this.retrieveLog();
+      if (this.isAutoQuery) this.retrieveLog();
       this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
       this.$refs.searchCompRef.setRouteParams();
     },
@@ -833,7 +831,7 @@ export default {
       } else {
         isQuery = Boolean(Object.keys(this.catchIpChooser).length);
       }
-      if (isQuery) this.retrieveLog();
+      if (this.isAutoQuery && isQuery) this.retrieveLog();
       this.$refs.searchCompRef.setIPChooserFilter(this.catchIpChooser); // 设置添加条件的ip选择器的值 并更新路由
     },
     /**
@@ -1039,8 +1037,6 @@ export default {
         spaceUid: this.$store.state.spaceUid,
         bizId: this.$store.state.bkBizId,
         ...queryParamsStr,
-        // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
-        pickerTimeRange: queryParamsStr?.pickerTimeRange,
       };
       this.$router.push({
         name: 'retrieve',
@@ -1083,9 +1079,7 @@ export default {
           this.requestChart();
           this.requestSearchHistory(this.indexId);
         }
-        // 表格loading处理
-        this.$refs.resultMainRef.reset();
-        this.searchCancelFn();
+        await this.handleResetTimer();
         await this.requestTable();
         if (this.isAfterRequestFavoriteList) await this.getFavoriteList();
 
@@ -1255,21 +1249,40 @@ export default {
       isRequestFields && this.requestFields();
     },
     requestTableData() {
-      if (this.requesting) return;
+      if (this.timer || this.requesting) return;
 
       this.requestTable();
     },
     // 表格
     async requestTable() {
-      if (this.requesting) return;
+      // 轮循结束
+      if (this.finishPolling || this.requesting) return;
 
       this.requesting = true;
 
-      const { startTimeStamp, endTimeStamp } = this.getRealTimeRange();
       if (!this.isPollingStart) {
+        const { startTimeStamp, endTimeStamp } = this.getRealTimeRange();
+        this.startTimeStamp = startTimeStamp;
+        this.endTimeStamp = endTimeStamp;
+        // 请求间隔时间
+        this.requestInterval = this.isPollingStart ? this.requestInterval
+          : this.handleRequestSplit(startTimeStamp, endTimeStamp);
         // 获取坐标分片间隔
         this.handleIntervalSplit(startTimeStamp, endTimeStamp);
+
+        this.pollingEndTime = endTimeStamp;
+        this.pollingStartTime = this.pollingEndTime - this.requestInterval;
+        if (this.pollingStartTime < startTimeStamp || this.requestInterval === 0) {
+          this.pollingStartTime = startTimeStamp;
+        }
         this.isPollingStart = true;
+      } else if (this.isNextTime) {
+        this.pollingEndTime = this.pollingStartTime;
+        this.pollingStartTime = this.pollingStartTime - this.requestInterval;
+
+        if (this.pollingStartTime < this.startTimeStamp) {
+          this.pollingStartTime = this.startTimeStamp;
+        }
       }
 
       const { currentPage, pageSize } = this.$refs.resultMainRef;
@@ -1280,9 +1293,6 @@ export default {
         const res = await axios({
           method: 'post',
           url: `/search/index_set/${this.indexId}/search/`,
-          cancelToken: new CancelToken((c) => {
-            this.searchCancelFn = c;
-          }),
           withCredentials: true,
           baseURL: baseUrl,
           responseType: 'blob',
@@ -1293,8 +1303,8 @@ export default {
             size: pageSize,
             interval: this.interval,
             // 每次轮循的起始时间
-            start_time: formatDate(startTimeStamp),
-            end_time: formatDate(endTimeStamp),
+            start_time: formatDate(this.pollingStartTime),
+            end_time: formatDate(this.pollingEndTime),
           },
         }).then((res) => {
           return readBlobRespToJson(res.data);
@@ -1303,15 +1313,16 @@ export default {
         if (!res.data && res.message) { // 接口报错提示
           this.messageError(res.message);
         }
-        // 判断分页
-        this.finishPolling = res.data?.list?.length < pageSize;
+
+        this.isNextTime = res.data?.list?.length < pageSize;
+        if (this.isNextTime && (this.pollingStartTime <= this.startTimeStamp
+        || this.requestInterval === 0)) { // 分片时间已结束
+          this.finishPolling = true;
+        }
 
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
         this.tableData = { ...(res.data || {}), finishPolling: this.finishPolling };
-        if (!this.isSetDefaultTableColumn) {
-          this.setDefaultTableColumn();
-        }
         this.logList = this.logList.concat(parseBigNumberList(res.data?.list ?? []));
         this.statisticalFieldsData = this.getStatisticalFieldsData(this.logList);
         this.computeRetrieveDropdownData(this.logList);
@@ -1319,36 +1330,24 @@ export default {
         this.$refs.resultMainRef.isPageOver = false;
         this.isCanStorageFavorite = false; // 不能收藏
       } finally {
-        if (this.finishPolling) this.$refs.resultMainRef.isPageOver = false;
         this.requesting = false;
-        this.tableLoading = false;
-      }
-    },
-    // 首次加载设置表格默认宽度自适应
-    setDefaultTableColumn() {
-      try {
-        const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-        const { params: { indexId }, query: { bizId } } = this.$route;
-        // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-        if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
-
-        if (this.tableData.list.length && this.visibleFields.length) {
-          this.visibleFields.forEach((field) => {
-            field.width = calculateTableColsWidth(field, this.tableData.list);
-          });
-          const columnsWidth = this.visibleFields.reduce((prev, next) => prev + next.width, 0);
-          const tableElem = document.querySelector('.original-log-panel');
-          // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-          if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
-            this.visibleFields.forEach((field) => {
-              field.width = field.width < 300 ? 'default' : field.width;
-            });
+        if (this.isNextTime) {
+          if (this.finishPolling) { // 已请求所有分片时间仍无结果
+            this.$refs.resultMainRef.isPageOver = false;
+            this.tableLoading = false;
+          } else { // 往下一个时间分片获取
+            clearTimeout(this.timer);
+            this.timer = null;
+            this.timer = setTimeout(() => {
+              this.$refs.resultMainRef.currentPage = 1;
+              this.requestTable();
+            }, 500);
           }
+        } else {
+          clearTimeout(this.timer);
+          this.timer = null;
+          this.tableLoading = false;
         }
-
-        this.isSetDefaultTableColumn = true;
-      } catch (error) {
-        this.isSetDefaultTableColumn = false;
       }
     },
     // 根据表格数据统计字段值及出现次数
@@ -1424,8 +1423,28 @@ export default {
     // 图表款选或双击回正时请求相关数据
     async retrieveWhenChartChange() {
       this.$refs.resultHeader && this.$refs.resultHeader.pauseRefresh();
+      // 接口请求
+      try {
+        this.tableLoading = true;
+        this.resetResult();
+        // 表格数据重新轮询
+        await this.handleResetTimer();
+        await this.requestTable();
+      } catch (e) {
+        console.warn(e);
+        if (!e.message.includes('request canceled')) { // 接口出错、非重复请求被取消
+          this.tableLoading = false;
+        }
+      }
+    },
+
+    // 重置轮询
+    handleResetTimer() {
+      clearTimeout(this.timer);
+      this.timer = null;
+      this.isPollingStart = false;
+      this.finishPolling = false;
       this.$refs.resultMainRef.reset();
-      this.isSetDefaultTableColumn = false;
     },
 
     // 重置搜索结果

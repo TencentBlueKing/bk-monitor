@@ -98,7 +98,6 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 )
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.constants import InnerTag
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
 from django.conf import settings
@@ -142,8 +141,8 @@ class DataFlowHandler(BaseAiopsHandler):
             "delimeter": clustering_config.delimeter,
             "max_log_length": clustering_config.max_log_length,
             "is_case_sensitive": clustering_config.is_case_sensitive,
-            "depth": clustering_config.depth,
-            "max_child": clustering_config.max_child,
+            "depth": OnlineTaskTrainingArgs.DEPTH,
+            "max_child": OnlineTaskTrainingArgs.MAX_CHILD,
             "use_offline_model": OnlineTaskTrainingArgs.USE_OFFLINE_MODEL,
             "max_dist_list": clustering_config.max_dist_list,
         }
@@ -1518,7 +1517,8 @@ class DataFlowHandler(BaseAiopsHandler):
         all_fields_dict = self.get_fields_dict(clustering_config=clustering_config)
         # 从BkDataMetaApi 获取字段信息  用于回填模版
         all_fields = DataAccessHandler.get_fields(result_table_id=result_table_id)
-        exclude_message_fields = [field for field in all_fields if field["field_name"] != clustering_fields]
+        # all_fields 排除message字段 透传字段
+        exclude_message_fields = [field for field in all_fields if field["field_name"] != "message"]
         # 去除不聚类的字段 转换前所有字段  比如 meeage 转换成 log
         is_dimension_fields = [
             field["field_name"] for field in all_fields if field["field_name"] not in NOT_CONTAIN_SQL_FIELD_LIST
@@ -1753,16 +1753,25 @@ class DataFlowHandler(BaseAiopsHandler):
             log_count_signatures=log_count_signatures,
             table_name_no_id=table_name_no_id,
             result_table_id=result_table_id,
+            # 日志数量统计
             log_count_aggregation=RealTimeCls(
                 fields="",
                 table_name=f"bklog_{index_set_id}_agg",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_agg",
                 filter_rule=log_count_signatures_filter_rule,
             ),
+            # 日志Pattern打平
+            log_count_pattern_format=RealTimeCls(
+                fields="",
+                table_name=f"bklog_{index_set_id}_sign",
+                result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_sign",
+                filter_rule=log_count_signatures_filter_rule,
+            ),
             tspider_storage=TspiderStorageCls(
                 cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires")
             ),
             storage_type=storage_type,
+            hdfs_storage=HDFSStorageCls(table_name="", expires=self.conf.get("log_count_hdfs_expires")),
             bk_biz_id=bk_biz_id,
             cluster=self.get_model_available_storage_cluster(),
         )
@@ -1805,8 +1814,5 @@ class DataFlowHandler(BaseAiopsHandler):
 
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
         clustering_config.log_count_aggregation_flow_id = result["flow_id"]
-        clustering_config.new_cls_pattern_rt = log_count_aggregation_flow_dict["log_count_aggregation"][
-            "result_table_id"
-        ]
         clustering_config.save()
         return result

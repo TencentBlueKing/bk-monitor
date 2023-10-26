@@ -52,8 +52,8 @@
         :placeholder="$t('搜索')"
         :clearable="false"
         :value="keyword"
-        @clear="handleBizSearchDebounce"
-        @change="handleBizSearchDebounce"
+        @clear="handleBizSearch"
+        @change="handleBizSearch"
       >
       </bk-input>
       <ul
@@ -113,7 +113,6 @@ import { mapGetters } from 'vuex';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import menuList from './list';
 import { deepClone } from '../monitor-echarts/utils';
-import { debounce } from 'throttle-debounce';
 import { Storage } from '@/common/util';
 import * as authorityMap from '../../common/authority-map';
 import { SPACE_TYPE_MAP } from '@/store/constant';
@@ -204,8 +203,6 @@ export default {
     },
   },
   created() {
-    this.handleBizSearchDebounce = debounce(300, false, this.handleBizSearch);
-
     // this.spaceBgColor = this.$store.getters.spaceBgColor || this.getRandomColor();
     this.initGroupList();
     const spaceTypeMap = {};
@@ -519,7 +516,7 @@ export default {
 
         .left-icon {
           color: #63656e;
-          left: 12px;
+          left: 0;
         }
 
         .bk-form-input {

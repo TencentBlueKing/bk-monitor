@@ -101,7 +101,7 @@
                 <li class="select-item" v-for="(item, index) in shadowVisible" :key="item">
                   <span class="icon log-icon icon-drag-dots"></span>
                   <span class="field-name" v-bk-overflow-tips>{{ getFiledDisplay(item) }}</span>
-                  <span class="bk-icon icon-close-circle-shape delete" @click="deleteField(item, index)"></span>
+                  <span class="delete text-action" @click="deleteField(item, index)">{{ $t('删除') }}</span>
                 </li>
               </transition-group>
             </vue-draggable>
@@ -114,6 +114,11 @@
               <span class="icon log-icon icon-info-fill" v-bk-tooltips="$t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')"></span>
               <span class="clear-all text-action" @click="deleteAllField">{{ $t('取消') }}</span>
             </div>
+            <div class="sort-list-header">
+              <span :style="`width: calc(100% - ${fieldWidth}px); padding-left: 32px;`">{{ $t('字段名') }}</span>
+              <span style="min-width: 42px;">{{ $t('状态') }}</span>
+              <span style="min-width: 50px;">{{ $t('选择方式') }}</span>
+            </div>
             <vue-draggable class="select-list" v-bind="dragOptions" v-model="shadowSort">
               <transition-group>
                 <li class="select-item" v-for="(item, index) in shadowSort" :key="item[0]">
@@ -121,9 +126,9 @@
                   <span class="field-name"
                         :style="`width: calc(100% - ${fieldWidth}px);`"
                         v-bk-overflow-tips>{{ getFiledDisplay(item[0]) }}</span>
-                  <span :class="`bk-icon status ${filterStatusIcon(item[1])}`"></span>
+                  <span class="status">{{ filterStatus(item[1]) }}</span>
                   <span class="option text-action" @click="setOrder(item)">{{ filterOption(item[1]) }}</span>
-                  <span class="bk-icon icon-close-circle-shape delete" @click="deleteField(item[0], index)"></span>
+                  <span class="delete text-action" @click="deleteField(item[0], index)">{{ $t('删除') }}</span>
                 </li>
               </transition-group>
             </vue-draggable>
@@ -183,8 +188,8 @@ export default {
       isConfirmSubmit: false, // 是否点击保存
       isInputError: false, // 新建配置名称是否不合法
       fieldTabPanels: [
-        { name: 'visible', label: this.$t('显示字段') },
-        { name: 'sort', label: this.$t('排序权重') },
+        { name: 'visible', label: this.$t('设置显示字段') },
+        { name: 'sort', label: this.$t('设置排序权重') },
       ],
       configTabPanels: [], // 配置列表
       dragOptions: {
@@ -215,7 +220,7 @@ export default {
       return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels[0];
     },
     fieldWidth() {
-      return this.$store.state.isEnLanguage ? '60' : '114';
+      return this.$store.state.isEnLanguage ? '170' : '146';
     },
   },
   watch: {
@@ -300,11 +305,11 @@ export default {
     cancelModifyFields() {
       this.$emit('cancel');
     },
-    filterStatusIcon(val) {
+    filterStatus(val) {
       if (val === 'desc') {
-        return 'icon-arrows-down-line';
+        return this.$t('降序');
       } if (val === 'asc') {
-        return 'icon-arrows-up-line';
+        return this.$t('升序');
       }
       return '';
     },
@@ -593,7 +598,7 @@ export default {
             text-overflow: ellipsis;
           }
 
-          .panel-operate {
+          .panel-operate, {
             color: #979ba5;
             margin-left: 10px;
             font-size: 14px;
@@ -775,17 +780,15 @@ export default {
       .visible-fields-list .select-list .select-item {
         .field-name {
           // 16 38
-          width: calc(100% - 30px);
+          width: calc(100% - 54px);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
         .delete {
+          width: 38px;
           text-align: right;
-          color: #c4c6cc;
-          font-size: 16px;
-          cursor: pointer;
         }
       }
 
@@ -812,28 +815,16 @@ export default {
           }
 
           .status {
-            font-weight: 700;
-
-            &.icon-arrows-down-line {
-              color: #ea3636;
-            }
-
-            &.icon-arrows-up-line {
-              color: #2dcb56;
-            }
+            width: 42px;
           }
 
           .option {
-            margin: 0 8px;
             width: 50px;
-            color: #3a84ff;
           }
 
           .delete {
+            width: 38px;
             text-align: right;
-            color: #c4c6cc;
-            font-size: 16px;
-            cursor: pointer;
           }
         }
       }

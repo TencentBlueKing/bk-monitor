@@ -990,7 +990,6 @@ export default {
         this.formData.data_encoding = 'UTF-8';
       } else { // 物理环境
         this.currentEnvironment = cloneCollect.environment;
-        this.formData = this.getInitFormData(cloneCollect);
         Object.assign(this.formData, cloneCollect);
         if (this.formData.target_nodes?.length) { // IP 选择器预览结果回填
           this.ipSelectorOriginalValue = this.getSelectorNodes();
@@ -1035,7 +1034,7 @@ export default {
       }
     },
     /**
-     * @desc: 初始化容器的编辑的form表单值
+     * @desc: 初始化编辑的form表单值
      * @param { Object } formData 基础表单
      * @param { Boolean } isYamlData 是否是yaml解析出的表单数据
      * @returns { Object } 返回初始化后的Form表单
@@ -1119,19 +1118,6 @@ export default {
         };
       });
       curFormData.configs = filterConfigs;
-      return curFormData;
-    },
-    /**
-     * @desc: 初始化物理环境编辑的的form表单值
-     * @param { Object } formData 基础表单
-     * @returns { Object } 返回初始化后的Form表单
-     */
-    getInitFormData(formData) {
-      const curFormData = deepClone(formData);
-      // win_event类型不需要初始化分隔符的过滤条件
-      if (!curFormData.params.conditions?.separator_filters && curFormData.collector_scenario_id !== 'wineventlog') {
-        curFormData.params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
-      }
       return curFormData;
     },
     getContainerNameList(containerName = '') {
@@ -1535,9 +1521,7 @@ export default {
     handleSelectEnvironment(name, isDisable) {
       if (this.isUpdate && isDisable) return;
       this.currentEnvironment = name;
-      if (!['linux', 'windows'].includes(this.currentEnvironment)) {
-        this.formData.configs.forEach(item => item.labelSelector = []); // 切换环境清空label
-      }
+      this.formData.configs.forEach(item => item.labelSelector = []); // 切换环境清空label
     },
     handleAddExtraLabel() {
       this.formData.extra_labels.push({ key: '', value: '' });
@@ -2338,7 +2322,7 @@ export default {
   .win-content {
     padding-bottom: 20px;
     position: relative;
-    left: 118px;
+    left: 150px;
     width: 76%;
 
     > span {

@@ -31,6 +31,7 @@ from apps.log_search.constants import (
     MAX_GET_ATTENTION_SIZE,
     ExportStatus,
     ExportType,
+    IndexSetType,
 )
 from apps.log_search.exceptions import (
     MissAsyncExportException,
@@ -51,9 +52,17 @@ from rest_framework.reverse import reverse
 
 
 class AsyncExportHandlers(object):
-    def __init__(self, index_set_id: int, bk_biz_id, search_dict: dict = None, export_fields=None):
+    def __init__(
+        self,
+        index_set_id: int = None,
+        bk_biz_id=None,
+        search_dict: dict = None,
+        export_fields=None,
+        index_set_ids: list = None,
+    ):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
+        self.index_set_ids = index_set_ids
         if search_dict:
             self.search_dict = search_dict
             self.search_handler = SearchHandler(
@@ -135,11 +144,16 @@ class AsyncExportHandlers(object):
         )
         return search_url
 
-    def get_export_history(self, request, view, show_all=False):
-        # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
-        query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id)
-        if not show_all:
-            query_set = query_set.filter(index_set_id=self.index_set_id)
+    def get_export_history(self, request, view, show_all=False, is_union_search=False):
+        if is_union_search:
+            query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id, index_set_type=IndexSetType.UNION.value)
+            if not show_all:
+                query_set = query_set.filter(index_set_ids=self.index_set_ids)
+        else:
+            # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
+            query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id, index_set_type=IndexSetType.SINGLE.value)
+            if not show_all:
+                query_set = query_set.filter(index_set_id=self.index_set_id)
         pg = DataPageNumberPagination()
         page_export_task_history = pg.paginate_queryset(
             queryset=query_set.order_by("-created_at", "created_by"), request=request, view=view
@@ -149,21 +163,23 @@ class AsyncExportHandlers(object):
         )
         res = pg.get_paginated_response(
             [
-                self.generate_export_history(model_to_dict(history), index_set_retention)
+                self.generate_export_history(
+                    model_to_dict(history), index_set_retention, is_union_search=is_union_search
+                )
                 for history in page_export_task_history
             ]
         )
         return res
 
     @classmethod
-    def generate_export_history(cls, export_task_history, index_set_retention):
+    def generate_export_history(cls, export_task_history, index_set_retention, is_union_search=False):
         download_able = cls.judge_download_able(export_task_history["export_status"])
         retry_able = cls.judge_retry_able(
             export_task_history["end_time"], retention=index_set_retention.get(export_task_history["index_set_id"])
         )
-        return {
+
+        res = {
             "id": export_task_history["id"],
-            "log_index_set_id": export_task_history["index_set_id"],
             "search_dict": export_task_history["request_param"],
             "start_time": export_task_history["start_time"],
             "end_time": export_task_history["end_time"],
@@ -178,7 +194,19 @@ class AsyncExportHandlers(object):
             "export_completed_at": export_task_history["completed_at"],
             "download_able": download_able,
             "retry_able": retry_able,
+            "index_set_type": export_task_history["index_set_type"],
         }
+
+        if not is_union_search:
+            res.update({"log_index_set_id": export_task_history["index_set_id"]})
+        else:
+            res.update(
+                {
+                    "log_index_set_ids": export_task_history["index_set_ids"],
+                }
+            )
+
+        return res
 
     @classmethod
     def judge_download_able(cls, status):

@@ -141,15 +141,6 @@ class DataAccessHandler(BaseAiopsHandler):
         else:
             result_table_name = collector_config.collector_config_name_en
 
-        # 当用户使用了自定义字段作为时间字段，则会产生同名字段，需要去重
-        fields_names = set()
-        dedupe_fields_config = []
-        for field in fields_config:
-            field_name = field.get("alias_name") if field.get("alias_name") else field.get("field_name")
-            if field_name not in fields_names:
-                dedupe_fields_config.append(field)
-                fields_names.add(field_name)
-
         params = {
             "raw_data_id": clustering_config.bkdata_data_id,
             "result_table_name": result_table_name,
@@ -165,7 +156,7 @@ class DataAccessHandler(BaseAiopsHandler):
                     "is_dimension": field.get("tag", "dimension") == "dimension",
                     "field_index": index,
                 }
-                for index, field in enumerate(dedupe_fields_config, 1)
+                for index, field in enumerate(fields_config, 1)
             ],
             "json_config": json.dumps(bkdata_json_config),
             "bk_username": self.conf.get("bk_username"),

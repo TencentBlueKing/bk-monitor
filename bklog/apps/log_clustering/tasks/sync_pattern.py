@@ -40,7 +40,7 @@ from celery.schedules import crontab
 from celery.task import periodic_task, task
 
 
-@periodic_task(run_every=crontab(minute="*/10"))
+@periodic_task(run_every=crontab(hour="*/1"))
 def sync_pattern():
     model_ids = AiopsModel.objects.all().values_list("model_id", flat=True)
 
@@ -55,6 +55,7 @@ def sync_pattern():
 
 @task(ignore_result=True)
 def sync(model_id=None, model_output_rt=None):
+
     if model_id:
         try:
             release_id = AiopsModelHandler().get_latest_released_id(model_id=model_id)
@@ -125,6 +126,7 @@ def get_pattern(content) -> list:
             origin_log = sensitive_pattern[ORIGIN_LOG_INDEX][0]
             pattern_str = ""
             for pattern in sensitive_pattern[PATTERN_INDEX]:
+
                 if hasattr(pattern, "name"):
                     value = pattern.value
                     name = f"#{pattern.name}#"

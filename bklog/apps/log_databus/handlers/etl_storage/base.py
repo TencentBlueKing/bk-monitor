@@ -120,29 +120,6 @@ class EtlStorage(object):
                     else {"es_type": "text"},
                 }
             )
-        # 是否保留用户未定义字段
-        if etl_params.get("retain_extra_json"):
-            field_list.append(
-                {
-                    "field_name": "__ext_json",
-                    "field_type": "object",
-                    "tag": "dimension",
-                    "alias_name": "ext_json",
-                    "description": _("用户未定义JSON字段"),
-                    "option": {
-                        "es_type": "object",
-                        "es_doc_values": True,
-                        "es_include_in_all": False,
-                        "real_path": f"{self.separator_node_name}.ext_json",
-                    }
-                    if es_version.startswith("5.")
-                    else {
-                        "es_type": "object",
-                        "es_doc_values": True,
-                        "real_path": f"{self.separator_node_name}.ext_json",
-                    },
-                },
-            )
 
         # 默认使用上报时间做为数据时间
         time_field = built_in_config["time_field"]
@@ -199,8 +176,7 @@ class EtlStorage(object):
             # 时间字段处理
             if field["is_time"]:
                 time_field["alias_name"] = source_field
-                if field_option.get("real_path"):
-                    time_field["option"]["real_path"] = field_option["real_path"]
+                time_field["option"]["real_path"] = field_option["real_path"]
                 time_field["option"]["time_zone"] = field["option"]["time_zone"]
                 time_field["option"]["time_format"] = field["option"]["time_format"]
                 time_field["option"]["field_index"] = field_option["field_index"]
@@ -511,43 +487,6 @@ class EtlStorage(object):
             "assign_to": key,
             "type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
         }
-
-    def _to_bkdata_assign_obj(self, field):
-        key = field.get("alias_name")
-        if not key:
-            key = field.get("field_name")
-        return {
-            "key": "__all_keys__",
-            "assign_to": key,
-            "type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
-        }
-
-    def _get_built_in_fields_type_fields(self, built_in_fields):
-        built_in_fields_type_object = [field for field in built_in_fields if field["field_type"] == "object"]
-        built_in_fields_no_type_object = [field for field in built_in_fields if field["field_type"] != "object"]
-        if len(built_in_fields_no_type_object) == 0:
-            access_built_in_fields_type_object = []
-        else:
-            access_built_in_fields_type_object = [
-                {
-                    "type": "access",
-                    "subtype": "access_obj",
-                    "label": "label60f0af",
-                    "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
-                    "result": f'{field.get("alias_name") if field.get("alias_name") else field.get("field_name")}_json',
-                    "default_type": "null",
-                    "default_value": "",
-                    "next": {
-                        "type": "assign",
-                        "subtype": "assign_json",
-                        "label": "label2af98b",
-                        "assign": [self._to_bkdata_assign_obj(field)],
-                        "next": None,
-                    },
-                }
-                for field in built_in_fields_type_object
-            ]
-        return built_in_fields_type_object, built_in_fields_no_type_object, access_built_in_fields_type_object
 
     def _to_bkdata_conf(self, time_field):
         return {

@@ -47,6 +47,41 @@
       }
     },
     {
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "sql": "SELECT CONCAT('__', sensitivity) as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_deal_model_json(log_signature)) as T(sensitivity,signature) {{log_count_aggregation.log_count_pattern_format.filter_rule}}",
+      "table_name": "{{log_count_aggregation.log_count_pattern_format.table_name}}",
+      "name": "日志Pattern打平",
+      "count_freq": null,
+      "waiting_time": null,
+      "window_time": null,
+      "window_type": "none",
+      "counter": null,
+      "output_name": "{{log_count_aggregation.log_count_pattern_format.result_table_id}}",
+      "session_gap": null,
+      "expired_time": null,
+      "window_lateness": {
+        "allowed_lateness": false,
+        "lateness_time": 1,
+        "lateness_count_freq": 60
+      },
+      "correct_config_id": null,
+      "is_open_correct": false,
+      "id": 447375,
+      "from_nodes": [
+        {
+          "id": 447364,
+          "from_result_table_ids": [
+            "{{log_count_aggregation.result_table_id}}"
+          ]
+        }
+      ],
+      "node_type": "realtime",
+      "frontend_info": {
+        "x": 513,
+        "y": 271
+      }
+    },
+    {
       "name": "{{log_count_aggregation.log_count_aggregation.table_name}}({{log_count_aggregation.storage_type}})",
       "result_table_id": "{{log_count_aggregation.log_count_aggregation.result_table_id}}",
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
@@ -71,6 +106,29 @@
       "frontend_info": {
         "x": 796,
         "y": 172
+      }
+    },
+    {
+      "result_table_id": "{{log_count_aggregation.log_count_pattern_format.result_table_id}}",
+      "name": "{{log_count_aggregation.log_count_pattern_format.table_name}}(hdfs_storage)",
+      "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
+      "cluster": "{{log_count_aggregation.cluster}}",
+      "expires": {{log_count_aggregation.hdfs_storage.expires}},
+      "dimension_table": false,
+      "storage_keys": [ ],
+      "id": 447377,
+      "from_nodes": [
+        {
+          "id": 447375,
+          "from_result_table_ids": [
+            "{{log_count_aggregation.log_count_pattern_format.result_table_id}}"
+          ]
+        }
+      ],
+      "node_type": "hdfs_storage",
+      "frontend_info": {
+        "x": 796,
+        "y": 280
       }
     }
 ]

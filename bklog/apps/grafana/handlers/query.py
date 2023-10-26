@@ -34,10 +34,10 @@ from apps.grafana.constants import (
 )
 from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
-from apps.log_desensitize.models import DesensitizeFieldConfig
+from apps.log_desensitize.handlers.utils import desensitize_params_init
+from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_search.constants import GlobalCategoriesEnum
 from apps.log_search.exceptions import BaseSearchIndexSetDataDoseNotExists
-from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
@@ -59,7 +59,7 @@ class GrafanaQueryHandler:
         {"id": "min", "name": "MIN"},
         {"id": "max", "name": "MAX"},
         {"id": "avg", "name": "AVG"},
-        {"id": "cardinality", "name": "UNIQUE_COUNT"},
+        {"id": "cardinality", "name": "UNIQUE_COUNT"}
     ]
 
     CONDITION_CHOICES = [
@@ -124,7 +124,7 @@ class GrafanaQueryHandler:
             record[metric_field] = aggregations.get(metric_field).get("value")
             records.append(copy.deepcopy(record))
 
-    def _format_time_series(self, params, data, time_field, desensitize_configs=None):
+    def _format_time_series(self, params, data, time_field, desensitize_entities=None):
         """
         转换为Grafana TimeSeries的格式
         :param params: 请求参数
@@ -139,12 +139,9 @@ class GrafanaQueryHandler:
         :rtype: list
         """
         formatted_data = defaultdict(list)
-        desensitize_configs = desensitize_configs or []
-        desensitize_handler = DesensitizeHandler(desensitize_configs)
         for record in data:
             # 字段脱敏处理
-            if desensitize_configs:
-                record = desensitize_handler.transform_dict(record)
+            record = DesensitizeHandler(desensitize_entities).transform_dict(record)
             dimensions = tuple(
                 sorted(
                     (key, value)
@@ -276,9 +273,7 @@ class GrafanaQueryHandler:
         self.check_panel_permission(query_dict["dashboard_id"], query_dict["panel_id"], query_dict["result_table_id"])
 
         # 初始化DB脱敏配置
-        desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(
-            index_set_id=query_dict["result_table_id"]
-        )
+        desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(index_set_id=query_dict["result_table_id"])
 
         desensitize_configs = [
             {
@@ -286,10 +281,11 @@ class GrafanaQueryHandler:
                 "rule_id": field_config_obj.rule_id or 0,
                 "operator": field_config_obj.operator,
                 "params": field_config_obj.params,
-                "match_pattern": field_config_obj.match_pattern,
-            }
-            for field_config_obj in desensitize_field_config_objs
+            } for field_config_obj in desensitize_field_config_objs
         ]
+
+        # 初始化脱敏工厂参数
+        desensitize_entities = desensitize_params_init(desensitize_configs=desensitize_configs)
 
         time_field = SearchHandler(query_dict["result_table_id"], {}).time_field
 
@@ -336,7 +332,7 @@ class GrafanaQueryHandler:
         records = []
         self._get_buckets(records, {}, all_dimensions, result["aggregations"], query_dict["metric_field"])
 
-        records = self._format_time_series(query_dict, records, search_handler.time_field, desensitize_configs)
+        records = self._format_time_series(query_dict, records, search_handler.time_field, desensitize_entities)
 
         return records
 
@@ -406,9 +402,7 @@ class GrafanaQueryHandler:
         space_uid = self.space_uid
         if not space_uid:
             return []
-
-        space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
-        index_set_list = LogIndexSet.objects.filter(space_uid__in=space_uids)
+        index_set_list = LogIndexSet.objects.filter(space_uid=space_uid)
 
         if category_id:
             index_set_list = index_set_list.filter(category_id=category_id)
@@ -689,19 +683,6 @@ class GrafanaQueryHandler:
 
         return [{"label": v, "value": v} for v in dimension_values]
 
-    def _query_index_set(self, params):
-        """
-        查询维度
-        """
-        metrics = self.get_metric_list()
-
-        results = []
-
-        for group in metrics:
-            for metric in group["children"]:
-                results.append({"label": metric["name"], "value": metric["id"]})
-        return results
-
     def get_variable_value(self, variable_type, params):
         query_cmdb = partial(self._query_cmdb, variable_type=variable_type)
         query_processor = {
@@ -709,7 +690,6 @@ class GrafanaQueryHandler:
             "module": query_cmdb,
             "set": query_cmdb,
             "dimension": self._query_dimension,
-            "index_set": self._query_index_set,
         }
 
         if variable_type not in query_processor:

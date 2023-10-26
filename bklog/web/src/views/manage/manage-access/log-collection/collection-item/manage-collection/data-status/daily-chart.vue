@@ -85,15 +85,7 @@ export default {
     };
   },
   computed: {
-    ...mapGetters({
-      chartSizeNum: 'chartSizeNum',
-    }),
     ...mapGetters('collect', ['curCollect']),
-  },
-  watch: {
-    chartSizeNum() {
-      this.resizeChart();
-    },
   },
   created() {
     this.fetchChartData();

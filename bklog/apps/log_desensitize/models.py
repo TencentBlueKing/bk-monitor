@@ -65,7 +65,6 @@ class DesensitizeFieldConfig(OperateRecordModel):
     index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
     field_name = models.CharField(_("字段名称"), max_length=64, blank=True, default="")
     rule_id = models.IntegerField(_("脱敏规则ID"), default=0, db_index=True)
-    match_pattern = models.TextField(_("匹配模式"), default="", null=True, blank=True)
     operator = models.CharField(_("脱敏算子"), max_length=64, choices=DesensitizeOperator.get_choices())
     params = models.JSONField(_("脱敏参数"), default=dict, null=True)
     sort_index = models.IntegerField(_("优先级"), null=True, default=0)

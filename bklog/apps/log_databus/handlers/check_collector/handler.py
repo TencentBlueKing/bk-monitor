@@ -63,8 +63,8 @@ class CheckCollectorHandler:
         self.bk_data_name = None
         self.bk_data_id = None
         self.bk_biz_id = None
-        self.target_server: Dict[str, Any] = {}
-        self.collector_config: Optional[CollectorConfig]
+        self.target_server: Optional[Dict[str, Any], None] = None
+        self.collector_config: Optional[CollectorConfig, None] = None
         self.gse_path = gse_path or os.environ.get("GSE_ROOT_PATH", GSE_PATH)
         self.ipc_path = ipc_path or os.environ.get("GSE_IPC_PATH", IPC_PATH)
 
@@ -167,9 +167,7 @@ class CheckCollectorHandler:
         )
         transfer_checker.run()
 
-        es_checker = EsChecker(
-            table_id=self.table_id, bk_data_name=self.bk_data_name, check_collector_record=self.record
-        )
+        es_checker = EsChecker(self.table_id, self.bk_data_name, check_collector_record=self.record)
         es_checker.run()
 
         meta_data_checker = MetaDataChecker(check_collector_record=self.record)

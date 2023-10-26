@@ -154,8 +154,12 @@ class CreateNewClsStrategyService(BaseService):
         index_set_id = data.get_one_of_inputs("index_set_id")
         log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         if log_index_set:
-            ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id).create_new_cls_strategy()
+            bk_biz_id = clustering_config.bk_biz_id
+            ClusteringMonitorHandler(
+                index_set_id=log_index_set.index_set_id, bk_biz_id=bk_biz_id
+            ).create_new_cls_strategy()
         return True
 
 
@@ -216,7 +220,8 @@ class CreateNewIndexSetService(BaseService):
         new_cls_index_set.save()
         log_index_set = LogIndexSet.objects.filter(index_set_id=new_cls_index_set.index_set_id).first()
         LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
-        ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id).create_new_cls_strategy()
+        bk_biz_id = clustering_config.bk_biz_id
+        ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id, bk_biz_id=bk_biz_id).create_new_cls_strategy()
         return True
 
 
@@ -314,9 +319,6 @@ class CreatePredictFlowService(BaseService):
         flow = DataFlowHandler().create_predict_flow(index_set_id=index_set_id)
         is_collect_index_set = bool(data.get_one_of_inputs("collector_config_id"))
         if is_collect_index_set:
-            # 添加索引集表标签
-            log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-            LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
             # 采集项要继续消费，能跟历史数据无缝衔接，避免丢数据
             consuming_mode = "continue"
         else:

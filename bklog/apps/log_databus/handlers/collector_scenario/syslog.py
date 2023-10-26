@@ -19,9 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import LogPluginInfo, EtlConfig
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
+
 from django.utils.translation import ugettext as _
 
 
@@ -72,14 +73,7 @@ class SysLogScenario(CollectorScenario):
         """
         built_in_config = {
             "option": {
-                "es_unique_field_list": [
-                    "cloudId",
-                    "serverIp",
-                    "gseIndex",
-                    "iterationIndex",
-                    "bk_host_id",
-                    "dtEventTimeStamp",
-                ],
+                "es_unique_field_list": ["cloudId", "serverIp", "gseIndex", "iterationIndex"],
                 "separator_node_source": "",
                 "separator_node_action": "",
                 "separator_node_name": "",
@@ -161,40 +155,39 @@ class SysLogScenario(CollectorScenario):
             },
         }
         if etl_config == EtlConfig.BK_LOG_TEXT:
-            built_in_config["fields"].extend(
-                [
-                    {
-                        "field_name": "syslogSource",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "log",
-                        "description": "客户端信息",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                    {
-                        "field_name": "syslogLabel",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "syslog",
-                        "description": "严重程度",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                    {
-                        "field_name": "syslogEvent",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "event",
-                        "description": "日志级别",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                    {
-                        "field_name": "syslogProcess",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "process",
-                        "description": "应用程序",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                ]
-            )
+            built_in_config["fields"].extend([
+                {
+                    "field_name": "syslogSource",
+                    "field_type": "object",
+                    "tag": "dimension",
+                    "alias_name": "log",
+                    "description": "客户端信息",
+                    "option": build_es_option_type("object", es_version),
+                },
+                {
+                    "field_name": "syslogLabel",
+                    "field_type": "object",
+                    "tag": "dimension",
+                    "alias_name": "syslog",
+                    "description": "严重程度",
+                    "option": build_es_option_type("object", es_version),
+                },
+                {
+                    "field_name": "syslogEvent",
+                    "field_type": "object",
+                    "tag": "dimension",
+                    "alias_name": "event",
+                    "description": "日志级别",
+                    "option": build_es_option_type("object", es_version),
+                },
+                {
+                    "field_name": "syslogProcess",
+                    "field_type": "object",
+                    "tag": "dimension",
+                    "alias_name": "process",
+                    "description": "应用程序",
+                    "option": build_es_option_type("object", es_version),
+                },
+
+            ])
         return built_in_config

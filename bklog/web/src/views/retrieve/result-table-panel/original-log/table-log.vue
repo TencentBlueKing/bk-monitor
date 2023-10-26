@@ -304,6 +304,7 @@ export default {
       .visiable-field {
         .cell {
           /* stylelint-disable-next-line declaration-no-important */
+          display: flex !important;
           padding: 12px 14px 0 14px;
         }
 
@@ -379,7 +380,7 @@ export default {
         top: 17px;
       }
 
-      &.is-wrap td .cell {
+      &.is-wrap .cell {
         display: inline-table;
       }
 
@@ -418,35 +419,12 @@ export default {
       }
     }
 
-    .render-header {
+    :deep(.render-header) {
       .field-type-icon {
         width: 12px;
         margin: 0 4px 0 0;
         font-size: 12px;
         color: #979ba5;
-      }
-
-      .toggle-display {
-        position: absolute;
-        right: 12px;
-        top: 16px;
-        color: #c4c6cc;
-        cursor: pointer;
-        display: none;
-
-        &:hover {
-          color: #ea3636;
-        }
-
-        &.is-hidden {
-          visibility: hidden;
-        }
-      }
-    }
-
-    th .cell:hover {
-      .toggle-display {
-        display: inline-block;
       }
     }
   }

@@ -22,39 +22,44 @@
 
 <template>
   <div class="filter-popover-content">
-    <div class="title">{{ $t('是否可聚合') }}</div>
+    <div class="title">{{ $t('可聚合') }}</div>
     <bk-radio-group v-model="polymerizable" class="king-radio-group">
       <bk-radio value="0">{{ $t('不限') }}</bk-radio>
       <bk-radio value="1">{{ $t('是') }}</bk-radio>
       <bk-radio value="2">{{ $t('否') }}</bk-radio>
     </bk-radio-group>
     <div class="title">{{ $t('字段类型') }}</div>
-    <div class="bk-button-group">
-      <bk-button
-        v-for="item in showFieldTypeList"
-        :key="item"
-        @click="fieldType = item"
-        :class="fieldType === item ? 'is-selected' : ''"
-        size="small">
-        <div class="custom-button">
-          <span
-            class="field-filter-option-icon"
-            :class="item === 'any' ? '' : fieldTypeMap[item].icon">
-          </span>
-          <span class="bk-option-name">{{ fieldTypeMap[item].name }}</span>
-        </div>
-      </bk-button>
-    </div>
+    <bk-select
+      v-model="fieldType"
+      class="king-select"
+      :clearable="false"
+      :prefix-icon="fieldTypeMap[fieldType].icon">
+      <template v-for="item in showFieldTypeList">
+        <bk-option
+          :key="item"
+          :id="item"
+          :name="fieldTypeMap[item].name">
+          <div class="option-container">
+            <span
+              class="field-filter-option-icon"
+              :class="fieldTypeMap[item].icon">
+            </span>
+            <span class="bk-option-name">{{ fieldTypeMap[item].name }}</span>
+          </div>
+        </bk-option>
+      </template>
+    </bk-select>
     <div class="button-container">
       <bk-button
-        class="king-button mr10"
+        class="king-button"
+        text
         size="small"
-        theme="primary"
         @click="handleConfirm">
         {{ $t('确定') }}
       </bk-button>
       <bk-button
         class="king-button"
+        text
         size="small"
         @click="handleCancel">
         {{ $t('取消') }}
@@ -146,53 +151,28 @@ export default {
 
 <style lang="scss" scoped>
   .filter-popover-content {
-    padding: 8px 2px;
+    width: 210px;
 
     .title {
       font-size: 12px;
       line-height: 16px;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
 
     .king-radio-group {
+      display: flex;
       justify-content: space-between;
-      margin-bottom: 22px;
-
-      .bk-form-radio {
-        margin-right: 24px;
-        font-size: 12px;
-      }
-    }
-
-    .bk-button-group {
-      .bk-button {
-        padding: 0 8px;
-      }
-
-      .custom-button {
-        .bk-icon,
-        .log-icon {
-          margin-left: 0;
-          font-size: 12px;
-        }
-
-        .icon-clock {
-          position: relative;
-          top: -1px;
-        }
-
-        .icon-ext {
-          position: relative;
-          top: -1px;
-          margin-right: 4px;
-        }
-      }
+      margin-bottom: 12px
     }
 
     .button-container {
       display: flex;
       justify-content: flex-end;
-      margin-top: 24px;
+      margin-top: 10px;
+
+      .king-button {
+        padding-right: 0;
+      }
     }
 
     :deep(.bk-select-prefix-icon) {

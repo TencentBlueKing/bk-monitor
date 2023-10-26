@@ -32,6 +32,7 @@ from apps.log_search.handlers.search.search_handlers_esquery import (
 )
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
+from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import (
     DTEVENTTIMESTAMP_MULTIPLICATOR,
     generate_time_range,
@@ -167,7 +168,10 @@ class AggsHandlers(AggsBase):
         time_format = cls.TIME_FORMAT_MAP.get(interval, cls.TIME_FORMAT)
         datetime_format = cls.DATETIME_FORMAT_MAP.get(interval, cls.DATETIME_FORMAT)
 
-        time_field, time_field_type, time_field_unit = SearchHandlerEsquery.init_time_field(index_set_id)
+        esquery_obj = SearchHandlerEsquery(index_set_id, copy.deepcopy(query_data))
+        time_field = esquery_obj.time_field
+        time_field_type = esquery_obj.time_field_type
+
         # https://github.com/elastic/elasticsearch/issues/42270 非date类型不支持timezone, time format也无效
         if time_field_type == TimeFieldTypeEnum.DATE.value:
             min_value = start_time.timestamp * 1000
@@ -183,9 +187,9 @@ class AggsHandlers(AggsBase):
             )
         else:
             num = 10 ** 3
-            if time_field_unit == TimeFieldUnitEnum.SECOND.value:
+            if esquery_obj.time_field_unit == TimeFieldUnitEnum.SECOND.value:
                 num = 1
-            elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
+            elif esquery_obj.time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
                 num = 10 ** 6
             min_value = start_time.timestamp * num
             max_value = end_time.timestamp * num
@@ -207,9 +211,9 @@ class AggsHandlers(AggsBase):
         if time_field_type != TimeFieldTypeEnum.DATE.value:
             buckets = result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
             time_multiplicator = 1 / (10 ** 3)
-            if time_field_unit == TimeFieldUnitEnum.SECOND.value:
+            if esquery_obj.time_field_unit == TimeFieldUnitEnum.SECOND.value:
                 time_multiplicator = 1
-            elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
+            elif esquery_obj.time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
                 time_multiplicator = 1 / (10 ** 6)
             for _buckets in buckets:
                 _buckets["key_as_string"] = timestamp_to_timeformat(
@@ -316,6 +320,7 @@ class AggsViewAdapter(object):
         histogram_dict = {}
         labels = []
         for _data in histogram_data.get("buckets", []):
+
             # labels 横坐标时间轴
             labels.append(_data.get("key_as_string"))
 
@@ -333,6 +338,7 @@ class AggsViewAdapter(object):
                 # doc: key, count
                 buckets = _data.get(field, {}).get("buckets", [])
                 for _doc in buckets:
+
                     # 获取指标值和doc_count
                     if metric_key == "doc_count":
                         doc_count = doc_value = _doc.get("doc_count") or 0
@@ -384,6 +390,45 @@ class AggsViewAdapter(object):
                 )
         return_data["aggs"] = self._del_empty_histogram(return_data["aggs"])
         return return_data
+
+    @staticmethod
+    def union_search_date_histogram(query_data: dict):
+        index_set_ids = query_data.get("index_set_ids", [])
+
+        # 多线程请求数据
+        multi_execute_func = MultiExecuteFunc()
+
+        for index_set_id in index_set_ids:
+            params = {"index_set_id": index_set_id, "query_data": query_data}
+            multi_execute_func.append(
+                result_key=f"union_search_date_histogram_{index_set_id}",
+                func=AggsViewAdapter().date_histogram,
+                params=params,
+                multi_func_params=True,
+            )
+
+        multi_result = multi_execute_func.run()
+
+        buckets_info = dict()
+        # 处理返回结果
+        for index_set_id in index_set_ids:
+            result = multi_result.get(f"union_search_date_histogram_{index_set_id}", {})
+            aggs = result.get("aggs", {})
+            if not aggs:
+                continue
+            buckets = aggs["group_by_histogram"]["buckets"]
+            for bucket in buckets:
+                key_as_string = bucket["key_as_string"]
+                if key_as_string not in buckets_info:
+                    buckets_info[key_as_string] = bucket
+                else:
+                    buckets_info[key_as_string]["doc_count"] += bucket["doc_count"]
+
+        ret_data = (
+            {"aggs": {"group_by_histogram": {"buckets": buckets_info.values()}}} if buckets_info else {"aggs": {}}
+        )
+
+        return ret_data
 
     def _del_empty_histogram(self, aggs):
         """

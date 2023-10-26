@@ -90,7 +90,6 @@ const store = new Vuex.Store({
     demoUid: '',
     spaceBgColor: '', // 空间颜色
     isEnLanguage: false,
-    chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
   },
   // 公共 getters
   getters: {
@@ -113,7 +112,6 @@ const store = new Vuex.Store({
       children.some(item => (item.id === 'permissionGroup' && item.project_manage === true))),
     spaceBgColor: state => state.spaceBgColor,
     isEnLanguage: state => state.isEnLanguage,
-    chartSizeNum: state => state.chartSizeNum,
   },
   // 公共 mutations
   mutations: {
@@ -224,9 +222,6 @@ const store = new Vuex.Store({
     },
     updateIsEnLanguage(state, val) {
       state.isEnLanguage = val;
-    },
-    updateChartSize(state) {
-      state.chartSizeNum += 1;
     },
   },
   actions: {

@@ -76,9 +76,9 @@
         <slot name="trigger">
           <div class="auto-refresh-trigger">
             <span
-              :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
+              :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-refresh-icon']"
               data-test-id="retrieve_span_periodicRefresh"
-              @click.stop="handleRefreshDebounce"></span>
+              @click.stop="$emit('shouldRetrieve')"></span>
             <span :class="isAutoRefresh && 'active-text'">{{refreshTimeText}}</span>
             <span class="bk-icon icon-angle-down" :class="refreshActive && 'active'"></span>
           </div>
@@ -143,7 +143,6 @@ import { mapState } from 'vuex';
 import BizMenuSelect from '@/components/biz-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import StepBox from '@/components/step-box';
-import { debounce } from 'throttle-debounce';
 
 export default {
   components: {
@@ -196,7 +195,7 @@ export default {
       refreshTimer: null, // 自动刷新定时器
       refreshTimeout: 0, // 0 这里表示关闭自动刷新
       refreshTimeList: [{
-        id: 0, name: `off ${this.$t('关闭')}`,
+        id: 0, name: this.$t('刷新'),
       }, {
         id: 60000, name: '1m',
       }, {
@@ -248,7 +247,6 @@ export default {
       userGuideData: state => state.userGuideData,
     }),
     refreshTimeText() {
-      if (!this.refreshTimeout) return 'off';
       return this.refreshTimeList.find(item => item.id === this.refreshTimeout).name;
     },
     isAutoRefresh() {
@@ -292,7 +290,6 @@ export default {
   },
   created() {
     this.showCollectIntroGuide = this.userGuideData?.function_guide?.search_favorite ?? false;
-    this.handleRefreshDebounce = debounce(300, false, this.handleRefresh);
   },
   mounted() {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -435,9 +432,6 @@ export default {
       this.$http.request('meta/getUserGuide').then((res) => {
         this.$store.commit('setUserGuideData', res.data);
       });
-    },
-    handleRefresh() {
-      this.$emit('shouldRetrieve');
     },
   },
 };

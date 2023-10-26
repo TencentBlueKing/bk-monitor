@@ -23,6 +23,8 @@ import copy
 import json
 from typing import Union
 
+from django.conf import settings
+
 from apps.api import BkDataDatabusApi
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
 from apps.log_databus.exceptions import BKBASEStorageNotExistException
@@ -33,7 +35,6 @@ from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.utils.local import get_request_username
-from django.conf import settings
 
 
 class BKBaseEtlHandler(EtlHandler):
@@ -94,15 +95,6 @@ class BKBaseEtlHandler(EtlHandler):
         bkdata_json_config = etl_storage.get_bkdata_etl_config(fields, etl_params, built_in_config)
         fields_config.append({"alias_name": "time", "field_name": "time", "option": {"es_type": "long"}})
 
-        # 当用户使用了自定义字段作为时间字段，则会产生同名字段，需要去重
-        fields_names = set()
-        dedupe_fields_config = []
-        for field in fields_config:
-            field_name = field.get("alias_name") if field.get("alias_name") else field.get("field_name")
-            if field_name not in fields_names:
-                dedupe_fields_config.append(field)
-                fields_names.add(field_name)
-
         bkdata_params = {
             "raw_data_id": instance.bk_data_id,
             "result_table_name": f"{settings.TABLE_ID_PREFIX}_{instance.get_en_name()}",
@@ -119,7 +111,7 @@ class BKBaseEtlHandler(EtlHandler):
                     "is_dimension": field.get("tag", "dimension") == "dimension",
                     "field_index": index,
                 }
-                for index, field in enumerate(dedupe_fields_config, 1)
+                for index, field in enumerate(fields_config, 1)
             ],
             "json_config": json.dumps(bkdata_json_config),
         }

@@ -81,14 +81,6 @@ class _MonitorApi(object):
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )
-        self.save_alarm_strategy_v3 = DataAPI(
-            method="POST",
-            url=MONITOR_APIGATEWAY_ROOT + "save_alarm_strategy_v3/",
-            module=self.MODULE,
-            description="保存告警策略V3",
-            default_return_value=None,
-            before_request=add_esb_info_before_request,
-        )
         self.query_log_relation = DataAPI(
             method="POST",
             url=MONITOR_APIGATEWAY_ROOT + "query_log_relation",

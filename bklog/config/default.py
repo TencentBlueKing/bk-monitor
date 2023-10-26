@@ -117,9 +117,7 @@ MIDDLEWARE = (
     # Auth middleware
     "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
-    # "blueapps.account.middlewares.LoginRequiredMiddleware",
-    # 注释掉是因为ApiTokenAuthenticationMiddleware中针对非TOKEN校验的会继承父类
-    "apps.middleware.api_token_middleware.ApiTokenAuthenticationMiddleware",
+    "blueapps.account.middlewares.LoginRequiredMiddleware",
     # exception middleware
     "blueapps.core.exceptions.middleware.AppExceptionMiddleware",
     # 自定义中间件
@@ -474,7 +472,6 @@ LOCALE_PATHS = (os.path.join(PROJECT_ROOT, "locale"),)
 # ===============================================================================
 AUTH_USER_MODEL = "account.User"
 AUTHENTICATION_BACKENDS = (
-    "apps.middleware.api_token_middleware.ApiTokenAuthBackend",
     "blueapps.account.backends.BkJwtBackend",
     "blueapps.account.backends.UserBackend",
     "django.contrib.auth.backends.ModelBackend",
@@ -833,9 +830,6 @@ BLUEKING_BK_BIZ_ID = int(os.environ.get("BKAPP_BLUEKING_BK_BIZ_ID", 2))
 BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
     "BKAPP_BKMONITOR_CUSTOM_PROXY_IP", "http://report.bkmonitorv3.service.consul:10205"
 )
-# 蓝鲸监控平台的业务ID
-BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
-TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
 
 # ===============================================================================
 # EsQuery
@@ -977,9 +971,6 @@ CONTAINER_COLLECTOR_CONFIG_DIR = os.getenv("BKAPP_CONTAINER_COLLECTOR_CONFIG_DIR
 # 容器下发CR全局标签
 CONTAINER_COLLECTOR_CR_LABEL_BKENV: str = os.getenv("BKAPP_CONTAINER_COLLECTOR_CR_LABEL_BKENV", "")
 
-# 是否开启RETAIN_EXTRA_JSON
-RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "off") == "on"
-
 # ==============================================================================
 # Templates
 # ==============================================================================
@@ -1092,10 +1083,6 @@ HOST_IDENTIFIER_PRIORITY = os.environ.get("HOST_IDENTIFIER_PRIORITY", "bk_host_i
 CHECK_COLLECTOR_SWITCH: bool = os.getenv("CHECK_COLLECTOR_SWITCH", "off") == "on"
 # ==============================================================================
 
-# ==============================================================================
-# HTTPS 代理转发
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-# ==============================================================================
 
 """
 以下为框架代码 请勿修改

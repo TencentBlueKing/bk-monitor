@@ -44,7 +44,6 @@
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
-            :field-name="field"
             :field-type="getFieldType(field)"
             :menu-click="(type, content) => handleMenuClick(type, content, field)"
           />
@@ -121,8 +120,8 @@ export default {
       toolMenuTips: {
         is: this.$t('添加 {n} 过滤项', { n: '=' }),
         not: this.$t('添加 {n} 过滤项', { n: '!=' }),
-        hiddenField: this.$t('将字段从表格中移除'),
-        displayField: this.$t('将字段添加至表格中'),
+        hiddenField: this.$t('隐藏字段'),
+        displayField: this.$t('显示字段'),
         copy: this.$t('复制'),
         text_is: this.$t('文本类型不支持 {n} 操作', { n: '=' }),
         text_not: this.$t('文本类型不支持 {n} 操作', { n: '!=' }),
@@ -155,8 +154,7 @@ export default {
     formatterStr(row, field) {
       // 判断当前类型是否为虚拟字段 若是虚拟字段则不使用origin_list而使用list里的数据
       const fieldType = this.getFieldType(field);
-      // const rowData = fieldType === '__virtual__' ? this.listData : row;
-      const rowData = this.listData;
+      const rowData = fieldType === '__virtual__' ? this.listData : row;
       return this.tableRowDeepView(rowData, field, fieldType);
     },
     getHandleIcon(option, field) {
@@ -192,13 +190,6 @@ export default {
       if (type === 'text' && ['is', 'not'].includes(id)) return this.toolMenuTips[`text_${id}`];
       if (type === '__virtual__' && ['is', 'not'].includes(id)) return this.$t('该字段为平台补充 不可检索');
       if (this.filterIsExist(id, field)) return this.$t('已添加过滤条件');
-
-      if (['is', 'not'].includes(id)) {
-        const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(field), false);
-        const operator = id === 'is' ? '=' : '!=';
-        return `${field} ${operator} ${curValue}`;
-      }
-
       if (id !== 'display') return this.toolMenuTips[id];
 
       const isDisplay = this.visibleFields.some(item => item.field_name === field);

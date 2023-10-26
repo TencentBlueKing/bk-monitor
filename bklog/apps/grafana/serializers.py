@@ -31,7 +31,7 @@ class GetVariableFieldSerializer(serializers.Serializer):
 
 class GetVariableValueSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    type = serializers.ChoiceField(label=_("查询类型"), choices=["dimension", "host", "module", "set", "index_set"])
+    type = serializers.ChoiceField(label=_("查询类型"), choices=["dimension", "host", "module", "set"])
     params = serializers.DictField(label=_("查询参数"))
 
 

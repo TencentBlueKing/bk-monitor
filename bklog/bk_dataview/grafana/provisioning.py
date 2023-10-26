@@ -24,7 +24,7 @@ import json
 import logging
 import os.path
 from dataclasses import dataclass
-from typing import Dict, List, Union
+from typing import Dict, Union, List
 
 import yaml
 
@@ -52,7 +52,6 @@ class Datasource:
     version: int = 0
     orgId: int = -1
     is_delete: bool = False
-    secureJsonData: Union[None, Dict] = None
 
 
 @dataclass

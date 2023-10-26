@@ -55,7 +55,6 @@ export default {
       this.currentScreenX = null;
       window.removeEventListener('mousemove', this.dragMoving);
       window.removeEventListener('mouseup', this.dragStop);
-      this.$store.commit('updateChartSize');
     },
   },
 };
