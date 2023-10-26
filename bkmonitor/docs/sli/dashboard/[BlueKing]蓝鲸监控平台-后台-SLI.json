@@ -1,0 +1,6160 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_★【BKOP】生产",
+      "label": "★【BKOP】生产",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "bkmonitor-timeseries-datasource",
+      "pluginName": "Blueking Monitor TimeSeries"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "bkmonitor-timeseries-datasource",
+      "name": "Blueking Monitor TimeSeries",
+      "version": "3.6.0"
+    },
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.4.3"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": " [BlueKing]蓝鲸监控平台-后台 SLI",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 132,
+      "panels": [],
+      "title": "Errors",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "access 模块拉取各个渠道数据源的执行成功率",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-RdYlGr"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 1,
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.85
+              },
+              {
+                "color": "orange",
+                "value": 0.9
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 95,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "$tag_data_source_label-$tag_data_type_label",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "data_source_label",
+                "data_type_label"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_datasource_query_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "data_source_label",
+                "data_type_label"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_datasource_query_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "各渠道数据源查询成功率",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "监控后台从数据拉取至告警生成之间各个模块的处理成功率， 低于99%需要关注\naccess data: 时序数据拉取\naccess event: 自定义事件拉取\ndetect: 异常点检测\ntrigger: 告警触发条件检测\nalert builder: 告警生成和事件关联\nalert manager: 告警周期状态维护，包括告警升级，告警屏蔽, 告警恢复和关闭等",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-RdYlGr"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 1,
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "id": 63,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "access event",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_event_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_event_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "access data",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_data_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_data_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "detect",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "trigger",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "alert builder",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "E",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "alert manager",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_manage_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_manage_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "F",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "数据拉取至告警生成处理成功率",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "告警生成之后的对应事件处理                                                                                    \ncreate(total): 处理套餐创建任务                                                                              \ncreate(interval): 周期创建任务的执行                                                                              \nconverge: 告警防御和通知汇总的处理，可关注模块alarm_converge                                                                              \nexecute: 通知和处理套餐任务的执行情况，可关注模块alarm_action                                                                              \nnotice: 通知的执行情况，成功率低可能是通知用户不存在                                                                              \nassign: 告警分派的执行情况                                                                              ",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-RdYlGr"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 1,
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 93,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "create(total)",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "create(interval)",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                },
+                {
+                  "condition": "and",
+                  "key": "run_type",
+                  "method": "eq",
+                  "value": [
+                    "interval"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "run_type",
+                  "method": "eq",
+                  "value": [
+                    "interval"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "converge",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "收敛action次数",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_converge_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_converge_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "execute",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "notice",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_status_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "plugin_type",
+                  "method": "eq",
+                  "value": [
+                    "notice",
+                    "collect"
+                  ]
+                },
+                {
+                  "condition": "and",
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_status_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "plugin_type",
+                  "method": "eq",
+                  "value": [
+                    "notice",
+                    "collect"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "E",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "assign",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_assign_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_assign_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "F",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "告警处理成功率",
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 140,
+      "panels": [],
+      "title": "Traffic",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "datasource模块各个渠道数据源的查询耗时",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 0.5,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "cpm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 11
+      },
+      "id": 136,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "$tag_role-$tag_data_source_label-$tag_data_type_label",
+          "query_configs": [
+            {
+              "alias": "$tag_data_source_label-$tag_data_type_label",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "role",
+                "data_type_label",
+                "data_source_label"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_datasource_query_time_count",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "role",
+                  "method": "eq",
+                  "value": [
+                    "worker"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "各个渠道数据源每分钟查询量",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "监控后台从数据拉取至告警生成之间各个模块的处理平均耗时\naccess data: 时序数据拉取\naccess event: 自定义事件拉取\ndetect: 异常点检测",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 0.5,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "cpm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 11
+      },
+      "id": 137,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[pull]access data",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_data_process_pull_data_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[pull]access event",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_event_process_pull_data_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[push] access $tag_type",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "type"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_process_push_data_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[$tag_type] detect",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "type"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_data_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "access & detect数据处理量",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "监控后台从数据拉取至告警生成之间各个模块的处理平均耗时                                           \ntrigger: 异常点数据处理量                                                                                       \nalert: 关联事件处理量                                                                                             \nconverge: 示执行的收敛数量，包括汇总收敛和业务汇总                                   \naction: 告警处理事件量,  push表示创建的处理记录数量，execute表示最终执行的处理记录数量                                                                                                                                                                                           \nnotice: 每分钟执行通知的次数",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 0.5,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "cpm"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "[push] trigger"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 11
+      },
+      "id": 138,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[pull] trigger",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_pull_data_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[push] trigger",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_push_data_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[push] alert",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_push_data_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[push] action",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_push_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "E",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": true,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[pull] converge",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_converge_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[execute]notice",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_status_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "plugin_type",
+                  "method": "eq",
+                  "value": [
+                    "notice",
+                    "collect"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "F",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": true,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[push] converge",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_converge_push_action_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "G",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "[execute]action",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "H",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "tigger&alert&action数据处理量",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 142,
+      "panels": [],
+      "title": "Latency",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "datasource模块各个渠道数据源的查询耗时",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 0.5,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 21
+      },
+      "id": 25,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "$tag_role-$tag_data_source_label-$tag_data_type_label",
+              "expression": "a / b",
+              "functions": []
+            }
+          ],
+          "host": [],
+          "module": [],
+          "only_promql": false,
+          "promqlAlias": "$tag_role-$tag_data_source_label-$tag_data_type_label",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "role",
+                "data_type_label",
+                "data_source_label"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_datasource_query_time_sum",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "role",
+                  "method": "eq",
+                  "value": [
+                    "worker"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "role",
+                "data_type_label",
+                "data_source_label"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_datasource_query_time_count",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "role",
+                  "method": "eq",
+                  "value": [
+                    "worker"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": ""
+        }
+      ],
+      "title": "各个渠道数据源的查询平均耗时",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "监控后台从数据拉取至告警生成之间各个模块的处理平均耗时\naccess data: 时序数据拉取\naccess event: 自定义事件拉取\ndetect: 异常点检测\ntrigger: 告警触发条件检测\nalert: 告警生成和事件关联\ncomposite: 告警关联和处理信号推送                                         ",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 0.5,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 21
+      },
+      "id": 148,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "access data",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_data_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "detect",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "trigger",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "alert",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "composite",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_composite_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "E",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "access event",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_event_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "F",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "converge",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_converge_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "G",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "action execute",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "H",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "action create",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": true,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                },
+                {
+                  "id": "histogram_quantile",
+                  "params": [
+                    {
+                      "id": "scalar",
+                      "value": 0.95
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "le"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_time_bucket",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "I",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "告警检测处理耗时: TP95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "detect: 表示access模块处理完之后到detect处理完成之后的延迟                                 \ntrigger: 数据从detect至trigger处理完之后的延迟                                                                  \nalert: 从trigger异常事件产生至alert告警生成之间的延迟                                  \naction: 从alert告警生成之后至告警首次处理之间的延迟                                                                  ",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 21
+      },
+      "id": 130,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "detect",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "rate",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_latency_sum",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "rate",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_latency_count",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "trigger",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "rate",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_latency_sum",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "rate",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_latency_count",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "alert",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "rate",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_latency_sum",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "rate",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_latency_count",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "action",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_latency_sum",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "signal",
+                  "method": "eq",
+                  "value": [
+                    "no_data",
+                    "abnormal"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_latency_count",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "signal",
+                  "method": "eq",
+                  "value": [
+                    "abnormal",
+                    "no_data"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "E",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "告警检测延迟占比",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 146,
+      "panels": [],
+      "title": "Errors(Time Series)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "access 模块拉取各个渠道数据源的执行成功率",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 1,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 1,
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.85
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 31
+      },
+      "id": 133,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "$tag_data_source_label-$tag_data_type_label",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "data_source_label",
+                "data_type_label"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_datasource_query_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [
+                "data_source_label",
+                "data_type_label"
+              ],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_datasource_query_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "各渠道数据源查询成功率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "监控后台从数据拉取至告警生成之间各个模块的处理成功率， 低于99%需要关注\naccess data: 时序数据拉取\naccess event: 自定义事件拉取\ndetect: 异常点检测\ntrigger: 告警触发条件检测\nalert builder: 告警生成和事件关联\nalert manager: 告警周期状态维护，包括告警升级，告警屏蔽, 告警恢复和关闭等",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 1,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 31
+      },
+      "id": 134,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "access event",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_event_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_event_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "access data",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_data_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_access_data_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "detect",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_detect_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "trigger",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_trigger_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "alert builder",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "E",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "alert manager",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_manage_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_manage_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "F",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "composite",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_composite_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_composite_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "G",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "数据拉取至告警生成处理成功率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "bkmonitor-timeseries-datasource",
+        "uid": "${DS_★【BKOP】生产}"
+      },
+      "description": "告警生成之后的对应事件处理\ncreate(total): 通知和处理套餐创建任务的执行\ncreate(interval): 通知和处理套餐周期创建任务的执行\nconverge: 告警防御和通知汇总的处理，可关注模块alarm_converge\nexecute: 通知和处理套餐任务的执行情况，可关注模块alarm_action\nnotice: 通知的执行情况，成功率低需要可查看告警中心执行记录，可能存在通知用户不存在导致失败的情况\nassign: 告警分派的执行情况",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 1,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.9
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 31
+      },
+      "id": 135,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.4.3",
+      "targets": [
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "create(total)",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "A",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "create(interval)",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                },
+                {
+                  "condition": "and",
+                  "key": "run_type",
+                  "method": "eq",
+                  "value": [
+                    "interval"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_create_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "run_type",
+                  "method": "eq",
+                  "value": [
+                    "interval"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "B",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "converge",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "收敛action次数",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_converge_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_converge_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "C",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "execute",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "D",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "notice",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_status_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "plugin_type",
+                  "method": "eq",
+                  "value": [
+                    "notice",
+                    "collect"
+                  ]
+                },
+                {
+                  "condition": "and",
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_action_execute_status_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "plugin_type",
+                  "method": "eq",
+                  "value": [
+                    "notice",
+                    "collect"
+                  ]
+                }
+              ]
+            }
+          ],
+          "refId": "E",
+          "source": "",
+          "step": "",
+          "type": "range"
+        },
+        {
+          "cluster": [],
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "expressionList": [
+            {
+              "active": true,
+              "alias": "assign",
+              "expression": "a/b",
+              "functions": []
+            }
+          ],
+          "format": "time_series",
+          "hide": false,
+          "host": [],
+          "mode": "ui",
+          "module": [],
+          "promqlAlias": "",
+          "query_configs": [
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_assign_process_count_total",
+              "refId": "a",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": [
+                {
+                  "key": "status",
+                  "method": "eq",
+                  "value": [
+                    "success"
+                  ]
+                }
+              ]
+            },
+            {
+              "alias": "",
+              "data_source_label": "custom",
+              "data_type_label": "time_series",
+              "display": false,
+              "filter_dict": {},
+              "functions": [
+                {
+                  "id": "increase",
+                  "params": [
+                    {
+                      "id": "window",
+                      "value": "2m"
+                    }
+                  ]
+                }
+              ],
+              "group_by": [],
+              "interval": 60,
+              "interval_unit": "s",
+              "method": "SUM",
+              "metric_field": "bkmonitor_alert_assign_process_count_total",
+              "refId": "b",
+              "result_table_id": "custom_report_aggate.base",
+              "result_table_label": "other_rt",
+              "time_field": "",
+              "where": []
+            }
+          ],
+          "refId": "F",
+          "source": "",
+          "step": "",
+          "type": "range"
+        }
+      ],
+      "title": "告警处理成功率",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 144,
+      "panels": [
+        {
+          "datasource": {
+            "type": "bkmonitor-timeseries-datasource",
+            "uid": "${DS_★【BKOP】生产}"
+          },
+          "description": "监控后台从数据拉取至告警生成之间各个模块的处理平均耗时\naccess data: 时序数据拉取\naccess event: 自定义事件拉取\ndetect: 异常点检测\ntrigger: 告警触发条件检测\nalert: 告警生成和事件关联\ncomposite: 告警关联和处理信号推送                                         ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 5,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "smooth",
+                "lineWidth": 0.5,
+                "pointSize": 4,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 8,
+            "x": 0,
+            "y": 41
+          },
+          "id": 27,
+          "options": {
+            "legend": {
+              "calcs": [
+                "last"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.1.0",
+          "targets": [
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "access data",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_access_data_process_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_access_data_process_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "A",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "detect",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_detect_process_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_detect_process_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "B",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "trigger",
+                  "expression": "b/a",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_trigger_process_time_count",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_trigger_process_time_sum",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "C",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "alert",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_alert_process_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_alert_process_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "D",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "composite",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_composite_process_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_composite_process_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "E",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "access event",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_access_event_process_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_access_event_process_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "F",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "converge",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_converge_process_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_converge_process_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "G",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "action execute",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_action_execute_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_action_execute_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "H",
+              "source": "",
+              "step": "",
+              "type": "range"
+            },
+            {
+              "cluster": [],
+              "datasource": {
+                "type": "bkmonitor-timeseries-datasource",
+                "uid": "${DS_★【BKOP】生产}"
+              },
+              "expressionList": [
+                {
+                  "active": true,
+                  "alias": "action create",
+                  "expression": "a/b",
+                  "functions": []
+                }
+              ],
+              "format": "time_series",
+              "hide": false,
+              "host": [],
+              "mode": "ui",
+              "module": [],
+              "promqlAlias": "",
+              "query_configs": [
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_action_create_process_time_sum",
+                  "refId": "a",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                },
+                {
+                  "alias": "",
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "display": false,
+                  "filter_dict": {},
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ],
+                  "group_by": [],
+                  "interval": 60,
+                  "interval_unit": "s",
+                  "method": "SUM",
+                  "metric_field": "bkmonitor_action_create_process_time_count",
+                  "refId": "b",
+                  "result_table_id": "custom_report_aggate.base",
+                  "result_table_label": "other_rt",
+                  "time_field": "",
+                  "where": []
+                }
+              ],
+              "refId": "I",
+              "source": "",
+              "step": "",
+              "type": "range"
+            }
+          ],
+          "title": "告警检测处理平均耗时",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Saturation",
+      "type": "row"
+    }
+  ],
+  "refresh": "",
+  "revision": 1,
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [
+    "上云",
+    "sg",
+    "运维",
+    "SLI"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "★【BKOP】生产",
+          "value": "★【BKOP】生产"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "env",
+        "options": [],
+        "query": "bkmonitor-timeseries-datasource",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "default",
+  "title": "[BlueKing]蓝鲸监控平台-后台 SLI",
+  "uid": "uyPQJs7Vknew",
+  "version": 173,
+  "weekStart": ""
+}
