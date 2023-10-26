@@ -123,3 +123,6 @@ class DateHistogramSerializer(TraceSearchAttrSerializer):
 
     fields = serializers.ListField(child=DateHistogramFieldSerializer(), required=False, default=[])
     interval = serializers.CharField(required=False, default="auto", max_length=16)
+
+class UnionSearchDateHistogramSerializer(DateHistogramSerializer):
+    index_set_ids = serializers.ListField(label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField())

@@ -432,6 +432,16 @@ class IntegerErrorException(BaseException):
     MESSAGE = _("{num} 不是一个合法的数值, 请输入合法数值")
 
 
+class UnionSearchFieldsFailException(BaseSearchException):
+    ERROR_CODE = "437"
+    MESSAGE = _("联合检索获取索引Mapping字段信息失败")
+
+
+class UnionSearchErrorException(BaseSearchException):
+    ERROR_CODE = "438"
+    MESSAGE = _("联合检索API异常")
+
+
 # =================================================
 # 导出
 # =================================================

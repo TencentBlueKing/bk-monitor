@@ -141,7 +141,10 @@ class FavoriteViewSet(APIViewSet):
         }
         """
         data = self.params_valid(FavoriteListSerializer)
-        return Response(FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(order_type=data["order_type"]))
+        return Response(FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(
+            order_type=data["order_type"],
+            index_set_type=data["index_set_type"]
+        ))
 
     @list_route(methods=["GET"])
     def list_by_group(self, request, *args, **kwargs):
@@ -196,7 +199,10 @@ class FavoriteViewSet(APIViewSet):
         """
         data = self.params_valid(FavoriteListSerializer)
         return Response(
-            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(order_type=data["order_type"])
+            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(
+                order_type=data["order_type"],
+                index_set_type=data["index_set_type"]
+            )
         )
 
     def create(self, request, *args, **kwargs):
@@ -279,6 +285,8 @@ class FavoriteViewSet(APIViewSet):
             is_enable_display_fields=data["is_enable_display_fields"],
             display_fields=data["display_fields"],
             group_id=data["group_id"],
+            index_set_ids=data["index_set_ids"],
+            index_set_type=data["index_set_type"],
         )
         return Response(favorite_search)
 

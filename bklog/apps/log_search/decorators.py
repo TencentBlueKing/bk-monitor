@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import functools
 import time
 
+from apps.log_search.constants import IndexSetType
 from apps.log_search.models import UserIndexSetSearchHistory
 
 
@@ -39,6 +40,7 @@ def search_history_record(func):
         # 更新查询耗时和记录history
         result.data["took"] = time_consume
         history_obj = result.data.get("history_obj")
+        union_search_history_obj = result.data.get("union_search_history_obj")
         if history_obj:
             UserIndexSetSearchHistory.objects.create(
                 index_set_id=history_obj["index_set_id"],
@@ -47,6 +49,17 @@ def search_history_record(func):
                 duration=time_consume,
             )
             del result.data["history_obj"]
+
+        if union_search_history_obj:
+            UserIndexSetSearchHistory.objects.create(
+                index_set_ids=union_search_history_obj["index_set_ids"],
+                params=union_search_history_obj["params"],
+                search_type=union_search_history_obj["search_type"],
+                duration=time_consume,
+                index_set_type=IndexSetType.UNION.value
+            )
+            del result.data["union_search_history_obj"]
+
         return result
 
     return wrapper
