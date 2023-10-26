@@ -22,30 +22,6 @@ the project delivered to anyone in the future.
 import copy
 import json
 
-from apps.generic import APIViewSet
-from apps.grafana.authentication import NoCsrfSessionAuthentication
-from apps.grafana.data_source import CustomESDataSourceHandler
-from apps.grafana.handlers.home_dashboard import patch_home_panels
-from apps.grafana.handlers.query import GrafanaQueryHandler
-from apps.grafana.serializers import (
-    DimensionSerializer,
-    GetMetricListSerializer,
-    GetVariableFieldSerializer,
-    GetVariableValueSerializer,
-    QueryLogSerializer,
-    QuerySerializer,
-    TargetTreeSerializer,
-    TracesSerializer,
-)
-from apps.grafana.utils import XNDJSONParser
-from apps.iam import ActionEnum, Permission, ResourceEnum
-from apps.iam.handlers.drf import BusinessActionPermission, InstanceActionPermission
-from apps.log_search.handlers.biz import BizHandler
-from apps.log_search.permission import Permission as JwtPermission
-from apps.log_trace.handlers.trace_handlers import TraceHandler
-from apps.utils.drf import detail_route, list_route
-from apps.utils.log import logger
-from bk_dataview.grafana.views import ProxyView, SwitchOrgView
 from blueapps.middleware.xss.decorators import escape_exempt
 from django.conf import settings
 from django.http import HttpResponse
@@ -54,6 +30,30 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
+
+from apps.log_trace.handlers.trace_handlers import TraceHandler
+from apps.utils.drf import list_route, detail_route
+from apps.utils.log import logger
+from apps.generic import APIViewSet
+from apps.log_search.permission import Permission as JwtPermission
+from apps.grafana.authentication import NoCsrfSessionAuthentication
+from apps.grafana.handlers.home_dashboard import patch_home_panels
+from apps.grafana.handlers.query import GrafanaQueryHandler
+from apps.grafana.serializers import (
+    GetVariableValueSerializer,
+    GetVariableFieldSerializer,
+    GetMetricListSerializer,
+    TargetTreeSerializer,
+    QuerySerializer,
+    QueryLogSerializer,
+    DimensionSerializer,
+    TracesSerializer,
+)
+
+from apps.iam import ActionEnum, Permission, ResourceEnum
+from apps.iam.handlers.drf import BusinessActionPermission, InstanceActionPermission
+from apps.log_search.handlers.biz import BizHandler
+from bk_dataview.grafana.views import ProxyView, SwitchOrgView
 
 
 class GrafanaProxyView(ProxyView):
@@ -462,26 +462,3 @@ class GrafanaViewSet(APIViewSet):
 
 class ExploreViewSet(SwitchOrgView):
     permission_classes = ["apps.grafana.permissions.ExplorePermission"]
-
-
-class CustomESDatasourceViewSet(APIViewSet):
-    """自定义ES数据源视图"""
-
-    parser_classes = (XNDJSONParser,)
-
-    def get_authenticators(self):
-        authenticators = super(CustomESDatasourceViewSet, self).get_authenticators()
-        authenticators = [
-            authenticator for authenticator in authenticators if not isinstance(authenticator, SessionAuthentication)
-        ]
-        authenticators.append(NoCsrfSessionAuthentication())
-        return authenticators
-
-    def mapping(self, request, index_set_id):
-        """获取ES的mapping"""
-        return Response(CustomESDataSourceHandler(index_set_id=int(index_set_id)).mapping())
-
-    def msearch(self, request):
-        """批量查询"""
-        resp = {"responses": CustomESDataSourceHandler(sql_list=request.data).msearch()}
-        return Response(resp)

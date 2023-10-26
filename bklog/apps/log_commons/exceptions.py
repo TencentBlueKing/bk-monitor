@@ -19,20 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import BaseException, ErrorCode
 from django.utils.translation import ugettext_lazy as _
+
+from apps.exceptions import BaseException, ErrorCode
 
 
 class BaseCommonsException(BaseException):
     MODULE_CODE = ErrorCode.BKLOG_COMMONS
     MESSAGE = _("日志通用模块异常")
-
-
-class SearchHostException(BaseCommonsException):
-    ErrorCode = "001"
-    MESSAGE = _("根据bk_cloud_id:ip查找主机失败")
-
-
-class CCMissingBkHostIDException(BaseCommonsException):
-    ErrorCode = "002"
-    MESSAGE = _("CC返回的主机信息中缺少bk_host_id")

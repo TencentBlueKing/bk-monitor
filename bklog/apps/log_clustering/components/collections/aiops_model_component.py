@@ -21,23 +21,16 @@ the project delivered to anyone in the future.
 """
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
-from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
-    AiopsModelHandler,
-)
+from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import AiopsModelHandler
 from apps.log_clustering.handlers.aiops.aiops_model.constants import StepName
-from apps.log_clustering.models import (
-    AiopsModel,
-    AiopsModelExperiment,
-    ClusteringConfig,
-    SampleSet,
-)
+from apps.log_clustering.models import AiopsModel, AiopsModelExperiment, SampleSet, ClusteringConfig
 from apps.log_clustering.tasks.sync_pattern import sync
 from apps.utils.log import logger
 from apps.utils.pipline import BaseService
 from django.utils.translation import ugettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
-from pipeline.component_framework.component import Component
 from pipeline.core.flow.activity import Service, StaticIntervalGenerator
+from pipeline.component_framework.component import Component
+from pipeline.builder import ServiceActivity, Var
 
 
 class CreateModelService(BaseService):
@@ -145,7 +138,7 @@ class UpdateExecuteConfigService(BaseService):
 
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        clustering_config = ClusteringConfig.objects.get(index_set_id=index_set_id)
         python_backend = clustering_config.python_backend
         conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
         python_backend = python_backend if python_backend else conf.get("python_backend")

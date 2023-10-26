@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import IS_AUTO_DEPLOY_PLUGIN
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import LogPluginInfo
 from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
 from apps.utils.log import logger
 from django.utils.translation import ugettext as _
@@ -36,7 +36,7 @@ class RedisSlowLogCollectorScenario(CollectorScenario):
     PLUGIN_VERSION = LogPluginInfo.VERSION
     CONFIG_NAME = "bkunifylogbeat_redis_slowlog"
 
-    def get_subscription_steps(self, data_id, params, collector_config_id=None, data_link_id=None):
+    def get_subscription_steps(self, data_id, params, collector_config_id=None):
         """
         params内包含的参数
         params.redis_host: 采集目标, list
@@ -53,7 +53,6 @@ class RedisSlowLogCollectorScenario(CollectorScenario):
         }
         local_params = self._add_labels(local_params, params, collector_config_id)
         local_params = self._add_ext_meta(local_params, params)
-        local_params = self._deal_edge_transport_params(local_params, data_link_id)
         steps = [
             {
                 "id": self.PLUGIN_NAME,  # 这里的ID不能随意变更，需要同步修改解析的逻辑(parse_steps)
@@ -113,20 +112,13 @@ class RedisSlowLogCollectorScenario(CollectorScenario):
             return {"redis_hosts": []}
 
     @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):
+    def get_built_in_config(cls, es_version="5.X"):
         """
         获取采集器标准字段
         """
         return {
             "option": {
-                "es_unique_field_list": [
-                    "cloudId",
-                    "serverIp",
-                    "gseIndex",
-                    "iterationIndex",
-                    "bk_host_id",
-                    "dtEventTimeStamp",
-                ],
+                "es_unique_field_list": ["cloudId", "serverIp", "gseIndex", "iterationIndex", "bk_host_id"],
                 "separator_node_source": "",
                 "separator_node_action": "",
                 "separator_node_name": "",

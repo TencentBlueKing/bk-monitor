@@ -25,7 +25,6 @@ import time
 from collections import defaultdict
 from typing import List, Union
 
-from apps.constants import SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
@@ -82,7 +81,6 @@ from apps.utils.time_handler import (
 from bkm_ipchooser.constants import CommonEnum
 from bkm_space.api import AbstractSpaceApi
 from bkm_space.define import Space as SpaceDefine
-from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 from django.conf import settings
 from django.core.cache import cache
@@ -163,7 +161,6 @@ class GlobalConfig(models.Model):
         )
         # Cookie域名
         configs[GlobalTypeEnum.BK_DOMAIN.value] = settings.BK_DOMAIN
-        configs[GlobalTypeEnum.RETAIN_EXTRA_JSON.value] = settings.RETAIN_EXTRA_JSON
         return configs
 
     class Meta:
@@ -194,7 +191,7 @@ class Scenario(object):
     @classmethod
     def get_scenarios(cls):
         data = []
-        for key, value in cls.CHOICES:
+        for (key, value) in cls.CHOICES:
             if feature_switch(f"scenario_{key}"):
                 data.append({"scenario_id": key, "scenario_name": value})
         return data
@@ -477,14 +474,14 @@ class LogIndexSet(SoftDeleteModel):
         ]
 
     @classmethod
-    def get_index_set(cls, index_set_ids=None, scenarios=None, space_uids=None, is_trace_log=False, show_indices=True):
+    def get_index_set(cls, index_set_ids=None, scenarios=None, space_uid=None, is_trace_log=False, show_indices=True):
         qs = cls.objects.filter(is_active=True)
         if index_set_ids:
             qs = qs.filter(index_set_id__in=index_set_ids)
         if scenarios and isinstance(scenarios, list):
             qs = qs.filter(scenario_id__in=scenarios)
-        if space_uids:
-            qs = qs.filter(space_uid__in=space_uids)
+        if space_uid:
+            qs = qs.filter(space_uid=space_uid)
         if is_trace_log:
             qs = qs.filter(is_trace_log=is_trace_log)
 
@@ -1052,14 +1049,10 @@ class BizProperty(models.Model):
     def list_biz_property(cls) -> list:
         biz_properties = BizProperty.objects.all()
         biz_properties_dict = defaultdict(lambda: {"biz_property_name": "", "biz_property_value": []})
-        # 注入空间类型空间属性
-        biz_properties_dict[SpacePropertyEnum.SPACE_TYPE.value] = {
-            "biz_property_name": _("空间类型"),
-            "biz_property_value": [space_type.value for space_type in SpaceTypeEnum],
-        }
         for bi in biz_properties:
             biz_properties_dict[bi.biz_property_id]["biz_property_name"] = bi.biz_property_name
             biz_properties_dict[bi.biz_property_id]["biz_property_value"].append(bi.biz_property_value)
+
         return [
             {
                 "biz_property_id": biz_property_id,

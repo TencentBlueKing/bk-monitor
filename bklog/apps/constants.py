@@ -19,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext_lazy as _
+
+from apps.utils import ChoicesEnum
 
 DEFAULT_MAX_WORKERS = 5
 
@@ -148,42 +149,3 @@ BRACKET_DICT = {"[": "]", "(": ")", "{": "}"}
 
 # 最大语法修复次数
 MAX_RESOLVE_TIMES = 10
-
-# 默认JOB执行脚本超时时间
-DEFAULT_EXECUTE_SCRIPT_TIMEOUT = 600
-
-
-class ScriptType(ChoicesEnum):
-    SHELL = 1
-    BAT = 2
-    PERL = 3
-    PYTHON = 4
-    POWERSHELL = 5
-
-    _choices_labels = (
-        (SHELL, _("shell")),
-        (BAT, _("bat")),
-        (PERL, _("perl")),
-        (PYTHON, _("python")),
-        (POWERSHELL, _("powershell")),
-    )
-
-
-class SpacePropertyEnum(ChoicesEnum):
-    """
-    空间属性枚举
-    """
-
-    SPACE_TYPE = "space_type"
-
-    _choices_labels = (SPACE_TYPE, _("空间类型"))
-
-
-class ApiTokenAuthType(ChoicesEnum):
-    """
-    API Token鉴权类型
-    """
-
-    GRAFANA = "Grafana"
-
-    _choices_labels = ((GRAFANA, _("Grafana")),)

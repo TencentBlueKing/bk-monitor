@@ -181,6 +181,9 @@ POLLING_TIMEOUT = 5
 # 搜索文件超时时间(s)
 FILE_SEARCH_TIMEOUT = 60
 
+# 1 为shell
+JOB_SCRIPT_TYPE = 1
+
 # 作业执行成功标识
 JOB_SUCCESS_STATUS = 3
 

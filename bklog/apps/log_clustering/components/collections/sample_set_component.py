@@ -19,19 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.log_clustering.handlers.aiops.sample_set.sample_set_handler import (
-    SampleSetHandler,
-)
-from apps.log_clustering.handlers.dataflow.constants import (
-    DEFAULT_CLUSTERING_FIELD,
-    DEFAULT_TIME_FIELD,
-)
-from apps.log_clustering.models import ClusteringConfig, SampleSet
-from apps.utils.pipline import BaseService
 from django.utils.translation import ugettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
-from pipeline.component_framework.component import Component
+
 from pipeline.core.flow.activity import Service, StaticIntervalGenerator
+from pipeline.component_framework.component import Component
+from pipeline.builder import ServiceActivity, Var
+
+from apps.log_clustering.handlers.aiops.sample_set.sample_set_handler import SampleSetHandler
+from apps.log_clustering.handlers.dataflow.constants import DEFAULT_CLUSTERING_FIELD, DEFAULT_TIME_FIELD
+from apps.log_clustering.models import SampleSet, ClusteringConfig
+from apps.utils.pipline import BaseService
 
 
 class CreateSampleSetService(BaseService):
@@ -85,7 +82,7 @@ class AddRtToSampleSetService(BaseService):
         sample_set_name = data.get_one_of_inputs("sample_set_name")
         index_set_id = data.get_one_of_inputs("index_set_id")
         sample_set_id = SampleSet.objects.get(sample_set_name=sample_set_name).sample_set_id
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        clustering_config = ClusteringConfig.objects.get(index_set_id=index_set_id)
         SampleSetHandler().add_rt_to_sample_set(
             sample_set_id=sample_set_id,
             result_table_id=clustering_config.pre_treat_flow["sample_set"]["result_table_id"],

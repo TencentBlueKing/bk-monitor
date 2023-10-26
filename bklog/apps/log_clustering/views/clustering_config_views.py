@@ -21,20 +21,18 @@ the project delivered to anyone in the future.
 """
 import re
 
+from pipeline.service import task_service
+from rest_framework.response import Response
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.generic import APIViewSet
 from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
-from apps.log_clustering.serializers import (
-    ClusteringConfigSerializer,
-    ClusteringPreviewSerializer,
-)
+from apps.log_clustering.serializers import ClusteringConfigSerializer, ClusteringPreviewSerializer
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
-from pipeline.service import task_service
-from rest_framework.response import Response
 
 
 class ClusteringConfigViewSet(APIViewSet):
@@ -93,10 +91,6 @@ class ClusteringConfigViewSet(APIViewSet):
 
     @detail_route(methods=["GET"], url_path="start")
     def start(self, request, *args, index_set_id=None, **kwargs):
-        return Response(ClusteringConfigHandler(index_set_id=index_set_id).online_start())
-
-    @detail_route(methods=["GET"], url_path="offline_start")
-    def offline_start(self, request, *args, index_set_id=None, **kwargs):
         return Response(ClusteringConfigHandler(index_set_id=index_set_id).start())
 
     @list_route(methods=["GET"], url_path="pipeline/state")
@@ -117,15 +111,6 @@ class ClusteringConfigViewSet(APIViewSet):
     def fail_pipeline(self, request, *args, **kwargs):
         action_result = task_service.forced_fail(request.query_params.get("node_id", ""))
         return Response({"result": action_result.result, "message": action_result.message})
-
-    @detail_route(methods=["GET"], url_path="create_new_cls_strategy")
-    def create_clustering_new_cls_strategy(self, request, *args, index_set_id=None, **kwargs):
-        from apps.log_clustering.handlers.clustering_monitor import (
-            ClusteringMonitorHandler,
-        )
-
-        strategy_id = ClusteringMonitorHandler(index_set_id=index_set_id).create_clustering_new_cls_strategy()
-        return Response({"strategy_id": strategy_id})
 
     @detail_route(methods=["POST"])
     def create_or_update(self, request, *args, **kwargs):
@@ -302,6 +287,6 @@ class ClusteringConfigViewSet(APIViewSet):
         try:
             re.compile(regexp_str)
         except BaseException as e:  # pylint: disable=broad-except
-            logger.error("check regexp failed: %s", e)
+            logger.error("check regexp failed: ", e)
             return Response(False)
         return Response(True)

@@ -33,8 +33,7 @@ from apps.log_databus.constants import (
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from kafka import KafkaConsumer
-from kafka.structs import TopicPartition
+from kafka import KafkaConsumer, TopicPartition
 
 logger = logging.getLogger()
 
@@ -106,7 +105,7 @@ class KafkaChecker(Checker):
                     if len(log_content) == message_count:
                         self.latest_log.extend(log_content)
                         consumer.close()
-                        break
+                        return
                     if _msg.offset == end_offset - 1:
                         break
 
@@ -120,8 +119,4 @@ class KafkaChecker(Checker):
         if not log_content:
             self.append_error_info(_("{host}:{port}, topic: {topic}, 无数据").format(host=host, port=port, topic=topic))
         else:
-            self.append_normal_info(
-                _("{host}:{port}, topic: {topic}, 有数据, 数据采样: {example}").format(
-                    host=host, port=port, topic=topic, example=json.dumps(log_content[0])
-                )
-            )
+            self.append_normal_info(_("{host}:{port}, topic: {topic}, 有数据").format(host=host, port=port, topic=topic))

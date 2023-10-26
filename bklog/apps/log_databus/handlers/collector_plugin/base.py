@@ -147,7 +147,6 @@ class CollectorPluginHandler:
             "allocation_min_days": params.get("allocation_min_days", 0),
             "storage_replies": params.get("storage_replies", 1),
             "storage_shards_nums": params.get("storage_shards_nums", 1),
-            "storage_shards_size": params.get("storage_shards_size", 10),
             "etl_config": params.get("etl_config"),
             "etl_params": params.get("etl_params", {}),
             "fields": params.get("fields", []),

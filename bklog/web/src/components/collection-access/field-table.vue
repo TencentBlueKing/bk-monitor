@@ -31,15 +31,6 @@
           </label> -->
           <div class="bk-form-content">
             <bk-checkbox
-              v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen"
-              :checked="false"
-              :true-value="true"
-              :false-value="false"
-              v-model="retainExtraText"
-              @change="handleKeepField">
-              <span class="bk-label" style="margin-right: 20px;">{{ $t('保留未定义字段') }}</span>
-            </bk-checkbox>
-            <bk-checkbox
               :checked="true"
               :true-value="true"
               :false-value="false"
@@ -475,14 +466,6 @@ export default {
       type: Boolean,
       default: false,
     },
-    retainExtraJson: {
-      type: Boolean,
-      default: false,
-    },
-    selectEtlConfig: {
-      type: String,
-      default: 'bk_log_json',
-    },
     isSetDisabled: {
       type: Boolean,
       default: false,
@@ -504,7 +487,6 @@ export default {
       timeCheckResult: false,
       checkLoading: false,
       retainOriginalText: true, // 保留原始日志
-      retainExtraText: false,
       rules: {
         field_name: [ // 存在bug，暂时启用
           // {
@@ -595,9 +577,6 @@ export default {
     getParticipleWidth() {
       return this.$store.getters.isEnLanguage ? '65' : '50';
     },
-    retainExtraJsonIsOpen() {
-      return this.globalsData?.retain_extra_json ?? false;
-    },
   },
   watch: {
     fields: {
@@ -609,13 +588,9 @@ export default {
     retainOriginalValue(newVal) {
       this.retainOriginalText = newVal;
     },
-    retainExtraJson(newVal) {
-      this.retainExtraText = newVal;
-    },
   },
   async mounted() {
     this.retainOriginalText = this.retainOriginalValue;
-    this.retainExtraText = this.retainExtraJson;
     this.reset();
   },
   methods: {
@@ -877,7 +852,7 @@ export default {
       });
     },
     checkFieldNameItem(row) {
-      const { field_name, is_delete, field_index } = row;
+      const { field_name, is_delete } = row;
       let result = '';
       /* eslint-disable */
       if (!is_delete) {
@@ -887,8 +862,6 @@ export default {
           result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾')
         } else if (this.extractMethod !== 'bk_log_json' && this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())) {
           result = this.extractMethod === 'bk_log_regexp' ? this.$t('字段名与系统字段重复，必须修改正则表达式') : this.$t('字段名与系统内置字段重复')
-        } else if (this.extractMethod === 'bk_log_delimiter') {
-          result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
         } else {
           result = ''
         }
@@ -983,9 +956,6 @@ export default {
     handleKeepLog(value) {
       this.$emit('handleKeepLog', value);
     },
-    handleKeepField(value) {
-      this.$emit('handleKeepField', value);
-    },
     renderHeaderAliasName(h) {
       return h('div', {
         class: 'render-header',
@@ -1029,10 +999,6 @@ export default {
     isDisableOperate(row) {
       if (this.isSetDisabled) return;
       row.is_delete = !row.is_delete;
-    },
-    filedNameIsConflict(fieldIndex, fieldName) {
-      const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
-      return otherFieldNameList.some(item => item.field_name === fieldName);
     },
   },
 };

@@ -20,18 +20,21 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from apps.exceptions import ValidationError
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import serializers
+
 from apps.log_esquery.constants import ES_ROUTE_ALLOW_URL
+from apps.log_search.models import Scenario
+from apps.exceptions import ValidationError
 from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
     BaseSearchIndexSetException,
     BaseSearchIndexSetIdTimeFieldException,
 )
+
+from apps.log_search.models import LogIndexSet
 from apps.log_search.constants import SCROLL
-from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.cache import cache_one_minute
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
 
 
 class EsQuerySearchAttrSerializer(serializers.Serializer):
@@ -48,10 +51,7 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
     time_field_type = serializers.CharField(required=False, default="date", allow_blank=True, allow_null=True)
     time_field_unit = serializers.CharField(required=False, default="second", allow_blank=True, allow_null=True)
 
-    use_time_range = serializers.BooleanField(
-        default=True,
-        label=_("默认使用time_range的方式检索"),
-    )
+    use_time_range = serializers.BooleanField(default=True, label=_("默认使用time_range的方式检索"),)
     include_start_time = serializers.BooleanField(default=True, label=_("是否包含开始时间点(gte/gt)"))
     include_end_time = serializers.BooleanField(default=True, label=_("是否包含结束时间点(lte/lt)"))
     start_time = serializers.CharField(required=False, default="", allow_blank=True, allow_null=True)
@@ -92,9 +92,6 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
     # 添加scroll参数
     scroll = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-
-    # 是否包含嵌套字段
-    include_nested_fields = serializers.BooleanField(required=False, default=True)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -140,19 +137,14 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
                     value = ",".join([str(v) for v in value])
 
                 if field and operator and value or isinstance(value, str):
-                    if operator in [
-                        "is one of",
-                        "is not one of",
-                        "=",
-                        "!=",
-                        "=~",
-                        "!=~",
-                        "contains",
-                        "not contains",
-                        "contains match phrase",
-                        "not contains match phrase",
-                    ]:
+                    if operator in ["is", "eq"]:
+                        new_value = value
+                    elif operator == "is one of":
                         # 逗号分隔是存在问题的
+                        new_value = value.split(",")
+                    elif operator == "is not":
+                        new_value = value
+                    elif operator == "is not one of":
                         new_value = value.split(",")
                     else:
                         new_value = value
@@ -204,7 +196,6 @@ class EsQueryIndicesAttrSerializer(serializers.Serializer):
     scenario_id = serializers.ChoiceField(choices=Scenario.CHOICES)
     storage_cluster_id = serializers.IntegerField(required=False)
     with_storage = serializers.BooleanField(default=False, required=False)
-    relate_space = serializers.BooleanField(default=False, required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

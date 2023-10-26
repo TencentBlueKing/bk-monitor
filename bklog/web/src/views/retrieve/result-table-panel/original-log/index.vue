@@ -42,7 +42,7 @@
           <span class="switch-label">{{ $t('换行') }}</span>
           <bk-switcher v-model="isWrap" theme="primary"></bk-switcher>
         </div>
-        <!-- <time-formatter v-show="!showOriginalLog" /> -->
+        <time-formatter v-show="!showOriginalLog" />
         <div class="operation-icons">
           <export-log
             v-bind="$attrs"
@@ -94,12 +94,14 @@
 </template>
 
 <script>
+import TimeFormatter from '@/components/common/time-formatter';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
 
 export default {
   components: {
+    TimeFormatter,
     TableLog,
     FieldsSetting,
     ExportLog,

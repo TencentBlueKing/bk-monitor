@@ -20,8 +20,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
-from datetime import timedelta
-from typing import Any, Dict, List
 
 from apps.api import TransferApi
 from apps.log_databus.constants import (
@@ -32,44 +30,25 @@ from apps.log_databus.constants import (
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_esquery.utils.es_client import get_es_client
-from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_measure.exceptions import EsConnectFailException
-from apps.log_search.models import Scenario
+from apps.utils.time_handler import strftime_local
 from django.utils.translation import ugettext as _
-
-
-def get_next_date(date_str: str, interval: int) -> str:
-    """
-    获取索引最新的分片, 根据索引分片的时间戳, 如果下一个分片是未来时间, 则返回当前索引分片的时间
-    :param date_str: 日期字符串, 格式: %Y%m%d, 例如: 20210101
-    :param interval: 时间间隔, 例如: 1
-    :return: 下一时间间隔的日期, 例如: 20210102
-    """
-    date_format = "%Y%m%d"
-    date_obj = datetime.datetime.strptime(date_str, date_format)
-    now = datetime.datetime.now()
-    next_date_obj = date_obj + timedelta(days=interval)
-    if next_date_obj > now:
-        return date_str
-    return next_date_obj.strftime(date_format)
 
 
 class EsChecker(Checker):
     CHECKER_NAME = "es checker"
 
-    def __init__(self, table_id: str, bk_data_name: str, *args, **kwargs):
+    def __init__(self, table_id, bk_data_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.table_id = table_id
         self.bk_data_name = bk_data_name
         self.result_table = {}
         self.cluster_config = {}
         self.cluster_id = 0
-        self.retention: int = 0
         # 物理索引列表
         self.indices = []
         self.es_client = None
-        self.index_pattern = table_id.replace(".", "_")
-        self.latest_date: str = ""
+        self.index_pattern = ""
 
     def pre_run(self):
         try:
@@ -79,7 +58,6 @@ class EsChecker(Checker):
             self.result_table = result.get(self.table_id, {})
             self.cluster_config = self.result_table.get("cluster_config", {})
             self.cluster_id = self.cluster_config.get("cluster_id", 0)
-            self.retention = self.result_table.get("storage_config", {}).get("retention", 0)
         except Exception as e:
             self.append_error_info(_("[TransferApi] [get_result_table_storage] 失败, err: {e}").format(e=e))
 
@@ -93,30 +71,44 @@ class EsChecker(Checker):
         """
         获取物理索引的名称
         """
-        # 查该采集项的物理索引而不是该采集项所在集群的所有物理索引
-        result: List[Dict[str, Any]] = EsRoute(scenario_id=Scenario.LOG, indices=self.table_id).cat_indices()
-        self.indices = StorageHandler.sort_indices(result)
-
+        indices = None
+        # 可能会请求失败, 重试几次
+        for i in range(RETRY_TIMES):
+            try:
+                indices = StorageHandler(self.cluster_id).indices()
+                if indices is not None:
+                    break
+            except Exception as e:  # disable
+                self.append_warning_info(_("获取物理索引失败第{cnt}次, err: {e}").format(cnt=i + 1, e=e))
+        if not indices:
+            self.append_error_info(_("获取物理索引为空"))
+            return
+        for i in indices:
+            if i["index_pattern"] == self.bk_data_name or i["index_pattern"] == self.table_id.replace(".", "_"):
+                self.index_pattern = i["index_pattern"]
+                self.indices = i["indices"]
+                break
         if not self.indices:
             self.append_error_info(_("获取物理索引为空"))
             return
+
         for i in self.indices:
             self.append_normal_info(_("物理索引: {}, 健康: {}, 状态: {}").format(i["index"], i["health"], i["status"]))
 
         hot_node_count = 0
+
         for node in StorageHandler(self.cluster_id).cluster_nodes():
             if node.get("tag") == "hot":
                 hot_node_count += 1
 
         latest_indices = self.indices[0]
-        self.latest_date = latest_indices["index"].split("_")[-2]
         query_body = {"size": 1}
         query_data = self.es_client.search(index=latest_indices["index"], body=query_body)
         latest_data = query_data.get("hits", {}).get("hits", [])
         latest_data = latest_data[0] if latest_data else None
         self.append_normal_info(_("最近物理索引:{} 最新一条数据为:{}").format(latest_indices["index"], latest_data))
 
-        if int(latest_indices["pri"]) < hot_node_count:
+        if latest_indices["pri"] < hot_node_count:
             self.append_warning_info(
                 _("最近物理索引分片数量小于热节点分片数量, 可能会造成性能问题, 当前索引分片数{}, 热节点分片数{}").format(latest_indices["pri"], hot_node_count)
             )
@@ -156,15 +148,18 @@ class EsChecker(Checker):
             return
         index_alias_info_dict = self.es_client.indices.get_alias(index=[i["index"] for i in self.indices])
 
-        now_datetime = get_next_date(date_str=self.latest_date, interval=self.retention)
+        now_datetime = strftime_local(datetime.datetime.now(), "%Y%m%d")
 
         now_read_index_alias = "{}_{}{}".format(self.index_pattern, now_datetime, INDEX_READ_SUFFIX)
         now_write_index_alias = "{}{}_{}".format(INDEX_WRITE_PREFIX, now_datetime, self.index_pattern)
 
+        now_read_index_alias_exist = False
+        now_write_index_alias_exist = False
+
         for i in self.indices:
             # index 物理索引名
             physical_index = i["index"]
-            aliases = index_alias_info_dict.get(physical_index, {}).get("aliases", {})
+            aliases = index_alias_info_dict.get(physical_index)
             if not aliases:
                 self.append_error_info(_("物理索引: {physical_index} 不存在alias别名").format(physical_index=physical_index))
                 continue
@@ -175,7 +170,12 @@ class EsChecker(Checker):
                 )
                 return
 
-            if now_read_index_alias in aliases and now_write_index_alias in aliases:
+            if aliases.get(now_read_index_alias):
+                now_read_index_alias_exist = True
+            if aliases.get(now_write_index_alias):
+                now_write_index_alias_exist = True
+
+            if now_read_index_alias_exist and now_write_index_alias_exist:
                 self.append_normal_info(
                     _("索引: [{index_pattern}] 当天[{now_datetime}]读写别名已成功创建").format(
                         index_pattern=self.index_pattern, now_datetime=now_datetime

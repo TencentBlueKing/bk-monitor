@@ -145,7 +145,7 @@
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                 }"
                 @click="operateHandler(props.row, 'clean')">
-                {{ $t('清洗') }}</bk-button>
+                {{ $t('前往清洗') }}</bk-button>
               <bk-dropdown-menu ref="dropdown" align="right">
                 <i
                   class="bk-icon icon-more"

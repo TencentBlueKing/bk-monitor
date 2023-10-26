@@ -142,7 +142,7 @@
               :tippy-options="{ offset: '0, 10', boundary: scrollContent }"
               @eventClick="(option) => handleMenuClick(option,row)">
               <text-highlight
-                style="word-break: break-all; white-space:pre-line;"
+                style="word-break: break-all;"
                 :queries="getHeightLightList(row.pattern)">
                 {{getHeightLightStr(row.pattern)}}
               </text-highlight>
@@ -172,9 +172,7 @@
           width="130"
           class-name="symbol-column">
           <template slot-scope="{ row }">
-            <div v-bk-overflow-tips>
-              <span>{{row.group[index]}}</span>
-            </div>
+            <span>{{row.group[index]}}</span>
           </template>
         </bk-table-column>
       </template>

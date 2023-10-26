@@ -27,8 +27,6 @@ import time
 
 import arrow
 from apps.exceptions import ValidationError
-from apps.log_desensitize.constants import DesensitizeOperator
-from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
     FavoriteListOrderType,
@@ -150,78 +148,6 @@ class ResultTableAdaptSerializer(serializers.Serializer):
         return attrs
 
 
-class DesensitizeConfigSerializer(serializers.Serializer):
-    """
-    脱敏配置序列化器
-    """
-
-    rule_id = serializers.IntegerField(label=_("脱敏规则ID"), required=False)
-    match_pattern = serializers.CharField(label=_("匹配模式"), required=False)
-    operator = serializers.ChoiceField(label=_("脱敏算子"), choices=DesensitizeOperator.get_choices(), required=False)
-    params = serializers.DictField(label=_("脱敏配置参数"), required=False)
-    state = serializers.CharField(label=_("规则状态"), required=False, default="add")
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        if not attrs.get("rule_id") and not attrs.get("operator"):
-            raise ValidationError(_("脱敏算子不能为空"))
-
-        if attrs.get("operator"):
-            # 获取算子对象
-            desensitize_cls = OPERATOR_MAPPING.get(attrs.get("operator"))
-
-            if not desensitize_cls:
-                raise ValidationError(_("{}脱敏算子类型暂未支持").format(attrs.get("operator")))
-
-            if not attrs.get("params"):
-                return attrs
-
-            desensitize_serializer = desensitize_cls.ParamsSerializer(data=attrs.get("params"), many=False)
-
-            # 脱敏参数校验
-            desensitize_serializer.is_valid(raise_exception=True)
-
-            data = desensitize_serializer.validated_data
-
-            # 赋值
-            attrs["params"] = dict(data)
-
-        return attrs
-
-
-class DesensitizeConfigsSerializer(serializers.Serializer):
-    field_name = serializers.CharField(label=_("字段名"), required=True)
-    rules = serializers.ListField(child=DesensitizeConfigSerializer(), required=True, allow_empty=False)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        rules = attrs.get("rules")
-        field_name = attrs.get("field_name")
-        rule_ids = list()
-        for rule in rules:
-            rule_id = rule.get("rule_id")
-            if rule_id and rule_id in rule_ids:
-                raise ValidationError(_("【{}】字段绑定了多个相同的规则ID").format(field_name))
-
-        return attrs
-
-
-class CreateOrUpdateDesensitizeConfigSerializer(serializers.Serializer):
-    field_configs = serializers.ListField(child=DesensitizeConfigsSerializer(), required=True)
-    text_fields = serializers.ListField(child=serializers.CharField(), required=False)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        field_configs = attrs.get("field_configs")
-        field_names = list()
-        for config in field_configs:
-            if config["field_name"] in field_names:
-                raise ValidationError(_("【{}】字段存在多个脱敏配置").format(config["field_name"]))
-            else:
-                field_names.append(config["field_name"])
-        return attrs
-
-
 class SearchAttrSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
     ip_chooser = serializers.DictField(default={}, required=False)
@@ -235,21 +161,8 @@ class SearchAttrSerializer(serializers.Serializer):
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=10)
 
-    aggs = serializers.DictField(required=False, default=dict)
-
     # 支持用户自定义排序
     sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True)
-
-    is_scroll_search = serializers.BooleanField(label=_("是否scroll查询"), required=False, default=False)
-
-    scroll_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-
-    is_return_doc_id = serializers.BooleanField(label=_("是否返回文档ID"), required=False, default=False)
-
-    # 脱敏配置
-    desensitize_configs = serializers.ListSerializer(
-        label=_("脱敏配置"), required=False, child=DesensitizeConfigSerializer(), default=[]
-    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

@@ -2094,11 +2094,11 @@ msgstr "Json"
 #: apps/log_databus/serializers.py:628 apps/log_databus/serializers.py:1223
 #: apps/log_search/constants.py:523 apps/log_search/constants.py:721
 msgid "分隔符"
-msgstr "Delimiter"
+msgstr "delimiter"
 
 #: apps/log_databus/constants.py:328
 msgid "正则"
-msgstr "Regular Expression"
+msgstr "Regular expression"
 
 #: apps/log_databus/constants.py:329 apps/log_extract/constants.py:140
 #: apps/log_search/constants.py:500

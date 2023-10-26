@@ -53,7 +53,6 @@ urlpatterns = [
     url(r"^api/v1/", include("apps.bk_log_admin.urls")),
     url(r"^api/v1/", include("apps.log_bcs.urls")),
     url(r"^api/v1/", include("apps.log_clustering.urls")),
-    url(r"^api/v1/", include("apps.log_desensitize.urls")),
     url(r"^", include("apps.grafana.urls")),
     # 前端页面
     url(r"^", include("home_application.urls")),

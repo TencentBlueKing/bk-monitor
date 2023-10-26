@@ -164,25 +164,6 @@ FILTER_KEY_LIST = ["gettext", "_", "LANGUAGES"]
 MAX_GET_ATTENTION_SIZE = 10
 
 
-class SearchConditionFieldType(object):
-    INTEGER = "integer"
-    LONG = "long"
-    TEXT = "text"
-
-
-CHECK_FIELD_LIST = [SearchConditionFieldType.INTEGER, SearchConditionFieldType.LONG]
-
-CHECK_FIELD_MAX_VALUE_MAPPING = {
-    SearchConditionFieldType.INTEGER: 2 ** 31 - 1,
-    SearchConditionFieldType.LONG: 2 ** 63 - 1,
-}
-
-CHECK_FIELD_MIN_VALUE_MAPPING = {
-    SearchConditionFieldType.INTEGER: -(2 ** 31),
-    SearchConditionFieldType.LONG: -(2 ** 63),
-}
-
-
 # 导出类型
 class ExportType(object):
     ASYNC = "async"
@@ -348,7 +329,6 @@ class GlobalTypeEnum(ChoicesEnum):
     IS_K8S_DEPLOY = "is_k8s_deploy"
     PAAS_API_HOST = "paas_api_host"
     BK_DOMAIN = "bk_domain"
-    RETAIN_EXTRA_JSON = "retain_extra_json"
 
     _choices_labels = (
         (CATEGORY, _("数据分类")),
@@ -370,7 +350,6 @@ class GlobalTypeEnum(ChoicesEnum):
         (IS_K8S_DEPLOY, _("是否容器化部署")),
         (PAAS_API_HOST, _("网关地址")),
         (BK_DOMAIN, _("蓝鲸域名")),
-        (RETAIN_EXTRA_JSON, _("是否开启保留额外JSON字段开关")),
     )
 
 
@@ -1153,7 +1132,6 @@ RT_RESERVED_WORD_EXAC = [
     "gseIndex",
     "iterationIndex",
     "__ext",
-    "__ext_json",
     "log",
     "dtEventTimeStamp",
     "datetime",
@@ -1325,8 +1303,6 @@ class OperatorEnum:
 
     EQ = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，逗号分隔")}
     NE = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，逗号分隔")}
-    EQ_WILDCARD = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，逗号分隔"), "wildcard_operator": "=~"}
-    NE_WILDCARD = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，逗号分隔"), "wildcard_operator": "!=~"}
     LT = {"operator": "<", "label": "<", "placeholder": _("请选择或直接输入")}
     GT = {"operator": ">", "label": ">", "placeholder": _("请选择或直接输入")}
     LTE = {"operator": "<=", "label": "<=", "placeholder": _("请选择或直接输入")}
@@ -1335,37 +1311,11 @@ class OperatorEnum:
     NOT_EXISTS = {"operator": "does not exists", "label": _("不存在"), "placeholder": _("确认字段不存在")}
     IS_TRUE = {"operator": "is true", "label": "is true", "placeholder": _("字段为true")}
     IS_FALSE = {"operator": "is false", "label": "is false", "placeholder": _("字段为false")}
-    CONTAINS = {"operator": "contains", "label": _("包含"), "placeholder": _("请选择或直接输入，逗号分隔")}
-    NOT_CONTAINS = {"operator": "not contains", "label": _("不包含"), "placeholder": _("请选择或直接输入，逗号分隔")}
-    CONTAINS_MATCH_PHRASE = {
-        "operator": "contains match phrase",
-        "label": _("包含"),
-        "placeholder": _("请选择或直接输入，逗号分隔"),
-        "wildcard_operator": "=~",
-    }
-    NOT_CONTAINS_MATCH_PHRASE = {
-        "operator": "not contains match phrase",
-        "label": _("不包含"),
-        "placeholder": _("请选择或直接输入，逗号分隔"),
-        "wildcard_operator": "!=~",
-    }
 
 
 OPERATORS = {
-    "keyword": [
-        OperatorEnum.EQ_WILDCARD,
-        OperatorEnum.NE_WILDCARD,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-        OperatorEnum.CONTAINS,
-        OperatorEnum.NOT_CONTAINS,
-    ],
-    "text": [
-        OperatorEnum.CONTAINS_MATCH_PHRASE,
-        OperatorEnum.NOT_CONTAINS_MATCH_PHRASE,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
+    "keyword": [OperatorEnum.EQ, OperatorEnum.NE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
+    "text": [OperatorEnum.EQ, OperatorEnum.NE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
     "integer": [
         OperatorEnum.EQ,
         OperatorEnum.NE,
@@ -1419,6 +1369,18 @@ OPERATORS = {
     ],
 }
 
+# 实际操作符映射
+REAL_OPERATORS_MAP = {
+    OperatorEnum.EQ["operator"]: "is one of",
+    OperatorEnum.NE["operator"]: "is not one of",
+    OperatorEnum.LT["operator"]: "lt",
+    OperatorEnum.GT["operator"]: "gt",
+    OperatorEnum.LTE["operator"]: "lte",
+    OperatorEnum.GTE["operator"]: "gte",
+    # 兼容监控调用API模块时的操作符
+    "eq": "is one of",
+    "neq": "is not one of",
+}
 
 DEFAULT_INDEX_OBJECT_FIELDS_PRIORITY = ["__ext.io_kubernetes_pod", "serverIp", "ip"]
 

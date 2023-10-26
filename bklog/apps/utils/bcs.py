@@ -16,24 +16,16 @@ NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
-from typing import Any, Dict, List, Union
 
-from apps.utils.log import logger
-from config.domains import BCS_APIGATEWAY_ROOT
 from django.conf import settings
 from django.utils.functional import cached_property
 from kubernetes import client as k8s_client
 from kubernetes.client import V1ContainerImage
-from kubernetes.client.models import (
-    v1_config_map,
-    v1_custom_resource_definition,
-    v1_daemon_set,
-    v1_node,
-    v1_pod_list,
-)
 from kubernetes.dynamic import client as dynamic_client
-from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
-from kubernetes.stream import stream
+from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
+
+from apps.utils.log import logger
+from config.domains import BCS_APIGATEWAY_ROOT
 
 
 # patch for k8s CoreV1Api list_node API
@@ -96,10 +88,6 @@ class Bcs:
     @cached_property
     def crd_api(self):
         return k8s_client.CustomObjectsApi(self.k8s_client)
-
-    @cached_property
-    def extension_v1api(self):
-        return k8s_client.ApiextensionsV1Api(self.k8s_client)
 
     def save_bklog_config(self, bklog_config_name: str, bklog_config: dict, labels=None):
         # 补充bcs cluster id
@@ -165,101 +153,3 @@ class Bcs:
             d_client.create(resource, body=resource_body, namespace=namespace)
 
         logger.info("[%s] datasource [%s]", action, resource_name)
-
-    def get_crd(self, crd_name: str) -> Union[v1_custom_resource_definition.V1CustomResourceDefinition, None]:
-        """
-        获取crd, kubectl describe crd {crd_name}
-        :param crd_name: crd名称
-        """
-        try:
-            return self.extension_v1api.read_custom_resource_definition(name=crd_name)
-        except NotFoundError:
-            return None
-
-    def get_cr(self, namespace: str = None) -> Dict[str, Any]:
-        """获取cr"""
-        namespace = namespace or self.BKLOG_CONFIG_NAMESPACE
-        try:
-            return self.crd_api.list_namespaced_custom_object(
-                group=self.BKLOG_CONFIG_GROUP,
-                version=self.BKLOG_CONFIG_VERSION,
-                plural=self.BKLOG_CONFIG_PLURAL,
-                namespace=namespace,
-            )
-        except NotFoundError:
-            return {}
-
-    def get_daemonset(self, daemonset_name: str, namespace: str = None) -> Union[v1_daemon_set.V1DaemonSet, None]:
-        """
-        获取daemonset, kubectl describe daemonset {daemonset_name} -n {namespace}
-        :param daemonset_name: daemonset名称
-        :param namespace: 命名空间
-        """
-        namespace = namespace or self.BKLOG_CONFIG_NAMESPACE
-        try:
-            return self.api_instance_apps_v1.read_namespaced_daemon_set(name=daemonset_name, namespace=namespace)
-        except NotFoundError:
-            return None
-
-    def get_config_map(self, config_map_name: str, namespace: str = None) -> Union[v1_config_map.V1ConfigMap, None]:
-        """
-        获取configmap, kubectl describe configmap {config_map_name} -n {namespace}
-        :param config_map_name: configmap名称
-        :param namespace: 命名空间
-        """
-        namespace = namespace or self.BKLOG_CONFIG_NAMESPACE
-        try:
-            return self.api_instance_core_v1.read_namespaced_config_map(name=config_map_name, namespace=namespace)
-        except NotFoundError:
-            return None
-
-    def read_node(self, node_name: str) -> Union[v1_node.V1Node, None]:
-        """
-        获取node, kubectl describe node {node_name}
-        """
-        try:
-            return self.api_instance_core_v1.read_node(name=node_name)
-        except NotFoundError:
-            return None
-
-    def list_pods(self, namespace: str = None, label_selector: str = None) -> Union[v1_pod_list.V1PodList, None]:
-        """
-        获取pod, kubectl get pods -n {namespace} -l {label_selector}
-        namespace: 命名空间
-        label_selector: 标签选择器, 例如: app=bkunifylogbeat-bklog
-        """
-        namespace = namespace or self.BKLOG_CONFIG_NAMESPACE
-        params = {
-            "namespace": namespace,
-        }
-        if label_selector:
-            params["label_selector"] = label_selector
-        try:
-            return self.api_instance_core_v1.list_namespaced_pod(**params)
-        except NotFoundError:
-            return None
-
-    def exec_command(self, pod_name: str, namespace: str = None, container_name: str = None, command: List[str] = None):
-        """
-        执行命令, kubectl exec -it {pod_name} -n {namespace} -c {container_name} -- {command}
-        :param namespace: 命名空间
-        :param pod_name: pod名称
-        :param container_name: 容器名称
-        :param command: 命令
-        :return:
-        """
-        namespace = namespace or self.BKLOG_CONFIG_NAMESPACE
-        try:
-            return stream(
-                self.api_instance_core_v1.connect_get_namespaced_pod_exec,
-                name=pod_name,
-                namespace=namespace,
-                command=command,
-                container=container_name,
-                stderr=True,
-                stdin=True,
-                stdout=True,
-                tty=True,
-            )
-        except NotFoundError:
-            return None

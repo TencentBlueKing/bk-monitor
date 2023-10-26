@@ -100,6 +100,7 @@ SEARCH_RESULT = {
         "query": {
             "bool": {
                 "filter": [
+                    {"query_string": {"query": "*", "analyze_wildcard": True}},
                     {"range": {"": {"gte": 1584745200, "lte": 1584892799, "format": "epoch_second"}}},
                     {
                         "bool": {

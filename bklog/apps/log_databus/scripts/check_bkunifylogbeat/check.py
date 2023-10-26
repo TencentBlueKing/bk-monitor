@@ -107,7 +107,7 @@ class BKUnifyLogBeatCheck(object):
         restart_records_file = "/tmp/bkc.log"
         today = datetime.datetime.now().strftime("%Y%m%d")
         output = get_command(
-            "cat {0} | grep {1} | grep {2} | wc -l".format(restart_records_file, today, MODULE_BKUNIFYLOGBEAT)
+            "cat {} | grep {} | grep {} | wc -l".format(restart_records_file, today, MODULE_BKUNIFYLOGBEAT)
         )
         if not output or int(output) > restart_times:
             result.message = "restart/reload times is over %d" % restart_times
@@ -117,7 +117,7 @@ class BKUnifyLogBeatCheck(object):
         # 当前资源
         cpu_usage = get_command("ps aux | grep %s | awk '{print $3}' | head -n 1" % pid)
         mem_usage = get_command("ps aux | grep %s | awk '{print $4}' | head -n 1" % pid)
-        result.message = "cpu_usage: {0}%, mem_usage: {1}%".format(str(cpu_usage), str(mem_usage))
+        result.message = "cpu_usage: {}%, mem_usage: {}%".format(str(cpu_usage), str(mem_usage))
         result.status = True
         result.add_to_result()
 
@@ -136,7 +136,7 @@ class BKUnifyLogBeatCheck(object):
         output = output.replace(" ", "")
         path_list = output.split("\n")
         if collector_etc_path not in path_list:
-            result.message = "multi_config not have path [{0}]".format(collector_etc_main_config_path)
+            result.message = "multi_config not have path [{}]".format(collector_etc_main_config_path)
             result.add_to_result()
             return
 
@@ -162,7 +162,7 @@ class BKUnifyLogBeatCheck(object):
     @staticmethod
     def check_gseagent_hosted():
         result = Result(MODULE_BKUNIFYLOGBEAT, STEP_CHECK_BKUNIFYLOGBEAT_HOSTED)
-        output = get_command("cat {0} | grep {1}".format(procinfo_file_path, MODULE_BKUNIFYLOGBEAT))
+        output = get_command("cat {} | grep {}".format(procinfo_file_path, MODULE_BKUNIFYLOGBEAT))
         if MODULE_BKUNIFYLOGBEAT in str(output):
             result.status = True
         result.add_to_result()
@@ -278,15 +278,14 @@ def arg_parse():
 
 def main():
     arg_parse()
-    global subscription_id
-    if subscription_id:
-        bkunifylogbeat_checker = BKUnifyLogBeatCheck()
-        bkunifylogbeat_checker.check_bin_file()
-        bkunifylogbeat_checker.check_process()
-        bkunifylogbeat_checker.check_main_config()
-        bkunifylogbeat_checker.check_config()
-        bkunifylogbeat_checker.check_gseagent_hosted()
-        bkunifylogbeat_checker.check_collector_healthz()
+
+    bkunifylogbeat_checker = BKUnifyLogBeatCheck()
+    bkunifylogbeat_checker.check_bin_file()
+    bkunifylogbeat_checker.check_process()
+    bkunifylogbeat_checker.check_main_config()
+    bkunifylogbeat_checker.check_config()
+    bkunifylogbeat_checker.check_gseagent_hosted()
+    bkunifylogbeat_checker.check_collector_healthz()
 
     gse_agent_checker = GseAgentCheck()
     gse_agent_checker.check_process()

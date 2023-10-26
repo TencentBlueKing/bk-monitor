@@ -127,7 +127,7 @@ class DataAccessHandler(BaseAiopsHandler):
         collector_scenario = CollectorScenario.get_instance(
             collector_scenario_id=collector_config.collector_scenario_id
         )
-        built_in_config = collector_scenario.get_built_in_config(etl_config=collector_config.etl_config)
+        built_in_config = collector_scenario.get_built_in_config()
         fields_config = etl_storage.get_result_table_config(fields, etl_params, copy.deepcopy(built_in_config)).get(
             "field_list", []
         )
@@ -140,15 +140,6 @@ class DataAccessHandler(BaseAiopsHandler):
             result_table_name = f"bklog_{collector_config.collector_config_name_en}"
         else:
             result_table_name = collector_config.collector_config_name_en
-
-        # 当用户使用了自定义字段作为时间字段，则会产生同名字段，需要去重
-        fields_names = set()
-        dedupe_fields_config = []
-        for field in fields_config:
-            field_name = field.get("alias_name") if field.get("alias_name") else field.get("field_name")
-            if field_name not in fields_names:
-                dedupe_fields_config.append(field)
-                fields_names.add(field_name)
 
         params = {
             "raw_data_id": clustering_config.bkdata_data_id,
@@ -165,7 +156,7 @@ class DataAccessHandler(BaseAiopsHandler):
                     "is_dimension": field.get("tag", "dimension") == "dimension",
                     "field_index": index,
                 }
-                for index, field in enumerate(dedupe_fields_config, 1)
+                for index, field in enumerate(fields_config, 1)
             ],
             "json_config": json.dumps(bkdata_json_config),
             "bk_username": self.conf.get("bk_username"),

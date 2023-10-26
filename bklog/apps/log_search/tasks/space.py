@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
-from copy import deepcopy
-from typing import Dict, List
-
-from apps.api import TransferApi
-from apps.log_search.models import Space, SpaceApi, SpaceType
-from apps.utils.lock import share_lock
-from apps.utils.log import logger
-from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import space_uid_to_bk_biz_id
 from celery.schedules import crontab
 from celery.task import periodic_task
+
+from apps.api import TransferApi
+from apps.log_search.models import SpaceType, Space
+from apps.utils.lock import share_lock
+from apps.utils.log import logger
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 @periodic_task(run_every=crontab(minute="*/5"))
@@ -39,7 +36,7 @@ def sync_space_types():
         all_space_types.append(type_obj)
 
     # 删除不存在的空间类型
-    deleted_rows = SpaceType.origin_objects.exclude(type_id__in=[t.type_id for t in all_space_types]).delete()
+    deleted_rows = SpaceType.objects.exclude(type_id__in=[t.type_id for t in all_space_types]).update(is_deleted=True)
     logger.info("[sync_space_types] sync ({}), delete ({})".format(len(all_space_types), deleted_rows))
 
 
@@ -51,8 +48,8 @@ def sync_spaces():
     type_names = {t["type_id"]: t["type_name"] for t in TransferApi.list_space_types()}
 
     spaces = TransferApi.list_spaces({"is_detail": True, "page": 0})["list"]
-    have_related_spaces: List[Space] = []
-    space_mapping: Dict[str, Space] = {}
+
+    all_spaces = []
 
     for space in spaces:
         space_pk = space.pop("id")
@@ -78,26 +75,8 @@ def sync_spaces():
         )
 
         space_obj.save()
-        space_mapping[space_uid] = space_obj
-        # 记录存在关联的空间, 因为只有非BKCC的业务会关联其他空间, 但是BKCC的业务不会知道他关联了哪些非BKCC业务, 所以需要记录
-        if space_type_id == SpaceTypeEnum.BKCC.value or not space.get("resources", []):
-            continue
-        have_related_spaces.append(space_obj)
-
-    # 将BKCC的业务的resources里也添加上其他空间类型的resource, 这样就可以通过BKCC的业务找到其他空间类型的业务
-    for _space in have_related_spaces:
-        for resource in _space.properties["resources"]:
-            need_relate_space_uid: str = SpaceApi.gen_space_uid(
-                space_type=resource["resource_type"], space_id=resource["resource_id"]
-            )
-            if not space_mapping.get(need_relate_space_uid):
-                continue
-            need_relate_space_obj: Space = space_mapping[need_relate_space_uid]
-            properties = deepcopy(need_relate_space_obj.properties)
-            properties["resources"].append({'resource_id': _space.space_id, 'resource_type': _space.space_type_id})
-            need_relate_space_obj.properties = properties
-            need_relate_space_obj.save()
+        all_spaces.append(space_obj)
 
     # 删除不存在的空间
-    deleted_rows = Space.origin_objects.exclude(id__in=[t.id for t in space_mapping.values()]).delete()
-    logger.info("[sync_spaces] sync ({}), delete ({})".format(len(space_mapping), deleted_rows))
+    deleted_rows = Space.objects.exclude(id__in=[t.id for t in all_spaces]).update(is_deleted=True)
+    logger.info("[sync_spaces] sync ({}), delete ({})".format(len(all_spaces), deleted_rows))

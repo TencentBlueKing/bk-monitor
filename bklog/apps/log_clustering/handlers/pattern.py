@@ -36,6 +36,7 @@ from apps.log_clustering.constants import (
     PERCENTAGE_RATE,
     PatternEnum,
 )
+from apps.log_clustering.exceptions import ClusteringConfigNotExistException
 from apps.log_clustering.models import (
     AiopsSignatureAndPattern,
     ClusteringConfig,
@@ -58,8 +59,12 @@ class PatternHandler:
         self._show_new_pattern = query.get("show_new_pattern", False)
         self._year_on_year_hour = query.get("year_on_year_hour", 0)
         self._group_by = query.get("group_by", [])
-        self._clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        self._clustering_config = ClusteringConfig.objects.filter(
+            index_set_id=index_set_id, signature_enable=True
+        ).first()
         self._query = query
+        if not self._clustering_config:
+            raise ClusteringConfigNotExistException
 
     def pattern_search(self):
         """

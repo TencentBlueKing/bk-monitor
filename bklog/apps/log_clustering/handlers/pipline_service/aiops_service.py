@@ -20,55 +20,49 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import arrow
+from django.conf import settings
+from pipeline.builder import Data, EmptyStartEvent, EmptyEndEvent, Var, build_tree
+from pipeline.parser import PipelineParser
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.components.collections.aiops_model_component import (
-    BasicModelEvaluationResult,
-    CloseContinuousTraining,
-    CommitResult,
-    CreateExperiment,
     CreateModel,
-    ModelEvaluation,
-    ModelTrain,
-    Release,
+    UpdateTrainingSchedule,
+    CreateExperiment,
+    UpdateExecuteConfig,
     SampleSetLoading,
     SampleSetPreparation,
+    ModelTrain,
+    ModelEvaluation,
+    BasicModelEvaluationResult,
+    CommitResult,
+    Release,
     SyncPattern,
-    UpdateExecuteConfig,
-    UpdateTrainingSchedule,
+    CloseContinuousTraining,
 )
 from apps.log_clustering.components.collections.data_access_component import (
-    AddProjectData,
-    AddResourceGroupSet,
     ChangeDataStream,
     CreateBkdataAccess,
     SyncBkdataEtl,
+    AddProjectData,
+    AddResourceGroupSet,
 )
 from apps.log_clustering.components.collections.flow_component import (
+    CreatePreTreatFlow,
     CreateAfterTreatFlow,
     CreateNewClsStrategy,
     CreateNewIndexSet,
-    CreatePreTreatFlow,
 )
 from apps.log_clustering.components.collections.sample_set_component import (
-    AddRtToSampleSet,
-    ApplySampleSet,
-    CollectConfigs,
     CreateSampleSet,
+    AddRtToSampleSet,
+    CollectConfigs,
+    ApplySampleSet,
 )
-from apps.log_clustering.handlers.pipline_service.base_pipline_service import (
-    BasePipeLineService,
-)
+from apps.log_clustering.handlers.pipline_service.base_pipline_service import BasePipeLineService
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
-from apps.log_clustering.models import (
-    AiopsModel,
-    AiopsModelExperiment,
-    ClusteringConfig,
-    SampleSet,
-)
-from django.conf import settings
-from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
-from pipeline.parser import PipelineParser
+from apps.log_clustering.models import ClusteringConfig, AiopsModel, AiopsModelExperiment, SampleSet
 
 
 class AiopsLogService(BasePipeLineService):
@@ -285,7 +279,7 @@ class UpdateModelService(BasePipeLineService):
 
 def operator_aiops_service(index_set_id, operator=OperatorServiceEnum.CREATE):
     conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
-    clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+    clustering_config = ClusteringConfig.objects.get(index_set_id=index_set_id)
     rt_name = (
         clustering_config.collector_config_name_en
         if clustering_config.collector_config_name_en

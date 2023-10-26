@@ -28,7 +28,7 @@ from typing import List, Union
 
 import arrow
 from apps.api import BkDataResourceCenterApi, BkLogApi, TransferApi
-from apps.constants import UserOperationActionEnum, UserOperationTypeEnum, SpacePropertyEnum
+from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import (
@@ -66,7 +66,7 @@ from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
+from bkm_space.utils import bk_biz_id_to_space_uid
 from django.conf import settings
 from django.db.models import Q, Sum
 from django.utils.translation import ugettext as _
@@ -104,20 +104,13 @@ class StorageHandler(object):
         if visible_config["visible_type"] == VisibleEnum.BIZ_ATTR.value:
             # 如果空间类型不是业务，需要找出该空间关联的业务再做判断(如果有)
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-            space_type, space_id = parse_space_uid(space_uid)
-            bk_biz_labels = visible_config.get("bk_biz_labels", {})
-            if not bk_biz_labels:
-                return False
-            # 如果存在空间类型的属性, 则判断空间类型是否在属性值列表中
-            label_space_type_value_list = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value, [])
-            if label_space_type_value_list and space_type in label_space_type_value_list:
-                return True
-            if label_space_type_value_list and space_type not in label_space_type_value_list:
-                return False
             related_space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
             if not related_space:
                 return False
             bk_biz_id = related_space.bk_biz_id
+            bk_biz_labels = visible_config.get("bk_biz_labels", {})
+            if not bk_biz_labels:
+                return False
             q_filter = Q()
             for label_key, label_values in bk_biz_labels.items():
                 q_filter &= functools.reduce(
@@ -744,6 +737,7 @@ class StorageHandler(object):
         return cluster_obj
 
     def destroy(self):
+
         from apps.log_search.handlers.index_set import IndexSetHandler
 
         # check index_set
@@ -767,6 +761,7 @@ class StorageHandler(object):
         schema=DEFAULT_ES_SCHEMA,
         **kwargs,
     ):
+
         # 有传用户但是没有密码，通过接口查询该cluster密码信息
         # version_info 为True，会返回连接状态和版本信息的元组，False只返回连接状态bool
         if self.cluster_id:

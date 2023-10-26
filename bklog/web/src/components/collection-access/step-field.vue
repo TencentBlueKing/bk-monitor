@@ -239,14 +239,11 @@
                   :is-edit-json="isUnmodifiable"
                   :is-set-disabled="isSetDisabled"
                   :extract-method="formData.etl_config"
-                  :select-etl-config="params.etl_config"
                   :deleted-visible="deletedVisible"
                   :fields="formData.fields"
                   :retain-original-value="formData.etl_params.retain_original_text"
-                  :retain-extra-json="formData.etl_params.retain_extra_json"
                   @deleteVisible="visibleHandle"
                   @handleKeepLog="handleKeepLog"
-                  @handleKeepField="handleKeepField"
                   @standard="dialogVisible = true"
                   @reset="getDetail">
                 </field-table>
@@ -520,7 +517,6 @@ export default {
           retain_original_text: true,
           separator_regexp: '',
           separator: '',
-          retain_extra_json: false,
         },
         fields: [],
         visible_type: 'current_biz', // 可见范围单选项
@@ -806,7 +802,6 @@ export default {
           retain_original_text: true,
           separator_regexp: '',
           separator: '',
-          retain_extra_json: false,
         }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
         fields: etl_fields,
         visible_type,
@@ -860,7 +855,6 @@ export default {
           retain_original_text: etl_params.retain_original_text,
           separator_regexp: etl_params.separator_regexp,
           separator: etl_params.separator,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
         },
         etl_fields: fields,
         visible_type,
@@ -868,8 +862,7 @@ export default {
       /* eslint-disable */
       if (etl_config !== 'bk_log_text') {
         const etlParams = {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json : etl_params.retain_extra_json ?? false
+          retain_original_text: etl_params.retain_original_text
         }
         if (etl_config === 'bk_log_delimiter') {
           etlParams.separator = etl_params.separator
@@ -1050,7 +1043,7 @@ export default {
         // okText: this.$t('直接下载'),
         confirmFn: () => {
           const id = this.curCollect.bkdata_data_id;
-          const jumpUrl = `${window.BKDATA_URL}/#/data-hub-detail/clean/list/${id}/index`;
+          const jumpUrl = `${window.BKDATA_URL}/#/data-access/data-detail/${id}/3`;
           window.open(jumpUrl, '_blank');
           this.$emit('change-submit', true);
           // 前往高级清洗刷新页
@@ -1101,7 +1094,6 @@ export default {
           retain_original_text: true,
           separator_regexp: '',
           separator: '',
-          retain_extra_json: false,
         }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
         fields: copyFields.filter(item => !item.is_built_in),
       });
@@ -1330,9 +1322,6 @@ export default {
     handleKeepLog(value) {
       this.formData.etl_params.retain_original_text = value;
     },
-    handleKeepField(value) {
-      this.formData.etl_params.retain_extra_json = value;
-    },
     judgeNumber(val) {
       const { value } = val;
       if (value === 0) return false;
@@ -1419,7 +1408,6 @@ export default {
               retain_original_text: true,
               separator_regexp: '',
               separator: '',
-              retain_extra_json: false,
             }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
             fields: etl_fields,
           });

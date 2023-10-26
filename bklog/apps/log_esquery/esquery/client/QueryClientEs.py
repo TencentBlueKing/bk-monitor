@@ -36,7 +36,6 @@ from apps.log_esquery.exceptions import (
 )
 from apps.log_esquery.type_constants import type_mapping_dict
 from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
-from apps.utils.cache import cache_five_minute
 from django.conf import settings
 from django.utils.translation import ugettext as _
 from elasticsearch import Elasticsearch as Elasticsearch
@@ -51,7 +50,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
         self._client: Elasticsearch
 
     def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
-        self._build_connection(check_ping=False)
+        self._build_connection()
 
         # 如果版本不是5.0且track_total_hits为True时
         if track_total_hits and not isinstance(self._client, Elasticsearch5):
@@ -65,7 +64,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=e))
 
     def mapping(self, index: str) -> Dict:
-        self._build_connection(check_ping=False)
+        self._build_connection()
         try:
             mapping_dict: type_mapping_dict = self._client.indices.get_mapping(index=index)
             return mapping_dict
@@ -74,7 +73,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             raise BaseSearchFieldsException(BaseSearchFieldsException.MESSAGE.format(error=e))
 
     def scroll(self, index: str, scroll_id: str, scroll: str) -> Dict:
-        self._build_connection(check_ping=False)
+        self._build_connection()
         try:
             return self._client.scroll(scroll_id=scroll_id, scroll=scroll)
         except Exception as e:  # pylint: disable=broad-except
@@ -113,19 +112,19 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             self.catch_timeout_raise(e)
             raise
 
-    def _build_connection(self, check_ping: bool = True):
+    def _build_connection(self):
         if not self._active:
-            self._get_connection(check_ping=check_ping)
-            if check_ping and not self._active:
+            self._get_connection()
+            if not self._active:
                 raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=_("EsClient链接失败")))
             else:
                 pass
         else:
             pass
 
-    def _get_connection(self, check_ping: bool = True):
+    def _get_connection(self):
         self.host, self.port, self.username, self.password, self.version, self.schema = self._connect_info(
-            storage_cluster_id=self.storage_cluster_id
+            self.storage_cluster_id
         )
         self._active: bool = False
 
@@ -142,11 +141,13 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             sniffer_timeout=600,
             verify_certs=False,
         )
-        if not check_ping or self._client.ping():
+        if not self._client.ping():
+            self._active = False
+
+        else:
             self._active = True
 
     @staticmethod
-    @cache_five_minute("_connect_info_{storage_cluster_id}", need_md5=True)
     def _connect_info(storage_cluster_id: int) -> tuple:
         transfer_api_response: list = TransferApi.get_cluster_info({"cluster_id": storage_cluster_id})
         if len(transfer_api_response) == 1:

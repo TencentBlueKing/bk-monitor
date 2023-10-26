@@ -67,11 +67,11 @@
           <div v-bk-overflow-tips="{ placement: 'right' }" class="item-text text-overflow-hidden">
             {{ item }}
           </div>
-          <!-- <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
+          <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
             <i18n path="筛选包含{0}的结果">
               <span class="item-callout">{{ item }}</span>
             </i18n>
-          </div> -->
+          </div>
         </li>
       </template>
       <!-- 字段对应值 -->
@@ -477,17 +477,10 @@ export default {
      * @return {string[]}
      */
     getValueList(valueMap) {
-      // if (valueMap.__fieldType === 'string') {
-      //   return Object.keys(valueMap).map(item => `"${item}"`);
-      // }
-      // return Object.keys(valueMap);
-      let valueMapList = Object.keys(valueMap);
       if (valueMap.__fieldType === 'string') {
-        valueMapList = valueMapList // 清除mark标签
-          .map(item => `"${item.replace(/<mark>/g, '')
-            .replace(/<\/mark>/g, '')}"`);
+        return Object.keys(valueMap).map(item => `"${item}"`);
       }
-      return [...new Set(valueMapList)]; // 清除重复的字段
+      return Object.keys(valueMap);
     },
     /**
      * 选择某个可选字段
@@ -576,7 +569,7 @@ export default {
 
     .retrieve-dropdown {
       position: absolute;
-      z-index: 99;
+      z-index: 1;
       width: 100%;
       max-height: 360px;
       overflow: auto;

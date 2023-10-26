@@ -159,11 +159,6 @@ export default {
     .icon-copy {
       margin-right: 3px;
       font-size: 24px;
-
-      &::before {
-        /* stylelint-disable-next-line declaration-no-important */
-        content: '\e109' !important;
-      }
     }
 
     &.is-cluster {

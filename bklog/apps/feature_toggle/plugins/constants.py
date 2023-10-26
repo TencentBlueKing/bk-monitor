@@ -40,6 +40,3 @@ IS_AUTO_DEPLOY_PLUGIN = "is_auto_deploy_plugin"
 BCS_COLLECTOR = "bcs_collector"
 BCS_DEPLOYMENT_TYPE = "bcs_deployment_type"
 CHECK_COLLECTOR_CUSTOM_CONFIG = "check_collector_custom_config"
-
-# grafana自定义ES数据源
-GRAFANA_CUSTOM_ES_DATASOURCE = "grafana_custom_es_datasource"

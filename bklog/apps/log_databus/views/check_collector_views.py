@@ -19,16 +19,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from rest_framework import serializers
+from rest_framework.response import Response
+
 from apps.generic import APIViewSet
 from apps.log_databus.handlers.check_collector.base import CheckCollectorRecord
 from apps.log_databus.handlers.check_collector.handler import async_run_check
-from apps.log_databus.serializers import (
-    CheckCollectorSerializer,
-    GetCollectorCheckResultSerializer,
-)
+from apps.log_databus.serializers import CheckCollectorSerializer, GetCollectorCheckResultSerializer
 from apps.utils.drf import list_route
-from rest_framework import serializers
-from rest_framework.response import Response
 
 
 class CheckCollectorViewSet(APIViewSet):
@@ -45,6 +43,5 @@ class CheckCollectorViewSet(APIViewSet):
     def run_check_collector(self, request, *args, **kwargs):
         data = self.params_valid(CheckCollectorSerializer)
         key = CheckCollectorRecord.generate_check_record_id(**data)
-        CheckCollectorRecord(check_record_id=key).append_init()
         async_run_check.delay(**data)
         return Response({"check_record_id": key})

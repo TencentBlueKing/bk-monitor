@@ -20,14 +20,16 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from typing import Any, List
-
+import datetime
+from typing import List, Any
 import arrow
-from apps.log_esquery.type_constants import type_index_set_list, type_index_set_string
+from dateutil.parser import parse
+from dateutil.rrule import rrule
+from dateutil.rrule import DAILY
+from dateutil import tz
+from apps.log_esquery.type_constants import type_index_set_string, type_index_set_list
 from apps.log_search.models import Scenario
 from apps.utils.function import map_if
-from dateutil import tz
-from dateutil.rrule import DAILY, MONTHLY, rrule
 
 
 class QueryIndexOptimizer(object):
@@ -35,8 +37,8 @@ class QueryIndexOptimizer(object):
         self,
         indices: type_index_set_string,
         scenario_id: str,
-        start_time: arrow.Arrow = None,
-        end_time: arrow.Arrow = None,
+        start_time: datetime = None,
+        end_time: datetime = None,
         time_zone: str = None,
         use_time_range: bool = True,
     ):
@@ -75,7 +77,7 @@ class QueryIndexOptimizer(object):
         return self._index
 
     def index_filter(
-        self, result_table_id_list: type_index_set_list, start_time: arrow.Arrow, end_time: arrow.Arrow, time_zone: str
+        self, result_table_id_list: type_index_set_list, start_time: datetime, end_time: datetime, time_zone: str
     ) -> List[str]:
         # BkData索引集优化
         final_index_list: list = []
@@ -85,31 +87,31 @@ class QueryIndexOptimizer(object):
         return final_index_list
 
     def index_time_filter(
-        self, index: str, date_start: arrow.Arrow, date_end: arrow.Arrow, time_zone: str
+        self, index: str, date_start: datetime, date_end: datetime, time_zone: str
     ) -> type_index_set_list:
-        date_start = date_start.to(time_zone)
-        date_end = date_end.to(time_zone)
-        now = arrow.now(time_zone)
+        date_start = date_start.to(time_zone).strftime("%Y%m%d000000")
+        date_end = date_end.to(time_zone).strftime("%Y%m%d%H%M%S")
+        now: datetime = arrow.now(time_zone).naive
+        if parse(date_end) > now:
+            date_end: str = now.strftime("%Y%m%d%H%M%S")
 
-        if date_end > now:
-            date_end = now
+        start, end = parse(date_start), parse(date_end)
+        date_day_list: List[Any] = list(rrule(DAILY, interval=1, dtstart=start, until=end))
+        # date_day_list.append(end)
 
-        date_day_list: List[Any] = list(
-            rrule(DAILY, interval=1, dtstart=date_start.floor("day").datetime, until=date_end.ceil("day").datetime)
+        date_month_list: List[Any] = list(rrule(DAILY, interval=14, dtstart=start, until=end))
+        # date_month_list.append(end)
+
+        filter_list: type_index_set_list = self._generate_filter_list(
+            index, date_day_list, date_month_list, date_end, now
         )
-
-        date_month_list: List[Any] = list(
-            rrule(
-                MONTHLY, interval=1, dtstart=date_start.floor("month").datetime, until=date_end.ceil("month").datetime
-            )
-        )
-
-        filter_list: type_index_set_list = self._generate_filter_list(index, date_day_list, date_month_list)
         return list(set(filter_list))
 
-    def _generate_filter_list(self, index, date_day_list, date_month_list):
+    def _generate_filter_list(self, index, date_day_list, date_month_list, date_end, now):
         filter_list: type_index_set_list = []
         if len(date_day_list) == 1:
+            if date_day_list[0].strftime("%d") != now.strftime("%d"):
+                date_day_list.append(parse(date_end))
             for x in date_day_list:
                 filter_list.append("{}_{}*".format(index, x.strftime("%Y%m%d")))
         elif len(date_day_list) > 1 and len(date_month_list) == 1:

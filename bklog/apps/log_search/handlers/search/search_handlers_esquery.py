@@ -31,18 +31,14 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
-from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
-from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_search.constants import (
     ASYNC_SORTED,
-    CHECK_FIELD_LIST,
-    CHECK_FIELD_MAX_VALUE_MAPPING,
-    CHECK_FIELD_MIN_VALUE_MAPPING,
     ERROR_MSG_CHECK_FIELDS_FROM_BKDATA,
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
     MAX_EXPORT_REQUEST_RETRY,
     MAX_RESULT_WINDOW,
     MAX_SEARCH_SIZE,
+    REAL_OPERATORS_MAP,
     SCROLL,
     FieldDataTypeEnum,
     OperatorEnum,
@@ -56,8 +52,6 @@ from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     BaseSearchResultAnalyzeException,
     BaseSearchSortListException,
-    IntegerErrorException,
-    IntegerMaxErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
     SearchNotTimeFieldType,
@@ -116,16 +110,9 @@ def fields_config(name: str, is_active: bool = False):
 
 class SearchHandler(object):
     def __init__(
-        self,
-        index_set_id: int,
-        search_dict: dict,
-        pre_check_enable=True,
-        can_highlight=True,
-        export_fields=None,
-        export_log: bool = False,
+        self, index_set_id: int, search_dict: dict, pre_check_enable=True, can_highlight=True, export_fields=None
     ):
         self.search_dict: dict = search_dict
-        self.export_log = export_log
 
         # 透传查询类型
         self.index_set_id = index_set_id
@@ -146,8 +133,6 @@ class SearchHandler(object):
             self.search_dict.update(
                 PreSearchHandlers.pre_check_fields(self.indices, self.scenario_id, self.storage_cluster_id)
             )
-        # 是否包含嵌套字段
-        self.include_nested_fields: bool = self.search_dict.get("include_nested_fields", True)
 
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
@@ -155,7 +140,7 @@ class SearchHandler(object):
 
         self.use_time_range = search_dict.get("use_time_range", True)
         # 构建时间字段
-        self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
+        self.time_field, self.time_field_type, self.time_field_unit = self._init_time_field(
             index_set_id, self.scenario_id
         )
         if not self.time_field:
@@ -242,33 +227,6 @@ class SearchHandler(object):
 
         # 请求用户名
         self.request_username = get_request_username()
-
-        # 透传脱敏配置
-        self.desensitize_config_list = self.search_dict.get("desensitize_configs", [])
-
-        # 初始化DB脱敏配置
-        desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
-        desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id)
-
-        # 脱敏配置原文字段
-        self.text_fields = desensitize_config_obj.text_fields if desensitize_config_obj else []
-
-        field_configs = [
-            {
-                "field_name": field_config_obj.field_name or "",
-                "rule_id": field_config_obj.rule_id or 0,
-                "operator": field_config_obj.operator,
-                "params": field_config_obj.params,
-                "match_pattern": field_config_obj.match_pattern,
-                "sort_index": field_config_obj.sort_index,
-            }
-            for field_config_obj in desensitize_field_config_objs
-        ]
-        if field_configs:
-            self.desensitize_config_list.extend(field_configs)
-
-        # 初始化脱敏工厂对象
-        self.desensitize_handler = DesensitizeHandler(self.desensitize_config_list)
 
     def fields(self, scope="default"):
         mapping_handlers = MappingHandlers(
@@ -360,7 +318,7 @@ class SearchHandler(object):
         判断聚类配置
         """
         log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
+        clustering_config = ClusteringConfig.objects.filter(index_set_id=self.index_set_id).first()
         if clustering_config:
             return (
                 True,
@@ -489,7 +447,6 @@ class SearchHandler(object):
                     "time_field_unit": self.time_field_unit,
                     "scroll": self.scroll,
                     "collapse": self.collapse,
-                    "include_nested_fields": self.include_nested_fields,
                 }
             )
         except ApiResultError as e:
@@ -500,8 +457,6 @@ class SearchHandler(object):
         if self._can_scroll(result):
             result = self._scroll(result)
 
-        _scroll_id = result.get("_scroll_id")
-
         result = self._deal_query_result(result)
         field_dict = self._analyze_field_length(result.get("list"))
         result.update({"fields": field_dict})
@@ -510,41 +465,6 @@ class SearchHandler(object):
         # 保存首页检索和trace通用查询检索历史
         if search_type:
             self._save_history(result, search_type)
-
-        # 补充scroll id
-        if _scroll_id:
-            result.update({"scroll_id": _scroll_id})
-
-        return result
-
-    def scroll_search(self):
-        """
-        日志scroll查询
-        """
-        # scroll初次查询，性能考虑暂不支持用户透传scroll 默认1m
-        self.scroll = SCROLL
-        scroll_id = self.search_dict.get("scroll_id")
-        if not scroll_id:
-            self.is_scroll = True
-            return self.search()
-
-        # scroll查询
-        try:
-            result = BkLogApi.scroll(
-                {
-                    "indices": self.indices,
-                    "scenario_id": self.scenario_id,
-                    "storage_cluster_id": self.storage_cluster_id,
-                    "scroll": self.scroll,
-                    "scroll_id": scroll_id,
-                }
-            )
-        except ApiResultError as e:
-            logger.error(f"scroll 查询失败：{e}")
-            raise ApiResultError(_("scroll 查询失败"), code=e.code, errors=e.errors)
-        _scroll_id = result.get("_scroll_id")
-        result = self._deal_query_result(result)
-        result.update({"scroll_id": _scroll_id})
         return result
 
     def _save_history(self, result, search_type):
@@ -587,6 +507,7 @@ class SearchHandler(object):
         )
 
     def _scroll(self, search_result):
+
         scroll_result = copy.deepcopy(search_result)
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = len(search_result["hits"]["hits"])
@@ -1081,10 +1002,7 @@ class SearchHandler(object):
             )
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
-    @staticmethod
-    def init_time_field(index_set_id: int, scenario_id: str = None) -> tuple:
-        if not scenario_id:
-            scenario_id = LogIndexSet.objects.filter(index_set_id=index_set_id).first().scenario_id
+    def _init_time_field(self, index_set_id: int, scenario_id: str) -> tuple:
         # get timestamp field
         if scenario_id in [Scenario.BKDATA, Scenario.LOG]:
             return "dtEventTimeStamp", TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
@@ -1149,23 +1067,10 @@ class SearchHandler(object):
             if mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value
             value = item.get("value")
-            # value 校验逻辑
-            value_type = field_type_map.get(field)
-            value_list = value.split(",") if isinstance(value, str) else value
-            if value_type in CHECK_FIELD_LIST and value_list:
-                for _v in value_list:
-                    max_value = CHECK_FIELD_MAX_VALUE_MAPPING.get(value_type, 0)
-                    min_value = CHECK_FIELD_MIN_VALUE_MAPPING.get(value_type, 0)
-                    try:
-                        if max_value and min_value and (int(_v) > max_value or int(_v) < min_value):
-                            raise IntegerMaxErrorException(IntegerMaxErrorException.MESSAGE.format(num=_v))
-                    except IntegerErrorException as e:
-                        raise IntegerErrorException(
-                            IntegerErrorException.MESSAGE.format(num=_v), code=e.code, errors=e.errors
-                        )
-
             operator: str = item.get("method") if item.get("method") else item.get("operator")
             condition: str = item.get("condition", "and")
+            if operator in REAL_OPERATORS_MAP.keys():
+                operator = REAL_OPERATORS_MAP[operator]
 
             if operator in [OperatorEnum.EXISTS["operator"], OperatorEnum.NOT_EXISTS["operator"]]:
                 new_filter_list.append(
@@ -1175,6 +1080,11 @@ class SearchHandler(object):
             # 此处对于前端传递filter为空字符串需要放行
             if (not field or not value or not operator) and not isinstance(value, str):
                 continue
+            # bool类型的字段且操作符为 is true 和 is false的时候做转换
+            if field_type_map.get(field, "") == "bool":
+                if operator in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
+                    operator = "is"
+                    value = operator.split(" ")[-1]
 
             new_filter_list.append(
                 {"field": field, "value": value, "operator": operator, "condition": condition, "type": _type}
@@ -1267,9 +1177,6 @@ class SearchHandler(object):
         if self.query_string == "":
             highlight = {}
 
-        if self.export_log:
-            highlight = {}
-
         return highlight
 
     def _add_cmdb_fields(self, log):
@@ -1341,31 +1248,27 @@ class SearchHandler(object):
         # hit data
         for hit in result_dict["hits"]["hits"]:
             log = hit["_source"]
-            # 脱敏处理
-            if self.desensitize_config_list:
-                log = self._log_desensitize(log)
+            origin_log = copy.deepcopy(log)
             log = self._add_cmdb_fields(log)
             if self.export_fields:
                 new_origin_log = {}
                 for _export_field in self.export_fields:
                     # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
-                    if _export_field in log:
-                        new_origin_log[_export_field] = log[_export_field]
+                    if _export_field in origin_log:
+                        new_origin_log[_export_field] = origin_log[_export_field]
                     else:
                         new_origin_log[_export_field] = log.get(_export_field, "")
                 origin_log = new_origin_log
             else:
                 origin_log = log
+            origin_log_list.append(origin_log)
             _index = hit["_index"]
             log.update({"index": _index})
-            if self.search_dict.get("is_return_doc_id"):
-                log.update({"__id__": hit["_id"]})
-            origin_log_list.append(copy.deepcopy(origin_log))
             if "highlight" not in hit:
                 log_list.append(log)
                 continue
-            if not self.desensitize_config_list:
-                log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
+            for key in hit["highlight"]:
+                log[key] = "".join(hit["highlight"][key])
             log_list.append(log)
 
         result.update(
@@ -1380,57 +1283,6 @@ class SearchHandler(object):
         agg_dict = result_dict.get("aggregations", {})
         result.update({"aggs": agg_dict})
         return result
-
-    @staticmethod
-    def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
-        result = {}
-        for key, value in dotted_dict.items():
-            parts = key.split('.')
-            current_level = result
-            for part in parts[:-1]:
-                if part not in current_level:
-                    current_level[part] = {}
-                current_level = current_level[part]
-            current_level[parts[-1]] = "".join(value)
-        return result
-
-    def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        兼容Object类型字段的高亮
-        ES层会返回打平后的高亮字段, 该函数将其高亮的字段更新至对应Object字段
-        """
-        log.update(self.nested_dict_from_dotted_key(dotted_dict=highlight))
-        return log
-
-    def _log_desensitize(self, log: dict = None):
-        """
-        字段脱敏
-        """
-        if not log:
-            return log
-
-        # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
-        log_content_tmp = copy.deepcopy(log)
-
-        # 字段脱敏处理
-        log = self.desensitize_handler.transform_dict(log)
-
-        # 处理原文字段
-        if not self.text_fields:
-            return log
-
-        for text_field in self.text_fields:  # ["log"]
-            # 判断原文字段是否存在log中
-            if text_field not in log.keys():
-                continue
-
-            for _config in self.desensitize_config_list:
-                field_name = _config["field_name"]
-                if field_name not in log.keys():
-                    continue
-                log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
-
-        return log
 
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
         for item in log_list:
@@ -1487,6 +1339,7 @@ class SearchHandler(object):
         mark_gseIndex: int = None
         # pylint: disable=invalid-name
     ) -> Dict[str, Any]:
+
         log_list_reversed: list = log_list
         if self.start < 0:
             log_list_reversed = list(reversed(log_list))
@@ -1536,7 +1389,7 @@ class SearchHandler(object):
                 gseIndex: str = item.get("gseIndex")  # pylint: disable=invalid-name
                 serverIp: str = item.get("serverIp")  # pylint: disable=invalid-name
                 bk_host_id: int = item.get("bk_host_id")
-                path: str = item.get("path", "")
+                path: str = item.get("path")
                 iterationIndex: str = item.get("iterationIndex")  # pylint: disable=invalid-name
                 # find the counting range point
                 if _count_start == -1:
@@ -1629,9 +1482,11 @@ class SearchHandler(object):
         for _add in addition:
             field: str = _add.get("key") if _add.get("key") else _add.get("field")
             _operator: str = _add.get("method") if _add.get("method") else _add.get("operator")
+            if _operator in REAL_OPERATORS_MAP.keys():
+                _operator = REAL_OPERATORS_MAP[_operator]
             if field == self.ip_field:
                 value = _add.get("value")
-                if value and _operator in ["is", OperatorEnum.EQ["operator"], OperatorEnum.EQ_WILDCARD["operator"]]:
+                if value and _operator in ["is", "is one of", "eq"]:
                     if isinstance(value, str):
                         addition_ip_list.extend(value.split(","))
                         continue

@@ -45,8 +45,6 @@ from apps.log_clustering.handlers.aiops.sample_set.data_cls import (
     SampleSetInfoCls,
 )
 from apps.log_clustering.constants import MAX_FAILED_REQUEST_RETRY
-from apps.log_clustering.models import ClusteringConfig
-from apps.log_clustering.exceptions import ClusteringConfigNotExistException
 
 from apps.api import BkDataAIOPSApi
 from apps.api.base import DataApiRetryClass, check_result_is_true
@@ -178,4 +176,3 @@ class SampleSetHandler(BaseAiopsHandler):
         sample_set_info_request = SampleSetInfoCls(sample_set_id=sample_set_id, project_id=self.conf.get("project_id"))
         request_dict = self._set_username(sample_set_info_request)
         return BkDataAIOPSApi.sample_set_info(request_dict)
-

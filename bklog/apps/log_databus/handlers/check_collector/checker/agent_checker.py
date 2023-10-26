@@ -26,11 +26,8 @@ import time
 from collections import defaultdict
 
 from apps.api import JobApi
-from apps.constants import ScriptType
-from apps.log_commons.job import JobHelper
 from apps.log_databus.constants import (
     CHECK_AGENT_STEP,
-    CHECK_COLLECTOR_SCRIPT_TIMEOUT,
     DEFAULT_BK_USERNAME,
     DEFAULT_EXECUTE_SCRIPT_ACCOUNT,
     GSE_PATH,
@@ -39,6 +36,7 @@ from apps.log_databus.constants import (
     JOB_SUCCESS_STATUS,
     RETRY_TIMES,
     WAIT_FOR_RETRY,
+    ScriptType,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from config import BASE_DIR
@@ -46,21 +44,10 @@ from django.utils.translation import ugettext as _
 
 
 class AgentChecker(Checker):
-    """
-    非容器采集项Agent检查
-    """
-
     CHECKER_NAME = "agent checker"
 
     def __init__(
-        self,
-        bk_biz_id: int,
-        target_server: dict,
-        subscription_id: int,
-        gse_path: str,
-        ipc_path: str,
-        *args,
-        **kwargs,
+        self, bk_biz_id: int, target_server: dict, subscription_id: int, gse_path: str, ipc_path: str, *args, **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.bk_biz_id = bk_biz_id
@@ -86,12 +73,12 @@ class AgentChecker(Checker):
         params = {
             "bk_biz_id": self.bk_biz_id,
             "bk_username": DEFAULT_BK_USERNAME,
-            "account": DEFAULT_EXECUTE_SCRIPT_ACCOUNT,
+            "account_alias": DEFAULT_EXECUTE_SCRIPT_ACCOUNT,
             "script_content": "",
             "target_server": self.target_server,
             "script_language": ScriptType.PYTHON.value,
             "script_param": base64.b64encode(script_param.encode()).decode(),
-            "timeout": CHECK_COLLECTOR_SCRIPT_TIMEOUT,
+            "timeout": 7200,
             "task_name": _("检查采集项配置"),
         }
         script_pwd = os.path.join(BASE_DIR, "apps/log_databus/scripts/check_bkunifylogbeat/check.py")
@@ -104,7 +91,7 @@ class AgentChecker(Checker):
             return
 
         try:
-            result = JobHelper.execute_script(**params)
+            result = JobApi.fast_execute_script(params)
             self.job_instance_id = result.get("job_instance_id", 0)
             self.step_instance_id = result.get("step_instance_id", 0)
         except Exception as e:  # pylint: disable=broad-except

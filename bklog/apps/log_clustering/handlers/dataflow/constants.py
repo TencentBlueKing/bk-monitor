@@ -43,10 +43,8 @@ DEFAULT_SPARK_PSEUDO_SHUFFLE = 200
 DEFAULT_SPARK_LOCALITY_WAIT = "0s"
 
 DEFAULT_FLINK_BATCH_SIZE = 100
-DEFAULT_FLINK_CPU = 1
+DEFAULT_FLINK_CPU = 2
 DEFAULT_FLINK_MEMORY = 2048
-DEFAULT_FLINK_WORKER_NUMS = 2
-DEFAULT_FLINK_REPLICAS = 2
 
 STREAM_SOURCE_NODE_TYPE = "stream_source"
 DIVERSION_NODE_NAME = _("回流数据")
@@ -84,21 +82,12 @@ class FlowMode(ChoicesEnum):
     MODIFY_FLOW = "modify_flow"
     # 计算平台rt flow
     AFTER_TREAT_FLOW_BKDATA = "after_treat_flow_bkdata"
-    # 在线训练 预测处理 flow
-    PREDICT_FLOW = "predict_flow"
-    # 在线训练 计算平台 rt flow
-    PREDICT_FLOW_BKDATA = "predict_flow_bkdata"
-    # 日志数量聚合 flow
-    LOG_COUNT_AGGREGATION_FLOW = "log_count_aggregation_flow"
 
     _choices_labels = (
         (PRE_TREAT_FLOW, "templates/flow/pre_treat_flow.json"),
         (AFTER_TREAT_FLOW, "templates/flow/after_treat_flow.json"),
         (MODIFY_FLOW, "templates/flow/modify_flow.json"),
         (AFTER_TREAT_FLOW_BKDATA, "templates/flow/after_treat_flow_bkdata.json"),
-        (PREDICT_FLOW, "templates/flow/predict_flow.json"),
-        (PREDICT_FLOW_BKDATA, "templates/flow/predict_flow_bkdata.json"),
-        (LOG_COUNT_AGGREGATION_FLOW, "templates/flow/log_count_aggregation_flow.json"),
     )
 
 
@@ -114,12 +103,6 @@ class RealTimeFlowNode(object):
     PRE_TREAT_NOT_CLUSTERING = "pre_treat_not_clustering"
     PRE_TREAT_SAMPLE_SET = "pre_treat_sample_set"
     AFTER_TREAT_CHANGE_FIELD = "after_treat_change_field"
-
-
-class RealTimePredictFlowNode(object):
-    PREDICT_CLUSTERING = "clustering"
-    PREDICT_NOT_CLUSTERING = "not_clustering"
-    PREDICT_NODE = "clustering_output"
 
 
 DEFAULT_MODEL_INPUT_FIELDS = [
@@ -380,91 +363,4 @@ DEFAULT_MODEL_OUTPUT_FIELDS = [
         "data_field_name": "log",
         "field_name": "log",
     },
-    {
-        "used_by": "user",
-        "components": [],
-        "field_alias": "pattern",
-        "data_field_alias": "",
-        "allowed_values": [],
-        "roles": ["predict_result"],
-        "origin": [],
-        "field_container_type": "undefined",
-        "output_mark": True,
-        "autoPassthrough": False,
-        "field_name": "pattern",
-        "field_index": 8,
-        "data_field_name": "",
-        "field_type": "text",
-        "description": None,
-        "data_field_type": "",
-        "default_value": "",
-        "sample_value": None,
-        "value": "",
-        "properties": {
-            "value_fixed": False,
-            "constraint": [],
-            "constraints": {},
-            "extra": {},
-            "condition": {},
-            "role_changeable": False,
-            "name_inherited": False,
-            "complex": False,
-            "passthrough": False,
-            "compatibility": False,
-            "anonymous": False,
-            "label_rules": {"type": "enum", "enum_list": []},
-            "deletable": False,
-            "is_required": True,
-            "constraint_type": "",
-        },
-    },
-    {
-        "default_value": "",
-        "sample_value": None,
-        "value": "",
-        "data_field_alias": "",
-        "roles": ["predict_result"],
-        "origin": [],
-        "description": None,
-        "used_by": "user",
-        "field_index": 9,
-        "data_field_name": "",
-        "allowed_values": [],
-        "autoPassthrough": False,
-        "field_name": "is_new",
-        "field_alias": "is_new",
-        "components": [],
-        "field_type": "int",
-        "properties": {
-            "is_required": True,
-            "constraint_type": "",
-            "deletable": False,
-            "name_inherited": False,
-            "complex": False,
-            "anonymous": False,
-            "role_changeable": False,
-            "passthrough": False,
-            "constraint": [],
-            "value_fixed": False,
-            "compatibility": False,
-            "condition": {},
-            "label_rules": {"type": "enum", "enum_list": []},
-            "constraints": {},
-            "extra": {},
-        },
-        "field_container_type": "undefined",
-        "output_mark": True,
-        "data_field_type": "",
-    },
 ]
-
-
-class OperatorOnlineTaskEnum(object):
-    CREATE = "create"
-    UPDATE = "update"
-
-
-class OnlineTaskTrainingArgs(object):
-    IS_NEW = "1"
-    USE_OFFLINE_MODEL = 0
-    ST_LIST = "0.9,0.8875,0.875,0.8625,0.85"

@@ -22,21 +22,21 @@ the project delivered to anyone in the future.
 import copy
 import json
 
+from django.utils.translation import ugettext_lazy as _
+
+from apps.utils.db import array_group
 from apps.exceptions import ValidationError
+from apps.utils.log import logger
+from apps.log_databus.constants import EtlConfig, BKDATA_ES_TYPE_MAP
+from apps.log_databus.handlers.etl_storage import EtlStorage
+from apps.log_databus.exceptions import EtlDelimiterParseException
+from apps.log_databus.handlers.etl_storage.utils.transfer import preview
 from apps.log_databus.constants import (
-    BKDATA_ES_TYPE_MAP,
-    ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
+    ETL_DELIMITER_DELETE,
     ETL_DELIMITER_IGNORE,
     FIELD_TEMPLATE,
-    EtlConfig,
 )
-from apps.log_databus.exceptions import EtlDelimiterParseException
-from apps.log_databus.handlers.etl_storage import EtlStorage
-from apps.log_databus.handlers.etl_storage.utils.transfer import preview
-from apps.utils.db import array_group
-from apps.utils.log import logger
-from django.utils.translation import ugettext_lazy as _
 
 
 class BkLogDelimiterEtlStorage(EtlStorage):
@@ -150,12 +150,6 @@ class BkLogDelimiterEtlStorage(EtlStorage):
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         retain_original_text = etl_params.get("retain_original_text", False)
         built_in_fields = built_in_config.get("fields", [])
-        (
-            built_in_fields_type_object,
-            built_in_fields_no_type_object,
-            access_built_in_fields_type_object,
-        ) = self._get_built_in_fields_type_fields(built_in_fields)
-
         result_table_fields = self.get_result_table_fields(fields, etl_params, copy.deepcopy(built_in_config))
         time_field = result_table_fields.get("time_field")
         bkdata_fields = [field for field in fields if not field["is_delete"]]
@@ -220,7 +214,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                                             )
                                             + [
                                                 self._to_bkdata_assign(built_in_field)
-                                                for built_in_field in built_in_fields_no_type_object
+                                                for built_in_field in built_in_fields
                                                 if built_in_field.get("flat_field", False)
                                             ],
                                             "type": "assign",
@@ -248,11 +242,10 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                             "next": None,
                             "subtype": "assign_obj",
                             "label": "labelf676c9",
-                            "assign": self._get_bkdata_default_fields(built_in_fields_no_type_object, time_field),
+                            "assign": self._get_bkdata_default_fields(built_in_fields, time_field),
                             "type": "assign",
                         },
-                    ]
-                    + access_built_in_fields_type_object,
+                    ],
                     "name": "",
                     "label": None,
                     "type": "branch",

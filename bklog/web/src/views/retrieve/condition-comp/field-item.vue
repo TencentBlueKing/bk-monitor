@@ -23,7 +23,6 @@
 <template>
   <li class="filed-item">
     <div class="filed-title" :class="{ 'expanded': isExpand }" @click="handleClickItem(fieldItem)">
-      <span :class="['icon log-icon icon-drag-dots', { 'hidden-icon': type === 'hidden' }]"></span>
       <!-- 三角符号 -->
       <span class="bk-icon" :class="{ 'icon-right-shape': showFieldsChart }"></span>
       <!-- 字段类型对应的图标 -->
@@ -36,16 +35,14 @@
         }"
       ></span>
       <!-- 字段名 -->
-      <span class="overflow-tips field-name">
-        <span class="" v-bk-overflow-tips>
-          {{ showFieldAlias ? fieldAliasMap[fieldItem.field_name] : fieldItem.field_name }}
-        </span>
-        <span class="field-count" v-show="isShowFieldsCount">({{ gatherFieldsCount }})</span>
+      <span class="overflow-tips field-name" v-bk-overflow-tips>
+        {{ showFieldAlias ? fieldAliasMap[fieldItem.field_name] : fieldItem.field_name }}
       </span>
       <!-- 聚合字段数量 -->
+      <span class="field-count" v-if="isShowFieldsCount">{{ gatherFieldsCount }}</span>
       <!-- 设置字段显示或隐藏 -->
       <div
-        :class="['operation-text', { 'disable-hidden': isDisabledHiddenField }]"
+        class="operation-text"
         @click.stop="handleShowOrHiddenItem">
         {{ type === 'visible' ? $t('隐藏') : $t('显示') }}
       </div>
@@ -102,10 +99,6 @@ export default {
       type: Object,
       required: true,
     },
-    visibleLength: {
-      type: Number,
-      default: 0,
-    },
   },
   data() {
     return {
@@ -124,9 +117,6 @@ export default {
     isShowFieldsCount() {
       return !['object', 'nested', 'text'].includes(this.fieldItem.field_type);
     },
-    isDisabledHiddenField() {
-      return this.visibleLength === 1 && this.type === 'visible';
-    },
   },
   methods: {
     getFieldIcon(fieldType) {
@@ -140,7 +130,6 @@ export default {
     },
     // 显示或隐藏字段
     handleShowOrHiddenItem() {
-      if (this.isDisabledHiddenField) return;
       this.$emit('toggleItem', this.type, this.fieldItem);
     },
   },
@@ -153,36 +142,7 @@ export default {
   .filed-item {
     margin-bottom: 6px;
 
-    .hidden-icon {
-      &.icon-drag-dots {
-        visibility: hidden;
-      }
-    }
-
-    .icon-drag-dots {
-      padding-left: 4px;
-      width: 16px;
-      text-align: left;
-      font-size: 14px;
-      color: #979ba5;
-      cursor: move;
-      opacity: 0;
-      transition: opacity .2s linear;
-    }
-
-    &:hover {
-      background-color: #f4f5f8;
-      // transition: background .2s linear;
-
-      .icon-drag-dots {
-        opacity: 1;
-        transition: opacity .2s linear;
-      }
-    }
-
     .filed-title {
-      flex: 1;
-      flex-shrink: 0;
       position: relative;
       display: flex;
       align-items: center;
@@ -205,24 +165,20 @@ export default {
         color: #979ba5;
       }
 
-      .field-name {
-        display: flex;
-
-        span:first-child {
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-      }
-
       .icon-ext {
         width: 18px;
         transform: scale(.8)
       }
 
       .field-count {
+        min-width: 22px;
+        line-height: 16px;
         text-align: center;
         padding: 0 4px;
         margin-left: 4px;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+        background-color: #fafbfd;
       }
 
       .operation-text {
@@ -239,14 +195,6 @@ export default {
 
         &:hover {
           color: #699df4;
-        }
-      }
-
-      .disable-hidden {
-        color: #979ba5;
-
-        &:hover {
-          color: #979ba5;
         }
       }
 

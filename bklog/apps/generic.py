@@ -21,32 +21,31 @@ the project delivered to anyone in the future.
 """
 from typing import List
 
-from apps.exceptions import BaseException, ErrorCode, ValidationError
-from apps.iam import ActionEnum, Permission, ResourceEnum
+from django.conf import settings
+from django.http import JsonResponse, Http404
+from django.utils.translation import ugettext as _
+from opentelemetry import trace
+from opentelemetry.trace import format_trace_id
+from rest_framework import exceptions, filters
+from rest_framework import serializers
+from rest_framework import status
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
+from rest_framework.viewsets import ModelViewSet as _ModelViewSet
+from django_filters import rest_framework as django_filters
+
+from apps.log_measure.events import NOTIFY_EVENT
+from apps.utils.function import ignored
+from apps.utils.log import logger
+from apps.exceptions import BaseException, ValidationError, ErrorCode
+from apps.iam import ActionEnum, ResourceEnum, Permission
 from apps.iam.exceptions import PermissionDeniedError
 from apps.iam.handlers.actions import ActionMeta
 from apps.log_esquery.exceptions import EsTimeoutException
 from apps.log_esquery.qos import esquery_qos
-from apps.log_measure.events import NOTIFY_EVENT
-from apps.utils.drf import (
-    DataPageNumberPagination,
-    GeneralSerializer,
-    custom_params_valid,
-)
-from apps.utils.function import ignored
-from apps.utils.log import logger
-from django.conf import settings
-from django.http import Http404, JsonResponse
-from django.utils.translation import ugettext as _
-from django_filters import rest_framework as django_filters
+from apps.utils.drf import DataPageNumberPagination, GeneralSerializer, custom_params_valid
 from iam import Resource
-from opentelemetry import trace
-from opentelemetry.trace import format_trace_id
-from rest_framework import exceptions, filters, serializers, status
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
-from rest_framework.viewsets import ModelViewSet as _ModelViewSet
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -64,9 +63,9 @@ class FlowMixin(object):
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
     def finalize_response(self, request, response, *args, **kwargs):
+
         # 目前仅对 Restful Response 进行处理
-        view_class = self.__class__.__name__
-        if isinstance(response, Response) and view_class not in settings.SKIP_FLOW_MIXIN_MIDDLEWARE_VIEW:
+        if isinstance(response, Response):
             response.data = {"result": True, "data": response.data, "code": 0, "message": ""}
             response.status_code = status.HTTP_200_OK
 
@@ -152,6 +151,7 @@ class ValidationMixin(object):
 
 
 class IAMPermissionMixin:
+
     ActionEnum = ActionEnum
     ResourceEnum = ResourceEnum
 

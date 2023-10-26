@@ -30,6 +30,7 @@ const list = {
     list: [
       {
         policy_id: 1,
+        policy_name: '登陆异常',
         monitor_id: 'smart',
         monitor_name: '智能监控',
         space_uid: 1,
@@ -96,6 +97,7 @@ const particulars = {
   message: '',
   code: 0,
   data: {
+    policy_name: '登陆异常',
     monitor_id: 'smart',
     monitor_name: '智能监控',
     space_uid: 1,
@@ -225,6 +227,7 @@ const alarm = {
     list: [
       {
         policy_id: 1,
+        policy_name: '登陆异常',
         monitor_id: 'smart',
         monitor_name: '智能监控',
         additions: '检索条件',
@@ -251,6 +254,7 @@ const shields = {
     list: [
       {
         policy_id: 1,
+        policy_name: '登陆异常',
         monitor_id: 'smart',
         monitor_name: '智能监控',
         additions: '检索条件',

@@ -22,12 +22,13 @@ the project delivered to anyone in the future.
 import logging
 import time
 
+from django.conf import settings
+
 from apps.log_databus.constants import META_DATA_CRON_REFRESH_TASK_NAME_LIST
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_search.constants import TimeEnum
 from bk_monitor.api.client import Client
 from config.domains import MONITOR_APIGATEWAY_ROOT
-from django.conf import settings
 
 logger = logging.getLogger()
 
@@ -56,6 +57,9 @@ class MetaDataChecker(Checker):
             params = self._build_unify_query_params(task_name)
             try:
                 result = self.bk_monitor_client.unify_query(data=params)
+                if result.get("result"):
+                    self.append_error_info(f"task name: {task_name} have error : {result.get('message')}")
+                    continue
                 series = result.get("series", [])
                 if not series:
                     self.append_error_info(f"task name: {task_name} not have execute history")
@@ -66,8 +70,6 @@ class MetaDataChecker(Checker):
                     continue
                 if len(datapoints) != int(TimeEnum.ONE_HOUR_SECOND.value / TimeEnum.ONE_MINUTE_SECOND.value):
                     self.append_error_info(f"task name: {task_name} execute have omissions")
-                    continue
-                self.append_normal_info(f"task name: {task_name} execute success")
             except Exception as e:
                 self.append_error_info(str(e))
                 continue

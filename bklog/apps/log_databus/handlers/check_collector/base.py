@@ -20,31 +20,20 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import re
-from dataclasses import asdict, dataclass, fields
+import socket
 from hashlib import md5
-from typing import Any, Dict, List, Union
+from typing import Union
+
+from dataclasses import dataclass, asdict, fields
+from django.core.cache import cache
 
 from apps.log_databus.constants import (
     CHECK_COLLECTOR_CACHE_KEY_PREFIX,
     CHECK_COLLECTOR_ITEM_CACHE_TIMEOUT,
-    INFO_TYPE_PREFIX_MAPPING,
     CheckStatusEnum,
     InfoTypeEnum,
+    INFO_TYPE_PREFIX_MAPPING,
 )
-from django.core.cache import cache
-from django.utils.translation import ugettext as _
-
-
-def generate_host_string(host: Dict[str, Any]) -> str:
-    """
-    生成host字符串
-    :param host: host信息
-    :return: host字符串, 用 bk_host_id:ip:bk_cloud_id 表示
-    """
-    ip_string = "{bk_cloud_id}:{ip}".format(bk_cloud_id=host.get("bk_cloud_id", ""), ip=host.get("ip", ""))
-    if host.get("bk_host_id"):
-        ip_string = f"{ip_string}:{host['bk_host_id']}"
-    return ip_string
 
 
 @dataclass
@@ -64,19 +53,28 @@ class CheckResult:
 
 class CheckCollectorRecord:
     @staticmethod
-    def generate_check_record_id(collector_config_id: int, hosts: List[Dict[str, Any]] = None) -> str:
+    def generate_check_record_id(collector_config_id: int, hosts: str = None) -> str:
         """
         生成检查结果的缓存key
         :param collector_config_id: 采集项ID
-        :param hosts: host列表, [{"bk_host_id": 1, "bk_cloud_id": 0, "ip": "127.0.0.1"}]
+        :param hosts: host字符串 example "{bk_cloud_id}:{ip},{bk_cloud_id}:{ip},{bk_cloud_id}:{ip}"
         :return: 检查结果的缓存key
         """
         generate_key_list = [str(collector_config_id)]
 
         if hosts:
-            hosts = [generate_host_string(host) for host in hosts]
-            hosts.sort()
-            generate_key_list.extend(list(hosts))
+            hosts_mapping = {}
+            sorted_hosts = []
+            hosts = hosts.split(",")
+            for host in hosts:
+                bk_cloud_id, ip = host.split(":")
+                hosts_mapping.setdefault(bk_cloud_id, []).append(ip)
+
+            for bk_cloud_id in sorted(list(hosts_mapping.keys())):
+                sorted_ips = sorted(hosts_mapping[bk_cloud_id], key=socket.inet_aton)
+                sorted_hosts.extend([f"{bk_cloud_id}:{ip}" for ip in sorted_ips])
+
+            generate_key_list.extend(sorted_hosts)
 
         raw_record_id = "_".join(generate_key_list)
         new_md5 = md5()
@@ -145,13 +143,8 @@ class CheckCollectorRecord:
         self.save_check_record()
 
     def append_base_info(self, info_type: str, info: str, prefix: str):
-        info = f"[{info_type}] [{prefix}] {info}"
+        info = f"[{info_type}][{prefix}]{info}"
         self.append_info(info)
-
-    def append_init(self):
-        """塞入初始化信息"""
-        self.new_record()
-        self.append_normal_info(info=_("检测任务已进入队列，等待执行"), prefix=_("初始化"))
 
     def append_normal_info(self, info: str, prefix: str):
         self.append_base_info(InfoTypeEnum.INFO.value, info, prefix)

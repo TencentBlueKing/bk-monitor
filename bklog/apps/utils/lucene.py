@@ -261,7 +261,7 @@ class LuceneTransformer(TreeTransformer):
         query_tree = parser.parse(keyword, lexer=lexer)
         for param in params:
             query_tree = self.visit(query_tree, param)
-        return re.sub(r'\s{2,}', ' ', str(auto_head_tail(query_tree)))
+        return str(auto_head_tail(query_tree))
 
 
 @dataclass

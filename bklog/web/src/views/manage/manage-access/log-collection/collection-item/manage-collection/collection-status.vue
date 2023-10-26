@@ -519,15 +519,10 @@ export default {
       // });
     },
     viewReport(row) {
-      const { cloud_id, host_id, ip } = row;
       this.$http.request('collect/runCheck', {
         data: {
           collector_config_id: this.$route.params.collectorId,
-          hosts: [{
-            bk_cloud_id: cloud_id,
-            bk_host_id: host_id,
-            ip,
-          }],
+          hosts: `${row.bk_cloud_id}:${row.ip}`,
         },
       }).then((res) => {
         if (res.data?.check_record_id) {

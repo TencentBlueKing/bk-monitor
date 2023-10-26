@@ -54,7 +54,6 @@ from apps.log_databus.serializers import (
     FastCollectorCreateSerializer,
     FastCollectorUpdateSerializer,
     ListBCSCollectorSerializer,
-    ListBCSCollectorWithoutRuleSerializer,
     ListCollectorsByHostSerializer,
     ListCollectorSerlalizer,
     PreCheckSerializer,
@@ -2024,30 +2023,15 @@ class CollectorViewSet(ModelViewSet):
             )
         )
 
-    @list_route(methods=["GET"], url_path="list_bcs_collector_without_rule")
-    def list_bcs_collector_without_rule(self, request):
-        auth_info = Permission.get_auth_info(request, raise_exception=False)
-        if not auth_info:
-            raise BkJwtVerifyException()
-        data = self.params_valid(ListBCSCollectorWithoutRuleSerializer)
-        return Response(
-            CollectorHandler.list_bcs_collector_without_rule(
-                bcs_cluster_id=data["bcs_cluster_id"],
-                bk_biz_id=data.get("bk_biz_id"),
-            )
-        )
-
     @list_route(methods=["POST"], url_path="create_bcs_collector")
     def create_bcs_collector(self, request):
         auth_info = Permission.get_auth_info(request, raise_exception=False)
         if not auth_info:
             raise BkJwtVerifyException()
         data = self.params_valid(BCSCollectorSerializer)
-        handler = CollectorHandler()
-        result = handler.create_bcs_container_config(data=data, bk_app_code=auth_info["bk_app_code"])
-        handler.sync_bcs_container_bkdata_id(result)
-        handler.sync_bcs_container_task(result)
-        return Response(result)
+        return Response(
+            CollectorHandler().create_bcs_container_config(data=data, bk_app_code=auth_info["bk_app_code"]),
+        )
 
     @detail_route(methods=["POST"], url_path="update_bcs_collector")
     def update_bcs_collector(self, request, collector_config_id=None):

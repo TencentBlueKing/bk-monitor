@@ -212,18 +212,17 @@ class DslBkDataCreateSearchContextBodyScenarioLog(object):
             }
         )
 
-        if path:
-            body_data["query"]["bool"]["must"].append(
-                {
-                    "match": {
-                        "path": {
-                            "query": path,
-                            # "type": "phrase"
-                            "operator": "and",
-                        }
+        body_data["query"]["bool"]["must"].append(
+            {
+                "match": {
+                    "path": {
+                        "query": path,
+                        # "type": "phrase"
+                        "operator": "and",
                     }
                 }
-            )
+            }
+        )
 
         body_data["size"] = size
 
@@ -400,8 +399,7 @@ class DslBkDataCreateSearchTailBodyScenarioLog:
                 {"match": {"bk_host_id": {"query": bk_host_id, "operator": "and"}}}
             )
         body_data["query"]["bool"]["must"].append({"match": {"serverIp": {"query": server_ip, "operator": "and"}}})
-        if path:
-            body_data["query"]["bool"]["must"].append({"match": {"path": {"query": path, "operator": "and"}}})
+        body_data["query"]["bool"]["must"].append({"match": {"path": {"query": path, "operator": "and"}}})
 
         if zero:
             body_data["size"] = 500

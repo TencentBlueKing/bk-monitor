@@ -33,11 +33,9 @@ from luqum.tree import Word
 from luqum.visitor import TreeTransformer
 
 from apps.log_esquery.exceptions import BaseSearchDslException
-from apps.log_esquery.constants import WILDCARD_QUERY, WILDCARD_PATTERN
 from apps.log_search.constants import FieldDataTypeEnum
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 
-type_wildcard = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase = Dict[str, Dict[str, Any]]  # pylint: disable=invalid-name
 type_match_phrase_query = Dict[str, Dict[str, Dict[str, Any]]]  # pylint: disable=invalid-name
 type_should_list = List[type_match_phrase]  # pylint: disable=invalid-name
@@ -93,9 +91,9 @@ class EsQueryBuilder(object):
         if isinstance(query_tree, Word):
             # 不带字段查询
             keyword_query = Q("query_string", query=str(query_tree), analyze_wildcard=True)
-            if str(query_tree) == WILDCARD_PATTERN:
-                # 单独*通配符, 直接返回, 不需要补充query查询, 空返回的是 WILDCARD_QUERY
-                return search.query()
+            if str(query_tree) == "*":
+                # 单独*通配符 作为单个query_string处理
+                return search.query(keyword_query)
 
             # 带上nested字段检索
             nested_field_queries = []
@@ -163,22 +161,6 @@ class EsQueryBuilder(object):
         return {"match_phrase": {field: value}}
 
     @classmethod
-    def build_should_list_wildcard(
-        cls, field: str, value_list: List[Any], is_contains: bool = False
-    ) -> type_should_list:
-        should_list: type_should_list = []
-        for item in value_list:
-            wildcard: type_wildcard = cls.build_wildcard(field=field, value=item, is_contains=is_contains)
-            should_list.append(wildcard)
-        return should_list
-
-    @classmethod
-    def build_wildcard(cls, field: str, value: Any, is_contains: bool = False) -> type_wildcard:
-        if is_contains:
-            return {"wildcard": {field: f"*{value}*"}}
-        return {"wildcard": {field: value}}
-
-    @classmethod
     def build_match_phrase_query(cls, field: str, value: Any) -> type_match_phrase_query:
         return {"match_phrase": {field: {"query": value}}}
 
@@ -209,20 +191,6 @@ class BoolQueryOperation(ABC):
             Gte.OPERATOR: Gte,
             Lt.OPERATOR: Lt,
             Lte.OPERATOR: Lte,
-            EqChar.OPERATOR: EqChar,
-            NeChar.OPERATOR: NeChar,
-            LtChar.OPERATOR: LtChar,
-            GtChar.OPERATOR: GtChar,
-            LteChar.OPERATOR: LteChar,
-            GteChar.OPERATOR: GteChar,
-            IsTrue.OPERATOR: IsTrue,
-            IsFalse.OPERATOR: IsFalse,
-            EqWildCard.OPERATOR: EqWildCard,
-            NeWildCard.OPERATOR: NeWildCard,
-            Contains.OPERATOR: Contains,
-            NotContains.OPERATOR: NotContains,
-            ContainsMatchPhrase.OPERATOR: ContainsMatchPhrase,
-            NotContainsMatchPhrase.OPERATOR: NotContainsMatchPhrase,
         }
         op_target = op_map.get(op, BoolQueryOperation)
         return op_target(bool_dict)
@@ -292,11 +260,9 @@ class IsNotOneOf(IsOneOf):
 
 class CompareBoolQueryOperation(BoolQueryOperation):
     TARGET = "must"
-    REAL_OPERATOR = None
 
     def op(self, field):
-        operator = self.REAL_OPERATOR or field["operator"]
-        self._set_target_value(EsQueryBuilder.build_range_filter(field["field"], operator, field["value"]))
+        self._set_target_value(EsQueryBuilder.build_range_filter(field["field"], field["operator"], field["value"]))
 
 
 class Gt(CompareBoolQueryOperation):
@@ -313,96 +279,6 @@ class Lt(CompareBoolQueryOperation):
 
 class Lte(CompareBoolQueryOperation):
     OPERATOR = "lte"
-
-
-class EqChar(IsOneOf):
-    OPERATOR = "="
-
-
-class NeChar(IsNotOneOf):
-    OPERATOR = "!="
-
-
-class LtChar(CompareBoolQueryOperation):
-    OPERATOR = "<"
-    REAL_OPERATOR = "lt"
-
-
-class GtChar(CompareBoolQueryOperation):
-    OPERATOR = ">"
-    REAL_OPERATOR = "gt"
-
-
-class LteChar(CompareBoolQueryOperation):
-    OPERATOR = "<="
-    REAL_OPERATOR = "lte"
-
-
-class GteChar(CompareBoolQueryOperation):
-    OPERATOR = ">="
-    REAL_OPERATOR = "gte"
-
-
-class IsTrue(BoolQueryOperation):
-    TARGET = "must"
-    OPERATOR = "is true"
-
-    def op(self, field):
-        self._set_target_value(EsQueryBuilder.build_match_phrase_query(field=field["field"], value="true"))
-
-
-class IsFalse(BoolQueryOperation):
-    TARGET = "must"
-    OPERATOR = "is false"
-
-    def op(self, field):
-        self._set_target_value(EsQueryBuilder.build_match_phrase_query(field=field["field"], value="false"))
-
-
-class EqWildCard(BoolQueryOperation):
-    TARGET = "must"
-    OPERATOR = "=~"
-
-    def op(self, field):
-        should_list: type_should_list = EsQueryBuilder.build_should_list_wildcard(
-            field=field["field"], value_list=field["value"]
-        )
-        should: type_should = EsQueryBuilder.build_should(should_list)
-        a_bool: type_bool = EsQueryBuilder.build_bool(should)
-        self._set_target_value(a_bool)
-
-
-class NeWildCard(EqWildCard):
-    TARGET = "must_not"
-    OPERATOR = "!=~"
-
-
-class Contains(BoolQueryOperation):
-    TARGET = "must"
-    OPERATOR = "contains"
-
-    def op(self, field):
-        should_list: type_should_list = EsQueryBuilder.build_should_list_wildcard(
-            field=field["field"], value_list=field["value"], is_contains=True
-        )
-        should: type_should = EsQueryBuilder.build_should(should_list)
-        a_bool: type_bool = EsQueryBuilder.build_bool(should)
-        self._set_target_value(a_bool)
-
-
-class NotContains(Contains):
-    TARGET = "must_not"
-    OPERATOR = "not contains"
-
-
-class ContainsMatchPhrase(IsOneOf):
-    TARGET = "must"
-    OPERATOR = "contains match phrase"
-
-
-class NotContainsMatchPhrase(IsNotOneOf):
-    TARGET = "must_not"
-    OPERATOR = "not contains match phrase"
 
 
 class BoolMustIns(object):
@@ -466,12 +342,9 @@ class Dsl(object):
 
     @property
     def dsl_dict(self):
-        filter = []
-        if self.query_string != WILDCARD_QUERY:
-            filter.append(self.query_string)
+        filter = [self.query_string, self.should_ins]
         if self.range_dict:
-            filter.append(self.range_dict)
-        filter.append(self.should_ins)
+            filter = [self.query_string, self.range_dict, self.should_ins]
         return {"query": {"bool": {"filter": filter}}}
 
     def divid_filter_list(self, filter_dict_list: List):

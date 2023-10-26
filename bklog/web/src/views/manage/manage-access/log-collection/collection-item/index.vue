@@ -292,7 +292,7 @@
               disabled: !props.row.status || props.row.table_id,
               delay: 500,
             }">
-              <!-- 清洗 -->
+              <!-- 前往清洗 -->
               <bk-button
                 theme="primary"
                 text
@@ -302,10 +302,10 @@
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                 }"
                 @click.stop="operateHandler(props.row, 'clean')">
-                {{ $t('清洗') }}
+                {{ $t('前往清洗') }}
               </bk-button>
             </span>
-            <bk-dropdown-menu ref="dropdown" align="right" position-fixed>
+            <bk-dropdown-menu ref="dropdown" align="right">
               <i
                 class="bk-icon icon-more"
                 style="margin-left: 5px; font-size: 14px; font-weight: bold;"
@@ -425,7 +425,7 @@
                     }"
                     @click.stop="operateHandler(props.row, 'clone')">{{ $t('克隆') }}</a>
                 </li>
-                <li v-if="enableCheckCollector">
+                <li v-if="enableCheckCollector && props.row.environment === 'linux'">
                   <a href="javascript:;" @click.stop="handleShowReport(props.row)">
                     {{ $t('一键检测') }}
                   </a>
@@ -557,7 +557,7 @@ export default {
       isAllowedCreate: null,
       columnSetting: {
         fields: settingFields,
-        selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
+        selectedFields: settingFields.slice(1, 8),
       },
       // 是否支持一键检测
       enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
@@ -961,7 +961,7 @@ export default {
     }
 
     .bk-table-body-wrapper {
-      overflow-x: auto;
+      overflow: visible;
     }
 
     .operate-column .cell {
@@ -1033,9 +1033,6 @@ export default {
 
     .collection-operation-list {
       max-height: 190px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
     }
 
     .collect-table-operate {

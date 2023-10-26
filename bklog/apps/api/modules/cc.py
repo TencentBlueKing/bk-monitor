@@ -108,13 +108,6 @@ class _CCApi:
             description="查询业务下的主机",
             before_request=get_supplier_account_before,
         )
-        self.list_hosts_without_biz = DataAPI(
-            method="POST",
-            url=CC_APIGATEWAY_ROOT_V2 + "list_hosts_without_biz",
-            module=self.MODULE,
-            description="根据条件查询主机, 不需要业务",
-            before_request=get_supplier_account_before,
-        )
         self.list_biz_hosts_topo = DataAPI(
             method="POST",
             url=CC_APIGATEWAY_ROOT_V2 + "list_biz_hosts_topo",

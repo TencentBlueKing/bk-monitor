@@ -26,37 +26,37 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 import pytz
-from apps.api import CmsiApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
-from apps.log_clustering.constants import (
-    AGGS_FIELD_PREFIX,
-    FrequencyTypeEnum,
-    LogColShowTypeEnum,
-    SubscriptionTypeEnum,
-    YearOnYearChangeEnum,
-    YearOnYearEnum,
-)
-from apps.log_clustering.handlers.pattern import PatternHandler
-from apps.log_clustering.models import ClusteringConfig, ClusteringSubscription
-from apps.log_clustering.serializers import PatternSearchSerlaizer
-from apps.log_clustering.utils.wechat_robot import WeChatRobot
-from apps.log_search.exceptions import IndexSetDoseNotExistException
-from apps.log_search.handlers.search.search_handlers_esquery import (
-    SearchHandler as SearchHandlerEsquery,
-)
-from apps.log_search.models import LogIndexSet
-from apps.log_search.serializers import SearchAttrSerializer
-from apps.utils.drf import custom_params_valid
-from apps.utils.local import set_local_param
-from apps.utils.log import logger
-from bkm_space import api
 from celery.schedules import crontab
 from celery.task import periodic_task, task
 from django.conf import settings
 from django.utils import timezone, translation
 from django.utils.translation import ugettext_lazy as _
 from jinja2 import Environment, FileSystemLoader
+
+from apps.api import CmsiApi
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
+from apps.log_clustering.constants import (
+    FrequencyTypeEnum,
+    LogColShowTypeEnum,
+    SubscriptionTypeEnum,
+    YearOnYearChangeEnum,
+    YearOnYearEnum,
+    AGGS_FIELD_PREFIX,
+)
+from apps.log_clustering.exceptions import ClusteringConfigNotExistException
+from apps.log_clustering.handlers.pattern import PatternHandler
+from apps.log_clustering.models import ClusteringConfig, ClusteringSubscription
+from apps.log_clustering.serializers import PatternSearchSerlaizer
+from apps.log_clustering.utils.wechat_robot import WeChatRobot
+from apps.log_search.exceptions import IndexSetDoseNotExistException
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
+from apps.log_search.models import LogIndexSet
+from apps.log_search.serializers import SearchAttrSerializer
+from apps.utils.drf import custom_params_valid
+from apps.utils.local import set_local_param
+from apps.utils.log import logger
+from bkm_space import api
 
 
 def validate_end_time(freq: dict, end_time: datetime):
@@ -347,7 +347,9 @@ def send(
         logger.info(f"{log_prefix} Query pattern is empty.")
         return
 
-    clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=config.index_set_id)
+    clustering_config = ClusteringConfig.objects.filter(index_set_id=config.index_set_id).first()
+    if not clustering_config:
+        raise ClusteringConfigNotExistException()
 
     try:
         all_patterns = clean_pattern(config, time_config, result, clustering_config, log_prefix)

@@ -185,7 +185,6 @@ class SearchViewSet(APIViewSet):
         @apiParam {Json} addition 搜索条件
         @apiParam {Int} begin 起始位置
         @apiParam {Int} size 条数
-        @apiParam {Dict} aggs ES的聚合参数 （非必填，默认为{}）
         @apiParamExample {Json} 请求参数
         {
             "start_time": "2019-06-11 00:00:00",
@@ -259,8 +258,6 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(SearchAttrSerializer)
         search_handler = SearchHandlerEsquery(index_set_id, data)
-        if data.get("is_scroll_search"):
-            return Response(search_handler.scroll_search())
         return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
@@ -427,9 +424,7 @@ class SearchViewSet(APIViewSet):
 
         output = StringIO()
         export_fields = data.get("export_fields", [])
-        search_handler = SearchHandlerEsquery(
-            index_set_id, search_dict=data, export_fields=export_fields, export_log=True
-        )
+        search_handler = SearchHandlerEsquery(index_set_id, search_dict=data, export_fields=export_fields)
         result = search_handler.search()
         result_list = result.get("origin_log_list")
         for item in result_list:

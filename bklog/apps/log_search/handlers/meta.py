@@ -69,7 +69,6 @@ class MetaHandler(APIModel):
         spaces = spaces_by_type[SpaceTypeEnum.BKCC.value]
         spaces.extend(spaces_by_type[SpaceTypeEnum.BCS.value])
         spaces.extend(spaces_by_type[SpaceTypeEnum.BKCI.value])
-        spaces.extend(spaces_by_type[SpaceTypeEnum.BKSAAS.value])
 
         result = []
         for space in spaces:

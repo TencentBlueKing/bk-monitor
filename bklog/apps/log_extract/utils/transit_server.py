@@ -19,9 +19,100 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import ipaddress
 from dataclasses import dataclass
+from typing import Any, Dict, List
 
-from apps.log_commons.adapt_ipv6 import fill_bk_host_id
+from apps.api import CCApi
+from apps.log_extract.exceptions import CCMissingBkHostIDException, SearchHostException
+from bkm_ipchooser.constants import CommonEnum
+from django.conf import settings
+
+
+def get_ip_field(ip: str) -> str:
+    """
+    获取ip确认是v4还是v6, 选择CC的字段
+    """
+    try:
+        version = ipaddress.ip_address(ip).version
+    except ValueError:
+        version = 4
+
+    return {
+        4: "bk_host_innerip",
+        6: "bk_host_innerip_v6",
+    }.get(version, "bk_host_innerip")
+
+
+def fill_bk_host_id(
+    ip_list: List[Dict[str, Any]], bk_biz_id: int = settings.BLUEKING_BK_BIZ_ID
+) -> List[Dict[str, Any]]:
+    """
+    补充bk_host_id
+    :param ip_list: 主机列表
+    :param bk_biz_id: 业务ID, 默认为蓝鲸默认业务
+    :return: ip_list
+    """
+    if not settings.ENABLE_DHCP:
+        return ip_list
+    # 拆分出需要填充 bk_host_id 的ip
+    no_need_fill_ip_list = []
+    need_fill_ip_list = []
+    need_fill_ip_list_map = {}
+    for i in ip_list:
+        if i.get("bk_host_id"):
+            no_need_fill_ip_list.append(i)
+        else:
+            need_fill_ip_list.append(i)
+    # 如果都存在 bk_host_id 则不需要填充
+    if not need_fill_ip_list:
+        return ip_list
+    params = {
+        "bk_biz_id": bk_biz_id,
+        "host_property_filter": {
+            "condition": "OR",
+            "rules": [],
+        },
+        "fields": CommonEnum.SIMPLE_HOST_FIELDS.value,
+        "no_request": True,
+        "page": {"limit": len(need_fill_ip_list), "start": 0},
+    }
+    # 做这个标记处理是兼容TransmitServer中的ip可能是ipv6的ip
+    for i in range(len(need_fill_ip_list)):
+        bk_cloud_id = need_fill_ip_list[i]["bk_cloud_id"]
+        ip = need_fill_ip_list[i]["ip"]
+        params["host_property_filter"]["rules"].append(
+            {
+                "condition": "AND",
+                "rules": [
+                    {
+                        "field": "bk_cloud_id",
+                        "operator": "equal",
+                        "value": bk_cloud_id,
+                    },
+                    {
+                        "field": get_ip_field(ip),
+                        "operator": "equal",
+                        "value": ip,
+                    },
+                ],
+            }
+        )
+        need_fill_ip_list_map[f"{bk_cloud_id}_{ip}"] = i
+    result = CCApi.list_biz_hosts(params)
+    if not result or not result["info"]:
+        raise SearchHostException()
+    try:
+        for i in result["info"]:
+            bk_cloud_id = i["bk_cloud_id"]
+            ip = i.get("bk_host_innerip", "")
+            ipv6 = i.get("bk_host_innerip_v6", "")
+            key = f"{bk_cloud_id}_{ip}" if f"{bk_cloud_id}_{ip}" in need_fill_ip_list_map else f"{bk_cloud_id}_{ipv6}"
+            need_fill_ip_list[need_fill_ip_list_map[key]]["bk_host_id"] = i["bk_host_id"]
+    except KeyError:
+        raise CCMissingBkHostIDException()
+
+    return no_need_fill_ip_list + need_fill_ip_list
 
 
 @dataclass

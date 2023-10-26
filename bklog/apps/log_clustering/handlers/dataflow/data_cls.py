@@ -180,21 +180,6 @@ class FromNodesCls(object):
 
 
 @dataclass
-class ModelClusterPredictNodeCls(object):
-    """
-    聚类预测模型应用
-    """
-
-    table_name: str
-    result_table_id: str
-    clustering_training_params: Dict
-    model_release_id: int
-    model_id: str
-    input_fields: str
-    output_fields: str
-
-
-@dataclass
 class ModelTsCustomNodeCls(object):
     """
     时序模型应用
@@ -399,40 +384,6 @@ class AfterTreatDataFlowCls(object):
 
 
 @dataclass
-class PredictDataFlowCls(object):
-
-    table_name_no_id: str
-    result_table_id: str
-    clustering_stream_source: RealTimeCls
-    non_clustering_stream_source: RealTimeCls
-    clustering_predict: ModelClusterPredictNodeCls
-    format_signature: RealTimeCls
-    rename_signature: RealTimeCls
-    merge_log: MergeNodeCls
-    queue_cluster: str
-    bk_biz_id: int
-    is_flink_env: bool = False
-    es: ElasticsearchCls = ElasticsearchCls()
-    es_cluster: str = ""
-
-
-@dataclass
-class LogCountAggregationFlowCls(object):
-    """
-    日志数量统计聚合
-    """
-
-    log_count_signatures: List[str]
-    table_name_no_id: str
-    result_table_id: str
-    log_count_aggregation: RealTimeCls
-    tspider_storage: TspiderStorageCls
-    storage_type: str
-    bk_biz_id: int
-    cluster: str = ""
-
-
-@dataclass
 class AddFlowNodesCls(object):
     flow_id: int
     result_table_id: str
@@ -472,28 +423,3 @@ class UpdateModelInstanceCls(object):
     filter_id: str
     execute_config: Dict
     table_name: str = "model_instance"
-
-
-@dataclass
-class CreateOnlineTaskCls(object):
-    """
-    创建在线训练任务
-    """
-
-    model_instance_id: int
-    pipeline_params: Dict
-    trigger: Dict
-    aiops_stage: str
-
-
-@dataclass
-class UpdateOnlineTaskCls(object):
-    """
-    更新在线训练任务
-    """
-
-    model_instance_id: int
-    pipeline_params: Dict
-    trigger: Dict
-    aiops_stage: str
-    online_task_id: int

@@ -23,12 +23,13 @@ import functools
 import json
 import zlib
 
-from apps.log_search.constants import TimeEnum
-from apps.utils import md5_sum
-from apps.utils.log import logger
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.encoding import force_bytes
+
+from apps.utils.log import logger
+from apps.utils import md5_sum
+from apps.log_search.constants import TimeEnum
 
 MIN_LEN = 15
 
@@ -49,7 +50,6 @@ def using_cache(key: str, duration, need_md5=False, compress=False):
             try:
                 actual_key = key.format(*args, **kwargs)
             except (IndexError, KeyError):
-                logger.error(f"[using cache] build key => [{key}] error")
                 actual_key = key
 
             logger.info(f"[using cache] build key => [{actual_key}] duration => [{duration}]")

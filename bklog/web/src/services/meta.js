@@ -58,6 +58,11 @@ const getMaintainerApi = {
   method: 'get',
 };
 
+const footer = {
+  url: '/meta/footer_html/',
+  method: 'get',
+};
+
 // 获取新人指引
 const getUserGuide = {
   url: '/meta/user_guide/',
@@ -81,6 +86,7 @@ export {
   updateLanguage,
   scenario,
   menu,
+  footer,
   getMaintainerApi,
   getUserGuide,
   updateUserGuide,

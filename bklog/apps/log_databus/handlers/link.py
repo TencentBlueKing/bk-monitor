@@ -21,18 +21,14 @@ the project delivered to anyone in the future.
 """
 
 from apps.api import TransferApi
-from apps.log_databus.constants import (
-    KAFKA_CLUSTER_TYPE,
-    REGISTERED_SYSTEM_DEFAULT,
-    STORAGE_CLUSTER_TYPE,
-)
 from apps.log_databus.exceptions import (
     DataLinkConfigNotExistException,
-    EditLinkException,
-    SameLinkNameException,
     StorageNotExistException,
+    SameLinkNameException,
+    EditLinkException,
 )
 from apps.log_databus.models import DataLinkConfig
+from apps.log_databus.constants import KAFKA_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE, REGISTERED_SYSTEM_DEFAULT
 
 
 class DataLinkHandler(object):
@@ -50,7 +46,7 @@ class DataLinkHandler(object):
         """
         获取所有链路信息
         """
-        link_objects = DataLinkConfig.objects.order_by("is_edge_transport", "-updated_at").all()
+        link_objects = DataLinkConfig.objects.all()
         if param.get("bk_biz_id"):
             link_objects = link_objects.filter(bk_biz_id__in=[0, param["bk_biz_id"]])
         response = [

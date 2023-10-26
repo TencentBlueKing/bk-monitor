@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-from dataclasses import asdict, dataclass, fields
 from enum import Enum
 from typing import Union
+
+from dataclasses import dataclass, asdict, fields
 
 
 class SpaceTypeEnum(Enum):
@@ -12,7 +13,6 @@ class SpaceTypeEnum(Enum):
     BKCC = "bkcc"  # CMDB 业务
     BCS = "bcs"  # BCS
     BKCI = "bkci"  # 蓝盾
-    BKSAAS = "bksaas"  # 蓝鲸应用
 
 
 @dataclass

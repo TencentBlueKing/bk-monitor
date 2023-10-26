@@ -23,12 +23,14 @@ the project delivered to anyone in the future.
 """
 记录线程变量
 """
-import sys  # noqa
 import uuid  # noqa
+import sys  # noqa
 from threading import local  # noqa
 
-from apps.exceptions import BaseException  # noqa
 from django.conf import settings  # noqa
+
+from apps.exceptions import BaseException  # noqa
+
 
 _local = local()
 
@@ -44,15 +46,13 @@ def activate_request(request, request_id=None):
     return request
 
 
-def get_request(peaceful=False):
+def get_request():
     """
     获取线程请求request
     """
     try:
         return _local.request
     except AttributeError:
-        if peaceful:
-            return None
         raise BaseException(u"request thread error!")
 
 
@@ -66,7 +66,7 @@ def get_request_id():
         return str(uuid.uuid4())
 
 
-def get_request_username(default="admin"):
+def get_request_username():
     """
     获取请求的用户名
     """
@@ -76,7 +76,7 @@ def get_request_username(default="admin"):
     with ignored(Exception):
         username = get_request().user.username
     if not username and "celery" in sys.argv:
-        username = default
+        username = "admin"
     return username
 
 

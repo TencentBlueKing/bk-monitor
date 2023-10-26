@@ -19,12 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.utils import ChoicesEnum
-from bk_monitor.constants import EVENT_TYPE, TIME_SERIES_TYPE
-from bk_monitor.handler.monitor import BKMonitor
-from config.domains import MONITOR_APIGATEWAY_ROOT
 from django.conf import settings
 from django.utils.translation import ugettext as _
+
+from apps.utils import ChoicesEnum
+from bk_monitor.constants import EVENT_TYPE, TIME_SERIES_TYPE
+from config.domains import MONITOR_APIGATEWAY_ROOT
+from bk_monitor.handler.monitor import BKMonitor
 
 BK_MONITOR_CLIENT = BKMonitor(
     app_id=settings.APP_CODE,
@@ -56,7 +57,6 @@ COLLECTOR_IMPORT_PATHS = [
     "apps.log_measure.handlers.metric_collectors.log_databus",
     "apps.log_measure.handlers.metric_collectors.log_extract",
     "apps.log_measure.handlers.metric_collectors.log_search",
-    "apps.log_measure.handlers.metric_collectors.rabbitmq",
     "apps.log_measure.handlers.metric_collectors.third_party",
     "apps.log_measure.handlers.metric_collectors.user",
 ]

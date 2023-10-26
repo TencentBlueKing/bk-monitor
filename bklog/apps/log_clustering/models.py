@@ -27,7 +27,6 @@ from apps.log_clustering.constants import (
     YearOnYearChangeEnum,
     YearOnYearEnum,
 )
-from apps.log_clustering.exceptions import ClusteringConfigNotExistException
 from apps.models import SoftDeleteModel
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -80,15 +79,11 @@ class ClusteringConfig(SoftDeleteModel):
     delimeter = models.TextField(_("分词符"))
     max_log_length = models.IntegerField(_("最大日志长度"))
     is_case_sensitive = models.IntegerField(_("是否大小写忽略"), default=0)
-    depth = models.IntegerField(_("搜索树深度"), default=5)
-    max_child = models.IntegerField(_("搜索树最大子节点数"), default=100)
     clustering_fields = models.CharField(_("聚合字段"), max_length=128)
     filter_rules = models.JSONField(_("过滤规则"), null=True, blank=True)
     bk_biz_id = models.IntegerField(_("业务id"))
-    related_space_pre_bk_biz_id = models.IntegerField(_("关联空间业务id之前的业务id"), null=True, blank=True)
     pre_treat_flow = models.JSONField(_("预处理flow配置"), null=True, blank=True)
     new_cls_pattern_rt = models.CharField(_("新类结果表id"), max_length=255, default="", null=True, blank=True)
-    new_cls_index_set_id = models.IntegerField(_("新聚类类索引集id"), null=True, blank=True)
     bkdata_data_id = models.IntegerField(_("计算平台接入dataid"), null=True, blank=True)
     bkdata_etl_result_table_id = models.CharField(_("计算平台清洗结果表"), max_length=255, null=True, blank=True)
     bkdata_etl_processing_id = models.CharField(_("计算平台清洗id"), max_length=255, null=True, blank=True)
@@ -106,24 +101,6 @@ class ClusteringConfig(SoftDeleteModel):
     task_records = models.JSONField(_("任务记录"), default=list)
     model_output_rt = models.CharField(_("模型输出结果表"), max_length=255, default="", null=True, blank=True)
     log_count_agg_rt = models.CharField(_("日志数量聚合结果表"), max_length=255, default="", null=True, blank=True)
-    predict_flow = models.JSONField(_("predict_flow配置"), null=True, blank=True)
-    predict_flow_id = models.IntegerField(_("预测flow_id"), null=True, blank=True)
-    online_task_id = models.IntegerField(_("在线任务id"), null=True, blank=True)
-    log_count_aggregation_flow = models.JSONField(_("日志数量聚合flow配置"), null=True, blank=True)
-    log_count_aggregation_flow_id = models.IntegerField(_("日志数量聚合flow_id"), null=True, blank=True)
-
-    @classmethod
-    def get_by_index_set_id(cls, index_set_id, raise_exception: bool = True):
-        try:
-            return ClusteringConfig.objects.get(index_set_id=index_set_id)
-        except ClusteringConfig.DoesNotExist:
-            try:
-                return ClusteringConfig.objects.get(new_cls_index_set_id=index_set_id)
-            except ClusteringConfig.DoesNotExist:
-                if raise_exception:
-                    raise ClusteringConfigNotExistException()
-                else:
-                    return None
 
 
 class SignatureStrategySettings(SoftDeleteModel):

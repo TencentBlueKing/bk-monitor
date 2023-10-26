@@ -21,55 +21,33 @@ the project delivered to anyone in the future.
 """
 import json
 
-from apps.log_databus.exceptions import KafkaConnectException, KafkaPartitionException
-from django.conf import settings
 from kafka import KafkaConsumer, TopicPartition
+
+from django.conf import settings
+from apps.log_databus.exceptions import KafkaPartitionException, KafkaConnectException
 
 
 class KafkaConsumerHandle(object):
-    def __init__(
-        self,
-        server,
-        port,
-        topic,
-        username=None,
-        password=None,
-        is_ssl_verify=False,
-        ssl_insecure_skip_verify=True,
-        ssl_cafile=None,
-        ssl_certfile=None,
-        ssl_keyfile=None,
-    ):
+    def __init__(self, server, port, topic, username=None, password=None):
         self.server = server
         self.port = int(port)
         self.topic = topic
         self.kafka_server = server + ":" + str(port)
-
-        if is_ssl_verify:
-            if username:
-                security_protocol = "SASL_SSL"
-            else:
-                security_protocol = "SSL"
-        else:
-            if username:
-                security_protocol = "SASL_PLAINTEXT"
-            else:
-                security_protocol = "PLAINTEXT"
-
         try:
+            if username:
+                self.consumer = KafkaConsumer(
+                    self.topic,
+                    bootstrap_servers=self.kafka_server,
+                    security_protocol="SASL_PLAINTEXT",
+                    sasl_mechanism="PLAIN",
+                    sasl_plain_username=username,
+                    sasl_plain_password=password,
+                    request_timeout_ms=1000,
+                    consumer_timeout_ms=1000,
+                )
+                return
             self.consumer = KafkaConsumer(
-                self.topic,
-                bootstrap_servers=self.kafka_server,
-                security_protocol=security_protocol,
-                sasl_mechanism="PLAIN" if username else None,
-                sasl_plain_username=username,
-                sasl_plain_password=password,
-                request_timeout_ms=5000,
-                consumer_timeout_ms=5000,
-                ssl_cafile=ssl_cafile,
-                ssl_certfile=ssl_certfile,
-                ssl_keyfile=ssl_keyfile,
-                ssl_check_hostname=not ssl_insecure_skip_verify,
+                self.topic, bootstrap_servers=self.kafka_server, request_timeout_ms=1000, consumer_timeout_ms=1000
             )
         except Exception as e:  # pylint: disable=broad-except
             raise KafkaConnectException(KafkaConnectException.MESSAGE.format(error=e))

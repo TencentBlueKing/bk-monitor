@@ -21,13 +21,14 @@ the project delivered to anyone in the future.
 """
 import json
 
+from django.core.serializers.json import DjangoJSONEncoder
+from django.utils.translation import ugettext_lazy as _
+from django.utils import timezone
+from django.core import exceptions
+from django.db import models
+
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.local import get_request_username
-from django.core import exceptions
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models
-from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
 
 
 class JSONEncoderSupportSet(DjangoJSONEncoder):
@@ -185,9 +186,7 @@ class OperateRecordQuerySet(models.query.QuerySet):
     """
 
     def update(self, **kwargs):
-        if get_request_username(default=""):
-            # 非用户请求，不对更新人进行修改
-            kwargs.update({"updated_at": timezone.now(), "updated_by": get_request_username()})
+        kwargs.update({"updated_at": timezone.now(), "updated_by": get_request_username()})
         super().update(**kwargs)
 
 
@@ -221,10 +220,8 @@ class OperateRecordModel(models.Model):
             self.created_at = timezone.now()
             self.created_by = get_request_username()
 
-        if get_request_username(default="") or not self.updated_by:
-            # 当前是web请求，或者原先没有设置updated_by，则进行更新
-            self.updated_at = timezone.now()
-            self.updated_by = get_request_username()
+        self.updated_at = timezone.now()
+        self.updated_by = get_request_username()
         super().save(*args, **kwargs)
 
     class Meta:

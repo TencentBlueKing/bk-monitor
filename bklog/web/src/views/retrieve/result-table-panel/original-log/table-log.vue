@@ -234,13 +234,6 @@ export default {
     position: relative;
     background: #fff;
 
-    .is-hidden-table-header {
-      & .bk-table-header-wrapper,
-      .is-right {
-        display: none;
-      }
-    }
-
     .king-table {
       margin-top: 12px;
 
@@ -303,7 +296,6 @@ export default {
       .original-str,
       .visiable-field {
         .cell {
-          /* stylelint-disable-next-line declaration-no-important */
           padding: 12px 14px 0 14px;
         }
 
@@ -322,13 +314,9 @@ export default {
           }
 
           .str-content {
-            display: block;
+            display: inline-block;
             overflow: hidden;
           }
-        }
-
-        .origin-str:hover {
-          color: #3a84ff;
         }
 
         .show-whole-btn {
@@ -379,7 +367,7 @@ export default {
         top: 17px;
       }
 
-      &.is-wrap td .cell {
+      &.is-wrap .cell {
         display: inline-table;
       }
 
@@ -391,7 +379,7 @@ export default {
       .visiable-field {
         .str-content {
           &.is-limit {
-            max-height: 74px;
+            max-height: 72px;
           }
         }
 
@@ -418,35 +406,12 @@ export default {
       }
     }
 
-    .render-header {
+    :deep(.render-header) {
       .field-type-icon {
         width: 12px;
         margin: 0 4px 0 0;
         font-size: 12px;
         color: #979ba5;
-      }
-
-      .toggle-display {
-        position: absolute;
-        right: 12px;
-        top: 16px;
-        color: #c4c6cc;
-        cursor: pointer;
-        display: none;
-
-        &:hover {
-          color: #ea3636;
-        }
-
-        &.is-hidden {
-          visibility: hidden;
-        }
-      }
-    }
-
-    th .cell:hover {
-      .toggle-display {
-        display: inline-block;
       }
     }
   }

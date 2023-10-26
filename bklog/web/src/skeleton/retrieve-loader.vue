@@ -25,6 +25,7 @@
     class="skeleton-table"
     :data="renderList"
     :show-header="false"
+    :outer-border="false"
     v-if="columnField.length">
     <bk-table-column width="30"></bk-table-column>
     <template v-for="(field, index) in columnField">

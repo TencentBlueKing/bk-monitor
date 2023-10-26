@@ -340,26 +340,9 @@ class CollectorConfig(CollectorBase):
     @property
     def is_container_environment(self):
         """
-        是否为通过采集下发的容器日志
+        是否为容器类型
         """
         return self.environment == Environment.CONTAINER
-
-    @property
-    def is_custom_container(self):
-        """
-        是否为通过自定义上报的容器日志
-        """
-        return (
-            self.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value
-            and self.custom_type == CustomTypeEnum.LOG.value
-        )
-
-    @property
-    def is_container_collector(self):
-        """
-        是否为容器采集
-        """
-        return self.is_container_environment or self.is_custom_container
 
     @property
     def is_custom_scenario(self):
@@ -417,11 +400,9 @@ class DataLinkConfig(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务id"))
     kafka_cluster_id = models.IntegerField(_("kafka集群ID"))
     transfer_cluster_id = models.CharField(_("transfer集群ID"), max_length=128)
-    es_cluster_ids = models.JSONField(_("es集群ID"), default=list)
+    es_cluster_ids = JsonField(_("es集群ID"), null=True, default=[])
     is_active = models.BooleanField(_("是否可用"), default=True)
-    description = models.TextField(_("备注"), default="", blank=True)
-    deploy_options = models.JSONField(_("采集下发选项"), default=dict, blank=True)
-    is_edge_transport = models.BooleanField(_("是否为边缘存查链路"), default=False)
+    description = models.TextField(_("备注"), default="")
 
     class Meta:
         verbose_name = _("数据链路配置")

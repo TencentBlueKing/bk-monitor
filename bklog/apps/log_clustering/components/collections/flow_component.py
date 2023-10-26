@@ -63,7 +63,7 @@ class CreatePreTreatFlowService(BaseService):
 
     def _schedule(self, data, parent_data, callback_data=None):
         index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        clustering_config = ClusteringConfig.objects.get(index_set_id=index_set_id)
         deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=clustering_config.pre_treat_flow_id)
         if deploy_data["status"] == "failure":
             return False
@@ -107,7 +107,7 @@ class CreateAfterTreatFlowService(BaseService):
 
     def _schedule(self, data, parent_data, callback_data=None):
         index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        clustering_config = ClusteringConfig.objects.get(index_set_id=index_set_id)
         deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=clustering_config.after_treat_flow_id)
         if deploy_data["status"] == "failure":
             return False
@@ -143,7 +143,7 @@ class CreateAfterTreatFlow(object):
 
 
 class CreateNewClsStrategyService(BaseService):
-    name = _("创建新类告警策略")
+    name = _("创建新类策略")
 
     def inputs_format(self):
         return [
@@ -154,8 +154,12 @@ class CreateNewClsStrategyService(BaseService):
         index_set_id = data.get_one_of_inputs("index_set_id")
         log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
+        clustering_config = ClusteringConfig.objects.filter(index_set_id=index_set_id).first()
         if log_index_set:
-            ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id).create_new_cls_strategy()
+            bk_biz_id = clustering_config.bk_biz_id
+            ClusteringMonitorHandler(
+                index_set_id=log_index_set.index_set_id, bk_biz_id=bk_biz_id
+            ).create_new_cls_strategy()
         return True
 
 
@@ -178,7 +182,7 @@ class CreateNewClsStrategy(object):
 
 
 class CreateNewIndexSetService(BaseService):
-    name = _("创建新聚类索引集")
+    name = _("创建聚类索引集")
 
     def inputs_format(self):
         return [
@@ -187,7 +191,7 @@ class CreateNewIndexSetService(BaseService):
 
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        clustering_config = ClusteringConfig.objects.get(index_set_id=index_set_id)
         src_index_set = LogIndexSet.objects.get(index_set_id=clustering_config.index_set_id)
         src_index_set_indexes = src_index_set.indexes
         new_cls_index_set = IndexSetHandler.create(
@@ -216,7 +220,8 @@ class CreateNewIndexSetService(BaseService):
         new_cls_index_set.save()
         log_index_set = LogIndexSet.objects.filter(index_set_id=new_cls_index_set.index_set_id).first()
         LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
-        ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id).create_new_cls_strategy()
+        bk_biz_id = clustering_config.bk_biz_id
+        ClusteringMonitorHandler(index_set_id=log_index_set.index_set_id, bk_biz_id=bk_biz_id).create_new_cls_strategy()
         return True
 
 
@@ -235,167 +240,3 @@ class CreateNewIndexSet(object):
             type=Var.SPLICE, value="${collector_config_id}"
         )
         self.create_new_index_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
-
-
-class CreateOnlineTaskNewIndexSetService(BaseService):
-    name = _("创建在线训练任务-新聚类索引集")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        src_index_set = LogIndexSet.objects.get(index_set_id=clustering_config.index_set_id)
-        src_index_set_indexes = src_index_set.indexes
-        new_cls_index_set = IndexSetHandler.create(
-            index_set_name="{}_clustering".format(src_index_set.index_set_name),
-            space_uid=src_index_set.space_uid,
-            storage_cluster_id=src_index_set.storage_cluster_id,
-            scenario_id=src_index_set.scenario_id,
-            view_roles=None,
-            indexes=[
-                {
-                    "bk_biz_id": index["bk_biz_id"],
-                    "result_table_id": clustering_config.predict_flow['rename_signature']['result_table_id'],
-                    "result_table_name": src_index_set.index_set_name,
-                    "time_field": index["time_field"],
-                }
-                for index in src_index_set_indexes
-            ],
-            username=src_index_set.created_by,
-        )
-        clustering_config.new_cls_index_set_id = new_cls_index_set.index_set_id
-        clustering_config.save()
-
-        # 创建聚类索引集
-        new_cls_index_set.created_by = src_index_set.created_by
-        activate_request(generate_request(new_cls_index_set.updated_by))
-        new_cls_index_set.save()
-        log_index_set = LogIndexSet.objects.filter(index_set_id=new_cls_index_set.index_set_id).first()
-        LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
-        return True
-
-
-class CreateOnlineTaskNewIndexSetComponent(Component):
-    name = "CreateOnlineTaskNewIndexSet"
-    code = "create_online_task_new_index_set"
-    bound_service = CreateOnlineTaskNewIndexSetService
-
-
-class CreateOnlineTaskNewIndexSet(object):
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_online_task_new_index_set = ServiceActivity(
-            component_code="create_online_task_new_index_set",
-            name=f"create_online_task_new_index_set:{index_set_id}_{collector_config_id}",
-        )
-        self.create_online_task_new_index_set.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_online_task_new_index_set.component.inputs.index_set_id = Var(
-            type=Var.SPLICE, value="${index_set_id}"
-        )
-
-
-class CreatePredictFlowService(BaseService):
-    name = _("创建预测flow")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector_config_id", key="collector_config_id", type="int", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        flow = DataFlowHandler().create_predict_flow(index_set_id=index_set_id)
-        is_collect_index_set = bool(data.get_one_of_inputs("collector_config_id"))
-        if is_collect_index_set:
-            # 添加索引集表标签
-            log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-            LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
-            # 采集项要继续消费，能跟历史数据无缝衔接，避免丢数据
-            consuming_mode = "continue"
-        else:
-            # 计算平台的索引由于是分开两个索引存储，因此无需关心历史数据，直接从最新数据开始消费能够避免追太多历史数据，加速样本构建速度
-            consuming_mode = "from_tail"
-        DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode=consuming_mode)
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=clustering_config.predict_flow_id)
-        if deploy_data["status"] == "failure":
-            return False
-        if deploy_data["status"] == "success":
-            self.finish_schedule()
-        return True
-
-
-class CreatePredictFlowComponent(Component):
-    name = "CreatePredictFlow"
-    code = "create_predict_flow"
-    bound_service = CreatePredictFlowService
-
-
-class CreatePredictFlow(object):
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_predict_flow = ServiceActivity(
-            component_code="create_predict_flow", name=f"create_predict_flow:{index_set_id}_{collector_config_id}"
-        )
-        self.create_predict_flow.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_predict_flow.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
-
-
-class CreateLogCountAggregationFlowService(BaseService):
-    name = _("创建日志数量聚类-flow")
-    __need_schedule__ = True
-    interval = StaticIntervalGenerator(BaseService.TASK_POLLING_INTERVAL)
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector_config_id", key="collector_config_id", type="int", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        flow = DataFlowHandler().create_log_count_aggregation_flow(index_set_id=index_set_id)
-
-        DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="continue")
-        return True
-
-    def _schedule(self, data, parent_data, callback_data=None):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        deploy_data = DataFlowHandler().get_latest_deploy_data(flow_id=clustering_config.log_count_aggregation_flow_id)
-        if deploy_data["status"] == "failure":
-            return False
-        if deploy_data["status"] == "success":
-            self.finish_schedule()
-        return True
-
-
-class CreateLogCountAggregationFlowComponent(Component):
-    name = "CreateLogCountAggregationFlow"
-    code = "create_log_count_aggregation_flow"
-    bound_service = CreateLogCountAggregationFlowService
-
-
-class CreateLogCountAggregationFlow(object):
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_log_count_aggregation_flow = ServiceActivity(
-            component_code="create_log_count_aggregation_flow",
-            name=f"create_log_count_aggregation_flow:{index_set_id}_{collector_config_id}",
-        )
-        self.create_log_count_aggregation_flow.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_log_count_aggregation_flow.component.inputs.index_set_id = Var(
-            type=Var.SPLICE, value="${index_set_id}"
-        )

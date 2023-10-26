@@ -19,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import List, Dict, Any
 from collections import defaultdict
 
 import datetime
@@ -30,9 +29,8 @@ from django.db.models import Count
 from django.utils.translation import ugettext as _
 from django.conf import settings
 
-from apps.log_search.constants import InnerTag
 from apps.utils.db import array_group
-from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory, AsyncTask, Favorite, IndexSetTag
+from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory, AsyncTask, Favorite
 from apps.log_measure.constants import TIME_RANGE
 from apps.log_measure.utils.metric import MetricUtils
 from bk_monitor.constants import TimeFilterEnum
@@ -218,59 +216,40 @@ class IndexSetMetricCollector(object):
     @staticmethod
     @register_metric("index_set", description=_("索引集"), data_name="metric", time_filter=TimeFilterEnum.MINUTE5)
     def index_set():
-        # 无数据标签id需要从DB取一下名为NO_DATA的tag_id, 防止各个环境的tag_id不一致
-        no_data_tag_id = str(IndexSetTag.get_tag_id(InnerTag.NO_DATA.value))
         metrics = []
-        # 多维度聚合
-        aggregation = defaultdict(int)
-        # 索引集总数
-        index_set_count_total = 0
-        # 活跃索引集总数
-        index_set_active_count_total = 0
-        # 获取索引集列表
-        index_sets: List[Dict[str, Any]] = LogIndexSet.objects.values(
-            "space_uid", "scenario_id", "is_active", "tag_ids"
-        ).iterator()
-        for index_set in index_sets:
-            space_uid = index_set["space_uid"]
-            if not MetricUtils.get_instance().space_info.get(space_uid):
-                continue
-            bk_biz_id = MetricUtils.get_instance().space_info[space_uid].bk_biz_id
-            # agg_key为一个四元组 (bk_biz_id, scenario_id, is_active, has_data)
-            agg_key = (
-                bk_biz_id,
-                index_set["scenario_id"],
-                index_set["is_active"],
-                no_data_tag_id not in index_set["tag_ids"],
-            )
-            aggregation[agg_key] += 1
-            index_set_count_total += 1
-            if index_set["is_active"]:
-                index_set_active_count_total += 1
-
-        # 遍历聚合数据
-        for agg_key in aggregation:
-            bk_biz_id, scenario_id, is_active, has_data = agg_key
-            metrics.append(
-                # 带bk_biz_id, scenario_id, is_active, has_data标签的数据
-                Metric(
-                    metric_name="count",
-                    metric_value=aggregation[agg_key],
-                    dimensions={
-                        "bk_biz_id": bk_biz_id,
-                        "bk_biz_name": MetricUtils.get_instance().get_biz_name(bk_biz_id),
-                        "scenario_id": scenario_id,
-                        "is_active": is_active,
-                        "has_data": has_data,
-                    },
-                    timestamp=MetricUtils.get_instance().report_ts,
+        groups = (
+            LogIndexSet.objects.values("space_uid", "scenario_id", "is_active")
+            .order_by("space_uid", "scenario_id", "is_active")
+            .annotate(count=Count("index_set_id"))
+        )
+        aggregation_index_set = defaultdict(int)
+        aggregation_active_index_set = defaultdict(int)
+        for group in groups:
+            if MetricUtils.get_instance().space_info.get(group["space_uid"]):
+                bk_biz_id = MetricUtils.get_instance().space_info[group["space_uid"]].bk_biz_id
+                metrics.append(
+                    # 带bk_biz_id, scenario_id, is_active标签的数据
+                    Metric(
+                        metric_name="count",
+                        metric_value=group["count"],
+                        dimensions={
+                            "bk_biz_id": bk_biz_id,
+                            "bk_biz_name": MetricUtils.get_instance().get_biz_name(bk_biz_id),
+                            "scenario_id": group["scenario_id"],
+                            "is_active": group["is_active"],
+                        },
+                        timestamp=MetricUtils.get_instance().report_ts,
+                    )
                 )
-            )
+                aggregation_index_set[bk_biz_id] += group["count"]
+                if group["is_active"]:
+                    aggregation_active_index_set[bk_biz_id] += group["count"]
+
         metrics.append(
             # 总的索引集数量
             Metric(
                 metric_name="total",
-                metric_value=index_set_count_total,
+                metric_value=sum(aggregation_index_set.values()),
                 dimensions={},
                 timestamp=MetricUtils.get_instance().report_ts,
             )
@@ -279,7 +258,7 @@ class IndexSetMetricCollector(object):
             # 有效的索引集数量
             Metric(
                 metric_name="active_total",
-                metric_value=index_set_active_count_total,
+                metric_value=sum(aggregation_active_index_set.values()),
                 dimensions={},
                 timestamp=MetricUtils.get_instance().report_ts,
             )

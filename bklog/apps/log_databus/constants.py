@@ -364,7 +364,7 @@ BKDATA_ES_TYPE_MAP = {
     "nested": "text",
 }
 
-ETL_PARAMS = {"retain_original_text": True, "separator_regexp": "", "separator": "", "retain_extra_json": False}
+ETL_PARAMS = {"retain_original_text": True, "separator_regexp": "", "separator": ""}
 
 
 class ETLProcessorChoices(ChoicesEnum):
@@ -495,6 +495,23 @@ WAIT_FOR_RETRY = 20
 INDEX_WRITE_PREFIX = "write_"
 INDEX_READ_SUFFIX = "_read"
 
+
+class ScriptType(ChoicesEnum):
+    SHELL = 1
+    BAT = 2
+    PERL = 3
+    PYTHON = 4
+    POWERSHELL = 5
+
+    _choices_labels = (
+        (SHELL, _("shell")),
+        (BAT, _("bat")),
+        (PERL, _("perl")),
+        (PYTHON, _("python")),
+        (POWERSHELL, _("powershell")),
+    )
+
+
 CHECK_AGENT_STEP = {
     "bin_file": _("检查二进制文件是否存在"),
     "process": _("检查进程是否存在"),
@@ -518,6 +535,8 @@ KAFKA_SSL_CONFIG_ITEMS = {KAFKA_SSL_USERNAME, KAFKA_SSL_PASSWORD, KAFKA_SSL_MECH
 KAFKA_TEST_GROUP = "kafka_test_group"
 DEFAULT_KAFKA_SECURITY_PROTOCOL = "PLAINTEXT"
 DEFAULT_KAFKA_SASL_MECHANISM = "PLAIN"
+
+TABLE_TRANSFER = "pushgateway_transfer_metircs.base"
 
 # 调用GSE的'接收端配置接口'以及'路由接口'时使用
 DEFAULT_GSE_API_PLAT_NAME = "bkmonitor"  # GSE分配给监控的平台名称，不随APP_CODE变更，请不要修改
@@ -546,19 +565,3 @@ META_DATA_CRON_REFRESH_TASK_NAME_LIST = [
 class ArchiveInstanceType(TextChoices):
     COLLECTOR_CONFIG = "collector_config", _("采集项")
     COLLECTOR_PLUGIN = "collector_plugin", _("采集插件")
-
-
-# 一键检测工具执行脚本超时时间
-CHECK_COLLECTOR_SCRIPT_TIMEOUT = 7200
-
-# 一键检测工具容器采集项常量
-BK_LOG_COLLECTOR_NAMESPACE = "kube-system"
-CRD_NAME = "bklogconfigs.bk.tencent.com"
-CONFIGMAP_NAME = "bk-log-bkunifylogbeat"
-DAEMONSET_NAME: str = "bk-log-collector"
-DAEMONSET_POD_LABELS: str = "name=bkunifylogbeat-bklog"
-BK_LOG_COLLECTOR_CONTAINER_NAME = "bkunifylogbeat-bklog"
-# 采集器主配置文件
-BK_LOG_COLLECTOR_MAIN_CONFIG_NAME = "bkunifylogbeat.conf"
-# 采集器子配置路径
-BK_LOG_COLLECTOR_SUB_CONFIG_PATH = "bkunifylogbeat"

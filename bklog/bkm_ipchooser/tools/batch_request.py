@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 
-from bkm_ipchooser.constants import DEFAULT_MAX_WORKERS
+from apps.constants import DEFAULT_MAX_WORKERS
 from bkm_ipchooser.tools import translation
 from django.utils.translation import get_language
 

@@ -79,6 +79,10 @@ const saveTitleInfo = {
   url: '/search/index_set/:index_set_id/config/',
   method: 'post',
 };
+const getHistoryList = {
+  url: '/search/index_set/:index_set_id/history/',
+  method: 'get',
+};
 const getRetrieveFavorite = {
   url: '/search/favorite/',
   method: 'get',
@@ -127,10 +131,6 @@ const getFieldsConfigByContextLog = {
   url: '/search/index_set/:index_set_id/retrieve_config/?config_id=:config_id',
   method: 'get',
 };
-const getAggsTerms = {
-  url: '/search/index_set/:index_set_id/aggs/terms/',
-  method: 'post',
-};
 
 export {
   getIndexSetList,
@@ -147,6 +147,7 @@ export {
   getContentLog,
   saveTitleInfo,
   getIpBusinessList,
+  getHistoryList,
   getRetrieveFavorite,
   postRetrieveFavorite,
   deleteRetrieveFavorite,
@@ -159,5 +160,4 @@ export {
   updateFieldsConfig,
   deleteFieldsConfig,
   getFieldsConfigByContextLog,
-  getAggsTerms,
 };

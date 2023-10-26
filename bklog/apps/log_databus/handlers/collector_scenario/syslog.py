@@ -19,10 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.log_databus.constants import EtlConfig, LogPluginInfo
+from apps.log_databus.constants import LogPluginInfo
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
-from django.utils.translation import ugettext as _
 
 
 class SysLogScenario(CollectorScenario):
@@ -30,7 +29,7 @@ class SysLogScenario(CollectorScenario):
     PLUGIN_VERSION = LogPluginInfo.VERSION
     CONFIG_NAME = "bkunifylogbeat_syslog"
 
-    def get_subscription_steps(self, data_id, params, collector_config_id=None, data_link_id=None):
+    def get_subscription_steps(self, data_id, params, collector_config_id=None):
         # 判断是否传入监听IP 未传入则使用内网IP
         syslog_monitor_host = params.get("syslog_monitor_host") or "{{ cmdb_instance.host.bk_host_innerip }}"
         syslog_port = str(params["syslog_port"])
@@ -39,7 +38,6 @@ class SysLogScenario(CollectorScenario):
             "protocol": params.get("syslog_protocol", "").lower(),
             "host": f"{syslog_monitor_host}:{syslog_port}",
         }
-        local_params = self._deal_edge_transport_params(local_params, data_link_id)
         return [
             {
                 "id": self.PLUGIN_NAME,
@@ -66,51 +64,56 @@ class SysLogScenario(CollectorScenario):
             return {"syslog_protocol": "", "syslog_port": 0}
 
     @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):
+    def get_built_in_config(cls, es_version="5.X"):
         """
         获取采集器标准字段
         """
-        built_in_config = {
+        return {
             "option": {
-                "es_unique_field_list": [
-                    "cloudId",
-                    "serverIp",
-                    "gseIndex",
-                    "iterationIndex",
-                    "bk_host_id",
-                    "dtEventTimeStamp",
-                ],
+                "es_unique_field_list": ["cloudId", "serverIp", "logSource", "gseIndex", "iterationIndex"],
                 "separator_node_source": "",
                 "separator_node_action": "",
                 "separator_node_name": "",
             },
             "fields": [
                 {
-                    "field_name": "bk_host_id",
-                    "field_type": "float",
-                    "tag": "dimension",
-                    "alias_name": "bk_host_id",
-                    "description": _("主机ID"),
-                    "option": {"es_type": "integer", "es_include_in_all": False}
-                    if es_version.startswith("5.")
-                    else {"es_type": "integer"},
-                },
-                {
-                    "field_name": "__ext",
+                    "field_name": "syslogSource",
                     "field_type": "object",
                     "tag": "dimension",
-                    "alias_name": "ext",
-                    "description": _("额外信息字段"),
-                    "option": {"es_type": "object", "es_include_in_all": False}
-                    if es_version.startswith("5.")
-                    else {"es_type": "object"},
+                    "alias_name": "log",
+                    "description": "客户端信息",
+                    "option": build_es_option_type("object", es_version),
+                },
+                {
+                    "field_name": "syslogLabel",
+                    "field_type": "object",
+                    "tag": "dimension",
+                    "alias_name": "syslog",
+                    "description": "严重程度",
+                    "option": build_es_option_type("object", es_version),
+                },
+                {
+                    "field_name": "syslogEvent",
+                    "field_type": "object",
+                    "tag": "dimension",
+                    "alias_name": "event",
+                    "description": "日志级别",
+                    "option": build_es_option_type("object", es_version),
+                },
+                {
+                    "field_name": "syslogProcess",
+                    "field_type": "object",
+                    "tag": "dimension",
+                    "alias_name": "process",
+                    "description": "应用程序",
+                    "option": build_es_option_type("object", es_version),
                 },
                 {
                     "field_name": "iterationIndex",
                     "field_type": "float",
                     "tag": "dimension",
                     "alias_name": "iterationindex",
-                    "description": "迭代ID",
+                    "description": "数据上报索引",
                     "option": build_es_option_type("integer", es_version),
                 },
                 {
@@ -126,7 +129,7 @@ class SysLogScenario(CollectorScenario):
                     "field_type": "string",
                     "tag": "dimension",
                     "alias_name": "ip",
-                    "description": "ip",
+                    "description": "Agent设备IP",
                     "option": build_es_option_type("keyword", es_version),
                 },
                 {
@@ -134,7 +137,7 @@ class SysLogScenario(CollectorScenario):
                     "field_type": "float",
                     "tag": "dimension",
                     "alias_name": "gseindex",
-                    "description": "gse索引",
+                    "description": "GSE索引",
                     "option": build_es_option_type("long", es_version),
                 },
             ],
@@ -143,7 +146,7 @@ class SysLogScenario(CollectorScenario):
                 "field_type": "timestamp",
                 "tag": "dimension",
                 "alias_name": "utctime",
-                "description": "数据时间",
+                "description": "日志时间",
                 "option": {
                     "es_type": "date",
                     "es_include_in_all": False,
@@ -160,41 +163,3 @@ class SysLogScenario(CollectorScenario):
                 },
             },
         }
-        if etl_config == EtlConfig.BK_LOG_TEXT:
-            built_in_config["fields"].extend(
-                [
-                    {
-                        "field_name": "syslogSource",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "log",
-                        "description": "客户端信息",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                    {
-                        "field_name": "syslogLabel",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "syslog",
-                        "description": "严重程度",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                    {
-                        "field_name": "syslogEvent",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "event",
-                        "description": "日志级别",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                    {
-                        "field_name": "syslogProcess",
-                        "field_type": "object",
-                        "tag": "dimension",
-                        "alias_name": "process",
-                        "description": "应用程序",
-                        "option": build_es_option_type("object", es_version),
-                    },
-                ]
-            )
-        return built_in_config

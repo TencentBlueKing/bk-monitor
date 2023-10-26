@@ -17,7 +17,6 @@ from apps.log_search.models import Scenario
 from apps.utils.local import activate_request
 from apps.utils.thread import generate_request
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils.crypto import get_random_string
 from pymysql.cursors import SSDictCursor
@@ -455,9 +454,9 @@ class MigrateToolBase:
             # 检查是否已经迁移过
             if self.check_record(mapping):
                 continue
-            # 如果采集项没有指定存储集群, 则查询该业务下存不存在公共集群，如果不存在，则跳过
+            # 如果没有指定存储集群, 则查询该业务下存不存在公共集群，如果不存在，则跳过
             # 放在这里是避免进了业务逻辑后, 再去查询公共集群，导致迁移直接失败
-            if "collector_config_name_en" in data and not self.storage_cluster_id:
+            if not self.storage_cluster_id:
                 storage_cluster_id = get_random_public_cluster_id(mapping["bk_biz_id"])
                 if not storage_cluster_id:
                     Prompt.warning(msg="业务{bk_biz_id}没有可用的公共存储集群, 跳过", bk_biz_id=mapping["bk_biz_id"])
@@ -617,13 +616,6 @@ class IndexSetMigrateTool(MigrateToolBase):
         }
 
     def migrate(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if data["scenario_id"] == Scenario.BKDATA or settings.RUN_VER == "tencent":
-            storage_cluster_id = None
-        elif data["scenario_id"] == Scenario.ES:
-            storage_cluster_id = data["storage_cluster_id"]
-        else:
-            storage_cluster_id = IndexSetHandler.get_storage_by_table_list(data["indexes"])
-        data["storage_cluster_id"] = storage_cluster_id
         if data["scenario_id"] == Scenario.BKDATA:
             return self._migrate_bkdata(data)
         # TODO: 暂不迁移第三方ES索引集

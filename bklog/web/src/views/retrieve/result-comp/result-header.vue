@@ -44,7 +44,7 @@
         </bk-popover>
         <bk-popover
           ref="showSearchBtnRef"
-          :tippy-options="expandTips">
+          :tippy-options="collectTips">
           <div
             :class="['result-icon-box',{ 'light-icon': !showRetrieveCondition }]"
             @click="handleClickResultIcon('search')">
@@ -76,9 +76,9 @@
         <slot name="trigger">
           <div class="auto-refresh-trigger">
             <span
-              :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
+              :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-refresh-icon']"
               data-test-id="retrieve_span_periodicRefresh"
-              @click.stop="handleRefreshDebounce"></span>
+              @click.stop="$emit('shouldRetrieve')"></span>
             <span :class="isAutoRefresh && 'active-text'">{{refreshTimeText}}</span>
             <span class="bk-icon icon-angle-down" :class="refreshActive && 'active'"></span>
           </div>
@@ -143,7 +143,6 @@ import { mapState } from 'vuex';
 import BizMenuSelect from '@/components/biz-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import StepBox from '@/components/step-box';
-import { debounce } from 'throttle-debounce';
 
 export default {
   components: {
@@ -153,6 +152,10 @@ export default {
   },
   props: {
     showRetrieveCondition: {
+      type: Boolean,
+      required: true,
+    },
+    showExpandInitTips: {
       type: Boolean,
       required: true,
     },
@@ -190,13 +193,23 @@ export default {
       expandTips: {
         placement: 'bottom',
         trigger: 'mouseenter',
+        onHidden: () => {
+          this.$emit('initTipsHidden');
+        },
       },
       expandText: '',
+      collectTips: {
+        placement: 'bottom',
+        trigger: 'mouseenter',
+        onHidden: () => {
+          this.isFirstCloseCollect = true;
+        },
+      },
       refreshActive: false, // 自动刷新下拉激活
       refreshTimer: null, // 自动刷新定时器
       refreshTimeout: 0, // 0 这里表示关闭自动刷新
       refreshTimeList: [{
-        id: 0, name: `off ${this.$t('关闭')}`,
+        id: 0, name: this.$t('刷新'),
       }, {
         id: 60000, name: '1m',
       }, {
@@ -248,24 +261,16 @@ export default {
       userGuideData: state => state.userGuideData,
     }),
     refreshTimeText() {
-      if (!this.refreshTimeout) return 'off';
       return this.refreshTimeList.find(item => item.id === this.refreshTimeout).name;
     },
     isAutoRefresh() {
       return this.refreshTimeout !== 0;
     },
     isAiopsToggle() { // 日志聚类总开关
-      const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
+      if (window.FEATURE_TOGGLE.bkdata_aiops_toggle !== 'on') return false;
       const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
-      switch (bkdataAiopsToggle) {
-        case 'on':
-          return true;
-        case 'off':
-          return false;
-        default:
-          return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
-      }
+      return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
     },
     iconFavoriteStr() {
       return this.$t('点击{n}收藏', {
@@ -292,7 +297,6 @@ export default {
   },
   created() {
     this.showCollectIntroGuide = this.userGuideData?.function_guide?.search_favorite ?? false;
-    this.handleRefreshDebounce = debounce(300, false, this.handleRefresh);
   },
   mounted() {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -435,9 +439,6 @@ export default {
       this.$http.request('meta/getUserGuide').then((res) => {
         this.$store.commit('setUserGuideData', res.data);
       });
-    },
-    handleRefresh() {
-      this.$emit('shouldRetrieve');
     },
   },
 };

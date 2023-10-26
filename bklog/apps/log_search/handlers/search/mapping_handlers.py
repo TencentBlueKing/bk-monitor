@@ -33,7 +33,6 @@ from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     FEATURE_ASYNC_EXPORT_COMMON,
     LOG_ASYNC_FIELDS,
-    OPERATORS,
     FieldDataTypeEnum,
     SearchScopeEnum,
 )
@@ -50,7 +49,7 @@ from apps.log_search.models import (
     Scenario,
     UserIndexSetFieldsConfig,
 )
-from apps.utils.cache import cache_one_minute, cache_ten_minute
+from apps.utils.cache import cache_ten_minute
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.time_handler import generate_time_range
 from django.conf import settings
@@ -202,7 +201,6 @@ class MappingHandlers(object):
                 "tag": field.get("tag", "metric"),
                 "es_doc_values": field.get("es_doc_values", False),
                 "is_analyzed": field.get("is_analyzed", False),
-                "field_operator": OPERATORS.get(field["field_type"], []),
             }
             for field in fields_result
         ]
@@ -360,7 +358,7 @@ class MappingHandlers(object):
     def _get_mapping(self):
         return self._get_latest_mapping(index_set_id=self.index_set_id)
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}")
+    @cache_ten_minute("latest_mapping_key_{index_set_id}")
     def _get_latest_mapping(self, *, index_set_id):  # noqa
         start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
         latest_mapping = BkLogApi.mapping(
@@ -637,19 +635,22 @@ class MappingHandlers(object):
         except SearchGetSchemaException:
             return []
 
+    def get_meta_schema(self, index: str) -> list:
+        """
+        get_meta_schema
+        @param index:
+        @return:
+        """
+        index, *_ = index.split(",")
+        return self._inner_get_meta_schema(index=index)
+
     @staticmethod
-    def get_meta_schema(indices):
-        indices = indices.split(",")
+    @cache_ten_minute("{index}_schema")
+    def _inner_get_meta_schema(*, index):
         try:
-            all_field_list = list()
-            all_field_set = set()
-            for index in indices:
-                data: dict = TransferApi.get_result_table({"table_id": index})
-                for field_info in data["field_list"]:
-                    if field_info["field_name"] not in all_field_set:
-                        all_field_set.add(field_info["field_name"])
-                        all_field_list.append(field_info)
-            return all_field_list
+            data: dict = TransferApi.get_result_table({"table_id": index})
+            field_list: list = data["field_list"]
+            return field_list
         except Exception:  # pylint: disable=broad-except
             return []
 
@@ -875,6 +876,7 @@ class MappingHandlers(object):
             return _("必须ip或者container_id字段")
 
         elif "gseIndex" in fields_list:
+
             if "serverIp" not in fields_list:
                 return _("必须serverIp字段")
 

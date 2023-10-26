@@ -22,30 +22,22 @@ the project delivered to anyone in the future.
 import json
 import re
 
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
+from django.utils.translation import ugettext_lazy as _
+
 from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
 )
 from apps.log_clustering.exceptions import (
-    BkdataFieldsException,
-    BkdataRegexException,
     ClusteringConfigNotExistException,
+    BkdataRegexException,
+    BkdataFieldsException,
 )
-from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
-    AiopsModelHandler,
-)
+from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import AiopsModelHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_clustering.tasks.flow import (
-    update_clustering_clean,
-    update_filter_rules,
-    update_predict_clustering_clean,
-    update_predict_flow_filter_rules,
-    update_predict_nodes_and_online_task,
-)
 from apps.log_clustering.tasks.msg import send
+from apps.log_clustering.tasks.flow import update_filter_rules, update_clustering_clean
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
@@ -56,11 +48,6 @@ from apps.utils.function import map_if
 from apps.utils.local import activate_request
 from apps.utils.log import logger
 from apps.utils.thread import generate_request
-from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
-from bkm_space.errors import NoRelatedResourceError
-from bkm_space.utils import bk_biz_id_to_space_uid
-from django.utils.translation import ugettext_lazy as _
 
 
 class ClusteringConfigHandler(object):
@@ -68,7 +55,10 @@ class ClusteringConfigHandler(object):
         self.index_set_id = index_set_id
         self.data = None
         if index_set_id:
-            self.data = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
+            try:
+                self.data = ClusteringConfig.objects.get(index_set_id=self.index_set_id)
+            except ClusteringConfig.DoesNotExist:
+                raise ClusteringConfigNotExistException()
         if collector_config_id:
             try:
                 self.data = ClusteringConfig.objects.get(collector_config_id=collector_config_id)
@@ -79,19 +69,9 @@ class ClusteringConfigHandler(object):
         return model_to_dict(self.data, exclude=CLUSTERING_CONFIG_EXCLUDE)
 
     def start(self):
-        from apps.log_clustering.handlers.pipline_service.aiops_service import (
-            operator_aiops_service,
-        )
+        from apps.log_clustering.handlers.pipline_service.aiops_service import operator_aiops_service
 
         pipeline_id = operator_aiops_service(self.index_set_id)
-        return pipeline_id
-
-    def online_start(self):
-        from apps.log_clustering.handlers.pipline_service.aiops_service_online import (
-            operator_aiops_service_online,
-        )
-
-        pipeline_id = operator_aiops_service_online(self.index_set_id)
         return pipeline_id
 
     def update_or_create(self, params: dict):
@@ -101,7 +81,7 @@ class ClusteringConfigHandler(object):
         category_id = log_index_set.category_id
         log_index_set_data, *_ = log_index_set.indexes
         collector_config_name_en = ""
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+        clustering_config = ClusteringConfig.objects.filter(index_set_id=index_set_id).first()
         if collector_config_id:
             collector_config = CollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
             collector_config_name_en = (
@@ -120,12 +100,7 @@ class ClusteringConfigHandler(object):
         bk_biz_id = params["bk_biz_id"]
         filter_rules = params["filter_rules"]
         signature_enable = params["signature_enable"]
-        # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
-        related_space_pre_bk_biz_id = params["bk_biz_id"]
-        bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
-        from apps.log_clustering.handlers.pipline_service.aiops_service import (
-            operator_aiops_service,
-        )
+        from apps.log_clustering.handlers.pipline_service.aiops_service import operator_aiops_service
 
         if clustering_config:
             (
@@ -166,33 +141,17 @@ class ClusteringConfigHandler(object):
                 )
 
             if change_filter_rules and not change_clustering_fields:
-                if clustering_config.predict_flow_id:
-                    # 更新 predict_flow filter_rule
-                    update_predict_flow_filter_rules.delay(index_set_id=index_set_id)
-                else:
-                    # 更新filter_rule
-                    update_filter_rules.delay(index_set_id=index_set_id)
-
+                # 更新filter_rule
+                update_filter_rules.delay(index_set_id=index_set_id)
             if change_model_config:
-                if clustering_config.predict_flow_id:
-                    # 需要更新 flow中的预测节点 及 更新在线训练任务 训练参数的变动
-                    update_predict_nodes_and_online_task.delay(index_set_id=index_set_id)
-                else:
-                    # 更新aiops model
-                    operator_aiops_service(index_set_id, operator=OperatorServiceEnum.UPDATE)
-
+                # 更新aiops model
+                operator_aiops_service(index_set_id, operator=OperatorServiceEnum.UPDATE)
             if change_clustering_fields:
-                if clustering_config.predict_flow_id:
-                    # 更新flow 中的参与聚类和非参与聚类的节点
-                    update_predict_clustering_clean.delay(index_set_id=index_set_id)
-                else:
-                    # 更新flow
-                    update_clustering_clean.delay(index_set_id=index_set_id)
+                # 更新flow
+                update_clustering_clean.delay(index_set_id=index_set_id)
 
             return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
-        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
         clustering_config = ClusteringConfig.objects.create(
-            model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
             collector_config_id=collector_config_id,
             collector_config_name_en=collector_config_name_en,
             min_members=min_members,
@@ -208,7 +167,6 @@ class ClusteringConfigHandler(object):
             signature_enable=signature_enable,
             source_rt_name=source_rt_name,
             category_id=category_id,
-            related_space_pre_bk_biz_id=related_space_pre_bk_biz_id,  # 查询space关联的真实业务之前的业务id
         )
         if signature_enable:
             self.create_service(
@@ -378,22 +336,3 @@ class ClusteringConfigHandler(object):
             raise ValueError(BkdataFieldsException(BkdataFieldsException.MESSAGE.format(field=clustering_fields)))
 
         return True
-
-    @staticmethod
-    def validate_bk_biz_id(bk_biz_id: int) -> int:
-        """
-        注入业务id校验
-        :return:
-        """
-
-        # 业务id为正数，表示空间类型是bkcc，可以调用cmdb相关接口
-        bk_biz_id = int(bk_biz_id)
-        if bk_biz_id > 0:
-            return bk_biz_id
-        # 业务id为负数，需要获取空间关联的真实业务id
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
-        if space:
-            return space.bk_biz_id
-        # 无业务关联的空间，不允许创建日志聚类 当前抛出异常
-        raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建日志聚类").format(bk_biz_id=bk_biz_id))

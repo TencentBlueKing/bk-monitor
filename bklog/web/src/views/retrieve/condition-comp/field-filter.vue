@@ -34,10 +34,11 @@
         @change="handleSearch"
         data-test-id="fieldFilter_input_searchFieldName"
       ></bk-input>
+      <div class="gap"></div>
       <bk-popover
         ref="filterPopover"
         trigger="click"
-        placement="bottom-start"
+        placement="top"
         theme="light"
         animation="slide-toggle"
         :tippy-options="{ hideOnClick: false }"
@@ -51,7 +52,7 @@
             @click="closePopoverIfOpened"
             data-test-id="fieldFilter_div_phrasesSearch">
             <span class="bk-icon icon-funnel"></span>
-            <span class="text">{{ $t('字段类型') }}</span>
+            <span class="text">{{ $t('字段类型过滤') }}</span>
             <span v-if="filterTypeCount" class="count">{{ filterTypeCount }}</span>
           </div>
         </slot>
@@ -64,29 +65,20 @@
     </div>
     <div v-if="visibleFields.length" class="fields-container is-selected">
       <div class="title">{{ $t('已添加字段') }}</div>
-      <!-- <ul class="filed-list"> -->
-      <vue-draggable
-        class="filed-list"
-        v-bind="dragOptions"
-        v-model="dragVisibleFields"
-        @end="handleVisibleMoveEnd">
-        <transition-group>
-          <template v-for="item in visibleFields">
-            <field-item
-              v-show="item.filterVisible"
-              type="visible"
-              :key="item.field_name"
-              :retrieve-params="retrieveParams"
-              :field-alias-map="fieldAliasMap"
-              :show-field-alias="showFieldAlias"
-              :visible-length="visibleFields.length"
-              :statistical-field-data="statisticalFieldsData[item.field_name]"
-              :field-item="item"
-              @toggleItem="handleToggleItem" />
-          </template>
-        </transition-group>
-      </vue-draggable>
-      <!-- </ul> -->
+      <ul class="filed-list">
+        <template v-for="item in visibleFields">
+          <field-item
+            v-show="item.filterVisible"
+            type="visible"
+            :key="item.field_name"
+            :retrieve-params="retrieveParams"
+            :field-alias-map="fieldAliasMap"
+            :show-field-alias="showFieldAlias"
+            :statistical-field-data="statisticalFieldsData[item.field_name]"
+            :field-item="item"
+            @toggleItem="handleToggleItem" />
+        </template>
+      </ul>
     </div>
     <div v-if="hiddenFields.length" class="fields-container not-selected">
       <div class="title">{{ $t('可选字段') }}</div>
@@ -111,13 +103,11 @@
 <script>
 import FieldItem from './field-item';
 import FieldFilterPopover from './field-filter-popover';
-import VueDraggable from 'vuedraggable';
 
 export default {
   components: {
     FieldItem,
     FieldFilterPopover,
-    VueDraggable,
   },
   props: {
     totalFields: {
@@ -170,13 +160,6 @@ export default {
       searchKeyword: '',
       polymerizable: '0', // 聚合
       fieldType: 'any', // 字段类型
-      dragOptions: {
-        animation: 150,
-        tag: 'ul',
-        handle: '.icon-drag-dots',
-        'ghost-class': 'sortable-ghost-class',
-      },
-      dragVisibleFields: [],
     };
   },
   computed: {
@@ -201,9 +184,6 @@ export default {
     '$route.params.indexId'() { // 切换索引集重置状态
       this.polymerizable = '0';
       this.fieldType = 'any';
-    },
-    'visibleFields.length'() {
-      this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
     },
   },
   mounted() {
@@ -248,9 +228,6 @@ export default {
           this.$refs.filterPopover.instance.hide();
         });
       }
-    },
-    handleVisibleMoveEnd() {
-      this.$emit('fieldsUpdated', this.dragVisibleFields, undefined, false);
     },
     // 字段显示或隐藏
     async handleToggleItem(type, fieldItem) {
@@ -306,7 +283,6 @@ export default {
         display: flex;
         align-items: center;
         height: 32px;
-        margin-left: 16px;
         line-height: 18px;
         color: #3a84ff;
         font-size: 12px;
@@ -328,7 +304,7 @@ export default {
           text-align: center;
           min-width: 18px;
           height: 18px;
-          border-radius: 50%;
+          border-radius: 8px;
           background-color: #e1ecff;
         }
       }

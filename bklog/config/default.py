@@ -83,7 +83,6 @@ INSTALLED_APPS += (
     "apps.log_clustering",
     "bkm_space",
     "bkm_ipchooser",
-    "apps.log_desensitize",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -117,9 +116,7 @@ MIDDLEWARE = (
     # Auth middleware
     "blueapps.account.middlewares.BkJwtLoginRequiredMiddleware",
     "blueapps.account.middlewares.WeixinLoginRequiredMiddleware",
-    # "blueapps.account.middlewares.LoginRequiredMiddleware",
-    # 注释掉是因为ApiTokenAuthenticationMiddleware中针对非TOKEN校验的会继承父类
-    "apps.middleware.api_token_middleware.ApiTokenAuthenticationMiddleware",
+    "blueapps.account.middlewares.LoginRequiredMiddleware",
     # exception middleware
     "blueapps.core.exceptions.middleware.AppExceptionMiddleware",
     # 自定义中间件
@@ -378,14 +375,9 @@ GRAFANA = {
     "HOST": os.getenv("BKAPP_GRAFANA_URL", ""),
     "PREFIX": "{}grafana/".format(os.getenv("BKAPP_GRAFANA_PREFIX", SITE_URL)),
     "ADMIN": (os.getenv("BKAPP_GRAFANA_ADMIN_USERNAME", "admin"), os.getenv("BKAPP_GRAFANA_ADMIN_PASSWORD", "admin")),
-    "PROVISIONING_CLASSES": [
-        "apps.grafana.provisioning.Provisioning",
-        "apps.grafana.provisioning.TraceProvisioning",
-        "apps.grafana.provisioning.CustomESDataSourceProvisioning",
-    ],
+    "PROVISIONING_CLASSES": ["apps.grafana.provisioning.Provisioning", "apps.grafana.provisioning.TraceProvisioning"],
     "PERMISSION_CLASSES": ["apps.grafana.permissions.BizPermission"],
 }
-SKIP_FLOW_MIXIN_MIDDLEWARE_VIEW = ["CustomESDatasourceViewSet"]
 
 # 是否可以跨业务创建索引集
 Index_Set_Cross_Biz = False
@@ -474,7 +466,6 @@ LOCALE_PATHS = (os.path.join(PROJECT_ROOT, "locale"),)
 # ===============================================================================
 AUTH_USER_MODEL = "account.User"
 AUTHENTICATION_BACKENDS = (
-    "apps.middleware.api_token_middleware.ApiTokenAuthBackend",
     "blueapps.account.backends.BkJwtBackend",
     "blueapps.account.backends.UserBackend",
     "django.contrib.auth.backends.ModelBackend",
@@ -833,9 +824,6 @@ BLUEKING_BK_BIZ_ID = int(os.environ.get("BKAPP_BLUEKING_BK_BIZ_ID", 2))
 BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
     "BKAPP_BKMONITOR_CUSTOM_PROXY_IP", "http://report.bkmonitorv3.service.consul:10205"
 )
-# 蓝鲸监控平台的业务ID
-BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
-TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
 
 # ===============================================================================
 # EsQuery
@@ -862,7 +850,6 @@ ESQUERY_WHITE_LIST = [
     "bk_bcs",
     "bk-dbm",
     "bk_dbm",
-    "bk-audit",
 ]
 
 # BK repo conf
@@ -969,16 +956,10 @@ if os.getenv("BKAPP_GSE_VERSION"):
 else:
     GSE_VERSION = "v2" if ENABLE_DHCP else "v1"
 
-
+# ===============
 # 国际化切换语言设置
+# ===============
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")
-# 容器采集配置
-CONTAINER_COLLECTOR_CONFIG_DIR = os.getenv("BKAPP_CONTAINER_COLLECTOR_CONFIG_DIR", "/data/etc")
-# 容器下发CR全局标签
-CONTAINER_COLLECTOR_CR_LABEL_BKENV: str = os.getenv("BKAPP_CONTAINER_COLLECTOR_CR_LABEL_BKENV", "")
-
-# 是否开启RETAIN_EXTRA_JSON
-RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "off") == "on"
 
 # ==============================================================================
 # Templates
@@ -1092,10 +1073,6 @@ HOST_IDENTIFIER_PRIORITY = os.environ.get("HOST_IDENTIFIER_PRIORITY", "bk_host_i
 CHECK_COLLECTOR_SWITCH: bool = os.getenv("CHECK_COLLECTOR_SWITCH", "off") == "on"
 # ==============================================================================
 
-# ==============================================================================
-# HTTPS 代理转发
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-# ==============================================================================
 
 """
 以下为框架代码 请勿修改

@@ -19,25 +19,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import abc
 import copy
 import datetime
+import abc
+
 import typing
 from collections import defaultdict
 
-from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
-from apps.log_search.exceptions import DateHistogramException
-from apps.log_search.handlers.search.search_handlers_esquery import (
-    SearchHandler as SearchHandlerEsquery,
-)
-from apps.utils.local import get_local_param
+from elasticsearch_dsl import Search, A
+
 from apps.utils.log import logger
-from apps.utils.time_handler import (
-    DTEVENTTIMESTAMP_MULTIPLICATOR,
-    generate_time_range,
-    timestamp_to_timeformat,
-)
-from elasticsearch_dsl import A, Search
+from apps.log_search.exceptions import DateHistogramException
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
+from apps.utils.local import get_local_param
+from apps.utils.time_handler import timestamp_to_timeformat, DTEVENTTIMESTAMP_MULTIPLICATOR, generate_time_range
 
 
 class AggsBase(abc.ABC):
@@ -60,7 +55,6 @@ class AggsHandlers(AggsBase):
         "1h": "yyyy-MM-dd HH",
         "1d": "yyyy-MM-dd",
     }
-    DATETIME_FORMAT_MAP = {"1m": "%H:%M", "5m": "%H:%M", "1h": "%Y-%m-%d %H", "1d": "%Y-%m-%d"}
     DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
     MIN_DOC_COUNT = 0
 
@@ -154,6 +148,7 @@ class AggsHandlers(AggsBase):
         s = Search()
         # 按照日期时间聚合
         interval = query_data.get("interval")
+        time_format = cls.TIME_FORMAT_MAP.get(interval, cls.TIME_FORMAT)
 
         # 生成起止时间
         time_zone = get_local_param("time_zone")
@@ -162,73 +157,38 @@ class AggsHandlers(AggsBase):
         )
 
         if not interval or interval == "auto":
-            interval = cls._init_default_interval(start_time, end_time)
+            interval, time_format = cls._init_default_interval(start_time, end_time)
 
-        time_format = cls.TIME_FORMAT_MAP.get(interval, cls.TIME_FORMAT)
-        datetime_format = cls.DATETIME_FORMAT_MAP.get(interval, cls.DATETIME_FORMAT)
-
-        time_field, time_field_type, time_field_unit = SearchHandlerEsquery.init_time_field(index_set_id)
-        # https://github.com/elastic/elasticsearch/issues/42270 非date类型不支持timezone, time format也无效
-        if time_field_type == TimeFieldTypeEnum.DATE.value:
-            min_value = start_time.timestamp * 1000
-            max_value = end_time.timestamp * 1000
-            date_histogram = A(
-                "date_histogram",
-                field=time_field,
-                interval=interval,
-                format=time_format,
-                time_zone=time_zone,
-                min_doc_count=cls.MIN_DOC_COUNT,
-                extended_bounds={"min": min_value, "max": max_value},
-            )
-        else:
-            num = 10 ** 3
-            if time_field_unit == TimeFieldUnitEnum.SECOND.value:
-                num = 1
-            elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
-                num = 10 ** 6
-            min_value = start_time.timestamp * num
-            max_value = end_time.timestamp * num
-            date_histogram = A(
-                "date_histogram",
-                field=time_field,
-                interval=interval,
-                min_doc_count=cls.MIN_DOC_COUNT,
-                extended_bounds={"min": min_value, "max": max_value},
-            )
-
+        time_field = SearchHandlerEsquery(index_set_id, copy.deepcopy(query_data)).time_field
+        min = start_time.timestamp * 1000
+        max = end_time.timestamp * 1000
+        date_histogram = A(
+            "date_histogram",
+            field=time_field,
+            interval=interval,
+            format=time_format,
+            time_zone=time_zone,
+            min_doc_count=cls.MIN_DOC_COUNT,
+            extended_bounds={"min": min, "max": max},
+        )
         aggs = s.aggs.bucket("group_by_histogram", date_histogram)
         cls._build_date_histogram_aggs(aggs, query_data["fields"], query_data.get("size", cls.AGGS_BUCKET_SIZE))
         s = s.extra(size=0)
         query_data.update(s.to_dict())
         logger.info(query_data)
-
-        result = SearchHandlerEsquery(index_set_id, query_data).search(search_type=None)
-        if time_field_type != TimeFieldTypeEnum.DATE.value:
-            buckets = result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
-            time_multiplicator = 1 / (10 ** 3)
-            if time_field_unit == TimeFieldUnitEnum.SECOND.value:
-                time_multiplicator = 1
-            elif time_field_unit == TimeFieldUnitEnum.MICROSECOND.value:
-                time_multiplicator = 1 / (10 ** 6)
-            for _buckets in buckets:
-                _buckets["key_as_string"] = timestamp_to_timeformat(
-                    _buckets["key"], time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
-                )
-
-        return result
+        return SearchHandlerEsquery(index_set_id, query_data).search(search_type=None)
 
     @staticmethod
     def _init_default_interval(start_time: datetime, end_time: datetime):
         hour_interval = int((end_time - start_time).total_seconds() / 3600)
         if hour_interval <= 1:
-            return "1m"
+            return "1m", "HH:mm"
         elif hour_interval <= 6:
-            return "5m"
+            return "5m", "HH:mm"
         elif hour_interval <= 72:
-            return "1h"
+            return "hour", "yyyy-MM-dd HH:mm"
         else:
-            return "1d"
+            return "day", "yyyy-MM-dd"
 
     @classmethod
     def _build_date_histogram_aggs(cls, s: Search, fields: typing.List[dict], size) -> Search:
@@ -316,6 +276,7 @@ class AggsViewAdapter(object):
         histogram_dict = {}
         labels = []
         for _data in histogram_data.get("buckets", []):
+
             # labels 横坐标时间轴
             labels.append(_data.get("key_as_string"))
 
@@ -333,6 +294,7 @@ class AggsViewAdapter(object):
                 # doc: key, count
                 buckets = _data.get(field, {}).get("buckets", [])
                 for _doc in buckets:
+
                     # 获取指标值和doc_count
                     if metric_key == "doc_count":
                         doc_count = doc_value = _doc.get("doc_count") or 0

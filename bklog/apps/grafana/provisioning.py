@@ -21,15 +21,15 @@ the project delivered to anyone in the future.
 """
 from typing import List
 
+from django.conf import settings
+from django.utils.translation import ugettext as _
+
 from apps.grafana.constants import TRACE_DATASOURCE_TYPE
-from apps.grafana.data_source import CustomIndexSetESDataSource
 from apps.grafana.model import TraceDatasourceMap
 from apps.log_search.models import LogIndexSet
 from apps.utils.db import array_hash
 from bk_dataview.grafana.provisioning import BaseProvisioning, Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.utils.translation import ugettext as _
 
 
 class Provisioning(BaseProvisioning):
@@ -101,25 +101,8 @@ class TraceProvisioning(BaseProvisioning):
     ):
         if datasource.type == TRACE_DATASOURCE_TYPE:
             TraceDatasourceMap.objects.update_or_create(
-                bk_biz_id=org_name,
-                index_set_id=datasource.jsonData["index_set_id"],
-                datasource_id=datasource.id,
+                bk_biz_id=org_name, index_set_id=datasource.jsonData["index_set_id"], datasource_id=datasource.id,
             )
-
-    def dashboards(self, request, org_name, org_id) -> list:
-        return []
-
-
-class CustomESDataSourceProvisioning(BaseProvisioning):
-    """添加自定义ES数据源"""
-
-    def datasources(self, request, org_name, org_id) -> list:
-        """注入数据源
-        - org_name: 项目project_id
-        - org_id: grafana org对应的Id
-        """
-        bk_biz_id = int(org_name)
-        return CustomIndexSetESDataSource.list_datasource(bk_biz_id=bk_biz_id)
 
     def dashboards(self, request, org_name, org_id) -> list:
         return []

@@ -132,9 +132,5 @@ export default {
         display: none;
       }
     }
-
-    .is-last {
-      border-bottom: 1px solid #dfe0e5;
-    }
   }
 </style>

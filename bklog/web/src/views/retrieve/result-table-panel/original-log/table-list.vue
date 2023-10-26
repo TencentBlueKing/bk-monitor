@@ -24,14 +24,14 @@
   <!-- :empty-text="$t('未查询到数据')" -->
   <bk-table
     ref="resultTable"
-    :class="['king-table', { 'is-wrap': isWrap, 'is-hidden-table-header': tableLoading }]"
+    :class="['king-table', { 'is-wrap': isWrap }]"
     :data="tableList"
     :key="tableRandomKey"
+    :show-header="!tableLoading"
     @row-click="tableRowClick"
     @row-mouse-enter="handleMouseEnter"
     @row-mouse-leave="handleMouseLeave"
-    @header-dragend="handleHeaderDragend"
-    @sort-change="handleSortTable">
+    @header-dragend="handleHeaderDragend">
     <!-- 展开详情 -->
     <bk-table-column
       type="expand"
@@ -54,8 +54,6 @@
     <template v-for="(field, index) in visibleFields">
       <bk-table-column
         align="left"
-        :sortable="field.es_doc_values"
-        :column-key="field.field_name"
         :key="field.field_name"
         :min-width="field.minWidth"
         :render-header="renderHeaderAliasName"
@@ -71,7 +69,6 @@
               <table-column
                 :is-wrap="isWrap"
                 :content="tableRowDeepView(row, field.field_name, field.field_type)"
-                :field-name="field.field_name"
                 :field-type="field.field_type"
                 @iconClick="(type, content) => handleIconClick(type, content, field, row)"
                 @computedHeight="handleOverColumn(field.field_name)" />
@@ -95,10 +92,10 @@
     <!-- 操作按钮 -->
     <bk-table-column
       v-if="showHandleOption"
+      :label="$t('操作')"
+      :width="84"
       align="right"
-      fixed="right"
-      width="84"
-      :label="$t('操作')">
+      :resizable="false">
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
         <operator-tools

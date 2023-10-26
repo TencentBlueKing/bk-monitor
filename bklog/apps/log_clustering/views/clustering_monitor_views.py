@@ -19,16 +19,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from rest_framework.response import Response
+
 from apps.generic import APIViewSet
 from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.models import SignatureStrategySettings
-from apps.log_clustering.serializers import (
-    UpdateNewClsStrategySerializer,
-    UpdateStrategiesSerializer,
-)
+from apps.log_clustering.serializers import UpdateStrategiesSerializer, UpdateNewClsStrategySerializer
 from apps.utils.drf import detail_route
-from rest_framework.response import Response
 
 
 class ClusteringMonitorViewSet(APIViewSet):
@@ -92,7 +90,7 @@ class ClusteringMonitorViewSet(APIViewSet):
         """
         params = self.params_valid(UpdateStrategiesSerializer)
         return Response(
-            ClusteringMonitorHandler(index_set_id=index_set_id).update_strategies(
+            ClusteringMonitorHandler(index_set_id=index_set_id, bk_biz_id=params["bk_biz_id"]).update_strategies(
                 pattern_level=params["pattern_level"], actions=params["actions"]
             )
         )
@@ -154,7 +152,7 @@ class ClusteringMonitorViewSet(APIViewSet):
         """
         params = self.params_valid(UpdateNewClsStrategySerializer)
         return Response(
-            ClusteringMonitorHandler(index_set_id=index_set_id).update_new_cls_strategy(
+            ClusteringMonitorHandler(index_set_id=index_set_id, bk_biz_id=params["bk_biz_id"]).update_new_cls_strategy(
                 action=params["action"], strategy_id=params.get("strategy_id")
             )
         )

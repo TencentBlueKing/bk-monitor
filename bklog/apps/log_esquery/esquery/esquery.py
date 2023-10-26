@@ -20,36 +20,33 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import json
-from typing import Any, Dict, List, Tuple
 
+from typing import List, Dict, Any, Tuple
+from dateutil import tz
+
+from apps.log_esquery.type_constants import (
+    type_search_dict,
+    type_index_set_string,
+    type_time_range_dict,
+    type_addition,
+)
+from apps.log_esquery.esquery.builder.query_time_builder import QueryTimeBuilder
+from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_esquery.esquery.builder.query_filter_builder import QueryFilterBuilder
 from apps.log_esquery.esquery.builder.query_index_optimizer import QueryIndexOptimizer
 from apps.log_esquery.esquery.builder.query_sort_builder import QuerySortBuilder
-from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
-from apps.log_esquery.esquery.builder.query_time_builder import QueryTimeBuilder
-from apps.log_esquery.esquery.client.QueryClient import QueryClient
 from apps.log_esquery.esquery.dsl_builder.dsl_builder import DslBuilder
-from apps.log_esquery.type_constants import (
-    type_addition,
-    type_index_set_string,
-    type_search_dict,
-    type_time_range_dict,
-)
-from apps.log_search.exceptions import (
-    ScenarioNotSupportedException,
-    ScenarioQueryIndexFailException,
-)
-from apps.log_search.models import Scenario, Space, SpaceApi
+from apps.log_search.models import Scenario
+from apps.log_esquery.esquery.client.QueryClient import QueryClient
 from apps.utils.log import logger
+from apps.log_search.exceptions import ScenarioQueryIndexFailException, ScenarioNotSupportedException
 from apps.utils.time_handler import generate_time_range
-from bkm_space.utils import bk_biz_id_to_space_uid
-from dateutil import tz
 
 
 class EsQuery(object):
     def __init__(self, search_dict: type_search_dict):
+
         self.search_dict: Dict[str, Any] = search_dict
-        self.include_nested_fields: bool = search_dict.get("include_nested_fields", True)
 
     def _init_common_args(self):
         # 初始刷查询场景类型 bkdata log 或者 es, 以及连接信息ID
@@ -88,6 +85,7 @@ class EsQuery(object):
         return search_after, track_total_hits
 
     def _optimizer(self, indices, scenario_id, start_time, end_time, time_zone, use_time_range):
+
         # 优化query_string
         query_string: str = self.search_dict.get("query_string")
         query_string = QueryStringBuilder(query_string).query_string
@@ -161,7 +159,7 @@ class EsQuery(object):
             indices, scenario_id, start_time, end_time, time_zone, use_time_range
         )
         size, start, aggs, highlight, scroll, collapse = self._init_other_args()
-        mappings = self.mapping() if self.include_nested_fields else []
+        mappings = self.mapping()
 
         # 调用DSL生成器
         body = DslBuilder(
@@ -291,28 +289,7 @@ class EsQuery(object):
                 ScenarioQueryIndexFailException.MESSAGE.format(es_fail_reason="get index list with bk_biz_id None")
             )
 
-        result = client.indices(bk_biz_id=bk_biz_id, result_table_id=indices, with_storage=with_storage)
-        # 如果需要关联查询space, 则需要返回其他关联了当前业务的索引集
-        if not self.search_dict.get("relate_space", False):
-            return result
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        space = Space.objects.filter(space_uid=space_uid).first()
-        related_space_list = space.properties.get("resources", [])
-        if not related_space_list:
-            return result
-        for relate_space in related_space_list:
-            relate_space_uid: str = SpaceApi.gen_space_uid(
-                space_type=relate_space["resource_type"], space_id=relate_space["resource_id"]
-            )
-            relate_space_obj: Space = Space.objects.filter(space_uid=relate_space_uid).first()
-            if not relate_space_obj:
-                continue
-            relate_bk_biz_id = relate_space_obj.bk_biz_id
-            relate_indices = client.indices(
-                bk_biz_id=relate_bk_biz_id, result_table_id=indices, with_storage=with_storage
-            )
-            result.extend(relate_indices)
-        return result
+        return client.indices(bk_biz_id=bk_biz_id, result_table_id=indices, with_storage=with_storage)
 
     def cluster_stats(self):
         scenario_id, indices, storage_cluster_id = self._init_common_args()

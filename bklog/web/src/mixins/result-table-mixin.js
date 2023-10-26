@@ -31,7 +31,6 @@ import RetrieveLoader from '@/skeleton/retrieve-loader';
 import TableColumn from '@/views/retrieve/result-comp/table-column';
 import ExpandView from '@/views/retrieve/result-table-panel/original-log/expand-view.vue';
 import EmptyView from '@/views/retrieve/result-table-panel/original-log/empty-view';
-import TimeFormatterSwitcher from '@/views/retrieve/result-table-panel/original-log/time-formatter-switcher';
 
 export default {
   components: {
@@ -43,7 +42,6 @@ export default {
     ExpandView,
     RegisterColumn,
     EmptyView,
-    TimeFormatterSwitcher,
   },
   mixins: [tableRowDeepViewMixin],
   props: {
@@ -104,16 +102,29 @@ export default {
       cacheExpandStr: [], // 记录展开收起的行
       cacheOverFlowCol: [], // 记录超出四行高度的列
       tableRandomKey: '',
-      /** 原始日志复制弹窗实例 */
-      originStrInstance: null,
-      /** 当前需要复制的原始日志 */
-      hoverOriginStr: '',
     };
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
     showHandleOption() {
-      return Boolean(this.visibleFields.length);
+      if (this.visibleFields.length !== 0) {
+        const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+        const { params: { indexId }, query: { bizId } } = this.$route;
+        let widthObj = {};
+
+        for (const bizKey in columnObj) {
+          if (bizKey === bizId) {
+            for (const fieldKey in columnObj[bizId].fields) {
+              fieldKey === indexId && (widthObj = columnObj[bizId].fields[indexId]);
+            }
+          }
+        }
+
+        this.visibleFields.forEach((el, index) => {
+          el.width = widthObj[index] === undefined ? 'default' : widthObj[index];
+        });
+      }
+      return this.tableList.length;
     },
   },
   watch: {
@@ -130,25 +141,8 @@ export default {
     },
     visibleFields: {
       deep: true,
-      handler(list) {
+      handler() {
         this.tableRandomKey = random(6);
-        if (list.length !== 0) {
-          const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-          const { params: { indexId }, query: { bizId } } = this.$route;
-          let widthObj = {};
-
-          for (const bizKey in columnObj) {
-            if (bizKey === bizId) {
-              for (const fieldKey in columnObj[bizId].fields) {
-                fieldKey === indexId && (widthObj = columnObj[bizId].fields[indexId]);
-              }
-            }
-          }
-
-          list.forEach((el, index) => {
-            el.width = widthObj[index] || el.width;
-          });
-        }
       },
     },
   },
@@ -205,7 +199,8 @@ export default {
         return;
       }
       const widthObj = {};
-      widthObj[index] = Math.ceil(newWidth);
+      widthObj[index] = newWidth;
+      index === this.visibleFields.length - 1 && (widthObj[index] = 'default');
 
       let columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
       if (columnObj === null) {
@@ -238,7 +233,6 @@ export default {
     // eslint-disable-next-line no-unused-vars
     renderHeaderAliasName(h, { column, $index }) {
       const field = this.visibleFields[$index - 1];
-      const isShowSwitcher = field.field_type === 'date';
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
@@ -261,33 +255,6 @@ export default {
             ],
           }),
           h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
-          h(TimeFormatterSwitcher, {
-            class: 'timer-formatter',
-            style: {
-              display: isShowSwitcher ? 'inline-block' : 'none',
-            },
-          }),
-          h('i', {
-            class: `bk-icon icon-minus-circle-shape toggle-display ${this.visibleFields.length === 1 ? 'is-hidden' : ''}`,
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('将字段从表格中移除'),
-              },
-            ],
-            on: {
-              click: (e) => {
-                e.stopPropagation();
-                const displayFieldNames = [];
-                this.visibleFields.forEach((field) => {
-                  if (field.field_name !== fieldName) {
-                    displayFieldNames.push(field.field_name);
-                  }
-                });
-                this.$emit('fieldsUpdated', displayFieldNames, undefined, false);
-              },
-            },
-          }),
         ]);
       }
     },
@@ -323,45 +290,6 @@ export default {
         default:
           break;
       }
-    },
-    /**
-     * @desc: 鼠标放到原始日志上
-     * @param {Element} e hover的dom
-     * @param {String} originStr hover的原始日志的字符串
-     */
-    handleHoverFavoriteName(e, originStr = '') {
-      if (!this.originStrInstance) {
-        this.hoverOriginStr = originStr;
-        this.originStrInstance = this.$bkPopover(e.target, {
-          content: this.$refs.copyTools,
-          arrow: true,
-          placement: 'top',
-          offset: '0, -50',
-          theme: 'light',
-          allowHTML: true,
-          interactive: true,
-          appendTo: 'parent',
-          boundary: this.scrollContent,
-          onHidden: () => {
-            this.originStrInstance?.destroy();
-            this.originStrInstance = null;
-          },
-        });
-        this.originStrInstance.show(500);
-      }
-    },
-    /**
-     * @desc: 单条字段排序
-     * @param {Object} column 字段信息
-     * @param {String} order 排序
-     */
-    handleSortTable({ column, order }) {
-      const sortMap = {
-        ascending: 'asc',
-        descending: 'desc',
-      };
-      const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
-      this.$emit('shouldRetrieve', { sort_list: sortList }, false);
     },
   },
 };

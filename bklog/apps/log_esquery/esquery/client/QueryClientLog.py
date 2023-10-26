@@ -55,8 +55,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         self._client: Elasticsearch
 
     def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
-        # query前没有必要检查ping
-        self._build_connection(index=index, check_ping=False)
+        self._build_connection(index)
 
         # 如果版本不是5.0且track_total_hits为True时
         if track_total_hits and not isinstance(self._client, Elasticsearch5):
@@ -70,7 +69,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=e))
 
     def mapping(self, index: str) -> Dict:
-        index_target = self._get_index_target(index=index, check_ping=False)
+        index_target = self._get_index_target(index)
         try:
             logger.info("mapping for index=>{}, index_target=>{}".format(index, index_target))
             mapping_dict: type_mapping_dict = self._client.indices.get_mapping(index=index_target)
@@ -79,7 +78,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             self.catch_timeout_raise(e)
             raise BaseSearchFieldsException(BaseSearchFieldsException.MESSAGE.format(error=e))
 
-    def _get_index_target(self, index: str, check_ping: bool = True):
+    def _get_index_target(self, index: str):
         index_list: list = index.split(",")
         new_index_list: list = []
         for _index in index_list:
@@ -87,12 +86,12 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
                 _index = _index + "_*"
             new_index_list.append(_index)
         index = ",".join(new_index_list)
-        self._build_connection(index=index, check_ping=check_ping)
+        self._build_connection(index)
         # log的index转换逻辑
         return index.replace(".", "_")
 
     def scroll(self, index, scroll_id: str, scroll: str) -> Dict:
-        self._build_connection(index, check_ping=False)
+        self._build_connection(index)
         try:
             return self._client.scroll(scroll_id=scroll_id, scroll=scroll)
         except Exception as e:  # pylint: disable=broad-except
@@ -127,11 +126,11 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             self.catch_timeout_raise(e)
             raise
 
-    def _build_connection(self, index: str, check_ping: bool = True):
-        index: str = self._get_meta_index(index=index)
+    def _build_connection(self, index: str):
+        index: str = self._get_meta_index(index)
         if not self._active:
-            self._get_connection(index=index, check_ping=check_ping)
-            if check_ping and not self._active:
+            self._get_connection(index)
+            if not self._active:
                 raise EsClientSearchException(EsClientSearchException.MESSAGE.format(error=_("EsClient链接失败")))
 
     @staticmethod
@@ -156,7 +155,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
                 new_index_list.append(tmp_index)
         return new_index_list[-1]
 
-    def _get_connection(self, index: str, check_ping: bool = True):
+    def _get_connection(self, index: str):
         self.host, self.port, self.username, self.password, self.version, self.schema = self._connect_info(index=index)
         self._active: bool = False
 
@@ -177,8 +176,10 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             sniffer_timeout=600,
             verify_certs=False,
         )
-        # check_ping为False时，不检查ping
-        if not check_ping or self._client.ping():
+        if not self._client.ping():
+            self._active = False
+
+        else:
             self._active = True
 
     @staticmethod

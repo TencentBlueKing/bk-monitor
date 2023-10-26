@@ -20,13 +20,12 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from typing import Dict, List
-
-from apps.api import BkDataMetaApi, TransferApi
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
-from apps.utils.log import logger
-from celery.schedules import crontab
+from typing import List, Dict
 from celery.task import periodic_task
+from celery.schedules import crontab
+from apps.utils.log import logger
+from apps.log_search.models import LogIndexSetData, LogIndexSet, Scenario
+from apps.api import BkDataMetaApi, TransferApi
 
 
 class IndexSetPreCheckIns(object):
@@ -240,7 +239,7 @@ class IndexSetPreCheckIns(object):
             )
 
 
-@periodic_task(run_every=crontab(minute="0", hour="*/12"))
+@periodic_task(run_every=crontab(hour="*/12"))
 def index_set_pre_check():
     IndexSetPreCheckIns.pre_check_indexset()
     return None

@@ -46,7 +46,6 @@ from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 from celery.schedules import crontab
 from celery.task import periodic_task, task
-from django.conf import settings
 from django.utils.translation import ugettext as _
 
 
@@ -238,10 +237,7 @@ def create_container_release(bcs_cluster_id: str, container_config_id: int, conf
     container_config.save(update_fields=["status", "status_detail"])
 
     try:
-        labels = None
-        if settings.CONTAINER_COLLECTOR_CR_LABEL_BKENV:
-            labels = {"bk_env": settings.CONTAINER_COLLECTOR_CR_LABEL_BKENV}
-        Bcs(bcs_cluster_id).save_bklog_config(bklog_config_name=config_name, bklog_config=config_params, labels=labels)
+        Bcs(bcs_cluster_id).save_bklog_config(bklog_config_name=config_name, bklog_config=config_params)
         container_config.status = ContainerCollectStatus.SUCCESS.value
         container_config.status_detail = _("配置下发成功")
     except Exception as e:  # pylint: disable=broad-except

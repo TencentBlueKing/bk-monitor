@@ -21,33 +21,32 @@ the project delivered to anyone in the future.
 """
 import copy
 import json
-from concurrent.futures import ThreadPoolExecutor
 
+from concurrent.futures import ThreadPoolExecutor
 import arrow
+from django.conf import settings
+from rest_framework.reverse import reverse
+from django.utils.http import urlencode
+
 from apps.log_databus.models import CollectorConfig
+from apps.models import model_to_dict
+from apps.utils.log import logger
+from apps.utils.db import array_chunk
+from apps.utils.local import get_request, get_request_language_code
 from apps.log_search.constants import (
-    ASYNC_COUNT_SIZE,
     MAX_ASYNC_COUNT,
+    ASYNC_COUNT_SIZE,
+    ExportType,
     MAX_GET_ATTENTION_SIZE,
     ExportStatus,
-    ExportType,
 )
-from apps.log_search.exceptions import (
-    MissAsyncExportException,
-    PreCheckAsyncExportException,
-)
+from apps.log_search.exceptions import MissAsyncExportException, PreCheckAsyncExportException
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.tasks.async_export import async_export
-from apps.models import model_to_dict
-from apps.utils.db import array_chunk
 from apps.utils.drf import DataPageNumberPagination
-from apps.utils.local import get_request, get_request_language_code
-from apps.utils.log import logger
+
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.utils.http import urlencode
-from rest_framework.reverse import reverse
 
 
 class AsyncExportHandlers(object):
@@ -57,10 +56,7 @@ class AsyncExportHandlers(object):
         if search_dict:
             self.search_dict = search_dict
             self.search_handler = SearchHandler(
-                index_set_id=self.index_set_id,
-                search_dict=copy.deepcopy(self.search_dict),
-                export_fields=export_fields,
-                export_log=True,
+                index_set_id=self.index_set_id, search_dict=copy.deepcopy(self.search_dict), export_fields=export_fields
             )
 
     def async_export(self):

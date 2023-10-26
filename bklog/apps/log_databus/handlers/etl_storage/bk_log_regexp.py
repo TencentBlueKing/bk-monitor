@@ -22,11 +22,12 @@ the project delivered to anyone in the future.
 import copy
 import re
 
+from django.utils.translation import ugettext_lazy as _
+
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
-from django.utils.translation import ugettext_lazy as _
 
 
 class BkLogRegexpEtlStorage(EtlStorage):
@@ -49,7 +50,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
         groupdict = regexp_match.groupdict()
 
         # 在线上使用python确保正则有序返回
-        fields = [key for (key, __) in groupdict.items()]
+        fields = [key for (key, _) in groupdict.items()]
         preview_fields = preview("regexp", data, separator_regexp=etl_params["separator_regexp"], etl_only=True)
 
         result = []
@@ -62,7 +63,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
             i += 1
 
         if len(preview_fields):  # pylint:disable=len-as-condition
-            for field, value in preview_fields.items():
+            for (field, value) in preview_fields.items():
                 result.append({"field_index": i, "field_name": field, "value": value})
                 i += 1
         return result
@@ -101,12 +102,6 @@ class BkLogRegexpEtlStorage(EtlStorage):
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         retain_original_text = etl_params.get("retain_original_text", False)
         built_in_fields = built_in_config.get("fields", [])
-        (
-            built_in_fields_type_object,
-            built_in_fields_no_type_object,
-            access_built_in_fields_type_object,
-        ) = self._get_built_in_fields_type_fields(built_in_fields)
-
         result_table_fields = self.get_result_table_fields(fields, etl_params, copy.deepcopy(built_in_config))
         time_field = result_table_fields.get("time_field")
         return {
@@ -151,7 +146,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
                                             )
                                             + [
                                                 self._to_bkdata_assign(built_in_field)
-                                                for built_in_field in built_in_fields_no_type_object
+                                                for built_in_field in built_in_fields
                                                 if built_in_field.get("flat_field", False)
                                             ],
                                             "next": None,
@@ -199,11 +194,10 @@ class BkLogRegexpEtlStorage(EtlStorage):
                             "type": "assign",
                             "subtype": "assign_obj",
                             "label": "labelf676c9",
-                            "assign": self._get_bkdata_default_fields(built_in_fields_no_type_object, time_field),
+                            "assign": self._get_bkdata_default_fields(built_in_fields, time_field),
                             "next": None,
                         },
-                    ]
-                    + access_built_in_fields_type_object,
+                    ],
                 },
             },
             "conf": self._to_bkdata_conf(time_field),

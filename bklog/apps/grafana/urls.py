@@ -21,11 +21,11 @@ the project delivered to anyone in the future.
 """
 from __future__ import absolute_import, unicode_literals
 
-from apps.grafana import views
-from apps.grafana.views import CustomESDatasourceViewSet, GrafanaProxyView
-from bk_dataview.grafana.views import StaticView, SwitchOrgView
-from django.conf.urls import include, url
+from django.conf.urls import url, include
 from rest_framework import routers
+from apps.grafana.views import GrafanaProxyView
+from bk_dataview.grafana.views import SwitchOrgView, StaticView
+from apps.grafana import views
 
 router = routers.DefaultRouter(trailing_slash=True)
 router.register(r"grafana", views.GrafanaViewSet, basename="grafana_api")
@@ -40,16 +40,6 @@ urlpatterns = [
     url(r"^bk-dataview/orgs/(?P<org_name>[a-zA-Z0-9\-_]+)/grafana/", SwitchOrgView.as_view()),
     # grafana访问地址, 需要和grafana前缀保持一致
     url(r"^grafana/$", SwitchOrgView.as_view()),
-    # 自定义ES数据源 mapping
-    url(
-        r"^grafana/custom_es_datasource/(?P<index_set_id>.+)/_mapping$",
-        CustomESDatasourceViewSet.as_view({"get": "mapping"}),
-    ),
-    # 自定义ES数据源 msearch
-    url(
-        r"^grafana/custom_es_datasource/_msearch$",
-        CustomESDatasourceViewSet.as_view({"post": "msearch"}),
-    ),
     url(r"^grafana/proxy/", include(proxy_router.urls)),
     url(r"^grafana/public/", StaticView.as_view()),
     url(r"^grafana/", GrafanaProxyView.as_view()),

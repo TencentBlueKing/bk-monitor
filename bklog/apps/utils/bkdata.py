@@ -1,7 +1,7 @@
 from abc import ABC
 
-from apps.api import BkDataQueryApi
 from django.conf import settings
+from apps.api import BkDataQueryApi
 
 
 class Sql(ABC):
@@ -100,6 +100,4 @@ class BkData(Sql):
             params.update({"bkdata_authentication_method": "token", "bkdata_data_token": settings.BKDATA_DATA_TOKEN})
         else:
             params.update({"bkdata_authentication_method": "user", "bk_username": "admin", "operator": "admin"})
-        # 无需登录态校验，统一用平台权限
-        params.update({"no_request": True})
-        return BkDataQueryApi.query(params, request_cookies=False)["list"]
+        return BkDataQueryApi.query(params)["list"]

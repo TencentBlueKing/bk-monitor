@@ -20,19 +20,17 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-import json
 from typing import Any, Dict, List, Optional
 
 from apps.api import NodeApi, TransferApi
 from apps.exceptions import ApiResultError
 from apps.log_clustering.constants import PatternEnum
-from apps.log_databus.constants import META_DATA_ENCODING, EtlConfig
+from apps.log_databus.constants import META_DATA_ENCODING
 from apps.log_databus.exceptions import (
     BaseCollectorConfigException,
     DataLinkConfigPartitionException,
 )
 from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
-from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.utils.function import ignored
@@ -73,7 +71,7 @@ class CollectorScenario(object):
                 )
             )
 
-    def get_subscription_steps(self, data_id, params, collector_config_id=None, data_link_id=None):
+    def get_subscription_steps(self, data_id, params, collector_config_id=None):
         """
         根据采集场景返回节点管理插件下发步骤
         1. 获取配置模板信息
@@ -88,8 +86,7 @@ class CollectorScenario(object):
         """
         raise NotImplementedError()
 
-    @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):
+    def get_built_in_config(self, etl_params=None):
         """
         获取采集器内置配置
         """
@@ -220,9 +217,7 @@ class CollectorScenario(object):
         """
         if isinstance(collector_config.collector_config_overlay, dict):
             params["collector_config_overlay"] = collector_config.collector_config_overlay
-        steps = self.get_subscription_steps(
-            collector_config.bk_data_id, params, collector_config.collector_config_id, collector_config.data_link_id
-        )
+        steps = self.get_subscription_steps(collector_config.bk_data_id, params, collector_config.collector_config_id)
 
         subscription_params = {
             "scope": {
@@ -266,70 +261,6 @@ class CollectorScenario(object):
             local_params.update(params["collector_config_overlay"])
         local_params = self._add_labels(local_params, params, collector_config_id)
         local_params = self._add_ext_meta(local_params, params)
-        return local_params
-
-    @staticmethod
-    def _deal_edge_transport_params(local_params, data_link_id: int = None):
-        if not data_link_id:
-            return local_params
-        data_link = DataLinkConfig.objects.filter(data_link_id=data_link_id).first()
-        if not data_link:
-            # 如果找不到链路配置，则不处理
-            return local_params
-
-        if not data_link.is_edge_transport:
-            # 如果不是边缘存查链路，则不处理
-            return local_params
-
-        kafka_cluster_info = StorageHandler(data_link.kafka_cluster_id).get_cluster_info_by_id()
-        cluster_config = kafka_cluster_info["cluster_config"]
-
-        host = cluster_config.get("extranet_domain_name") or cluster_config["domain_name"]
-        port = cluster_config.get("extranet_port") or cluster_config["port"]
-
-        kafka_output_params = {
-            "hosts": [f"{host}:{port}"],
-            "topic": "0bkmonitor_%{[dataid]}0",
-            "version": cluster_config.get("version") or "0.10.2.1",
-        }
-
-        if kafka_cluster_info["auth_info"]["username"]:
-            kafka_output_params.update(
-                {
-                    "username": kafka_cluster_info["auth_info"]["username"],
-                    "password": kafka_cluster_info["auth_info"]["password"],
-                }
-            )
-
-        if cluster_config["is_ssl_verify"]:
-            kafka_output_params.update(
-                {
-                    "ssl.enabled": True,
-                    "ssl.verification_mode": cluster_config.get("ssl_verification_mode", "none"),
-                }
-            )
-
-            if cluster_config.get("ssl_certificate_authorities"):
-                kafka_output_params["ssl.certificate_authorities"] = cluster_config["ssl_certificate_authorities"]
-
-            if cluster_config.get("ssl_certificate"):
-                kafka_output_params["ssl.certificate"] = cluster_config["ssl_certificate"]
-
-            if cluster_config.get("ssl_certificate_key"):
-                kafka_output_params["ssl.key"] = cluster_config["ssl_certificate_key"]
-
-        custom_params = data_link.deploy_options.get("kafka")
-        if custom_params:
-            # 如果DB中有特殊配置，则直接覆盖
-            kafka_output_params.update(custom_params)
-
-        # outputs format
-        # {"type": "output.kafka", "params": {"hosts": ["127.0.0.1:9092"], "topic": "0bkmonitor_%{[dataid]}0"}}
-
-        local_params["output"] = {
-            "type": "output.kafka",
-            "params": json.dumps(kafka_output_params),
-        }
         return local_params
 
     @staticmethod

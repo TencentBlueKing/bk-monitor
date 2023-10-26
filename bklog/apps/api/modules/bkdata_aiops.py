@@ -351,25 +351,6 @@ class _BkDataAIOPSApi:
             after_request=None,
             default_timeout=300,
         )
-        self.create_online_task = DataAPI(
-            method="POST",
-            url=AIOPS_APIGATEWAY_ROOT + "auto/serving/ci/",
-            module=self.MODULE,
-            description="创建应用CI-在线训练任务",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
 
-        self.update_online_task = DataAPI(
-            method="PUT",
-            url=AIOPS_APIGATEWAY_ROOT + "auto/serving/ci/{online_task_id}/",
-            module=self.MODULE,
-            url_keys=["online_task_id"],
-            description="更新应用CI-在线训练任务",
-            before_request=add_esb_info_before_request_for_bkdata_user,
-            after_request=None,
-            default_timeout=300,
-        )
 
 BkDataAIOPSApi = _BkDataAIOPSApi()

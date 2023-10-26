@@ -112,6 +112,7 @@ export default {
       tableList: [],
       throttle: false, // 滚动节流 是否进入cd
       isPageOver: false, // 前端分页加载是否结束
+      finishPolling: false,
       count: 0, // 数据总条数
       pageSize: 50, // 每页展示多少数据
       currentPage: 1, // 当前加载了多少页
@@ -198,6 +199,7 @@ export default {
       this.originTableList = [];
       this.tableList = [];
       this.isInit = false;
+      this.finishPolling = false;
     },
     // 滚动到顶部
     scrollToTop() {

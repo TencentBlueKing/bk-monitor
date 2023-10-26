@@ -66,13 +66,12 @@ def timeformat_to_timestamp(timeformat, time_multiplicator=DEFAULT_MULTIPLICATOR
     return int(timestamp * time_multiplicator)
 
 
-def timestamp_to_timeformat(timestamp, time_multiplicator=DEFAULT_MULTIPLICATOR, t_format="%Y-%m-%d %H:%M:%S", tzformat=True):
+def timestamp_to_timeformat(timestamp, time_multiplicator=DEFAULT_MULTIPLICATOR):
     timestamp = int(timestamp / time_multiplicator)
     timestamp = time.localtime(timestamp)
-    timeformat = time.strftime(t_format, timestamp)
-    if not tzformat:
-        return timeformat
-    return api_time_local(timeformat, get_dataapi_tz())
+    timeformat = time.strftime("%Y-%m-%d %H:%M:%S", timestamp)
+    tzformat = api_time_local(timeformat, get_dataapi_tz())
+    return tzformat
 
 
 def datetime_to_timestamp(datetime):

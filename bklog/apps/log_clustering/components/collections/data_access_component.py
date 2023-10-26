@@ -19,15 +19,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import ugettext_lazy as _
+
+from pipeline.core.flow.activity import Service
+from pipeline.component_framework.component import Component
+from pipeline.builder import ServiceActivity, Var
+
 from apps.api import BkDataAuthApi
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.utils.pipline import BaseService
-from django.utils.translation import ugettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service
 
 
 class ChangeDataStreamService(BaseService):
@@ -136,7 +138,7 @@ class AddProjectDataService(BaseService):
         bk_biz_id = data.get_one_of_inputs("bk_biz_id")
         index_set_id = data.get_one_of_inputs("index_set_id")
         project_id = data.get_one_of_inputs("project_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        clustering_config = ClusteringConfig.objects.filter(index_set_id=index_set_id).first()
         # 当计算平台rt场景时需要将对应rt设置为相应字段
         if not clustering_config.bkdata_etl_result_table_id:
             clustering_config.bkdata_etl_result_table_id = clustering_config.source_rt_name
@@ -180,7 +182,7 @@ class AddResourceGroupService(BaseService):
 
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+        clustering_config = ClusteringConfig.objects.get(index_set_id=index_set_id)
         if clustering_config.es_storage:
             return True
         es_storage_name = DataAccessHandler().add_cluster_group(clustering_config.source_rt_name)

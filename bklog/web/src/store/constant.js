@@ -115,7 +115,7 @@ export const SPACE_TYPE_MAP = {
     },
   },
   paas: {
-    name: i18n.t('蓝鲸应用'),
+    name: i18n.t('PaaS应用'),
     dark: {
       color: '#2BB950',
       backgroundColor: '#223B2B',
@@ -126,7 +126,7 @@ export const SPACE_TYPE_MAP = {
     },
   },
   bksaas: {
-    name: i18n.tc('蓝鲸应用'),
+    name: i18n.tc('PaaS应用'),
     dark: {
       color: '#2BB950',
       backgroundColor: '#223B2B',

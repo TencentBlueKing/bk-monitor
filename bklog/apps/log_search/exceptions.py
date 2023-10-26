@@ -19,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import BaseException, ErrorCode
 from django.utils.translation import ugettext_lazy as _
+
+from apps.exceptions import BaseException, ErrorCode
 
 
 # =================================================
@@ -222,21 +223,6 @@ class IndexSetNotHaveConflictIndex(BaseIndexSetException):
     MESSAGE = _("索引集中的索引字段不能有冲突")
 
 
-class DesensitizeConfigDoseNotExistException(BaseIndexSetException):
-    ERROR_CODE = "324"
-    MESSAGE = _("脱敏配置不存在")
-
-
-class DesensitizeConfigCreateOrUpdateException(BaseIndexSetException):
-    ERROR_CODE = "325"
-    MESSAGE = _("创建或者更新索引集脱敏配置失败：{e}")
-
-
-class DesensitizeRuleException(BaseIndexSetException):
-    ERROR_CODE = "326"
-    MESSAGE = _("[{field_name}] 选定的脱敏规则 [ID:{rule_id}] 不存在或未启用")
-
-
 # =================================================
 # 管理-检索
 # =================================================
@@ -420,16 +406,6 @@ class DefaultConfigNotAllowedDelete(BaseException):
 class IndexSetFieldsConfigAlreadyExistException(BaseException):
     ERROR_CODE = "436"
     MESSAGE = _("索引集字段配置名称已存在")
-
-
-class IntegerMaxErrorException(BaseException):
-    ERROR_CODE = "437"
-    MESSAGE = _("{num} 超出数值最大范围, 请输入合法数值")
-
-
-class IntegerErrorException(BaseException):
-    ERROR_CODE = "438"
-    MESSAGE = _("{num} 不是一个合法的数值, 请输入合法数值")
 
 
 # =================================================

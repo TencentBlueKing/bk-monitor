@@ -27,9 +27,12 @@ import shlex
 from typing import List, Tuple
 
 from apps.api import JobApi
-from apps.log_commons.job import JobHelper
 from apps.log_extract import constants
+from apps.log_extract.constants import JOB_SCRIPT_TYPE
 from apps.log_extract.exceptions import PipelineApiFailed
+from apps.log_extract.utils.transit_server import fill_bk_host_id
+from apps.utils.local import activate_request
+from apps.utils.thread import generate_request
 from django.conf import settings
 from django.template import engines
 from django.utils.translation import ugettext_lazy as _
@@ -45,12 +48,24 @@ class FileServer(object):
             "bk_username": operator,
             "bk_biz_id": bk_biz_id,
             "script_content": content,
-            "account": account,
+            "script_type": JOB_SCRIPT_TYPE,
+            "script_language": JOB_SCRIPT_TYPE,
+            "account_alias": account,
             "task_name": task_name,
-            "target_server": JobHelper.adapt_hosts_target_server(bk_biz_id=bk_biz_id, hosts=ip),
-            "script_param": script_params,
+            "target_server": {},
         }
-        return JobHelper.execute_script(**kwargs)
+        if settings.ENABLE_DHCP:
+            kwargs["target_server"]["host_id_list"] = [
+                item["bk_host_id"] for item in fill_bk_host_id(bk_biz_id=bk_biz_id, ip_list=ip)
+            ]
+        else:
+            kwargs["target_server"]["ip_list"] = [{"ip": item["ip"], "bk_cloud_id": item["bk_cloud_id"]} for item in ip]
+
+        if script_params:
+            kwargs["script_param"] = script_params
+        # 调用JOB平台的fast_execute_script 执行脚本时用operator用户调用
+        activate_request(generate_request(username=operator))
+        return JobApi.fast_execute_script(kwargs, request_cookies=False)
 
     @staticmethod
     def get_task_id(task_result):
