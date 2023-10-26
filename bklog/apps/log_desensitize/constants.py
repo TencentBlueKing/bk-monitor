@@ -43,3 +43,33 @@ MODEL_TO_DICT_EXCLUDE_FIELD = [
     "updated_at",
     "updated_by"
 ]
+
+
+class ScenarioEnum(ChoicesEnum):
+    LOG_CUSTOM = "log_custom"
+    LOG = "log"
+    ES = "es"
+    BKDATA = "bkdata"
+    INDEX_SET = "index_set"
+
+    _choices_labels = (
+        (LOG_CUSTOM, _("自定义上报")),
+        (LOG, _("采集接入")),
+        (ES, _("第三方ES")),
+        (BKDATA, _("数据平台")),
+        (INDEX_SET, _("索引集")),
+    )
+
+
+class DesensitizeRuleStateEnum(ChoicesEnum):
+    ADD = "add"
+    UPDATE = "update"
+    DELETE = "delete"
+    NORMAL = "normal"
+
+    _choices_labels = (
+        (ADD, _("新增")),
+        (UPDATE, _("更新")),
+        (DELETE, _("删除")),
+        (NORMAL, _("正常")),
+    )

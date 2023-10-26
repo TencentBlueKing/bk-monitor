@@ -1,0 +1,72 @@
+@import '../../scss/mixins/flex.scss';
+
+.masking-select-rule-table {
+  width: 100%;
+
+  .top-alert {
+    width: 100%;
+
+    .bk-button-text {
+      font-size: 12px;
+    }
+  }
+
+  .rule-name-box {
+    @include flex-align();
+
+    .tag {
+      flex-shrink: 0;
+      height: 16px;
+      line-height: 16px;
+      font-size: 12px;
+      padding: 0 4px;
+      border-radius: 2px;
+      margin-left: 4px;
+    }
+
+    .global {
+      color: #3a84ff;
+      background: #edf4ff;
+    }
+
+    .new {
+      color: #14a568;
+      background: #e7fbef;
+    }
+  }
+
+  .search-input {
+    margin: 16px 0;
+  }
+
+  .bk-page-selection-count {
+    display: none;
+  }
+
+  .bk-form-checkbox {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: flex !important;
+  }
+
+  .submit-content {
+    background: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+
+    @include flex-align();
+  }
+
+  .bk-button {
+    padding: 0px 29px;
+    margin-left: 8px;
+  }
+}
+
+.check-render-header {
+  .check {
+    display: none;
+  }
+
+  .is-show-check {
+    display: inline-block;
+  }
+}

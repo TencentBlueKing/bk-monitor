@@ -135,4 +135,17 @@ export default {
   "button-数据指纹": "Data Fingerprint",
   "添加目标": "Add target",
   "前往高级清洗": "Go To Advanced Parsing",
+  "添加规则": "Add Rule",
+  "已变更": "Changed",
+  "同步脱敏": "Sync Desensitization",
+  "重新选择": "Re-select",
+  "同步": "Sync",
+  "已删除": "Deleted",
+  "忽略": "Ignore",
+  "新建规则": "Create New Rule",
+  "清空所有规则": "Clear all rules with one click",
+  "自动匹配脱敏规则": "Auto Sync Rules",
+  "新增采样": "New sample",
+  "钉住": "Nail sample",
+  "取消钉住": "Cancel nail sample"
 };

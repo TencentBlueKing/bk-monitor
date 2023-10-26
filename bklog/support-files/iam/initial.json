@@ -480,6 +480,47 @@
                 "description_en":""
             }
         },
+        {
+            "operation":"upsert_action",
+            "data":{
+                "id":"manage_desensitize_rule",
+                "name":"脱敏规则管理",
+                "name_en":"Manage Desensitize Rule",
+                "type":"manage",
+                "version":1,
+                "related_resource_types":[
+                    {
+                        "system_id":"bk_monitorv3",
+                        "id":"space",
+                        "selection_mode":"instance",
+                        "related_instance_selections":[
+                            {
+                                "system_id":"bk_monitorv3",
+                                "id":"space_list"
+                            }
+                        ],
+                        "ignore_iam_path":true
+                    }
+                ],
+                "related_actions":[],
+                "description":"",
+                "description_en":""
+            }
+        },
+        {
+            "operation":"upsert_action",
+            "data":{
+                "id":"manage_global_desensitize_rule",
+                "name":"全局脱敏规则管理",
+                "name_en":"Manage Global Desensitize Rule",
+                "type":"manage",
+                "version":1,
+                "related_resource_types":[],
+                "related_actions":[],
+                "description":"",
+                "description_en":""
+            }
+        },
 
         {
             "operation":"upsert_action_groups",
@@ -553,6 +594,31 @@
                             "actions":[
                                 {
                                     "id":"manage_extract_config_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name":"脱敏规则",
+                            "name_en":"Desensitize Rule",
+                            "actions":[
+                                {
+                                    "id":"manage_desensitize_rule"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name":"全局",
+                    "name_en":"Global",
+                    "actions":[],
+                    "sub_groups":[
+                        {
+                            "name":"全局脱敏规则",
+                            "name_en":"Global Desensitize Rule",
+                            "actions":[
+                                {
+                                    "id":"manage_global_desensitize_rule"
                                 }
                             ]
                         }

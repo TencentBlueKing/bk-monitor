@@ -246,7 +246,7 @@
           :loading="isLoading"
           :disabled="!collectProject"
           @click.stop.prevent="finish">
-          {{$t('完成')}}
+          {{$t('下一步')}}
         </bk-button>
         <bk-button
           theme="default"
@@ -523,9 +523,9 @@ export default {
             this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
             this.$emit('changeIndexSetId', res.data.index_set_id || '');
           }
-          this.$emit('change-submit', true);
           if (this.isCleanField) {
             this.messageSuccess(this.$t('保存成功'));
+            this.$emit('change-submit', true);
             this.$emit('stepChange', 'back');
           } else {
             if (data.need_assessment && data.assessment_config.need_approval) {

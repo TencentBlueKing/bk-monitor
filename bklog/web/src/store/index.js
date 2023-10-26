@@ -91,6 +91,8 @@ const store = new Vuex.Store({
     spaceBgColor: '', // 空间颜色
     isEnLanguage: false,
     chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
+    /** 是否展示全局脱敏弹窗 */
+    isShowMaskingDialog: false,
   },
   // 公共 getters
   getters: {
@@ -114,6 +116,7 @@ const store = new Vuex.Store({
     spaceBgColor: state => state.spaceBgColor,
     isEnLanguage: state => state.isEnLanguage,
     chartSizeNum: state => state.chartSizeNum,
+    isShowMaskingDialog: state => state.isShowMaskingDialog,
   },
   // 公共 mutations
   mutations: {
@@ -227,6 +230,9 @@ const store = new Vuex.Store({
     },
     updateChartSize(state) {
       state.chartSizeNum += 1;
+    },
+    updateIsShowMaskingDialog(state, val) {
+      state.isShowMaskingDialog = val;
     },
   },
   actions: {

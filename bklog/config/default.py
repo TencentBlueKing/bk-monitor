@@ -640,6 +640,12 @@ MENUS = [
                         "feature": "on",
                         "icon": "moban",
                     },
+                    {
+                        "id": "log_desensitize",
+                        "name": _("日志脱敏"),
+                        "feature": "on",
+                        "icon": "moban",
+                    },
                 ],
             },
             {

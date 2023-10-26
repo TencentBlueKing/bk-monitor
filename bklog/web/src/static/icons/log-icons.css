@@ -65,10 +65,6 @@
   content: '\e163';
 }
 
-.icon-plus-circle-yuan:before {
-  content: '\e1a1';
-}
-
 .icon-star-shape:before {
   content: '\e165';
 }
@@ -383,4 +379,24 @@
 
 .icon-position:before {
   content: '\e180';
+}
+
+.icon-delete:before {
+  content: '\e146';
+}
+
+.icon-masking:before {
+  content: '\e183';
+}
+
+.icon-plus-circle-yuan:before {
+  content: '\e1a1';
+}
+
+.icon-fix-line:before {
+  content: '\e184';
+}
+
+.icon-fix-shape:before {
+  content: '\e185';
 }
