@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from dataclasses import dataclass
+
 from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext_lazy as _
 
@@ -187,3 +189,100 @@ class ApiTokenAuthType(ChoicesEnum):
     GRAFANA = "Grafana"
 
     _choices_labels = ((GRAFANA, _("Grafana")),)
+
+
+class TokenStatusEnum(ChoicesEnum):
+    AVAILABLE = "available"
+    INVALID = "invalid"
+    EXPIRED = "expired"
+
+    _choices_labels = (
+        (AVAILABLE, _("有效")),
+        (INVALID, _("无效")),
+        (EXPIRED, _("过期")),
+    )
+
+
+class ITSMStatusChoicesEnum(ChoicesEnum):
+    NO_STATUS = "no_status"
+    APPROVAL = "approval"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+    _choices_labels = (
+        (NO_STATUS, _("无状态")),
+        (APPROVAL, _("审批中")),
+        (SUCCESS, _("成功")),
+        (FAILED, _("失败")),
+    )
+
+
+@dataclass
+class Action:
+    """
+    定义一个行为, 用于权限校验
+    view_set: 视图
+    action_id: 视图下的方法, 当action为空时, 代表这个view_set下所有接口
+    """
+
+    view_set: str
+    action_id: str = ""
+
+
+class ViewTypeEnum(ChoicesEnum):
+    USER = "user"
+    RESOURCE = "resource"
+
+    _choices_labels = (
+        (USER, _("用户视角")),
+        (RESOURCE, _("资源视角")),
+    )
+
+
+class OperateEnum(ChoicesEnum):
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+
+    _choices_labels = (
+        (CREATE, _("创建")),
+        (UPDATE, _("更新")),
+        (DELETE, _("删除")),
+    )
+
+
+class ActionEnum(ChoicesEnum):
+    LOG_SEARCH = "log_search"
+    LOG_EXTRACT = "log_extract"
+
+    _choices_labels = (
+        (LOG_SEARCH, _("日志检索")),
+        (LOG_EXTRACT, _("日志提取")),
+    )
+
+
+ACTION_MAP = {
+    ActionEnum.LOG_SEARCH.value: [
+        Action(view_set="SearchViewSet", action_id="list"),
+        Action(view_set="SearchViewSet", action_id="bizs"),
+        Action(view_set="SearchViewSet", action_id="search"),
+        Action(view_set="SearchViewSet", action_id="fields"),
+        Action(view_set="SearchViewSet", action_id="context"),
+        Action(view_set="SearchViewSet", action_id="tailf"),
+        Action(view_set="SearchViewSet", action_id="export"),
+        Action(view_set="AggsViewSet", action_id="terms"),
+        Action(view_set="AggsViewSet", action_id="date_histogram"),
+        Action(view_set="FavoriteViewSet"),
+    ],
+    ActionEnum.LOG_EXTRACT.value: [
+        Action(view_set="ExplorerViewSet"),
+        Action(view_set="TasksViewSet"),
+        Action(view_set="StrategiesViewSet"),
+    ],
+}
+
+# 与权限中心的action_id对应关系
+ACTION_ID_MAP = {
+    ActionEnum.LOG_SEARCH.value: "search_log_v2",
+    ActionEnum.LOG_EXTRACT.value: "manage_extract_config_v2",
+}
