@@ -88,6 +88,17 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     },
     application_instance_name_config: {
       instance_name_composition: []
+    },
+    plugin_id: '',
+    plugin_config: {
+      target_node_type: 'INSTANCE',
+      target_nodes: [],
+      target_object_type: 'HOST',
+      data_encoding: '',
+      paths: [''],
+      bk_biz_id: window.bk_biz_id,
+      bk_data_id: '',
+      subscription_id: ''
     }
   };
   /** 历史记录弹窗配置 */
@@ -133,6 +144,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
 
   beforeRouteEnter(from, to, next) {
     next((vm: ApplicationConfiguration) => {
+      // eslint-disable-next-line no-param-reassign
       vm.routeList = [
         // {
         //   id: 'home',

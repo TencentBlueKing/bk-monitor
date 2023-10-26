@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.conf import settings
+
 from apm_web.constants import (
     DEFAULT_NO_DATA_PERIOD,
     ApdexConfigEnum,
@@ -19,6 +21,8 @@ from apm_web.constants import (
     DefaultInstanceNameConfig,
     DefaultSamplerConfig,
 )
+from apm_web.meta.plugin.plugin import LOG_TRACE
+from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.metric_handler import RequestCountInstance
 from common.log import logger
 from django.db import models
@@ -156,9 +160,11 @@ class Application(AbstractRecordModel):
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
     data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32)
+    plugin_config = JsonField("log-trace 插件配置", null=True, blank=True)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
+        app_label = 'apm_web'
 
     def __str__(self):
         return self.__repr__()
@@ -306,7 +312,8 @@ class Application(AbstractRecordModel):
     @classmethod
     @atomic
     def create_application(
-        cls, bk_biz_id, app_name, app_alias, description, plugin_id, deployment_ids, language_ids, datasource_option
+            cls, bk_biz_id, app_name, app_alias, description, plugin_id, deployment_ids, language_ids,
+            datasource_option, plugin_config=None
     ):
         application_info = api.apm_api.create_application(
             {
@@ -343,7 +350,74 @@ class Application(AbstractRecordModel):
         from apm_web.tasks import update_application_config
 
         update_application_config.delay(application.application_id)
-        return application
+        if plugin_id == LOG_TRACE:
+            plugin_config["bk_biz_id"] = bk_biz_id
+            plugin_config["bk_data_id"] = application_info["datasource_info"]["trace_config"]["bk_data_id"]
+            application.set_plugin_config(plugin_config, application.application_id)
+        return Application.objects.filter(application_id=application.application_id).first()
+
+    @classmethod
+    def set_plugin_config(cls, plugin_config, application_id):
+        output_param = cls.get_output_param(application_id)
+        if not output_param.get("host"):
+            return
+        plugin_config = LogTracePluginConfig().release_log_trace_config(plugin_config, output_param)
+        Application.objects.filter(application_id=application_id).update(plugin_config=plugin_config)
+        return plugin_config
+
+    @classmethod
+    def update_plugin_config(cls, application_id, plugin_config):
+        old_application = Application.objects.filter(application_id=application_id).first()
+        if old_application.plugin_config != plugin_config:
+            cls.set_plugin_config(plugin_config, application_id)
+        return plugin_config
+
+    @classmethod
+    def get_output_param(cls, application_id):
+
+        bk_data_token = api.apm_api.detail_application({"application_id": application_id})[
+            "bk_data_token"]
+        # 获取上报地址
+        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
+            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
+        elif settings.CUSTOM_REPORT_DEFAULT_PROXY_IP:
+            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
+        else:
+            return {}
+        output_param = {
+            "bk_data_token": bk_data_token,
+            "host": host
+        }
+        return output_param
+
+    @classmethod
+    def stop_plugin_config(cls, application_id):
+        app = Application.objects.filter(application_id=application_id).first()
+        if app.plugin_id == LOG_TRACE:
+            # 停止节点管理采集任务
+            api.node_man.switch_subscription(
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"})
+            return LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "STOP")
+
+    @classmethod
+    def start_plugin_config(cls, application_id):
+        app = Application.objects.filter(application_id=application_id).first()
+        if app.plugin_id == LOG_TRACE:
+            # 开始节点管理采集任务
+            api.node_man.switch_subscription(
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "enable"})
+            return LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "START")
+
+    @classmethod
+    def delete_plugin_config(cls, application_id):
+        app = Application.objects.filter(application_id=application_id).first()
+        if app.plugin_id == LOG_TRACE:
+            # 停止节点管理采集任务
+            api.node_man.switch_subscription(
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"})
+            LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "STOP")
+            # 删除节点管理采集订阅任务
+            return api.node_man.delete_subscription({"subscription_id": app.plugin_config["subscription_id"]})
 
     def set_init_datasource(self, datasource_info, datasource_option):
         self.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
@@ -513,6 +587,9 @@ class ApplicationRelationInfo(models.Model):
     relation_key = models.CharField("关联Key", max_length=255)
     relation_value = models.CharField("关联值", max_length=255)
 
+    class Meta:
+        app_label = 'apm_web'
+
     @classmethod
     def add_relation(cls, application_id: int, relation_key: str, relation_value: str):
         cls.objects.create(application_id=application_id, relation_key=relation_key, relation_value=relation_value)
@@ -530,6 +607,7 @@ class ApmMetaConfig(models.Model):
 
     class Meta:
         unique_together = [["config_level", "level_key", "config_key"]]
+        app_label = 'apm_web'
 
     @classmethod
     def get_all_application_config_value(cls, application_id):
@@ -572,3 +650,6 @@ class ApplicationCustomService(AbstractRecordModel):
     type = models.CharField(max_length=32, choices=CustomServiceType.choices(), verbose_name="服务类型")
     match_type = models.CharField(max_length=32, choices=CustomServiceMatchType.choices(), verbose_name="匹配类型")
     rule = JsonField(verbose_name="匹配规则")
+
+    class Meta:
+        app_label = 'apm_web'

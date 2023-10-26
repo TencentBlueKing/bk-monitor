@@ -11,9 +11,13 @@ specific language governing permissions and limitations under the License.
 import time
 
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.models import Application
 from apm_web.serializers import ApplicationCacheSerializer
+
 from celery.task import task
+from celery.task import periodic_task
+from celery.schedules import crontab
 from common.log import logger
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -86,6 +90,15 @@ def report_apm_application_event(bk_biz_id, application_id):
     logger.info(
         f"[report_apm_application_event] task finished, bk_biz_id({bk_biz_id}), application_id({application_id})"
     )
+
+
+@periodic_task(run_every=crontab(minute="*/30"))
+def refresh_log_trace_config():
+    # 30分钟刷新一次
+    applications = Application.objects.filter().values("application_id", "plugin_config")
+    for application in applications:
+        if application.plugin_id == LOG_TRACE:
+            application.set_plugin_config(application["plugin_config"], application["application_id"])
 
 
 @task(ignore_result=True)

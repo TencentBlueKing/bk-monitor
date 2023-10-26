@@ -767,6 +767,8 @@ export default {
 
   // APM
 
+  应用名: 'App Name',
+  应用别名: 'App Alias',
   英文名称: 'English Name',
   基础信息: 'Basic Information',
   Apdex设置: 'Apdex Setting',

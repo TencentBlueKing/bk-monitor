@@ -26,10 +26,14 @@ class ServiceBase(models.Model):
     class Meta:
         abstract = True
         index_together = [["bk_biz_id", "app_name", "service_name"]]
+        app_label = 'apm_web'
 
 
 class CMDBServiceRelation(ServiceBase):
     template_id = models.BigIntegerField("服务模板ID")
+
+    class Meta:
+        app_label = 'apm_web'
 
 
 class LogServiceRelation(ServiceBase):
@@ -37,15 +41,24 @@ class LogServiceRelation(ServiceBase):
     related_bk_biz_id = models.IntegerField("关联的业务id", null=True)
     value = models.CharField("日志值", max_length=512)
 
+    class Meta:
+        app_label = 'apm_web'
+
 
 class AppServiceRelation(ServiceBase):
     relate_bk_biz_id = models.BigIntegerField("关联业务ID")
     relate_app_name = models.CharField("关联应用名称", max_length=50)
 
+    class Meta:
+        app_label = 'apm_web'
+
 
 class UriServiceRelation(ServiceBase):
     uri = models.CharField("Uri", max_length=528)
     rank = models.IntegerField("排序")
+
+    class Meta:
+        app_label = 'apm_web'
 
 
 class ApdexServiceRelation(ServiceBase):
@@ -53,3 +66,6 @@ class ApdexServiceRelation(ServiceBase):
 
     apdex_key = models.CharField(max_length=32, verbose_name="apdex类型")
     apdex_value = models.IntegerField("apdex值")
+
+    class Meta:
+        app_label = 'apm_web'
