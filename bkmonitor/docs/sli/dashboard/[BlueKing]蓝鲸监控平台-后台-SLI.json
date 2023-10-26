@@ -6,7 +6,7 @@
       "description": "",
       "type": "datasource",
       "pluginId": "bkmonitor-timeseries-datasource",
-      "pluginName": "Blueing Monitor TimeSeries"
+      "pluginName": "Blueking Monitor TimeSeries"
     }
   ],
   "__elements": {},
@@ -14,7 +14,7 @@
     {
       "type": "datasource",
       "id": "bkmonitor-timeseries-datasource",
-      "name": "Blueing Monitor TimeSeries",
+      "name": "Blueking Monitor TimeSeries",
       "version": "3.6.0"
     },
     {
