@@ -1,0 +1,83 @@
+.rotation-config-page {
+  position: relative;
+  height: 100%;
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .mt-24 {
+    margin-top: 24px;
+  }
+
+  .mt-32 {
+    margin-top: 32px;
+  }
+
+  .width-88 {
+    width: 88px;
+  }
+
+  .width-508 {
+    width: 508px;
+  }
+
+  .width-974 {
+    width: 974px;
+  }
+
+  .split-line {
+    margin: 0 8px;
+    font-size: 14px;
+    line-height: 22px;
+  }
+
+  .rotation-config-page-content {
+    max-height: calc(100% - 52px);
+    padding-bottom: 32px;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    .rotation-type-wrapper {
+      width: 1200px;
+
+      .tab-list {
+        display: flex;
+
+        &-item {
+          width: 120px;
+          height: 32px;
+          line-height: 32px;
+          text-align: center;
+          cursor: pointer;
+          background: #fff;
+          border: 1px solid #c4c6cc;
+          border-radius: 0 2px 2px 0;
+
+          &.fixed {
+            border-right: none;
+          }
+
+          &.replace {
+            border-left: none;
+          }
+
+          &.active {
+            color: #3a84ff;
+            background: #e1ecff;
+            border: 1px solid #3a84ff;
+            border-radius: 2px 0 0 2px;
+          }
+        }
+      }
+
+      .tab-content {
+        margin-top: 16px;
+      }
+    }
+
+    .effective-end input::placeholder {
+      color: #63656e;
+    }
+  }
+}

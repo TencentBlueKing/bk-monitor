@@ -104,5 +104,8 @@ export default {
   白名单: 'White List',
   黑名单: 'Black List',
   指标维度设置: 'Metric / Dimension Setting',
-  此操作存在危险: 'This operation is dangerous'
+  此操作存在危险: 'This operation is dangerous',
+  '{0}月': '{0} month',
+  轮值规则: 'Rotation rules',
+  轮值详情: 'Details of rotation'
 };

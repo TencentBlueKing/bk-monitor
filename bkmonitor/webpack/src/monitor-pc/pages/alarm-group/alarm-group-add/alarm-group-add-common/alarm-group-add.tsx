@@ -46,9 +46,11 @@ import SetMealAddStore from '../../../../../fta-solutions/store/modules/set-meal
 import { getReceiver } from '../../../../../monitor-api/modules/notice_group';
 import { getBkchatGroup } from '../../../../../monitor-api/modules/user_groups';
 import { deepClone, random } from '../../../../../monitor-common/utils/utils';
+import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import { createUserGroup, retrieveUserGroup, updateUserGroup } from '../../.././../../monitor-api/modules/model';
-import DutyArranges, { dutyDataTransform, IDutyItem, paramsTransform } from '../../duty-arranges/duty-arranges';
+import { dutyDataTransform, IDutyItem, paramsTransform } from '../../duty-arranges/duty-arranges';
+import RotationConfig from '../../rotation/rotation-config';
 import MemberSelector from '../member-selector';
 
 import './alarm-group-add.scss';
@@ -85,6 +87,7 @@ interface IFormData {
   action_notice: IAlert[]; // 执行通知
   needDuty?: boolean;
   channels: string[];
+  timezone: string;
 }
 interface IUserItem {
   id: string; // 用户id
@@ -130,6 +133,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     users: [],
     mention_list: [{ id: mentListDefaultItem.id, type: mentListDefaultItem.type }],
     desc: '',
+    timezone: '',
     [ALERT_NOTICE]: [
       // 初始告警通知数据
       {
@@ -258,6 +262,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   async created() {
     this.updateNavData(this.groupId ? this.$tc('编辑') : this.$tc('新增告警组'));
     this.formData.bizId = this.$store.getters.bizId;
+    this.formData.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     this.bizIdLIst = this.$store.getters.bizList;
     this.alertActive = this.formData.alert_notice[0].key;
     this.alertData = this.formData.alert_notice[0];
@@ -819,7 +824,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         <bk-form label-width={this.$store.getters.lang === 'en' ? 150 : 100}>
           <bk-form-item label={this.$t('所属')}>
             <bk-select
-              class='biz-id-select'
+              class='width-508'
               clearable={false}
               readonly
               v-model={this.formData.bizId}
@@ -839,13 +844,24 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
             required
             property='name'
           >
-            <div class='input-item'>
+            <div class='input-item width-508'>
               <bk-input
-                class='input-name'
                 v-model={this.formData.name}
                 onFocus={() => (this.errorsMsg.name = '')}
               ></bk-input>
               {this.errorsMsg.name && <div class='error-msg'>{this.errorsMsg.name}</div>}
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            label={this.$t('时区')}
+            required
+            property='name'
+          >
+            <div class='width-508'>
+              <TimezoneSelect
+                value={this.formData.timezone}
+                onChange={v => (this.formData.timezone = v)}
+              ></TimezoneSelect>
             </div>
           </bk-form-item>
           {/* <bk-form-item label={this.$t('开启轮值')}>*/}
@@ -973,7 +989,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               label={this.$t('轮值设置')}
               required
             >
-              <div class='item-duty'>
+              {/* <div class='item-duty'>
                 <DutyArranges
                   ref='dutyArranges'
                   value={this.dutyArranges}
@@ -982,7 +998,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                   defaultUserList={this.defaultUserList}
                   onChange={this.handleDutyArranges}
                 ></DutyArranges>
-              </div>
+              </div> */}
+              <RotationConfig></RotationConfig>
             </bk-form-item>
           )}
           {this.channels.includes('wxwork-bot') && (

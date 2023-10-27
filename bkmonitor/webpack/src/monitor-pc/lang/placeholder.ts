@@ -279,5 +279,6 @@ export default {
   未输入: 'Not entered', // 查看语境
   请输入关键词搜索: 'Please enter keywords to search',
   请选择维度: 'Please select a dimension',
-  基于策略选择: 'Policy-based selection'
+  基于策略选择: 'Policy-based selection',
+  '可输入规则名称，标签搜索': 'Enter Rule name, label search'
 };

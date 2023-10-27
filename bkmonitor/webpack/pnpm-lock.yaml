@@ -955,8 +955,8 @@ packages:
       '@babel/highlight': 7.22.13
       chalk: 2.4.2
 
-  /@babel/compat-data/7.22.9:
-    resolution: {integrity: sha512-5UamI7xkUcJ3i9qVDS+KFDEK8/7oJ55/sJMB1Ge7IEapr7KfdfV/HErR+koZwOfd+SgtFKOKRhRakdg++DcJpQ==}
+  /@babel/compat-data/7.22.20:
+    resolution: {integrity: sha512-BQYjKbpXjoXwFW5jGqiizJQQT/aC7pFm9Ok1OWssonuguICi264lbgMzRp2ZMmRSlfkX6DsWDDcsrctK8Rwfiw==}
     engines: {node: '>=6.9.0'}
     dev: false
 
@@ -1024,7 +1024,7 @@ packages:
     resolution: {integrity: sha512-y6EEzULok0Qvz8yyLkCvVX+02ic+By2UdOhylwUOvOn9dvYc9mKICJuuU1n1XBI02YWsNsnrY1kc6DVbjcXbtw==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      '@babel/compat-data': 7.22.9
+      '@babel/compat-data': 7.22.20
       '@babel/helper-validator-option': 7.22.15
       browserslist: 4.21.10
       lru-cache: 5.1.1
@@ -1039,7 +1039,7 @@ packages:
     dependencies:
       '@babel/core': 7.22.17
       '@babel/helper-annotate-as-pure': 7.22.5
-      '@babel/helper-environment-visitor': 7.22.5
+      '@babel/helper-environment-visitor': 7.22.20
       '@babel/helper-function-name': 7.22.5
       '@babel/helper-member-expression-to-functions': 7.22.15
       '@babel/helper-optimise-call-expression': 7.22.5
@@ -1074,6 +1074,11 @@ packages:
       resolve: 1.22.4
     transitivePeerDependencies:
       - supports-color
+    dev: false
+
+  /@babel/helper-environment-visitor/7.22.20:
+    resolution: {integrity: sha512-zfedSIzFhat/gFhWfHtgWvlec0nqB9YEIVrpuwjruLlXfUSnA8cJB0miHKwqDnQ7d32aKo2xt88/xZptwxbfhA==}
+    engines: {node: '>=6.9.0'}
     dev: false
 
   /@babel/helper-environment-visitor/7.22.5:
@@ -1792,7 +1797,7 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0-0
     dependencies:
-      '@babel/compat-data': 7.22.9
+      '@babel/compat-data': 7.22.20
       '@babel/core': 7.22.17
       '@babel/helper-compilation-targets': 7.22.15
       '@babel/helper-plugin-utils': 7.22.5
@@ -2016,7 +2021,7 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0-0
     dependencies:
-      '@babel/compat-data': 7.22.9
+      '@babel/compat-data': 7.22.20
       '@babel/core': 7.22.17
       '@babel/helper-compilation-targets': 7.22.15
       '@babel/helper-plugin-utils': 7.22.5
@@ -4675,7 +4680,7 @@ packages:
     peerDependencies:
       '@babel/core': ^7.4.0 || ^8.0.0-0 <8.0.0
     dependencies:
-      '@babel/compat-data': 7.22.9
+      '@babel/compat-data': 7.22.20
       '@babel/core': 7.22.17
       '@babel/helper-define-polyfill-provider': 0.4.2_@babel+core@7.22.17
       semver: 6.3.1

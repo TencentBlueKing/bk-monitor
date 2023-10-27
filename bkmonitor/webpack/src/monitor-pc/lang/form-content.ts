@@ -97,5 +97,7 @@ export default {
   区间: 'Range',
   蓝鲸信息流: 'Bkchat',
   '查看{0}条数据': 'View data in {0} bar',
-  查看指定数据: 'View specified data'
+  查看指定数据: 'View specified data',
+  固定值班: 'Fixed duty',
+  交替轮值: 'Alternate shifts'
 };
