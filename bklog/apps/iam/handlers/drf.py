@@ -85,7 +85,10 @@ class BusinessActionPermission(IAMPermission):
         return bk_biz_id
 
     def has_permission(self, request, view):
-        bk_biz_id = self.fetch_biz_id_by_request(request) or space_uid_to_bk_biz_id(self.space_uid)
+        if self.space_uid:
+            bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
+        else:
+            bk_biz_id = self.fetch_biz_id_by_request(request)
         if not bk_biz_id:
             return True
         self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
