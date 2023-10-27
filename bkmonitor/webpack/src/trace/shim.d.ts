@@ -34,6 +34,7 @@ declare global {
     static_url: string;
     user_name: string;
     username: string;
+    timezone: string;
     uin: string;
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import moment, { DurationInputArg2 } from 'moment';
+import dayjs, { Dayjs } from 'dayjs';
 
 export type TimeRangeType = string[];
 /** 相对时间范围格式正则 */
@@ -36,7 +36,7 @@ type TimestampsType = [number, number];
 /** 处理时间范围的对象 */
 export class TimeRange {
   /** 实例化的时间范围对象 */
-  value: moment.Moment[] = [];
+  value: Dayjs[] = [];
 
   constructor(times: TimeRangeType) {
     this.init(times);
@@ -48,34 +48,34 @@ export class TimeRange {
   }
 
   /** 时间转换 */
-  transformTimeString(timeStr: string, type: TimeType): moment.Moment {
-    let momentRes: moment.Moment = null;
+  transformTimeString(timeStr: string, type: TimeType): Dayjs {
+    let momentRes: Dayjs = null;
     /** 相对时间范围 */
     const match = timeStr.match(CUSTOM_TIME_RANGE_REG);
     if (!!match) {
-      momentRes = moment();
+      momentRes = dayjs();
       const [target, , method, num, dateType, boundary] = match;
       /** 过去时间 */
       if (method === '-' && num && dateType) {
-        momentRes = momentRes.subtract(+num, dateType as DurationInputArg2);
+        momentRes = momentRes.subtract(+num, dateType as dayjs.ManipulateType);
       }
       /** 未来时间 */
       if (method === '+' && num && dateType) {
-        momentRes = momentRes.add(+num, dateType as DurationInputArg2);
+        momentRes = momentRes.add(+num, dateType as dayjs.ManipulateType);
       }
       /** 获取完整时间段 */
       if (!!boundary) {
-        type === 'from' && momentRes.startOf(boundary.replace('/', '') as moment.unitOfTime.StartOf);
-        type === 'to' && momentRes.endOf(boundary.replace('/', '') as moment.unitOfTime.StartOf);
+        type === 'from' && momentRes.startOf(boundary.replace('/', '') as dayjs.OpUnitType);
+        type === 'to' && momentRes.endOf(boundary.replace('/', '') as dayjs.OpUnitType);
       }
       /** 相对时间格式错误 */
       if (target !== timeStr) {
-        momentRes = moment(null);
+        momentRes = dayjs(null);
       }
     } else {
       /** 绝对时间范围 */
       const time = intTimestampStr(timeStr);
-      momentRes = moment(time);
+      momentRes = dayjs(time);
     }
     return momentRes.isValid() ? momentRes : null;
   }

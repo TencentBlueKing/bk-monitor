@@ -26,7 +26,7 @@
 
 import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import IconFont from '../icon-font/icon-font';
 
@@ -131,7 +131,7 @@ export default defineComponent({
     /** 格式化绝对时间点 */
     const formatTime = (value: TimeRangeType) =>
       value.map(item => {
-        const m = moment(intTimestampStr(item));
+        const m = dayjs.tz(intTimestampStr(item));
         return m.isValid() ? m.format('YYYY-MM-DD HH:mm:ss') : item;
       });
     /** 对外更新值 */
@@ -150,7 +150,7 @@ export default defineComponent({
     const handleCustomInput = (index: number) => {
       isPanelTimeRange.value = false;
       if (!localValue.value[index]) {
-        localValue.value[index] = moment().format('YYYY-MM-DD HH:mm:ss');
+        localValue.value[index] = dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
       }
     };
 

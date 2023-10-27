@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, PropType } from 'vue';
+import dayjs from 'dayjs';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
@@ -50,6 +51,10 @@ export default defineComponent({
       type: Array as PropType<TimeRangeType>,
       default: () => ['now-1h', 'now']
     },
+    timezone: {
+      type: String,
+      default: dayjs.tz.guess()
+    },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
       default: () => []
@@ -69,6 +74,7 @@ export default defineComponent({
     'deleteCollect',
     'selectCollect',
     'timeRangeChange',
+    'timezoneChange',
     'refleshIntervalChange',
     'menuSelectChange',
     'immediateReflesh'
@@ -82,6 +88,9 @@ export default defineComponent({
     }
     function handleTimeRangeChange(time: TimeRangeType) {
       emit('timeRangeChange', time);
+    }
+    function handleTimezoneChange(time: string) {
+      emit('timezoneChange', time);
     }
     return () => (
       <div class='inquire-header-wrap'>
@@ -111,7 +120,9 @@ export default defineComponent({
           <span class='inquire-header-append-item'>
             <TimeRange
               modelValue={props.timeRange}
-              onTimeChange={handleTimeRangeChange}
+              timezone={props.timezone}
+              onUpdate:modelValue={handleTimeRangeChange}
+              onUpdate:timezone={handleTimezoneChange}
             />
           </span>
           <span class='inquire-header-append-item'>
