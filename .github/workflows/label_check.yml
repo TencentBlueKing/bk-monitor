@@ -13,8 +13,7 @@ jobs:
   check_project_label:
     name: 检查项目标签
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
+    permissions: write-all
     steps:
       - name: Check project label
         uses: docker://agilepathway/pull-request-label-checker:latest
