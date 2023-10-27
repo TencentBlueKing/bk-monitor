@@ -20,18 +20,11 @@ jobs:
         with:
           one_of: project/monitor,project/apm,project/log,project/public
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Comment on failure
-        if: ${{ failure() }}
-        run: |
-          # 获取当前 PR 的信息
-          export PR_NUMBER=$(echo "${{ github.event.pull_request.url }}" | awk -F'/' '{print $NF}')
-
-          # 发出评论消息
-          curl -s -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d '{"body": "Your comment message"}' \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"
+      - name: Comment PR
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            Hello world ! :wave:
 #      - name: Comment when failed
 #        uses: mb2dev/github-action-comment-pull-request@1.0.0
 #        if: ${{ failure() }}
