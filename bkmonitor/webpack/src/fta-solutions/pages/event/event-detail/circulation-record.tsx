@@ -225,9 +225,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           }
         }
       }
-      return {
-        ...item
-      };
+      return item;
     });
   }
 
