@@ -91,6 +91,7 @@ const store = new Vuex.Store({
     spaceBgColor: '', // 空间颜色
     isEnLanguage: false,
     chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
+    isExternal: window.IS_EXTERNAL || false, // 外部版
   },
   // 公共 getters
   getters: {

@@ -28,12 +28,14 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
+import store from '@/store';
 
 import http from '@/api';
 import page404 from '@/views/404';
 
 Vue.use(VueRouter);
 
+const isExternal = store.state.isExternal; // 外部版
 
 const LogCollectionView = {
   name: 'LogCollection',
@@ -206,6 +208,11 @@ const DataLinkConf = () => import(
   /* webpackChunkName: 'manage-data-link-conf' */
   '@/views/manage/manage-data-link/manage-data-link-conf'
 );
+// 外部版授权列表
+const externalAuth = () => import(
+  /* webpackChunkName: 'externalAuth' */
+  '@/views/authorization/authorization-list'
+);
 
 const routes = [
   {
@@ -288,7 +295,12 @@ const routes = [
     path: '/manage',
     name: 'manage',
     component: Manage,
-    redirect: '/manage/log-collection/collection-item',
+    redirect: () => {
+      if (isExternal) {
+        return '/manage/log-extract-task';
+      }
+      return '/manage/log-collection/collection-item';
+    },
     children: [
       {
         path: 'collect', // 日志采集 支持监控跳转兼容旧版本管理端
@@ -743,6 +755,11 @@ const routes = [
   //   name: 'notTraceIndex',
   //   component: page403,
   // },
+  {
+    path: '/external-auth',
+    name: 'externalAuth',
+    component: externalAuth,
+  },
   {
     path: '*',
     name: 'page404',

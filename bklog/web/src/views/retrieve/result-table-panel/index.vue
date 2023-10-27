@@ -79,8 +79,10 @@ export default {
   computed: {
     ...mapState({
       bkBizId: state => state.bkBizId,
+      isExternal: state => state.isExternal,
     }),
     isAiopsToggle() { // 日志聚类总开关
+      if (this.isExternal) return false; // 外部版不包含日志聚类
       if (window.FEATURE_TOGGLE.bkdata_aiops_toggle !== 'on') return false;
       const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 

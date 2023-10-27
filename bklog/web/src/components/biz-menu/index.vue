@@ -59,7 +59,7 @@
       <ul
         id="space-type-ul"
         class="space-type-list"
-        v-if="spaceTypeIdList.length > 1">
+        v-if="showSpaceTypeIdList">
         <li
           v-for="(item) in spaceTypeIdList"
           class="space-type-item"
@@ -97,7 +97,7 @@
         </div> -->
         <div
           class="menu-select-extension-item"
-          v-if="demoUid"
+          v-if="!isExternal && demoUid"
           @mousedown.stop="experienceDemo"
         >
           <span class="icon log-icon icon-app-store"></span>
@@ -109,7 +109,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import menuList from './list';
 import { deepClone } from '../monitor-echarts/utils';
@@ -178,6 +178,9 @@ export default {
     };
   },
   computed: {
+    ...mapState([
+      'isExternal',
+    ]),
     ...mapGetters({
       demoUid: 'demoUid',
     }),
@@ -190,6 +193,9 @@ export default {
     allKeyWorldLength() {
       return Object.values(this.groupList).reduce((pre, cur) => ((pre += cur.keywordList.length), pre), 0);
     },
+    showSpaceTypeIdList() { // 外部版不展示空间分类
+      return !this.isExternal && this.spaceTypeIdList.length > 1;
+    },
   },
   watch: {
     keyword() {
@@ -199,7 +205,7 @@ export default {
       if (val) {
         await this.$nextTick();
         const el = document.querySelector('#space-type-ul');
-        this.bizBoxWidth = Math.max(394, el.clientWidth ?? 394) + 24;
+        this.bizBoxWidth = Math.max(394, el?.clientWidth ?? 394) + 24;
       }
     },
   },
@@ -513,13 +519,12 @@ export default {
       }
 
       &-search {
-        padding: 0 5px;
+        padding: 0 12px;
         flex: 1;
         width: inherit;
 
         .left-icon {
           color: #63656e;
-          left: 12px;
         }
 
         .bk-form-input {
