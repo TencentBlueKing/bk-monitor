@@ -217,25 +217,32 @@ export default {
         { id: 'extract', name: this.$t('button-字段清洗').replace('button-', '') },
         { id: 'clustering', name: this.$t('日志聚类') },
       ],
-      accessList: {
-        baseInfo: this.$t('配置信息'),
-        dataStorage: this.$t('数据存储'),
-        usageDetails: this.$t('使用详情'),
-        dataStatus: this.$t('数据状态'),
-        fieldInfo: this.$t('字段信息'),
-        collectionStatus: this.$t('采集状态'),
-      },
+      accessList: [
+        {
+          id: 'logInfo',
+          name: this.$t('采集详情'),
+        },
+        {
+          id: 'logMasking',
+          name: this.$t('日志脱敏'),
+        },
+      ],
       routeNameList: { // 路由跳转name
         log: 'manage-collection',
         custom: 'custom-report-detail',
         manage: 'bkdata-index-set-manage',
         indexManage: 'log-index-set-manage',
       },
-      logDetailKey: ['baseInfo', 'collectionStatus', 'dataStorage', 'dataStatus', 'usageDetails'], // 日志采集li列表
-      bkdataDetailKey: ['baseInfo', 'usageDetails', 'fieldInfo'], // 计算平台 li列表
-      esDetailKey: ['baseInfo', 'usageDetails', 'fieldInfo'], // 第三方ES li列表
-      setIndexDetailKey: ['baseInfo', 'usageDetails', 'fieldInfo'], // 索引集li列表
-      customDetailKey: ['baseInfo', 'dataStorage', 'dataStatus', 'usageDetails'], // 自定义上报li列表
+      /** 字段脱敏路由跳转key */
+      maskingRouteKey: 'log',
+      /** 字段脱敏路由 */
+      maskingConfigRoute: {
+        log: 'collectMasking',
+        es: 'es-index-set-masking',
+        custom: 'custom-report-masking',
+        bkdata: 'bkdata-index-set-masking',
+        setIndex: 'log-index-set-masking',
+      },
       detailJumpRouteKey: 'log', // 路由key log采集列表 custom自定义上报 es、bkdata、setIndex 第三方ED or 计算平台 or 索引集
       isFirstCloseCollect: false,
       showSettingMenuList: [],
@@ -353,20 +360,19 @@ export default {
         this.$emit('settingMenuClick', val);
         return;
       };
-      const params = {};
-      if (['manage', 'indexManage'].includes(this.detailJumpRouteKey)) {
-        params.indexSetId = this.indexSetItem?.index_set_id;
-      } else {
-        params.collectorId = this.indexSetItem?.collector_config_id;
-      }
+      const params = {
+        indexSetId: this.indexSetItem?.index_set_id,
+        collectorId: this.indexSetItem?.collector_config_id,
+      };
+      // 判断当前是否是脱敏配置 分别跳不同的路由
+      const routeName = val === 'logMasking'
+        ? this.maskingConfigRoute[this.maskingRouteKey]
+        : this.routeNameList[this.detailJumpRouteKey];
+      // 不同的路由跳转 传参不同
       const { href } = this.$router.resolve({
-        name: this.routeNameList[this.detailJumpRouteKey],
+        name: routeName,
         params,
-        query: {
-          type: val,
-          spaceUid: this.$store.state.spaceUid,
-          backRoute: 'retrieve',
-        },
+        query: { spaceUid: this.$store.state.spaceUid },
       });
       window.open(href, '_blank');
     },
@@ -394,6 +400,7 @@ export default {
         this.showSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
         return;
       };
+      // 赋值详情路由的key
       if (['es', 'bkdata'].includes(detailStr)) {
         this.detailJumpRouteKey = 'manage';
       } else if (detailStr === 'setIndex') {
@@ -401,15 +408,12 @@ export default {
       } else {
         this.detailJumpRouteKey = detailStr;
       };
-      this.showSettingMenuList = this.isAiopsToggle ? this.settingMenuList.filter(item => (isFilterExtract ? item.id !== 'extract' : true)) : [];
-      const extraRouteList = this[`${detailStr}DetailKey`].reduce((pre, cur) => {
-        pre.push({
-          id: cur,
-          name: this.accessList[cur],
-        });
-        return pre;
-      }, []);
-      this.showSettingMenuList = this.showSettingMenuList.concat(extraRouteList);
+      // 字段脱敏的路由key
+      this.maskingRouteKey = detailStr;
+      // 判断是否展示字段设置
+      const filterMenuList = this.isAiopsToggle ? this.settingMenuList.filter(item => (isFilterExtract ? item.id !== 'extract' : true)) : [];
+      // 合并其他
+      this.showSettingMenuList = filterMenuList.concat(this.accessList);
     },
     handleClickResultIcon(type) {
       if (type === 'collect') {

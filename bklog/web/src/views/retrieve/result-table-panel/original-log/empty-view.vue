@@ -190,7 +190,6 @@ export default {
             name: this.routeNameList[this.detailJumpRouteKey],
             params,
             query: {
-              type: 'baseInfo',
               spaceUid: this.$store.state.spaceUid,
             },
           });

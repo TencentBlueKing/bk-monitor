@@ -80,6 +80,10 @@
               {{ props.row.collector_config_name }}
             </span>
             <span
+              v-if="props.row.is_desensitize"
+              class="bk-icon log-icon icon-masking">
+            </span>
+            <span
               v-if="!props.row.table_id"
               class="table-mark mark-mini mark-default">
               {{ $t('未完成') }}
@@ -430,6 +434,11 @@
                     {{ $t('一键检测') }}
                   </a>
                 </li>
+                <li>
+                  <a href="javascript:;" @click.stop="operateHandler(props.row, 'masking')">
+                    {{ $t('字段脱敏') }}
+                  </a>
+                </li>
               </ul>
             </bk-dropdown-menu>
           </div>
@@ -689,6 +698,7 @@ export default {
         clean: 'clean-edit',
         storage: 'collectStorage',
         clone: 'collectAdd',
+        masking: 'collectMasking',
       };
       const targetRoute = routeMap[operateType];
       // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
@@ -697,7 +707,7 @@ export default {
           return this.operateHandler(row, 'edit');
         }
       }
-      if (['manage-collection', 'collectEdit', 'collectField', 'collectStorage'].includes(targetRoute)) {
+      if (['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)) {
         params.collectorId = row.collector_config_id;
       }
       if (operateType === 'status') {
@@ -765,22 +775,28 @@ export default {
     requestData() {
       this.isTableLoading = true;
       this.emptyType = (this.params.keyword || this.isFilterSearch) ? 'search-empty' : 'empty';
+      const ids = this.$route.query.ids; // 根据id来检索
+      const collectorIdList = ids ? decodeURIComponent(ids) : [];
       this.$http.request('collect/getCollectList', {
         query: {
           bk_biz_id: this.bkBizId,
           keyword: this.params.keyword,
           page: this.pagination.current,
           pagesize: this.pagination.limit,
+          collector_id_list: collectorIdList,
           not_custom: 1,
         },
-      }).then((res) => {
+      }).then(async (res) => {
         const { data } = res;
         if (data && data.list) {
           const idList = [];
+          const indexIdList = data.list.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+          const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
           data.list.forEach((row) => {
             row.status = '';
             row.status_name = '';
             idList.push(row.collector_config_id);
+            row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
           });
           this.collectList.splice(0, this.collectList.length, ...data.list);
           this.pagination.count = data.total;
@@ -801,6 +817,12 @@ export default {
         })
         .finally(() => {
           this.isTableLoading = false;
+          // 如果有ids 重置路由
+          if (ids) this.$router.replace({
+            query: {
+              spaceUid: this.$route.query.spaceUid,
+            },
+          });
         });
     },
     handleOperation(type) {
@@ -914,6 +936,15 @@ export default {
         }
       });
     },
+    async getDesensitizeStatus(indexIdList = []) {
+      try {
+        return await this.$http.request('masking/getDesensitizeState', {
+          data: { index_set_ids: indexIdList },
+        });
+      } catch (error) {
+        return [];
+      }
+    },
   },
 };
 </script>
@@ -984,6 +1015,10 @@ export default {
       color: #fff;
     }
 
+    .icon-masking {
+      color: #ff9c01;
+    }
+
     .status {
       cursor: pointer;
 
@@ -1032,7 +1067,7 @@ export default {
     }
 
     .collection-operation-list {
-      max-height: 190px;
+      max-height: 220px;
       display: flex;
       flex-direction: column;
       justify-content: center;

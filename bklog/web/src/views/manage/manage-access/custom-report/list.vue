@@ -69,9 +69,15 @@
           </bk-table-column>
           <bk-table-column :label="$t('名称')" :render-header="$renderHeader" prop="collector_config_name">
             <template slot-scope="props">
-              <span class="collector-config-name" @click="operateHandler(props.row, 'view')">
-                {{ props.row.collector_config_name || '--' }}
-              </span>
+              <div class="custom-name-box">
+                <span class="collector-config-name" @click="operateHandler(props.row, 'view')">
+                  {{ props.row.collector_config_name || '--' }}
+                </span>
+                <span
+                  v-if="props.row.is_desensitize"
+                  class="bk-icon log-icon icon-masking">
+                </span>
+              </div>
             </template>
           </bk-table-column>
           <bk-table-column :label="$t('监控对象')" :render-header="$renderHeader" prop="category_name">
@@ -215,6 +221,16 @@
                       {{$t('删除')}}
                     </a>
                   </li>
+                  <li>
+                    <a
+                      href="javascript:;"
+                      v-cursor="{
+                        active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
+                      }"
+                      @click="operateHandler(props.row, 'masking')">
+                      {{ $t('字段脱敏') }}
+                    </a>
+                  </li>
                 </ul>
               </bk-dropdown-menu>
             </div>
@@ -309,11 +325,18 @@ export default {
         search: 'retrieve',
         clean: 'clean-edit',
         view: 'custom-report-detail',
+        masking: 'custom-report-masking',
       };
 
       if (operateType === 'search') {
         if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
         params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+      }
+
+      if (operateType === 'masking') {
+        if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
+        params.indexSetId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+        editName = row.collector_config_name;
       }
 
       if (['clean', 'edit', 'view'].includes(operateType)) {
@@ -372,6 +395,8 @@ export default {
     requestData() {
       this.isRequest = true;
       this.emptyType = this.inputKeyWords ? 'search-empty' : 'empty';
+      const ids = this.$route.query.ids; // 根据id来检索
+      const collectorIdList = ids ? decodeURIComponent(ids) : [];
       this.$http.request('collect/getCollectList', {
         query: {
           bk_biz_id: this.bkBizId,
@@ -379,11 +404,19 @@ export default {
           page: this.pagination.current,
           pagesize: this.pagination.limit,
           collector_scenario_id: 'custom',
+          collector_id_list: collectorIdList,
         },
-      }).then((res) => {
+      }).then(async (res) => {
         const { data } = res;
         if (data && data.list) {
-          this.collectList.splice(0, this.collectList.length, ...data.list);
+          const resList = data.list;
+          const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+          const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
+          const newCollectList = resList.map(item => ({
+            ...item,
+            is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+          }));
+          this.collectList.splice(0, this.collectList.length, ...newCollectList);
           this.pagination.count = data.total;
         }
       })
@@ -392,6 +425,12 @@ export default {
         })
         .finally(() => {
           this.isRequest = false;
+          // 如果有ids 重置路由
+          if (ids) this.$router.replace({
+            query: {
+              spaceUid: this.$route.query.spaceUid,
+            },
+          });
         });
     },
     handleSearchChange(val) {
@@ -412,6 +451,15 @@ export default {
         this.pagination.current = 1;
         this.requestData();
         return;
+      }
+    },
+    async getDesensitizeStatus(indexIdList = []) {
+      try {
+        return await this.$http.request('masking/getDesensitizeState', {
+          data: { index_set_ids: indexIdList },
+        });
+      } catch (error) {
+        return [];
       }
     },
   },
@@ -479,6 +527,21 @@ export default {
       .collector-config-name {
         @include cursor;
       }
+
+      .icon-masking {
+        margin-left: 8px;
+        color: #ff9c01;
+      }
     }
+
+    .custom-name-box {
+      display: flex;
+      align-items: center;
+
+      .icon-masking {
+        flex-shrink: 0;
+      }
+    }
+
   }
 </style>

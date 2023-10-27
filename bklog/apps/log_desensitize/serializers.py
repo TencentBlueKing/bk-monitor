@@ -28,11 +28,12 @@ from django.utils.translation import ugettext_lazy as _
 
 from apps.log_desensitize.constants import DesensitizeOperator
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
+from apps.log_search.serializers import DesensitizeConfigsSerializer
 from bkm_space.serializers import SpaceUIDField
 
 
 class DesensitizeRuleListSerializer(serializers.Serializer):
-    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False, allow_null=True, allow_blank=True)
     is_public = serializers.BooleanField(label=_("是否为全局规则"), required=False, default=True)
 
     def validate(self, attrs):
@@ -47,7 +48,7 @@ class DesensitizeRuleListSerializer(serializers.Serializer):
 class DesensitizeRuleSerializer(serializers.Serializer):
     rule_name = serializers.CharField(label=_("脱敏规则名称"), required=True, max_length=64)
     match_fields = serializers.ListField(label=_("匹配字段名"), child=serializers.CharField(), required=False, default=list)
-    match_pattern = serializers.CharField(label=_("匹配表达式"), required=False, allow_null=True, default="")
+    match_pattern = serializers.CharField(label=_("匹配表达式"), required=False, allow_null=True, allow_blank=True, default="")
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
     operator = serializers.ChoiceField(label=_("脱敏算子"), choices=DesensitizeOperator.get_choices(), required=True)
     operator_params = serializers.DictField(label=_("脱敏配置参数"), required=False)
@@ -59,6 +60,10 @@ class DesensitizeRuleSerializer(serializers.Serializer):
         # 脱敏算子校验逻辑
         if not attrs.get("operator"):
             raise ValidationError(_("脱敏算子不能为空"))
+
+        # 匹配字段名和正则不允许同时为空
+        if not attrs.get("match_fields") and not attrs.get("match_pattern"):
+            raise ValidationError(_("匹配字段名和正则表达式不能同时为空"))
 
         # 校验正则表达式的合法性
         match_pattern = attrs.get("match_pattern")
@@ -87,3 +92,32 @@ class DesensitizeRuleSerializer(serializers.Serializer):
         attrs["operator_params"] = dict(data)
 
         return attrs
+
+
+class DesensitizeRuleRegexDebugSerializer(serializers.Serializer):
+    log_sample = serializers.CharField(label=_("日志样例"), required=True)
+    match_pattern = serializers.CharField(label=_("正则表达式"), required=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        # 校验正则表达式的合法性
+        match_pattern = attrs.get("match_pattern")
+        try:
+            re.compile(match_pattern)
+        except re.error:
+            raise ValidationError(_("正则表达式 [{}] 不合法").format(match_pattern))
+
+        return attrs
+
+
+class DesensitizeRuleMatchSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    logs = serializers.ListField(label=_("日志原文列表"), child=serializers.DictField(), required=True, allow_empty=False)
+    fields = serializers.ListField(label=_("匹配字段列表"), required=True, allow_empty=False)
+
+
+class DesensitizeRulePreviewSerializer(serializers.Serializer):
+    logs = serializers.ListField(label=_("日志原文列表"), child=serializers.DictField(), required=True, allow_empty=False)
+    field_configs = serializers.ListField(child=DesensitizeConfigsSerializer(), required=True)
+    text_fields = serializers.ListField(child=serializers.CharField(), required=False, default=list)

@@ -33,6 +33,7 @@ from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -243,9 +244,6 @@ class SearchHandler(object):
         # 请求用户名
         self.request_username = get_request_username()
 
-        # 透传脱敏配置
-        self.desensitize_config_list = self.search_dict.get("desensitize_configs", [])
-
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
         desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id)
@@ -253,8 +251,12 @@ class SearchHandler(object):
         # 脱敏配置原文字段
         self.text_fields = desensitize_config_obj.text_fields if desensitize_config_obj else []
 
-        field_configs = [
-            {
+        self.field_configs = list()
+
+        self.text_fields_field_configs = list()
+
+        for field_config_obj in desensitize_field_config_objs:
+            _config = {
                 "field_name": field_config_obj.field_name or "",
                 "rule_id": field_config_obj.rule_id or 0,
                 "operator": field_config_obj.operator,
@@ -262,13 +264,15 @@ class SearchHandler(object):
                 "match_pattern": field_config_obj.match_pattern,
                 "sort_index": field_config_obj.sort_index,
             }
-            for field_config_obj in desensitize_field_config_objs
-        ]
-        if field_configs:
-            self.desensitize_config_list.extend(field_configs)
+            if field_config_obj.field_name not in self.text_fields:
+                self.field_configs.append(_config)
+            else:
+                self.text_fields_field_configs.append(_config)
 
         # 初始化脱敏工厂对象
-        self.desensitize_handler = DesensitizeHandler(self.desensitize_config_list)
+        self.desensitize_handler = DesensitizeHandler(self.field_configs)
+
+        self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
     def fields(self, scope="default"):
         mapping_handlers = MappingHandlers(
@@ -503,6 +507,9 @@ class SearchHandler(object):
         _scroll_id = result.get("_scroll_id")
 
         result = self._deal_query_result(result)
+        # 脱敏配置日志原文检索 提前返回
+        if self.search_dict.get("original_search"):
+            return result
         field_dict = self._analyze_field_length(result.get("list"))
         result.update({"fields": field_dict})
 
@@ -1342,7 +1349,7 @@ class SearchHandler(object):
         for hit in result_dict["hits"]["hits"]:
             log = hit["_source"]
             # 脱敏处理
-            if self.desensitize_config_list:
+            if self.field_configs and self.search_dict.get("is_desensitize", True):
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
             if self.export_fields:
@@ -1364,7 +1371,7 @@ class SearchHandler(object):
             if "highlight" not in hit:
                 log_list.append(log)
                 continue
-            if not self.desensitize_config_list:
+            if not self.field_configs and self.search_dict.get("is_desensitize", True):
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
 
@@ -1409,13 +1416,15 @@ class SearchHandler(object):
         if not log:
             return log
 
+        # 展开object对象
+        log = expand_nested_data(log)
         # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
         log_content_tmp = copy.deepcopy(log)
 
         # 字段脱敏处理
         log = self.desensitize_handler.transform_dict(log)
 
-        # 处理原文字段
+        # 原文字段应用其他字段的脱敏结果
         if not self.text_fields:
             return log
 
@@ -1424,12 +1433,17 @@ class SearchHandler(object):
             if text_field not in log.keys():
                 continue
 
-            for _config in self.desensitize_config_list:
+            for _config in self.field_configs:
                 field_name = _config["field_name"]
-                if field_name not in log.keys():
+                if field_name not in log.keys() or field_name == text_field:
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 
+        # 处理原文字段自身绑定的脱敏逻辑
+        if self.text_fields:
+            log = self.text_fields_desensitize_handler.transform_dict(log)
+        # 折叠object对象
+        log = merge_nested_data(log)
         return log
 
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):

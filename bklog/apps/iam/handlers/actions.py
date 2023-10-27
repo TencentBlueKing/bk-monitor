@@ -197,6 +197,26 @@ class ActionEnum:
         version=1,
     )
 
+    MANAGE_DESENSITIZE_RULE = ActionMeta(
+        id="manage_desensitize_rule",
+        name=_("脱敏规则管理"),
+        name_en="Manage Desensitize Rule",
+        type="manage",
+        related_resource_types=[ResourceEnum.BUSINESS],
+        related_actions=[],
+        version=1,
+    )
+
+    MANAGE_GLOBAL_DESENSITIZE_RULE = ActionMeta(
+        id="manage_global_desensitize_rule",
+        name=_("全局脱敏规则管理"),
+        name_en="Manage Global Desensitize Rule",
+        type="manage",
+        related_resource_types=[],
+        related_actions=[],
+        version=1,
+    )
+
 
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
