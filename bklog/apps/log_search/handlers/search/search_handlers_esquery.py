@@ -1070,6 +1070,16 @@ class SearchHandler(object):
         if tmp_index_obj:
             self.scenario_id = tmp_index_obj.scenario_id
             self.storage_cluster_id = tmp_index_obj.storage_cluster_id
+            # 根据检索条件addition中的字段，判断是否需要查询聚类结果表
+            additions = self.search_dict.get("addition", [])
+            if additions:
+                for addition in additions:
+                    # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
+                    if addition.get("field").startswith("__dist"):
+                        clustering_config = ClusteringConfig.objects.filter(index_set_id=index_set_id).first()
+                        if clustering_config and clustering_config.predict_flow_id:
+                            index_list: list = [clustering_config.predict_flow["rename_signature"]["result_table_id"]]
+                            return ",".join(index_list)
             index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
             if len(index_set_data_obj_list) > 0:
                 index_list: list = [x.get("result_table_id", None) for x in index_set_data_obj_list]

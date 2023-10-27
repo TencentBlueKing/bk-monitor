@@ -26,6 +26,7 @@ from typing import Any, Dict, List
 
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -373,6 +374,20 @@ class MappingHandlers(object):
                 "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
             }
         )
+        # 通过聚类预测输出rt获取mapping
+        clustering_config = ClusteringConfig.objects.filter(index_set_id=index_set_id).first()
+        if clustering_config and clustering_config.predict_flow_id:
+            new_index_set_mapping = BkLogApi.mapping(
+                {
+                    "indices": clustering_config.predict_flow["rename_signature"]["result_table_id"],
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "time_zone": self.time_zone,
+                    "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            )
+            return latest_mapping + new_index_set_mapping
         return latest_mapping
 
     @staticmethod
@@ -534,6 +549,11 @@ class MappingHandlers(object):
     def _get_all_property(self, mapping_result):
         index_es_rt: str = self.indices.replace(".", "_")
         index_es_rts = index_es_rt.split(",")
+        # 合并聚类预测输出 rt 的 mapping
+        clustering_config = ClusteringConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if clustering_config and clustering_config.predict_flow_id:
+            new_index_rts = clustering_config.predict_flow["rename_signature"]["result_table_id"]
+            index_es_rts.extend(new_index_rts)
         mapping_group: dict = self._mapping_group(index_es_rts, mapping_result)
         return [self.find_property_dict(mapping_list) for mapping_list in mapping_group.values()]
 
