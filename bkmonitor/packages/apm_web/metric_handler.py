@@ -12,11 +12,14 @@ from collections import defaultdict
 
 from apm_web.calculation import (
     ApdexCalculation,
+    AvgDurationCalculation,
     Calculation,
     ErrorRateCalculation,
     ErrorRateOriginCalculation,
 )
 from apm_web.constants import Apdex, CalculationMethod
+from constants.apm import OtlpKey
+from core.drf_resource import resource
 from django.conf import settings
 from opentelemetry.trace import StatusCode
 
@@ -24,8 +27,6 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import OtlpKey
-from core.drf_resource import resource
 
 
 class MetricHandler:
@@ -224,6 +225,7 @@ class AvgDurationInstance(MetricHandler):
 
     metric_id = CalculationMethod.AVG_DURATION
     data_source_label = "prometheus"
+    calculation = AvgDurationCalculation
 
     promql_format = (
         'sum(increase('
@@ -360,17 +362,12 @@ def cache_batch_metric_query(
     id_get=lambda x: x,
     filter_dict_build=lambda x: None,
     get_application=lambda x: x,
+    interval=None,
 ):
     start_time, end_time = get_datetime_range(period, distance)
     start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
     return batch_metric_query(
-        start_time,
-        end_time,
-        iteritems,
-        metric_handler_cls,
-        id_get,
-        filter_dict_build,
-        get_application,
+        start_time, end_time, iteritems, metric_handler_cls, id_get, filter_dict_build, get_application, interval
     )
 
 
@@ -382,6 +379,7 @@ def batch_metric_query(
     id_get=lambda x: x,
     filter_dict_build=lambda x: None,
     get_application=lambda x: x,
+    interval=None,
 ):
     def metric_query(item_id, data_map, metric_handler):
         data_map[str(item_id)][metric_handler.metric_id] = metric_handler.query()
@@ -393,7 +391,7 @@ def batch_metric_query(
             item_id = id_get(item)
             filter_dict = filter_dict_build(item)
             metric_handler_instance = metric_handler(
-                get_application(item), start_time, end_time, filter_dict=filter_dict
+                get_application(item), start_time, end_time, filter_dict=filter_dict, interval=interval
             )
             th_list.append(
                 InheritParentThread(

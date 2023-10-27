@@ -20,12 +20,11 @@ from apm_web.metric_handler import (
     cache_batch_metric_query,
     cache_batch_metric_query_group,
 )
+from constants.apm import OtlpKey
+from core.unit import load_unit
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
-
-from constants.apm import OtlpKey
-from core.unit import load_unit
 
 
 def application_id_get(application):
@@ -42,8 +41,9 @@ APPLICATION_LIST = partial(
         AvgDurationInstance,
     ],
     id_get=application_id_get,
-    period="day",
-    distance=1,
+    period="minute",
+    distance=24 * 60,
+    interval=10 * 60,
 )
 
 APPLICATION_LIST_REFRESH = partial(
@@ -56,8 +56,9 @@ APPLICATION_LIST_REFRESH = partial(
         AvgDurationInstance,
     ],
     id_get=application_id_get,
-    period="day",
-    distance=1,
+    period="minute",
+    distance=24 * 60,
+    interval=10 * 60,
 )
 
 SERVICE_LIST = partial(

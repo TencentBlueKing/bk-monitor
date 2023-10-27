@@ -20,7 +20,7 @@ class Calculation:
         if not metric_result:
             return 0
 
-        return metric_result[0]["_result_"]
+        return sum(i["_result_"] for i in metric_result)
 
     @classmethod
     def range_cal(cls, metric_result):
@@ -155,3 +155,26 @@ class ApdexCalculation(Calculation):
         if apdex_rate > cls.TOLERATING_RATE:
             return Apdex.TOLERATING
         return Apdex.FRUSTRATED
+
+
+class AvgDurationCalculation(Calculation):
+    @classmethod
+    def instance_cal(cls, metric_result):
+        return cls.common_unify_result_cal(metric_result)
+
+    @classmethod
+    def common_unify_result_cal(cls, metric_result):
+        if not metric_result:
+            return 0
+        num = len(metric_result)
+        total = sum(i["_result_"] for i in metric_result)
+
+        return cls.calculate(num, total)
+
+    @classmethod
+    def calculate(cls, *data):
+        """
+        输入为 (num, total)
+        """
+        num, total = data
+        return total / (1 if num == 0 else num)
