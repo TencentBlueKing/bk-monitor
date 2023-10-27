@@ -8,6 +8,7 @@ from apps.api.modules.bk_itsm import BkItsm
 from apps.constants import (
     ACTION_ID_MAP,
     ACTION_MAP,
+    DEFAULT_ALLOW_ACTIONS,
     Action,
     ActionEnum,
     ApiTokenAuthType,
@@ -133,6 +134,19 @@ class ExternalPermission(OperateRecordModel):
     @property
     def bk_biz_id(self):
         return space_uid_to_bk_biz_id(self.space_uid)
+
+    @classmethod
+    def get_authorized_user_space_list(cls, authorized_user: str) -> List[str]:
+        """
+        获取被授权人的空间列表
+        :param authorized_user: 被授权人
+        :return:
+        """
+        return (
+            ExternalPermission.objects.filter(authorized_user=authorized_user, expire_time__gt=timezone.now())
+            .values_list("space_uid", flat=True)
+            .distinct()
+        )
 
     @property
     def status(self):
@@ -429,6 +443,15 @@ class ExternalPermission(OperateRecordModel):
         :param action_id: 后台定义操作ID, ActionEnum
         :return: bool
         """
+        # 先判断是否有在默认允许的action中
+        for default_allow_action in DEFAULT_ALLOW_ACTIONS:
+            if default_allow_action.view_set != view_set:
+                continue
+            if not default_allow_action.action_id:
+                return True
+            if default_allow_action.action_id == action:
+                return True
+
         allow_actions: List[Action] = ACTION_MAP.get(action_id, [])
         for _action in allow_actions:
             if _action.view_set != view_set:
@@ -440,9 +463,10 @@ class ExternalPermission(OperateRecordModel):
         return False
 
     @classmethod
-    def get_resources(cls, action_id: str, authorized_user: str, space_uid: str):
+    def get_resources(cls, view_set: str, action_id: str, authorized_user: str, space_uid: str):
         """
         获取被授权人的资源列表
+        :param view_set: 视图ViewSet
         :param action_id: 操作ID
         :param authorized_user: 被授权人
         :param space_uid: 空间唯一标识
@@ -455,6 +479,9 @@ class ExternalPermission(OperateRecordModel):
         if action_id != ActionEnum.LOG_SEARCH.value:
             return result
         result["allowed"] = True
+        if view_set == "MetaViewSet":
+            result["resources"] = cls.get_authorized_user_space_list(authorized_user)
+            return result
         obj = ExternalPermission.objects.filter(
             action_id=action_id, authorized_user=authorized_user, space_uid=space_uid
         ).first()

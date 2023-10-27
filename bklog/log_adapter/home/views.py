@@ -18,10 +18,12 @@ from apps.log_commons.models import (
     ExternalPermission,
     ExternalPermissionApplyRecord,
 )
+from apps.utils.db import get_toggle_data
 from apps.utils.local import set_local_param
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 from blueapps.account.decorators import login_exempt
+from django.conf import settings
 from django.contrib import auth
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render
@@ -56,6 +58,8 @@ class RequestProcessor:
     def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data: Dict[str, Any]):
         """获取请求中的资源"""
         if action_id == ActionEnum.LOG_SEARCH.value:
+            if "space_uid" in kwargs:
+                return kwargs.get("space_uid", "")
             if "index_set_id" in kwargs:
                 return int(kwargs.get("index_set_id", ""))
             if "index_set_id" in json_data:
@@ -74,13 +78,19 @@ class RequestProcessor:
         """
         if not allow_resources_result["allowed"]:
             return response
-        if action_id == ActionEnum.LOG_SEARCH.value and view_action != "list":
+        if action_id != ActionEnum.LOG_SEARCH.value:
             return response
         allow_resources = allow_resources_result["resources"]
-        data = response.data
-        if isinstance(data, dict) and "data" in data:
-            data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
-            response.data = data
+        if view_action == "list":
+            data = response.data
+            if isinstance(data, dict) and "data" in data:
+                data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
+                response.data = data
+        elif view_action == "list_spaces_mine":
+            data = response.data
+            if isinstance(data, dict) and "data" in data:
+                data["data"] = [d for d in data["data"] if d["space_uid"] in allow_resources]
+                response.data = data
         return response
 
 
@@ -89,11 +99,7 @@ def external(request):
     """外部入口"""
     space_uid = request.GET.get("space_uid", "")
     external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
-    space_uid_list = (
-        ExternalPermission.objects.filter(authorized_user=external_user, expire_time__gt=timezone.now())
-        .values_list("space_uid", flat=1)
-        .distinct()
-    )
+    space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
     if space_uid:
         try:
             SpaceApi.get_space_detail(space_uid)
@@ -122,15 +128,7 @@ def external(request):
         setattr(request, "COOKIES", {k: v for k, v in request.COOKIES.items() if k != "bk_token"})
     else:
         logger.error(f"外部用户({external_user})或空间(ID:{space_uid})不存在, request.META: {request.META}")
-    response = render(
-        request,
-        "external/index.html",
-        {
-            "space_uid": space_uid,
-            "SPACE_LIST": [s for s in SpaceApi.list_spaces() if s.space_uid in space_uid_list],
-            "external_user": external_user,
-        },
-    )
+    response = render(request, settings.VUE_INDEX, get_toggle_data())
     response.set_cookie("space_uid", space_uid)
     response.set_cookie("external_user", external_user)
     return response
@@ -204,7 +202,7 @@ def dispatch_external_proxy(request):
                 {"result": False, "message": f"external_user:{external_user} has not enough permission."}, status=403
             )
         allow_resources_result = ExternalPermission.get_resources(
-            space_uid=space_uid, action_id=action_id, authorized_user=external_user
+            view_set=view_set, space_uid=space_uid, action_id=action_id, authorized_user=external_user
         )
         if allow_resources_result["allowed"]:
             allow_resources = allow_resources_result["resources"]
