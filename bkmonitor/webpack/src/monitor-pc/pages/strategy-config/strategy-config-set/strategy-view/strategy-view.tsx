@@ -38,7 +38,7 @@ import { Debounce, deepClone, random, typeTools } from '../../../../../monitor-c
 import Viewer from '../../../../../monitor-ui/markdown-editor/viewer';
 import MonitorEcharts from '../../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import MonitorDivider from '../../../../components/divider/divider.vue';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';

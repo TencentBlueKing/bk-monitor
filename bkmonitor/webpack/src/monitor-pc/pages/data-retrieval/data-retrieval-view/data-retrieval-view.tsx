@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { monitorDrag } from '../../../../monitor-common/utils/drag-directive';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 import CompareSelect from '../../monitor-k8s/components/panel-tools/compare-select';
 import PanelsTools from '../../monitor-k8s/components/panel-tools/panel-tools';
 // import PanelHeader from '../../monitor-k8s/components/panel-header/panel-header';

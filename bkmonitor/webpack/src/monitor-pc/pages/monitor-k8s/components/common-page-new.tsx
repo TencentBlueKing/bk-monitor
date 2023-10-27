@@ -41,7 +41,7 @@ import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
-import { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { Storage } from '../../../utils';
@@ -1146,8 +1146,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         selectortTarget.compareFieldsSort
       );
       // eslint-disable-next-line max-len
-      compareTargets = targets?.map(item =>
-        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+      compareTargets = targets?.map(
+        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {
