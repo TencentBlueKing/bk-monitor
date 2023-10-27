@@ -17,6 +17,30 @@
       flex: 1;
     }
   }
+
+  .divider {
+    margin: 25px 0;
+  }
+
+  .table-container {
+    .title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+
+      .refresh-btn {
+        width: 26px;
+        height: 26px;
+        line-height: 26px;
+        text-align: center;
+        cursor: pointer;
+        background: #fff;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+      }
+    }
+  }
 }
 
 .data-status-sideslider {

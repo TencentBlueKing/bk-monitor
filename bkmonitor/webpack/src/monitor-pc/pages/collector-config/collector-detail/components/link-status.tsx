@@ -26,8 +26,9 @@
 
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Button, Divider, Sideslider, Table, TableColumn } from 'bk-magic-vue';
 
-import { transferCountSeries } from '../../../../../monitor-api/modules/datalink';
+import { transferCountSeries, transferLatestMsg } from '../../../../../monitor-api/modules/datalink';
 import { copyText } from '../../../../../monitor-common/utils/utils';
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
 import { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -60,6 +61,9 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     data: []
   };
 
+  tableList = [];
+  tableLoading = false;
+
   sideslider = {
     isShow: false,
     data: '',
@@ -67,7 +71,6 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   };
 
   handleTimeRange(val, type: 'minute' | 'day') {
-    console.log(val);
     if (type === 'minute') {
       this.minuteChartConfig.timeRange = val;
     } else {
@@ -112,6 +115,15 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     }
   }
 
+  async getTableData() {
+    this.tableLoading = true;
+    const res = await transferLatestMsg({
+      collect_config_id: this.id
+    }).catch(() => []);
+    this.tableList = res;
+    this.tableLoading = false;
+  }
+
   handleHiddenSlider() {
     this.sideslider.isShow = false;
   }
@@ -133,6 +145,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   mounted() {
     this.getChartData('minute');
     this.getChartData('day');
+    this.getTableData();
   }
 
   render() {
@@ -159,17 +172,42 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             />
           </div>
         </div>
-        <div class='panel-title'>{this.$t('数据采样')}</div>
+        <Divider class='divider'></Divider>
+
         <div class='table-container'>
           <div class='title'>
-            <div class='label'></div>
+            <div class='panel-title'>{this.$t('数据采样')}</div>
             <div class='refresh-btn'>
               <i class='icon-monitor icon-zhongzhi1'></i>
             </div>
           </div>
+
+          <div class='table-content'>
+            <Table
+              class='cluster-table'
+              data={this.tableList}
+              v-bkloading={{ isLoading: this.tableLoading }}
+              max-height='254'
+            >
+              <TableColumn
+                type='index'
+                label={this.$t('序列')}
+                width='90'
+              />
+              <TableColumn label={this.$t('原始数据')} />
+              <TableColumn
+                label={this.$t('采集时间')}
+                width='250'
+              />
+              <TableColumn
+                label={this.$t('操作')}
+                width='175'
+              />
+            </Table>
+          </div>
         </div>
 
-        <bk-sideslider
+        <Sideslider
           ext-cls='data-status-sideslider'
           transfer={true}
           isShow={this.sideslider.isShow}
@@ -183,7 +221,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             class='sideslider-title'
           >
             <span>{this.sideslider.title + this.$t('上报日志详情')}</span>
-            <bk-button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</bk-button>
+            <Button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</Button>
           </div>
           <div slot='content'>
             <MonacoEditor
@@ -194,7 +232,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               style='height: calc(100vh - 60px)'
             ></MonacoEditor>
           </div>
-        </bk-sideslider>
+        </Sideslider>
       </div>
     );
   }
