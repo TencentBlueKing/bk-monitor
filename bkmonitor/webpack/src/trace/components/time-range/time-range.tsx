@@ -25,25 +25,27 @@
  */
 
 import { defineComponent, PropType } from 'vue';
-import DatePicker from '@blueking/date-picker/dist/vue3-full.es';
+import { DatePicker } from '@blueking/date-picker/dist/vue3-light.es';
 
 import { TimeRangeType } from './utils';
 
-import './time-range.scss';
+import '@blueking/date-picker/dist/vue3-light.css';
+
 /**
  * 图表选择时间范围组件
  */
 export default defineComponent({
   name: 'TimeRange',
-  emit: ['timeChange', 'update:modelValue'],
   props: {
     modelValue: {
-      type: Array as PropType<TimeRangeType[]>,
+      type: Array as PropType<TimeRangeType>,
       default: () => ['now-1h', 'now']
     }
   },
-  setup(p, { emit }) {
-    const handleChange = (value: TimeRangeType[]) => {
+  emits: ['timeChange', 'update:modelValue'],
+  setup(_, { emit }) {
+    const handleChange = (value: TimeRangeType) => {
+      emit('timeChange', value);
       emit('update:modelValue', value);
     };
     return {
@@ -54,6 +56,7 @@ export default defineComponent({
     return (
       <DatePicker
         class='time-range-date-picker'
+        behavior='simplicity'
         modelValue={this.modelValue}
         onUpdate:modelValue={this.handleChange}
       />

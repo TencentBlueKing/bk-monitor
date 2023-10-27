@@ -47,7 +47,7 @@ export default defineComponent({
       default: () => []
     },
     timeRange: {
-      type: Array as PropType<TimeRangeType[]>,
+      type: Array as PropType<TimeRangeType>,
       default: () => ['now-1h', 'now']
     },
     menuList: {
@@ -80,7 +80,7 @@ export default defineComponent({
     function handleSelectCollectItem(id: number | string) {
       emit('selectCollect', id);
     }
-    function handleTimeRangeChange(time: TimeRangeType[]) {
+    function handleTimeRangeChange(time: TimeRangeType) {
       emit('timeRangeChange', time);
     }
     return () => (
@@ -110,8 +110,8 @@ export default defineComponent({
         <div class='inquire-header-append'>
           <span class='inquire-header-append-item'>
             <TimeRange
-              v-model={props.timeRange}
-              onTimeChange={(v: TimeRangeType[]) => handleTimeRangeChange(v)}
+              modelValue={props.timeRange}
+              onTimeChange={handleTimeRangeChange}
             />
           </span>
           <span class='inquire-header-append-item'>

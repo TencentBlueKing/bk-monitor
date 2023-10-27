@@ -189,8 +189,8 @@ export default defineComponent({
       return (
         <div class='share-timerange'>
           <TimeRangeComp
-            v-model={timeRange.value}
-            onTimeChange={(v: TimeRangeType) => handleTimeRangeChange(v)}
+            modelValue={timeRange.value as any}
+            onUpdate:modelValue={handleTimeRangeChange}
           />
         </div>
       );

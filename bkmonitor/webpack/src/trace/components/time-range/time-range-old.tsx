@@ -50,7 +50,7 @@ export default defineComponent({
   emit: ['timeChange', 'update:modelValue'],
   props: {
     modelValue: {
-      type: Array as PropType<TimeRangeType[]>,
+      type: Array as PropType<TimeRangeType>,
       default: () => ['now-1h', 'now']
     }
   },
