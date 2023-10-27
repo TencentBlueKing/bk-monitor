@@ -525,7 +525,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                       default: ({ row }) => (
                         <div class='time-warp'>
                           <TimeRangeComponent
-                            type={'input'}
+                            type={'normal'}
                             value={row.timeRange}
                             onChange={v => this.handleTableTimeRangeChange(v, row)}
                           ></TimeRangeComponent>

@@ -37,7 +37,6 @@
           <span class="margin-left-auto" />
           <div class="time-shift">
             <time-range
-              :type="showText ? 'normal' : 'simple'"
               :value="timeRange"
               @change="handleSelectTimeRangeChange"
             />

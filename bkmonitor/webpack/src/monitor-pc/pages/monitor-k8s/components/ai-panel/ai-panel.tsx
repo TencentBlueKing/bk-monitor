@@ -31,7 +31,7 @@ import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugin
 import { isShadowEqual, reviewInterval } from '../../../../../monitor-ui/chart-plugins/utils';
 import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 import { FormattedValue, getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryOption } from '../../../performance/performance-type';
 import ViewDetail from '../../../view-detail/view-detail-new';

@@ -33,7 +33,7 @@ import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugin
 import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
