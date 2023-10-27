@@ -374,7 +374,7 @@ class StopResource(Resource):
     @atomic
     def perform_request(self, validated_request_data):
         Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=False)
-        Application.set_plugin_config(validated_request_data["application_id"])
+        Application.stop_plugin_config(validated_request_data["application_id"])
 
         return api.apm_api.stop_application(validated_request_data)
 
