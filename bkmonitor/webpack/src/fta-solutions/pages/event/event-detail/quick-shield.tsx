@@ -65,7 +65,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   @Inject('authority') authority;
   @Inject('authorityFromEventDetail') authorityFromEventDetail;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail;
+  @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail = null;
   @Prop({ type: Boolean, default: false }) show: Boolean;
   @Prop({ type: Array, default: () => [] }) details: IDetail[];
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
@@ -235,7 +235,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   getHandleShowAuthorityDetail(action: any) {
     const routeName = this.$route.name;
     if (routeName === 'event-center') this.handleShowAuthorityDetail(action);
-    if (routeName === 'event-center-detail') this.handleShowAuthorityDetailFromEventDetail(action);
+    if (routeName === 'event-center-detail') this.handleShowAuthorityDetailFromEventDetail?.(action);
   }
 
   getInfoCompnent() {
