@@ -249,17 +249,26 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-RdYlGr"
+            "mode": "thresholds"
           },
           "decimals": 2,
           "mappings": [],
           "max": 1,
+          "min": 0,
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.85
+              },
+              {
+                "color": "orange",
+                "value": 0.9
               },
               {
                 "color": "green",
@@ -3747,8 +3756,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "green",
@@ -3929,8 +3937,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "green",
@@ -4651,8 +4658,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "color": "red"
               },
               {
                 "color": "green",
@@ -6129,7 +6135,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "★【BKOP】生产",
           "value": "★【BKOP】生产"
         },
@@ -6155,6 +6161,6 @@
   "timezone": "default",
   "title": "[BlueKing]蓝鲸监控平台-后台 SLI",
   "uid": "uyPQJs7Vknew",
-  "version": 173,
+  "version": 174,
   "weekStart": ""
 }
