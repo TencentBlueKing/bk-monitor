@@ -16,37 +16,31 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: docker://agilepathway/pull-request-label-checker:latest
+      - name: Check project label
+        uses: docker://agilepathway/pull-request-label-checker:latest
         with:
           one_of: project/monitor,project/apm,project/log,project/public
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/github-script@v6
+      - name: Comment when failed
+        uses: mb2dev/github-action-comment-pull-request@1.0.0
         if: ${{ failure() }}
         with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '请在 PR 中添加项目标签，例如：`project/monitor`、`project/apm`、`project/log`、`project/public`'
-            })
+          message: "请在 PR 中添加项目标签，例如：`project/monitor`、`project/apm`、`project/log`、`project/public`"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   check_type_label:
     name: 检查类型标签
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
-      - uses: docker://agilepathway/pull-request-label-checker:latest
+      - name: Check type label
+        uses: docker://agilepathway/pull-request-label-checker:latest
         with:
           one_of: fix,feat,docs,style,refactor,test,chore,merge
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/github-script@v6
+      - name: Comment when failed
+        uses: mb2dev/github-action-comment-pull-request@1.0.0
         if: ${{ failure() }}
         with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '请在 PR 中添加类型标签，例如：`fix`、`feat`、`docs`、`style`、`refactor`、`test`、`chore`、`merge`'
-            })
+          message: "请在 PR 中添加类型标签，例如：`fix`、`feat`、`docs`、`style`、`refactor`、`test`、`chore`、`merge`"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
