@@ -21,6 +21,7 @@ jobs:
           one_of: project/monitor,project/apm,project/log,project/public
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Comment PR
+        if : ${{ failure() }}
         uses: thollander/actions-comment-pull-request@v2
         with:
           message: |
