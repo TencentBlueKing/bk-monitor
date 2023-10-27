@@ -384,11 +384,10 @@ class Application(AbstractRecordModel):
             host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
         else:
             return {}
-        output_param = {
+        return {
             "bk_data_token": bk_data_token,
             "host": host
         }
-        return output_param
 
     @classmethod
     def stop_plugin_config(cls, application_id):
