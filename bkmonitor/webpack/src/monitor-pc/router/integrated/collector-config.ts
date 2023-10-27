@@ -46,8 +46,13 @@ const CollectorConfigUpdate = () =>
   );
 const CollectorConfigOperateDetail = () =>
   import(
-    /* webpackChunkName: 'CollectorConfigOperateDetail' */ '@page/collector-config/collector-host-detail/collector-host-detail.vue'
+    /* webpackChunkName: 'CollectorConfigOperateDetail' */ '../../pages/collector-config/collector-host-detail/collector-operate-detail'
   );
+// import(
+//   /* webpackChunkName: 'CollectorConfigOperateDetail' */ '../../pages/collector-config/collector-host-detail/collector-host-detail.vue'
+// );
+const CollectorDetail = () =>
+  import(/* webpackChunkName: 'CollectorDetail' */ '../../pages/collector-config/collector-detail/collector-detail');
 export default applyGuidePage(
   [
     {
@@ -234,6 +239,36 @@ export default applyGuidePage(
       },
       meta: {
         title: '执行详情',
+        navId: 'collect-config',
+        needBack: true,
+        authority: {
+          map: collectConfigAuth,
+          page: [collectConfigAuth.VIEW_AUTH]
+        },
+        route: {
+          parent: 'collect-config'
+        },
+        needCopyLink: true
+      }
+    },
+    {
+      path: '/collect-config/detail/:id',
+      name: 'collect-config-detail',
+      props: true,
+      components: {
+        noCache: CollectorDetail
+      },
+      beforeEnter(to, from, next) {
+        if (!to.params.id) {
+          next({ path: '/collect-config' });
+        } else {
+          to.meta.title = to.params.title || '采集详情';
+          next();
+        }
+        next();
+      },
+      meta: {
+        title: '采集详情',
         navId: 'collect-config',
         needBack: true,
         authority: {

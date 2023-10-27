@@ -1,0 +1,35 @@
+.minute-chart-component {
+  width: 100%;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 25px 12px 16px;
+    line-height: 22px;
+
+    .chart-label {
+      font-size: 14px;
+      color: #313238;
+    }
+
+    .chart-tools {
+      font-size: 12px;
+
+      .refresh {
+        margin-left: 26px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .chart-wrapper {
+    height: 200px;
+  }
+}

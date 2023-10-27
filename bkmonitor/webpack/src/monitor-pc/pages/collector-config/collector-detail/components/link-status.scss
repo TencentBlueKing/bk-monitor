@@ -1,0 +1,39 @@
+.link-status-component {
+  height: 100%;
+  background-color: #fff;
+
+  .panel-title {
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #63656e;
+  }
+
+  .chart-panel {
+    display: flex;
+    gap: 24px;
+
+    .chart-container {
+      flex: 1;
+    }
+  }
+}
+
+.data-status-sideslider {
+  .sideslider-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 20px;
+  }
+
+  .bk-sideslider-wrapper {
+    .bk-sideslider-content {
+      overflow: hidden;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
+  }
+}
