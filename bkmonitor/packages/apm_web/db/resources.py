@@ -284,7 +284,7 @@ class ListDbSpanResource(PageListResource):
         filter = db_slow 时, 特殊处理
         """
 
-        if str(validated_data.get("filter")) == CategoryEnum.DB_SLOW:
+        if str(validated_data.get("filter")) == DbCategoryEnum.DB_SLOW:
             # 慢命令查询
             validated_data.get("filter_params", {})["attributes.db.is_slow"] = 1
             validated_data.pop("filter")
