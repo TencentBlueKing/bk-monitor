@@ -26,6 +26,7 @@
 
 import { defineComponent, PropType } from 'vue';
 import { DatePicker } from '@blueking/date-picker/dist/vue3-light.es';
+import dayjs from 'dayjs';
 
 import { TimeRangeType } from './utils';
 
@@ -40,16 +41,24 @@ export default defineComponent({
     modelValue: {
       type: Array as PropType<TimeRangeType>,
       default: () => ['now-1h', 'now']
+    },
+    timezone: {
+      type: String,
+      default: dayjs.tz.guess()
     }
   },
-  emits: ['timeChange', 'update:modelValue'],
+  emits: ['update:timezone', 'update:modelValue'],
   setup(_, { emit }) {
     const handleChange = (value: TimeRangeType) => {
-      emit('timeChange', value);
       emit('update:modelValue', value);
     };
+    const handleTimezoneChange = (value: string) => {
+      emit('update:timezone', value);
+      window.timezone = value || dayjs.tz.guess();
+    };
     return {
-      handleChange
+      handleChange,
+      handleTimezoneChange
     };
   },
   render() {
@@ -58,7 +67,9 @@ export default defineComponent({
         class='time-range-date-picker'
         behavior='simplicity'
         modelValue={this.modelValue}
+        timezone={this.timezone}
         onUpdate:modelValue={this.handleChange}
+        onUpdate:timezone={this.handleTimezoneChange}
       />
     );
   }
