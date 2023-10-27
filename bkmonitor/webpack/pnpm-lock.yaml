@@ -53,8 +53,8 @@ importers:
         specifier: ^1.13.5
         version: 1.13.8
       babel-plugin-import-bkui-vue:
-        specifier: ^0.0.7
-        version: 0.0.7
+        specifier: ^0.0.9-beta.0
+        version: 0.0.9-beta.0
       eslint:
         specifier: ^8.47.0
         version: 8.52.0
@@ -493,8 +493,8 @@ importers:
         specifier: 0.0.22
         version: 0.0.22
       '@blueking/date-picker':
-        specifier: ^0.0.11
-        version: 0.0.11(vue@2.7.14)
+        specifier: ^0.0.12
+        version: 0.0.12(vue@2.7.14)
       '@blueking/ip-selector':
         specifier: 0.0.1-beta.125
         version: 0.0.1-beta.125
@@ -841,14 +841,14 @@ importers:
         specifier: ^4.7.0
         version: 4.8.23
       '@blueking/date-picker':
-        specifier: ^0.0.11
-        version: 0.0.11(vue@3.3.7)
+        specifier: ^0.0.12
+        version: 0.0.12(vue@3.3.7)
       '@blueking/ip-selector':
         specifier: 0.0.1-beta.125
         version: 0.0.1-beta.125
       bkui-vue:
-        specifier: 0.0.2-beta.24
-        version: 0.0.2-beta.24(highlight.js@11.5.1)(vue@3.3.7)
+        specifier: 0.0.2-beta.75
+        version: 0.0.2-beta.75(highlight.js@11.5.1)(vue@3.3.7)
       d3-array:
         specifier: ^3.1.1
         version: 3.2.4
@@ -2618,8 +2618,8 @@ packages:
       - whiskers
     dev: false
 
-  /@blueking/date-picker@0.0.11(vue@2.7.14):
-    resolution: {integrity: sha512-nunJsfRPe8oN2o6MzXD8wi7nyx0dbA8RQXyQ1oTreFmmH8G/F7NvTSKVC7H8ekh6l+HJzH9py+EzisRt9kTN8Q==}
+  /@blueking/date-picker@0.0.12(vue@2.7.14):
+    resolution: {integrity: sha512-0+9C2cHnJsBBLDctFwCm2VDsRdTHVCFYa9PKxytM2Hl49EiABMcNTAfBaBt5O0bgcYj0aYMJcVMaLeXGMSTckA==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       vue: ^3.2.0
@@ -2627,8 +2627,8 @@ packages:
       vue: 2.7.14
     dev: false
 
-  /@blueking/date-picker@0.0.11(vue@3.3.7):
-    resolution: {integrity: sha512-nunJsfRPe8oN2o6MzXD8wi7nyx0dbA8RQXyQ1oTreFmmH8G/F7NvTSKVC7H8ekh6l+HJzH9py+EzisRt9kTN8Q==}
+  /@blueking/date-picker@0.0.12(vue@3.3.7):
+    resolution: {integrity: sha512-0+9C2cHnJsBBLDctFwCm2VDsRdTHVCFYa9PKxytM2Hl49EiABMcNTAfBaBt5O0bgcYj0aYMJcVMaLeXGMSTckA==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       vue: ^3.2.0
@@ -4808,8 +4808,8 @@ packages:
     resolution: {integrity: sha512-B44DM+kl/bE1UwVm2vjjX/wCzuPtMh0jHpvYJUcprygfNvaOZWMpOx0tACqkl3hwwWKfGpkxb89GRUdvMfo7SQ==}
     dev: false
 
-  /babel-plugin-import-bkui-vue@0.0.7:
-    resolution: {integrity: sha512-y63eKvbPu3tlwXIY6w+QObLQBsEv3d8wlwwLhJPizHm9c2ZIUg4y0N6X3xpXPoVBNxarh6JX04qIqwcyfC7aEw==}
+  /babel-plugin-import-bkui-vue@0.0.9-beta.0:
+    resolution: {integrity: sha512-P+IHecIjjQfMfsdodTwCn2Hm2zT+sWjlPRwIwE95jXP3zQ0IjLOPQO6ds8U98tot6yeH+R+NGxL1GYNUoZXtXQ==}
     engines: {node: '>=14.18.1'}
     dependencies:
       '@babel/types': 7.23.0
@@ -4938,8 +4938,8 @@ packages:
       tinycolor2: 1.6.0
       vue: 2.7.14
 
-  /bkui-vue@0.0.2-beta.24(highlight.js@11.5.1)(vue@3.3.7):
-    resolution: {integrity: sha512-d0BKtfTlTZHl2glyhKSms/ybWTcJ3SA/HTeI1ZL+bydxZCNzlwp/3FhlfzegoZ6rLyDS2LyKX9TPhGwKGxkpwg==}
+  /bkui-vue@0.0.2-beta.75(highlight.js@11.5.1)(vue@3.3.7):
+    resolution: {integrity: sha512-mGd5U2lqzEQF26TWjy/Qtc4cwdvDdRtA5nF6pN6CHH39BcW22qvwqC9cbkbyfzgUMeb3dkcG3cY9Be7ul/zOHw==}
     peerDependencies:
       highlight.js: ~11.5.0
       vue: ^3.2.0

@@ -54,7 +54,7 @@
     "@typescript-eslint/eslint-plugin": "^5.20.0",
     "@typescript-eslint/parser": "^5.20.0",
     "babel-plugin-import": "^1.13.5",
-    "babel-plugin-import-bkui-vue": "^0.0.7",
+    "babel-plugin-import-bkui-vue": "^0.0.9-beta.0",
     "eslint": "^8.47.0",
     "lint-staged": "^12.3.7",
     "nodemon": "^2.0.9",
