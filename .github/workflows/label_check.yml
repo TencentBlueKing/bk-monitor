@@ -13,8 +13,6 @@ jobs:
   check_project_label:
     name: 检查项目标签
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
       - name: Check project label
         uses: docker://agilepathway/pull-request-label-checker:latest
@@ -27,6 +25,7 @@ jobs:
         with:
           message: |
             Hello world ! :wave:
+          pr_number: 14
 #      - name: Comment when failed
 #        uses: mb2dev/github-action-comment-pull-request@1.0.0
 #        if: ${{ failure() }}
