@@ -153,7 +153,7 @@ class ArchiveHandler:
         if self.archive:
             self.archive.snapshot_days = params.get("snapshot_days")
             self.archive.save()
-            if params["instance_type"] == ArchiveInstanceType.INDEX_SET.value:
+            if self.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
                 # 索引集归档需要查询当前索引集所关联的所有table_id
                 index_set_data_objs = LogIndexSetData.objects.filter(index_set_id=int(params["instance_id"]))
                 if not index_set_data_objs:
