@@ -8,25 +8,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-"""
-校验提交模型字段是否符合规范
-"""
 
 import argparse
+import csv
 import hashlib
 import json
 import os
-import sys
-import csv
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-try:
-    reload(sys)
-    sys.setdefaultencoding("utf-8")
-except NameError:
-    # py3
-    pass
+
+"""
+校验提交模型字段是否符合规范
+"""
 
 
 def read_csv():
