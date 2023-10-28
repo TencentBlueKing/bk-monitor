@@ -9,19 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import re
+import sys
 
 """
 校验提交信息是否包含规范的前缀
 """
-
-import sys
-
-try:
-    reload(sys)
-    sys.setdefaultencoding("utf-8")
-except NameError:
-    # py3
-    pass
 
 
 ALLOWED_COMMIT_MSG_PREFIX = [
