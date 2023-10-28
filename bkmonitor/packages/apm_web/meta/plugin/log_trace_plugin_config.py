@@ -35,7 +35,7 @@ class LogTracePluginConfig(object):
             "package_count": COLLECTOR_ROW_PACKAGE_COUNT,
             "delimiter": "",
             "output": {
-                "type": "bk-collector",
+                "type": "output.bkcollector",
                 "param": {
                     "otlp_bk_data_token": output_param["bk_data_token"],
                     "otlp_grpc_host": f"http://{host}:4317"

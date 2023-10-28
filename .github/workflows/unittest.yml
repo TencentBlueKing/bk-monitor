@@ -15,7 +15,7 @@ on:
     - cron: "0 10 * * *"
 jobs:
   run:
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
     defaults:
       run:
         shell: bash
