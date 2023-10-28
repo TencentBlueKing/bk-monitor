@@ -317,7 +317,7 @@ export default class FieldInfo extends tsc<IProps> {
           <span class="masking-tag-box">{this.$t('已脱敏')}</span>
           <div slot="content" class="masking-popover">
             <div class="label-box">
-              <div class="label">{this.$t('脱敏规则')}:&nbsp;</div>
+              <div class="label">{this.$t('脱敏算子')}:&nbsp;</div>
               <div class="rule">{row.desensitize_config.map(item => (
                 <span>{this.getMaskingRuleStr(item)}</span>
               ))}</div>

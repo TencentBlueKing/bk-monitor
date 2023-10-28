@@ -40,6 +40,7 @@ import $http from '../../api';
 import EmptyStatus from '../empty-status/index.vue';
 import { deepClone, formatDate } from '../../common/util';
 import i18n from '../../language/i18n.js';
+import * as authorityMap from '../../common/authority-map';
 
 interface IProps {
   isPublicList: boolean
@@ -67,7 +68,7 @@ const settingFields = [ // 设置显示的字段
   },
   {
     id: 'maskingRules',
-    label: (i18n.t('label-脱敏规则') as String).replace('label-', ''),
+    label: (i18n.t('label-脱敏算子') as String).replace('label-', ''),
   },
   {
     id: 'accessNum',
@@ -217,6 +218,9 @@ export default class MaskingSetting extends tsc<IProps> {
     limitList: [10, 20, 50, 100],
   };
 
+  /** 是否有脱敏权限 */
+  isAllowed = false;
+
   enTableWidth = {
     ruleName: '166',
     matchFields: '240',
@@ -243,6 +247,19 @@ export default class MaskingSetting extends tsc<IProps> {
     return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
   }
 
+  get authorityData() {
+    return  this.isPublicList
+      ? {
+        action_ids: [authorityMap.MANAGE_GLOBAL_DESENSITIZE_RULE],
+      } : {
+        action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
+        resources: [{
+          type: 'space',
+          id: this.spaceUid,
+        }],
+      };
+  }
+
   created() {
     this.initTableList();
   }
@@ -256,6 +273,8 @@ export default class MaskingSetting extends tsc<IProps> {
       } else {
         params = { space_uid: this.spaceUid, is_public: false }; // 非全局列表 传业务id
       }
+      const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
+      this.isAllowed = authorityRes.isAllowed;
       const requestStr = this.isPublicList ? 'getPublicMaskingRuleList' : 'getMaskingRuleList';
       const res = await $http.request(`masking/${requestStr}`, {
         params,
@@ -312,6 +331,10 @@ export default class MaskingSetting extends tsc<IProps> {
    * @param {Any} row
    */
   handleEditRule(row) {
+    if (!this.isAllowed) {
+      this.getOptionApplyData();
+      return;
+    }
     this.editRuleID = row.id;
     this.isEdit = true;
     this.editAccessValue = {
@@ -326,6 +349,10 @@ export default class MaskingSetting extends tsc<IProps> {
    * @param {Any} row
    */
   async handleDeleteRule(row) {
+    if (!this.isAllowed) {
+      this.getOptionApplyData();
+      return;
+    }
     this.isDeleteRule = true;
     this.changeRuleID = row.id;
     this.stopOrStartAccessValue = {
@@ -348,6 +375,10 @@ export default class MaskingSetting extends tsc<IProps> {
    */
   async handleChangeRuleSwitch(row) {
     if (this.isDisabledClick(row)) return;
+    if (!this.isAllowed) {
+      this.getOptionApplyData();
+      return;
+    }
     this.changeRuleID = row.id;
     if (row.isActive) { // 当前是启用状态
       this.isDeleteRule = false;
@@ -415,6 +446,7 @@ export default class MaskingSetting extends tsc<IProps> {
   isDisabledClick(row) {
     return !this.isPublicList && row.isPublic;
   }
+
   /**
    * @desc: 接入项跳转
    * @param {Any} row
@@ -426,10 +458,19 @@ export default class MaskingSetting extends tsc<IProps> {
       name: this.scenarioRouteMap[row.scenario_id],
       query: {
         ids: encodeURIComponent(idList),
-        spaceUid: this.$store.state.spaceUid,
+        spaceUid: this.spaceUid,
       },
     });
     window.open(href, '_blank');
+  }
+
+  handleCreateRule() {
+    if (!this.isAllowed) {
+      this.getOptionApplyData();
+      return;
+    }
+    this.isShowMaskingAddRule = true;
+    this.isEdit = false;
   }
 
   handleSearchChange(val) {
@@ -506,6 +547,16 @@ export default class MaskingSetting extends tsc<IProps> {
     return row[property] === value;
   }
 
+  /** 申请权限 */
+  async getOptionApplyData() {
+    try {
+      const res = await this.$store.dispatch('getApplyData', this.authorityData);
+      this.$store.commit('updateAuthDialogData', res.data);
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+
   render() {
     const ruleNameSlot = {
       default: ({ row }) => (
@@ -566,7 +617,9 @@ export default class MaskingSetting extends tsc<IProps> {
 
     const switcherSlot = {
       default: ({ row }) => (
-        <div onClick={() => this.handleChangeRuleSwitch(row)}>
+        <div
+          v-cursor={{ active: !this.isAllowed }}
+          onClick={() => this.handleChangeRuleSwitch(row)}>
           <Switcher
             size="small"
             v-model={row.isActive}
@@ -580,10 +633,18 @@ export default class MaskingSetting extends tsc<IProps> {
     const operatorSlot = {
       default: ({ row }) => (
         <div class="operator-slot">
-          <Button text disabled={this.isDisabledClick(row)} onClick={() => this.handleEditRule(row)}>
+          <Button
+            text
+            v-cursor={{ active: !this.isAllowed }}
+            disabled={this.isDisabledClick(row)}
+            onClick={() => this.handleEditRule(row)}>
             {this.$t('编辑')}
           </Button>
-          <Button text disabled={this.isDisabledClick(row)} onClick={() => this.handleDeleteRule(row)}>
+          <Button
+            text
+            v-cursor={{ active: !this.isAllowed }}
+            disabled={this.isDisabledClick(row)}
+            onClick={() => this.handleDeleteRule(row)}>
             {this.$t('删除')}
           </Button>
         </div>
@@ -635,10 +696,10 @@ export default class MaskingSetting extends tsc<IProps> {
           closable />
 
           <div class="search-box">
-            <Button theme="primary" onClick={() => {
-              this.isShowMaskingAddRule = true;
-              this.isEdit = false;
-            }}>
+            <Button
+              v-cursor={{ active: !this.isAllowed }}
+              theme="primary"
+              onClick={this.handleCreateRule}>
               {this.$t('新建规则')}
             </Button>
             <Input
@@ -686,7 +747,7 @@ export default class MaskingSetting extends tsc<IProps> {
 
             {this.checkFields('maskingRules') ? (
               <TableColumn
-                label={(this.$t('label-脱敏规则') as String).replace('label-', '')}
+                label={(this.$t('label-脱敏算子') as String).replace('label-', '')}
                 width={this.getTableWidth.maskingRules}
                 key={'maskingRules'}
                 prop="operator"

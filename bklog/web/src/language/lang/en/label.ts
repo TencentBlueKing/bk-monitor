@@ -568,5 +568,6 @@ export default {
   "日志下载": "Log download",
   "日志脱敏": "Log Desensitization",
   "日志采样": "Log sampling",
-  "脱敏算子": "Desensitization operator"
+  "脱敏算子": "Desensitization operator",
+  "label-脱敏算子": "Desensitization Operator",
 };
