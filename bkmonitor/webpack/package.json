@@ -6,7 +6,7 @@
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
-    "debug": "node --inspect-brk  node_modules/@blueking/bkmonitor-cli/bin/index.js dev -f",
+    "debug": "node --inspect-brk  node_modules/@blueking/bkmonitor-cli/bin/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "npm run change:modules",
     "install-build": "pnpm i",
