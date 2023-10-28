@@ -41,6 +41,7 @@ import MaskingAddRule from './masking-add-rule';
 import EmptyStatus from '../empty-status/index.vue';
 import fingerSelectColumn from '../../views/retrieve/result-table-panel/log-clustering/components/finger-select-column.vue';
 import { deepClone } from '../monitor-echarts/utils';
+import * as authorityMap from '../../common/authority-map';
 import $http from '../../api';
 
 interface IProps {
@@ -104,8 +105,20 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
 
   isShowMaskingAddRule = false
 
+  isAllowed = false
+
   get spaceUid() {
     return this.$store.state.spaceUid;
+  }
+
+  get authorityData() {
+    return {
+      action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
+      resources: [{
+        type: 'space',
+        id: this.spaceUid,
+      }],
+    };
   }
 
   @Watch('selectList.length')
@@ -153,7 +166,16 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     return this.tableList.find(item => this.syncSelectRuleID === item.id);
   }
 
-  handleAddNewRule() {
+  async handleAddNewRule() {
+    if (!this.isAllowed) {
+      try {
+        const res = await this.$store.dispatch('getApplyData', this.authorityData);
+        this.$store.commit('updateAuthDialogData', res.data);
+      } catch (err) {
+        console.warn(err);
+      }
+      return;
+    }
     this.isShowMaskingAddRule = true;
   }
 
@@ -194,6 +216,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       this.tableLoading = true;
       let params = {}; // 如果要获取全局列表 params为空 不传业务id
       params = { space_uid: this.spaceUid, is_public: this.isPublicList }; // 非全局列表 传业务id
+      const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
+      this.isAllowed = authorityRes.isAllowed;
       const res = await $http.request('masking/getMaskingRuleList', {
         params,
       });
@@ -396,7 +420,13 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         <Alert type="info" class="top-alert">
           <div slot="title">
             <i18n class="alert-box" path="系统已置顶匹配规则，您也可选择其他规则。若无所需脱敏规则，可直接 {0}">
-              <Button style="margin-left: 4px;" text onClick={() => this.handleAddNewRule()}>{this.$t('新建规则')}</Button>
+              <Button
+                text
+                style="margin-left: 4px;"
+                v-cursor={{ active: !this.isAllowed }}
+                onClick={() => this.handleAddNewRule()}>
+                {this.$t('新建规则')}
+              </Button>
             </i18n>
           </div>
         </Alert>
@@ -446,7 +476,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('脱敏规则')}
+            label={this.$t('脱敏算子')}
             key={'masking_result'}
             scopedSlots={maskingRulesSlot}
           ></TableColumn>

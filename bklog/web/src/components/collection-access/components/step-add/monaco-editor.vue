@@ -141,6 +141,10 @@ export default {
       type: Boolean,
       default: true,
     },
+    monacoConfig: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -226,6 +230,7 @@ export default {
           fontSize: this.fontSize,
           cursorBlinking: 'solid',
           automaticLayout: true,
+          ...this.monacoConfig,
         },
         this.options,
       );
@@ -262,6 +267,7 @@ export default {
       this.editor.onMouseMove(event => this.$emit('mouseMove', event));
       this.editor.onMouseUp(event => this.$emit('mouseUp', event));
       this.isShowProblem && (this.markerChange(monaco));
+      this.editor.focus();
     },
 
     exitFullScreen() {
@@ -407,12 +413,14 @@ export default {
 }
 
 .light-problems {
-  background: #FAFBFD;
+  background: #fafbfd;
+
   .problem {
     color: #212121;
+
     &:hover {
       color: #313238;
-      background: #F0F1F5;
+      background: #f0f1f5;
     }
   }
 }

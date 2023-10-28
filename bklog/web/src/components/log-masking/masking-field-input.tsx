@@ -62,7 +62,7 @@ export default class MaskingFieldInput extends tsc<{}> {
     catchJsonStr: '',
     isJsonError: false,
     name: '0',
-    label: window.mainComponent.$t('日志采样'),
+    label: `${window.mainComponent.$t('日志采样')}1`,
   }];
   /** 是否展示无法同步规则tips */
   isShowCannotCreateRuleTips = false
@@ -70,6 +70,20 @@ export default class MaskingFieldInput extends tsc<{}> {
   isJSONStrError = false
   /** 日志查询loading */
   inputLoading = false
+  /** monaco输入框配置 */
+  monacoConfig = {
+    cursorBlinking: 'blink',
+    acceptSuggestionOnEnter: 'off',
+    acceptSuggestionOnCommitCharacter: false, // 是否提示输入
+    overviewRulerBorder: false, // 是否应围绕概览标尺绘制边框
+    selectOnLineNumbers: false, //
+    renderLineHighlight: 'none', // 当前行高亮方式
+    lineNumbers: 'off', // 左侧是否展示行
+    // scrollBeyondLastLine: true,
+    minimap: {
+      enabled: false, // 是否启用预览图
+    },
+  }
   /** 当前活跃的日志采样的元素 */
   get activeJsonValue() {
     return this.jsonValueList[this.activeTab];
@@ -115,6 +129,9 @@ export default class MaskingFieldInput extends tsc<{}> {
         const index = Number(this.activeTab);
         // 编辑器当前的第一个日志
         this.activeJsonValue.jsonStr = JSON.stringify(this.catchJsonList[index] ?? '', null, 4);
+        // 有数据 全都一次性展示出来
+        this.addPanel(false);
+        this.addPanel(false);
       };
       this.handleBlurConfigInput(isPreview);
     } catch (err) {
@@ -148,7 +165,7 @@ export default class MaskingFieldInput extends tsc<{}> {
     this.activeTab = val;
   }
   /** 添加采样 */
-  addPanel() {
+  addPanel(isQuery = true) {
     const id = this.jsonValueList.length;
     const catchStrValue = JSON.stringify(this.catchJsonList[id] ?? {}, null, 4);
     this.jsonValueList.push({
@@ -157,10 +174,12 @@ export default class MaskingFieldInput extends tsc<{}> {
       catchJsonStr: '',
       name: String(id),
       isJsonError: false,
-      label: `${this.$t('日志采样')}${id}`,
+      label: `${this.$t('日志采样')}${id + 1}`,
     });
-    this.activeTab = String(id);
-    this.handleBlurInput();
+    if (isQuery) {
+      this.activeTab = String(id);
+      this.handleBlurInput();
+    }
   }
   /** 删除采样 */
   closePanel(index: number) {
@@ -173,10 +192,9 @@ export default class MaskingFieldInput extends tsc<{}> {
     this.jsonValueList.splice(index, 1);
     // 更新日志采样名
     this.jsonValueList.forEach((item, index) => {
-      const id = index;
-      item.id = id;
-      item.name = String(id);
-      item.label = `${this.$t('日志采样')}${id ? id : ''}`;
+      item.id = index;
+      item.name = String(index);
+      item.label = `${this.$t('日志采样')}${index + 1}`;
     });
     this.handleBlurInput();
   }
@@ -206,7 +224,7 @@ export default class MaskingFieldInput extends tsc<{}> {
   }
   dragMoving(e) {
     const newTreeBoxHeight = this.currentTreeBoxHeight + e.screenY - this.currentScreenY;
-    if (newTreeBoxHeight <= this.collectMinHeight) {
+    if (newTreeBoxHeight < this.collectMinHeight) {
       this.collectHeight = this.collectMinHeight;
       this.dragStop();
     } else if (newTreeBoxHeight >= this.collectMaxHeight) {
@@ -246,8 +264,8 @@ export default class MaskingFieldInput extends tsc<{}> {
               <i class="icon bk-icon icon-right-turn-line"></i>
               <span class="text">{this.$t('刷新')}</span>
             </div>
-            <div slot="add" onClick={this.addPanel}>
-              <div class="text-btn">
+            <div slot="add" onClick={() => this.addPanel()}>
+              <div style="margin-left: 10px;" class="text-btn">
                 <i class="icon bk-icon icon-plus push"></i>
                 <span class="text">{this.$t('新增采样')}</span>
               </div>
@@ -266,6 +284,7 @@ export default class MaskingFieldInput extends tsc<{}> {
                 language="json"
                 height={this.collectHeight}
                 font-size={14}
+                monaco-config={this.monacoConfig}
                 on-get-problem-state={(err: boolean) => this.activeJsonValue.isJsonError = err}
                 on-blur={() => this.handleBlurConfigInput()}>
               </MonacoEditor>
@@ -290,6 +309,7 @@ export default class MaskingFieldInput extends tsc<{}> {
             this.isJSONStrError && <span>{this.$t('当前日志不符合JSON格式，请确认后重试')}</span>
           }
         </div>
+        {this.$slots.default}
       </div>
     );
   }
