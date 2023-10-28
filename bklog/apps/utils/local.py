@@ -80,6 +80,14 @@ def get_request_username(default="admin"):
     return username
 
 
+def get_local_username():
+    """从local对象中获取用户信息（celery）"""
+    for user_key in ["bk_username", "username", "operator"]:
+        username = getattr(local, user_key, None)
+        if username is not None:
+            return username
+
+
 def set_request_username(username):
     set_local_param("request.username", username)
 
