@@ -17,7 +17,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
-from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+from bkmonitor.utils.cipher import transform_data_id_to_v1_token, transform_data_id_to_token
 from bkmonitor.utils.model_manager import AbstractRecordModel
 
 
@@ -127,8 +127,8 @@ class ApmApplication(AbstractRecordModel):
         }
         if self.profile_datasource:
             params["profile_data_id"] = self.profile_datasource.bk_data_id
-
-        return transform_data_id_to_v1_token(**params)
+            return transform_data_id_to_v1_token(**params)
+        return transform_data_id_to_token(**params)
 
 
 class RootEndpoint(models.Model):
