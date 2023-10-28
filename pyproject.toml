@@ -19,7 +19,7 @@ exclude = '''
 
 [tool.isort]
 profile = "black"
-src_paths = ["bkmonitor", "bklog", "bkmonitor/package"]
+src_paths = ["bkmonitor", "bklog", "bkmonitor/packages"]
 known_third_party = ['Crypto', 'PIL', 'apscheduler', 'arrow', 'babel', 'beanstalkc', 'celery',
     'chain_relative_strategy', 'consul', 'coreapi', 'coreschema', 'croniter', 'django',
     'django_apscheduler', 'django_filters', 'dns', 'elasticsearch5', 'fakeredis', 'furl',
