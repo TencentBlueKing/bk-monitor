@@ -25,11 +25,12 @@
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop } from 'vue-property-decorator';
 import $http from '../../api';
-import create from '@blueking/ip-selector/dist/vue2.6.x';
+import create from '@blueking/ip-selector/dist/index.esm';
 import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 import { VNode } from 'vue';
 const BkIpSelector = create({
-  version: '1',
+  version: '3',
+  serviceConfigError: false,
 });
 export type CommomParams = Record<string, any>;
 export type IObjectType = 'HOST' | 'SERVICE';
@@ -618,7 +619,6 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     };
   }
   change(value: Record<string, INode[]>) {
-    console.log('change---------', value);
     this.$emit('change', value);
   }
   closeDialog() {
