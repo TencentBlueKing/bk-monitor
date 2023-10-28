@@ -19,14 +19,15 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from monitor.models import GlobalConfig
-from monitor_web.grafana.utils import patch_home_panels
 
+from bk_dataview.api import get_or_create_org
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkmonitor.models.external_iam import ExternalPermission
 from core.drf_resource import api
+from monitor.models import GlobalConfig
+from monitor_web.grafana.utils import patch_home_panels
 
-__all__ = ["ProxyView", "StaticView", "SwitchOrgView"]
+__all__ = ["ProxyView", "StaticView", "SwitchOrgView", "RedirectDashboardView"]
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class RedirectDashboardView(ProxyView):
             raise Http404
 
         request.org_name = org_name
+        self.org = get_or_create_org(org_name)
         try:
             self.initial(request, *args, **kwargs)
         except Exception as err:
