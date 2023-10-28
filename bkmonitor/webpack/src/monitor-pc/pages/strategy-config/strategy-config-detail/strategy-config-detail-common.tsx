@@ -1004,6 +1004,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                           <div class='step-wrap'>
                             <Input
                               class='step-input'
+                              type='number'
+                              min={10}
                               value={this.sourceData.step}
                               disabled
                             >

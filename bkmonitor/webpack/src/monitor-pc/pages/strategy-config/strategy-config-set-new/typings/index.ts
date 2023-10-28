@@ -149,7 +149,7 @@ export class MetricDetail {
   agg_interval_list = INTERVAL_LIST;
   level = 1;
   agg_dimension: string[] = [];
-  agg_condition = [];
+  _agg_condition = [];
   functions = [];
   objectType = '';
   targetType = '';
@@ -235,6 +235,34 @@ export class MetricDetail {
     }
     /* 随机key, 无实际含义 */
     this.key = random(8);
+  }
+  get agg_condition() {
+    return this._agg_condition;
+  }
+  set agg_condition(v) {
+    if (
+      v?.length &&
+      this.rawDimensions?.some(item => item?.type === 'number' && v?.some(set => set?.key === item?.id))
+    ) {
+      const conditions =
+        v?.map(condition => {
+          const dimension = this.rawDimensions?.find(dim => dim.id === condition.key);
+          if (dimension?.type === 'number' && Array.isArray(condition.value)) {
+            return {
+              ...condition,
+              value: condition.value.map(num => {
+                return isNaN(num) || num === '' ? num : Number(num);
+              })
+            };
+          }
+          return condition;
+        }) ||
+        v ||
+        [];
+      this._agg_condition = conditions;
+      return;
+    }
+    this._agg_condition = v;
   }
   get metricMetaId() {
     return `${this.data_source_label}|${this.data_type_label}`;
