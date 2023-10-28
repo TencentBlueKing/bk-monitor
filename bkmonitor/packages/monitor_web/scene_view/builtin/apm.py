@@ -34,11 +34,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_application-overview",
         "apm_application-service",
         "apm_application-topo",
-        "apm_service-component-default-endpoint",
         "apm_service-component-default-error",
         "apm_service-component-default-instance",
         "apm_service-component-default-overview",
         "apm_service-component-default-topo",
+        "apm_service-component-default-db",
         "apm_service-service-default-endpoint",
         "apm_service-service-default-error",
         "apm_service-service-default-host",
@@ -46,6 +46,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-log",
         "apm_service-service-default-overview",
         "apm_service-service-default-topo",
+        "apm_service-service-default-db",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
         "apm_trace-host",
@@ -59,6 +60,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-instance",
         "service-default-log",
         "service-default-topo",
+        "service-default-db",
     ]
 
     APM_TRACE_PREFIX = "apm_trace"
@@ -276,14 +278,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "error"]},
+                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error"]},
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "endpoint", "error", "instance", "host", "log"]},
+                defaults={"config": ["overview", "topo", "endpoint", "db", "error", "instance", "host", "log"]},
             )
 
     @classmethod
