@@ -126,7 +126,7 @@ class TestUserOperationRecord(TestCase):
     @patch("apps.decorators.user_operation_record.delay", user_operation_record_delay)
     @patch("apps.api.TransferApi.create_cluster_info", lambda _: 1)
     @patch("apps.log_databus.handlers.storage.Permission", PermissionTest)
-    @patch("apps.log_databus.handlers.storage.get_request_username", lambda: "admin")
+    @patch("apps.log_databus.handlers.storage.get_request_username", lambda *args, **kwargs: "admin")
     def test_create_storage(self):
         StorageHandler().create(params=CREATE_STORAGE_PARAMS)
 
@@ -137,7 +137,7 @@ class TestUserOperationRecord(TestCase):
         connectivity_detect_test,
     )
     @patch("apps.api.TransferApi.modify_cluster_info", lambda _: {"auth_info": {"password": ""}})
-    @patch("apps.log_databus.handlers.storage.get_request_username", lambda: "admin")
+    @patch("apps.log_databus.handlers.storage.get_request_username", lambda *args, **kwargs: "admin")
     def test_update_storage(self):
         StorageHandler(cluster_id=1).update(params=UPDATE_STORAGE_PARAMS)
 
@@ -146,7 +146,7 @@ class TestUserOperationRecord(TestCase):
 
     @patch("apps.decorators.user_operation_record.delay", user_operation_record_delay)
     @patch("apps.log_extract.handlers.strategies.MetaHandler", MetaHandlerTest)
-    @patch("apps.log_audit.handlers.auth.get_request_username", lambda: "admin")
+    @patch("apps.log_audit.handlers.auth.get_request_username", lambda *args, **kwargs: "admin")
     def test_log_extract_strategy(self):
         StrategiesHandler().update_or_create(
             "test_1",
@@ -224,7 +224,7 @@ class TestUserOperationRecord(TestCase):
     @patch("apps.log_search.handlers.index_set.BkDataIndexSetHandler.post_create", lambda _, b: {})
     @patch("apps.log_search.handlers.index_set.BkDataIndexSetHandler.pre_update", lambda _: {})
     @patch("apps.log_search.handlers.index_set.BkDataIndexSetHandler.post_update", lambda _, b: {})
-    @patch("apps.log_search.handlers.index_set.get_request_username", lambda: "admin")
+    @patch("apps.log_search.handlers.index_set.get_request_username", lambda *args, **kwargs: "admin")
     def test_replace_index_set(self):
         IndexSetHandler.replace(
             index_set_name="test_1",

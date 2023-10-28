@@ -43,7 +43,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 35,
         "w": 24,
         "h": 18
       },
@@ -516,13 +516,14 @@
     },
     {
       "id": 5,
-      "title": "请求统计",
+      "title": "URI请求统计",
       "type": "table-chart",
       "targets": [
         {
           "data": {
             "app_name": "$app_name",
             "filter_params": {
+              "attributes.http.method": ["POST", "GET", "PUT", "PATCH", "DELETE"],
               "resource.service.name": "$service_name",
               "resource.bk.instance.id": "$bk_instance_id"
             }
@@ -535,13 +536,14 @@
         "x": 0,
         "y": 18,
         "w": 24,
-        "h": 10
+        "h": 17
       },
       "options": {
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": false,
-          "query_update_url": true
+          "query_update_url": true,
+          "need_title": true
         }
       }
     }
@@ -567,7 +569,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 35,
         "w": 24,
         "h": 18
       },
@@ -1069,7 +1071,7 @@
         "x": 0,
         "y": 18,
         "w": 24,
-        "h": 10
+        "h": 17
       },
       "options": {
         "table_chart": {
@@ -1107,7 +1109,8 @@
           "api": "apm_metric.endpointList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name"
+            "service_name": "$service_name",
+            "filter": "http"
           },
           "fields": {
             "endpoint_name": "endpoint_name",
