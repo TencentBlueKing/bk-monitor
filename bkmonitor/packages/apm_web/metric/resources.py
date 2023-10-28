@@ -132,7 +132,7 @@ class DynamicUnifyQueryResource(Resource):
         service_name = serializers.CharField(label="服务名称")
         category = serializers.CharField(label="分类")
         kind = serializers.CharField(label="类型")
-        predicate_value = serializers.CharField(label="具体值")
+        predicate_value = serializers.CharField(label="具体值", allow_blank=True)
         unify_query_param = serializers.DictField(label="unify-query参数")
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -179,9 +179,10 @@ class DynamicUnifyQueryResource(Resource):
             else:
                 # 没有组件实例时 单独添加组件类型的条件
                 where = component_where_mapping[validate_data["category"]]
-                config["where"].append(
-                    json.loads(json.dumps(where).replace("{predicate_value}", validate_data["predicate_value"]))
-                )
+                if validate_data.get("predicate_value"):
+                    config["where"].append(
+                        json.loads(json.dumps(where).replace("{predicate_value}", validate_data["predicate_value"]))
+                    )
 
         # 替换service名称
         unify_query_params = json.loads(
@@ -540,6 +541,7 @@ class InstanceListResource(Resource):
         service_name = serializers.CharField(label="服务名称", required=False, allow_blank=True)
         keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
         service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
+        category = serializers.ListField(label="分类", required=False, default=[])
 
     def perform_request(self, validated_request_data):
         query_dict = {"bk_biz_id": validated_request_data["bk_biz_id"], "app_name": validated_request_data["app_name"]}
@@ -558,6 +560,11 @@ class InstanceListResource(Resource):
                 "instance_topo_kind": TopoNodeKind.COMPONENT,
                 "component_instance_category": service_params["category"],
                 "component_instance_predicate_value": service_params["predicate_value"],
+            }
+        elif validated_request_data.get("category"):
+            query_dict["filters"] = {
+                "component_instance_category__in": validated_request_data.get("category"),
+                "instance_topo_kind": TopoNodeKind.COMPONENT,
             }
         else:
             query_dict["filters"] = {"instance_topo_kind": TopoNodeKind.SERVICE}

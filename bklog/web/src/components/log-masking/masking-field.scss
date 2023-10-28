@@ -43,7 +43,12 @@
 .masking-field {
   .item-container {
     width: 100%;
-    margin-bottom: 18px;
+    // margin-bottom: 18px;
+  }
+
+  .fix-content {
+    margin-top: 18px;
+    padding-bottom: 6px;
   }
 
   .item-title {

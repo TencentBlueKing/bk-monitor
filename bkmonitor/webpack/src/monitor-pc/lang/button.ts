@@ -418,5 +418,9 @@ export default {
   新增群组: 'Add Group',
   新增屏蔽: 'Add Alarm Shield',
   物理主机: 'Static Host',
-  CMDB拓扑: 'CMDB TOPO'
+  CMDB拓扑: 'CMDB TOPO',
+  原始命令: 'Original Command',
+  无参数命令: 'Command Without Parameters',
+  不储存: 'Do Not Save',
+  指定DB: 'Specify DB'
 };

@@ -47,6 +47,7 @@
   // }
   .sync-rule-box {
     margin-top: 24px;
+    padding-bottom: 16px;
     align-items: center;
 
     @include flex-justify(start);
@@ -72,7 +73,7 @@
     z-index: 999;
     width: 100%;
     height: 14px;
-    bottom: 37px;
+    bottom: 53px;
     cursor: row-resize;
 
     &::after {

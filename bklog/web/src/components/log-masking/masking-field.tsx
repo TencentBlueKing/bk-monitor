@@ -218,7 +218,7 @@ export default class MaskingField extends tsc<IProps> {
     newRule: window.mainComponent.$t('现规则'),
     match_fields: window.mainComponent.$t('匹配字段'),
     match_pattern: window.mainComponent.$t('匹配正则'),
-    masking_rule: window.mainComponent.$t('脱敏规则'),
+    masking_rule: window.mainComponent.$t('脱敏算子'),
   }
 
   /** json列表 */
@@ -519,7 +519,7 @@ export default class MaskingField extends tsc<IProps> {
                       <span>${rItem.match_pattern || '-'}</span>
                     </div>
                     <div class="tag-value">
-                      <span>${this.$t('脱敏规则')}: </span>
+                      <span>${this.$t('脱敏算子')}: </span>
                       <span>${rItem.masking_rule || '-'}</span>
                     </div>
                   </div>`,
@@ -1417,7 +1417,7 @@ export default class MaskingField extends tsc<IProps> {
             ></TableColumn>
 
             <TableColumn
-              label={(this.$t('label-脱敏规则') as String).replace('label-', '')}
+              label={(this.$t('label-脱敏算子') as String).replace('label-', '')}
               key={'match_method'}
               render-header={this.renderHeaderRule}
               scopedSlots={maskingRuleSlot}
