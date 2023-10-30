@@ -18,6 +18,7 @@ from common.log import logger
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.time_tools import strftime_local
 from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from core.drf_resource import api
@@ -35,8 +36,13 @@ def build_event_body(app: Application, bk_biz_id: int):
     event_body_map["target"] = get_local_ip()
     event_body_map["timestamp"] = int(round(time.time() * 1000))
     event_body_map["dimension"] = {"bk_biz_id": bk_biz_id, "bk_biz_name": bk_biz_name}
-    content = _("有新APM应用创建，请关注！应用名称：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}").format(
-        app.app_name, bk_biz_id, bk_biz_name, app.create_user, app.create_time
+    content = _("有新APM应用创建，请关注！应用名称：{}, 应用别名：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}").format(
+        app.app_name,
+        app.app_alias,
+        bk_biz_id,
+        bk_biz_name,
+        app.create_user,
+        strftime_local(app.create_time)
     )
     event_body_map["event"] = {"content": content}
     return [event_body_map]
