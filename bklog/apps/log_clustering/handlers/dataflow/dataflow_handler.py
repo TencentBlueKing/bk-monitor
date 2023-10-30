@@ -1650,7 +1650,9 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.predict_flow_id = result["flow_id"]
         # 聚类预测节点的输出 RT
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
-        clustering_config.clustered_rt = predict_flow_dict["rename_signature"]["result_table_id"]
+        # 聚类数据链路旁路化改造   计算平台:填充聚类结果表   采集项:暂不填充
+        if not clustering_config.collector_config_id:
+            clustering_config.clustered_rt = predict_flow_dict["rename_signature"]["result_table_id"]
         clustering_config.save()
 
         # 添加日志数量聚类 flow数据回流节点

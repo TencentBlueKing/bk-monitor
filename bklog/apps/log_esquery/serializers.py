@@ -27,6 +27,7 @@ from apps.log_esquery.exceptions import (
     BaseSearchIndexSetException,
     BaseSearchIndexSetIdTimeFieldException,
 )
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import SCROLL
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.cache import cache_one_minute
@@ -102,7 +103,7 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
         if index_set_id:
-            index_info = _get_index_info(index_set_id)
+            index_info = _get_index_info(index_set_id, attrs)
             indices = index_info["indices"]
             scenario_id = index_info["scenario_id"]
             storage_cluster_id = index_info["storage_cluster_id"]
@@ -350,7 +351,7 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
         if index_set_id:
-            index_info = _get_index_info(index_set_id)
+            index_info = _get_index_info(index_set_id, attrs)
             indices = index_info["indices"]
             scenario_id = index_info["scenario_id"]
             storage_cluster_id = index_info["storage_cluster_id"]
@@ -367,12 +368,12 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
         return attrs
 
 
-def _get_index_info(index_set_id):
-    return _init_index_info(index_set_id=index_set_id)
+def _get_index_info(index_set_id, attrs):
+    return _init_index_info(index_set_id=index_set_id, attrs=attrs)
 
 
 @cache_one_minute("esquery_index_set_info_{index_set_id}")
-def _init_index_info(*, index_set_id):
+def _init_index_info(*, index_set_id, attrs):
     tmp_index_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
     if tmp_index_obj:
         scenario_id = tmp_index_obj.scenario_id
@@ -394,6 +395,15 @@ def _init_index_info(*, index_set_id):
                     )
             else:
                 time_field = "dtEventTimeStamp"
+
+            # 过滤的字段获取 field进行判断
+            _filter: list = attrs.get("filter", [])
+            for __filter in _filter:
+                field: str = __filter.get("key", "") if __filter.get("key", "") else __filter.get("field", "")
+                if field.startswith("__dist"):
+                    clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+                    if clustering_config and clustering_config.clustered_rt:
+                        indices = clustering_config.clustered_rt
             return {
                 "indices": indices,
                 "scenario_id": scenario_id,

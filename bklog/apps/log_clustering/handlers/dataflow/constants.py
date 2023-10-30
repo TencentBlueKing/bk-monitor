@@ -23,6 +23,8 @@ from apps.api import BkDataDataFlowApi
 from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext as _
 
+from apps.log_search.constants import OPERATORS
+
 DEFAULT_TIME_FIELD = "timestamp"
 DEFAULT_CLUSTERING_FIELD = "log"
 NOT_CLUSTERING_FILTER_RULE = " where ip is null"
@@ -123,42 +125,6 @@ class RealTimePredictFlowNode(object):
     PREDICT_NODE = "clustering_output"
 
 
-field_operators = [
-    {
-      "operator": "=",
-      "label": "=",
-      "placeholder": "请选择或直接输入，逗号分隔",
-      "wildcard_operator": "=~"
-    },
-    {
-      "operator": "!=",
-      "label": "!=",
-      "placeholder": "请选择或直接输入，逗号分隔",
-      "wildcard_operator": "!=~"
-    },
-    {
-      "operator": "exists",
-      "label": "存在",
-      "placeholder": "确认字段已存在"
-    },
-    {
-      "operator": "does not exists",
-      "label": "不存在",
-      "placeholder": "确认字段不存在"
-    },
-    {
-      "operator": "contains",
-      "label": "包含",
-      "placeholder": "请选择或直接输入，逗号分隔"
-    },
-    {
-      "operator": "not contains",
-      "label": "不包含",
-      "placeholder": "请选择或直接输入，逗号分隔"
-    }
-]
-
-
 def get_pattern_fields(field_name):
     result = {
       "field_type": "keyword",
@@ -169,14 +135,27 @@ def get_pattern_fields(field_name):
       "tag": "dimension",
       "es_doc_values": True,
       "is_analyzed": False,
-      "field_operator": field_operators,
+      "field_operator": OPERATORS.get("keyword", []),
       "description": None
     }
     return result
 
 
 # 查询字段   __dist_xx
-PATTERN_SEARCH_FIELDS = [get_pattern_fields(field_name) for field_name in RENAME_DIST_FIELDS]
+PATTERN_SEARCH_FIELDS = [
+    {
+      "field_type": "keyword",
+      "field_name": field_name,
+      "field_alias": "",
+      "is_display": False,
+      "is_editable": True,
+      "tag": "dimension",
+      "es_doc_values": True,
+      "is_analyzed": False,
+      "field_operator": OPERATORS.get("keyword", []),
+      "description": None
+    } for field_name in RENAME_DIST_FIELDS
+]
 
 
 DEFAULT_MODEL_INPUT_FIELDS = [
