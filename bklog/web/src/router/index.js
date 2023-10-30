@@ -779,7 +779,12 @@ const cancelRequest = async () => {
 
 router.beforeEach(async (to, from, next) => {
   await cancelRequest();
-  next();
+  if (isExternal && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)) {
+    // 非外部版路由重定向
+    next({ name: 'retrieve' });
+  } else {
+    next();
+  }
 });
 
 export default router;
