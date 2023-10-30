@@ -1349,7 +1349,7 @@ class SearchHandler(object):
         for hit in result_dict["hits"]["hits"]:
             log = hit["_source"]
             # 脱敏处理
-            if (self.field_configs or self.text_fields) and self.search_dict.get("is_desensitize", True):
+            if (self.field_configs or self.text_fields_field_configs) and self.search_dict.get("is_desensitize", True):
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
             if self.export_fields:
