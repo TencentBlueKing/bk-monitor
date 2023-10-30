@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
 
@@ -51,6 +51,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   @Prop({ type: Array, required: true }) data: LinkStatusChartProps['data'];
   @Prop({ type: String, default: 'minute' }) type: LinkStatusChartProps['type'];
   @Prop({ type: Array, default: () => [...DEFAULT_TIME_RANGE] }) timeRange: LinkStatusChartProps['timeRange'];
+
+  @Ref('baseChartRef') baseChart;
 
   defaultOption = Object.freeze<echarts.EChartOption>({
     legend: {
@@ -157,6 +159,10 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     ];
   }
 
+  chartResize() {
+    return this.baseChart.resize();
+  }
+
   @Emit('timeRangeChange')
   handleTimeRange(val: LinkStatusChartProps['timeRange']) {
     return val;
@@ -187,7 +193,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
         {this.data.length ? (
           <div class='chart-wrapper'>
             <BaseEchart
-              ref='baseChart'
+              ref='baseChartRef'
               height={200}
               options={this.options}
             />

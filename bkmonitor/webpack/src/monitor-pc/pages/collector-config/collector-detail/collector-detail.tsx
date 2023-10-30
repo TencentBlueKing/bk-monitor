@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 import { TabPanel } from 'bk-magic-vue';
@@ -38,14 +38,12 @@ import './collector-detail.scss';
 Component.registerHooks(['beforeRouteEnter']);
 @Component
 export default class CollectorDetail extends tsc<{}> {
-  @Prop() a: number;
+  active = TabEnum.StorageState;
+  collectId = 0;
 
-  collectId: number;
-  active = TabEnum.DataLink;
-
-  public beforeRouteEnter(to: Route, from: Route, next: Function) {
+  beforeRouteEnter(to: Route, from: Route, next: Function) {
     const { params } = to;
-    next(async (vm: CollectorDetail) => {
+    next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
     });
   }
@@ -53,17 +51,23 @@ export default class CollectorDetail extends tsc<{}> {
   render() {
     return (
       <div class='collector-detail-page'>
-        <MonitorTab>
+        <MonitorTab
+          active={this.active}
+          {...{ on: { 'update:active': v => (this.active = v) } }}
+        >
           <TabPanel
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}
           >
-            <LinkStatus id={this.collectId} />
+            <LinkStatus
+              show={this.active === TabEnum.DataLink}
+              collectId={this.collectId}
+            />
           </TabPanel>
           <TabPanel
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
-          />
+          ></TabPanel>
         </MonitorTab>
       </div>
     );

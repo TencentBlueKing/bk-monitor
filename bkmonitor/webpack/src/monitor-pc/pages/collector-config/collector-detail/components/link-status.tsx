@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Divider, Sideslider, Table, TableColumn } from 'bk-magic-vue';
 
@@ -39,7 +39,8 @@ import LinkStatusChart from './link-status-chart';
 import './link-status.scss';
 
 interface LinkStatusProps {
-  id: number;
+  show: boolean;
+  collectId: number;
 }
 
 interface ChartConfigModel {
@@ -49,7 +50,11 @@ interface ChartConfigModel {
 
 @Component
 export default class LinkStatus extends tsc<LinkStatusProps, {}> {
-  @Prop({ type: Number, required: true }) id: number;
+  @Prop({ type: Number, required: true }) collectId: number;
+  @Prop({ type: Boolean, required: false }) show: boolean;
+
+  @Ref('minuteChartRef') minuteChart: LinkStatusChart;
+  @Ref('dayChartRef') dayChart: LinkStatusChart;
 
   minuteChartConfig: ChartConfigModel = {
     timeRange: ['now-1h', 'now'],
@@ -70,6 +75,21 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     title: ''
   };
 
+  @Watch('show')
+  handleShowChange(val) {
+    if (val) {
+      this.$nextTick(() => {
+        this.minuteChart.chartResize();
+        this.dayChart.chartResize();
+      });
+    }
+  }
+
+  @Watch('collectId')
+  handleCollectIdChange() {
+    this.init();
+  }
+
   handleTimeRange(val, type: 'minute' | 'day') {
     if (type === 'minute') {
       this.minuteChartConfig.timeRange = val;
@@ -84,7 +104,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
       type === 'minute' ? this.minuteChartConfig.timeRange : this.dayChartConfig.timeRange
     );
     const res = await transferCountSeries({
-      collect_config_id: this.id,
+      collect_config_id: this.collectId,
       interval_option: type,
       start_time: startTime * 1000,
       end_time: endTime * 1000
@@ -118,7 +138,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   async getTableData() {
     this.tableLoading = true;
     const res = await transferLatestMsg({
-      collect_config_id: this.id
+      collect_config_id: this.collectId
     }).catch(() => []);
     this.tableList = res;
     this.tableLoading = false;
@@ -142,7 +162,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     });
   }
 
-  mounted() {
+  init() {
     this.getChartData('minute');
     this.getChartData('day');
     this.getTableData();
@@ -155,6 +175,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
         <div class='chart-panel'>
           <div class='chart-container'>
             <LinkStatusChart
+              ref='minuteChartRef'
               type='minute'
               timeRange={this.minuteChartConfig.timeRange}
               data={this.minuteChartConfig.data}
@@ -164,6 +185,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
           </div>
           <div class='chart-container'>
             <LinkStatusChart
+              ref='dayChartRef'
               type='day'
               timeRange={this.dayChartConfig.timeRange}
               data={this.dayChartConfig.data}
@@ -184,10 +206,9 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
           <div class='table-content'>
             <Table
-              class='cluster-table'
+              class='data-sample-table'
               data={this.tableList}
               v-bkloading={{ isLoading: this.tableLoading }}
-              max-height='254'
             >
               <TableColumn
                 type='index'
