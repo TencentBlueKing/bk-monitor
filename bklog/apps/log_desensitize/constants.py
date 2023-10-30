@@ -73,3 +73,15 @@ class DesensitizeRuleStateEnum(ChoicesEnum):
         (DELETE, _("删除")),
         (NORMAL, _("正常")),
     )
+
+
+class DesensitizeRuleTypeEnum(ChoicesEnum):
+    PUBLIC = "public"
+    SPACE = "space"
+    ALL = "all"
+
+    _choices_labels = (
+        (PUBLIC, _("全局下规则")),
+        (SPACE, _("业务下规则")),
+        (ALL, _("全部")),
+    )
