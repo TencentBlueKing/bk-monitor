@@ -183,7 +183,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   }
   // 监控条件改变
   @Emit('condition-change')
-  handleConditionChange(item: MetricDetail, v: any) {
+  handleConditionChange(item: MetricDetail, v: any[]) {
     item.agg_condition = v;
   }
 
