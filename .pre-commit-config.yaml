@@ -52,7 +52,7 @@ repos:
       # 执行 preci 流水线
       - id: check-pre-ci-pipeline
         name: check pre ci pipeline
-        entry: scripts/pre_commit/preci/run.sh
+        entry: scripts/pre_commit/preci-push.sh
         language: system
         stages: [ pre-push ]
         verbose: true
