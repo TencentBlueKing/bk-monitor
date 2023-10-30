@@ -16,8 +16,13 @@ from apps.constants import (
     TokenStatusEnum,
     ViewTypeEnum,
 )
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.models import FeatureToggle
-from apps.feature_toggle.plugins.constants import EXTERNAL_AUTHORIZER_MAP
+from apps.feature_toggle.plugins.constants import (
+    EXTERNAL_AUTHORIZER_MAP,
+    FEATURE_COLLECTOR_ITSM,
+    ITSM_SERVICE_ID,
+)
 from apps.iam import Permission
 from apps.iam.handlers.actions import get_action_by_id
 from apps.log_commons.cc import get_maintainers
@@ -216,8 +221,13 @@ class ExternalPermission(OperateRecordModel):
         """
         space_info = {i.space_uid: i for i in SpaceApi.list_spaces()}
         bk_biz_name = space_info[params["space_uid"]].space_name
+        username = get_request_username() or get_local_username()
         ticket_data = {
-            "creator": get_request_username() or get_local_username(),
+            "creator": username,
+            # operator和creator保持一致
+            "operator": username,
+            # 这里是因为需要使用admin创建单据，方能越过创建单据的权限限制
+            "bk_username": "admin",
             "fields": [
                 {"key": "space_uid", "value": params["space_uid"]},
                 {"key": "bk_biz_name", "value": bk_biz_name},
@@ -226,7 +236,9 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
                 {"key": "resources", "value": cls.join_resources(params["resources"])},
             ],
-            "service_id": settings.EXTERNAL_APPROVAL_SERVICE_ID,
+            "service_id": FeatureToggleObject.toggle(FEATURE_COLLECTOR_ITSM).feature_config.get(
+                ITSM_SERVICE_ID, settings.COLLECTOR_ITSM_SERVICE_ID
+            ),
             "fast_approval": False,
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/external_callback/")},
         }
