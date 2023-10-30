@@ -156,7 +156,7 @@ class DesensitizeRuleViesSet(ModelViewSet):
         }
         """
         data = self.params_valid(DesensitizeRuleListSerializer)
-        return Response(DesensitizeRuleHandler().list(is_public=data["is_public"], space_uid=data["space_uid"]))
+        return Response(DesensitizeRuleHandler().list(space_uid=data["space_uid"], rule_type=data["rule_type"]))
 
     def create(self, request, *args, **kwargs):
         """

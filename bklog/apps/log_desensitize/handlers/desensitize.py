@@ -28,7 +28,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from apps.exceptions import ValidationError
 from apps.log_databus.models import CollectorConfig
-from apps.log_desensitize.constants import ScenarioEnum
+from apps.log_desensitize.constants import ScenarioEnum, DesensitizeRuleTypeEnum
 from apps.log_desensitize.exceptions import (
     DesensitizeRuleNotExistException,
     DesensitizeRuleNameExistException,
@@ -280,12 +280,11 @@ class DesensitizeRuleHandler(object):
 
         if not self.data:
             # 创建脱敏规则
-            model_field.update(
-                {
-                    "is_public": params["is_public"],
-                    "space_uid": params.get("space_uid") or "",
-                }
-            )
+            model_field.update({"is_public": params["is_public"]})
+
+            if not params["is_public"]:
+                model_field.update({"space_uid": params.get("space_uid") or ""})
+
             obj = DesensitizeRule.objects.create(**model_field)
             return model_to_dict(obj)
         else:
@@ -293,18 +292,21 @@ class DesensitizeRuleHandler(object):
             DesensitizeRule.objects.filter(id=self.rule_id).update(**model_field)
             return {"id": self.rule_id}
 
-    def list(self, is_public: bool, space_uid: str):
+    def list(self, space_uid: str, rule_type: str):
         """
         脱敏规则列表
         """
         objs = DesensitizeRule.objects.filter().all()
 
-        if space_uid:
-            # 返回全局规则&当前业务下的规则
-            objs = objs.filter(Q(is_public=is_public) | Q(space_uid=space_uid))
+        if rule_type == DesensitizeRuleTypeEnum.PUBLIC.value:
+            # 过滤全局规则
+            objs = objs.filter(is_public=True)
+        elif rule_type == DesensitizeRuleTypeEnum.SPACE.value:
+            # 过滤当前空间业务下规则
+            objs = objs.filter(is_public=False, space_uid=space_uid)
         else:
-            # 只返回全局规则
-            objs = objs.filter(is_public=is_public)
+            # 过滤全局+当前空间业务下规则
+            objs = objs.filter(Q(is_public=True) | Q(space_uid=space_uid))
 
         if not objs:
             return []

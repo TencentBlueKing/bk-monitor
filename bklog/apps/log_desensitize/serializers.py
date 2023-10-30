@@ -26,7 +26,7 @@ from apps.exceptions import ValidationError
 from rest_framework import serializers
 from django.utils.translation import ugettext_lazy as _
 
-from apps.log_desensitize.constants import DesensitizeOperator
+from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleTypeEnum
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_search.serializers import DesensitizeConfigsSerializer
 from bkm_space.serializers import SpaceUIDField
@@ -34,12 +34,12 @@ from bkm_space.serializers import SpaceUIDField
 
 class DesensitizeRuleListSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False, allow_null=True, allow_blank=True)
-    is_public = serializers.BooleanField(label=_("是否为全局规则"), required=False, default=True)
+    rule_type = serializers.ChoiceField(label=_("规则类型"), choices=DesensitizeRuleTypeEnum.get_choices(), required=True)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        if not attrs["is_public"] and not attrs["space_uid"]:
+        if attrs["rule_type"] != DesensitizeRuleTypeEnum.PUBLIC.value and not attrs["space_uid"]:
             raise ValidationError(_("空间唯一标识不能为空"))
 
         return attrs
@@ -56,6 +56,10 @@ class DesensitizeRuleSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+
+        if attrs.get("is_public"):
+            # 全局规则不关联业务属性
+            attrs["space_uid"] = ""
 
         # 脱敏算子校验逻辑
         if not attrs.get("operator"):
