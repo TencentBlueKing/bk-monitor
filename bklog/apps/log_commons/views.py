@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from apps.generic import APIViewSet
+from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import BaseCommonsException
 from apps.log_commons.models import ExternalPermission, ExternalPermissionApplyRecord
 from apps.log_commons.serializers import (
@@ -29,6 +30,7 @@ from apps.log_commons.serializers import (
     GetAuthorizerSLZ,
     GetResourceByActionSLZ,
     ListExternalPermissionSLZ,
+    ListMaintainersSLZ,
 )
 from apps.utils.drf import list_route
 from blueapps.account.decorators import login_exempt
@@ -68,10 +70,15 @@ class ExternalPermissionViewSet(APIViewSet):
         data = self.params_valid(ListExternalPermissionSLZ)
         return Response(ExternalPermission.list(**data))
 
-    @list_route(methods=["get"], url_path="get_authorizer")
+    @list_route(methods=["get"], url_path="authorizer")
     def get_authorizer(self, request):
         data = self.params_valid(GetAuthorizerSLZ)
         return Response(ExternalPermission.get_authorizer(**data))
+
+    @list_route(methods=["get"], url_path="maintainer")
+    def list_maintainers(self, request):
+        data = self.params_valid(ListMaintainersSLZ)
+        return Response(get_maintainers(**data))
 
     @list_route(methods=["post"], url_path="create_or_update")
     def create_or_update(self, request):

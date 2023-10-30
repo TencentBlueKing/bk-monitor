@@ -8,17 +8,21 @@ from apps.api.modules.bk_itsm import BkItsm
 from apps.constants import (
     ACTION_ID_MAP,
     ACTION_MAP,
-    DEFAULT_ALLOW_ACTIONS,
     Action,
-    ActionEnum,
     ApiTokenAuthType,
+    ExternalPermissionActionEnum,
     ITSMStatusChoicesEnum,
     OperateEnum,
     TokenStatusEnum,
     ViewTypeEnum,
 )
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.models import FeatureToggle
-from apps.feature_toggle.plugins.constants import EXTERNAL_AUTHORIZER_MAP
+from apps.feature_toggle.plugins.constants import (
+    EXTERNAL_AUTHORIZER_MAP,
+    FEATURE_COLLECTOR_ITSM,
+    ITSM_SERVICE_ID,
+)
 from apps.iam import Permission
 from apps.iam.handlers.actions import get_action_by_id
 from apps.log_commons.cc import get_maintainers
@@ -121,7 +125,9 @@ class ExternalPermission(OperateRecordModel):
 
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     authorized_user = models.CharField("被授权人", max_length=64)
-    action_id = models.CharField("操作类型", max_length=32, choices=ActionEnum.get_choices(), db_index=True)
+    action_id = models.CharField(
+        "操作类型", max_length=32, choices=ExternalPermissionActionEnum.get_choices(), db_index=True
+    )
     resources = models.JSONField("资源列表", default=list)
     expire_time = models.DateTimeField("过期时间", null=True, default=None)
 
@@ -215,8 +221,13 @@ class ExternalPermission(OperateRecordModel):
         """
         space_info = {i.space_uid: i for i in SpaceApi.list_spaces()}
         bk_biz_name = space_info[params["space_uid"]].space_name
+        username = get_request_username() or get_local_username()
         ticket_data = {
-            "creator": get_request_username() or get_local_username(),
+            "creator": username,
+            # operator和creator保持一致
+            "operator": username,
+            # 这里是因为需要使用admin创建单据，方能越过创建单据的权限限制
+            "bk_username": "admin",
             "fields": [
                 {"key": "space_uid", "value": params["space_uid"]},
                 {"key": "bk_biz_name", "value": bk_biz_name},
@@ -225,7 +236,9 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
                 {"key": "resources", "value": cls.join_resources(params["resources"])},
             ],
-            "service_id": settings.EXTERNAL_APPROVAL_SERVICE_ID,
+            "service_id": FeatureToggleObject.toggle(FEATURE_COLLECTOR_ITSM).feature_config.get(
+                ITSM_SERVICE_ID, settings.COLLECTOR_ITSM_SERVICE_ID
+            ),
             "fast_approval": False,
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/external_callback/")},
         }
@@ -385,7 +398,10 @@ class ExternalPermission(OperateRecordModel):
 
             permission_list = list(resource_to_user.values())
         for permission in permission_list:
-            permission["authorizer"] = authorizer
+            if not space_uid:
+                permission["authorizer"] = AuthorizerSettings.get_authorizer(space_uid=permission["space_uid"])
+            else:
+                permission["authorizer"] = authorizer
             permission["space_name"] = space_info.get(permission["space_uid"], "")
         return permission_list
 
@@ -412,7 +428,7 @@ class ExternalPermission(OperateRecordModel):
         from apps.log_search.models import LogIndexSet
 
         # 暂时只有日志检索支持资源授权
-        if action_id != ActionEnum.LOG_SEARCH.value:
+        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return []
         if not space_uid:
             space_uid_list = ExternalPermission.objects.all().values_list("space_uid", flat=True).distinct()
@@ -443,15 +459,6 @@ class ExternalPermission(OperateRecordModel):
         :param action_id: 后台定义操作ID, ActionEnum
         :return: bool
         """
-        # 先判断是否有在默认允许的action中
-        for default_allow_action in DEFAULT_ALLOW_ACTIONS:
-            if default_allow_action.view_set != view_set:
-                continue
-            if not default_allow_action.action_id:
-                return True
-            if default_allow_action.action_id == action:
-                return True
-
         allow_actions: List[Action] = ACTION_MAP.get(action_id, [])
         for _action in allow_actions:
             if _action.view_set != view_set:
@@ -476,12 +483,9 @@ class ExternalPermission(OperateRecordModel):
             "allowed": False,
             "resources": [],
         }
-        if action_id != ActionEnum.LOG_SEARCH.value:
+        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return result
         result["allowed"] = True
-        if view_set == "MetaViewSet":
-            result["resources"] = cls.get_authorized_user_space_list(authorized_user)
-            return result
         obj = ExternalPermission.objects.filter(
             action_id=action_id, authorized_user=authorized_user, space_uid=space_uid
         ).first()
@@ -498,7 +502,9 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     authorized_users = models.JSONField("被授权人列表", default=list)
     resources = models.JSONField("资源列表", default=list)
-    action_id = models.CharField("操作类型", max_length=32, choices=ActionEnum.get_choices(), db_index=True)
+    action_id = models.CharField(
+        "操作类型", max_length=32, choices=ExternalPermissionActionEnum.get_choices(), db_index=True
+    )
     operate = models.CharField(
         "操作",
         choices=OperateEnum.get_choices(),

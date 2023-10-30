@@ -19,8 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from dataclasses import dataclass
-from typing import List
 
 from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext_lazy as _
@@ -252,7 +252,7 @@ class OperateEnum(ChoicesEnum):
     )
 
 
-class ActionEnum(ChoicesEnum):
+class ExternalPermissionActionEnum(ChoicesEnum):
     LOG_SEARCH = "log_search"
     LOG_EXTRACT = "log_extract"
 
@@ -262,14 +262,8 @@ class ActionEnum(ChoicesEnum):
     )
 
 
-# 默认允许的action
-DEFAULT_ALLOW_ACTIONS: List[Action] = [
-    Action(view_set="MetaViewSet", action_id="list_spaces_mine"),
-]
-
 ACTION_MAP = {
-    ActionEnum.LOG_SEARCH.value: [
-        Action(view_set="MetaViewSet", action_id="list_spaces_mine"),
+    ExternalPermissionActionEnum.LOG_SEARCH.value: [
         Action(view_set="SearchViewSet", action_id="list"),
         Action(view_set="SearchViewSet", action_id="bizs"),
         Action(view_set="SearchViewSet", action_id="search"),
@@ -281,7 +275,7 @@ ACTION_MAP = {
         Action(view_set="AggsViewSet", action_id="date_histogram"),
         Action(view_set="FavoriteViewSet"),
     ],
-    ActionEnum.LOG_EXTRACT.value: [
+    ExternalPermissionActionEnum.LOG_EXTRACT.value: [
         Action(view_set="ExplorerViewSet"),
         Action(view_set="TasksViewSet"),
         Action(view_set="StrategiesViewSet"),
@@ -290,6 +284,6 @@ ACTION_MAP = {
 
 # 与权限中心的action_id对应关系
 ACTION_ID_MAP = {
-    ActionEnum.LOG_SEARCH.value: "search_log_v2",
-    ActionEnum.LOG_EXTRACT.value: "manage_extract_config_v2",
+    ExternalPermissionActionEnum.LOG_SEARCH.value: "search_log_v2",
+    ExternalPermissionActionEnum.LOG_EXTRACT.value: "manage_extract_config_v2",
 }
