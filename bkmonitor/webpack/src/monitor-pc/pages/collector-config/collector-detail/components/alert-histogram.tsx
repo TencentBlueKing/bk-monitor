@@ -23,47 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
-// import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
-import { random } from '../../../../monitor-common/utils/index';
-
-import CollectorStatusDetails from './collector-status-details';
-
-import './collector-operate-detail.scss';
+import './alert-histogram.scss';
 
 @Component
-export default class CollectorOperateDetail extends tsc<{}> {
-  id = '';
+export default class AlertHistogram extends tsc<{}> {
+  @Prop({ type: Object, default: () => [] }) value: any[];
 
-  data = null;
-  updateKey = random(8);
-
-  created() {
-    this.id = this.$route.params.id;
-    collectInstanceStatus({
-      // collect_config_id: this.id
-      id: this.id
-    })
-      .then(data => {
-        this.data = data;
-        this.updateKey = random(8);
-      })
-      .catch(() => {
-        // this.data = mockData;
-        // this.updateKey = random(8);
-      });
-  }
   render() {
-    return (
-      <div class='collector-operate-detail-page'>
-        <CollectorStatusDetails
-          data={this.data}
-          updateKey={this.updateKey}
-        ></CollectorStatusDetails>
-      </div>
-    );
+    return <div class='alert-histogram-component'></div>;
   }
 }

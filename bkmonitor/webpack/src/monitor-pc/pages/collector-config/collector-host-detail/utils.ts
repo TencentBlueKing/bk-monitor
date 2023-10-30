@@ -24,56 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-export const mockData = {
-  config_info: {
-    id: 42,
-    name: 'jscript_0824_0904',
-    bk_biz_id: 2,
-    target_object_type: 'HOST',
-    target_node_type: 'TOPO',
-    plugin_id: 'jscript_0824',
-    label: 'os',
-    config_version: 1,
-    info_version: 1,
-    last_operation: 'ADD_DEL'
-  },
-  contents: [
-    {
-      default: null,
-      bk_inst_id: 2,
-      bk_inst_name: '空闲机池',
-      bk_obj_id: 'set',
-      child: [
-        {
-          instance_id: 'host|instance|host|4',
-          bk_host_id: 4,
-          ip: '1.1.1.1',
-          instance_name: '1.1.1.1',
-          bk_host_name: 'VM-1-1-centos',
-          bk_cloud_id: 0,
-          bk_supplier_id: '0',
-          status: 'SUCCESS',
-          log: '',
-          action: 'install',
-          steps: {
-            jscript_0824: 'INSTALL',
-            bkmonitorbeat: 'INSTALL'
-          },
-          plugin_version: '1.1',
-          task_id: 111111,
-          alert_histogram: [
-            [1694613180000, 0],
-            [1694616780000, 0]
-          ]
-        }
-      ],
-      node_path: '蓝鲸/空闲机池',
-      is_label: false,
-      label_name: ''
-    }
-  ]
-};
-
 export const FILTER_TYPE_LIST = [
   { id: 'ALL', name: window.i18n.t('全部') },
   { id: 'SUCCESS', color: ['#3fc06d29', '#3FC06D'], name: window.i18n.t('正常') },
