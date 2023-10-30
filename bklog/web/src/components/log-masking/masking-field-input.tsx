@@ -115,9 +115,11 @@ export default class MaskingFieldInput extends tsc<{}> {
   }
 
   /**
-   * @desc: 获取当前日志查询字符串
+   * @desc: 刷新采样数据
+   * @param {Boolean} isPreview 是否请求预览
+   * @param {Boolean} isRefreshInput 是否是点击刷新按钮()
    */
-  async handleRefreshConfigStr(isPreview = true) {
+  async handleRefreshConfigStr(isPreview = true, isRefreshInput = false) {
     try {
       this.inputLoading = true;
       const res = await $http.request('masking/getMaskingSearchStr', {
@@ -129,9 +131,10 @@ export default class MaskingFieldInput extends tsc<{}> {
         const index = Number(this.activeTab);
         // 编辑器当前的第一个日志
         this.activeJsonValue.jsonStr = JSON.stringify(this.catchJsonList[index] ?? '', null, 4);
-        // 有数据 全都一次性展示出来
-        this.addPanel(false);
-        this.addPanel(false);
+        if (!isRefreshInput) { // 有数据 且不是刷新按钮点击的 全都一次性展示出来
+          this.addPanel(false);
+          this.addPanel(false);
+        }
       };
       this.handleBlurConfigInput(isPreview);
     } catch (err) {
@@ -260,7 +263,7 @@ export default class MaskingFieldInput extends tsc<{}> {
           active={this.activeTab}
           on-tab-change={this.tabChange}
           on-close-panel={this.closePanel}>
-            <div slot="setting" class="text-btn" onClick={() => this.handleRefreshConfigStr()}>
+            <div slot="setting" class="text-btn" onClick={() => this.handleRefreshConfigStr(true, true)}>
               <i class="icon bk-icon icon-right-turn-line"></i>
               <span class="text">{this.$t('刷新')}</span>
             </div>

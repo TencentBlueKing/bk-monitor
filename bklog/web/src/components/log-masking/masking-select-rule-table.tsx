@@ -215,7 +215,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     try {
       this.tableLoading = true;
       let params = {}; // 如果要获取全局列表 params为空 不传业务id
-      params = { space_uid: this.spaceUid, is_public: this.isPublicList }; // 非全局列表 传业务id
+      params = { space_uid: this.spaceUid, rule_type: 'all' }; // 非全局列表 传业务id
       const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
       this.isAllowed = authorityRes.isAllowed;
       const res = await $http.request('masking/getMaskingRuleList', {

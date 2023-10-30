@@ -67,17 +67,10 @@
  * 获取规则列表
  */
  const getMaskingRuleList = {
-  url: '/desensitize/rule/?space_uid=:space_uid&is_public=:is_public',
+  url: '/desensitize/rule/?space_uid=:space_uid&rule_type=:rule_type',
   method: 'get',
 };
 
-/**
- * 获取规则列表
- */
- const getPublicMaskingRuleList = {
-  url: '/desensitize/rule/?is_public=:is_public',
-  method: 'get',
-};
 
 /**
  * 删除规则
@@ -151,7 +144,6 @@ export {
   getConfigPreview,
   matchMaskingRule,
   getMaskingRuleList,
-  getPublicMaskingRuleList,
   deleteRule,
   updateDesensitize,
   createDesensitize,

@@ -50,7 +50,10 @@ export default class StepMasking extends tsc<IProps> {
   async submitSelectRule(stepChange = false) {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
-    if (!data.field_configs.length && !isUpdate) return true; // 非更新状态且没有任何字段选择规则 直接下一步
+    if (!data.field_configs.length && !isUpdate) {
+      this.emitStepChange();
+      return true;
+    }; // 非更新状态且没有任何字段选择规则 直接下一步
     let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
     if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
     try {
