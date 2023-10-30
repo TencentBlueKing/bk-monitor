@@ -395,15 +395,17 @@ def _init_index_info(*, index_set_id, attrs):
                     )
             else:
                 time_field = "dtEventTimeStamp"
-
-            # 过滤的字段获取 field进行判断
-            _filter: list = attrs.get("filter", [])
-            for __filter in _filter:
-                field: str = __filter.get("key", "") if __filter.get("key", "") else __filter.get("field", "")
-                if field.startswith("__dist"):
-                    clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-                    if clustering_config and clustering_config.clustered_rt:
-                        indices = clustering_config.clustered_rt
+            try:
+                # 过滤的字段获取 field进行判断
+                _filter: list = attrs.get("filter", [])
+                for __filter in _filter:
+                    field: str = __filter.get("key", "") if __filter.get("key", "") else __filter.get("field", "")
+                    if field.startswith("__dist"):
+                        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+                        if clustering_config and clustering_config.clustered_rt:
+                            indices = clustering_config.clustered_rt
+            except Exception:
+                pass
             return {
                 "indices": indices,
                 "scenario_id": scenario_id,
