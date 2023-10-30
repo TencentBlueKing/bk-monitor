@@ -61,6 +61,33 @@ class ApmScene:
     OVERVIEW = "overview"
 
 
+class DbCategoryEnum:
+    ALL = "all"
+    DB_SLOW = "db_slow"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.ALL: _("全部"),
+            cls.DB_SLOW: _("慢语句"),
+        }.get(key, key)
+
+    @classmethod
+    def get_db_filter_fields(cls):
+        return [
+            {
+                "id": cls.ALL,
+                "name": cls.get_label_by_key(cls.ALL),
+                "icon": "icon-gailan",
+            },
+            {
+                "id": cls.DB_SLOW,
+                "name": cls.get_label_by_key(cls.DB_SLOW),
+                "icon": "icon-DB",
+            },
+        ]
+
+
 class CategoryEnum:
     HTTP = "http"
     RPC = "rpc"
@@ -680,3 +707,136 @@ APM_APPLICATION_DEFAULT_METRIC = {
     "error_rate": 0.0,
     "error_count": 0,
 }
+
+
+# 慢命令key, attributes.db.is_slow
+APM_IS_SLOW_ATTR_KEY = "db.is_slow"
+
+# DB 配置默认阀值(threshold)
+DEFAULT_DB_CONFIG_IS_SLOW_QUERY_THRESHOLD = 500
+
+# DB 配置默认发现字段(predicate_key)
+DEFAULT_DB_CONFIG_PREDICATE_KEY = "attributes.db.system"
+
+# DB 配置cut key 默认值
+DEFAULT_DB_CONFIG_CUT_KEY = "attributes.db.statement"
+
+
+class TraceMode:
+    """
+    追踪模式
+    """
+
+    # 原生
+    ORIGIN = "origin"
+    # 无参
+    NO_PARAMETERS = "no_parameters"
+    # 关闭
+    CLOSED = "closed"
+
+    # APM 配置下发 drop keys
+    APM_DROP_KEYS_MAPPING = {
+        ORIGIN: [],
+        NO_PARAMETERS: ["attributes.db.parameters"],
+        CLOSED: ["attributes.db.statement", "attributes.db.parameters"],
+    }
+
+
+"""
+数据来源
+https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/trace/semantic_conventions/database.md
+"""
+DB_SYSTEM_TUPLE = (
+    "hanadb",
+    "trino",
+    "informix",
+    "oracle",
+    "coldfusion",
+    "elasticsearch",
+    "couchdb",
+    "h2",
+    "memcached",
+    "hive",
+    "cloudscape",
+    "postgresql",
+    "couchbase",
+    "firebird",
+    "dynamodb",
+    "pointbase",
+    "mariadb",
+    "cache",
+    "hbase",
+    "netezza",
+    "redshift",
+    "opensearch",
+    "maxdb",
+    "ingres",
+    "edb",
+    "firstsql",
+    "mysql",
+    "redis",
+    "db2",
+    "clickhouse",
+    "sqlite",
+    "instantdb",
+    "cockroachdb",
+    "sybase",
+    "cassandra",
+    "cosmosdb",
+    "progress",
+    "derby",
+    "mssqlcompact",
+    "teradata",
+    "filemaker",
+    "vertica",
+    "pervasive",
+    "mssql",
+    "adabas",
+    "hsqldb",
+    "geode",
+    "neo4j",
+    "mongodb",
+    "interbase",
+)
+
+DEFAULT_DB_CONFIG = {
+    "db_system": "",
+    "trace_mode": "origin",
+    "length": 10000,
+    "threshold": 500,
+    "enabled_slow_sql": False,
+}
+
+METRIC_TUPLE = ("request_count", "avg_duration", "error_request_count", "slow_request_count", "slow_command_rate")
+
+METRIC_PARAM_MAP = {
+    "error_request_count": {"filter": {"bool": {"filter": [{"term": {"status.code": 2}}]}}},
+    "slow_request_count": {"filter": {"bool": {"filter": [{"term": {"attributes.db.is_slow": 1}}]}}},
+}
+
+METRIC_MAP = {
+    "request_count": {"request_count": {"value_count": {"field": ""}}},
+    "avg_duration": {"avg_duration": {"avg": {"field": "elapsed_time"}}},
+    "error_request_count": {"aggs": {"count": {"value_count": {"field": ""}}}},
+    "slow_request_count": {"aggs": {"count": {"value_count": {"field": ""}}}},
+    "slow_command_rate": {
+        "slow_command_rate": {
+            "bucket_script": {
+                "buckets_path": {"slowRequestCount": "slow_request_count.count", "requestCount": "request_count"},
+                "script": {"inline": "params.slowRequestCount/params.requestCount"},
+            }
+        }
+    },
+}
+
+METRIC_RELATION_MAP = {"slow_command_rate": {"slow_request_count", "request_count"}}
+
+METRIC_RATE_TUPLE = ("slow_command_rate",)
+
+METRIC_VALUE_COUNT_TUPLE = ("request_count",)
+
+OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not exists": "not exists"}
+
+DEFAULT_MAX_VALUE = 10000
+
+DEFAULT_SPLIT_SYMBOL = "--"
