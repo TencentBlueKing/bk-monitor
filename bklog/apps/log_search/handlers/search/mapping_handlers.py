@@ -142,13 +142,10 @@ class MappingHandlers(object):
             conflict_result[key].add(property_define["type"])
 
     def is_add_clustered_fields(self, field_list):
-        try:
-            clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
-            if clustering_config.clustered_rt:
-                field_list.extend(PATTERN_SEARCH_FIELDS)
-                return field_list
-        except Exception:
-            pass
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
+        if clustering_config and clustering_config.clustered_rt:
+            field_list.extend(PATTERN_SEARCH_FIELDS)
+            return field_list
         return field_list
 
     def virtual_fields(self, field_list):
