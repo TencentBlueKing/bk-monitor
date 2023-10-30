@@ -31,6 +31,7 @@ import { TabPanel } from 'bk-magic-vue';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 
 import LinkStatus from './components/link-status';
+import StorageState from './components/storage-state';
 import { TabEnum } from './typings/detail';
 
 import './collector-detail.scss';
@@ -67,7 +68,9 @@ export default class CollectorDetail extends tsc<{}> {
           <TabPanel
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
-          ></TabPanel>
+          >
+            <StorageState collectId={this.collectId} />
+          </TabPanel>
         </MonitorTab>
       </div>
     );

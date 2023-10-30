@@ -1,0 +1,63 @@
+.storage-state-component {
+  .title {
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 22px;
+  }
+
+  .storage-info {
+    .info-form {
+      margin-top: 24px;
+
+      .info-row {
+        display: flex;
+
+        & + .info-row {
+          margin-top: 12px;
+        }
+      }
+
+      .info-item {
+        display: flex;
+        align-items: center;
+
+        .info-label {
+          width: 84px;
+          margin-right: 24px;
+          color: #979ba5;
+          text-align: right;
+
+          .label {
+            display: inline-block;
+            font-size: 12px;
+            line-height: 20px;
+          }
+        }
+
+        .info-value {
+          width: 300px;
+        }
+      }
+    }
+  }
+
+  .divider {
+    margin: 24px 0;
+    color: #eaebf0;
+  }
+
+  .underline {
+    position: relative;
+
+    &::after {
+      position: absolute;
+      bottom: 0; /* 调整下划线的位置 */
+      left: 0;
+      width: 100%;
+      height: 0;
+      content: '';
+      border-bottom: 1px dashed #979ba5;
+    }
+  }
+}
