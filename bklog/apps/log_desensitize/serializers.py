@@ -39,7 +39,7 @@ class DesensitizeRuleListSerializer(serializers.Serializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        if attrs["rule_type"] != DesensitizeRuleTypeEnum.PUBLIC.value and not attrs["space_uid"]:
+        if attrs["rule_type"] != DesensitizeRuleTypeEnum.PUBLIC.value and not attrs.get("space_uid"):
             raise ValidationError(_("空间唯一标识不能为空"))
 
         return attrs
