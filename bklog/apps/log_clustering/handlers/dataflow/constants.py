@@ -30,6 +30,7 @@ OPERATOR_AND = "and"
 # 聚类不参与sql字段
 NOT_CONTAIN_SQL_FIELD_LIST = ["timestamp", "_startTime_", "_endTime_"]
 DIST_FIELDS = ["dist_01", "dist_03", "dist_05", "dist_07", "dist_09"]
+RENAME_DIST_FIELDS = ["__dist_01", "__dist_03", "__dist_05", "__dist_07", "__dist_09"]
 DIST_CLUSTERING_FIELDS = [
     "dist_01 AS __dist_01",
     "dist_03 AS __dist_03",
@@ -120,6 +121,62 @@ class RealTimePredictFlowNode(object):
     PREDICT_CLUSTERING = "clustering"
     PREDICT_NOT_CLUSTERING = "not_clustering"
     PREDICT_NODE = "clustering_output"
+
+
+field_operators = [
+    {
+      "operator": "=",
+      "label": "=",
+      "placeholder": "请选择或直接输入，逗号分隔",
+      "wildcard_operator": "=~"
+    },
+    {
+      "operator": "!=",
+      "label": "!=",
+      "placeholder": "请选择或直接输入，逗号分隔",
+      "wildcard_operator": "!=~"
+    },
+    {
+      "operator": "exists",
+      "label": "存在",
+      "placeholder": "确认字段已存在"
+    },
+    {
+      "operator": "does not exists",
+      "label": "不存在",
+      "placeholder": "确认字段不存在"
+    },
+    {
+      "operator": "contains",
+      "label": "包含",
+      "placeholder": "请选择或直接输入，逗号分隔"
+    },
+    {
+      "operator": "not contains",
+      "label": "不包含",
+      "placeholder": "请选择或直接输入，逗号分隔"
+    }
+]
+
+
+def get_pattern_fields(field_name):
+    result = {
+      "field_type": "keyword",
+      "field_name": field_name,
+      "field_alias": "",
+      "is_display": False,
+      "is_editable": True,
+      "tag": "dimension",
+      "es_doc_values": True,
+      "is_analyzed": False,
+      "field_operator": field_operators,
+      "description": None
+    }
+    return result
+
+
+# 查询字段   __dist_xx
+PATTERN_SEARCH_FIELDS = [get_pattern_fields(field_name) for field_name in RENAME_DIST_FIELDS]
 
 
 DEFAULT_MODEL_INPUT_FIELDS = [
