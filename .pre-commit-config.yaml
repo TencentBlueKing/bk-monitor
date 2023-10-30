@@ -34,6 +34,14 @@ repos:
   # 本地检查
   - repo: local
     hooks:
+      # 执行 preci 流水线
+      - id: check-pre-ci-pipeline
+        name: check pre ci pipeline
+        entry: python scripts/pre-commit/pre-push.py
+        language: system
+        stages: [ pre-push ]
+        verbose: true
+
       # flake8
       - id: flake8
         name: flak8
@@ -45,24 +53,16 @@ repos:
       # PreCI 检查
       - id: check-pre-ci
         name: check pre ci
-        entry: scripts/preci.sh
+        entry: scripts/pre-commit/preci.sh
         language: system
-        verbose: true
-
-      # 执行 preci 流水线
-      - id: check-pre-ci-pipeline
-        name: check pre ci pipeline
-        entry: scripts/preci-push.sh
-        language: system
-        stages: [ pre-push ]
         verbose: true
 
       # 提交前，需要检查提交 message
       - id: check-commit-message
         name: Check commit message
-        entry: python scripts/check_commit_message.py
+        entry: python scripts/pre-commit/check_commit_message.py
         language: system
-        stages: [commit-msg]
+        stages: [ commit-msg ]
 
       # 提交前检查敏感 IP 信息
       - id: ip
