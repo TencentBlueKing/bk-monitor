@@ -90,9 +90,11 @@ class DesensitizeRuleViesSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """
-        @api {GET} /api/v1/desensitize/rule/?space_uid=$space_uid&is_public=$is_public 脱敏规则列表
+        @api {GET} /api/v1/desensitize/rule/?space_uid=$space_uid&rule_type=$rule_type 脱敏规则列表
         @apiName desensitize_rule list
         @apiGroup DesensitizeRule
+        @apiParam {String} space_uid 空间唯一标识
+        @apiParam {String} rule_type 规则类型  (public, 只返回全局的)、(space, 只返回业务的)、(all, 全局的+当前业务的)
         @apiSuccess {String} rule_name 脱敏规则名称
         @apiSuccess {Array} match_fields 匹配的字段名列表
         @apiSuccess {String} match_pattern 匹配表达式
