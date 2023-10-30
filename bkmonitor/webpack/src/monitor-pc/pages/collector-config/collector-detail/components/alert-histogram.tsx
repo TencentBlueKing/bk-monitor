@@ -28,11 +28,43 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './alert-histogram.scss';
 
+const classMap = {
+  0: 'green',
+  1: 'red'
+};
+
 @Component
 export default class AlertHistogram extends tsc<{}> {
-  @Prop({ type: Object, default: () => [] }) value: any[];
+  @Prop({
+    type: Object,
+    default: () => [
+      { level: 0 },
+      { level: 0 },
+      { level: 0 },
+      { level: 0 },
+      { level: 0 },
+      { level: 0 },
+      { level: 0 },
+      { level: 0 },
+      { level: 0 },
+      { level: 1 },
+      { level: 1 },
+      { level: 1 },
+      { level: 0 },
+      { level: 1 },
+      { level: 0 },
+      { level: 1 }
+    ]
+  })
+  value: any[];
 
   render() {
-    return <div class='alert-histogram-component'></div>;
+    return (
+      <div class='alert-histogram-component'>
+        {this.value.map(item => (
+          <div class={['histogram-item', classMap[item.level]]}></div>
+        ))}
+      </div>
+    );
   }
 }

@@ -29,8 +29,16 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Button, Spin, Table, TableColumn } from 'bk-magic-vue';
 
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
+import {
+  colorMap,
+  FILTER_TYPE_LIST,
+  IContentsItem,
+  labelMap,
+  STATUS_LIST,
+  statusMap
+} from '../collector-host-detail/utils';
 
-import { colorMap, FILTER_TYPE_LIST, IContentsItem, labelMap, STATUS_LIST, statusMap } from './utils';
+import AlertHistogram from './components/alert-histogram';
 
 import './collector-status-details.scss';
 
@@ -39,7 +47,8 @@ enum EColumn {
   status = 'status',
   version = 'version',
   detail = 'detail',
-  operate = 'operate'
+  operate = 'operate',
+  alert = 'alert'
 }
 
 interface IProps {
@@ -68,9 +77,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
 
   /* 表格字段 */
   tableColumns = [
-    { id: EColumn.name, name: window.i18n.t('目标'), width: 120 },
-    { id: EColumn.status, name: window.i18n.t('状态'), width: 120 },
-    { id: EColumn.version, name: window.i18n.t('版本'), width: 92 },
+    { id: EColumn.name, name: window.i18n.t('目标'), width: 278 },
+    { id: EColumn.alert, name: window.i18n.t('告警'), width: 298 },
+    { id: EColumn.status, name: window.i18n.t('状态'), width: 165 },
+    { id: EColumn.version, name: window.i18n.t('版本'), width: 228 },
     { id: EColumn.detail, name: window.i18n.t('详情') },
     { id: EColumn.operate, name: '', width: 200 }
   ];
@@ -268,6 +278,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                           switch (column.id) {
                             case EColumn.name: {
                               return <span>{row.instance_name}</span>;
+                            }
+                            case EColumn.alert: {
+                              return <AlertHistogram></AlertHistogram>;
                             }
                             case EColumn.status: {
                               return (

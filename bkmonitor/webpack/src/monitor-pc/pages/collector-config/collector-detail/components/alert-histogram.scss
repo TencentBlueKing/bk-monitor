@@ -1,0 +1,21 @@
+.alert-histogram-component {
+  display: flex;
+  align-items: center;
+
+  .histogram-item {
+    width: 4px;
+    min-width: 4px;
+    height: 12px;
+    min-height: 12px;
+    margin-right: 2px;
+    background: #2dcb56;
+
+    &.green {
+      background: #2dcb56;
+    }
+
+    &.red {
+      background: #ea3636;
+    }
+  }
+}

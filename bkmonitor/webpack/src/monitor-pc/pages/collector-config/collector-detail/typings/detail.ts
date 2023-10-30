@@ -25,5 +25,6 @@
  */
 export enum TabEnum {
   DataLink = 'DataLink',
-  StorageState = 'StorageState'
+  StorageState = 'StorageState',
+  targetDetail = 'targetDetail'
 }
