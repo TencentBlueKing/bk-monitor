@@ -54,7 +54,7 @@ repos:
         name: check pre ci pipeline
         entry: scripts/pre_commit/preci/run.sh
         language: system
-        stages: [ push ]
+        stages: [ pre-push ]
         verbose: true
 
       # 提交前，需要检查提交 message
