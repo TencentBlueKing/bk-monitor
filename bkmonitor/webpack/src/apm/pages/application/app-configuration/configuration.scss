@@ -55,7 +55,7 @@ $statusType2: 'green' 'red' 'yellow';
           &.form-content {
             padding-bottom: 20px;
             border-bottom: 1px solid #eaebf0;
-          }    
+          }
         }
 
         .editable-form-item {
@@ -119,7 +119,7 @@ $statusType2: 'green' 'red' 'yellow';
             background: #fafbfd;
             border: 1px solid rgba(151,155,165,.30);
             border-radius: 2px;
-  
+
             @include flex-align;
           }
 
@@ -314,7 +314,7 @@ $statusType2: 'green' 'red' 'yellow';
 
           .detail-shrink {
             margin-left: auto;
-      
+
             @include tool-icon(24px);
           }
         }
@@ -482,7 +482,7 @@ $statusType2: 'green' 'red' 'yellow';
           color: #c4c6cc;
         }
       }
-      
+
       .delimiter {
         margin: 0 4px;
       }
@@ -847,13 +847,13 @@ $statusType2: 'green' 'red' 'yellow';
         background-color: #313238 !important;
         border-radius: 2px;
       }
-  
+
       .bk-form-textarea[disabled] {
         /* stylelint-disable-next-line declaration-no-important */
         background-color: #313238 !important;
         border-radius: 2px;
       }
-  
+
       .bk-textarea-wrapper {
         border: none;
       }
@@ -987,7 +987,7 @@ $statusType2: 'green' 'red' 'yellow';
       color: #979ba5;
       cursor: pointer;
     }
-  } 
+  }
 }
 
 .instance-select-popover {
@@ -1009,5 +1009,157 @@ $statusType2: 'green' 'red' 'yellow';
 
   .is-disabled .instance-alias {
     color: #c4c6cc;
+  }
+}
+
+.panel-intro {
+  .dropdown-list-item-disabled {
+    /* stylelint-disable-next-line declaration-no-important */
+    color: #c4c6cc !important;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
+  .bk-icon.icon-plus-circle {
+    display: inline;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 18px !important;
+    line-height: none;
+  }
+
+  .card-list-container {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .db-config-card {
+    width: 530px;
+    margin-bottom: 12px;
+
+    .title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 12px;
+      background-color: #f0f1f5;
+      border-radius: 2px 2px 0 0;
+
+      &.is-not-default {
+        /* stylelint-disable-next-line declaration-no-important */
+        background: #f0f5ff !important;
+      }
+
+      .close {
+        /* stylelint-disable-next-line declaration-no-important */
+        font-size: 20px !important;
+        cursor: pointer;
+      }
+    }
+
+    .card-container {
+      padding: 10px 0;
+      border: 1px solid #dcdee5;
+      border-top: none;
+      border-radius: 0 0 2px 2px;
+
+      .bk-radio-button-text {
+        height: 26px;
+        font-size: 12px;
+        line-height: 26px;
+      }
+
+      .bk-form-item+.bk-form-item {
+        margin-top: 10px;
+      }
+    }
+  }
+
+  .bk-label {
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
+  }
+
+  .low-sql-container {
+    display: flex;
+    align-items: center;
+
+    .excution-input {
+      width: 100px;
+    }
+
+    .text {
+      margin: 0 6px;
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+
+  .sql-length-container {
+    display: flex;
+    align-items: center;
+
+    .sql-cut-input {
+      width: 100px;
+    }
+
+    .text {
+      margin: 0 6px;
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+
+  .db-config-card-preview {
+    display: inline-flex;
+    flex-wrap: wrap;
+
+    .db-config-card-preview-container {
+      width: 320px;
+      margin: 0 16px 16px 0;
+
+      .db-config-card-preview-title {
+        padding: 2px 12px;
+        font-size: 12px;
+        color: #63656e;
+        background-color: #f0f5ff;
+        border-radius: 2px 2px 0 0;
+
+        &.is-default {
+          background-color: #f0f1f5;
+        }
+      }
+
+      .db-config-card-preview-content {
+        padding: 8px 0;
+        overflow: hidden;
+        background-color: #fafbfd;
+        border-radius: 0 0 2px 2px;
+
+        .row {
+          display: flex;
+          align-items: center;
+          padding-top: 8px;
+          padding-bottom: 8px;
+
+          .label-text {
+            display: inline-block;
+            width: 100px;
+            font-size: 12px;
+            color: #63656e;
+            text-align: right;
+          }
+
+          .label-colons {
+            margin: 0 10px 0 5px;
+          }
+
+          .label-value {
+            font-size: 12px;
+            color: #313238;
+          }
+        }
+      }
+    }
   }
 }

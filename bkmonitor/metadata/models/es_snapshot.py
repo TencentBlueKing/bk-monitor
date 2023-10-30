@@ -19,8 +19,6 @@ from django.db.transaction import atomic
 from django.forms import model_to_dict
 from django.utils import timezone
 from django.utils.translation import ugettext as _
-
-from bkmonitor.utils.time_tools import biz2utc_str
 from metadata import config
 from metadata.utils.db import array_group
 from metadata.utils.es_tools import (
@@ -28,6 +26,8 @@ from metadata.utils.es_tools import (
     get_cluster_disk_size,
     get_value_if_not_none,
 )
+
+from bkmonitor.utils.time_tools import biz2utc_str
 
 logger = logging.getLogger("metadata")
 
@@ -351,13 +351,15 @@ class EsSnapshotRestore(models.Model):
             raise ValueError(_("结果表不存在"))
         if not es_storage.have_snapshot_conf:
             raise ValueError(_("结果表不存在快照配置"))
-        start_time = biz2utc_str(start_time)
-        end_time = biz2utc_str(end_time)
+        
+        # NOTE: 这里需要转换为 utc 时间，因为，过滤时，会进行时间的转换
+        start_time_with_tz = biz2utc_str(start_time, _format="%Y-%m-%dT%H:%M:%SZ")
+        end_time_with_tz = biz2utc_str(end_time, _format="%Y-%m-%dT%H:%M:%SZ")
         expired_time = biz2utc_str(expired_time)
 
         # 筛选与目标时间区间产生交集的物理索引
         snapshot_indices = EsSnapshotIndice.objects.filter(
-            start_time__lt=end_time, end_time__gte=start_time, table_id=table_id
+            start_time__lt=end_time_with_tz, end_time__gte=start_time_with_tz, table_id=table_id
         )
         if not snapshot_indices.exists():
             raise ValueError(_("该时间区间内没有快照数据"))
