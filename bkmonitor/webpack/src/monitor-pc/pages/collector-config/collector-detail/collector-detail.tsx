@@ -26,13 +26,16 @@
 import { Component } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+import { random } from '@common/utils';
 import { TabPanel } from 'bk-magic-vue';
 
+import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
 import { TabEnum } from './typings/detail';
+import CollectorStatusDetails from './collector-status-details';
 
 import './collector-detail.scss';
 
@@ -42,11 +45,43 @@ export default class CollectorDetail extends tsc<{}> {
   active = TabEnum.StorageState;
   collectId = 0;
 
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
+  allData = {
+    [TabEnum.targetDetail]: {
+      data: null,
+      updateKey: random(8)
+    }
+  };
+
+  public beforeRouteEnter(to: Route, from: Route, next: Function) {
     const { params } = to;
     next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
     });
+  }
+
+  handleTabChange(v: TabEnum) {
+    this.active = v;
+    if (this.active === TabEnum.targetDetail) {
+      this.getStatusDetails();
+    }
+  }
+
+  /**
+   * @description 获取采集详情tab数据
+   */
+  getStatusDetails() {
+    collectInstanceStatus({
+      // collect_config_id: this.id
+      id: this.collectId
+    })
+      .then(data => {
+        this.allData[TabEnum.targetDetail].data = data;
+        this.allData[TabEnum.targetDetail].updateKey = random(8);
+      })
+      .catch(() => {
+        // this.data = mockData;
+        // this.updateKey = random(8);
+      });
   }
 
   render() {
@@ -54,8 +89,17 @@ export default class CollectorDetail extends tsc<{}> {
       <div class='collector-detail-page'>
         <MonitorTab
           active={this.active}
-          {...{ on: { 'update:active': v => (this.active = v) } }}
+          on-tab-change={this.handleTabChange}
         >
+          <TabPanel
+            label={this.$t('采集详情')}
+            name={TabEnum.targetDetail}
+          >
+            <CollectorStatusDetails
+              data={this.allData[TabEnum.targetDetail].data}
+              updateKey={this.allData[TabEnum.targetDetail].updateKey}
+            ></CollectorStatusDetails>
+          </TabPanel>
           <TabPanel
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}

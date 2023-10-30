@@ -29,8 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
 // import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
 import { random } from '../../../../monitor-common/utils/index';
-
-import CollectorStatusDetails from './collector-status-details';
+import CollectorStatusDetails from '../collector-detail/collector-status-details';
 
 import './collector-operate-detail.scss';
 
