@@ -24,6 +24,28 @@ from distutils.version import StrictVersion
 from uuid import uuid4
 
 import yaml
+from constants.result_table import (
+    RT_RESERVED_WORD_EXACT,
+    RT_RESERVED_WORD_FUZZY,
+    RT_TABLE_NAME_WORD_EXACT,
+)
+from core.drf_resource import Resource, api, resource
+from core.drf_resource.tasks import step
+from core.errors.api import BKAPIError
+from core.errors.export_import import ExportImportError
+from core.errors.plugin import (
+    BizChangedError,
+    MetricNumberError,
+    PluginIDExist,
+    PluginIDFormatError,
+    PluginIDNotExist,
+    PluginParseError,
+    PluginVersionNotExist,
+    RegisterPackageError,
+    RelatedItemsExist,
+    SNMPMetricNumberError,
+    UnsupportedPluginTypeError,
+)
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import IntegrityError, transaction
@@ -65,28 +87,6 @@ from utils import count_md5
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
-from constants.result_table import (
-    RT_RESERVED_WORD_EXACT,
-    RT_RESERVED_WORD_FUZZY,
-    RT_TABLE_NAME_WORD_EXACT,
-)
-from core.drf_resource import Resource, api, resource
-from core.drf_resource.tasks import step
-from core.errors.api import BKAPIError
-from core.errors.export_import import ExportImportError
-from core.errors.plugin import (
-    BizChangedError,
-    MetricNumberError,
-    PluginIDExist,
-    PluginIDFormatError,
-    PluginIDNotExist,
-    PluginParseError,
-    PluginVersionNotExist,
-    RegisterPackageError,
-    RelatedItemsExist,
-    SNMPMetricNumberError,
-    UnsupportedPluginTypeError,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,6 @@ class SaveMetricResource(Resource):
         config_version = serializers.IntegerField(required=True, label="插件版本")
         info_version = serializers.IntegerField(required=True, label="插件信息版本")
         need_upgrade = serializers.BooleanField(required=False, label="是否升级", default=False)
-        enable_field_blacklist = serializers.BooleanField(label="是否开启黑名单", default=False)
 
     def delay(self, request_data=None, **kwargs):
         request_data = request_data or kwargs
