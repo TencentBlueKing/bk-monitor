@@ -20,6 +20,14 @@ import git
 import yaml
 
 
+def check_command_exists(command):
+    try:
+        subprocess.check_output(["which", command])
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
 def execute_command(command):
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
@@ -37,10 +45,14 @@ def main():
     repo = git.Repo()
     print(f"project path: {repo.working_dir}")
 
+    if not check_command_exists("preci"):
+        print("skip pre-push check because preci not found")
+        return 0
+
     # 项目路径hash(sha1)
     project_hash = hashlib.sha1(repo.working_dir.encode("utf-8")).hexdigest()
     if not project_hash:
-        print("请先初始化PreCI配置")
+        print("Please init PreCI first")
         return 1
 
     # 获取推送目标分支
