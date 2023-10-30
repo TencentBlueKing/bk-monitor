@@ -267,16 +267,10 @@ export default class MaskingSetting extends tsc<IProps> {
   async initTableList() {
     try {
       this.tableLoading = true;
-      let params = {}; // 如果要获取全局列表 params为空 不传业务id
-      if (this.isPublicList) {
-        params = { is_public: true };
-      } else {
-        params = { space_uid: this.spaceUid, is_public: false }; // 非全局列表 传业务id
-      }
+      const params = { space_uid: this.spaceUid, rule_type: this.isPublicList ? 'public' : 'all' }; // 非全局列表 传业务id
       const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
       this.isAllowed = authorityRes.isAllowed;
-      const requestStr = this.isPublicList ? 'getPublicMaskingRuleList' : 'getMaskingRuleList';
-      const res = await $http.request(`masking/${requestStr}`, {
+      const res = await $http.request('masking/getMaskingRuleList', {
         params,
       });
       const updateSourceFiltersSet = new Set();

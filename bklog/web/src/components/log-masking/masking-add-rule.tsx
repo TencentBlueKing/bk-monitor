@@ -314,7 +314,9 @@ export default class MaskingAddRule extends tsc<IProps> {
       operator: this.formData.operator,
       operator_params: operatorParams,
     };
-    const createObj = { is_public: this.isPublicRule, space_uid: this.spaceUid };
+    const createObj = this.isPublicRule
+      ? { is_public: true }
+      : { is_public: false, space_uid: this.spaceUid };
     const data = this.isEdit ? { ...paramsData } : { ...createObj, ...paramsData };
     const requestStr = this.isEdit ? 'updateDesensitize' : 'createDesensitize';
     await $http.request(`masking/${requestStr}`, {
