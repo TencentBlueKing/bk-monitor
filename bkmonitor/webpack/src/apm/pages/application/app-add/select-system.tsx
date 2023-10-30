@@ -186,7 +186,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
 
   /** 初始化页面数据 */
   initData() {
-    this.rules.enName.push({
+    this.rules.name.push({
       message: window.i18n.tc('注意: 名字冲突'),
       trigger: 'none',
       validator: val => !this.existedName && !!val
@@ -267,7 +267,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
 
     /** 校验重名 */
     this.clickSubmit = true;
-    const noExistedName = await this.handleCheckEnName(true);
+    const noExistedName = await this.handleCheckDuplicateName(true);
     if (noExistedName) {
       const isPass = await this.addForm.validate();
       if (isPass) {
@@ -308,11 +308,11 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
   handleCancel() {
     this.$router.back();
   }
-  /** 检查英文名是否重名 */
-  handleCheckEnName(isSubmit = false) {
+  /** 检查 应用名 是否重名 */
+  handleCheckDuplicateName(isSubmit = false) {
     return new Promise((resolve, reject) => {
-      if (!this.formData.enName) return resolve(true);
-      if (this.formData.enName.length < 1) return reject(false);
+      if (!this.formData.name) return resolve(true);
+      if (this.formData.name.length < 1) return reject(false);
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       setTimeout(async () => {
         if (this.clickSubmit && !isSubmit) {
@@ -322,7 +322,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
           const { exists } = await checkDuplicateName({ app_name: this.formData.name });
           this.existedName = exists;
           if (exists) {
-            this.addForm.validateField('enName');
+            this.addForm.validateField('name');
             reject(false);
           } else {
             resolve(true);
@@ -498,6 +498,7 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
               v-model={this.formData.name}
               maxlength={50}
               placeholder={this.$t('输入1-50个字符，且仅支持小写字母、数字、_- 中任意一条件即可')}
+              onBlur={() => this.handleCheckDuplicateName()}
             />
           </FormItem>
           <FormItem
@@ -510,7 +511,6 @@ export default class SelectSystem extends tsc<IProps, IEvents> {
               v-model={this.formData.enName}
               maxlength={50}
               placeholder={this.$t('输入1-50个字符')}
-              onBlur={() => this.handleCheckEnName()}
             />
           </FormItem>
           {this.isShowLog2TracesFormItem && (
