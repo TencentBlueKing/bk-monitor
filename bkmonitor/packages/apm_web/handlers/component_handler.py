@@ -189,9 +189,10 @@ class ComponentHandler:
                 raise ValueError(_("不支持的分类: {}").format(service_params['category']))
 
             where = cls.component_filter_params_mapping[service_params["category"]]
-            filter_params.append(
-                json.loads(json.dumps(where).replace("{predicate_value}", service_params["predicate_value"]))
-            )
+            if service_params["predicate_value"]:
+                filter_params.append(
+                    json.loads(json.dumps(where).replace("{predicate_value}", service_params["predicate_value"]))
+                )
 
         cls.replace_service(filter_params, service_params["predicate_value"])
 
