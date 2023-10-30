@@ -28,6 +28,10 @@ class GetAuthorizerSLZ(serializers.Serializer):
     space_uid = serializers.CharField(required=False, label="空间ID")
 
 
+class ListMaintainersSLZ(serializers.Serializer):
+    space_uid = serializers.CharField(required=True, label="空间ID")
+
+
 class ListExternalPermissionSLZ(serializers.Serializer):
     space_uid = serializers.CharField(required=False, label="空间ID")
     view_type = serializers.CharField(required=False, label="视角类型", default=ViewTypeEnum.USER.value)

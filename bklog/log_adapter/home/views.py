@@ -58,8 +58,6 @@ class RequestProcessor:
     def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data: Dict[str, Any]):
         """获取请求中的资源"""
         if action_id == ActionEnum.LOG_SEARCH.value:
-            if "space_uid" in kwargs:
-                return kwargs.get("space_uid", "")
             if "index_set_id" in kwargs:
                 return int(kwargs.get("index_set_id", ""))
             if "index_set_id" in json_data:
@@ -85,11 +83,6 @@ class RequestProcessor:
             data = response.data
             if isinstance(data, dict) and "data" in data:
                 data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
-                response.data = data
-        elif view_action == "list_spaces_mine":
-            data = response.data
-            if isinstance(data, dict) and "data" in data:
-                data["data"] = [d for d in data["data"] if d["space_uid"] in allow_resources]
                 response.data = data
         return response
 

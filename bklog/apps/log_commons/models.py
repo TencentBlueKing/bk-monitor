@@ -8,7 +8,6 @@ from apps.api.modules.bk_itsm import BkItsm
 from apps.constants import (
     ACTION_ID_MAP,
     ACTION_MAP,
-    DEFAULT_ALLOW_ACTIONS,
     Action,
     ActionEnum,
     ApiTokenAuthType,
@@ -385,7 +384,10 @@ class ExternalPermission(OperateRecordModel):
 
             permission_list = list(resource_to_user.values())
         for permission in permission_list:
-            permission["authorizer"] = authorizer
+            if not space_uid:
+                permission["authorizer"] = AuthorizerSettings.get_authorizer(space_uid=permission["space_uid"])
+            else:
+                permission["authorizer"] = authorizer
             permission["space_name"] = space_info.get(permission["space_uid"], "")
         return permission_list
 
@@ -443,15 +445,6 @@ class ExternalPermission(OperateRecordModel):
         :param action_id: 后台定义操作ID, ActionEnum
         :return: bool
         """
-        # 先判断是否有在默认允许的action中
-        for default_allow_action in DEFAULT_ALLOW_ACTIONS:
-            if default_allow_action.view_set != view_set:
-                continue
-            if not default_allow_action.action_id:
-                return True
-            if default_allow_action.action_id == action:
-                return True
-
         allow_actions: List[Action] = ACTION_MAP.get(action_id, [])
         for _action in allow_actions:
             if _action.view_set != view_set:
@@ -479,9 +472,6 @@ class ExternalPermission(OperateRecordModel):
         if action_id != ActionEnum.LOG_SEARCH.value:
             return result
         result["allowed"] = True
-        if view_set == "MetaViewSet":
-            result["resources"] = cls.get_authorized_user_space_list(authorized_user)
-            return result
         obj = ExternalPermission.objects.filter(
             action_id=action_id, authorized_user=authorized_user, space_uid=space_uid
         ).first()

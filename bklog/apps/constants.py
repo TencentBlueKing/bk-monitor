@@ -19,8 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from dataclasses import dataclass
-from typing import List
 
 from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext_lazy as _
@@ -262,14 +262,8 @@ class ActionEnum(ChoicesEnum):
     )
 
 
-# 默认允许的action
-DEFAULT_ALLOW_ACTIONS: List[Action] = [
-    Action(view_set="MetaViewSet", action_id="list_spaces_mine"),
-]
-
 ACTION_MAP = {
     ActionEnum.LOG_SEARCH.value: [
-        Action(view_set="MetaViewSet", action_id="list_spaces_mine"),
         Action(view_set="SearchViewSet", action_id="list"),
         Action(view_set="SearchViewSet", action_id="bizs"),
         Action(view_set="SearchViewSet", action_id="search"),
