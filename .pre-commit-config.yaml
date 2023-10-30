@@ -49,6 +49,14 @@ repos:
         language: system
         verbose: true
 
+      # 执行 preci 流水线
+      - id: check-pre-ci-pipeline
+        name: check pre ci pipeline
+        entry: scripts/pre_commit/preci/run.sh
+        language: system
+        stages: [ push ]
+        verbose: true
+
       # 提交前，需要检查提交 message
       - id: check-commit-message
         name: Check commit message
