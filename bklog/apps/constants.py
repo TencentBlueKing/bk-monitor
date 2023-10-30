@@ -252,7 +252,7 @@ class OperateEnum(ChoicesEnum):
     )
 
 
-class ActionEnum(ChoicesEnum):
+class ExternalPermissionActionEnum(ChoicesEnum):
     LOG_SEARCH = "log_search"
     LOG_EXTRACT = "log_extract"
 
@@ -263,7 +263,7 @@ class ActionEnum(ChoicesEnum):
 
 
 ACTION_MAP = {
-    ActionEnum.LOG_SEARCH.value: [
+    ExternalPermissionActionEnum.LOG_SEARCH.value: [
         Action(view_set="SearchViewSet", action_id="list"),
         Action(view_set="SearchViewSet", action_id="bizs"),
         Action(view_set="SearchViewSet", action_id="search"),
@@ -275,7 +275,7 @@ ACTION_MAP = {
         Action(view_set="AggsViewSet", action_id="date_histogram"),
         Action(view_set="FavoriteViewSet"),
     ],
-    ActionEnum.LOG_EXTRACT.value: [
+    ExternalPermissionActionEnum.LOG_EXTRACT.value: [
         Action(view_set="ExplorerViewSet"),
         Action(view_set="TasksViewSet"),
         Action(view_set="StrategiesViewSet"),
@@ -284,6 +284,6 @@ ACTION_MAP = {
 
 # 与权限中心的action_id对应关系
 ACTION_ID_MAP = {
-    ActionEnum.LOG_SEARCH.value: "search_log_v2",
-    ActionEnum.LOG_EXTRACT.value: "manage_extract_config_v2",
+    ExternalPermissionActionEnum.LOG_SEARCH.value: "search_log_v2",
+    ExternalPermissionActionEnum.LOG_EXTRACT.value: "manage_extract_config_v2",
 }

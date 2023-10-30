@@ -12,7 +12,8 @@ import json
 from typing import Any, Dict
 from urllib.parse import urlsplit
 
-from apps.constants import ActionEnum
+from apps.constants import ExternalPermissionActionEnum
+from apps.iam import ActionEnum
 from apps.log_commons.models import (
     AuthorizerSettings,
     ExternalPermission,
@@ -31,6 +32,7 @@ from django.test import RequestFactory
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -57,7 +59,7 @@ class RequestProcessor:
     @classmethod
     def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data: Dict[str, Any]):
         """获取请求中的资源"""
-        if action_id == ActionEnum.LOG_SEARCH.value:
+        if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
             if "index_set_id" in kwargs:
                 return int(kwargs.get("index_set_id", ""))
             if "index_set_id" in json_data:
@@ -76,7 +78,7 @@ class RequestProcessor:
         """
         if not allow_resources_result["allowed"]:
             return response
-        if action_id != ActionEnum.LOG_SEARCH.value:
+        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return response
         allow_resources = allow_resources_result["resources"]
         if view_action == "list":
@@ -125,6 +127,45 @@ def external(request):
     response.set_cookie("space_uid", space_uid)
     response.set_cookie("external_user", external_user)
     return response
+
+
+@login_exempt
+def dispatch_list_user_spaces(request):
+    """
+    外部版本获取用户被授权的空间列表
+    """
+    from apps.log_search.models import Space
+
+    external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+    if not external_user:
+        return HttpResponseForbidden("请求缺少HTTP_USER或USER请求头")
+    space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
+    if not space_uid_list:
+        logger.error(f"外部用户{external_user}无访问权限")
+        return HttpResponseForbidden(f"外部用户{external_user}无访问权限")
+    spaces = Space.objects.filter(space_uid__in=space_uid_list).all()
+    return JsonResponse(
+        {
+            "result": True,
+            "message": f"list external_user:{external_user} spaces success",
+            "data": [
+                {
+                    "id": space.id,
+                    "space_type_id": space.space_type_id,
+                    "space_type_name": _(space.space_type_name),
+                    "space_id": space.space_id,
+                    "space_name": space.space_name,
+                    "space_uid": space.space_uid,
+                    "space_code": space.space_code,
+                    "bk_biz_id": space.bk_biz_id,
+                    "time_zone": space.properties.get("time_zone", "Asia/Shanghai"),
+                    "is_sticky": False,
+                    "permission": {ActionEnum.VIEW_BUSINESS.id: True},
+                }
+                for space in spaces
+            ],
+        }
+    )
 
 
 @login_exempt

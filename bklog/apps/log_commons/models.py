@@ -9,8 +9,8 @@ from apps.constants import (
     ACTION_ID_MAP,
     ACTION_MAP,
     Action,
-    ActionEnum,
     ApiTokenAuthType,
+    ExternalPermissionActionEnum,
     ITSMStatusChoicesEnum,
     OperateEnum,
     TokenStatusEnum,
@@ -120,7 +120,9 @@ class ExternalPermission(OperateRecordModel):
 
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     authorized_user = models.CharField("被授权人", max_length=64)
-    action_id = models.CharField("操作类型", max_length=32, choices=ActionEnum.get_choices(), db_index=True)
+    action_id = models.CharField(
+        "操作类型", max_length=32, choices=ExternalPermissionActionEnum.get_choices(), db_index=True
+    )
     resources = models.JSONField("资源列表", default=list)
     expire_time = models.DateTimeField("过期时间", null=True, default=None)
 
@@ -414,7 +416,7 @@ class ExternalPermission(OperateRecordModel):
         from apps.log_search.models import LogIndexSet
 
         # 暂时只有日志检索支持资源授权
-        if action_id != ActionEnum.LOG_SEARCH.value:
+        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return []
         if not space_uid:
             space_uid_list = ExternalPermission.objects.all().values_list("space_uid", flat=True).distinct()
@@ -469,7 +471,7 @@ class ExternalPermission(OperateRecordModel):
             "allowed": False,
             "resources": [],
         }
-        if action_id != ActionEnum.LOG_SEARCH.value:
+        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return result
         result["allowed"] = True
         obj = ExternalPermission.objects.filter(
@@ -488,7 +490,9 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     authorized_users = models.JSONField("被授权人列表", default=list)
     resources = models.JSONField("资源列表", default=list)
-    action_id = models.CharField("操作类型", max_length=32, choices=ActionEnum.get_choices(), db_index=True)
+    action_id = models.CharField(
+        "操作类型", max_length=32, choices=ExternalPermissionActionEnum.get_choices(), db_index=True
+    )
     operate = models.CharField(
         "操作",
         choices=OperateEnum.get_choices(),
