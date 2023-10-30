@@ -12,10 +12,25 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 
 import git
 import yaml
+
+
+def execute_command(command):
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+
+    while True:
+        output = process.stdout.readline().decode().strip()
+        if output == '' and process.poll() is not None:
+            break
+        if output:
+            print(output, flush=True)
+
+    return process.poll()
 
 
 def main():
@@ -45,27 +60,16 @@ def main():
 
     # 获取远程分支
     remote_ref = None
-    remote_master_ref = None
     for ref in remote.refs:
-        # 获取远程master分支
-        if f"refs/remotes/{remote_name}/master" == ref.path and not remote_ref:
-            remote_master_ref = ref
-
         # 获取远程分支
         if f"refs/remotes/{remote_name}/{remote_branch}" != ref.path:
             continue
         remote_ref = ref
         break
 
-    # 判断是否找到远程分支
     if not remote_ref:
-        if not remote_master_ref:
-            print(f"cannot find remote branch {remote_name}/{remote_branch} or master")
-            return 1
-        else:
-            # 使用远程master分支
-            remote_ref = remote_master_ref
-            print(f"remote branch: {remote_name}/{remote_branch} not found, use master instead")
+        print(f"remote branch: {remote_name}/{remote_branch} not found, use master instead")
+        remote_ref = repo.branches.master
     else:
         print(f"remote branch: {remote_name}/{remote_branch}")
 
@@ -81,6 +85,8 @@ def main():
         for item in diff:
             changed_files.add(item.b_path)
 
+    if not changed_files:
+        return 0
     print(f"changed files: {len(changed_files)}")
 
     # 创建临时文件夹
@@ -93,8 +99,6 @@ def main():
                 shutil.copyfile(file, file_path)
             except FileNotFoundError:
                 pass
-
-        os.system(f"tree {temp_dir}")
 
         # 创建临时PreCI项目
         temp_hash = hashlib.sha1(temp_dir.encode("utf-8")).hexdigest()
@@ -112,8 +116,9 @@ def main():
         shutil.copyfile(f"{repo.working_dir}/build.yml", f"{temp_dir}/build.yml")
 
         # 执行PreCI
-        result = os.system(f"preci run --projectPath {temp_dir}")
-
+        sys.stdout.flush()
+        result = execute_command(f"preci run --projectPath {temp_dir}")
+        print("result:", result)
         # 清理临时PreCI项目
         shutil.rmtree(temp_preci_path)
 
