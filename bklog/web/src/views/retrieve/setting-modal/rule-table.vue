@@ -642,7 +642,6 @@ export default {
 
     .add-box {
       min-width: 48px;
-
       .bk-icon {
         width: 10px;
         left: -3px;
