@@ -125,22 +125,6 @@ class RealTimePredictFlowNode(object):
     PREDICT_NODE = "clustering_output"
 
 
-def get_pattern_fields(field_name):
-    result = {
-      "field_type": "keyword",
-      "field_name": field_name,
-      "field_alias": "",
-      "is_display": False,
-      "is_editable": True,
-      "tag": "dimension",
-      "es_doc_values": True,
-      "is_analyzed": False,
-      "field_operator": OPERATORS.get("keyword", []),
-      "description": None
-    }
-    return result
-
-
 # 查询字段   __dist_xx
 PATTERN_SEARCH_FIELDS = [
     {
