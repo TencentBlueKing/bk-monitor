@@ -15,6 +15,12 @@ import operator
 from collections import defaultdict
 from typing import List
 
+from django.utils.translation import gettext_lazy as _lazy
+from django.utils.translation import ugettext as _
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+from rest_framework import serializers
+
 from apm_web.constants import (
     APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
@@ -63,11 +69,11 @@ from apm_web.serializers import (
     ServiceParamsSerializer,
 )
 from apm_web.utils import Calculator, get_time_period, group_by, handle_filter_fields
+from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request
 from constants.apm import OtlpKey, SpanKind
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
-from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
     CollectTableFormat,
@@ -85,12 +91,6 @@ from monitor_web.scene_view.table_format import (
     StringTableFormat,
     SyncTimeLinkTableFormat,
 )
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-from rest_framework import serializers
-
-from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.utils.request import get_request
 
 logger = logging.getLogger(__name__)
 
@@ -1606,7 +1606,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             endpoint["app_name"] = application.app_name
             endpoint["operation"] = {"trace": _lazy("调用链")}
             endpoint["origin_category_kind"] = endpoint["category_kind"]
-            endpoint["category_kind"] = endpoint["category_kind"]["value"]
+            endpoint["category_kind"] = endpoint["category_kind"]["value"] or "--"
             endpoint["bk_biz_id"] = data["bk_biz_id"]
             endpoint["status"] = self.get_status(metric)
             endpoint["service"] = endpoint["service_name"]
