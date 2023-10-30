@@ -23,7 +23,7 @@ TODO
 
 ## Getting Started
 * [Download and Compile (In Chinese)](https://bk.tencent.com/download_version_list/)
-* [Installation and Deployment (In Chinese)](https://bk.tencent.com/docs/document/6.0/127/8588)
+* [Installation and Deployment (In Chinese)](https://bk.tencent.com/docs/markdown/ZH/DeploymentGuides/7.1/install-co-suite.md)
 
 
 ## Support
