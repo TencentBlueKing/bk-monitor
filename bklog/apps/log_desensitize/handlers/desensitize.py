@@ -306,7 +306,7 @@ class DesensitizeRuleHandler(object):
             objs = objs.filter(is_public=False, space_uid=space_uid)
         else:
             # 过滤全局+当前空间业务下规则
-            objs = objs.filter(Q(is_public=True) | Q(space_uid=space_uid))
+            objs = objs.filter(Q(is_public=True) | Q(space_uid=space_uid, is_public=True))
 
         if not objs:
             return []
