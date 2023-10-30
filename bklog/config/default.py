@@ -19,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import os
 import sys
 
 from blueapps.conf.default_settings import *  # noqa
@@ -84,6 +83,7 @@ INSTALLED_APPS += (
     "bkm_space",
     "bkm_ipchooser",
     "apps.log_desensitize",
+    "log_adapter",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -180,7 +180,6 @@ if "celery" in sys.argv:
     if "beat" in sys.argv:
         IS_CELERY_BEAT = True
 
-
 # CELERY 并发数，默认为 2，可以通过环境变量或者 Procfile 设置
 CELERYD_CONCURRENCY = os.getenv("BK_CELERYD_CONCURRENCY", 2)
 
@@ -209,7 +208,6 @@ CELERY_IMPORTS = (
     "apps.log_extract.tasks.extract",
 )
 
-
 # OTLP Service Name
 SERVICE_NAME = APP_CODE
 if BKAPP_IS_BKLOG_API:
@@ -218,7 +216,6 @@ if IS_CELERY:
     SERVICE_NAME = APP_CODE + "_worker"
 if IS_CELERY_BEAT:
     SERVICE_NAME = APP_CODE + "_beat"
-
 
 # load logging settings
 if RUN_VER != "open":
@@ -353,6 +350,7 @@ BK_HOT_WARM_CONFIG_URL = (
 )
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
+
 
 # ===============================================================================
 # 企业版登录重定向
@@ -969,7 +967,6 @@ if os.getenv("BKAPP_GSE_VERSION"):
 else:
     GSE_VERSION = "v2" if ENABLE_DHCP else "v1"
 
-
 # 国际化切换语言设置
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")
 # 容器采集配置
@@ -979,6 +976,11 @@ CONTAINER_COLLECTOR_CR_LABEL_BKENV: str = os.getenv("BKAPP_CONTAINER_COLLECTOR_C
 
 # 是否开启RETAIN_EXTRA_JSON
 RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "off") == "on"
+
+# ITSM外部授权审批服务ID
+EXTERNAL_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_EXTERNAL_APPROVAL_SERVICE_ID", 0))
+# ITSM回调地址
+BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
 
 # ==============================================================================
 # Templates

@@ -19,11 +19,23 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from apps.generic import APIViewSet
 from apps.log_commons.exceptions import BaseCommonsException
+from apps.log_commons.models import ExternalPermission, ExternalPermissionApplyRecord
+from apps.log_commons.serializers import (
+    CreateORUpdateExternalPermissionSLZ,
+    DestroyExternalPermissionSLZ,
+    GetApplyRecordSLZ,
+    GetAuthorizerSLZ,
+    GetResourceByActionSLZ,
+    ListExternalPermissionSLZ,
+)
+from apps.utils.drf import list_route
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.http import JsonResponse
 from django.utils.translation import ugettext_lazy as _
+from rest_framework.response import Response
 
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = "日志平台"
@@ -49,3 +61,34 @@ def get_docs_link(request):
 
     doc_url = f"{settings.BK_DOC_URL.rstrip('/')}/markdown/{md_path.lstrip('/')}"
     return JsonResponse({"result": True, "code": 0, "message": "OK", "data": doc_url})
+
+
+class ExternalPermissionViewSet(APIViewSet):
+    def list(self, request):
+        data = self.params_valid(ListExternalPermissionSLZ)
+        return Response(ExternalPermission.list(**data))
+
+    @list_route(methods=["get"], url_path="get_authorizer")
+    def get_authorizer(self, request):
+        data = self.params_valid(GetAuthorizerSLZ)
+        return Response(ExternalPermission.get_authorizer(**data))
+
+    @list_route(methods=["post"], url_path="create_or_update")
+    def create_or_update(self, request):
+        data = self.params_valid(CreateORUpdateExternalPermissionSLZ)
+        return Response(ExternalPermission.create_or_update(validated_request_data=data))
+
+    @list_route(methods=["get"], url_path="get_resource_by_action")
+    def get_resource_by_action(self, request):
+        data = self.params_valid(GetResourceByActionSLZ)
+        return Response(ExternalPermission.get_resource_by_action(**data))
+
+    @list_route(methods=["get"], url_path="get_apply_record")
+    def get_apply_record(self, request):
+        data = self.params_valid(GetApplyRecordSLZ)
+        return Response(ExternalPermissionApplyRecord.list(**data))
+
+    @list_route(methods=["post"], url_path="drop")
+    def drop(self, request):
+        data = self.params_valid(DestroyExternalPermissionSLZ)
+        return Response(ExternalPermission.destroy(**data))
