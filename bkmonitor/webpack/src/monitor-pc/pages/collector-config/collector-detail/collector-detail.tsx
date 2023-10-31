@@ -30,8 +30,10 @@ import { random } from '@common/utils';
 import { TabPanel } from 'bk-magic-vue';
 
 import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
+import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 
+import { IAlarmGroupList } from './components/alarm-group';
 import AlertTopic from './components/alert-topic';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
@@ -54,11 +56,18 @@ export default class CollectorDetail extends tsc<{}> {
     }
   };
 
+  // 告警组
+  alarmGroupList: IAlarmGroupList[] = [];
+
   public beforeRouteEnter(to: Route, from: Route, next: Function) {
     const { params } = to;
     next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
     });
+  }
+
+  created() {
+    this.getAlarmGroupList();
   }
 
   handleTabChange(v: TabEnum) {
@@ -86,6 +95,18 @@ export default class CollectorDetail extends tsc<{}> {
       });
   }
 
+  getAlarmGroupList() {
+    return listUserGroup({ exclude_detail_info: 1 }).then(data => {
+      this.alarmGroupList = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        needDuty: item.need_duty,
+        receiver:
+          item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || []
+      }));
+    });
+  }
+
   render() {
     return (
       <div class='collector-detail-page'>
@@ -106,8 +127,9 @@ export default class CollectorDetail extends tsc<{}> {
             label={this.$t('采集详情')}
             name={TabEnum.TargetDetail}
           >
-            <AlertTopic></AlertTopic>
+            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
             <CollectorStatusDetails
+              class='mt-24'
               data={this.allData[TabEnum.TargetDetail].data}
               updateKey={this.allData[TabEnum.TargetDetail].updateKey}
             ></CollectorStatusDetails>

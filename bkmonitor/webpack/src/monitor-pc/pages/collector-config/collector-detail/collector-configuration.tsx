@@ -32,13 +32,13 @@ import { frontendCollectConfigDetail } from '../../../../monitor-api/modules/col
 import './collector-configuration.scss';
 
 interface IProps {
-  id: string;
+  id: string | number;
   show: boolean;
 }
 
 @Component
 export default class CollectorConfiguration extends tsc<IProps> {
-  @Prop({ type: String, default: '' }) id: string;
+  @Prop({ type: [String, Number], default: '' }) id: number | string;
   @Prop({ type: Boolean, default: false }) show: boolean;
 
   /* 基本信息 */
