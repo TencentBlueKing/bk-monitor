@@ -39,7 +39,7 @@ repos:
         name: check pre ci pipeline
         entry: python scripts/pre-commit/pre-push.py
         language: system
-        stages: [ pre-push ]
+        stages: [ push ]
         verbose: true
 
       # flake8
