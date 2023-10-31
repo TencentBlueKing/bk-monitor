@@ -2014,6 +2014,8 @@ msgstr "Microsecond (microsecond)"
 #: apps/log_databus/handlers/collector.py:1866
 #: apps/log_databus/handlers/collector.py:1885
 #: apps/log_search/constants.py:291
+#: apps/log_databus/handlers/collector.py:1424
+#: apps/log_databus/handlers/collector.py:1425
 msgid "主机"
 msgstr "Host"
 
