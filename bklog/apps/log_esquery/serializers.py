@@ -362,7 +362,7 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
         if index_set_id:
-            index_info = _get_index_info(index_set_id, is_exclude_clustered_fields=False)
+            index_info = _get_index_info(index_set_id)
             indices = index_info["indices"]
             scenario_id = index_info["scenario_id"]
             storage_cluster_id = index_info["storage_cluster_id"]
@@ -379,7 +379,7 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
         return attrs
 
 
-def _get_index_info(index_set_id, is_clustered_fields):
+def _get_index_info(index_set_id, is_clustered_fields=False):
     return _init_index_info(index_set_id=index_set_id, is_clustered_fields=is_clustered_fields)
 
 
