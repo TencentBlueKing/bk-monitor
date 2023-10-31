@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
 import copy
 from copy import deepcopy
 
@@ -7,12 +18,12 @@ import pytest
 from apm_web.models.application import Application
 
 APP_NAME = "test_log_trace"
-SUBSCRIPTION_ID = 1060
+SUBSCRIPTION_ID = 1
 OUTPUT_PARAM = {
     "bk_data_token": "123",
     "host": "127.0.0.1"
 }
-APPLICATION_ID = 106
+APPLICATION_ID = 1
 API_APPLICATION = {
     "bk_biz_id": 2,
     "app_name": "test_log_trace",
@@ -55,7 +66,7 @@ CREATE_APPLICATION = {
         ],
         "data_encoding": "UTF-8",
         "paths": [
-            "/usr/local/test/*.log"
+            "/usr/local/test/test.log"
         ]
     }
 }
@@ -69,7 +80,7 @@ PLUGIN_CONFIG = {
     ],
     "data_encoding": "UTF-8",
     "paths": [
-        "/usr/local/snh/log"
+        "/usr/local/test/log"
     ],
     "bk_data_id": 1,
     "bk_biz_id": 2,

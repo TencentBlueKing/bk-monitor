@@ -172,7 +172,6 @@ class Application(AbstractRecordModel):
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
-        app_label = 'apm_web'
 
     def __str__(self):
         return self.__repr__()
@@ -377,7 +376,7 @@ class Application(AbstractRecordModel):
             plugin_config["bk_biz_id"] = bk_biz_id
             plugin_config["bk_data_id"] = application_info["datasource_info"]["trace_config"]["bk_data_id"]
             application.set_plugin_config(plugin_config, application.application_id)
-        return Application.objects.filter(application_id=application.application_id).first()
+        return Application.objects.get(application_id=application.application_id)
 
     @classmethod
     def set_plugin_config(cls, plugin_config, application_id):
@@ -682,9 +681,6 @@ class ApplicationRelationInfo(models.Model):
     relation_key = models.CharField("关联Key", max_length=255)
     relation_value = models.CharField("关联值", max_length=255)
 
-    class Meta:
-        app_label = 'apm_web'
-
     @classmethod
     def add_relation(cls, application_id: int, relation_key: str, relation_value: str):
         cls.objects.create(application_id=application_id, relation_key=relation_key, relation_value=relation_value)
@@ -745,6 +741,3 @@ class ApplicationCustomService(AbstractRecordModel):
     type = models.CharField(max_length=32, choices=CustomServiceType.choices(), verbose_name="服务类型")
     match_type = models.CharField(max_length=32, choices=CustomServiceMatchType.choices(), verbose_name="匹配类型")
     rule = JsonField(verbose_name="匹配规则")
-
-    class Meta:
-        app_label = 'apm_web'

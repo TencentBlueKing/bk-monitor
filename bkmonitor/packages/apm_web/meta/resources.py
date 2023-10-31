@@ -142,11 +142,11 @@ class CreateApplicationResource(Resource):
         class PluginConfigSerializer(serializers.Serializer):
             target_node_type = serializers.CharField(label="节点类型", max_length=255)
             target_nodes = serializers.ListField(
-                label=_("目标节点"),
+                label="目标节点",
                 required=False,
             )
             target_object_type = serializers.CharField(label="目标类型", max_length=255)
-            data_encoding = serializers.CharField(label=_("日志字符集"), max_length=255)
+            data_encoding = serializers.CharField(label="日志字符集", max_length=255)
             paths = serializers.ListSerializer(
                 label="语言",
                 child=serializers.CharField(max_length=255),
