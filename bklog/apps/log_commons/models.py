@@ -4,10 +4,11 @@ from typing import Any, Dict, List
 from urllib.parse import urljoin
 
 import pytz
-from apps.api.modules.bk_itsm import BkItsm
+from apps.api import BkItsmApi
 from apps.constants import (
     ACTION_ID_MAP,
     ACTION_MAP,
+    ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT,
     Action,
     ApiTokenAuthType,
     ExternalPermissionActionEnum,
@@ -16,13 +17,8 @@ from apps.constants import (
     TokenStatusEnum,
     ViewTypeEnum,
 )
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.models import FeatureToggle
-from apps.feature_toggle.plugins.constants import (
-    EXTERNAL_AUTHORIZER_MAP,
-    FEATURE_COLLECTOR_ITSM,
-    ITSM_SERVICE_ID,
-)
+from apps.feature_toggle.plugins.constants import EXTERNAL_AUTHORIZER_MAP
 from apps.iam import Permission
 from apps.iam.handlers.actions import get_action_by_id
 from apps.log_commons.cc import get_maintainers
@@ -220,6 +216,7 @@ class ExternalPermission(OperateRecordModel):
         2. 新增权限 - 实例视角
         """
         space_info = {i.space_uid: i for i in SpaceApi.list_spaces()}
+        bk_biz_id = space_info[params["space_uid"]].bk_biz_id
         bk_biz_name = space_info[params["space_uid"]].space_name
         username = get_request_username() or get_local_username()
         ticket_data = {
@@ -229,21 +226,20 @@ class ExternalPermission(OperateRecordModel):
             # 这里是因为需要使用admin创建单据，方能越过创建单据的权限限制
             "bk_username": "admin",
             "fields": [
-                {"key": "space_uid", "value": params["space_uid"]},
+                {"key": "bk_biz_id", "value": bk_biz_id},
                 {"key": "bk_biz_name", "value": bk_biz_name},
-                {"key": "title", "value": "对外版日志平台授权审批"},
+                {"key": "title", "value": ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT},
                 {"key": "expire_time", "value": params["expire_time"]},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
                 {"key": "resources", "value": cls.join_resources(params["resources"])},
+                {"key": "log_assessment", "value": ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT},
             ],
-            "service_id": FeatureToggleObject.toggle(FEATURE_COLLECTOR_ITSM).feature_config.get(
-                ITSM_SERVICE_ID, settings.COLLECTOR_ITSM_SERVICE_ID
-            ),
+            "service_id": settings.ITSM_EXTERNAL_PERMISSION_SERVICE_ID,
             "fast_approval": False,
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/external_callback/")},
         }
         try:
-            data = BkItsm.create_ticket(ticket_data)
+            data = BkItsmApi.create_ticket(ticket_data)
         except Exception as e:
             logger.error(f"审批创建异常: {e}")
             raise e
@@ -526,7 +522,7 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
     @classmethod
     def callback(cls, params: dict):
         if params.get("token"):
-            verify_data = BkItsm.token_verify({"token": params["token"]})
+            verify_data = BkItsmApi.token_verify({"token": params["token"]})
             if not verify_data.get("is_passed", False):
                 return {"message": "Error Token", "result": False}
 
