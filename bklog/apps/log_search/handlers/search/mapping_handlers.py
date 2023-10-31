@@ -26,6 +26,7 @@ from typing import Any, Dict, List
 
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -37,6 +38,7 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     SearchScopeEnum,
 )
+from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
@@ -139,6 +141,13 @@ class MappingHandlers(object):
             key = f"{last_key}.{property_key}" if last_key else property_key
             conflict_result[key].add(property_define["type"])
 
+    def add_clustered_fields(self, field_list):
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
+        if clustering_config and clustering_config.clustered_rt:
+            field_list.extend(PATTERN_SEARCH_FIELDS)
+            return field_list
+        return field_list
+
     def virtual_fields(self, field_list):
         """
         virtual_fields
@@ -206,6 +215,7 @@ class MappingHandlers(object):
             }
             for field in fields_result
         ]
+        fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
         fields_list = self._combine_description_field(fields_list)
         return self._combine_fields(fields_list)
