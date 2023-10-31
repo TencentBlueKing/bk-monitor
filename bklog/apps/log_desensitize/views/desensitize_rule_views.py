@@ -33,7 +33,8 @@ from apps.log_desensitize.serializers import (
     DesensitizeRuleListSerializer,
     DesensitizeRuleRegexDebugSerializer,
     DesensitizeRuleMatchSerializer,
-    DesensitizeRulePreviewSerializer
+    DesensitizeRulePreviewSerializer,
+    DesensitizeRuleDebugSerializer
 )
 from apps.utils.drf import list_route, detail_route
 
@@ -315,6 +316,34 @@ class DesensitizeRuleViesSet(ModelViewSet):
         """
         data = self.params_valid(DesensitizeRuleRegexDebugSerializer)
         return Response(DesensitizeRuleHandler().regex_debug(data["log_sample"], data["match_pattern"]))
+
+    @list_route(methods=["POST"], url_path="debug")
+    def rule_debug(self, request, *args, **kwargs):
+        """
+        @api {POST} /api/v1/desensitize/rule/debug/ 规则调试
+        @apiName desensitize_rule rule_debug
+        @apiGroup DesensitizeRule
+        @apiParamExample {json} 请求样例:
+        {
+            "log_sample": "12343456",
+            "match_pattern": "\\d+"
+            "operator": "mask_shield",
+            "params": {
+                "preserve_head": 1,
+                "preserve_tail": 2,
+                "replace_mark": "*"
+            }
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": "1<mark>*****</mark>56",
+            "result": true
+        }
+        """
+        data = self.params_valid(DesensitizeRuleDebugSerializer)
+        return Response(DesensitizeRuleHandler().rule_debug(data))
 
     @detail_route(methods=["POST"], url_path="start")
     def start(self, request, id=None, *args, **kwargs):
