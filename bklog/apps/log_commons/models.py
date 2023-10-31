@@ -232,7 +232,6 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "expire_time", "value": params["expire_time"]},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
                 {"key": "resources", "value": cls.join_resources(params["resources"])},
-                {"key": "log_assessment", "value": ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT},
             ],
             "service_id": settings.ITSM_EXTERNAL_PERMISSION_SERVICE_ID,
             "fast_approval": False,

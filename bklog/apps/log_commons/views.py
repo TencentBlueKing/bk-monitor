@@ -85,12 +85,12 @@ class ExternalPermissionViewSet(APIViewSet):
         data = self.params_valid(CreateORUpdateExternalPermissionSLZ)
         return Response(ExternalPermission.create_or_update(validated_request_data=data))
 
-    @list_route(methods=["get"], url_path="get_resource_by_action")
+    @list_route(methods=["get"], url_path="resource_by_action")
     def get_resource_by_action(self, request):
         data = self.params_valid(GetResourceByActionSLZ)
         return Response(ExternalPermission.get_resource_by_action(**data))
 
-    @list_route(methods=["get"], url_path="get_apply_record")
+    @list_route(methods=["get"], url_path="apply_record")
     def get_apply_record(self, request):
         data = self.params_valid(GetApplyRecordSLZ)
         return Response(ExternalPermissionApplyRecord.list(**data))
