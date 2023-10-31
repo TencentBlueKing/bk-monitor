@@ -67,6 +67,7 @@ import { dataModeType, IDetectionConfig, IScenarioItem, MetricDetail } from '../
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
+import { transformLogMetricId } from './utils';
 
 import './strategy-config-detail-common.scss';
 
@@ -525,7 +526,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     const { metric_list: metricList = [] } = await getMetricListV2({
       // page: 1,
       // page_size: queryConfigs.length,
-      conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }]
+      conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }]
     }).catch(() => ({}));
     this.metricData = queryConfigs.map(
       ({
