@@ -25,7 +25,8 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { getDateValueToString } from '@blueking/date-picker/dist/vue2-full.es';
+import type { DateValue } from '@blueking/date-picker';
+import { getDateValueToString } from '@blueking/date-picker/vue2';
 import { Button, Checkbox, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
 import moment from 'moment';
 
@@ -359,7 +360,7 @@ export default class HistoryShareManage extends tsc<IProps> {
       if (!!timeRangeItem?.default_time_range) {
         timeRangeStr =
           this.shortcutsMap.get(timeRangeItem.default_time_range.join(' -- ')) ||
-          getDateValueToString(timeRangeItem?.default_time_range);
+          getDateValueToString(timeRangeItem?.default_time_range as DateValue, 'YYYY-MM-DD HH:mm:ss');
       } else {
         const formatStr = 'YYYY-MM-DD HH:mm:ss';
         timeRangeStr = `${moment(timeRangeItem.start_time * 1000).format(formatStr)}--${moment(

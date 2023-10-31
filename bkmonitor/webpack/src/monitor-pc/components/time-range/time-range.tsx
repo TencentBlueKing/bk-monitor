@@ -25,7 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import DatePicker from '@blueking/date-picker/dist/vue2-full.es';
+import DatePicker from '@blueking/date-picker/vue2';
 
 import { DEFAULT_TIME_RANGE } from './utils';
 
@@ -46,7 +46,7 @@ interface IEvents {
 @Component
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
-  @Prop({ default: 'simplicity', type: Array }) type: TimeRangeDisplayType; // 组件回显值
+  @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
 
   modelValue: TimeRangeType = DEFAULT_TIME_RANGE;
   timezone = 'Asia/Shanghai';
@@ -62,10 +62,14 @@ export default class TimeRange extends tsc<IProps, IEvents> {
     console.info('handleTimezoneChange', v);
     this.timezone = v;
   }
+  mounted() {
+    console.info('mounted', this.$refs.datePicker);
+  }
   render() {
     return (
       <div style='display: inline-flex'>
         <DatePicker
+          ref='datePicker'
           modelValue={this.value}
           timezone={this.timezone}
           behavior={this.type}
