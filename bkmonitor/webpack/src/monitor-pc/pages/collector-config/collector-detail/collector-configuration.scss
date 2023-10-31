@@ -1,0 +1,47 @@
+.collector-configuration-component {
+  position: relative;
+
+  .mt-24 {
+    margin-top: 24px;
+  }
+
+  .mt-12 {
+    margin-top: 12px;
+  }
+
+  .split-line {
+    width: 100%;
+    height: 1px;
+    background: #eaebf0;
+  }
+
+  .detail-wrap-item {
+    .wrap-item-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 22px;
+      color: #63656e;
+    }
+
+    .wrap-item-content {
+      .form-item {
+        display: flex;
+        align-items: flex-start;
+        margin-top: 12px;
+        line-height: 20px;
+
+        .item-label {
+          width: 92px;
+          min-width: 92px;
+          color: #63656e;
+          text-align: right;
+        }
+
+        .item-content {
+          padding-left: 8px;
+          color: #313238;
+        }
+      }
+    }
+  }
+}

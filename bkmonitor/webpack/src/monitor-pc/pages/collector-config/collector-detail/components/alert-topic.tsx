@@ -23,9 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export enum TabEnum {
-  DataLink = 'DataLink',
-  StorageState = 'StorageState',
-  TargetDetail = 'targetDetail',
-  Configuration = 'configuration'
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import AlarmGroup from '../../../strategy-config/strategy-config-set-new/components/alarm-group';
+
+import AlertHistogram from './alert-histogram';
+
+import './alert-topic.scss';
+
+@Component
+export default class AlertTopic extends tsc<{}> {
+  render() {
+    return (
+      <div class='alert-topic-component'>
+        <span class='left-wrap'>
+          <span class='cur-alert'>
+            <span class='icon-monitor icon-mc-check-fill'></span>
+            <span>{this.$t('当前暂无告警')}</span>
+          </span>
+          <span class='alert-histogram'>
+            <span class='alert-msg'>
+              <span>{this.$t('总告警')}</span>
+              <span>({this.$t('近1小时')})</span>
+            </span>
+            <AlertHistogram></AlertHistogram>
+          </span>
+        </span>
+        <span class='right-wrap'>
+          <span>
+            <span class='icon-monitor icon-mc-alarm-create'></span>
+            <span>{this.$t('可接收告警')}</span>
+          </span>
+          <span>
+            <span class='icon-monitor icon-mc-add-strategy'></span>
+            <span>
+              <AlarmGroup></AlarmGroup>
+            </span>
+          </span>
+        </span>
+      </div>
+    );
+  }
 }
