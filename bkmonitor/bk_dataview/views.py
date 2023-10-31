@@ -9,8 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-import time
-from collections import defaultdict
 from typing import Dict, Optional
 
 import requests
@@ -64,16 +62,16 @@ class ProxyBaseView(View):
         if self.user:
             return self.user["login"]
         elif getattr(request, "external_user", None):
-            return request.external_user
+            return f"external_{request.external_user}"
         else:
             return request.user.username
 
     def initial(self, request, *args, **kwargs):
         # 登录校验
-        user = self.perform_authentication(request)
+        self.perform_authentication(request)
 
         # 同步用户
-        self.user = get_or_create_user(user.username)
+        self.user = get_or_create_user(self.get_username(request))
 
         # 同步权限
         self.sync_permissions(request)
@@ -89,7 +87,7 @@ class ProxyBaseView(View):
             authentication = authentication_cls()
             user = authentication.authenticate(request)
             if user:
-                return user
+                return
         else:
             raise UnauthorizedError()
 
@@ -251,7 +249,8 @@ class ProxyBaseView(View):
     def update_response(self, response, content):
         # 管理员跳过代码注入
         skip_code_injection = (
-            self.request.user.is_superuser
+            not getattr(self.request, "external_user", None)
+            and self.request.user.is_superuser
             and "develop" in self.request.GET
             and not getattr(self.request, "external_user", None)
         )
@@ -298,6 +297,9 @@ class StaticView(ProxyBaseView):
 
     def get_org_name(self, request, *args, **kwargs) -> str:
         return ""
+
+    def update_response(self, response, content):
+        return content
 
 
 class ProxyView(ProxyBaseView):

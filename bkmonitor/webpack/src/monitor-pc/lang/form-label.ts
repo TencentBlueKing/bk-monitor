@@ -1763,5 +1763,9 @@ export default {
   基于策略屏蔽: 'Policy-based blocking',
   基于维度屏蔽: 'Dimension-based blocking',
   基于告警事件屏蔽: 'Event-based blocking',
-  群提醒人: 'Group Reminder'
+  群提醒人: 'Group Reminder',
+  存储方式: 'Storage method',
+  启用慢语句: 'Enable low statements',
+  语句长度: 'Statement length',
+  慢语句阈值: 'Slow statement threshold'
 };

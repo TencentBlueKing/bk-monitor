@@ -89,6 +89,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     application_instance_name_config: {
       instance_name_composition: []
     },
+    application_db_config: [],
+    application_db_system: [],
     plugin_id: '',
     plugin_config: {
       target_node_type: 'INSTANCE',
@@ -184,6 +186,16 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     if (this.appId) {
       this.loading = this.firstLoad;
       const res = await applicationInfo(this.appId).catch(() => {});
+      // 特殊处理。应该后端的 bug 。
+      if ((res as IAppInfo).application_db_config.length === 0) {
+        res.application_db_config.push({
+          db_system: '',
+          trace_mode: 'closed',
+          length: 10000,
+          threshold: 500,
+          enabled_slow_sql: true
+        });
+      }
       Object.assign(this.appInfo, res);
       const {
         // app_name: appName,

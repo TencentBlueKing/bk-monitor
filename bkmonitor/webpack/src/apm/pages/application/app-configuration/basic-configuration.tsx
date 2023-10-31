@@ -26,7 +26,19 @@
 
 import { Component, Emit, Inject, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Form, FormItem, Icon, Input, Option, Select, Switcher } from 'bk-magic-vue';
+import {
+  Button,
+  DropdownMenu,
+  Form,
+  FormItem,
+  Icon,
+  Input,
+  Option,
+  RadioButton,
+  RadioGroup,
+  Select,
+  Switcher
+} from 'bk-magic-vue';
 
 import {
   getDataEncoding,
@@ -212,6 +224,39 @@ export default class BasicInfo extends tsc<IProps> {
     opentelemetry: 'OpenTelemetry'
   };
 
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  DBTypeRules = [
+    // {
+    //   trace_mode: [
+    //     {
+    //       required: true,
+    //       message: '必填项',
+    //       trigger: 'change'
+    //     }
+    //   ],
+    //   threshold: [
+    //     {
+    //       required: true,
+    //       message: '必填项',
+    //       trigger: 'blur'
+    //     }
+    //   ],
+    //   length: [
+    //     {
+    //       required: true,
+    //       message: '必填项',
+    //       trigger: 'blur'
+    //     }
+    //   ]
+    // }
+  ];
+
+  traceModeMapping = {
+    closed: '不储存',
+    no_parameters: '无参数命令',
+    origin: '原始命令'
+  };
+
   /** 应用ID */
   get appId() {
     return Number(this.$route.params?.id || 0);
@@ -244,6 +289,31 @@ export default class BasicInfo extends tsc<IProps> {
   }
 
   created() {
+    this.DBTypeRules = this.appInfo.application_db_config.map(item => {
+      return {
+        trace_mode: [
+          {
+            required: true,
+            message: '必填项',
+            trigger: 'change'
+          }
+        ],
+        threshold: [
+          {
+            required: item.enabled_slow_sql,
+            message: '必填项',
+            trigger: 'blur'
+          }
+        ],
+        length: [
+          {
+            required: true,
+            message: '必填项',
+            trigger: 'blur'
+          }
+        ]
+      };
+    });
     this.getInstanceOptions();
     this.apdexOptionList.forEach(item => {
       this.rules[item.id] = [
@@ -427,7 +497,9 @@ export default class BasicInfo extends tsc<IProps> {
       application_apdex_config: apdexConfig,
       application_instance_name_config: {
         instance_name_composition: instanceList
-      }
+      },
+      application_db_config: this.appInfo.application_db_config,
+      application_db_system: this.appInfo.application_db_system
     };
     if (this.isShowLog2TracesFormItem) {
       plugin_config.bk_data_id = this.appInfo.plugin_config.bk_data_id;
@@ -440,8 +512,18 @@ export default class BasicInfo extends tsc<IProps> {
    * @description: 提交编辑
    */
   async handleSubmit() {
+    // DB 设置 所有的表单都要验证一次
+    const cardFormList = [];
+    const cardFormListValidationPromise = [];
+    for (let index = 0; index < this.DBTypeRules.length; index++) {
+      cardFormList.push(`cardForm${index}`);
+    }
+    cardFormList.forEach(s => {
+      cardFormListValidationPromise.push((this.$refs[s] as any).validate());
+    });
+
     const promiseList = ['editInfoForm', 'editApdexForm', 'editSamplerForm'].map(item => this[item]?.validate());
-    await Promise.all(promiseList)
+    await Promise.all(promiseList.concat(cardFormListValidationPromise))
       .then(async () => {
         if (!this.localInstanceList.length) {
           this.$bkMessage({
@@ -469,6 +551,44 @@ export default class BasicInfo extends tsc<IProps> {
       .catch(err => {
         console.warn(err);
       });
+  }
+
+  addDBType(s: string) {
+    this.appInfo.application_db_config.push({
+      db_system: s,
+      trace_mode: 'closed',
+      length: 10,
+      threshold: 500,
+      enabled_slow_sql: true
+    });
+    this.DBTypeRules.push({
+      trace_mode: [
+        {
+          required: true,
+          message: '必填项',
+          trigger: 'change'
+        }
+      ],
+      threshold: [
+        {
+          required: true,
+          message: '必填项',
+          trigger: 'blur'
+        }
+      ],
+      length: [
+        {
+          required: true,
+          message: '必填项',
+          trigger: 'blur'
+        }
+      ]
+    });
+  }
+
+  deleteCurrentConfigCard(index: number) {
+    this.appInfo.application_db_config.splice(index, 1);
+    this.DBTypeRules.splice(index, 1);
   }
 
   handleSelectorChange(data: { value: IIpV6Value; nodeType: INodeType }) {
@@ -1033,6 +1153,217 @@ export default class BasicInfo extends tsc<IProps> {
               <label>{this.$t('样例展示')}</label>
               <span>{this.sampleStr}</span>
             </div>
+          </div>
+        </PanelItem>
+        {/* TODO：记得翻译 */}
+        <PanelItem
+          title={this.$t('DB设置')}
+          flexDirection='column'
+        >
+          <div
+            class='panel-intro'
+            style='position:relative'
+          >
+            {this.isEditing ? (
+              <div class='db-config-title-container'>
+                <div style='display: flex;align-items: center;margin-bottom: 12px;'>
+                  <span>{this.$t('DB类型')}</span>
+                  <DropdownMenu trigger='click'>
+                    <Button
+                      text
+                      size='small'
+                      slot='dropdown-trigger'
+                    >
+                      <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                        <Icon type='plus-circle' />
+                        <span style='margin-left: 5px;'>{this.$t('指定DB')}</span>
+                      </div>
+                    </Button>
+
+                    <ul
+                      class='bk-dropdown-list'
+                      slot='dropdown-content'
+                    >
+                      {this.appInfo.application_db_system.map(s => {
+                        return (
+                          <li>
+                            <a
+                              class={{
+                                'dropdown-list-item-disabled': !!this.appInfo.application_db_config.find(
+                                  option => s === option.db_system
+                                )
+                              }}
+                              key={s}
+                              href='javascript:;'
+                              onClick={() => this.addDBType(s)}
+                            >
+                              {s}
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </DropdownMenu>
+                </div>
+
+                <div class='card-list-container'>
+                  {this.appInfo.application_db_config.map((card, index) => {
+                    return (
+                      <div class='db-config-card'>
+                        <div
+                          class={{
+                            'title-bar': true,
+                            'is-not-default': index > 0
+                          }}
+                        >
+                          <span class='text'>{card.db_system || this.$t('默认')}</span>
+                          {index > 0 && (
+                            <Icon
+                              class='close'
+                              type='close'
+                              onClick={() => this.deleteCurrentConfigCard(index)}
+                            />
+                          )}
+                        </div>
+
+                        <div class='card-container'>
+                          <div>
+                            <Form
+                              label-width={120}
+                              {...{
+                                props: {
+                                  model: card,
+                                  rules: this.DBTypeRules[index]
+                                }
+                              }}
+                              ref={`cardForm${index}`}
+                            >
+                              <FormItem
+                                label={this.$t('存储方式')}
+                                required
+                                property='trace_mode'
+                                error-display-type='normal'
+                              >
+                                <RadioGroup v-model={card.trace_mode}>
+                                  <RadioButton value='origin'>{this.$t('原始命令')}</RadioButton>
+                                  <RadioButton value='no_parameters'>{this.$t('无参数命令')}</RadioButton>
+                                  <RadioButton value='closed'>{this.$t('不储存')}</RadioButton>
+                                </RadioGroup>
+                              </FormItem>
+                              <FormItem
+                                label={this.$t('启用慢语句')}
+                                required={card.enabled_slow_sql}
+                                property='threshold'
+                                error-display-type='normal'
+                              >
+                                <div class='low-sql-container'>
+                                  <Switcher
+                                    v-model={card.enabled_slow_sql}
+                                    theme='primary'
+                                    size='small'
+                                    onChange={() =>
+                                      (this.DBTypeRules[index].threshold[0].required = card.enabled_slow_sql)
+                                    }
+                                  ></Switcher>
+                                  <span
+                                    class='text'
+                                    style='margin-left: 16px;'
+                                  >
+                                    {this.$t('命令执行时间')}
+                                  </span>
+                                  <span>{'>'}</span>
+                                  <Input
+                                    v-model={card.threshold}
+                                    behavior='simplicity'
+                                    class='excution-input'
+                                    type='number'
+                                    min={0}
+                                    onInput={() => {
+                                      // 如果 card.threshold 为 falsy 值时，服务端的校验是不会通过的。（即使不启用慢语句时也是一样）
+                                      // 这里手动判断一次，然后给予一个默认值。
+                                      // eslint-disable-next-line no-param-reassign
+                                      if (!card.threshold) card.threshold = 0;
+                                    }}
+                                  ></Input>
+                                  <span class='text'>ms</span>
+                                </div>
+                              </FormItem>
+                              <FormItem
+                                label={this.$t('语句长度')}
+                                required
+                                property='length'
+                                error-display-type='normal'
+                              >
+                                <div class='sql-length-container'>
+                                  <span class='text'>{this.$t('截断')}</span>
+                                  <span>{'>'}</span>
+                                  <Input
+                                    v-model={card.length}
+                                    behavior='simplicity'
+                                    class='sql-cut-input'
+                                    type='number'
+                                    min={0}
+                                  ></Input>
+                                  <span class='text'>{this.$t('字符')}</span>
+                                </div>
+                              </FormItem>
+                            </Form>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div class='db-config-card-preview'>
+                {this.appInfo.application_db_config.map((item, index) => {
+                  return (
+                    <div
+                      class='db-config-card-preview-container'
+                      style={{
+                        order: this.appInfo.application_db_config.length - index
+                      }}
+                    >
+                      <div
+                        class={{
+                          'db-config-card-preview-title': true,
+                          'is-default': index === 0
+                        }}
+                      >
+                        {item.db_system || this.$t('默认')}
+                      </div>
+                      <div class='db-config-card-preview-content'>
+                        <div class='row'>
+                          <span class='label-text'>{this.$t('存储方式')}</span>
+                          <span class='label-colons'>:</span>
+                          <span class='label-value'>{this.$t(this.traceModeMapping[item.trace_mode])}</span>
+                        </div>
+                        <div class='row'>
+                          <span class='label-text'>{this.$t('慢语句阈值')}</span>
+                          <span class='label-colons'>:</span>
+                          <span class='label-value'>
+                            <span>{this.$t('执行时间')}</span>
+                            <span style='margin: 0 5px;'>{'>'}</span>
+                            <span>{item.threshold}ms</span>
+                          </span>
+                        </div>
+                        <div class='row'>
+                          <span class='label-text'>{this.$t('语句长度')}</span>
+                          <span class='label-colons'>:</span>
+                          <span class='label-value'>
+                            <span>{this.$t('截断')}</span>
+                            <span style='margin: 0 5px;'>{'>'}</span>
+                            <span>{item.length}</span>
+                            <span style='margin-left: 5px;'>{this.$t('字符')}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </PanelItem>
         {/* <PanelItem title={this.$t('汇聚维度')}>

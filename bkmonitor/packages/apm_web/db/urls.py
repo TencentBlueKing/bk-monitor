@@ -8,34 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from apm_web.db import views
+from django.conf.urls import include, url
 
-import abc
+from core.drf_resource.routers import ResourceRouter
 
-import six
-from django.conf import settings
+router = ResourceRouter()
+router.register_module(views)
 
-from core.drf_resource.contrib.api import APIResource
-
-
-class MonitorWorkerAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    TIMEOUT = 300
-    # 模块名
-    module_name = "bkmonitor-worker"
-
-    @property
-    def base_url(self):
-        stage = "prod" if settings.RUN_MODE == "PRODUCT" else "stag"
-        return settings.MONITOR_WORKER_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/{self.module_name}/{stage}"
-
-    @property
-    def label(self):
-        return self.__doc__
-
-
-class CreateTaskResource(MonitorWorkerAPIGWResource):
-    """
-    创建任务
-    """
-
-    action = "/task/"
-    method = "POST"
+urlpatterns = [
+    url(r"^", include(router.urls)),
+]
