@@ -287,3 +287,5 @@ ACTION_ID_MAP = {
     ExternalPermissionActionEnum.LOG_SEARCH.value: "search_log_v2",
     ExternalPermissionActionEnum.LOG_EXTRACT.value: "manage_extract_config_v2",
 }
+
+ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT = _("日志平台外部用户授权")
