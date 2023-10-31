@@ -372,6 +372,10 @@ class DesensitizeRuleHandler(object):
                     "access_info_mapping": dict()
                 }
 
+            if _index_set_id not in scenario_mapping:
+                # 过滤排除已删除索引集的信息
+                continue
+
             relation_mapping[_rule_id]["index_set_ids"].add(_index_set_id)
 
             scenario_info = scenario_mapping[_index_set_id]
