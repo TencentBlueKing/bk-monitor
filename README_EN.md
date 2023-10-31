@@ -1,14 +1,14 @@
 ![](docs/resource/img/logo-en.png)
 ---
-[![license](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/Tencent/bk-base/blob/master/LICENSE.txt)
-[![Release Version](https://img.shields.io/badge/release-V4.2.628-brightgreen.svg)](https://github.com/Tencent/bk-base/releases)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Tencent/bk-base/pulls)
+[![license](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/TencentBlueKing/bk-monitor/blob/master/LICENSE.txt)
+[![Release Version](https://img.shields.io/badge/release-V4.2.628-brightgreen.svg)](https://github.com/TencentBlueKing/bk-monitor/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/TencentBlueKing/bk-monitor/pulls)
 
 
 English | [简体中文](README.md)
 
 > **Note**: The `master` branch may be in an *unstable or even broken state* during development.
-Please use [releases](https://github.com/tencent/bk-base/releases) instead of the `master` branch in order to get stable binaries.
+Please use [releases](https://github.com/TencentBlueKing/bk-monitor/releases) instead of the `master` branch in order to get stable binaries.
 
 TODO
 
@@ -23,7 +23,7 @@ TODO
 
 ## Getting Started
 * [Download and Compile (In Chinese)](https://bk.tencent.com/download_version_list/)
-* [Installation and Deployment (In Chinese)](https://bk.tencent.com/docs/document/6.0/127/8588)
+* [Installation and Deployment (In Chinese)](https://bk.tencent.com/docs/markdown/ZH/DeploymentGuides/7.1/install-co-suite.md)
 
 
 ## Support
@@ -41,8 +41,8 @@ TODO
 
 ## Contributing
 
-- Please read [Contributing](docs/CONTRIBUTING_EN.md) for the branch management, issue and pr specifications of BK-BASE.
+- Please read [Contributing](docs/CONTRIBUTING_EN.md) for the branch management, issue and pr specifications of BK-MONITOR.
 - [Tencent Open Source Incentive Program](https://opensource.tencent.com/en/contribution) encourages the participation and contribution of developers. We look forward to having you join it.
 
 ## License
-BK-BASE is based on the MIT license. Please refer to [LICENCE](LICENSE.txt) for details.
+BK-MONITOR is based on the MIT license. Please refer to [LICENCE](LICENSE.txt) for details.
