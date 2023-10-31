@@ -502,7 +502,7 @@
                         "ignore_iam_path":true
                     }
                 ],
-                "related_actions":[],
+                "related_actions":["view_business_v2"],
                 "description":"",
                 "description_en":""
             }
