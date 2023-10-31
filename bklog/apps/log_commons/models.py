@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from urllib.parse import urljoin
 
 import pytz
-from apps.api.modules.bk_itsm import BkItsm
+from apps.api import BkItsmApi
 from apps.constants import (
     ACTION_ID_MAP,
     ACTION_MAP,
@@ -239,7 +239,7 @@ class ExternalPermission(OperateRecordModel):
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/external_callback/")},
         }
         try:
-            data = BkItsm.create_ticket(ticket_data)
+            data = BkItsmApi.create_ticket(ticket_data)
         except Exception as e:
             logger.error(f"审批创建异常: {e}")
             raise e
@@ -522,7 +522,7 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
     @classmethod
     def callback(cls, params: dict):
         if params.get("token"):
-            verify_data = BkItsm.token_verify({"token": params["token"]})
+            verify_data = BkItsmApi.token_verify({"token": params["token"]})
             if not verify_data.get("is_passed", False):
                 return {"message": "Error Token", "result": False}
 
