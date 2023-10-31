@@ -25,9 +25,31 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Divider, Table, TableColumn } from 'bk-magic-vue';
+import { Divider, Input, Table, TableColumn } from 'bk-magic-vue';
 
 import './storage-state.scss';
+
+enum InfoFieldEnum {
+  StorageIndexName = 'storageIndexName',
+  StorageCluster = 'storageCluster',
+  ExpiredTime = 'expiredTime',
+  CopyNumber = 'copyNumber'
+}
+interface InfoField {
+  label: string;
+  /** 是否需要编辑功能 */
+  hasEdit?: boolean;
+  /** 是否处于编辑态 */
+  isEdit?: boolean;
+  /** 编辑值 */
+  editValue?: string | number;
+  /** 是否需要下划线 */
+  hasUnderline?: boolean;
+}
+
+type InfoFields = {
+  [key in InfoFieldEnum]: InfoField;
+};
 
 interface StorageStateProps {
   collectId: number;
@@ -37,8 +59,116 @@ interface StorageStateProps {
 export default class StorageState extends tsc<StorageStateProps, {}> {
   @Prop({ type: Number, required: true }) collectId: number;
 
+  infoData = {
+    [InfoFieldEnum.StorageIndexName]: 'trace_agg_scene',
+    [InfoFieldEnum.StorageCluster]: '默认集群',
+    [InfoFieldEnum.ExpiredTime]: 7,
+    [InfoFieldEnum.CopyNumber]: 1
+  };
+
+  infoFields: InfoFields = {
+    [InfoFieldEnum.StorageIndexName]: {
+      label: this.$tc('存储索引名')
+    },
+    [InfoFieldEnum.StorageCluster]: {
+      label: this.$tc('存储集群'),
+      hasEdit: true,
+      isEdit: false,
+      editValue: ''
+    },
+    [InfoFieldEnum.ExpiredTime]: {
+      label: this.$tc('过期时间'),
+      hasEdit: true,
+      isEdit: false,
+      editValue: 1,
+      hasUnderline: true
+    },
+    [InfoFieldEnum.CopyNumber]: {
+      label: this.$tc('副本数'),
+      hasEdit: true,
+      isEdit: false,
+      editValue: 1,
+      hasUnderline: true
+    }
+  };
+
   clusterTableList = [];
   clusterTableLoading = false;
+
+  indexTableList = [];
+  indexTableLoading = false;
+
+  handleInfoEdit(type: InfoFieldEnum) {
+    this.infoFields[type].isEdit = true;
+    this.infoFields[type].editValue = this.infoData[type];
+  }
+
+  handleEditConfirm(field: InfoField) {
+    console.log(field);
+  }
+
+  /**
+   * 根据表单字段类型渲染不同的内容
+   * @param type 字段类型
+   */
+  renderInfoField(type: InfoFieldEnum) {
+    const field = this.infoFields[type];
+
+    const renderEditComp = () => {
+      switch (type) {
+        case InfoFieldEnum.StorageCluster:
+          return <Input v-model={this.infoFields[type].editValue} />;
+        case InfoFieldEnum.ExpiredTime:
+        case InfoFieldEnum.CopyNumber:
+          return (
+            <Input
+              type='number'
+              min={1}
+              v-model={field.editValue}
+            />
+          );
+      }
+    };
+
+    return (
+      <div class='info-item'>
+        <div class='info-label'>
+          <span class={{ label: true, underline: field.hasUnderline }}>{field.label}</span>
+        </div>
+        <div class='info-value'>
+          {field.isEdit ? (
+            <div class='edit'>
+              <div class='comp'>{renderEditComp()}</div>
+              <bk-button
+                class='btn'
+                text
+                onClick={() => this.handleEditConfirm(field)}
+              >
+                {this.$t('确定')}
+              </bk-button>
+              <bk-button
+                class='btn'
+                text
+                onClick={() => (field.isEdit = false)}
+              >
+                {this.$t('取消')}
+              </bk-button>
+            </div>
+          ) : (
+            <div class='default'>
+              {this.infoData[type]}
+              {field.hasEdit && (
+                <i
+                  class='icon-monitor icon-bianji'
+                  onClick={() => this.handleInfoEdit(type)}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   render() {
     return (
@@ -47,32 +177,12 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
           <div class='title'>{this.$t('存储信息')}</div>
           <div class='info-form'>
             <div class='info-row'>
-              <div class='info-item'>
-                <div class='info-label'>
-                  <span class='label'>{this.$t('存储索引名')}</span>
-                </div>
-                <div class='info-value'>trace_agg_scene</div>
-              </div>
-              <div class='info-item'>
-                <div class='info-label'>
-                  <span class='label'>{this.$t('存储集群')}</span>
-                </div>
-                <div class='info-value'>trace_agg_scene</div>
-              </div>
+              {this.renderInfoField(InfoFieldEnum.StorageIndexName)}
+              {this.renderInfoField(InfoFieldEnum.StorageCluster)}
             </div>
             <div class='info-row'>
-              <div class='info-item'>
-                <div class='info-label'>
-                  <span class='label underline'>{this.$t('过期时间')}</span>
-                </div>
-                <div class='info-value'>trace_agg_scene</div>
-              </div>
-              <div class='info-item'>
-                <div class='info-label'>
-                  <span class='label underline'>{this.$t('副本数')}</span>
-                </div>
-                <div class='info-value'>trace_agg_scene</div>
-              </div>
+              {this.renderInfoField(InfoFieldEnum.ExpiredTime)}
+              {this.renderInfoField(InfoFieldEnum.CopyNumber)}
             </div>
           </div>
         </div>
@@ -81,8 +191,10 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
           <div class='title'>{this.$t('集群状态')}</div>
           <div class='table-content'>
             <Table
-              class='data-sample-table'
+              class='data-table'
               data={this.clusterTableList}
+              outer-border={false}
+              header-border={false}
               v-bkloading={{ isLoading: this.clusterTableLoading }}
             >
               <TableColumn label={this.$t('索引')} />
@@ -111,9 +223,11 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
           <div class='title'>{this.$t('索引状态')}</div>
           <div class='table-content'>
             <Table
-              class='data-sample-table'
-              data={this.clusterTableList}
-              v-bkloading={{ isLoading: this.clusterTableLoading }}
+              class='data-table'
+              data={this.indexTableList}
+              outer-border={false}
+              header-border={false}
+              v-bkloading={{ isLoading: this.indexTableLoading }}
             >
               <TableColumn label={this.$t('索引')} />
               <TableColumn label={this.$t('运行状态')} />

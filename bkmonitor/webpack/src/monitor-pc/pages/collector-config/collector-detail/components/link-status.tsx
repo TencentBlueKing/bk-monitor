@@ -208,6 +208,8 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             <Table
               class='data-sample-table'
               data={this.tableList}
+              outer-border={false}
+              header-border={false}
               v-bkloading={{ isLoading: this.tableLoading }}
             >
               <TableColumn

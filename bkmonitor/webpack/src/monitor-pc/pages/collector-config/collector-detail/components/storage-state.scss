@@ -37,6 +37,31 @@
 
         .info-value {
           width: 300px;
+          line-height: 20px;
+
+          .default {
+            display: flex;
+            align-items: center;
+          }
+
+          .edit {
+            display: flex;
+            align-items: center;
+
+            .comp {
+              width: 150px;
+            }
+
+            .btn {
+              margin-left: 12px;
+              font-size: 12px;
+            }
+          }
+
+          .icon-bianji {
+            font-size: 18px;
+            cursor: pointer;
+          }
         }
       }
     }
