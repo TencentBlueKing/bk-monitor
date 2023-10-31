@@ -492,4 +492,6 @@ export default {
   "? 表示匹配单个任意字符": "? means match any single character",
   "例：a?d 可匹配 abd、a1d": "Example: a?d matches abd, a1d",
   "请前往 {0}": "Go to {0}",
+  "不是有效的json文件": "Not a valid json file.",
+  "聚类规则为空，无法导出规则": "The clustering rules are empty and the rules cannot be exported."
 }

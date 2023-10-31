@@ -639,6 +639,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 <Input
                   class='step-input'
                   value={this.sourceStep}
+                  min={10}
+                  type='number'
+                  precision={0}
                   onChange={this.handleSourceStepChange}
                 >
                   <div
