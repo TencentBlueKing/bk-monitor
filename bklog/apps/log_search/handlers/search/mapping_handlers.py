@@ -141,7 +141,7 @@ class MappingHandlers(object):
             key = f"{last_key}.{property_key}" if last_key else property_key
             conflict_result[key].add(property_define["type"])
 
-    def is_add_clustered_fields(self, field_list):
+    def add_clustered_fields(self, field_list):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
         if clustering_config and clustering_config.clustered_rt:
             field_list.extend(PATTERN_SEARCH_FIELDS)
@@ -215,7 +215,7 @@ class MappingHandlers(object):
             }
             for field in fields_result
         ]
-        fields_list = self.is_add_clustered_fields(fields_list)
+        fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
         fields_list = self._combine_description_field(fields_list)
         return self._combine_fields(fields_list)
