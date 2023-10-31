@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@blueking/bk-weweb": "0.0.22",
-    "@blueking/date-picker": "^0.0.13",
+    "@blueking/date-picker": "^0.0.24",
     "@blueking/ip-selector": "0.0.1-beta.134",
     "@blueking/paas-login": "0.0.6",
     "@blueking/user-selector": "^1.0.5-beta.2",
@@ -20,6 +20,7 @@
     "big.js": "^6.1.1",
     "bk-magic-vue": "^2.5.8-beta.5",
     "codemirror": "^5.52.2",
+    "dayjs": "^1.11.10",
     "deepmerge": "^4.2.2",
     "element-ui": "2.7.2",
     "html-to-image": "^1.9.0",

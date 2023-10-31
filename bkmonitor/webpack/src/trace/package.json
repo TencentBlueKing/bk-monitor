@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@antv/g6": "^4.7.0",
-    "@blueking/date-picker": "^0.0.13",
+    "@blueking/date-picker": "^0.0.24",
     "@blueking/ip-selector": "0.0.1-beta.134",
     "bkui-vue": "0.0.2-beta.75",
     "d3-array": "^3.1.1",
