@@ -67,35 +67,170 @@ def get_docs_link(request):
 
 class ExternalPermissionViewSet(APIViewSet):
     def list(self, request):
+        """
+        @api {get} /external_permission/ 获取外部权限列表
+        @apiName external_permission_list
+        @apiGroup external_permission
+        @apiParam {String} [space_uid] 空间ID
+        @apiParam {String} [view_type] 视角, 枚举值: user, resource, default: user
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "code": 0,
+            "message": "",
+            "data": [
+                {
+                    "authorized_user": "external_user_1",
+                    "space_uid": "space_uid",
+                    "action_id": "log_search",
+                    "resources": [
+                        1,2,3,4
+                    ],
+                    "expire_time": "2024-10-25 01:22:50",
+                    "authorizer": "authorizer_1",
+                    "space_name": "space_name"
+                },
+            ]
+        }
+        """
         data = self.params_valid(ListExternalPermissionSLZ)
         return Response(ExternalPermission.list(**data))
 
     @list_route(methods=["get"], url_path="authorizer")
     def get_authorizer(self, request):
+        """
+        @api {get} /external_permission/authorizer/ 获取授权者
+        @apiName external_permission_authorizer
+        @apiGroup external_permission
+        @apiParam {String} space_uid 空间ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "authorizer_1",
+            "code": 0,
+            "message": ""
+        }
+        """
         data = self.params_valid(GetAuthorizerSLZ)
         return Response(ExternalPermission.get_authorizer(**data))
 
     @list_route(methods=["get"], url_path="maintainer")
     def list_maintainers(self, request):
+        """
+        @api {get} /external_permission/maintainer/ 获取运维人员
+        @apiName external_permission_maintainer
+        @apiGroup external_permission
+        @apiParam {String} space_uid 空间ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                "maintainer_1",
+                "maintainer_2"
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
         data = self.params_valid(ListMaintainersSLZ)
         return Response(get_maintainers(**data))
 
     @list_route(methods=["post"], url_path="create_or_update")
     def create_or_update(self, request):
+        """
+        @api {post} /external_permission/create_or_update/ 创建或更新外部权限
+        @apiName external_permission_create_or_update
+        @apiGroup external_permission
+        @apiParam {String} authorized_users 被授权人
+        @apiParam {String} view_type 视角类型, 枚举值: user, resource, default: user
+        @apiParam {String} operate_type 操作类型, 枚举值: create, update, default: create
+        @apiParam {String} space_uid 空间ID
+        @apiParam {String} action_id 操作类型
+        @apiParam {List} resources 资源列表
+        @apiParam {String} expire_time 过期时间
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "code": 0,
+            "message": "",
+            "data": {"need_approval": True}
+        }
+        """
         data = self.params_valid(CreateORUpdateExternalPermissionSLZ)
         return Response(ExternalPermission.create_or_update(validated_request_data=data))
 
     @list_route(methods=["get"], url_path="resource_by_action")
     def get_resource_by_action(self, request):
+        """
+        @api {get} /external_permission/resource_by_action/ 获取操作类型对应的资源列表
+        @apiName external_permission_resource_by_action
+        @apiGroup external_permission
+        @apiParam {String} space_uid 空间ID
+        @apiParam {String} action_id 操作类型
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                "resource_id": 1,
+                "resource_name": "x"
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
         data = self.params_valid(GetResourceByActionSLZ)
         return Response(ExternalPermission.get_resource_by_action(**data))
 
     @list_route(methods=["get"], url_path="apply_record")
     def get_apply_record(self, request):
+        """
+        @api {get} /external_permission/apply_record/ 获取申请记录
+        @apiName external_permission_apply_record
+        @apiGroup external_permission
+        @apiParam {String} space_uid 空间ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "authorized_users": "external_user_1, external_user_2",
+                    "space_uid": "space_uid",
+                    "action_id": "log_search",
+                    "resources": [
+                        1,2,3,4
+                    ],
+                    "expire_time": "2024-10-25 01:22:50",
+                    "authorizer": "authorizer_1",
+                    "status": "pending",
+                    "approval_sn": "approval_sn_1",
+                    "approval_url": "approval_url_1",
+                },
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
         data = self.params_valid(GetApplyRecordSLZ)
         return Response(ExternalPermissionApplyRecord.list(**data))
 
     @list_route(methods=["post"], url_path="drop")
     def drop(self, request):
+        """
+        @api {post} /external_permission/drop/ 删除外部权限
+        @apiName external_permission_drop
+        @apiGroup external_permission
+        @apiParam {String} space_uid 空间ID
+        @apiParam {String} action_id 操作类型
+        @apiParam {List} resources 资源列表
+        @apiParam {String} authorized_users 被授权人
+        @apiParam {String} view_type 视角类型, 枚举值: user, resource, default: user
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "code": 0,
+            "message": "",
+            "data": {"delete_permission_ids": [1,2,3]}
+        }
+        """
         data = self.params_valid(DestroyExternalPermissionSLZ)
         return Response(ExternalPermission.destroy(**data))
