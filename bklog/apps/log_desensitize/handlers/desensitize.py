@@ -82,7 +82,7 @@ class DesensitizeHandler(object):
                 continue
 
             # 生成配置对应的算子实例
-            if operator not in OPERATOR_MAPPING.keys():
+            if operator not in OPERATOR_MAPPING:
                 raise ValidationError(_("{} 算子能力尚未实现").format(operator))
 
             operator_cls = OPERATOR_MAPPING[operator]
@@ -101,7 +101,7 @@ class DesensitizeHandler(object):
                     )
                 )
 
-            if field_name and field_name not in self.field_rule_mapping.keys():
+            if field_name and field_name not in self.field_rule_mapping:
                 self.field_rule_mapping[field_name] = list()
             if field_name:
                 self.field_rule_mapping[field_name].append(_config)
@@ -139,7 +139,7 @@ class DesensitizeHandler(object):
             return log_content
 
         for _field, _rules in self.field_rule_mapping.items():
-            if _field not in log_content.keys() or not _rules:
+            if _field not in log_content or not _rules:
                 continue
             text = log_content[_field]
             log_content[_field] = self.transform(log=str(text), rules=_rules)
@@ -362,7 +362,7 @@ class DesensitizeRuleHandler(object):
             index_set_info = model_to_dict(index_set_obj)
             scenario_id = index_set_info["scenario_id"]
             scenario_mapping[_index_set_id] = dict()
-            if scenario_id == ScenarioEnum.LOG.value and _index_set_id in collector_config_mapping.keys():
+            if scenario_id == ScenarioEnum.LOG.value and _index_set_id in collector_config_mapping:
                 # 采集接入&自定义上报
                 if collector_config_mapping[_index_set_id]["collector_scenario_id"] != CollectorScenarioEnum.CUSTOM.value:
                     # 采集接入
@@ -386,7 +386,7 @@ class DesensitizeRuleHandler(object):
         for relation_obj in desensitize_field_config_objs:
             _rule_id = relation_obj.rule_id
             _index_set_id = relation_obj.index_set_id
-            if _rule_id not in relation_mapping.keys():
+            if _rule_id not in relation_mapping:
                 relation_mapping[_rule_id] = {
                     "index_set_ids": set(),
                     "access_info_mapping": dict()
@@ -401,14 +401,14 @@ class DesensitizeRuleHandler(object):
             scenario_info = scenario_mapping[_index_set_id]
             scenario_id = scenario_info["scenario_id"]
 
-            if scenario_id not in relation_mapping[_rule_id]["access_info_mapping"].keys():
+            if scenario_id not in relation_mapping[_rule_id]["access_info_mapping"]:
                 relation_mapping[_rule_id]["access_info_mapping"][scenario_id] = {"ids": set()}
             relation_mapping[_rule_id]["access_info_mapping"][scenario_id]["ids"].add(scenario_info["show_id"])
 
         for _obj in objs:
             _info = model_to_dict(_obj)
             rule_id = _info["id"]
-            if not relation_mapping or rule_id not in relation_mapping.keys():
+            if not relation_mapping or rule_id not in relation_mapping:
                 _info["access_num"] = 0
                 _info["access_info"] = []
             else:
@@ -535,14 +535,14 @@ class DesensitizeRuleHandler(object):
         res = dict()
 
         for _field in fields:
-            if _field not in res.keys():
+            if _field not in res:
                 res[_field] = list()
             _hit_rule_ids = set()
             if not desensitize_rule_info:
                 continue
             for _log in logs:
                 _log = expand_nested_data(_log)
-                if _field not in _log.keys():
+                if _field not in _log:
                     continue
                 _text = str(_log[_field])
                 for _rule in desensitize_rule_info:
@@ -612,7 +612,7 @@ class DesensitizeRuleHandler(object):
             field_name = _config["field_name"]
             for _rule in _config["rules"]:
                 rule_id = _rule.get("rule_id")
-                if rule_id and rule_id not in desensitize_rule_info.keys():
+                if rule_id and rule_id not in desensitize_rule_info:
                     continue
                 if rule_id:
                     _operator = desensitize_rule_info[rule_id]["operator"]
@@ -664,11 +664,11 @@ class DesensitizeRuleHandler(object):
             # 日志原文字段同步应用其他字段的脱敏结果
             for text_field in text_fields:  # ["log"]
                 # 判断原文字段是否存在log中
-                if text_field not in result.keys():
+                if text_field not in result:
                     continue
 
                 for field_name in field_names:
-                    if field_name not in result.keys() or field_name == text_field:
+                    if field_name not in result or field_name == text_field:
                         continue
                     result[text_field] = result[text_field].replace(str(log_content_tmp[field_name]), str(result[field_name]))
 
@@ -676,7 +676,7 @@ class DesensitizeRuleHandler(object):
             result = text_fields_desensitize_handler.transform_dict(_log)
 
             for _field_name in field_names:
-                if _field_name not in res.keys():
+                if _field_name not in res:
                     res[_field_name] = list()
                 res[_field_name].append(result.get(_field_name))
 

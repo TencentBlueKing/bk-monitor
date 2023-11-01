@@ -616,7 +616,7 @@ class IndexSetHandler(APIModel):
                     if rule_id:
                         # 根据规则状态执行不同的操作
                         if rule_state in [DesensitizeRuleStateEnum.ADD.value, DesensitizeRuleStateEnum.UPDATE.value]:
-                            if rule_id not in rules_mapping.keys():
+                            if rule_id not in rules_mapping:
                                 raise DesensitizeRuleException(
                                     DesensitizeRuleException.MESSAGE.format(field_name=field_name, rule_id=rule_id)
                                 )
@@ -697,18 +697,18 @@ class IndexSetHandler(APIModel):
         field_info_mapping = dict()
         for _obj in desensitize_field_config_objs:
             field_name = _obj.field_name
-            if field_name not in field_info_mapping.keys():
+            if field_name not in field_info_mapping:
                 field_info_mapping[field_name] = list()
             _rule = model_to_dict(_obj, exclude=MODEL_TO_DICT_EXCLUDE_FIELD)
 
             rule_id = _rule["rule_id"]
             if rule_id:
                 # 添加规则变更标识
-                if int(rule_id) in desensitize_rule_info.keys():
+                if int(rule_id) in desensitize_rule_info:
                     _rule["rule_name"] = desensitize_rule_info[rule_id]["rule_name"]
                     _rule["match_fields"] = desensitize_rule_info[rule_id]["match_fields"]
 
-                if int(rule_id) not in desensitize_rule_info.keys() or desensitize_rule_info[rule_id]["is_deleted"]:
+                if int(rule_id) not in desensitize_rule_info or desensitize_rule_info[rule_id]["is_deleted"]:
                     state = DesensitizeRuleStateEnum.DELETE.value
                     new_rule = {}
                 elif (
