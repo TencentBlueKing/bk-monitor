@@ -29,13 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import { random } from '@common/utils';
 import { TabPanel } from 'bk-magic-vue';
 
-import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
+import { collectInstanceStatus, frontendCollectConfigDetail } from '../../../../monitor-api/modules/collecting';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 
 import AlertTopic from './components/alert-topic';
+import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
-import { TabEnum } from './typings/detail';
+import { DetailData, TabEnum } from './typings/detail';
 import CollectorConfiguration from './collector-configuration';
 import CollectorStatusDetails from './collector-status-details';
 
@@ -46,6 +47,15 @@ Component.registerHooks(['beforeRouteEnter']);
 export default class CollectorDetail extends tsc<{}> {
   active = TabEnum.StorageState;
   collectId = 0;
+
+  detailData: DetailData = {
+    basic_info: {},
+    extend_info: {},
+    metric_list: [],
+    runtime_params: [],
+    subscription_id: undefined,
+    target_info: {}
+  };
 
   allData = {
     [TabEnum.TargetDetail]: {
@@ -84,6 +94,16 @@ export default class CollectorDetail extends tsc<{}> {
         // this.data = mockData;
         // this.updateKey = random(8);
       });
+  }
+
+  getDetails() {
+    frontendCollectConfigDetail({ id: this.collectId }).then(res => {
+      this.detailData = res;
+    });
+  }
+
+  mounted() {
+    this.getDetails();
   }
 
   render() {
@@ -126,6 +146,12 @@ export default class CollectorDetail extends tsc<{}> {
             name={TabEnum.StorageState}
           >
             <StorageState collectId={this.collectId} />
+          </TabPanel>
+          <TabPanel
+            label={this.$t('字段详情')}
+            name={TabEnum.FieldDetails}
+          >
+            <FieldDetails detailData={this.detailData} />
           </TabPanel>
         </MonitorTab>
       </div>

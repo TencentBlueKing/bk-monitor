@@ -27,5 +27,15 @@ export enum TabEnum {
   DataLink = 'DataLink',
   StorageState = 'StorageState',
   TargetDetail = 'targetDetail',
-  Configuration = 'configuration'
+  Configuration = 'configuration',
+  FieldDetails = 'fieldDetails'
+}
+
+export interface DetailData {
+  basic_info: Object;
+  extend_info: Object;
+  metric_list: Object[];
+  runtime_params: Object[];
+  subscription_id: number;
+  target_info: Object;
 }
