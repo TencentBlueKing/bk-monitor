@@ -30,10 +30,12 @@
   .left-wrap {
     display: flex;
     align-items: center;
+    white-space: nowrap;
 
     .cur-alert {
       display: flex;
       align-items: center;
+      line-height: 20px;
 
       .icon-mc-check-fill {
         font-size: 16px;
@@ -44,6 +46,7 @@
     .alert-histogram {
       display: flex;
       align-items: center;
+      line-height: 20px;
 
       .alert-msg {
         display: flex;
@@ -63,6 +66,8 @@
     .receive-msg {
       display: flex;
       align-items: center;
+      line-height: 20px;
+      white-space: nowrap;
 
       .icon-mc-alarm-create {
         font-size: 16px;
@@ -80,6 +85,8 @@
       .group-title {
         display: flex;
         align-items: center;
+        line-height: 20px;
+        white-space: nowrap;
 
         .icon-mc-add-strategy {
           font-size: 16px;

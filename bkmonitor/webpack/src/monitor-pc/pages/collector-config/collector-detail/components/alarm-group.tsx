@@ -274,20 +274,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 >
                   <div class='add-container'>
                     <i class='bk-icon icon-plus-circle'></i>
-                    <span
-                      class='add-text'
-                      v-bk-tooltips={{
-                        content: this.$t('进入新增页，新增完可直接返回不会丢失数据'),
-                        disabled: this.showAddTip || this.isOpenNewPage
-                      }}
-                    >
-                      {this.$t('新增告警组')}
-                      {!this.isSimple && !this.isOpenNewPage && (
-                        <span style={{ marginLeft: '10px', color: '#ea3636' }}>{`(${this.$t(
-                          '新增后会进行回填'
-                        )})`}</span>
-                      )}
-                    </span>
+                    <span class='add-text'>{this.$t('新增告警组')}</span>
                   </div>
                   {this.isRefresh && (
                     <div

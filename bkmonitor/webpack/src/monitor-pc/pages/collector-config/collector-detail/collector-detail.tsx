@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Mixins, Provide } from 'vue-property-decorator';
 import { Route } from 'vue-router';
-import { Component as tsc } from 'vue-tsx-support';
 import { random } from '@common/utils';
 import { TabPanel } from 'bk-magic-vue';
 
 import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
 import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
+import authorityMixinCreate from '../../../mixins/authorityMixin';
+import * as collectAuth from '../authority-map';
 
 import { IAlarmGroupList } from './components/alarm-group';
 import AlertTopic from './components/alert-topic';
@@ -45,7 +46,11 @@ import './collector-detail.scss';
 
 Component.registerHooks(['beforeRouteEnter']);
 @Component
-export default class CollectorDetail extends tsc<{}> {
+export default class CollectorDetail extends Mixins(authorityMixinCreate(collectAuth)) {
+  @Provide('authority') authority: Record<string, boolean> = {};
+  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
+  @Provide('authorityMap') authorityMap;
+
   active = TabEnum.StorageState;
   collectId = 0;
 
@@ -138,7 +143,9 @@ export default class CollectorDetail extends tsc<{}> {
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}
           >
+            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
             <LinkStatus
+              class='mt-24'
               show={this.active === TabEnum.DataLink}
               collectId={this.collectId}
             />
@@ -147,7 +154,11 @@ export default class CollectorDetail extends tsc<{}> {
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
           >
-            <StorageState collectId={this.collectId} />
+            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
+            <StorageState
+              class='mt-24'
+              collectId={this.collectId}
+            />
           </TabPanel>
         </MonitorTab>
       </div>
