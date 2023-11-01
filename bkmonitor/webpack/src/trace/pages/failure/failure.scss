@@ -1,0 +1,21 @@
+.failure-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #f0f1f5;
+
+  .failure-tags {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    background: #f0f1f5;
+    box-shadow: 0 1px 2px 0 #0000001f;
+  }
+
+  .failure-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    background: #f5f7fa;
+  }
+}
