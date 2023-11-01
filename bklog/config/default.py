@@ -643,7 +643,7 @@ MENUS = [
                     {
                         "id": "log_desensitize",
                         "name": _("日志脱敏"),
-                        "feature": "on",
+                        "feature": "debug",
                         "icon": "moban",
                     },
                 ],
