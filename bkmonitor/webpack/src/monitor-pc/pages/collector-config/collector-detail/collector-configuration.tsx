@@ -48,6 +48,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
 
   /* 基本信息 */
   basicInfo: any = {};
+  runtimeParams = [];
   basicInfoMap: any = {
     name: window.i18n.t('配置名称'),
     id: 'ID',
@@ -120,6 +121,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
           port_detect: `${portDetect}`
         };
       }
+      this.runtimeParams = data.runtime_params;
     });
   }
 
@@ -216,6 +218,12 @@ export default class CollectorConfiguration extends tsc<IProps> {
         </span>
       );
     }
+    function stringContent(value) {
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+      return value;
+    }
     return (
       <div class='collector-configuration-component'>
         <div class='detail-wrap-item'>
@@ -305,6 +313,28 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 })()
               )
             )}
+            {this.runtimeParams.length
+              ? formItem(
+                  this.$t('运行参数'),
+                  <ul class='param-list mt--6'>
+                    {this.runtimeParams.map((item, index) => (
+                      <li
+                        class='param-list-item width-840'
+                        key={index}
+                      >
+                        <span class='item-name'>{item.name}</span>
+                        {['password', 'encrypt'].includes(item.type) ? (
+                          <span class='item-content'>******</span>
+                        ) : (
+                          <span class='item-content'>
+                            {(item.type === 'file' ? item.value.filename : stringContent(item.value)) || '--'}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              : undefined}
           </div>
         </div>
         <div class='split-line mt-24'></div>
