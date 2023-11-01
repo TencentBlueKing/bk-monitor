@@ -1201,6 +1201,17 @@
   dest_path: /api/v1/meta/esb/create_es_snapshot_repository/
   dest_http_method: POST
   is_hidden: True
+  
+- path: /v2/bk_log/databus/delete_es_snapshot_repository/
+  name: delete_es_snapshot_repository
+  label: 日志平台-日志归档-删除归档仓库
+  label_en: bk_log delete es snapshot repository
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/meta/esb/delete_es_snapshot_repository/
+  dest_http_method: POST
+  is_hidden: True
 
 - path: /v2/bk_log/databus/storage/list_repository/
   name: list_repository
