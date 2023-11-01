@@ -54,7 +54,7 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
     if table_id_list:
         vm_tables = vm_tables.filter(result_table_id__in=table_id_list)
     vm_table_map = {
-        data["result_table_id"]: {"storage_id": data["storage_cluster_id"], "vm_rt": data["vm_result_table_id"]}
+        data["result_table_id"]: {"vm_rt": data["vm_result_table_id"]}
         for data in vm_tables
     }
     influxdb_tables = models.InfluxDBStorage.objects.values(
@@ -99,7 +99,7 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
     # 处理 vm 的数据信息
     for table_id, detail in vm_table_map.items():
         if table_id in table_id_info:
-            table_id_info[table_id].update({"vm_rt": detail["vm_rt"], "storage_id": detail["storage_id"]})
+            table_id_info[table_id].update({"vm_rt": detail["vm_rt"]})
         else:
             detail.update({"cluster_name": "", "db": "", "measurement": "", "tags_key": []})
             table_id_info[table_id] = detail
