@@ -43,3 +43,6 @@ CHECK_COLLECTOR_CUSTOM_CONFIG = "check_collector_custom_config"
 
 # grafana自定义ES数据源
 GRAFANA_CUSTOM_ES_DATASOURCE = "grafana_custom_es_datasource"
+
+# 日志脱敏特性开关
+FEATURE_LOG_DESENSITIZE = "feature_log_desensitize"
