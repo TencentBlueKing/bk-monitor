@@ -537,5 +537,6 @@ export default {
   "查询结果统计": "Query result statistics",
   "排序权重": "Sorting weight",
   "事件来源": "Event source",
-  "事件内容": "Event content"
+  "事件内容": "Event content",
+  "保留未定义字段": "Leave undefined fields",
 };

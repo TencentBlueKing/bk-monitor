@@ -13,16 +13,21 @@ import logging
 
 from blueapps.middleware.xss.decorators import escape_exempt
 from django.conf import settings
+from django.contrib import auth
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+
+from bk_dataview.api import get_or_create_org
+from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
+from bkmonitor.models.external_iam import ExternalPermission
+from core.drf_resource import api
+from monitor.models import GlobalConfig
 from monitor_web.grafana.utils import patch_home_panels
 
-from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
-from core.drf_resource import api
-
-__all__ = ["ProxyView", "StaticView", "SwitchOrgView"]
+__all__ = ["ProxyView", "StaticView", "SwitchOrgView", "RedirectDashboardView"]
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +45,7 @@ class RedirectDashboardView(ProxyView):
             raise Http404
 
         request.org_name = org_name
+        self.org = get_or_create_org(org_name)
         try:
             self.initial(request, *args, **kwargs)
         except Exception as err:
@@ -72,9 +78,65 @@ class RedirectDashboardView(ProxyView):
         return redirect(redirect_url.format(bk_biz_id=request.org_name, route_path=route_path))
 
 
+class GrafanaSwitchOrgView(SwitchOrgView):
+    @staticmethod
+    def is_allowed_external_request(request):
+        if not request.org_name:
+            return True
+
+        filter_resources = ["home"]
+        for external_permission in ExternalPermission.objects.filter(
+            authorized_user=request.external_user,
+            bk_biz_id=int(request.org_name),
+            action_id="view_grafana",
+            expire_time__gt=timezone.now(),
+        ):
+            filter_resources.extend(external_permission.resources)
+
+        if "d/" in request.path or "dashboards/" in request.path:
+            for resource in filter_resources:
+                if resource in request.path:
+                    return True
+            return False
+        else:
+            return True
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request, *args, **kwargs):
+        org_name = self.get_org_name(request, *args, **kwargs)
+        request.org_name = org_name
+
+        # 外部用户访问grafana，使用内部用户权限绕过角色校验
+        if getattr(request, "external_user", None) and org_name:
+            authorizer_map, _ = GlobalConfig.objects.get_or_create(
+                key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
+            )
+            authorizer = authorizer_map.value[org_name]
+            user = auth.authenticate(username=authorizer)
+            setattr(request, "user", user)
+
+            # 过滤外部用户仪表盘
+            if not self.is_allowed_external_request(request):
+                return HttpResponseForbidden(f"外部用户{request.external_user}无该仪表盘访问或操作权限")
+
+        return super(GrafanaSwitchOrgView, self).dispatch(request, *args, **kwargs)
+
+
 class GrafanaProxyView(ProxyView):
     @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
+        org_name = self.get_org_name(request, *args, **kwargs)
+        request.org_name = org_name
+
+        # 外部用户访问grafana，使用内部用户权限绕过角色校验
+        if getattr(request, "external_user", None) and org_name:
+            authorizer_map, _ = GlobalConfig.objects.get_or_create(
+                key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}}
+            )
+            authorizer = authorizer_map.value[org_name]
+            user = auth.authenticate(username=authorizer)
+            setattr(request, "user", user)
+
         response = super(GrafanaProxyView, self).dispatch(request, *args, **kwargs)
 
         # 这里对 Home 仪表盘进行 patch，替换为指定的面板
@@ -113,3 +175,34 @@ class GrafanaProxyView(ProxyView):
 
 class ApiProxyView(GrafanaProxyView):
     permission_classes = ()
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request, *args, **kwargs):
+        response = super(ApiProxyView, self).dispatch(request, *args, **kwargs)
+
+        # 过滤外部用户仪表盘
+        if "api/search" in request.path:
+            try:
+                self.filter_external_resource(request, response)
+            except Exception:
+                pass
+        return response
+
+    def filter_external_resource(self, request, response):
+        filter_resources = []
+        org_name = self.get_org_name(request)
+        if request and getattr(request, "external_user", None) and org_name:
+            for external_permission in ExternalPermission.objects.filter(
+                authorized_user=request.external_user,
+                bk_biz_id=int(org_name),
+                action_id="view_grafana",
+                expire_time__gt=timezone.now(),
+            ):
+                filter_resources.extend(external_permission.resources)
+            result = json.loads(response.content)
+            result = [
+                record
+                for record in result
+                if record.get("type", "") == "dash-db" and record.get("uid", "") in filter_resources
+            ]
+            response.content = json.dumps(result)

@@ -102,6 +102,14 @@ export interface IAppInfo {
   no_data_period: number;
   application_sampler_config: IApplicationSamplerConfig;
   application_instance_name_config: IApplicationInstanceNameConfig;
+  application_db_config: {
+    db_system: string;
+    trace_mode: 'origin' | 'no_parameters' | 'closed';
+    length: number;
+    threshold: number;
+    enabled_slow_sql: boolean;
+  }[];
+  application_db_system: string[];
 }
 
 export interface ClusterOption {
