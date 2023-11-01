@@ -51,10 +51,10 @@ class DesensitizeRuleViesSet(ModelViewSet):
         业务规则查看鉴权逻辑：拥有 空间访问 权限的用户
         全局规则查看鉴权逻辑：所有用户可见
         """
-        space_uid = None
         if self.action in ["retrieve", "list"]:
             if self.action == "list":
                 is_public = self.request.query_params.get("is_public")
+                space_uid = self.request.query_params.get("space_uid")
                 is_public = True if str(is_public).lower() == "true" else False
             else:
                 rule_id = self.kwargs[self.lookup_field]
@@ -72,6 +72,7 @@ class DesensitizeRuleViesSet(ModelViewSet):
         elif self.action in ["create", "update", "destroy", "start", "stop"]:
             if self.action == "create":
                 is_public = self.request.data.get("is_public")
+                space_uid = self.request.data.get("space_uid")
             else:
                 rule_id = self.kwargs[self.lookup_field]
                 rule_obj = DesensitizeRule.objects.filter(id=int(rule_id)).first()
