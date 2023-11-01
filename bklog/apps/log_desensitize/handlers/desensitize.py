@@ -53,15 +53,13 @@ class DesensitizeHandler(object):
 
         # 构建字段绑定的规则mapping
         self.field_rule_mapping = dict()
+        self.rules = list()
 
         rule_ids = [_info["rule_id"] for _info in desensitize_config_info if _info.get("rule_id")]
 
         # 过滤出当前脱敏配置的关联规则中启用的规则 包含已删除的规则
         effective_rule_objs = DesensitizeRule.origin_objects.filter(id__in=rule_ids, is_active=True)
         effective_rule_mapping = {_obj.id: model_to_dict(_obj) for _obj in effective_rule_objs}
-
-        # 脱敏配置的标志序号
-        sign_num = 1
 
         for _config in desensitize_config_info:
 
@@ -71,24 +69,21 @@ class DesensitizeHandler(object):
             if rule_id and rule_id not in effective_rule_mapping:
                 continue
 
-            field_name = _config["field_name"]
+            field_name = _config.get("field_name")
 
-            if rule_id:
+            if rule_id and field_name:
                 match_fields = effective_rule_mapping[rule_id]["match_fields"]
                 if match_fields and field_name not in match_fields:
                     continue
 
             operator = _config["operator"]
 
-            if not operator or not field_name:
+            if not operator:
                 continue
 
             # 生成配置对应的算子实例
-            if operator not in OPERATOR_MAPPING.keys():
+            if operator not in OPERATOR_MAPPING:
                 raise ValidationError(_("{} 算子能力尚未实现").format(operator))
-
-            if field_name not in self.field_rule_mapping.keys():
-                self.field_rule_mapping[field_name] = list()
 
             operator_cls = OPERATOR_MAPPING[operator]
 
@@ -106,17 +101,33 @@ class DesensitizeHandler(object):
                     )
                 )
 
-            # 添加配置序号 兼容没有绑定脱敏规则的纯配置脱敏模式
-            _config["__id__"] = sign_num
-
-            self.field_rule_mapping[field_name].append(_config)
-
-            sign_num += 1
+            if field_name and field_name not in self.field_rule_mapping:
+                self.field_rule_mapping[field_name] = list()
+            if field_name:
+                self.field_rule_mapping[field_name].append(_config)
+            else:
+                self.rules.append(_config)
 
         if self.field_rule_mapping:
             # 对字段绑定的规则按照优先级排序 sort_index 越小的优先级越高
             for _field_name, _config in self.field_rule_mapping.items():
                 self.field_rule_mapping[_field_name] = sorted(_config, key=lambda x: x["sort_index"])
+
+        if self.rules:
+            self.rules = sorted(self.rules, key=lambda x: x["sort_index"])
+
+    def transform_text(self, text: str, is_highlight: bool = False):
+        """
+        处理文本类型
+        text 文本 -> ‘test log 123456789’
+        is_highlight 结果是否高亮处理
+        """
+        if not self.rules or not text:
+            return text
+
+        text = self.transform(log=str(text), rules=self.rules, is_highlight=is_highlight)
+
+        return text
 
     def transform_dict(self, log_content: dict = None):
         """
@@ -128,7 +139,7 @@ class DesensitizeHandler(object):
             return log_content
 
         for _field, _rules in self.field_rule_mapping.items():
-            if _field not in log_content.keys() or not _rules:
+            if _field not in log_content or not _rules:
                 continue
             text = log_content[_field]
             log_content[_field] = self.transform(log=str(text), rules=_rules)
@@ -136,13 +147,19 @@ class DesensitizeHandler(object):
         return log_content
 
     @staticmethod
-    def _match_transform(rule: dict, text: str = "", context: dict = None):
+    def _match_transform(rule: dict, text: str = "", context: dict = None, is_highlight=False):
         """
         公共方法 匹配文本并进行算子处理
         """
 
-        # 文本处理
-        text = rule["operator_obj"].transform(text, context)
+        if not is_highlight:
+            # 文本处理
+            text = rule["operator_obj"].transform(text, context)
+        else:
+            text_tmp = text
+            text = rule["operator_obj"].transform(text, context)
+            if text != text_tmp:
+                text = f"<mark>{text}</mark>"
 
         return text
 
@@ -161,7 +178,6 @@ class DesensitizeHandler(object):
                     "start": 0,
                     "end": len(str(log)),
                     "group_dict": dict(),
-                    "__id__": rule["__id__"],
                     "rule": rule
                 }
             ]
@@ -177,7 +193,6 @@ class DesensitizeHandler(object):
                 "start": match.start(),
                 "end": match.end(),
                 "group_dict": match.groupdict(),
-                "__id__": rule["__id__"],
                 "rule": rule
             })
         return results
@@ -206,7 +221,7 @@ class DesensitizeHandler(object):
 
         return result
 
-    def transform(self, log: str, rules: list):
+    def transform(self, log: str, rules: list, is_highlight=False):
         substrings = []
         for rule in rules:
             rule_substrings = self.find_substrings_by_rule(log, rule)
@@ -218,7 +233,12 @@ class DesensitizeHandler(object):
         for substring in substrings:
             outputs.append(log[last_end:substring["start"]])
             # 文本处理
-            _text = self._match_transform(substring["rule"], str(substring["src"]), substring["group_dict"])
+            _text = self._match_transform(
+                rule=substring["rule"],
+                text=str(substring["src"]),
+                context=substring["group_dict"],
+                is_highlight=is_highlight
+            )
             outputs.append(_text)
             last_end = substring["end"]
 
@@ -342,7 +362,7 @@ class DesensitizeRuleHandler(object):
             index_set_info = model_to_dict(index_set_obj)
             scenario_id = index_set_info["scenario_id"]
             scenario_mapping[_index_set_id] = dict()
-            if scenario_id == ScenarioEnum.LOG.value and _index_set_id in collector_config_mapping.keys():
+            if scenario_id == ScenarioEnum.LOG.value and _index_set_id in collector_config_mapping:
                 # 采集接入&自定义上报
                 if collector_config_mapping[_index_set_id]["collector_scenario_id"] != CollectorScenarioEnum.CUSTOM.value:
                     # 采集接入
@@ -366,7 +386,7 @@ class DesensitizeRuleHandler(object):
         for relation_obj in desensitize_field_config_objs:
             _rule_id = relation_obj.rule_id
             _index_set_id = relation_obj.index_set_id
-            if _rule_id not in relation_mapping.keys():
+            if _rule_id not in relation_mapping:
                 relation_mapping[_rule_id] = {
                     "index_set_ids": set(),
                     "access_info_mapping": dict()
@@ -381,14 +401,14 @@ class DesensitizeRuleHandler(object):
             scenario_info = scenario_mapping[_index_set_id]
             scenario_id = scenario_info["scenario_id"]
 
-            if scenario_id not in relation_mapping[_rule_id]["access_info_mapping"].keys():
+            if scenario_id not in relation_mapping[_rule_id]["access_info_mapping"]:
                 relation_mapping[_rule_id]["access_info_mapping"][scenario_id] = {"ids": set()}
             relation_mapping[_rule_id]["access_info_mapping"][scenario_id]["ids"].add(scenario_info["show_id"])
 
         for _obj in objs:
             _info = model_to_dict(_obj)
             rule_id = _info["id"]
-            if not relation_mapping or rule_id not in relation_mapping.keys():
+            if not relation_mapping or rule_id not in relation_mapping:
                 _info["access_num"] = 0
                 _info["access_info"] = []
             else:
@@ -416,13 +436,17 @@ class DesensitizeRuleHandler(object):
         self.data.delete()
 
     @staticmethod
-    def regex_debug(log_sample: str, match_pattern: str):
+    def _get_match_info(log_sample: str, match_pattern: str):
+        match_info = list()
+
+        if not log_sample or not match_pattern:
+            return match_info
+
         # 使用正则表达式查找所有匹配项
         regex = re.compile(match_pattern)
 
         matches = regex.finditer(log_sample)
 
-        # 遍历所有匹配项，并将它们用<mark>标签高亮显示
         match_info = [
             {
                 "src": match.group(),
@@ -431,11 +455,47 @@ class DesensitizeRuleHandler(object):
             } for match in matches
         ]
 
+        return match_info
+
+    def rule_debug(self, params: dict):
+        """
+        规则调试
+        """
+        match_pattern = params["match_pattern"]
+        log_sample = params["log_sample"]
+        match_info = self._get_match_info(log_sample, match_pattern)
+
+        if not match_info:
+            raise DesensitizeRegexDebugNoMatchException
+
+        # 构建脱敏配置列表
+        desensitize_config = [
+            {
+                "operator": params["operator"],
+                "params": params["params"],
+                "match_pattern": match_pattern,
+                "sort_index": 1
+            }
+        ]
+
+        # 文本脱敏 并将结果高亮处理
+        result = DesensitizeHandler(desensitize_config).transform_text(text=log_sample, is_highlight=True)
+
+        return result
+
+    def regex_debug(self, log_sample: str, match_pattern: str):
+        """
+        正则调试
+        """
+        # 使用正则表达式查找所有匹配项
+        match_info = self._get_match_info(log_sample, match_pattern)
+
         if not match_info:
             raise DesensitizeRegexDebugNoMatchException
 
         last_end = 0
         outputs = []
+        # 遍历所有匹配项，并将它们用<mark>标签高亮显示
         for _m in match_info:
             outputs.append(log_sample[last_end:_m["start"]])
             outputs.append(f"<mark>{_m['src']}</mark>")
@@ -475,14 +535,14 @@ class DesensitizeRuleHandler(object):
         res = dict()
 
         for _field in fields:
-            if _field not in res.keys():
+            if _field not in res:
                 res[_field] = list()
             _hit_rule_ids = set()
             if not desensitize_rule_info:
                 continue
             for _log in logs:
                 _log = expand_nested_data(_log)
-                if _field not in _log.keys():
+                if _field not in _log:
                     continue
                 _text = str(_log[_field])
                 for _rule in desensitize_rule_info:
@@ -552,7 +612,7 @@ class DesensitizeRuleHandler(object):
             field_name = _config["field_name"]
             for _rule in _config["rules"]:
                 rule_id = _rule.get("rule_id")
-                if rule_id and rule_id not in desensitize_rule_info.keys():
+                if rule_id and rule_id not in desensitize_rule_info:
                     continue
                 if rule_id:
                     _operator = desensitize_rule_info[rule_id]["operator"]
@@ -604,11 +664,11 @@ class DesensitizeRuleHandler(object):
             # 日志原文字段同步应用其他字段的脱敏结果
             for text_field in text_fields:  # ["log"]
                 # 判断原文字段是否存在log中
-                if text_field not in result.keys():
+                if text_field not in result:
                     continue
 
                 for field_name in field_names:
-                    if field_name not in result.keys() or field_name == text_field:
+                    if field_name not in result or field_name == text_field:
                         continue
                     result[text_field] = result[text_field].replace(str(log_content_tmp[field_name]), str(result[field_name]))
 
@@ -616,7 +676,7 @@ class DesensitizeRuleHandler(object):
             result = text_fields_desensitize_handler.transform_dict(_log)
 
             for _field_name in field_names:
-                if _field_name not in res.keys():
+                if _field_name not in res:
                     res[_field_name] = list()
                 res[_field_name].append(result.get(_field_name))
 
