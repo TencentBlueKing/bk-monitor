@@ -29,7 +29,7 @@
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Radio, RadioGroup } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from '../../../../../monitor-api/modules/grafana';
 import { fetchItemStatus, getUnitInfo } from '../../../../../monitor-api/modules/strategies';
@@ -570,8 +570,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 获取图表查询参数设置
   getQueryParams(startTime: string | number, endTime: string | number, hasIntelligentDetect = false) {
     const timePrams = {
-      start_time: typeof startTime === 'string' || String(startTime).length > 10 ? moment(startTime).unix() : startTime,
-      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? moment(endTime).unix() : endTime
+      start_time:
+        typeof startTime === 'string' || String(startTime).length > 10 ? dayjs.tz(startTime).unix() : startTime,
+      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime
     };
     if (this.editMode === 'Source') {
       const params = {

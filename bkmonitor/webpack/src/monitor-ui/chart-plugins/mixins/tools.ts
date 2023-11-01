@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, InjectReactive, Vue } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
-import moment from 'moment';
 
 import { getDataSourceConfig } from '../../../monitor-api/modules/grafana';
 import { deepClone } from '../../../monitor-common/utils/utils';
@@ -193,7 +193,7 @@ export default class ToolsMixin extends Vue {
       const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
       const interval = reviewInterval(
         scopedVars.interval,
-        moment(endTime).unix() - moment(startTime).unix(),
+        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
         panel.collect_interval
       );
       const variablesService = new VariablesService({ ...scopedVars, interval });

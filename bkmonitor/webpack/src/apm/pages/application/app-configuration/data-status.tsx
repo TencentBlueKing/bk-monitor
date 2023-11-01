@@ -28,7 +28,7 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Component, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Sideslider, Switcher, Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   dataSampling,
@@ -51,8 +51,8 @@ import 'vue-json-pretty/lib/styles.css';
 @Component
 export default class DataStatus extends tsc<{}> {
   pickerTimeRange: string[] = [
-    moment(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
-    moment(new Date()).format('YYYY-MM-DD')
+    dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
+    dayjs(new Date()).format('YYYY-MM-DD')
   ];
   strategyLoading = false;
   tableLoading = false;

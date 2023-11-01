@@ -856,7 +856,7 @@ X-BK-TOKEN=$TOKEN
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Mixins, Ref } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {   createOrUpdateGroupingRule,  customTsGroupingRuleList,
   modifyCustomTsGroupingRuleList,
@@ -1101,7 +1101,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   //     // eslint-disable-next-line camelcase
   //     this.metricValue = data?.fields_value || {};
   //     this.detailData.last_time = typeof data?.last_time === 'number'
-  //       ? moment(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+  //       ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
   //       : data?.last_time;
   //     this.dataLoading = false;
   //   }
@@ -1274,8 +1274,8 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   }
   //  从新建和列表页进来会去获取最近 1小时 拉取的事件
   getTimeParams() {
-    const dateNow = moment().format('YYYY-MM-DD HH:mm:ss');
-    const lastDate = moment(dateNow).add(-this.shortcuts.value, 'h')
+    const dateNow = dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
+    const lastDate = dayjs.tz(dateNow).add(-this.shortcuts.value, 'h')
       .format('YYYY-MM-DD HH:mm:ss');
     return `${lastDate} -- ${dateNow}`;
   }
@@ -1548,7 +1548,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     });
     this.allDataPreview = data?.fields_value || {};
     this.detailData.last_time = typeof data?.last_time === 'number'
-      ? moment(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+      ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
       : data?.last_time;
   }
 
@@ -1870,7 +1870,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     //   && cb(
     //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     //     this.metricData.map(({ descReValue, ...item }) => item),
-    //     `${this.detailData.name}-${moment().format('YYYY-MM-DD HH-mm-ss')}.json`
+    //     `${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
     //   );
     const allUnit = [];
     this.unitList.forEach((group) => {
@@ -1916,7 +1916,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       tdArr.push(row);
     });
     const csvStr = transformTableDataToCsvStr(thArr as string[], tdArr);
-    downCsvFile(csvStr, `${this.detailData.name}-${moment().format('YYYY-MM-DD HH-mm-ss')}.csv`);
+    downCsvFile(csvStr, `${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.csv`);
   }
   /* 导入数据时不在分组管理的分组需要自动新建此分组 */
   concatLabels(metricName: string, oldLabels: { name: string; match_type: string[] }[], target: string[]) {

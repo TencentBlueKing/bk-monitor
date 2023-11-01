@@ -42,6 +42,7 @@ interface IBkInfoProps {
   escClose?: any;
   showFooter?: boolean;
   extCls?: string;
+  timezone?: string;
   okText?: string | TranslateResult;
   cancelText?: string;
   confirmFn: (v: unknown) => void;

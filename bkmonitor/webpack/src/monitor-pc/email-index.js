@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
@@ -36,10 +36,10 @@ import './static/assets/css/global.scss';
 import './static/css/reset.scss';
 import './static/css/global.scss';
 
-moment.locale('zh-cn');
+dayjs.tz.locale('zh-cn');
 Vue.prototype.$t = v => v;
 Vue.prototype.$tc = v => v;
-Vue.prototype.$moment = moment;
+Vue.prototype.$moment = dayjs.tz;
 window.Vue = Vue;
-window.moment = moment;
+window.moment = dayjs.tz;
 Vue.component('MonitorEcharts', MonitorEcharts);

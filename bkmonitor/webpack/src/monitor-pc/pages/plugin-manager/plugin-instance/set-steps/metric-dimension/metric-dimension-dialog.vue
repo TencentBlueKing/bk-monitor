@@ -260,7 +260,7 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { releaseCollectorPlugin } from '../../../../../../monitor-api/modules/model';
 import { saveMetric } from '../../../../../../monitor-api/modules/plugin';
@@ -952,7 +952,7 @@ export default {
                   };
                 })
             })),
-          `${this.pluginData.plugin_id}-${moment().format('YYYY-MM-DD HH-mm-ss')}.json`
+          `${this.pluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
         );
     },
     handleImportMetric(data) {

@@ -255,7 +255,7 @@
 import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
 import deepMerge from 'deepmerge';
 // import { handleTimeRange } from '../../../utils/index';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
@@ -403,8 +403,8 @@ export default class DashboardPanels extends Vue {
           }
           if (startTime && endTime) {
             timerange = {
-              start_time: moment(startTime).unix(),
-              end_time: moment(endTime).unix()
+              start_time: dayjs.tz(startTime).unix(),
+              end_time: dayjs.tz(endTime).unix()
             };
           }
           if (item.datasourceId === 'log') {
@@ -529,7 +529,7 @@ export default class DashboardPanels extends Vue {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-              ? moment().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
               : val.replace('current', this.$t('当前'))
           );
         }
@@ -812,7 +812,7 @@ export default class DashboardPanels extends Vue {
   .icon-arrow-right {
     font-size: 24px;
     color: #979ba5;
-    transition: transform 0.2s ease-in-out;
+    transition: transform .2s ease-in-out;
 
     &.expand {
       transform: rotate(90deg);
@@ -827,7 +827,7 @@ export default class DashboardPanels extends Vue {
   :deep(.bk-collapse-item-hover) {
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .05);
 
     &:hover {
       color: #63656e;
@@ -838,7 +838,7 @@ export default class DashboardPanels extends Vue {
     padding: 0;
     margin-top: 1px;
     background: #fff;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
   }
 
   .chart-wrapper-old {
@@ -863,7 +863,9 @@ export default class DashboardPanels extends Vue {
             flex: 0 0 calc($w - 5px);
             width: calc($w - 5px);
           }
-        } @else {
+        }
+
+        @else {
           width: calc($w - 10px);
           flex: 0 0 calc($w - 10px);
         }
@@ -884,7 +886,7 @@ export default class DashboardPanels extends Vue {
       margin-bottom: 10px;
       border: 0;
       border-radius: 2px;
-      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
 
       &.has-child {
         padding-right: 0;
@@ -906,7 +908,7 @@ export default class DashboardPanels extends Vue {
           background: white;
           border: 0;
           border-radius: 2px;
-          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
 
           &:first-child {
             margin-right: 10px;
@@ -930,7 +932,7 @@ export default class DashboardPanels extends Vue {
       position: relative;
       // border: 1px solid transparent;
       &:hover {
-        box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.1);
+        box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, .1);
 
         .collect-wrapper-mark {
           display: block;
@@ -962,7 +964,7 @@ export default class DashboardPanels extends Vue {
       }
 
       &.is-collect {
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
 
         .collect-wrapper-mark {
           display: block;

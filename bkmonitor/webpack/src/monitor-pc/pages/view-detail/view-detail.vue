@@ -198,7 +198,7 @@
 <script lang="ts">
 /* eslint-disable @typescript-eslint/member-ordering */
 import { Component, InjectReactive, Mixins, Prop, Provide, ProvideReactive, Vue } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { graphUnifyQuery } from '../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../monitor-api/modules/strategies';
@@ -446,8 +446,8 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
         let timerange = this.getTimerange();
         if (startTime && endTime) {
           timerange = {
-            start_time: moment(startTime).unix(),
-            end_time: moment(endTime).unix()
+            start_time: dayjs.tz(startTime).unix(),
+            end_time: dayjs.tz(endTime).unix()
           };
         }
         return await graphUnifyQuery({

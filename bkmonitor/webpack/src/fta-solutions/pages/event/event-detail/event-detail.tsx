@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { throttle } from 'throttle-debounce';
 
 import { alertDetail, listAlertFeedback, searchAction } from '../../../../monitor-api/modules/alert';
@@ -418,8 +418,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const params: any = {
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
-      start_time: moment(startTime).unix(),
-      end_time: moment(endTime).unix()
+      start_time: dayjs.tz(startTime).unix(),
+      end_time: dayjs.tz(endTime).unix()
     };
     if (graph_panel) {
       const [{ data: queryConfig }] = graph_panel.targets;

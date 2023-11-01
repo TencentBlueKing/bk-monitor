@@ -25,7 +25,7 @@
  */
 import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
 import { isShadowEqual, reviewInterval } from '../../../../../monitor-ui/chart-plugins/utils';
@@ -204,7 +204,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           value,
           id: `${metric.data_source_label}.${metric.data_type_label}.${metric.result_table_id}.${metric.metric_field}`,
           score: +info.score.toFixed(4),
-          dtEventTime: moment(info.dtEventTime).format('YYYY-MM-DD HH:mm:ss')
+          dtEventTime: dayjs.tz(info.dtEventTime).format('YYYY-MM-DD HH:mm:ss')
         };
       });
     } else {
@@ -230,7 +230,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           ...this.viewOptions.variables,
           interval: reviewInterval(
             this.viewOptions.interval,
-            moment(endTime).unix() - moment(startTime).unix(),
+            dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
             row.panel.collect_interval
           )
         });

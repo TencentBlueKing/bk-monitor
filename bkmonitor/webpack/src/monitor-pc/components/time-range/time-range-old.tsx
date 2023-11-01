@@ -25,7 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   DEFAULT_TIME_RANGE,
@@ -114,7 +114,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   /** 格式化绝对时间点 */
   formatTime(value: TimeRangeType) {
     return value.map(item => {
-      const m = moment(intTimestampStr(item));
+      const m = dayjs.tz(intTimestampStr(item));
       return m.isValid() ? m.format('YYYY-MM-DD HH:mm:ss') : item;
     });
   }
@@ -175,7 +175,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   handleCustomInput(index: number) {
     this.isPanelTimeRange = false;
     if (!this.localValue[index]) {
-      this.$set(this.localValue, index, moment().format('YYYY-MM-DD HH:mm:ss'));
+      this.$set(this.localValue, index, dayjs.tz().format('YYYY-MM-DD HH:mm:ss'));
     }
   }
 
@@ -187,7 +187,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           id={id}
           class='time-range-desc-wrap'
         >
-          <div class='desc-row'>{`${this.$t('完整格式')}: ${moment().format('YYYY-MM-DD HH:mm:ss')}`}</div>
+          <div class='desc-row'>{`${this.$t('完整格式')}: ${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`}</div>
           <div class='desc-row'>
             {`${this.$t('快捷格式')}: m ${this.$t('分钟')}, h ${this.$t('小时')}, d ${this.$t('天')}, w ${this.$t(
               '周'
