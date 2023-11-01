@@ -199,6 +199,7 @@
               :rules="basicRules.access_key_secret"
               :property="formData.cosFormData.access_key_secret">
               <bk-input
+                type="password"
                 v-model="formData.cosFormData.access_key_secret"
                 data-test-id="addNewStorehouse_input_SecretKey"></bk-input>
             </bk-form-item>
