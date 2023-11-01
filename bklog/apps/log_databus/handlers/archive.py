@@ -181,7 +181,7 @@ class ArchiveHandler:
             else:
                 meta_update_params = {"table_id": self.archive.table_id, "snapshot_days": self.archive.snapshot_days}
                 TransferApi.modify_result_table_snapshot(meta_update_params)
-            return
+            return model_to_dict(self.archive)
         # 只有采集项类型需要确认结果表状态
         if params["instance_type"] == ArchiveInstanceType.COLLECTOR_CONFIG.value:
             try:
@@ -224,6 +224,7 @@ class ArchiveHandler:
                 "snapshot_days": create_obj.snapshot_days,
             }
             TransferApi.create_result_table_snapshot(meta_create_params)
+        return model_to_dict(create_obj)
 
     @atomic
     def delete(self):
@@ -296,6 +297,8 @@ class ArchiveHandler:
                 }
                 bulk_create_params.append(RestoreConfig(**params))
             RestoreConfig.objects.bulk_create(bulk_create_params)
+            objs = RestoreConfig.objects.filter(archive_config_id=self.archive.archive_config_id)
+            restore_config_info = [model_to_dict(obj) for obj in objs]
         else:
             create_restore_config = RestoreConfig.objects.create(
                 **{
@@ -322,6 +325,15 @@ class ArchiveHandler:
             create_restore_config.total_store_size = meta_restore_result["total_store_size"]
             create_restore_config.total_doc_count = meta_restore_result["total_doc_count"]
             create_restore_config.save()
+            restore_config_info = [model_to_dict(create_restore_config)]
+
+        res = {
+            "index_set_id": index_set.index_set_id,
+            "index_set_name": index_set.index_set_name,
+            "restore_config_info": restore_config_info
+        }
+
+        return res
 
     def _create_index_set(self, index_set_name):
         index_set_name = _("[回溯]") + index_set_name
@@ -451,12 +463,17 @@ class ArchiveHandler:
                     params=params
                 )
             multi_execute_func.run()
+            restore_config_info = [model_to_dict(obj) for obj in restore_objs]
         else:
             restore.expired_time = expired_time
             restore.save()
             TransferApi.modify_restore_result_table_snapshot(
                 {"restore_id": restore.meta_restore_id, "expired_time": expired_time}
             )
+
+            restore_config_info = [model_to_dict(restore)]
+
+        return {"restore_config_info": restore_config_info}
 
     @classmethod
     @atomic
