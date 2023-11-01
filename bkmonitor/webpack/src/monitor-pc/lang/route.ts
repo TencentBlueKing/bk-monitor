@@ -198,5 +198,7 @@ export default {
   'ES 集群': 'ES Set',
   资源注册: 'Resource registration',
   编辑集群: 'Edit cluster',
-  新增集群: 'Add cluster'
+  新增集群: 'Add cluster',
+
+  'route-故障': 'Failure'
 };
