@@ -116,16 +116,18 @@ class DesensitizeHandler(object):
         if self.rules:
             self.rules = sorted(self.rules, key=lambda x: x["sort_index"])
 
-    def transform_text(self, log_text: str):
+    def transform_text(self, text: str, is_highlight: bool = False):
         """
-        处理文本类型 log_text=‘test log 123456789’
+        处理文本类型
+        text 文本 -> ‘test log 123456789’
+        is_highlight 结果是否高亮处理
         """
-        if not self.rules or not log_text:
-            return log_text
+        if not self.rules or not text:
+            return text
 
-        log_text = self.transform(log=str(log_text), rules=self.rules, is_highlight=True)
+        text = self.transform(log=str(text), rules=self.rules, is_highlight=is_highlight)
 
-        return log_text
+        return text
 
     def transform_dict(self, log_content: dict = None):
         """
@@ -154,7 +156,7 @@ class DesensitizeHandler(object):
             # 文本处理
             text = rule["operator_obj"].transform(text, context)
         else:
-            text_tmp = copy.deepcopy(text)
+            text_tmp = text
             text = rule["operator_obj"].transform(text, context)
             if text != text_tmp:
                 text = f"<mark>{text}</mark>"
@@ -445,7 +447,6 @@ class DesensitizeRuleHandler(object):
 
         matches = regex.finditer(log_sample)
 
-        # 遍历所有匹配项，并将它们用<mark>标签高亮显示
         match_info = [
             {
                 "src": match.group(),
@@ -477,7 +478,8 @@ class DesensitizeRuleHandler(object):
             }
         ]
 
-        result = DesensitizeHandler(desensitize_config).transform_text(log_sample)
+        # 文本脱敏 并将结果高亮处理
+        result = DesensitizeHandler(desensitize_config).transform_text(text=log_sample, is_highlight=True)
 
         return result
 
