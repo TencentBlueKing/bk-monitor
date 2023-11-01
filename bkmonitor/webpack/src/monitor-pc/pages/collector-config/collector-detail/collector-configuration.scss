@@ -9,6 +9,10 @@
     margin-top: 12px;
   }
 
+  .width-150 {
+    width: 150px;
+  }
+
   .split-line {
     width: 100%;
     height: 1px;
@@ -40,8 +44,62 @@
         .item-content {
           padding-left: 8px;
           color: #313238;
+
+          .process {
+            display: block;
+            width: 100%;
+            margin-top: -2px;
+
+            .match-title {
+              margin-bottom: 10px;
+            }
+          }
+
+          .param-list {
+            border: 1px solid #dcdee5;
+            border-radius: 2px;
+  
+            &-item {
+              display: flex;
+              align-items: center;
+  
+              &:not(:last-child) {
+                border-bottom: 1px solid #dcdee5;
+              }
+  
+              .item-name {
+                width: 50%;
+                height: 30px;
+                padding-left: 20px;
+                line-height: 32px;
+                color: #979ba5;
+                background: #fafbfd;
+                border-right: 1px solid #dcdee5;
+              }
+  
+              .item-content {
+                width: 50%;
+                padding-left: 20px;
+              }
+            }
+          }
         }
       }
+    }
+
+    .edit-span {
+      display: flex;
+      align-items: center;
+    }
+
+    .edit-input {
+      margin-top: -6px;
+    }
+
+    .icon-bianji {
+      font-size: 24px;
+      color: #dcdee5;
+      cursor: pointer;
     }
   }
 }

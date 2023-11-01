@@ -23,15 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Mixins, Provide } from 'vue-property-decorator';
 import { Route } from 'vue-router';
-import { Component as tsc } from 'vue-tsx-support';
 import { random } from '@common/utils';
 import { TabPanel } from 'bk-magic-vue';
 
 import { collectInstanceStatus, frontendCollectConfigDetail } from '../../../../monitor-api/modules/collecting';
+import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
+import authorityMixinCreate from '../../../mixins/authorityMixin';
+import * as collectAuth from '../authority-map';
 
+import { IAlarmGroupList } from './components/alarm-group';
 import AlertTopic from './components/alert-topic';
 import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
@@ -44,7 +47,11 @@ import './collector-detail.scss';
 
 Component.registerHooks(['beforeRouteEnter']);
 @Component
-export default class CollectorDetail extends tsc<{}> {
+export default class CollectorDetail extends Mixins(authorityMixinCreate(collectAuth)) {
+  @Provide('authority') authority: Record<string, boolean> = {};
+  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
+  @Provide('authorityMap') authorityMap;
+
   active = TabEnum.StorageState;
   collectId = 0;
 
@@ -64,11 +71,18 @@ export default class CollectorDetail extends tsc<{}> {
     }
   };
 
+  // 告警组
+  alarmGroupList: IAlarmGroupList[] = [];
+
   public beforeRouteEnter(to: Route, from: Route, next: Function) {
     const { params } = to;
     next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
     });
+  }
+
+  created() {
+    this.getAlarmGroupList();
   }
 
   handleTabChange(v: TabEnum) {
@@ -106,6 +120,18 @@ export default class CollectorDetail extends tsc<{}> {
     this.getDetails();
   }
 
+  getAlarmGroupList() {
+    return listUserGroup({ exclude_detail_info: 1 }).then(data => {
+      this.alarmGroupList = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        needDuty: item.need_duty,
+        receiver:
+          item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || []
+      }));
+    });
+  }
+
   render() {
     return (
       <div class='collector-detail-page'>
@@ -126,8 +152,9 @@ export default class CollectorDetail extends tsc<{}> {
             label={this.$t('采集详情')}
             name={TabEnum.TargetDetail}
           >
-            <AlertTopic></AlertTopic>
+            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
             <CollectorStatusDetails
+              class='mt-24'
               data={this.allData[TabEnum.TargetDetail].data}
               updateKey={this.allData[TabEnum.TargetDetail].updateKey}
             ></CollectorStatusDetails>
@@ -136,7 +163,9 @@ export default class CollectorDetail extends tsc<{}> {
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}
           >
+            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
             <LinkStatus
+              class='mt-24'
               show={this.active === TabEnum.DataLink}
               collectId={this.collectId}
             />
@@ -145,7 +174,11 @@ export default class CollectorDetail extends tsc<{}> {
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
           >
-            <StorageState collectId={this.collectId} />
+            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
+            <StorageState
+              class='mt-24'
+              collectId={this.collectId}
+            />
           </TabPanel>
           <TabPanel
             label={this.$t('字段详情')}

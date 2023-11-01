@@ -23,23 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Table } from 'bk-magic-vue';
+import { Input, Table } from 'bk-magic-vue';
 
-import { frontendCollectConfigDetail } from '../../../../monitor-api/modules/collecting';
+import { frontendCollectConfigDetail, renameCollectConfig } from '../../../../monitor-api/modules/collecting';
+import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 
 import './collector-configuration.scss';
 
 interface IProps {
-  id: string;
+  id: string | number;
   show: boolean;
 }
 
 @Component
 export default class CollectorConfiguration extends tsc<IProps> {
-  @Prop({ type: String, default: '' }) id: string;
+  @Prop({ type: [String, Number], default: '' }) id: number | string;
   @Prop({ type: Boolean, default: false }) show: boolean;
+
+  @Inject('authority') authority;
+  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
+  @Inject('authorityMap') authorityMap;
 
   /* 基本信息 */
   basicInfo: any = {};
@@ -54,6 +59,16 @@ export default class CollectorConfiguration extends tsc<IProps> {
     update_time: window.i18n.t('最近更新时间'),
     bk_biz_id: window.i18n.t('所属')
   };
+  matchType = {
+    command: window.i18n.t('命令行匹配'),
+    pid: window.i18n.t('PID文件')
+  };
+  input = {
+    show: false,
+    copyName: ''
+  };
+  name = '';
+  loading = false;
 
   @Watch('show', { immediate: true })
   handleShow(v: boolean) {
@@ -67,7 +82,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    */
   getDetailData() {
     frontendCollectConfigDetail({ id: this.id }).then(data => {
-      this.basicInfo = { ...data.basic_info };
+      this.basicInfo = { ...data.basic_info, id: this.id };
       if (data.extend_info.log) {
         this.basicInfo = { ...this.basicInfo, ...data.extend_info.log };
         !this.basicInfo.filter_patterns && (this.basicInfo.filter_patterns = []);
@@ -108,6 +123,90 @@ export default class CollectorConfiguration extends tsc<IProps> {
     });
   }
 
+  /**
+   * @description 更改配置名称
+   * @param v
+   * @param e
+   */
+  handleLabelKey(v, e) {
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+      this.handleTagClickout();
+    }
+  }
+  /**
+   * @description 隐藏输入框
+   */
+  handleTagClickout() {
+    console.log('xxxx');
+    const data = this.basicInfo;
+    const { copyName } = this.input;
+    if (copyName.length && copyName !== data.name) {
+      this.handleUpdateConfigName(data, copyName);
+    } else {
+      data.copyName = data.name;
+      this.input.show = false;
+    }
+  }
+  /**
+   * @description 更改配置名
+   * @param data
+   * @param copyName
+   */
+  handleUpdateConfigName(data, copyName) {
+    this.loading = true;
+    renameCollectConfig({ id: data.id, name: copyName }, { needMessage: false })
+      .then(() => {
+        this.basicInfo.name = copyName;
+        this.name = copyName;
+        this.$emit('update-name', data.id, copyName);
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('修改成功')
+        });
+      })
+      .catch(err => {
+        this.$bkMessage({
+          theme: 'error',
+          message: err.message || this.$t('发生错误了')
+        });
+      })
+      .finally(() => {
+        this.input.show = false;
+        this.loading = false;
+      });
+  }
+  /**
+   * @description 展示输入框
+   * @param key
+   */
+  handleEditLabel(key) {
+    this.input.show = true;
+    this.$nextTick().then(() => {
+      this.$refs[`input${key}`]?.focus();
+    });
+  }
+  /**
+   * @description 跳转到插件编辑
+   */
+  handleToEditPlugin() {
+    if (!this.authority.PLUGIN_MANAGE_AUTH) {
+      this.handleShowAuthorityDetail(PLUGIN_MANAGE_AUTH);
+    } else {
+      this.$router.push({
+        name: 'plugin-edit',
+        params: {
+          title: `${this.$t('编辑插件')} ${this.basicInfo.plugin_id}`,
+          pluginId: this.basicInfo.plugin_id
+        }
+      });
+    }
+  }
+
+  getBizInfo(id) {
+    const item = this.$store.getters.bizList.find(i => i.id === id) || {};
+    return item ? `${item.text}(${item.type_name})` : '--';
+  }
+
   render() {
     function formItem(label, content) {
       return (
@@ -122,15 +221,90 @@ export default class CollectorConfiguration extends tsc<IProps> {
         <div class='detail-wrap-item'>
           <div class='wrap-item-title'>{this.$t('基本信息')}</div>
           <div class='wrap-item-content'>
-            {[
-              formItem('ID', '1111'),
-              formItem(this.$t('所属业务'), '1111'),
-              formItem(this.$t('采集名称'), '1111'),
-              formItem(this.$t('插件'), '1111'),
-              formItem(this.$t('采集对象'), '1111'),
-              formItem(this.$t('英文名称'), '1111'),
-              formItem(this.$t('集群'), '1111')
-            ]}
+            {Object.keys(this.basicInfoMap).map(key =>
+              formItem(
+                this.basicInfoMap?.[key],
+                (() => {
+                  if (key === 'name') {
+                    return (
+                      <span>
+                        {this.input.show ? (
+                          <Input
+                            class='edit-input width-150'
+                            ref={`input${key}`}
+                            maxlength={50}
+                            v-model={this.input.copyName}
+                            onKeydown={this.handleLabelKey}
+                            onBlur={this.handleTagClickout}
+                          ></Input>
+                        ) : (
+                          <span
+                            class='edit-span'
+                            onClick={() => this.handleEditLabel(key)}
+                          >
+                            <span>{this.basicInfo?.[key]}</span>
+                            <span class='icon-monitor icon-bianji'></span>
+                          </span>
+                        )}
+                      </span>
+                    );
+                  }
+                  if (key === 'plugin_display_name' && this.basicInfo?.collect_type !== 'Log') {
+                    return (
+                      <span class='edit-span'>
+                        <span>{this.basicInfo?.[key]}</span>
+                        <span
+                          class='icon-monitor icon-bianji'
+                          onClick={this.handleToEditPlugin}
+                        ></span>
+                      </span>
+                    );
+                  }
+                  if (key === 'period') {
+                    return `${this.basicInfo?.[key]}s`;
+                  }
+                  if (key === 'bk_biz_id') {
+                    return this.getBizInfo(this.basicInfo?.[key]);
+                  }
+                  if (key === 'log_path' || key === 'filter_patterns') {
+                    if (this.basicInfo?.[key]?.length) {
+                      return this.basicInfo[key].map((word, wordIndex) => <span key={wordIndex}>{word}</span>);
+                    }
+                    return '--';
+                  }
+                  if (key === 'rules') {
+                    return this.basicInfo?.[key]?.map((word, wordIndex) => (
+                      <span key={wordIndex}>{`${word.name}=${word.pattern}`}</span>
+                    ));
+                  }
+                  if (this.basicInfo?.collect_type === 'Process' && key === 'match') {
+                    return (
+                      <span class='detail-item-val process'>
+                        {this.basicInfo?.[key] === 'command'
+                          ? [
+                              <div class='match-title'>{this.matchType?.[this.basicInfo?.[key]]}</div>,
+                              <ul class='param-list'>
+                                <li class='param-list-item'>
+                                  <span class='item-name'>{this.$t('包含')}</span>
+                                  <span class='item-content'>{this.basicInfo?.match_pattern}</span>
+                                </li>
+                                <li class='param-list-item'>
+                                  <span class='item-name'>{this.$t('排除')}</span>
+                                  <span class='item-content'>{this.basicInfo?.exclude_pattern}</span>
+                                </li>
+                              </ul>
+                            ]
+                          : [
+                              <div class='match-title'>{this.matchType?.[this.basicInfo?.[key]]}</div>,
+                              <div>{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>
+                            ]}
+                      </span>
+                    );
+                  }
+                  return this.basicInfo?.[key];
+                })()
+              )
+            )}
           </div>
         </div>
         <div class='split-line mt-24'></div>
