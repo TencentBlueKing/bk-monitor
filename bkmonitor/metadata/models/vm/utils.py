@@ -317,4 +317,3 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
             logger.error("query ds error, bk_data_id: %s", data_id)
 
     return TimestampLen.MILLISECOND_LEN.value
-    return TimestampLen.MILLISECOND_LEN.value
