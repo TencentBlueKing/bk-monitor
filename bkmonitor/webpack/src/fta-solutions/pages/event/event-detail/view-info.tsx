@@ -27,7 +27,7 @@
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { alertGraphQuery } from '../../../../monitor-api/modules/alert';
 import { logQuery } from '../../../../monitor-api/modules/grafana';
@@ -222,7 +222,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
     const params = {
       data_source_label: sourceLabel,
       data_type_label: typeLabel,
-      end_time: this.detail.end_time || Math.floor(moment.now() / 1000),
+      end_time: this.detail.end_time || Math.floor(dayjs.tz.now() / 1000),
       start_time: this.detail.begin_time,
       limit: this.logDataPageSize,
       offset: this.logDataOffset,
@@ -268,7 +268,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-              ? moment().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
               : val.replace('current', this.$t('当前'))
           );
         }
@@ -296,8 +296,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       id: this.detail.id
     };
     if (range && startTime && endTime) {
-      params.start_time = moment(startTime).unix();
-      params.end_time = moment(endTime).unix();
+      params.start_time = dayjs.tz(startTime).unix();
+      params.end_time = dayjs.tz(endTime).unix();
     }
     if (graph_panel) {
       const [{ data: queryConfig, alias }] = graph_panel.targets;
@@ -433,8 +433,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
         const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
         const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
         this.traceInfoTimeRange = {
-          start_time: moment(startTime).unix(),
-          end_time: moment(endTime).unix()
+          start_time: dayjs.tz(startTime).unix(),
+          end_time: dayjs.tz(endTime).unix()
         };
         /* 需要降低trace散点图的密度 */
         const allMaxMinTimeStamp = [];
@@ -563,7 +563,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       default: props => props.row?.content || props.row?.['event.content'] || ''
     };
     const timeSlots = {
-      default: props => moment(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ss')
+      default: props => dayjs.tz(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ss')
     };
     return (
       <div class='source-log'>

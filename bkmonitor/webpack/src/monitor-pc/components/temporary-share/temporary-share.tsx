@@ -28,7 +28,7 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
 import { copyText } from '../../../monitor-common/utils/utils';
@@ -134,13 +134,14 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     const isDefaultTimeRange = timeRange.every(item => CUSTOM_TIME_RANGE_REG.test(item));
     return {
       type: this.$route.name === 'event-center' ? 'event' : this.$route.query.sceneId,
-      expire_time: moment()
+      expire_time: dayjs
+        .tz()
         .add(period, (this.validityPeriod.split(period.toString())?.[1] || 'h') as any)
         .unix(),
       expire_period: this.validityPeriod,
       lock_search: !canChange,
-      start_time: moment(this.timeRange[0]).unix(),
-      end_time: moment(this.timeRange[1]).unix(),
+      start_time: dayjs.tz(this.timeRange[0]).unix(),
+      end_time: dayjs.tz(this.timeRange[1]).unix(),
       default_time_range: isDefaultTimeRange ? timeRange : undefined,
       data: {
         query: Object.assign(

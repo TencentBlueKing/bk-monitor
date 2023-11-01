@@ -26,7 +26,7 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, DatePicker, Input } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { bulkAddAlertShield } from '../../../../monitor-api/modules/shield';
 import VerifyInput from '../../../../monitor-pc/components/verify-input/verify-input.vue';
@@ -165,8 +165,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           end_time: ''
         }
       };
-      moment.locale('en');
-      let toTime = `${moment(time.begin).to(moment(time.end), true)}`;
+      dayjs.locale('en');
+      let toTime = `${dayjs(time.begin).to(dayjs(time.end), true)}`;
       const tims = [
         ['day', 'd'],
         ['days', 'd'],

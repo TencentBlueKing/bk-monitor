@@ -30,7 +30,7 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import { Alert, BigTree, Checkbox, Icon, Pagination, Popover, Select, Tab, TabPanel } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   actionDateHistogram,
@@ -588,8 +588,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         : `action_id : ${defaultData.actionId}`;
       const time = +defaultData.actionId.toString().slice(0, 10) * 1000;
       defaultData.timeRange = [
-        moment(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ss'),
-        moment(time).format('YYYY-MM-DD HH:mm:ss')
+        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss')
       ];
     }
     /** 移动端带collectId跳转事件中心 */
@@ -1258,8 +1258,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       conditions, // 过滤条件，二维数组
       query_string,
       status,
-      start_time: from ? moment(from).unix() : startTime, // 开始时间
-      end_time: to ? moment(to).unix() : endTime, // 结束时间
+      start_time: from ? dayjs.tz(from).unix() : startTime, // 开始时间
+      end_time: to ? dayjs.tz(to).unix() : endTime, // 结束时间
       interval: this.chartInterval
     };
     const promiseFn = this.searchType === 'action' ? actionDateHistogram : alertDateHistogram;
@@ -1277,8 +1277,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       });
     if (from) {
       this.timeRange = [
-        moment(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        moment(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+        dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ss')
       ];
       this.handleGetFilterData();
       this.pagination.current = 1;
