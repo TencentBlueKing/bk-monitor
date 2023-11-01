@@ -151,7 +151,8 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
             kafka_data = refine_bkdata_kafka_info()
         except Exception as e:
             logger.error("get bkdata kafka host error: %s", e)
-            storage_cluster_id = kafka_data["cluster_id"]
+            return {"err_msg": f"request vm api error, {e}"}
+        storage_cluster_id = kafka_data["cluster_id"]
         try:
             vm_data = access_vm(
                 raw_data_name=raw_data_name,
@@ -315,4 +316,5 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
         except DataSource.DoesNotExist:
             logger.error("query ds error, bk_data_id: %s", data_id)
 
+    return TimestampLen.MILLISECOND_LEN.value
     return TimestampLen.MILLISECOND_LEN.value
