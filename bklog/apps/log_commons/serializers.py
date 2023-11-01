@@ -1,7 +1,8 @@
-from apps.constants import OperateEnum, ViewTypeEnum
-from apps.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
+
+from apps.constants import OperateEnum, ViewTypeEnum
+from apps.exceptions import ValidationError
 
 
 class BkIpSerializer(serializers.Serializer):
@@ -32,13 +33,18 @@ class ListMaintainersSLZ(serializers.Serializer):
     space_uid = serializers.CharField(required=True, label="空间ID")
 
 
+class CreateORUpdateMaintainersSLZ(serializers.Serializer):
+    space_uid = serializers.CharField(required=True, label="空间ID")
+    maintainer = serializers.CharField(required=True, label="维护人")
+
+
 class ListExternalPermissionSLZ(serializers.Serializer):
     space_uid = serializers.CharField(required=False, label="空间ID")
     view_type = serializers.CharField(required=False, label="视角类型", default=ViewTypeEnum.USER.value)
 
 
 class CreateORUpdateExternalPermissionSLZ(serializers.Serializer):
-    authorized_users = serializers.CharField(required=True, label="被授权人")
+    authorized_users = serializers.ListField(required=True, label="被授权人")
     view_type = serializers.CharField(required=False, label="视角类型", default=ViewTypeEnum.USER.value)
     operate_type = serializers.CharField(required=False, label="操作类型", default=OperateEnum.CREATE.value)
     space_uid = serializers.CharField(required=True, label="空间ID")

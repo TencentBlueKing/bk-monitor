@@ -4,6 +4,12 @@ from typing import Any, Dict, List
 from urllib.parse import urljoin
 
 import pytz
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+from django.utils.crypto import get_random_string
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api import BkItsmApi
 from apps.constants import (
     ACTION_ID_MAP,
@@ -22,17 +28,13 @@ from apps.feature_toggle.plugins.constants import EXTERNAL_AUTHORIZER_MAP
 from apps.iam import Permission
 from apps.iam.handlers.actions import get_action_by_id
 from apps.log_commons.cc import get_maintainers
+from apps.log_commons.exceptions import IllegalMaintainerException
 from apps.log_commons.serializers import ExternalPermissionSerializer
 from apps.models import OperateRecordModel
 from apps.utils.local import get_local_username, get_request_username
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
-from django.conf import settings
-from django.db import models
-from django.utils import timezone
-from django.utils.crypto import get_random_string
-from django.utils.translation import ugettext_lazy as _
 
 
 def get_random_string_16() -> str:
@@ -95,6 +97,7 @@ class AuthorizerSettings:
             obj.biz_id_white_list.append(bk_biz_id)
             obj.feature_config[str(bk_biz_id)] = authorized_user
             obj.save()
+        logger.info(f"AuthorizerSettings enable space {space_uid}, authorized_user: {authorized_user}")
 
     @classmethod
     def disable_space(cls, space_uid: str):
@@ -104,6 +107,7 @@ class AuthorizerSettings:
             obj.biz_id_white_list.remove(bk_biz_id)
             obj.feature_config.pop(str(bk_biz_id))
             obj.save()
+        logger.info(f"AuthorizerSettings disable space {space_uid}")
 
     @classmethod
     def get_authorizer(cls, space_uid: str = "") -> str:
@@ -112,6 +116,22 @@ class AuthorizerSettings:
         bk_biz_id = space_uid_to_bk_biz_id(space_uid)
         obj = cls.get_or_create()
         return obj.feature_config.get(str(bk_biz_id), "")
+
+    @classmethod
+    def create_or_update(cls, space_uid: str, maintainer: str):
+        allowed_maintainers = get_maintainers(space_uid=space_uid)
+        if maintainer not in allowed_maintainers:
+            logger.error(f"maintainer {maintainer} is not allowed to be authorizer, space_uid: {space_uid}")
+            raise IllegalMaintainerException()
+        if not cls.switch(space_uid=space_uid):
+            cls.enable_space(space_uid=space_uid, authorized_user=maintainer)
+            logger.info(f"AuthorizerSettings enable space {space_uid}, authorized_user: {maintainer}")
+            return maintainer
+        obj = cls.get_or_create()
+        obj.feature_config[str(space_uid_to_bk_biz_id(space_uid))] = maintainer
+        obj.save()
+        logger.info(f"AuthorizerSettings update space {space_uid}, authorized_user: {maintainer}")
+        return maintainer
 
 
 class ExternalPermission(OperateRecordModel):
@@ -432,8 +452,8 @@ class ExternalPermission(OperateRecordModel):
             qs = LogIndexSet.objects.filter(space_uid=space_uid)
         return [
             {
-                "index_set_id": index_set.index_set_id,
-                "index_set_name": index_set.index_set_name,
+                "uid": index_set.index_set_id,
+                "text": index_set.index_set_name,
             }
             for index_set in qs.iterator()
         ]

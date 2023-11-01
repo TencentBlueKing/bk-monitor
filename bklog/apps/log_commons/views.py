@@ -29,9 +29,14 @@ from apps.constants import ExternalPermissionActionEnum
 from apps.generic import APIViewSet
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import BaseCommonsException
-from apps.log_commons.models import ExternalPermission, ExternalPermissionApplyRecord
+from apps.log_commons.models import (
+    AuthorizerSettings,
+    ExternalPermission,
+    ExternalPermissionApplyRecord,
+)
 from apps.log_commons.serializers import (
     CreateORUpdateExternalPermissionSLZ,
+    CreateORUpdateMaintainersSLZ,
     DestroyExternalPermissionSLZ,
     GetApplyRecordSLZ,
     GetAuthorizerSLZ,
@@ -161,6 +166,25 @@ class ExternalPermissionViewSet(APIViewSet):
         """
         data = self.params_valid(ListMaintainersSLZ)
         return Response(get_maintainers(**data))
+
+    @list_route(methods=["post"], url_path="maintainer")
+    def create_or_update_maintainers(self, request):
+        """
+        @api {post} /external_permission/maintainer/ 修改运维人员
+        @apiName external_permission_maintainer
+        @apiGroup external_permission
+        @apiParam {String} space_uid 空间ID
+        @apiParam {String} maintainer 运维人员
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "maintainer",
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(CreateORUpdateMaintainersSLZ)
+        return Response(AuthorizerSettings.create_or_update(**data))
 
     @list_route(methods=["post"], url_path="create_or_update")
     def create_or_update(self, request):
