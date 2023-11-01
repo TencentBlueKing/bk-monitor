@@ -19,6 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from blueapps.account.decorators import login_exempt
+from django.conf import settings
+from django.http import JsonResponse
+from django.utils.translation import ugettext_lazy as _
+from rest_framework.response import Response
+
+from apps.constants import ExternalPermissionActionEnum
 from apps.generic import APIViewSet
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import BaseCommonsException
@@ -33,11 +40,6 @@ from apps.log_commons.serializers import (
     ListMaintainersSLZ,
 )
 from apps.utils.drf import list_route
-from blueapps.account.decorators import login_exempt
-from django.conf import settings
-from django.http import JsonResponse
-from django.utils.translation import ugettext_lazy as _
-from rest_framework.response import Response
 
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = "日志平台"
@@ -95,6 +97,31 @@ class ExternalPermissionViewSet(APIViewSet):
         """
         data = self.params_valid(ListExternalPermissionSLZ)
         return Response(ExternalPermission.list(**data))
+
+    @list_route(methods=["get"], url_path="action")
+    def list_action(self, request):
+        """
+        @api {get} /external_permission/action/ 获取操作类型枚举
+        @apiName external_permission_list_action
+        @apiGroup external_permission
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "id": "log_search",
+                    "name": "日志检索"
+                },
+                {
+                    "id": "log_extract",
+                    "name": "日志提取"
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        return Response(ExternalPermissionActionEnum.get_choices_list_dict())
 
     @list_route(methods=["get"], url_path="authorizer")
     def get_authorizer(self, request):
