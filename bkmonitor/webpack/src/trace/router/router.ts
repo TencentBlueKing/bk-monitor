@@ -26,16 +26,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
 import alarmShield from './modules/alarm-shield';
+import failureRoutes from './modules/failure';
 import homeRoutes from './modules/home';
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...homeRoutes.map(item => ({
-      ...item,
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
-    })),
-    ...alarmShield.map(item => ({
+    ...[...homeRoutes, ...alarmShield, ...failureRoutes].map(item => ({
       ...item,
       path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
     })),
