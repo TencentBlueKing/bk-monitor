@@ -24,6 +24,10 @@ import hashlib
 import json
 from typing import Any, Dict, List, Union
 
+from django.conf import settings
+from django.core.cache import cache
+from django.utils.translation import ugettext as _
+
 from apps.api import BcsCcApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
@@ -89,9 +93,6 @@ from apps.utils.local import get_local_param, get_request_username
 from apps.utils.log import logger
 from apps.utils.lucene import generate_query_string
 from bkm_ipchooser.constants import CommonEnum
-from django.conf import settings
-from django.core.cache import cache
-from django.utils.translation import ugettext as _
 
 max_len_dict = Dict[str, int]  # pylint: disable=invalid-name
 
@@ -116,13 +117,13 @@ def fields_config(name: str, is_active: bool = False):
 
 class SearchHandler(object):
     def __init__(
-        self,
-        index_set_id: int,
-        search_dict: dict,
-        pre_check_enable=True,
-        can_highlight=True,
-        export_fields=None,
-        export_log: bool = False,
+            self,
+            index_set_id: int,
+            search_dict: dict,
+            pre_check_enable=True,
+            can_highlight=True,
+            export_fields=None,
+            export_log: bool = False,
     ):
         self.search_dict: dict = search_dict
         self.export_log = export_log
@@ -411,7 +412,7 @@ class SearchHandler(object):
         if not self._enable_bcs_manage():
             return False, {"reason": _("未配置BCS WEB CONSOLE")}
         if ("cluster" in field_result_list and "container_id" in field_result_list) or (
-            "__ext.container_id" in field_result_list and "__ext.io_tencent_bcs_cluster" in field_result_list
+                "__ext.container_id" in field_result_list and "__ext.io_tencent_bcs_cluster" in field_result_list
         ):
             return True
         reason = _("cluster, container_id 或 __ext.container_id, __ext.io_tencent_bcs_cluster 不能同时为空")
@@ -580,10 +581,10 @@ class SearchHandler(object):
 
     def _can_scroll(self, result) -> bool:
         return (
-            self.scenario_id != Scenario.BKDATA
-            and self.is_scroll
-            and result["hits"]["total"] > MAX_RESULT_WINDOW
-            and self.size > MAX_RESULT_WINDOW
+                self.scenario_id != Scenario.BKDATA
+                and self.is_scroll
+                and result["hits"]["total"] > MAX_RESULT_WINDOW
+                and self.size > MAX_RESULT_WINDOW
         )
 
     def _scroll(self, search_result):
@@ -768,10 +769,10 @@ class SearchHandler(object):
         bcs_cluster_info = BcsCcApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
         project_id = bcs_cluster_info["project_id"]
         url = (
-            settings.BCS_WEB_CONSOLE_DOMAIN + "backend/web_console/projects/{project_id}/clusters/{cluster_id}/"
-            "?container_id={container_id} ".format(
-                project_id=project_id, cluster_id=cluster_id.upper(), container_id=container_id
-            )
+                settings.BCS_WEB_CONSOLE_DOMAIN + "backend/web_console/projects/{project_id}/clusters/{cluster_id}/"
+                                                  "?container_id={container_id} ".format(
+            project_id=project_id, cluster_id=cluster_id.upper(), container_id=container_id
+        )
         )
         return url
 
@@ -1222,7 +1223,7 @@ class SearchHandler(object):
             fields: list = fields_from_es
             fields_list: list = [x["field"] for x in fields]
             if ("gseindex" in fields_list and "_iteration_idx" in fields_list) or (
-                "gseIndex" in fields_list and "iterationIndex" in fields_list
+                    "gseIndex" in fields_list and "iterationIndex" in fields_list
             ):
                 default_sort_tag: bool = True
                 return default_sort_tag
@@ -1233,7 +1234,7 @@ class SearchHandler(object):
         fields: list = fields_from_cache_dict.get("data", list())
         fields_list: list = [x["field"] for x in fields]
         if ("gseindex" in fields_list and "_iteration_idx" in fields_list) or (
-            "gseIndex" in fields_list and "iterationIndex" in fields_list
+                "gseIndex" in fields_list and "iterationIndex" in fields_list
         ):
             default_sort_tag: bool = True
             return default_sort_tag
@@ -1381,6 +1382,18 @@ class SearchHandler(object):
         result.update({"aggs": agg_dict})
         return result
 
+    @classmethod
+    def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        递归更新嵌套字典
+        """
+        for key, value in update_dict.items():
+            if isinstance(value, dict):
+                base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
+            else:
+                base_dict[key] = value
+        return base_dict
+
     @staticmethod
     def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
@@ -1399,8 +1412,8 @@ class SearchHandler(object):
         兼容Object类型字段的高亮
         ES层会返回打平后的高亮字段, 该函数将其高亮的字段更新至对应Object字段
         """
-        log.update(self.nested_dict_from_dotted_key(dotted_dict=highlight))
-        return log
+        nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
+        return self.update_nested_dict(log, nested_dict)
 
     def _log_desensitize(self, log: dict = None):
         """
@@ -1481,11 +1494,11 @@ class SearchHandler(object):
             self.field.update({_key: {"max_length": len(_key)}})
 
     def _analyze_context_result(
-        self,
-        log_list: List[Dict[str, Any]],
-        mark_gseindex: int = None,
-        mark_gseIndex: int = None
-        # pylint: disable=invalid-name
+            self,
+            log_list: List[Dict[str, Any]],
+            mark_gseindex: int = None,
+            mark_gseIndex: int = None
+            # pylint: disable=invalid-name
     ) -> Dict[str, Any]:
         log_list_reversed: list = log_list
         if self.start < 0:
@@ -1509,24 +1522,24 @@ class SearchHandler(object):
                         _count_start = index
 
                 if (
-                    (
-                        self.gseindex == str(gseindex)
-                        and self.bk_host_id == bk_host_id
-                        and self.path == path
-                        and self._iteration_idx == str(_iteration_idx)
-                    )
-                    or (
+                        (
+                                self.gseindex == str(gseindex)
+                                and self.bk_host_id == bk_host_id
+                                and self.path == path
+                                and self._iteration_idx == str(_iteration_idx)
+                        )
+                        or (
                         self.gseindex == str(gseindex)
                         and self.ip == ip
                         and self.path == path
                         and self._iteration_idx == str(_iteration_idx)
-                    )
-                    or (
+                )
+                        or (
                         self.gseindex == str(gseindex)
                         and self.container_id == container_id
                         and self.logfile == logfile
                         and self._iteration_idx == str(_iteration_idx)
-                    )
+                )
                 ):
                     _index = index
                     break
@@ -1543,15 +1556,15 @@ class SearchHandler(object):
                     if str(gseIndex) == mark_gseIndex:
                         _count_start = index
                 if (
-                    self.gseIndex == str(gseIndex)
-                    and self.bk_host_id == bk_host_id
-                    and self.path == path
-                    and self.iterationIndex == str(iterationIndex)
+                        self.gseIndex == str(gseIndex)
+                        and self.bk_host_id == bk_host_id
+                        and self.path == path
+                        and self.iterationIndex == str(iterationIndex)
                 ) or (
-                    self.gseIndex == str(gseIndex)
-                    and self.serverIp == serverIp
-                    and self.path == path
-                    and self.iterationIndex == str(iterationIndex)
+                        self.gseIndex == str(gseIndex)
+                        and self.serverIp == serverIp
+                        and self.path == path
+                        and self.iterationIndex == str(iterationIndex)
                 ):
                     _index = index
                     break
