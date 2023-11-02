@@ -568,7 +568,6 @@ class PreviewDutyRuleResource(Resource):
             duty_rule=validated_request_data,
             begin_time=validated_request_data["effective_time"],
             days=validated_request_data["days"],
-            timezone=validated_request_data["timezone"],
         )
         return duty_manager.get_duty_plan()
 
@@ -608,4 +607,5 @@ class DutyRuleViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchDutyRuleDetailResource, endpoint="search_detail"),
         ResourceRoute("POST", DeleteDutyRuleResource, endpoint="delete"),
         ResourceRoute("POST", SaveDutyRuleResource, endpoint="save"),
+        ResourceRoute("POST", PreviewDutyRuleResource, endpoint="preview"),
     ]
