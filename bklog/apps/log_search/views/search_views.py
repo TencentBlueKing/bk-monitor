@@ -471,6 +471,10 @@ class SearchViewSet(APIViewSet):
 
         params = self.params_valid(SearchExportSerializer).get("export_dict")
         data = json.loads(params)
+        if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
+            data["is_desensitize"] = False
+        else:
+            data["is_desensitize"] = True
         index_set_id = int(index_set_id)
         request_data = copy.deepcopy(data)
 
@@ -575,6 +579,10 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAsyncExportSerializer)
+        if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
+            data["is_desensitize"] = False
+        else:
+            data["is_desensitize"] = True
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
