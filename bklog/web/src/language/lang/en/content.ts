@@ -497,4 +497,5 @@ export default {
   '授权人的空间权限会影响被授权人，被授权人的权限范围<=授权人的权限范围，请谨慎变更。':
     "The spatial permissions of the authorizer will affect the authorized person. The authorized person's permission range is less than or equal to the authorized person's permission range. Please change it carefully.",
   '批量粘贴请使用;进行分隔': 'Please use bulk pasting; Separate',
+  已提交审批: 'Submitted for approval',
 }

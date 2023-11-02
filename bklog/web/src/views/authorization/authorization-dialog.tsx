@@ -22,12 +22,13 @@
 
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Message } from 'bk-magic-vue';
 import moment from 'moment';
+import $http from '../../api';
 
-// import { createOrUpdateExternalPermission, getByAction } from '../../../monitor-api/modules/iam';
 import { deepClone } from '../../common/util';
 
-import { ACTION_MAP, AngleType, EditModel } from './authorization-list';
+import { AngleType, EditModel } from './authorization-list';
 
 import './authorization-dialog.scss';
 
@@ -36,7 +37,7 @@ const { $i18n } = window.mainComponent;
 interface IProps {
   value?: boolean;
   rowData?: null | EditModel;
-  bizId: number | string;
+  spaceUid: number | string;
   viewType: AngleType;
   authorizer: string;
 }
@@ -48,10 +49,11 @@ interface IEvents {
 @Component
 export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
-  @Prop({ required: true, type: [Number, String] }) bizId: number | string;
+  @Prop({ required: true, type: [Number, String] }) spaceUid: number | string;
   @Prop({ required: true, type: String }) viewType: AngleType;
   @Prop({ required: true, type: String }) authorizer: string;
   @Prop({ required: false, type: Object, default: null }) rowData: null | EditModel;
+  @Prop({ required: true, type: Array, default: [] }) actionList: { id: string, name: string }[];
   @Ref() formRef: any;
 
   resourceList = [];
@@ -88,10 +90,13 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   async handleActionChange(val) {
-    console.log(val);
-    // if (!val) return;
-    // const res = await getByAction({ bk_biz_id: this.bizId, action_id: val });
-    // this.resourceList = res;
+    if (!val) return;
+    const res = await $http.request('authorization/getByAction', {
+      query: {
+        space_uid: this.spaceUid, action_id: val,
+      },
+    });
+    this.resourceList = res?.data || [];
   }
 
   disabledDate(val) {
@@ -111,30 +116,37 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     return val ?? !this.value;
   }
 
-  handleConfirm() {
-    this.formRef.validate(async (valid) => {
-      if (valid) {
-        this.loading = true;
-        // try {
-        //   const { expire_time, ...params } = this.formData;
-        //   const res = await createOrUpdateExternalPermission({
-        //     bk_biz_id: this.bizId,
-        //     ...params,
-        //     ...(expire_time ? { expire_time } : {}),
-        //     authorizer: this.authorizer,
-        //     operate_type: this.rowData ? 'update' : 'create',
-        //     view_type: this.viewType === 'approval' ? 'user' : this.viewType
-        //   });
-        //   this.$bkMessage({
-        //     message: res.need_approval ? this.$t('已提交审批') : this.$t('操作成功'),
-        //     theme: 'primary'
-        //   });
-        //   this.handleCancel(false);
-        //   this.$emit('success', res.need_approval);
-        // } catch {}
-        this.loading = false;
-      }
-    });
+  async handleConfirm() {
+    try {
+      await this.formRef.validate(async (valid) => {
+        if (valid) {
+          this.loading = true;
+          try {
+            const { expire_time, ...rest } = this.formData;
+            const res = await $http.request('authorization/createOrUpdateExternalPermission', {
+              data: {
+                space_uid: this.spaceUid,
+                ...rest,
+                // eslint-disable-next-line camelcase
+                ...(expire_time ? { expire_time } : {}),
+                authorizer: this.authorizer,
+                operate_type: this.rowData ? 'update' : 'create',
+                view_type: this.viewType === 'approval' ? 'user' : this.viewType,
+              },
+            });
+            Message({
+              message: res.need_approval ? this.$t('已提交审批') : this.$t('操作成功'),
+              theme: 'primary',
+            });
+            this.handleCancel(false);
+            this.$emit('success', res.need_approval);
+          } catch {}
+          this.loading = false;
+        }
+      });
+    } catch (error) {
+      console.info(error);
+    }
   }
 
   render() {
@@ -192,10 +204,10 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               disabled={!!this.rowData}
               onChange={this.handleActionChange}
             >
-              {Object.entries(ACTION_MAP).map(item => (
+              {this.actionList.map(item => (
                 <bk-option
-                  id={item[0]}
-                  name={item[1]}
+                  id={item.id}
+                  name={item.name}
                 ></bk-option>
               ))}
             </bk-select>

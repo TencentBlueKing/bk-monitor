@@ -135,6 +135,10 @@ export default {
       default: 'dark',
     },
     handlePropsClick: Function,
+    isExternalAuth: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -175,6 +179,7 @@ export default {
       searchTypeId: '',
       spaceBgColor: '#3799BA',
       bizBoxWidth: 418,
+      exterlAuthSpaceName: '', // 用于授权外部版选择器显示
     };
   },
   computed: {
@@ -185,6 +190,7 @@ export default {
       demoUid: 'demoUid',
     }),
     bizName() {
+      if (this.isExternalAuth && !!this.exterlAuthSpaceName) return this.exterlAuthSpaceName;
       return this.mySpaceList.find(item => item.space_uid === this.spaceUid)?.space_name;
     },
     bizNameIcon() {
@@ -277,6 +283,11 @@ export default {
      */
     handleClickMenuItem(space, type) {
       try {
+        if (this.isExternalAuth) {
+          this.exterlAuthSpaceName = space.space_name;
+          this.$emit('spaceChange', space.space_uid);
+          return;
+        }
         if (typeof this.handlePropsClick === 'function') return this.handlePropsClick(space); // 外部function调用
         if (type === 'haveAuth') this.commonAssignment(space.space_uid); // 点击有权限的业务时更新常用的ul列表
         this.checkSpaceChange(space.space_uid); // 检查是否有权限然后进行空间切换

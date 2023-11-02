@@ -36,19 +36,10 @@ import {
   Tag,
 } from 'bk-magic-vue';
 
-// import {
-//   createOrUpdateAuthorizer,
-//   deleteExternalPermission,
-//   getApplyRecordList,
-//   getAuthorizerByBiz,
-//   getAuthorizerList,
-//   getByAction,
-//   getExternalPermissionList,
-// } from '../../../monitor-api/modules/iam';
+import $http from '../../api';
 import { Debounce } from '../../common/util';
 import BizMenuSelect from '@/components/biz-menu/index.vue';
 import EmptyStatus from '../../components/empty-status/index.vue';
-// import { ISpaceItem } from '../../types';
 
 import AuthorizationDialog from './authorization-dialog';
 
@@ -131,9 +122,9 @@ export const ACTION_MAP = {
 };
 
 @Component
-// export default class AuthorizationList extends Mixins(authorityMixinCreate(ruleAuth)) {
 export default class AuthorizationList extends tsc<{}, {}> {
-  // bizId = window.cc_biz_id;
+  spaceUid = '';
+  actionList = [];
   bizCMDBRoleList: string[] = []; // 该业务下的cmdb运维角色列表
   memberSelect = ''; // 展示的授权人
   memberValue = ''; // 编辑授权人输入框的值
@@ -155,7 +146,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter },
+        props: { filters: [], 'filter-method': this.filterMethod, width: 200 },
       },
       {
         prop: TableColumnEnum.resources,
@@ -201,7 +192,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter },
+        props: { filters: [], 'filter-method': this.filterMethod, width: 200 },
       },
       {
         prop: TableColumnEnum.authorized_users,
@@ -247,7 +238,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200, formatter: this.actionFormatter },
+        props: { filters: [], 'filter-method': this.filterMethod, width: 200 },
       },
       {
         prop: TableColumnEnum.resources,
@@ -282,35 +273,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
   emptyStatusType: EmptyStatusType = 'empty';
   visible = false;
 
-  // get bizIdList(): ISpaceItem[] {
-  //   const { bizList } = this.$store.getters;
-  //   return [
-  //     ...(this.isSuperUser
-  //       ? [
-  //         {
-  //           space_name: this.$t('全部'),
-  //           py_text: 'all',
-  //           id: 0,
-  //           space_id: 0,
-  //           bk_biz_id: 0,
-  //           space_type_id: 'bkcc',
-  //           space_uid: 'all',
-  //           is_hidden_tag: true,
-  //         },
-  //       ]
-  //       : []),
-  //     ...bizList,
-  //   ];
-  // }
-
   // // 是否是admin用户
   // get isSuperUser(): boolean {
   //   return this.$store.state.app.isSuperUser;
   // }
-
-  get bizId() {
-    return this.$store.state.bkBizId;
-  }
 
   // 当前操作人是否有cmdb运维角色
   get hasCMDBRole(): boolean {
@@ -346,7 +312,10 @@ export default class AuthorizationList extends tsc<{}, {}> {
           });
         }
         if (key === TableColumnEnum.action_id) {
-          return val.some(key => ACTION_MAP[key].includes(this.searchValue));
+          return val.some((id) => {
+            const { name } = this.actionList.find(item => item.id === id);
+            return name.includes(this.searchValue);
+          });
         }
         return val.some(val => val.toString().includes(this.searchValue));
       });
@@ -356,64 +325,57 @@ export default class AuthorizationList extends tsc<{}, {}> {
   }
 
   created() {
-    // this.bizId = this.$store.getters.bizId;
+    this.spaceUid = this.$store.state.spaceUid;
     this.getBizRoleList();
     this.getListData();
+    this.getActionList();
     this.getAuthUser();
+  }
+
+  async getActionList() {
+    const res = await $http.request('authorization/getActionList');
+    this.actionList = res?.data || [];
   }
 
   /**
    *
-   * @param v 业务id
+   * @param v 空间uid
    * @description 业务选择器选择业务时触发
    */
-  @Watch('bizId')
-  handleAppNameChange(v: number) {
-    if (v) {
-      this.getListData();
-      this.getAuthUser();
-      this.getBizRoleList();
+  handleSpaceChange(v: string) {
+    this.spaceUid = v;
+    this.getListData();
+    this.getAuthUser();
+    this.getBizRoleList();
 
-      // 业务选择器选择全部选项时，才有权限展示该列
-      Object.values(this.tableColumns).forEach((columns) => {
-        columns.forEach((column) => {
-          if (column.authHidden !== undefined) {
-            column.authHidden = v !== 0;
-          }
-        });
-      });
-    }
+    // 业务选择器选择全部选项时，才有权限展示该列
+    // Object.values(this.tableColumns).forEach((columns) => {
+    //   columns.forEach((column) => {
+    //     if (column.authHidden !== undefined) {
+    //       column.authHidden = v !== 0;
+    //     }
+    //   });
+    // });
   }
-
-  // /**
-  //  *
-  //  * @param v 业务id
-  //  * @description 业务选择器选择业务时触发
-  //  */
-  // handleBizChange(v: number) {
-  //   this.bizId = v;
-  //   this.getListData();
-  //   this.getAuthUser();
-  //   this.getBizRoleList();
-
-  //   // 业务选择器选择全部选项时，才有权限展示该列
-  //   Object.values(this.tableColumns).forEach((columns) => {
-  //     columns.forEach((column) => {
-  //       if (column.authHidden !== undefined) {
-  //         column.authHidden = v !== 0;
-  //       }
-  //     });
-  //   });
-  // }
 
   // 获取业务运维角色列表
   async getBizRoleList() {
-    // this.bizCMDBRoleList = await getAuthorizerList({ bk_biz_id: this.bizId });
+    const res = await $http.request('authorization/getAuthorizerList', {
+      query: {
+        space_uid: this.spaceUid,
+      },
+    });
+    this.bizCMDBRoleList = res.data || [];
   }
 
   // 获取授权人
   async getAuthUser() {
-    // this.memberSelect = await getAuthorizerByBiz({ bk_biz_id: this.bizId });
+    const res = await $http.request('authorization/getAuthorizer', {
+      query: {
+        space_uid: this.spaceUid,
+      },
+    });
+    this.memberSelect = res.data || '';
   }
 
   // 展示编辑授权人
@@ -432,9 +394,14 @@ export default class AuthorizationList extends tsc<{}, {}> {
       return;
     }
     try {
-      // await createOrUpdateAuthorizer({ bk_biz_id: this.bizId, authorizer: this.memberValue });
-      // this.memberSelect = this.memberValue;
-      // this.isEditMember = false;
+      await $http.request('authorization/createOrUpdateAuthorizer', {
+        data: {
+          space_uid: this.spaceUid,
+          maintainer: this.memberValue,
+        },
+      });
+      this.memberSelect = this.memberValue;
+      this.isEditMember = false;
     } catch (err) {
       console.log(err);
     }
@@ -468,65 +435,74 @@ export default class AuthorizationList extends tsc<{}, {}> {
   }
 
   async getListData() {
-    // this.loading = true;
-    // this.pagination.current = 1;
-    // let res: [boolean, any];
-    // if (this.angleType === 'approval') {
-    //   res = await this.getApprovalListData();
-    // } else {
-    //   res = await this.getAuthListData();
-    // }
-    // const [isSuccess, data] = res;
-    // if (isSuccess) {
-    //   this.totalListData = data;
-    //   this.pagination.count = data.length;
-    //   this.getResources();
-    //   this.emptyStatusType = 'empty';
-    //   this.changeEmptyStatusType();
-    // } else {
-    //   this.emptyStatusType = '500';
-    //   this.totalListData = [];
-    //   this.pagination.count = 0;
-    // }
+    this.loading = true;
+    this.pagination.current = 1;
+    let res: [boolean, any];
+    if (this.angleType === 'approval') {
+      res = await this.getApprovalListData();
+    } else {
+      res = await this.getAuthListData();
+    }
+    const [isSuccess, data] = res;
+    if (isSuccess) {
+      this.totalListData = data;
+      this.pagination.count = data.length;
+      this.getResources();
+      this.emptyStatusType = 'empty';
+      this.changeEmptyStatusType();
+    } else {
+      this.emptyStatusType = '500';
+      this.totalListData = [];
+      this.pagination.count = 0;
+    }
 
-    // this.loading = false;
+    this.loading = false;
   }
 
-  // // 获取被授权人，操作实例tab栏的列表数据
-  // async getAuthListData(): Promise<[boolean, any]> {
-  //   try {
-  //     const res = await getExternalPermissionList({
-  //       bk_biz_id: this.bizId,
-  //       view_type: this.angleType,
-  //     });
-  //     return [true, res];
-  //   } catch (error) {
-  //     return [false, []];
-  //   }
-  // }
+  // 获取被授权人，操作实例tab栏的列表数据
+  async getAuthListData(): Promise<[boolean, any]> {
+    try {
+      const res = await $http.request('authorization/getExternalPermissionList', {
+        query: {
+          space_uid: this.spaceUid,
+          view_type: this.angleType,
+        },
+      });
+      return [true, res?.data ?? []];
+    } catch (error) {
+      return [false, []];
+    }
+  }
 
-  // // 获取审批记录tab栏的列表数据
-  // async getApprovalListData(): Promise<[boolean, any]> {
-  //   try {
-  //     const res = await getApplyRecordList({
-  //       bk_biz_id: this.bizId,
-  //     });
-  //     return [true, res];
-  //   } catch (error) {
-  //     return [false, []];
-  //   }
-  // }
+  // 获取审批记录tab栏的列表数据
+  async getApprovalListData(): Promise<[boolean, any]> {
+    try {
+      const res = await $http.request('authorization/getApplyRecordList', {
+        query: {
+          space_uid: this.spaceUid,
+        },
+      });
+      return [true, res?.data ?? []];
+    } catch (error) {
+      return [false, []];
+    }
+  }
 
   async getResources() {
     this.resourcesLoading = true;
-    // try {
-    //   // 目前后端只支持view_grafana， 也没有确定后续多个时，action_id的传值格式
-    //   const res = await getByAction({ bk_biz_id: this.bizId, action_id: 'view_grafana' });
-    //   this.resourceList = res;
-    //   this.columnFilter();
-    // } catch (error) {
-    //   this.resourceList = [];
-    // }
+    try {
+      // 目前后端只支持view_grafana， 也没有确定后续多个时，action_id的传值格式
+      const res = await $http.request('authorization/getByAction', {
+        query: {
+          space_uid: this.spaceUid,
+          action_id: 'log_search',
+        },
+      });
+      this.resourceList = res?.data || [];
+      this.columnFilter();
+    } catch (error) {
+      this.resourceList = [];
+    }
     this.resourcesLoading = false;
   }
 
@@ -563,7 +539,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
           }));
         } else if (prop === TableColumnEnum.action_id) {
           item.props.filters = Array.from(set).map((id: string) => ({
-            text: ACTION_MAP[id],
+            text: this.actionList.find(item => item.id === id)?.name,
             value: id,
           }));
         } else {
@@ -599,7 +575,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map(item => <Tag>{item}</Tag>)}
+                {row.authorized_users?.map(item => <Tag class="user-tag">{item}</Tag>)}
               </div>
             ),
           }}
@@ -647,6 +623,27 @@ export default class AuthorizationList extends tsc<{}, {}> {
         />
       );
     }
+    if (column.prop === TableColumnEnum.action_id) {
+      return (
+        <TableColumn
+          key={column.prop}
+          label={column.name}
+          prop={column.prop}
+          {...{
+            props: column.props,
+          }}
+          scopedSlots={{
+            default: ({ row }) => {
+              return (
+                <div>
+                  <div>{this.actionList.find(item => item.id === row.action_id)?.name}</div>
+                </div>
+              );
+            },
+          }}
+        />
+      );
+    }
 
     return (
       <TableColumn
@@ -660,10 +657,6 @@ export default class AuthorizationList extends tsc<{}, {}> {
     );
   }
 
-  // 操作权限列格式化
-  actionFormatter(row, column, cellValue) {
-    return ACTION_MAP[cellValue];
-  }
   /**
    *
    * @param color1 状态点颜色
@@ -705,14 +698,16 @@ export default class AuthorizationList extends tsc<{}, {}> {
    */
   async handleDelete(row) {
     try {
-      // await deleteExternalPermission({
-      //   bk_biz_id: this.bizId,
-      //   action_id: row.action_id,
-      //   authorized_users: row.authorized_users || [row.authorized_user],
-      //   resources: row.resources || [row.resource_id],
-      //   view_type: this.angleType,
-      // });
-      // this.getListData();
+      await $http.request('authorization/deleteExternalPermission', {
+        data: {
+          space_uid: this.spaceUid,
+          action_id: row.action_id,
+          authorized_users: row.authorized_users || [row.authorized_user],
+          resources: row.resources || [row.resource_id],
+          view_type: this.angleType,
+        },
+      });
+      this.getListData();
     } catch (error) {}
   }
 
@@ -748,15 +743,11 @@ export default class AuthorizationList extends tsc<{}, {}> {
       <div class='authorization-list-page'>
         <div class="nav-bar">
           <p class='page-title'>{this.$t('外部授权列表')}</p>
-            {/* <BizSelect
-              value={+this.bizId}
-              bizList={this.bizIdList}
-              theme='light'
-              isShowCommon={false}
-              minWidth={310}
-              onChange={this.handleBizChange}
-            /> */}
-            <BizMenuSelect theme="light" />
+            <BizMenuSelect
+              theme="light"
+              isExternalAuth
+              onSpaceChange={this.handleSpaceChange}
+            />
         </div>
 
         <div class='page-content'>
@@ -802,8 +793,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
             ) : (
               <div class='member-select'>
                 <p class='member'>{this.memberSelect}</p>
-                {/* {this.hasCMDBRole && ( */}
-                {true && ( // TODO
+                {this.hasCMDBRole && (
                   <i
                     class='bk-icon icon-edit-line'
                     v-bk-tooltips={{
@@ -832,7 +822,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
                     theme='primary'
                     type='submit'
                     icon='plus'
-                    // disabled={!this.memberSelect} // TODO
+                    disabled={!this.memberSelect}
                     onClick={() => this.showDialog()}
                   >
                     {this.$t('添加授权')}
@@ -971,7 +961,8 @@ export default class AuthorizationList extends tsc<{}, {}> {
           rowData={this.rowData}
           authorizer={this.memberSelect}
           viewType={this.angleType}
-          bizId={this.bizId}
+          spaceUid={this.spaceUid}
+          actionList={this.actionList}
           onSuccess={this.handleSuccess}
         />
       </div>

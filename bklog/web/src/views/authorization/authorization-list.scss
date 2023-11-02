@@ -50,6 +50,11 @@
         display: flex;
         align-items: center;
 
+        .member {
+          font-size: 12px;
+          color: #63656e;
+        }
+
         .member-input {
           width: 240px;
         }
@@ -230,6 +235,10 @@
           margin-left: 6px; 
           color: #3a84ff;
           cursor: pointer;
+        }
+
+        .user-tag {
+          white-space: nowrap;
         }
       }
     }
