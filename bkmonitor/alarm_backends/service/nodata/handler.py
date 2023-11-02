@@ -32,26 +32,38 @@ class NodataHandler(base.BaseHandler):
     def handle(self):
         while True:
             second = arrow.now().second
-            if second == EXECUTE_TIME_SECOND:
-                now_timestamp = arrow.utcnow().timestamp - constants.CONST_MINUTES
-                strategy_ids = StrategyCacheManager.get_strategy_ids()
-                published = []
-                for strategy_id in strategy_ids:
-                    strategy = Strategy(strategy_id)
-                    interval = strategy.get_interval()
-                    for item in strategy.items:
-                        if not item.no_data_config.get("is_enabled"):
-                            continue
+            if second != EXECUTE_TIME_SECOND:
+                time.sleep(1)
+                continue
 
-                        # 如果发现access的运行时间距离当前时间超过了2倍的检测周期，则不再进行检测，防止access不执行导致的误报
-                        last_access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(Strategy.strategy_group_key)
-                        last_access_run_timestamp = int(key.ACCESS_RUN_TIMESTAMP_KEY.client.get(last_access_run_timestamp_key) or 0)
-                        if last_access_run_timestamp and (time.time() - last_access_run_timestamp > max(2*interval, 2*EXECUTE_TIME_SECOND)):
-                            continue
+            now_timestamp = arrow.utcnow().timestamp - constants.CONST_MINUTES
+            strategy_ids = StrategyCacheManager.get_strategy_ids()
+            published = []
+            for strategy_id in strategy_ids:
+                strategy = Strategy(strategy_id)
+                interval = strategy.get_interval()
+                for item in strategy.items:
+                    if not item.no_data_config.get("is_enabled"):
+                        continue
 
-                        no_data_check(strategy_id, now_timestamp)
-                        published.append(strategy_id)
-                        break
+                    # 如果发现access的运行时间距离当前时间超过了2倍的检测周期，则不再进行检测，防止access不执行导致的误报
+                    last_access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(
+                        strategy_group_key=Strategy.strategy_group_key
+                    )
+                    last_access_run_time = int(
+                        key.ACCESS_RUN_TIMESTAMP_KEY.client.get(last_access_run_timestamp_key) or 0
+                    )
+                    if last_access_run_time and (
+                        time.time() - last_access_run_time > max(2 * interval, 2 * EXECUTE_TIME_SECOND)
+                    ):
+                        logger.info(
+                            f"[nodata] skip strategy({strategy_id}) for access not run since {last_access_run_time}"
+                        )
+                        continue
+
+                    no_data_check(strategy_id, now_timestamp)
+                    published.append(strategy_id)
+                    break
 
                 logger.info(
                     "[nodata] no_data_check published {}/{} strategy_ids: {}".format(
