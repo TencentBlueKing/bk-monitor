@@ -3,7 +3,7 @@
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at http://opensource.org/licenses/MIT
+You may obtain a copy of the License at https://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
@@ -224,11 +224,11 @@ def dispatch_external_proxy(request):
         view_action = RequestProcessor.get_view_action(view_func=view_func, method=method.lower())
         # 内部定义的action_id, ActionEnum
         action_id = ""
+        external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
         allow_resources_result = {"allowed": False, "resources": []}
         # 判断是否是默认允许的接口, 默认允许的接口不需要进行权限校验
         if not RequestProcessor.is_default_allowed(view_set=view_set, view_action=view_action):
             # transfer request.user 进行外部权限替换
-            external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
             external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
                 space_uid=space_uid, authorizer=external_user
             )

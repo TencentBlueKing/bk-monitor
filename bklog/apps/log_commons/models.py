@@ -401,7 +401,7 @@ class ExternalPermission(OperateRecordModel):
         if view_type != ViewTypeEnum.RESOURCE.value:
             permission_list = [
                 {
-                    "authorized_user": [permission.authorized_user],
+                    "authorized_user": permission.authorized_user,
                     "action_id": permission.action_id,
                     "resources": permission.resources,
                     "expire_time": permission.expire_time,
