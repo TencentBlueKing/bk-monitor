@@ -29,7 +29,6 @@ from apps.iam import Permission
 from apps.iam.handlers.actions import get_action_by_id
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import IllegalMaintainerException
-from apps.log_commons.serializers import ExternalPermissionSerializer
 from apps.models import OperateRecordModel
 from apps.utils.local import get_local_username, get_request_username
 from apps.utils.log import logger
@@ -400,8 +399,18 @@ class ExternalPermission(OperateRecordModel):
         if space_uid:
             permission_qs = permission_qs.filter(space_uid=space_uid)
         if view_type != ViewTypeEnum.RESOURCE.value:
-            serializer = ExternalPermissionSerializer(permission_qs, many=True)
-            permission_list = serializer.data
+            permission_list = [
+                {
+                    "authorized_user": [permission.authorized_user],
+                    "action_id": permission.action_id,
+                    "resources": permission.resources,
+                    "expire_time": permission.expire_time,
+                    "status": permission.status,
+                    "space_uid": permission.space_uid,
+                    "space_name": space_info.get(permission.space_uid, ""),
+                }
+                for permission in permission_qs.iterator()
+            ]
         else:
             resource_to_user = defaultdict(lambda: {"authorized_users": []})
             for permission in permission_qs:
