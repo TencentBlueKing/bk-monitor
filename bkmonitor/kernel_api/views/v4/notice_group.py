@@ -594,6 +594,7 @@ class UserGroupViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchUserGroupDetailResource, endpoint="search_detail"),
         ResourceRoute("POST", DeleteUserGroupResource, endpoint="delete"),
         ResourceRoute("POST", SaveUserGroupResource, endpoint="save"),
+        ResourceRoute("POST", PreviewUserGroupPlanResource, endpoint="save"),
     ]
 
 
