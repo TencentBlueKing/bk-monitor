@@ -244,6 +244,8 @@ class SearchHandler(object):
         # 请求用户名
         self.request_username = get_request_username()
 
+        self.is_desensitize = search_dict.get("is_desensitize", True)
+
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
         desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id)
@@ -1349,7 +1351,7 @@ class SearchHandler(object):
         for hit in result_dict["hits"]["hits"]:
             log = hit["_source"]
             # 脱敏处理
-            if (self.field_configs or self.text_fields_field_configs) and self.search_dict.get("is_desensitize", True):
+            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
             if self.export_fields:
@@ -1371,7 +1373,7 @@ class SearchHandler(object):
             if "highlight" not in hit:
                 log_list.append(log)
                 continue
-            if not self.field_configs and self.search_dict.get("is_desensitize", True):
+            if not self.field_configs and self.is_desensitize:
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
 

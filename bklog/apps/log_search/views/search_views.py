@@ -471,6 +471,10 @@ class SearchViewSet(APIViewSet):
 
         params = self.params_valid(SearchExportSerializer).get("export_dict")
         data = json.loads(params)
+        if request.user.is_superuser:
+            data["is_desensitize"] = False
+        else:
+            data["is_desensitize"] = True
         index_set_id = int(index_set_id)
         request_data = copy.deepcopy(data)
 
