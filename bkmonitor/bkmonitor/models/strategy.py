@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from datetime import datetime
 
+import pytz
 from django.contrib import admin
 from django.db import models
 from django.db.models import Model, Q
@@ -747,11 +748,12 @@ class DutyPlan(Model):
     # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
     duty_time = models.JSONField(verbose_name="轮班时间安排", default=dict)
 
-    def is_active_plan(self, data_time):
+    def is_active_plan(self, data_time=None):
         """
         当前排班是否命中
         """
         # 结束时间没有的话，认为一直有效
+        data_time = data_time or datetime.now(tz=pytz.timezone(self.timezone))
         finished_time = self.finished_time or "3000-01-01 00:00:00"
 
         if not self.start_time <= data_time <= finished_time:
