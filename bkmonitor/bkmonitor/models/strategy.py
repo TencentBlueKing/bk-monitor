@@ -18,6 +18,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.middlewares.source import get_source_app_code
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.range.period import TimeMatchByDay
 from bkmonitor.utils.request import get_source_app
@@ -753,7 +754,7 @@ class DutyPlan(Model):
         当前排班是否命中
         """
         # 结束时间没有的话，认为一直有效
-        data_time = data_time or datetime.now(tz=pytz.timezone(self.timezone))
+        data_time = data_time or time_tools.datetime2str(datetime.now(tz=pytz.timezone(self.timezone)))
         finished_time = self.finished_time or "3000-01-01 00:00:00"
 
         if not self.start_time <= data_time <= finished_time:
