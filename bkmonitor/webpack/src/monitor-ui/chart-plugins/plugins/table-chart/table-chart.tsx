@@ -489,6 +489,7 @@ export class TableChart extends CommonSimpleChart {
           {this.columns?.length ? (
             [
               <div class='search-wrapper'>
+                {/* eslint-disable-next-line no-nested-ternary */}
                 {this.searchType === 'search_select' ? (
                   <bk-search-select
                     v-model={this.conditionList}
@@ -499,7 +500,7 @@ export class TableChart extends CommonSimpleChart {
                     onChange={this.handleConditionChange}
                     onClear={this.handleConditionChange}
                   />
-                ) : (
+                ) : this.searchType === 'input' ? (
                   <bk-input
                     class='search-wrapper-input'
                     placeholder='搜索'
@@ -510,6 +511,8 @@ export class TableChart extends CommonSimpleChart {
                     onChange={this.handleSearchChange}
                     right-icon='bk-icon icon-search'
                   />
+                ) : (
+                  ''
                 )}
                 {!!this.checkFilterList?.length && (
                   <bk-checkbox-group

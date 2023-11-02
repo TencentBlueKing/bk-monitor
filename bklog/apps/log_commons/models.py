@@ -4,14 +4,20 @@ from typing import Any, Dict, List
 from urllib.parse import urljoin
 
 import pytz
-from apps.api.modules.bk_itsm import BkItsm
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+from django.utils.crypto import get_random_string
+from django.utils.translation import ugettext_lazy as _
+
+from apps.api import BkItsmApi
 from apps.constants import (
     ACTION_ID_MAP,
     ACTION_MAP,
-    DEFAULT_ALLOW_ACTIONS,
+    ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT,
     Action,
-    ActionEnum,
     ApiTokenAuthType,
+    ExternalPermissionActionEnum,
     ITSMStatusChoicesEnum,
     OperateEnum,
     TokenStatusEnum,
@@ -22,17 +28,12 @@ from apps.feature_toggle.plugins.constants import EXTERNAL_AUTHORIZER_MAP
 from apps.iam import Permission
 from apps.iam.handlers.actions import get_action_by_id
 from apps.log_commons.cc import get_maintainers
-from apps.log_commons.serializers import ExternalPermissionSerializer
+from apps.log_commons.exceptions import IllegalMaintainerException
 from apps.models import OperateRecordModel
 from apps.utils.local import get_local_username, get_request_username
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
-from django.conf import settings
-from django.db import models
-from django.utils import timezone
-from django.utils.crypto import get_random_string
-from django.utils.translation import ugettext_lazy as _
 
 
 def get_random_string_16() -> str:
@@ -95,6 +96,7 @@ class AuthorizerSettings:
             obj.biz_id_white_list.append(bk_biz_id)
             obj.feature_config[str(bk_biz_id)] = authorized_user
             obj.save()
+        logger.info(f"AuthorizerSettings enable space {space_uid}, authorized_user: {authorized_user}")
 
     @classmethod
     def disable_space(cls, space_uid: str):
@@ -104,6 +106,7 @@ class AuthorizerSettings:
             obj.biz_id_white_list.remove(bk_biz_id)
             obj.feature_config.pop(str(bk_biz_id))
             obj.save()
+        logger.info(f"AuthorizerSettings disable space {space_uid}")
 
     @classmethod
     def get_authorizer(cls, space_uid: str = "") -> str:
@@ -113,6 +116,22 @@ class AuthorizerSettings:
         obj = cls.get_or_create()
         return obj.feature_config.get(str(bk_biz_id), "")
 
+    @classmethod
+    def create_or_update(cls, space_uid: str, maintainer: str):
+        allowed_maintainers = get_maintainers(space_uid=space_uid)
+        if maintainer not in allowed_maintainers:
+            logger.error(f"maintainer {maintainer} is not allowed to be authorizer, space_uid: {space_uid}")
+            raise IllegalMaintainerException()
+        if not cls.switch(space_uid=space_uid):
+            cls.enable_space(space_uid=space_uid, authorized_user=maintainer)
+            logger.info(f"AuthorizerSettings enable space {space_uid}, authorized_user: {maintainer}")
+            return maintainer
+        obj = cls.get_or_create()
+        obj.feature_config[str(space_uid_to_bk_biz_id(space_uid))] = maintainer
+        obj.save()
+        logger.info(f"AuthorizerSettings update space {space_uid}, authorized_user: {maintainer}")
+        return maintainer
+
 
 class ExternalPermission(OperateRecordModel):
     """
@@ -121,7 +140,9 @@ class ExternalPermission(OperateRecordModel):
 
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     authorized_user = models.CharField("被授权人", max_length=64)
-    action_id = models.CharField("操作类型", max_length=32, choices=ActionEnum.get_choices(), db_index=True)
+    action_id = models.CharField(
+        "操作类型", max_length=32, choices=ExternalPermissionActionEnum.get_choices(), db_index=True
+    )
     resources = models.JSONField("资源列表", default=list)
     expire_time = models.DateTimeField("过期时间", null=True, default=None)
 
@@ -161,14 +182,15 @@ class ExternalPermission(OperateRecordModel):
         return status
 
     @classmethod
-    def create(cls, authorized_users: str, space_uid: str, action_id: str, resources: List[str], expire_time: str):
+    def create(
+        cls, authorized_users: List[str], space_uid: str, action_id: str, resources: List[str], expire_time: str
+    ):
         """
         新增权限
             1. 判定是否有存量被授权人权限
             2. 判定该实例是否已被授权，若有则不处理，无则更新该条授权记录
             3. 给剩余被授权人新增权限
         """
-        authorized_users = authorized_users.split(",")
         exist_authorized_users = set()
         for permission_obj in cls.objects.filter(
             authorized_user__in=authorized_users,
@@ -214,23 +236,30 @@ class ExternalPermission(OperateRecordModel):
         2. 新增权限 - 实例视角
         """
         space_info = {i.space_uid: i for i in SpaceApi.list_spaces()}
+        bk_biz_id = space_info[params["space_uid"]].bk_biz_id
         bk_biz_name = space_info[params["space_uid"]].space_name
+        username = get_request_username() or get_local_username()
         ticket_data = {
-            "creator": get_request_username() or get_local_username(),
+            "creator": username,
+            # operator和creator保持一致
+            "operator": username,
+            # 这里是因为需要使用admin创建单据，方能越过创建单据的权限限制
+            "bk_username": "admin",
             "fields": [
-                {"key": "space_uid", "value": params["space_uid"]},
+                {"key": "bk_biz_id", "value": bk_biz_id},
                 {"key": "bk_biz_name", "value": bk_biz_name},
-                {"key": "title", "value": "对外版日志平台授权审批"},
+                {"key": "title", "value": ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT},
                 {"key": "expire_time", "value": params["expire_time"]},
+                {"key": "action_id", "value": params["action_id"]},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
                 {"key": "resources", "value": cls.join_resources(params["resources"])},
             ],
-            "service_id": settings.EXTERNAL_APPROVAL_SERVICE_ID,
+            "service_id": settings.ITSM_EXTERNAL_PERMISSION_SERVICE_ID,
             "fast_approval": False,
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/external_callback/")},
         }
         try:
-            data = BkItsm.create_ticket(ticket_data)
+            data = BkItsmApi.create_ticket(ticket_data)
         except Exception as e:
             logger.error(f"审批创建异常: {e}")
             raise e
@@ -370,8 +399,18 @@ class ExternalPermission(OperateRecordModel):
         if space_uid:
             permission_qs = permission_qs.filter(space_uid=space_uid)
         if view_type != ViewTypeEnum.RESOURCE.value:
-            serializer = ExternalPermissionSerializer(permission_qs, many=True)
-            permission_list = serializer.data
+            permission_list = [
+                {
+                    "authorized_user": permission.authorized_user,
+                    "action_id": permission.action_id,
+                    "resources": permission.resources,
+                    "expire_time": permission.expire_time,
+                    "status": permission.status,
+                    "space_uid": permission.space_uid,
+                    "space_name": space_info.get(permission.space_uid, ""),
+                }
+                for permission in permission_qs.iterator()
+            ]
         else:
             resource_to_user = defaultdict(lambda: {"authorized_users": []})
             for permission in permission_qs:
@@ -385,7 +424,10 @@ class ExternalPermission(OperateRecordModel):
 
             permission_list = list(resource_to_user.values())
         for permission in permission_list:
-            permission["authorizer"] = authorizer
+            if not space_uid:
+                permission["authorizer"] = AuthorizerSettings.get_authorizer(space_uid=permission["space_uid"])
+            else:
+                permission["authorizer"] = authorizer
             permission["space_name"] = space_info.get(permission["space_uid"], "")
         return permission_list
 
@@ -412,7 +454,7 @@ class ExternalPermission(OperateRecordModel):
         from apps.log_search.models import LogIndexSet
 
         # 暂时只有日志检索支持资源授权
-        if action_id != ActionEnum.LOG_SEARCH.value:
+        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return []
         if not space_uid:
             space_uid_list = ExternalPermission.objects.all().values_list("space_uid", flat=True).distinct()
@@ -421,8 +463,9 @@ class ExternalPermission(OperateRecordModel):
             qs = LogIndexSet.objects.filter(space_uid=space_uid)
         return [
             {
-                "index_set_id": index_set.index_set_id,
-                "index_set_name": index_set.index_set_name,
+                "id": index_set.index_set_id,
+                "uid": index_set.index_set_id,
+                "text": index_set.index_set_name,
             }
             for index_set in qs.iterator()
         ]
@@ -443,15 +486,6 @@ class ExternalPermission(OperateRecordModel):
         :param action_id: 后台定义操作ID, ActionEnum
         :return: bool
         """
-        # 先判断是否有在默认允许的action中
-        for default_allow_action in DEFAULT_ALLOW_ACTIONS:
-            if default_allow_action.view_set != view_set:
-                continue
-            if not default_allow_action.action_id:
-                return True
-            if default_allow_action.action_id == action:
-                return True
-
         allow_actions: List[Action] = ACTION_MAP.get(action_id, [])
         for _action in allow_actions:
             if _action.view_set != view_set:
@@ -476,12 +510,9 @@ class ExternalPermission(OperateRecordModel):
             "allowed": False,
             "resources": [],
         }
-        if action_id != ActionEnum.LOG_SEARCH.value:
+        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return result
         result["allowed"] = True
-        if view_set == "MetaViewSet":
-            result["resources"] = cls.get_authorized_user_space_list(authorized_user)
-            return result
         obj = ExternalPermission.objects.filter(
             action_id=action_id, authorized_user=authorized_user, space_uid=space_uid
         ).first()
@@ -498,7 +529,9 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     authorized_users = models.JSONField("被授权人列表", default=list)
     resources = models.JSONField("资源列表", default=list)
-    action_id = models.CharField("操作类型", max_length=32, choices=ActionEnum.get_choices(), db_index=True)
+    action_id = models.CharField(
+        "操作类型", max_length=32, choices=ExternalPermissionActionEnum.get_choices(), db_index=True
+    )
     operate = models.CharField(
         "操作",
         choices=OperateEnum.get_choices(),
@@ -520,7 +553,7 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
     @classmethod
     def callback(cls, params: dict):
         if params.get("token"):
-            verify_data = BkItsm.token_verify({"token": params["token"]})
+            verify_data = BkItsmApi.token_verify({"token": params["token"]})
             if not verify_data.get("is_passed", False):
                 return {"message": "Error Token", "result": False}
 

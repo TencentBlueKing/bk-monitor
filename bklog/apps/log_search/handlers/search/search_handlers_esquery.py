@@ -24,6 +24,10 @@ import hashlib
 import json
 from typing import Any, Dict, List, Union
 
+from django.conf import settings
+from django.core.cache import cache
+from django.utils.translation import ugettext as _
+
 from apps.api import BcsCcApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
@@ -89,9 +93,6 @@ from apps.utils.local import get_local_param, get_request_username
 from apps.utils.log import logger
 from apps.utils.lucene import generate_query_string
 from bkm_ipchooser.constants import CommonEnum
-from django.conf import settings
-from django.core.cache import cache
-from django.utils.translation import ugettext as _
 
 max_len_dict = Dict[str, int]  # pylint: disable=invalid-name
 
@@ -1070,6 +1071,15 @@ class SearchHandler(object):
         if tmp_index_obj:
             self.scenario_id = tmp_index_obj.scenario_id
             self.storage_cluster_id = tmp_index_obj.storage_cluster_id
+            # 根据检索条件addition中的字段，判断是否需要查询聚类结果表
+            for addition in self.search_dict.get("addition", []):
+                # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
+                if addition.get("field", "").startswith("__dist"):
+                    clustering_config = ClusteringConfig.get_by_index_set_id(
+                        index_set_id=index_set_id, raise_exception=False
+                    )
+                    if clustering_config and clustering_config.clustered_rt:
+                        return clustering_config.clustered_rt
             index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
             if len(index_set_data_obj_list) > 0:
                 index_list: list = [x.get("result_table_id", None) for x in index_set_data_obj_list]
@@ -1381,6 +1391,18 @@ class SearchHandler(object):
         result.update({"aggs": agg_dict})
         return result
 
+    @classmethod
+    def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        递归更新嵌套字典
+        """
+        for key, value in update_dict.items():
+            if isinstance(value, dict):
+                base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
+            else:
+                base_dict[key] = value
+        return base_dict
+
     @staticmethod
     def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
@@ -1399,8 +1421,8 @@ class SearchHandler(object):
         兼容Object类型字段的高亮
         ES层会返回打平后的高亮字段, 该函数将其高亮的字段更新至对应Object字段
         """
-        log.update(self.nested_dict_from_dotted_key(dotted_dict=highlight))
-        return log
+        nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
+        return self.update_nested_dict(log, nested_dict)
 
     def _log_desensitize(self, log: dict = None):
         """

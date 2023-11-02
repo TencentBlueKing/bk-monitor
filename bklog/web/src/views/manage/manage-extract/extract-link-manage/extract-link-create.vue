@@ -102,6 +102,7 @@
             property="qcloud_secret_key">
             <bk-input
               v-model="formData.qcloud_secret_key"
+              type="password"
               data-test-id="basicInformation_input_SecretKey"
             ></bk-input>
           </bk-form-item>

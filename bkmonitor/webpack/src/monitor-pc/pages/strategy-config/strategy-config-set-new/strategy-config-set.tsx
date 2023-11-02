@@ -61,6 +61,7 @@ import { IOptionsItem } from '../../calendar/types';
 import { IDataRetrieval } from '../../data-retrieval/typings';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
+import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 
 import { actionConfigGroupList, IAllDefense, IValue as IAlarmItem } from './alarm-handling/alarm-handling';
@@ -1021,7 +1022,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         value: typeof setCondition.value === 'string' ? setCondition.value.split(',') : setCondition.value
       }));
   }
-
   async handleProcessData(data) {
     this.baseConfig = {
       bk_biz_id: data.bk_biz_id,
@@ -1086,7 +1086,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         // page: 1,
         // page_size: queryConfigs.length,
         // result_table_label: scenario, // 不传result_table_label，避免关联告警出现不同监控对象时报错
-        conditions: [{ key: 'metric_id', value: queryConfigs.map(item => item.metric_id) }]
+        conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }]
       }).catch(() => ({}));
       this.metricData = queryConfigs.map(
         ({

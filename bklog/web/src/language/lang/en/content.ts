@@ -498,4 +498,6 @@ export default {
     "The spatial permissions of the authorizer will affect the authorized person. The authorized person's permission range is less than or equal to the authorized person's permission range. Please change it carefully.",
   '批量粘贴请使用;进行分隔': 'Please use bulk pasting; Separate',
   已提交审批: 'Submitted for approval',
+  "不是有效的json文件": "Not a valid json file.",
+  "聚类规则为空，无法导出规则": "The clustering rules are empty and the rules cannot be exported."
 }

@@ -22,17 +22,6 @@ the project delivered to anyone in the future.
 
 from typing import Dict, List, Union
 
-from apps.iam.exceptions import (
-    ActionNotExistError,
-    GetSystemInfoError,
-    PermissionDeniedError,
-)
-from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
-from apps.iam.handlers.compatible import CompatibleIAM
-from apps.iam.handlers.resources import Business as BusinessResource
-from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
-from apps.utils.local import get_request, get_request_username
-from apps.utils.log import logger
 from django.conf import settings
 from django.utils.translation import ugettext as _
 from iam import (
@@ -55,6 +44,18 @@ from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 from iam.utils import gen_perms_apply_data
 
+from apps.iam.exceptions import (
+    ActionNotExistError,
+    GetSystemInfoError,
+    PermissionDeniedError,
+)
+from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
+from apps.iam.handlers.compatible import CompatibleIAM
+from apps.iam.handlers.resources import Business as BusinessResource
+from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
+from apps.utils.local import get_request, get_request_username
+from apps.utils.log import logger
+
 
 class Permission(object):
     """
@@ -75,6 +76,11 @@ class Permission(object):
                 self.username = get_request_username()
 
         self.iam_client = self.get_iam_client()
+        # 是否跳过权限中心校验
+        # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
+        self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
+        if request and getattr(request, "skip_check", False):
+            self.skip_check = True
 
     @classmethod
     def get_iam_client(cls):

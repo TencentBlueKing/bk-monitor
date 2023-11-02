@@ -552,4 +552,5 @@ export default {
   审批中: 'Approval',
   审批成功: 'Approval successful',
   审批失败: 'Approval failed',
+  "保留未定义字段": "Leave undefined fields",
 };
