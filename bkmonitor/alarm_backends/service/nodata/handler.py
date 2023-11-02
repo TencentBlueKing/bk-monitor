@@ -44,9 +44,15 @@ class NodataHandler(base.BaseHandler):
                             continue
 
                         # 如果发现access的运行时间距离当前时间超过了2倍的检测周期，则不再进行检测，防止access不执行导致的误报
-                        last_access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(Strategy.strategy_group_key)
-                        last_access_run_timestamp = int(key.ACCESS_RUN_TIMESTAMP_KEY.client.get(last_access_run_timestamp_key) or 0)
-                        if last_access_run_timestamp and (time.time() - last_access_run_timestamp > max(2*interval, 2*EXECUTE_TIME_SECOND)):
+                        last_access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(
+                            strategy_group_key=Strategy.strategy_group_key
+                        )
+                        last_access_run_timestamp = int(
+                            key.ACCESS_RUN_TIMESTAMP_KEY.client.get(last_access_run_timestamp_key) or 0
+                        )
+                        if last_access_run_timestamp and (
+                            time.time() - last_access_run_timestamp > max(2 * interval, 2 * EXECUTE_TIME_SECOND)
+                        ):
                             continue
 
                         no_data_check(strategy_id, now_timestamp)
