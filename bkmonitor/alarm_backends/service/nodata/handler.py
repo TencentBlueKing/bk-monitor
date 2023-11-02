@@ -22,6 +22,7 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.handlers import base
 from alarm_backends.service.nodata.tasks import no_data_check
+from core.errors.iam import PermissionDeniedError
 
 logger = logging.getLogger("nodata")
 # 每分钟运行一次，检测两个周期前的 access 数据，运行间隔需要保持一致，建议设置为每分钟的后半分钟时间段
@@ -30,16 +31,18 @@ EXECUTE_TIME_SECOND = 55
 
 class NodataHandler(base.BaseHandler):
     def handle(self):
+        # 特定时间点执行
+        if arrow.now().second != EXECUTE_TIME_SECOND:
+            logger.info("[nodata] skip for not execute time")
+            time.sleep(1)
+            return
+
         # 进程总锁， 基于celery任务分发，分布式场景，master不需要多个
         service_key = key.SERVICE_LOCK_NODATA.get_key(strategy_id=0)
         client = key.SERVICE_LOCK_NODATA.client
         ret = client.set(service_key, time.time(), ex=key.SERVICE_LOCK_NODATA.ttl, nx=True)
         if not ret:
-            time.sleep(1)
-            return
-
-        # 特定时间点执行
-        if arrow.now().second != EXECUTE_TIME_SECOND:
+            logger.info("[nodata] skip for not leader")
             time.sleep(1)
             return
 
@@ -52,9 +55,13 @@ class NodataHandler(base.BaseHandler):
 
             # 如果策略没有启用，则不进行检测
             is_enabled = False
-            for item in strategy.items:
-                if item.no_data_config.get("is_enabled"):
-                    is_enabled = True
+            try:
+                for item in strategy.items:
+                    if item.no_data_config.get("is_enabled"):
+                        is_enabled = True
+            except PermissionDeniedError:
+                continue
+
             if not is_enabled:
                 continue
 
@@ -79,7 +86,7 @@ class NodataHandler(base.BaseHandler):
             published.append(strategy_id)
 
         logger.info(
-            "[nodata] no_data_check.delay published {}/{} strategy_ids: {}".format(
+            "[nodata] no_data_check published {}/{} strategy_ids: {}".format(
                 len(published), len(strategy_ids), published
             )
         )
