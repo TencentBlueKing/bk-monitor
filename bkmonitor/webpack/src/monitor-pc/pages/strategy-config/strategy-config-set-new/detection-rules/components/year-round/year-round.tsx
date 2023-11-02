@@ -53,7 +53,8 @@ const typeModelMap = {
     floor: '',
     floor_interval: '',
     ceil: '',
-    ceil_interval: ''
+    ceil_interval: '',
+    fetch_type: 'avg'
   },
   [DetectionRuleTypeEnum.YearRoundAmplitude]: {
     ratio: 0,
@@ -113,9 +114,12 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
 
   /** 高级模板 */
   advancedTemplate = [
-    { value1: 'ceil_interval', value2: 'ceil', text: window.i18n.t('升') },
-    { value1: 'floor_interval', value2: 'floor', text: window.i18n.t('降') }
+    { value1: 'ceil_interval', value2: 'ceil', value3: 'fetch_type', text: window.i18n.t('升') },
+    { value1: 'floor_interval', value2: 'floor', value3: 'fetch_type', text: window.i18n.t('降') }
   ];
+
+  // 在 同比策略 的 高级算法类型 下，记录当前在 告警条件 里是输入还是选择 均值/瞬间值 （因为在选择时不需要参与表单校验）
+  inputOrSelectInAdvancedMode: '' | 'input' | 'select' = '';
 
   /**
    * 算法类型和已选择的告警级别的映射表
@@ -251,6 +255,8 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
       ceil >= 0
     )
       return true;
+    // 说明当前是在选择 均值/瞬间值 。
+    if (this.inputOrSelectInAdvancedMode === 'select') return true;
     this.errorMsg = this.$tc('检测算法填写不完整，请完善后添加');
     return false;
   }
@@ -407,7 +413,7 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                     <div class='year-round-condition-list-item'>
                       <i18n
                         class='i18n-path'
-                        path='较前{0}天同一时刻绝对值的均值{1}时触发告警'
+                        path='较前{0}天同一时刻绝对值的{1}{2}时触发告警'
                       >
                         <bk-input
                           class='input-align-center inline-input'
@@ -421,8 +427,32 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                           placeholder={this.$t('输入整数')}
                           min={1}
                           precision={0}
-                          onChange={this.emitLocalData}
+                          onChange={() => {
+                            this.inputOrSelectInAdvancedMode = 'input';
+                            this.emitLocalData();
+                          }}
                         />
+                        <bk-select
+                          v-model={this.localData.config[item.value3]}
+                          ext-cls='timing-selector'
+                          size='small'
+                          behavior='simplicity'
+                          clearable={false}
+                          style='width: 100px;'
+                          onChange={() => {
+                            this.inputOrSelectInAdvancedMode = 'select';
+                            this.emitLocalData();
+                          }}
+                        >
+                          <bk-option
+                            id='avg'
+                            name={this.$t('均值')}
+                          ></bk-option>
+                          <bk-option
+                            id='last'
+                            name={this.$t('瞬间值')}
+                          ></bk-option>
+                        </bk-select>
                         <bk-input
                           class='input-align-center inline-input input-arrow'
                           style='margin: 0 10px;'
@@ -434,7 +464,10 @@ export default class YearRound extends tsc<YearRoundProps, YearRoundEvents> {
                           type='number'
                           placeholder={this.$t('输入数字')}
                           min={0}
-                          onChange={this.emitLocalData}
+                          onChange={() => {
+                            this.inputOrSelectInAdvancedMode = 'input';
+                            this.emitLocalData();
+                          }}
                         >
                           <template slot='prepend'>
                             <div class={['left-text', { 'left-text-red': item.value1.indexOf('floor') > -1 }]}>

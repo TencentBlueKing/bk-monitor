@@ -16,15 +16,15 @@ repos:
 
   # black
   - repo: https://github.com/psf/black
-    rev: 21.4b2
+    rev: 23.10.1
     hooks:
     - id: black
-      language_version: python3.6
+      language_version: python3
       args: [--config=pyproject.toml]
 
   # isort
   - repo: https://github.com/pycqa/isort
-    rev: 5.10.1
+    rev: 5.11.5
     hooks:
       - id: isort
         name: isort

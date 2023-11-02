@@ -1256,7 +1256,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (item.type === 'IntelligentDetect' && !config.anomaly_detect_direct) config.anomaly_detect_direct = 'all';
     // 如果服务端没有返回 fetch_type 数据，这里将提供一个默认的数值。（向前兼容）
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    if (item.type === 'AdvancedRingRatio' && !config.fetch_type) config.fetch_type = 'avg';
+    if (['AdvancedRingRatio', 'AdvancedYearRound'].includes(item.type) && !config.fetch_type) config.fetch_type = 'avg';
     const isArray = typeTools.isArray(config);
     if (isArray) return item;
     Object.keys(config).forEach(key => {
