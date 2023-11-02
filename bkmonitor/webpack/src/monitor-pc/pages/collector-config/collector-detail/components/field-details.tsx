@@ -33,18 +33,30 @@ import { DetailData } from '../typings/detail';
 import './field-details.scss';
 
 interface FieldDetailsProps {
+  type: 'metric' | 'field';
   detailData: DetailData;
+  fieldData: [];
 }
 
 @Component
 export default class FieldDetails extends tsc<FieldDetailsProps> {
-  @Prop({ type: Object, default: () => ({}) }) detailData: DetailData;
+  @Prop({ type: Object, required: true }) detailData: DetailData;
+  @Prop({ type: String, default: 'field' }) type: FieldDetailsProps['type'];
+  @Prop({ type: Array, required: true }) fieldData: FieldDetailsProps['fieldData'];
 
+  fieldTableData = [];
   metricList = [];
 
   @Watch('detailData')
   handleDetailDataChange(val: DetailData) {
-    this.metricList = val.metric_list.map((item, ind) => ({ ...item, collapse: ind === 0 }));
+    if (val) {
+      this.metricList = val.metric_list.map((item, ind) => ({ ...item, collapse: ind === 0 }));
+    }
+  }
+
+  @Watch('fieldData')
+  handleFieldDataChange(val: FieldDetailsProps['fieldData']) {
+    this.fieldTableData = val;
   }
 
   getTitle(table) {
@@ -57,79 +69,110 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
   render() {
     return (
       <div class='field-details-component'>
-        <div class='field-info'>
-          <div class='title'>{this.$t('字段信息')}</div>
+        {this.type === 'field' ? (
+          <div class='field-info'>
+            <div class='title'>{this.$t('字段信息')}</div>
+            <div class='table-wrap'>
+              <Table
+                class='metric-wrap-table'
+                data={this.fieldData}
+                empty-text={this.$t('无数据')}
+                max-height={350}
+              >
+                <TableColumn
+                  label={this.$t('字段名')}
+                  min-width='150'
+                />
+                <TableColumn
+                  label={this.$t('别名')}
+                  min-width='150'
+                />
 
-          <div class='table-wrap'></div>
-        </div>
-        <div class='metric-dimension'>
-          <div class='title'>{this.$t('指标/维度')}</div>
-          <div class='table-wrap'>
-            {this.metricList.map((item, index) => (
-              <div class='table-item'>
-                <div
-                  class={{ 'table-item-title': true, 'is-collapse': item.collapse }}
-                  onClick={() => (item.collapse = !item.collapse)}
-                >
-                  <i class={['bk-icon', 'title-icon', item.collapse ? 'icon-down-shape' : 'icon-right-shape']} />
-                  {this.getTitle(item)}
-                </div>
-
-                <Collapse
-                  key={index}
-                  expand={item.collapse}
-                  renderContent={false}
-                  needCloseButton={false}
-                >
-                  <Table
-                    class='metric-wrap-table'
-                    data={item.list}
-                    empty-text={this.$t('无数据')}
-                    max-height={350}
-                  >
-                    <TableColumn
-                      label={this.$t('指标/维度')}
-                      width='150'
-                      scopedSlots={{
-                        default: ({ row }) =>
-                          row.metric === 'metric' ? this.$t('指标（Metric）') : this.$t('维度（Dimension）')
-                      }}
-                    />
-                    <TableColumn
-                      label={this.$t('英文名')}
-                      min-width='150'
-                      scopedSlots={{
-                        default: ({ row }) => <span title={row.englishName}>{row.englishName || '--'}</span>
-                      }}
-                    />
-
-                    <TableColumn
-                      label={this.$t('别名')}
-                      min-width='150'
-                      scopedSlots={{
-                        default: ({ row }) => <span title={row.aliaName}>{row.aliaName || '--'}</span>
-                      }}
-                    />
-                    <TableColumn
-                      label={this.$t('类型')}
-                      width='80'
-                      scopedSlots={{
-                        default: ({ row }) => <span title={row.type}>{row.type || '--'}</span>
-                      }}
-                    />
-                    <TableColumn
-                      label={this.$t('单位')}
-                      width='100'
-                      scopedSlots={{
-                        default: ({ row }) => <span title={row.unit}>{row.unit || '--'}</span>
-                      }}
-                    />
-                  </Table>
-                </Collapse>
-              </div>
-            ))}
+                <TableColumn
+                  label={this.$t('数据类型')}
+                  width='150'
+                />
+                <TableColumn
+                  label={this.$t('分词')}
+                  width='80'
+                />
+                <TableColumn
+                  label={this.$t('时间')}
+                  width='180'
+                />
+              </Table>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div class='metric-dimension'>
+            <div class='title'>{this.$t('指标/维度')}</div>
+            <div class='table-wrap'>
+              {this.metricList.map((item, index) => (
+                <div class='table-item'>
+                  <div
+                    class={{ 'table-item-title': true, 'is-collapse': item.collapse }}
+                    onClick={() => (item.collapse = !item.collapse)}
+                  >
+                    <i class={['bk-icon', 'title-icon', item.collapse ? 'icon-down-shape' : 'icon-right-shape']} />
+                    {this.getTitle(item)}
+                  </div>
+
+                  <Collapse
+                    key={index}
+                    expand={item.collapse}
+                    renderContent={false}
+                    needCloseButton={false}
+                  >
+                    <Table
+                      class='metric-wrap-table'
+                      data={item.list}
+                      empty-text={this.$t('无数据')}
+                      max-height={350}
+                    >
+                      <TableColumn
+                        label={this.$t('指标/维度')}
+                        width='150'
+                        scopedSlots={{
+                          default: ({ row }) =>
+                            row.metric === 'metric' ? this.$t('指标（Metric）') : this.$t('维度（Dimension）')
+                        }}
+                      />
+                      <TableColumn
+                        label={this.$t('英文名')}
+                        min-width='150'
+                        scopedSlots={{
+                          default: ({ row }) => <span title={row.englishName}>{row.englishName || '--'}</span>
+                        }}
+                      />
+
+                      <TableColumn
+                        label={this.$t('别名')}
+                        min-width='150'
+                        scopedSlots={{
+                          default: ({ row }) => <span title={row.aliaName}>{row.aliaName || '--'}</span>
+                        }}
+                      />
+                      <TableColumn
+                        label={this.$t('类型')}
+                        width='80'
+                        scopedSlots={{
+                          default: ({ row }) => <span title={row.type}>{row.type || '--'}</span>
+                        }}
+                      />
+                      <TableColumn
+                        label={this.$t('单位')}
+                        width='100'
+                        scopedSlots={{
+                          default: ({ row }) => <span title={row.unit}>{row.unit || '--'}</span>
+                        }}
+                      />
+                    </Table>
+                  </Collapse>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

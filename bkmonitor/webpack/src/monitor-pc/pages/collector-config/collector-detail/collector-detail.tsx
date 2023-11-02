@@ -68,6 +68,9 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     [TabEnum.TargetDetail]: {
       data: null,
       updateKey: random(8)
+    },
+    [TabEnum.FieldDetails]: {
+      fieldData: []
     }
   };
 
