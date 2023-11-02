@@ -360,8 +360,6 @@ class SaveUserGroupResource(Resource):
         校验请求数据
         """
         self._request_serializer = None
-        if not self.RequestSerializer:
-            return request_data
         user_group = None
         if request_data.get("id"):
             try:
@@ -594,7 +592,7 @@ class UserGroupViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchUserGroupDetailResource, endpoint="search_detail"),
         ResourceRoute("POST", DeleteUserGroupResource, endpoint="delete"),
         ResourceRoute("POST", SaveUserGroupResource, endpoint="save"),
-        ResourceRoute("POST", PreviewUserGroupPlanResource, endpoint="save"),
+        ResourceRoute("POST", PreviewUserGroupPlanResource, endpoint="preview"),
     ]
 
 
