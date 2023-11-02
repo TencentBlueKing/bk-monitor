@@ -25,7 +25,6 @@ from collections import defaultdict
 from apps.api import BKLoginApi, CmsiApi, TransferApi
 from apps.feature_toggle.handlers import toggle
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.iam import ActionEnum, Permission
 from apps.log_search import exceptions
 from apps.log_search.constants import (
@@ -211,7 +210,7 @@ class MetaHandler(APIModel):
 
         if toggle == "debug":
             biz_id = space_uid_to_bk_biz_id(space_uid=space_uid)
-            if (settings.ENVIRONMENT not in ["dev", "stag"] and not is_superuser) or not FeatureToggleObject.switch(module["id"], biz_id=biz_id):
+            if (settings.ENVIRONMENT not in ["dev", "stag"] and not is_superuser) or not FeatureToggleObject.switch(module["id"], biz_id):
                 return False
 
         if module["id"] in ["manage_data_link", "extract_link_manage", "manage_data_link_conf"]:
