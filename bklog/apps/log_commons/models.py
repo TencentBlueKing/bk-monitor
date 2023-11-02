@@ -183,14 +183,15 @@ class ExternalPermission(OperateRecordModel):
         return status
 
     @classmethod
-    def create(cls, authorized_users: str, space_uid: str, action_id: str, resources: List[str], expire_time: str):
+    def create(
+        cls, authorized_users: List[str], space_uid: str, action_id: str, resources: List[str], expire_time: str
+    ):
         """
         新增权限
             1. 判定是否有存量被授权人权限
             2. 判定该实例是否已被授权，若有则不处理，无则更新该条授权记录
             3. 给剩余被授权人新增权限
         """
-        authorized_users = authorized_users.split(",")
         exist_authorized_users = set()
         for permission_obj in cls.objects.filter(
             authorized_user__in=authorized_users,
@@ -250,6 +251,7 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "bk_biz_name", "value": bk_biz_name},
                 {"key": "title", "value": ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT},
                 {"key": "expire_time", "value": params["expire_time"]},
+                {"key": "action_id", "value": params["action_id"]},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
                 {"key": "resources", "value": cls.join_resources(params["resources"])},
             ],

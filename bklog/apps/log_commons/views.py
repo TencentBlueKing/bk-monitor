@@ -146,10 +146,10 @@ class ExternalPermissionViewSet(APIViewSet):
         data = self.params_valid(GetAuthorizerSLZ)
         return Response(ExternalPermission.get_authorizer(**data))
 
-    @list_route(methods=["get"], url_path="maintainer")
+    @list_route(methods=["get"], url_path="get_maintainer")
     def list_maintainers(self, request):
         """
-        @api {get} /external_permission/maintainer/ 获取运维人员
+        @api {get} /external_permission/get_maintainer/ 获取运维人员
         @apiName external_permission_maintainer
         @apiGroup external_permission
         @apiParam {String} space_uid 空间ID

@@ -12,17 +12,6 @@ import json
 from typing import Any, Dict
 from urllib.parse import urlsplit
 
-from apps.constants import ExternalPermissionActionEnum
-from apps.iam import ActionEnum
-from apps.log_commons.models import (
-    AuthorizerSettings,
-    ExternalPermission,
-    ExternalPermissionApplyRecord,
-)
-from apps.utils.db import get_toggle_data
-from apps.utils.local import set_local_param
-from apps.utils.log import logger
-from bkm_space.api import SpaceApi
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.contrib import auth
@@ -35,6 +24,18 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+
+from apps.constants import ExternalPermissionActionEnum
+from apps.iam import ActionEnum
+from apps.log_commons.models import (
+    AuthorizerSettings,
+    ExternalPermission,
+    ExternalPermissionApplyRecord,
+)
+from apps.utils.db import get_toggle_data
+from apps.utils.local import set_local_param
+from apps.utils.log import logger
+from bkm_space.api import SpaceApi
 
 
 class RequestProcessor:
@@ -291,14 +292,12 @@ def dispatch_external_proxy(request):
 @method_decorator(csrf_exempt)
 @require_POST
 def external_callback(request):
+    logger.info(f"[external_callback]: external_callback with header({request.headers}), body({request.body})")
     try:
         params = json.loads(request.body)
     except Exception:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
-    logger.info(
-        "[{}]: dispatch_grafana with header({}) and params({})".format("external_callback", request.META, params)
-    )
     result = ExternalPermissionApplyRecord.callback(params)
     if result["result"]:
         return JsonResponse(result, status=200)
