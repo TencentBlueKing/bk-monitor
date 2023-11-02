@@ -262,8 +262,9 @@ def push_and_publish_space_router(
         for t in threads:
             t.join()
 
-    # 通知到使用方
-    RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, list(space_ids))
+        # 通知到使用方
+        push_redis_keys = [f"{space_type}__{space_id}" for space_id in space_ids]
+        RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 
