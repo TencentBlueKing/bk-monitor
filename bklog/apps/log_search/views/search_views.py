@@ -579,6 +579,10 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAsyncExportSerializer)
+        if request.user.is_superuser:
+            data["is_desensitize"] = False
+        else:
+            data["is_desensitize"] = True
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
