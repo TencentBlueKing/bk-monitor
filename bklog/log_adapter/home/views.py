@@ -25,7 +25,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from apps.constants import ExternalPermissionActionEnum
+from apps.constants import DEFAULT_ALLOWED_ACTION_LIST, ExternalPermissionActionEnum
 from apps.iam import ActionEnum
 from apps.log_commons.models import (
     AuthorizerSettings,
@@ -88,6 +88,18 @@ class RequestProcessor:
                 data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
                 response.data = data
         return response
+
+    @classmethod
+    def is_default_allowed(cls, view_set: str, view_action: str):
+        """
+        是否是默认允许的接口
+        """
+        for _d in DEFAULT_ALLOWED_ACTION_LIST:
+            if _d.view_set == view_set and not _d.action_id:
+                return True
+            if _d.view_set == view_set and _d.action == view_action:
+                return True
+        return False
 
 
 @login_exempt
@@ -212,44 +224,48 @@ def dispatch_external_proxy(request):
         view_action = RequestProcessor.get_view_action(view_func=view_func, method=method.lower())
         # 内部定义的action_id, ActionEnum
         action_id = ""
-        # transfer request.user 进行外部权限替换
-        external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
-        external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
-            space_uid=space_uid, authorizer=external_user
-        )
-        # 判断接口是否在管理范围内
-        if not external_user_allowed_action_id_list:
-            return JsonResponse(
-                {
-                    "result": False,
-                    "message": f"dispatch_plugin_query: external_user:{external_user} has no permission.",
-                },
-                status=403,
+        allow_resources_result = {"allowed": False, "resources": []}
+        # 判断是否是默认允许的接口, 默认允许的接口不需要进行权限校验
+        if not RequestProcessor.is_default_allowed(view_set=view_set, view_action=view_action):
+            # transfer request.user 进行外部权限替换
+            external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+            external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
+                space_uid=space_uid, authorizer=external_user
             )
-        is_allowed = False
-        for _action_id in external_user_allowed_action_id_list:
-            if ExternalPermission.is_action_valid(view_set=view_set, action=view_action, action_id=_action_id):
-                is_allowed = True
-                action_id = _action_id
-                break
-        if not is_allowed:
-            return JsonResponse(
-                {"result": False, "message": f"external_user:{external_user} has not enough permission."}, status=403
-            )
-        allow_resources_result = ExternalPermission.get_resources(
-            view_set=view_set, space_uid=space_uid, action_id=action_id, authorized_user=external_user
-        )
-        if allow_resources_result["allowed"]:
-            allow_resources = allow_resources_result["resources"]
-            resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data)
-            if resource and resource not in allow_resources:
+            # 判断接口是否在管理范围内
+            if not external_user_allowed_action_id_list:
                 return JsonResponse(
                     {
                         "result": False,
-                        "message": f"external_user:{external_user} cannot access resource(ID:{resource}).",
+                        "message": f"dispatch_plugin_query: external_user:{external_user} has no permission.",
                     },
                     status=403,
                 )
+            is_allowed = False
+            for _action_id in external_user_allowed_action_id_list:
+                if ExternalPermission.is_action_valid(view_set=view_set, action=view_action, action_id=_action_id):
+                    is_allowed = True
+                    action_id = _action_id
+                    break
+            if not is_allowed:
+                return JsonResponse(
+                    {"result": False, "message": f"external_user:{external_user} has not enough permission."},
+                    status=403,
+                )
+            allow_resources_result = ExternalPermission.get_resources(
+                view_set=view_set, space_uid=space_uid, action_id=action_id, authorized_user=external_user
+            )
+            if allow_resources_result["allowed"]:
+                allow_resources = allow_resources_result["resources"]
+                resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data)
+                if resource and resource not in allow_resources:
+                    return JsonResponse(
+                        {
+                            "result": False,
+                            "message": f"external_user:{external_user} cannot access resource(ID:{resource}).",
+                        },
+                        status=403,
+                    )
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
         user = auth.authenticate(username=authorizer)

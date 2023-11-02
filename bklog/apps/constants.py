@@ -22,8 +22,9 @@ the project delivered to anyone in the future.
 
 from dataclasses import dataclass
 
-from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext_lazy as _
+
+from apps.utils import ChoicesEnum
 
 DEFAULT_MAX_WORKERS = 5
 
@@ -264,6 +265,7 @@ class ExternalPermissionActionEnum(ChoicesEnum):
 
 ACTION_MAP = {
     ExternalPermissionActionEnum.LOG_SEARCH.value: [
+        # 检索
         Action(view_set="SearchViewSet", action_id="list"),
         Action(view_set="SearchViewSet", action_id="bizs"),
         Action(view_set="SearchViewSet", action_id="search"),
@@ -271,9 +273,16 @@ ACTION_MAP = {
         Action(view_set="SearchViewSet", action_id="context"),
         Action(view_set="SearchViewSet", action_id="tailf"),
         Action(view_set="SearchViewSet", action_id="export"),
+        # 聚合
         Action(view_set="AggsViewSet", action_id="terms"),
         Action(view_set="AggsViewSet", action_id="date_histogram"),
+        # 收藏
         Action(view_set="FavoriteViewSet"),
+        # IP选择器
+        Action(view_set="IpChooserTopoViewSet"),
+        Action(view_set="IpChooserHostViewSet"),
+        Action(view_set="IpChooserTemplateViewSet"),
+        Action(view_set="IpChooserDynamicGroupViewSet"),
     ],
     ExternalPermissionActionEnum.LOG_EXTRACT.value: [
         Action(view_set="ExplorerViewSet"),
@@ -281,6 +290,12 @@ ACTION_MAP = {
         Action(view_set="StrategiesViewSet"),
     ],
 }
+
+# 默认允许的ACTION
+DEFAULT_ALLOWED_ACTION_LIST = [
+    Action(view_set="IpChooserConfigViewSet"),
+    Action(view_set="MetaViewSet"),
+]
 
 # 与权限中心的action_id对应关系
 ACTION_ID_MAP = {

@@ -284,4 +284,4 @@ class ExternalPermissionViewSet(APIViewSet):
         }
         """
         data = self.params_valid(DestroyExternalPermissionSLZ)
-        return Response(ExternalPermission.destroy(**data))
+        return Response(ExternalPermission.destroy(validated_request_data=data))

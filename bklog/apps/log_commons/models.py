@@ -463,6 +463,7 @@ class ExternalPermission(OperateRecordModel):
             qs = LogIndexSet.objects.filter(space_uid=space_uid)
         return [
             {
+                "id": index_set.index_set_id,
                 "uid": index_set.index_set_id,
                 "text": index_set.index_set_name,
             }
