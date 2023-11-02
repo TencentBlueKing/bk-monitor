@@ -13,32 +13,73 @@ from rest_framework import permissions, viewsets
 from bkmonitor.action import serializers
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.models import UserGroup
+from bkmonitor.models import DutyRule, UserGroup
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class UserGroupViewSet(viewsets.ModelViewSet):
+class UserGroupPermissionViewSet(viewsets.ModelViewSet):
+    def get_permissions(self):
+        """
+        获取权限
+        """
+        if self.request.method in permissions.SAFE_METHODS:
+            return [BusinessActionPermission([ActionEnum.VIEW_NOTIFY_TEAM])]
+        return [BusinessActionPermission([ActionEnum.MANAGE_NOTIFY_TEAM])]
+
+
+class UserGroupViewSet(UserGroupPermissionViewSet):
     """用户组配置视图"""
 
     queryset = UserGroup.objects.all()
     serializer_class = serializers.UserGroupDetailSlz
 
-    filter_fields = {
-        "bk_biz_id": ["exact", "in"],
-        "name": ["exact", "icontains"],
-    }
+    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
     pagination_class = None
 
+    def get_queryset(self):
+        """
+        增加对轮值规则的过滤
+        """
+        queryset = super(UserGroupViewSet, self).get_queryset()
+        if self.request.query_params.get("duty_rules"):
+            queryset = queryset.filter(duty_rules__contains=self.request.query_params["duty_rules"])
+        return queryset
+
     def get_serializer_class(self):
+        """
+        根据不同的action获取
+        """
         if self.action == "list":
             return serializers.UserGroupSlz
         return self.serializer_class
 
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [BusinessActionPermission([ActionEnum.VIEW_NOTIFY_TEAM])]
-        return [BusinessActionPermission([ActionEnum.MANAGE_NOTIFY_TEAM])]
+
+class DutyRuleViewSet(UserGroupPermissionViewSet):
+    """用户组配置视图"""
+
+    queryset = DutyRule.objects.all()
+    serializer_class = serializers.DutyRuleDetailSlz
+
+    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"], "labels": ["contains"]}
+    pagination_class = None
+
+    def get_serializer_class(self):
+        """
+        根据不同的action获取
+        """
+        if self.action == "list":
+            return serializers.DutyRuleSlz
+        return self.serializer_class
+
+    def get_queryset(self):
+        """
+        增加对轮值标签的过滤
+        """
+        queryset = super(DutyRuleViewSet, self).get_queryset()
+        if self.request.query_params.get("labels"):
+            queryset = queryset.filter(labels__contains=self.request.query_params["labels"])
+        return queryset
 
 
 class BkchatGroupViewSet(ResourceViewSet):

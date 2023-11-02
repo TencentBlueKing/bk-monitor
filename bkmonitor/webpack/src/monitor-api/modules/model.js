@@ -121,6 +121,12 @@ export const listUserGroup = request('GET', 'rest/v2/user_groups/');
 export const partialUpdateUserGroup = request('PATCH', 'rest/v2/user_groups/{pk}/');
 export const retrieveUserGroup = request('GET', 'rest/v2/user_groups/{pk}/');
 export const updateUserGroup = request('PUT', 'rest/v2/user_groups/{pk}/');
+export const createDutyRule = request('POST', 'rest/v2/duty_rules/');
+export const destroyDutyRule = request('DELETE', 'rest/v2/duty_rules/{pk}/');
+export const listDutyRule = request('GET', 'rest/v2/duty_rules/');
+export const partialUpdateDutyRule = request('PATCH', 'rest/v2/duty_rules/{pk}/');
+export const retrieveDutyRule = request('GET', 'rest/v2/duty_rules/{pk}/');
+export const updateDutyRule = request('PUT', 'rest/v2/duty_rules/{pk}/');
 export const createActionConfig = request('POST', 'fta/action/config/');
 export const destroyActionConfig = request('DELETE', 'fta/action/config/{pk}/');
 export const listActionConfig = request('GET', 'fta/action/config/');
@@ -274,6 +280,12 @@ export default {
   partialUpdateUserGroup,
   retrieveUserGroup,
   updateUserGroup,
+  createDutyRule,
+  destroyDutyRule,
+  listDutyRule,
+  partialUpdateDutyRule,
+  retrieveDutyRule,
+  updateDutyRule,
   createActionConfig,
   destroyActionConfig,
   listActionConfig,
