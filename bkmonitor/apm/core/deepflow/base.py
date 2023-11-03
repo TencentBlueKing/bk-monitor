@@ -73,12 +73,26 @@ class DeepFlowHandler:
     @classmethod
     def response_status_to_span_status_message(cls, status: int):
         switcher = {
-            0: "unknown",
-            1: "Success",
-            2: "Error",
+            0: "Success",
+            2: "Unknown",
+            1: "Error",
+            3: "Server Error",
+            4: "client Error",
         }
 
         return switcher.get(status, "")
+
+    @classmethod
+    def response_status_to_span_status_code(cls, status: int):
+        switcher = {
+            0: 1,
+            2: 0,
+            1: 2,
+            3: 2,
+            4: 2,
+        }
+
+        return switcher.get(status, 0)
 
     @classmethod
     def put_value_map(cls, attrs: dict, key: str, value):
@@ -431,10 +445,14 @@ class DeepFlowHandler:
             elif L7_PROTOCOL_POSTGRE == l7_protocol:
                 cls.set_postgresql(span, span_attrs, item)
 
-        status["code"] = item.get("response_status")
+        status["code"] = cls.response_status_to_span_status_code(item.get("response_status"))
         status["message"] = cls.response_status_to_span_status_message(item.get("response_status"))
 
         cls.put_value_map(span_attrs, "df.span.endpoint", item.get("endpoint"))
         cls.put_value_map(span_attrs, "df.span.type", item.get("type"))
+
+        # 数据补充
+        if not span_resource.get("service.name"):
+            cls.put_value_map(span_resource, "service.name", "deepflow")
 
         return span.span_to_dict()

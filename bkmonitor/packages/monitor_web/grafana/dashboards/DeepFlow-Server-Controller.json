@@ -1,0 +1,565 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 212,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 7,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.4",
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "hide": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_cloud_api_count\",\"select\":[{\"key\":\"metrics.count\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e933b7b3-fea9-effc-2056-bc1a0a0c32d9\",\"type\":\"metric\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}}],\"where\":[{\"key\":\"tag.host\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$host\",\"value\":\"host\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"d7790e0c-848c-8696-26a2-3d8e03965d75\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.platform\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$platform\",\"value\":\"platform\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"3aca1da3-2c13-ba9f-cae1-e527fd2e3645\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.domain_name\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$domain_name\",\"value\":\"domain_name\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"0e59d308-7e32-70f1-b3e5-0c3bc4a17bfa\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"120270ed-43dd-7100-c9ce-a33795452b5e\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1539487a-f4d2-7ee2-7559-23fbd245851e\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"18c91044-3b41-d456-c684-d09f55d6c9ef\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Max(metrics.count)",
+              "name": "Max(metrics.count)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.type",
+              "isResource": false,
+              "name": "tag.type"
+            }
+          ],
+          "sql": "SELECT Max(`metrics.count`) AS `Max(metrics.count)`, time(time, 60) AS `time_60`, `tag.type` FROM deepflow_server_controller_cloud_api_count WHERE `tag.host` IN ('mars-2') AND `tag.platform` IN ('kubernetes') AND `tag.domain_name` IN ('mars3') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY `time_60`, `tag.type` LIMIT 10000"
+        }
+      ],
+      "title": "Cloud platform API resources count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 7,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.4",
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "hide": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_cloud_api_cost\",\"select\":[{\"key\":\"metrics.avg\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e933b7b3-fea9-effc-2056-bc1a0a0c32d9\",\"type\":\"metric\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}}],\"where\":[{\"key\":\"tag.host\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$host\",\"value\":\"host\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"d7790e0c-848c-8696-26a2-3d8e03965d75\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.platform\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$platform\",\"value\":\"platform\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"5dc88790-8fc6-afce-4c32-03e2e827b6b0\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.domain_name\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$domain_name\",\"value\":\"domain_name\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"92881662-989f-b656-3c71-fff8272e0059\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"120270ed-43dd-7100-c9ce-a33795452b5e\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1539487a-f4d2-7ee2-7559-23fbd245851e\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"18c91044-3b41-d456-c684-d09f55d6c9ef\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Max(metrics.avg)",
+              "name": "Max(metrics.avg)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.type",
+              "isResource": false,
+              "name": "tag.type"
+            }
+          ],
+          "sql": "SELECT Max(`metrics.avg`) AS `Max(metrics.avg)`, time(time, 60) AS `time_60`, `tag.type` FROM deepflow_server_controller_cloud_api_cost WHERE `tag.host` IN ('mars-2') AND `tag.platform` IN ('kubernetes') AND `tag.domain_name` IN ('mars3') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY `time_60`, `tag.type` LIMIT 10000"
+        }
+      ],
+      "title": "Cloud platform API call time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 7,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.4",
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_cloud_api_cost\",\"select\":[{\"key\":\"metrics.len\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e933b7b3-fea9-effc-2056-bc1a0a0c32d9\",\"type\":\"metric\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}}],\"where\":[{\"key\":\"tag.host\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$host\",\"value\":\"host\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"d7790e0c-848c-8696-26a2-3d8e03965d75\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.platform\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$platform\",\"value\":\"platform\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"a653731a-63c0-f11b-ba2e-ac60cb392172\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.domain_name\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$domain_name\",\"value\":\"domain_name\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"a1d4f364-c632-461b-33d9-b8d4f7df5b2b\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"120270ed-43dd-7100-c9ce-a33795452b5e\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1539487a-f4d2-7ee2-7559-23fbd245851e\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"18c91044-3b41-d456-c684-d09f55d6c9ef\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Max(metrics.len)",
+              "name": "Max(metrics.len)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.type",
+              "isResource": false,
+              "name": "tag.type"
+            }
+          ],
+          "sql": "SELECT Max(`metrics.len`) AS `Max(metrics.len)`, time(time, 60) AS `time_60`, `tag.type` FROM deepflow_server_controller_cloud_api_cost WHERE `tag.host` IN ('mars-2') AND `tag.platform` IN ('kubernetes') AND `tag.domain_name` IN ('mars3') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY `time_60`, `tag.type` LIMIT 10000"
+        }
+      ],
+      "title": "Cloud platform API call count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 7,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.4",
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "hide": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_cloud_info_count\",\"select\":[{\"key\":\"metrics.count\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e933b7b3-fea9-effc-2056-bc1a0a0c32d9\",\"type\":\"metric\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}}],\"where\":[{\"key\":\"tag.host\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$host\",\"value\":\"host\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"d7790e0c-848c-8696-26a2-3d8e03965d75\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.platform\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$platform\",\"value\":\"platform\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"ff4214d7-b8b2-4817-4a08-2274732a4b12\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false},{\"type\":\"tag\",\"key\":\"tag.domain_name\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$domain_name\",\"value\":\"domain_name\",\"isVariable\":true,\"variableType\":\"query\"}],\"as\":\"\",\"params\":[],\"uuid\":\"4fe48436-67a4-d467-9943-b70736e68402\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"120270ed-43dd-7100-c9ce-a33795452b5e\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1539487a-f4d2-7ee2-7559-23fbd245851e\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"18c91044-3b41-d456-c684-d09f55d6c9ef\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Max(metrics.count)",
+              "name": "Max(metrics.count)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.type",
+              "isResource": false,
+              "name": "tag.type"
+            }
+          ],
+          "sql": "SELECT Max(`metrics.count`) AS `Max(metrics.count)`, time(time, 60) AS `time_60`, `tag.type` FROM deepflow_server_controller_cloud_info_count WHERE `tag.host` IN ('mars-2') AND `tag.platform` IN ('kubernetes') AND `tag.domain_name` IN ('mars3') AND time>='${__from:date:seconds}' AND time<='${__to:date:seconds}' GROUP BY `time_60`, `tag.type` LIMIT 10000"
+        }
+      ],
+      "title": "Server-cloud API resources count",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "value": "1"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "deepflowio-deepflow-datasource",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "value": "1"
+        },
+        "datasource": "$datasource",
+        "definition": "{\"database\":\"deepflow_system\",\"sql\":\"SELECT `tag.host`  AS value,`tag.host`  AS display_name FROM deepflow_server_controller_cloud_api_count group by value,display_name;\"}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "host",
+        "options": [],
+        "query": {
+          "database": "deepflow_system",
+          "sql": "SELECT `tag.host`  AS value,`tag.host`  AS display_name FROM deepflow_server_controller_cloud_api_count group by value,display_name;"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "value": "1"
+        },
+        "datasource": "$datasource",
+        "definition": "{\"database\":\"deepflow_system\",\"sql\":\"SELECT `tag.platform`  AS value,`tag.platform`  AS display_name FROM deepflow_server_controller_cloud_api_count group by value,display_name;\"}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "platform",
+        "options": [],
+        "query": {
+          "database": "deepflow_system",
+          "sql": "SELECT `tag.platform`  AS value,`tag.platform`  AS display_name FROM deepflow_server_controller_cloud_api_count group by value,display_name;"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "value": "1"
+        },
+        "datasource": "$datasource",
+        "definition": "{\"database\":\"deepflow_system\",\"sql\":\"SELECT `tag.domain_name`  AS value,`tag.domain_name`  AS display_name FROM deepflow_server_controller_cloud_api_count group by value,display_name;\"}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "domain_name",
+        "options": [],
+        "query": {
+          "database": "deepflow_system",
+          "sql": "SELECT `tag.domain_name`  AS value,`tag.domain_name`  AS display_name FROM deepflow_server_controller_cloud_api_count group by value,display_name;"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "DeepFlow Server - Controller",
+  "uid": "DeepFlow_Server_Controller",
+  "version": 7,
+  "weekStart": ""
+}
