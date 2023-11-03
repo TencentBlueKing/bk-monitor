@@ -33,7 +33,6 @@ class NodataHandler(base.BaseHandler):
     def handle(self):
         # 特定时间点执行
         if arrow.now().second != EXECUTE_TIME_SECOND:
-            logger.info("[nodata] skip for not execute time")
             time.sleep(1)
             return
 
@@ -73,9 +72,10 @@ class NodataHandler(base.BaseHandler):
 
             # 如果发现access的运行时间距离当前时间超过了2倍的检测周期，则不再进行检测，防止access不执行导致的误报
             last_access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(
-                strategy_group_key=Strategy.strategy_group_key
+                strategy_group_key=strategy.strategy_group_key
             )
             last_access_run_time = int(key.ACCESS_RUN_TIMESTAMP_KEY.client.get(last_access_run_timestamp_key) or 0)
+
             if last_access_run_time and (
                 time.time() - last_access_run_time > max(2 * interval, 2 * EXECUTE_TIME_SECOND)
             ):
