@@ -46,6 +46,10 @@ export default class StepMasking extends tsc<IProps> {
     return this.$store.getters['collect/curCollect'];
   }
 
+  get isShowJump() {
+    return this.$route.query?.type !== 'masking';
+  }
+
   @Emit('stepChange')
   emitStepChange() {}
 
@@ -111,14 +115,16 @@ export default class StepMasking extends tsc<IProps> {
             theme="primary"
             loading={this.submitLoading}
             onClick={() => this.submitSelectRule(true)}>
-            {this.$t('应用')}
+            {this.$t('下一步')}
           </Button>
-          <Button
+          {
+            this.isShowJump && <Button
             theme="default"
             loading={this.submitLoading}
             onClick={() => this.handleNextPage()}>
             {this.$t('跳过')}
           </Button>
+          }
           <Button theme="default" onClick={() => this.cancelSelectRule()}>{this.$t('取消')}</Button>
         </div>
       </div>

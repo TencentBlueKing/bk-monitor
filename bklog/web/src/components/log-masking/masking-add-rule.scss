@@ -22,10 +22,6 @@
 
     .debug {
       @include flex-center();
-
-      .bk-form-control {
-        margin-right: 8px;
-      }
     }
   }
 
@@ -90,8 +86,8 @@
 
   .regex-item-tips {
     position: absolute;
-    top: 0;
-    left: 112px;
+    top: -32px;
+    left: 60px;
     color: #979ba5;
   }
 
@@ -133,10 +129,23 @@
       width: 96px;
       margin: 0 6px;
     }
+
+    .bk-form-input {
+      display: flex;
+    }
   }
 
   .submit-box {
-    margin-top: 32px;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 48px;
+    z-index: 999;
+    background: #fafbfd;
+    padding-left: 24px;
+    border-top: 1px solid #dddfe6;
+
+    @include flex-align();
 
     .bk-button {
       width: 96px;
@@ -179,6 +188,8 @@
   }
 
   .regular-debugging {
+    padding-bottom: 48px;
+
     .fr {
       display: none;
     }
@@ -215,7 +226,6 @@
     .debugging-box {
       font-size: 12px;
       padding: 24px 16px;
-      background: #fafbfd;
 
       > :last-child {
         margin-top: 12px;
@@ -251,9 +261,6 @@
 
   .masking-expression ~ .tooltips-icon {
     top: 38px;
-
-    /* stylelint-disable-next-line declaration-no-important */
-    right: 80px !important;
   }
 
   .masking-rule .tooltips-icon {

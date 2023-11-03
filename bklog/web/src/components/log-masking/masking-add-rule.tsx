@@ -381,6 +381,7 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   handleChangeExpressionCheck(newValue: boolean) {
     this.matchExpressionCheckValue = newValue;
+    this.activeCollapse = newValue ? ['1'] : [];
     if (!newValue) this.formData.match_pattern = '';
   }
 
@@ -530,10 +531,6 @@ export default class MaskingAddRule extends tsc<IProps> {
                       disabled={!this.matchExpressionCheckValue}>
                     </Input>
                   </div>
-                  <div class="regex-item-tips" v-en-style="left: 175px;">
-                    <i v-bk-tooltips={{ content: this.$t('支持引用正则表达式中的命名分组。如正则表达式为 (?P<phone>\\w{6,16})，可通过 ${phone} 进行引用') }}
-                      class="log-icon icon-info-fill"></i>
-                  </div>
                 </div>
               </FormItem>
               <FormItem
@@ -541,6 +538,16 @@ export default class MaskingAddRule extends tsc<IProps> {
                 class="masking-rule"
                 required
                 property="params">
+                  {
+                    this.formData.operator === 'text_replace'
+                    && <div class="regex-item-tips" v-en-style="left: 175px;">
+                    <i v-bk-tooltips={{
+                      // eslint-disable-next-line prefer-template
+                      content: this.$t('支持引用正则表达式中的命名分组。如正则表达式为 ') + '(?P<' + 'phone' + '>\\w{6,16})' + this.$t('，可通过 ${phone} 进行引用'),
+                    }}
+                      class="log-icon icon-info-fill"></i>
+                  </div>
+                  }
                   <RadioGroup v-model={this.formData.operator}>
                     <Radio value={'text_replace'}>{this.$t('替换')}</Radio>
                     <Radio value={'mask_shield'}>{this.$t('掩码')}</Radio>
@@ -558,6 +565,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                       <Input
                         type="number"
                         v-model={this.formData.params.preserve_head}
+                        st
                         min={0}
                         onBlur={() => this.handleChangeCoverNumber()}></Input>
                       <Input
@@ -568,14 +576,14 @@ export default class MaskingAddRule extends tsc<IProps> {
                     </i18n>
                   }
               </FormItem>
-              <div class="submit-box">
-                <Button theme="primary" onClick={() => this.handleSubmit()}>{this.$t('提交')}</Button>
-                <Button theme="default" onClick={() => this.hiddenSlider()}>{this.$t('取消')}</Button>
-              </div>
             </Form>
+            <div class="submit-box">
+              <Button theme="primary" onClick={() => this.handleSubmit()}>{this.$t('提交')}</Button>
+              <Button theme="default" onClick={() => this.hiddenSlider()}>{this.$t('取消')}</Button>
+            </div>
 
             <Collapse ext-cls="regular-debugging" v-model={this.activeCollapse}>
-              <CollapseItem name="1">
+              <CollapseItem name="1" disabled={!this.matchExpressionCheckValue}>
                 <div class="debugging-title">
                   <i class={{ 'bk-icon icon-play-shape': true, 'is-active': this.activeCollapse.length }}></i>
                   <span>{this.$t('脱敏结果预览')}</span>
