@@ -33,6 +33,7 @@ from metadata.models.space.constants import (
     EtlConfigs,
     MeasurementType,
     SpaceTypes,
+    BKCI_1001_TABLE_ID_PREFIX,
 )
 from metadata.models.space.ds_rt import (
     get_cluster_data_ids,
@@ -225,6 +226,8 @@ class SpaceTableIDRedis:
         _values = self._compose_bcs_space_biz_table_ids(space_type, space_id)
         _values.update(self._compose_bcs_space_cluster_table_ids(space_type, space_id))
         _values.update(self._compose_bkci_other_table_ids(space_type, space_id))
+        # 追加跨空间类型的数据源授权
+        _values.update(self._compose_bkci_cross_table_ids(space_type, space_id))
         # 推送数据
         if _values:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
@@ -336,7 +339,9 @@ class SpaceTableIDRedis:
     def _compose_bkci_other_table_ids(self, space_type: str, space_id: str) -> Dict:
         logger.info("start to push bkci space other table_id")
         exclude_data_id_list = utils.cached_cluster_data_id_list()
-        table_id_data_id = get_space_table_id_data_id(space_type, space_id, exclude_data_id_list=exclude_data_id_list)
+        table_id_data_id = get_space_table_id_data_id(
+            space_type, space_id, exclude_data_id_list=exclude_data_id_list, from_authorization=False
+        )
         _values = {}
         if not table_id_data_id:
             logger.error("space_type: %s, space_id:%s not found table_id and data_id", space_type, space_id)
@@ -351,6 +356,14 @@ class SpaceTableIDRedis:
             _values[tid] = {"filters": [{"projectId": space_id}]}
 
         return _values
+
+    def _compose_bkci_cross_table_ids(self, space_type: str, space_id: str) -> Dict:
+        """组装跨空间类型的结果表数据"""
+        logger.info("start to push bkci space cross space_type table_id")
+        tids = models.ResultTable.objects.filter(table_id__startswith=BKCI_1001_TABLE_ID_PREFIX).values_list(
+            "table_id", flat=True
+        )
+        return {tid: {"filters": [{"projectId": f"{space_type}__{space_id}"}]} for tid in tids}
 
     def _compose_bksaas_space_cluster_table_ids(
         self,
@@ -474,7 +487,14 @@ class SpaceTableIDRedis:
         )
         # 获取结果表对应的类型
         measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list)
+        # 获取空间所属的数据源 ID
+        _space_data_ids = models.SpaceDataSource.objects.filter(
+            space_type_id=space_type, space_id=space_id, from_authorization=False
+        ).values_list("bk_data_id", flat=True)
         for tid in table_ids:
+            # NOTE: 特殊逻辑，忽略跨空间类型的 bkci 的结果表; 如果有其它，再提取为常量
+            if tid.startswith(BKCI_1001_TABLE_ID_PREFIX):
+                continue
             measurement_type = measurement_type_dict.get(tid)
             # 如果查询不到类型，则忽略
             if not measurement_type:
@@ -486,7 +506,7 @@ class SpaceTableIDRedis:
                 logger.error("table_id: %s not found data_id", tid)
                 continue
             _data_id_detail = data_id_detail.get(data_id)
-            is_exist_space = data_id in data_id_list
+            is_exist_space = data_id in _space_data_ids
             # 拼装过滤条件, 如果有指定，则按照指定数据设置过滤条件
             if default_filters:
                 _values[tid] = {"filters": default_filters}

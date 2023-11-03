@@ -78,6 +78,8 @@ class DashboardPermission(BasePermission):
             return True, role, {}
 
         p = Permission(username=request.user.username)
+        if getattr(request, "skip_check", False):
+            p.skip_check = True
         if p.skip_check:
             return True, GrafanaRole.Admin, {}
 

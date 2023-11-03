@@ -27,7 +27,7 @@ import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-d
 import { Route } from 'vue-router';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import { MANAGE_AUTH as GRAFANA_MANAGE_AUTH, VIEW_AUTH as GRAFANA_VIEW_AUTH } from '../grafana/authority-map';
+import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
 
 import * as dataRetrievalAuthMap from './authority-map';
 import DataRetrieval from './data-retrieval';
@@ -35,7 +35,6 @@ import DataRetrieval from './data-retrieval';
 Component.registerHooks(['beforeRouteEnter']);
 const authMap = {
   ...dataRetrievalAuthMap,
-  GRAFANA_VIEW_AUTH,
   GRAFANA_MANAGE_AUTH
 };
 

@@ -146,8 +146,8 @@ def update_time_series_metrics(time_series_metrics, task_result_queue):
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
     space_client = SpaceTableIDRedis()
-    space_client.push_field_table_ids(table_id_list=table_id_list)
-    space_client.push_table_id_detail(table_id_list=table_id_list)
+    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=True)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
 
     # 如果有更新时，刷新数据到 redis
     # NOTE: 因为一个空间下关联不止一个 data id，所以先过滤到空间数据，然后再进行推送消息
@@ -262,8 +262,9 @@ def push_and_publish_space_router(
         for t in threads:
             t.join()
 
-    # 通知到使用方
-    RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, list(space_ids))
+        # 通知到使用方
+        push_redis_keys = [f"{space_type}__{space_id}" for space_id in space_ids]
+        RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 
