@@ -58,6 +58,10 @@ axiosInstance.interceptors.request.use((config) => {
     // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
     config.url = config.url;
   }
+  // 外部版后端需要读取header里的 spaceUid
+  if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
+    config.headers.space_uid = store.state.spaceUid;
+  }
   return config;
 }, error => Promise.reject(error));
 

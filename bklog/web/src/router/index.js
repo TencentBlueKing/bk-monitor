@@ -28,14 +28,11 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import store from '@/store';
 
 import http from '@/api';
 import page404 from '@/views/404';
 
 Vue.use(VueRouter);
-
-const isExternal = store.state.isExternal; // 外部版
 
 const LogCollectionView = {
   name: 'LogCollection',
@@ -296,7 +293,7 @@ const routes = [
     name: 'manage',
     component: Manage,
     redirect: () => {
-      if (isExternal) {
+      if (JSON.parse(window.IS_EXTERNAL)) {
         return '/manage/log-extract-task';
       }
       return '/manage/log-collection/collection-item';
@@ -779,7 +776,7 @@ const cancelRequest = async () => {
 
 router.beforeEach(async (to, from, next) => {
   await cancelRequest();
-  if (isExternal && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)) {
+  if (JSON.parse(window.IS_EXTERNAL) && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)) {
     // 非外部版路由重定向
     next({ name: 'retrieve' });
   } else {

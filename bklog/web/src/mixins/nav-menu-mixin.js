@@ -23,7 +23,6 @@
 import { mapState } from 'vuex';
 import { menuArr } from '../components/nav/complete-menu';
 import * as authorityMap from '../common/authority-map';
-import axios from 'axios';
 
 export default {
   data() {
@@ -62,10 +61,7 @@ export default {
   methods: {
     async requestMySpaceList() {
       try {
-        const url = this.isExternal ? 'space/getExternalSpaceList' : 'space/getMySpaceList';
-        const res = await (this.isExternal
-          ? await axios({ url: '/dispatch_list_user_spaces/', method: 'get' })
-          : this.$http.request(url));
+        const res = await this.$http.request('space/getMySpaceList');
         const queryObj = JSON.parse(JSON.stringify(this.$route.query));
         if (queryObj.from) {
           this.$store.commit('updateAsIframe', queryObj.from);

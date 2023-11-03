@@ -188,6 +188,8 @@ export default {
       }, 0);
     });
     if (!this.isAsIframe) this.getUserGuide();
+
+    this.$store.state.isExternal = JSON.parse(window.IS_EXTERNAL) || false;
   },
   mounted() {
     window.LoginModal = this.$refs.login;
