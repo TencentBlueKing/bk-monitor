@@ -517,7 +517,7 @@ export default {
   "清洗字段": "Cleaning field",
   "无对应采样日志，无法输出预览": "No corresponding sample logs, unable to output preview",
   "该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果": "This field is the original text field. To prevent the omission of desensitization rules, the system has automatically synchronized other desensitization results for you",
-  "日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。可以通过点击新增采样的方式，随机新采集日志进行预览，便于进行分析": "Log desensitization will automatically match and use rules based on your sampling collection logs. Without sampling logs, sampling results cannot be displayed. You can click on the new sampling method to randomly collect new logs for sampling and then analyze them.",
+  "日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志": "Log desensitization will automatically match and use rules based on your sampling collection logs. Without sampling logs, sampling results cannot be displayed. You can also add sampling and build logs manually.",
   "支持输入多条json，以换行区分": "Supports input of multiple JSONs, separated by line breaks",
   "搜索字段": "Search field",
   "结果预览": "Result preview",
