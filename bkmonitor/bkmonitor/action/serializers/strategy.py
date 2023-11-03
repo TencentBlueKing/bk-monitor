@@ -491,23 +491,26 @@ class PreviewSerializer(serializers.Serializer):
     source_type = serializers.ChoiceField(required=False, choices=SourceType.choices, default=SourceType.API)
 
     def to_internal_value(self, data):
-        instance_model = DutyRule
         internal_data = super(PreviewSerializer, self).to_internal_value(data)
         data.update(internal_data)
         if internal_data["source_type"] == self.SourceType.API:
             # 如果数据来源是API，直接返回原始数据
             return data
+        # 数据返回增加对应的存储记录
+        data["instance"] = self.get_instance(internal_data)
+        return data
+
+    def get_instance(self, internal_data):
+        instance_model = DutyRule
         if internal_data["resource_type"] == "user_group":
             instance_model = UserGroup
         if internal_data["source_type"] == self.SourceType.DB and not internal_data.get("id"):
             raise ValidationError("field(id) is required where source-type is db or default")
         try:
-            duty_rule = instance_model.objects.get(id=internal_data["id"], bk_biz_id=internal_data["bk_biz_id"])
+            instance = instance_model.objects.get(id=internal_data["id"], bk_biz_id=internal_data["bk_biz_id"])
         except DutyRule.DoesNotExist:
             raise ValidationError("resource(%s) not existed" % internal_data["resource_type"])
-        # 数据返回增加对应的存储记录
-        data["instance"] = duty_rule
-        return data
+        return instance
 
     def validate(self, attrs):
         if attrs["source_type"] == self.SourceType.API:

@@ -97,22 +97,27 @@ class DutyRuleManager:
     轮值规则管理模块
     """
 
-    def __init__(self, duty_rule, begin_time: str = None, days=0, last_user_index=0, last_time_index=0):
+    def __init__(
+        self, duty_rule, begin_time: str = None, days=0, last_user_index=0, last_time_index=0, end_time: str = None
+    ):
         self.duty_arranges = duty_rule["duty_arranges"]
         self.category = duty_rule.get("category")
         self.begin_time = time_tools.str2datetime(begin_time or duty_rule["effective_time"])
         self.end_time = None
         self.last_user_index = last_user_index
         self.last_time_index = last_time_index
-        if not duty_rule["end_time"] and not days:
-            # 如果本来没有设置结束时间，和预览天数，默认用30天
-            days = 30
-        if days:
-            # 如果指定的预览天数，结束时间按照预览天数来计算
-            self.end_time = self.begin_time + timedelta(days=days)
+        if end_time:
+            self.end_time = time_tools.str2datetime(end_time)
         else:
-            # 其他情况直接按照
-            self.end_time = time_tools.str2datetime(duty_rule["end_time"])
+            if not duty_rule["end_time"] and not days:
+                # 如果本来没有设置结束时间，和预览天数，默认用30天
+                days = 30
+            if days:
+                # 如果指定的预览天数，结束时间按照预览天数来计算
+                self.end_time = self.begin_time + timedelta(days=days)
+            else:
+                # 其他情况直接按照
+                self.end_time = time_tools.str2datetime(duty_rule["end_time"])
 
     def get_duty_plan(self):
         """
