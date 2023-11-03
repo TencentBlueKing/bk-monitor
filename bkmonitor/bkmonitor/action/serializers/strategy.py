@@ -344,10 +344,10 @@ class DutyPlanSlz(DutyBaseInfoSlz):
             "id",
             "user_group_id",
             "duty_rule_id",
-            "duty_arrange_id",
             "duty_time",
-            "begin_time",
-            "end_time",
+            "start_time",
+            "finished_time",
+            "work_times",
             "users",
             "order",
         )
@@ -815,7 +815,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         # step 1: create new relations
         rules = [
             DutyRuleRelation(user_group_id=self.instance.id, duty_rule_id=rule_id, order=index)
-            for rule_id, index in enumerate(self.instance.duty_rules)
+            for index, rule_id in enumerate(self.instance.duty_rules)
         ]
         DutyRuleRelation.objects.bulk_create(rules)
 
