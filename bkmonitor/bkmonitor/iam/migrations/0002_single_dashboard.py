@@ -45,8 +45,8 @@ def migrate_dashboard_permission():
 
     resources = []
     for policy in manage_policies:
-        resource = pm.policy_to_resource(ActionEnum.EDIT_SINGLE_DASHBOARD, policy)
-        resources.append(resource)
+        resources.append(pm.policy_to_resource(ActionEnum.EDIT_SINGLE_DASHBOARD, policy))
+        resources.append(pm.policy_to_resource(ActionEnum.NEW_DASHBOARD, policy))
 
     for policy in view_policies:
         resource = pm.policy_to_resource(ActionEnum.VIEW_SINGLE_DASHBOARD, policy)
@@ -56,7 +56,7 @@ def migrate_dashboard_permission():
 
     # 并发请求
     if resources:
-        pool = ThreadPool(50)
+        pool = ThreadPool(30)
         for resource in resources:
             futures.append((pool.apply_async(pm.grant_resource, args=(resource,)), resource))
         pool.close()
