@@ -147,3 +147,6 @@ class BCSClusterTypes(Enum):
 
 # 授权蓝盾使用的数据源 ID
 BKCI_AUTHORIZED_DATA_LIST = [1001]
+
+# 1001 跨空间类型允许 bkci 访问的结果表前缀
+BKCI_1001_TABLE_ID_PREFIX = "devx_system."

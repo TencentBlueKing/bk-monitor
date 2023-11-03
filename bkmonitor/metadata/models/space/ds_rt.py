@@ -35,7 +35,7 @@ def get_platform_data_ids(space_type: Optional[str] = None) -> Dict[int, str]:
     """获取平台级的数据源
     NOTE: 仅针对当前空间类型，比如 bkcc
     """
-    key = "cached_platform_data_id_list"
+    key = f"cached_platform_data_id_list_{space_type}"
     if key in cache:
         return cache.get(key)
     qs = models.DataSource.objects.filter(is_platform_data_id=True).values("bk_data_id", "space_type_id")
@@ -53,10 +53,7 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
     # 如果结果表存在，则过滤指定的结果表
     if table_id_list:
         vm_tables = vm_tables.filter(result_table_id__in=table_id_list)
-    vm_table_map = {
-        data["result_table_id"]: {"vm_rt": data["vm_result_table_id"]}
-        for data in vm_tables
-    }
+    vm_table_map = {data["result_table_id"]: {"vm_rt": data["vm_result_table_id"]} for data in vm_tables}
     influxdb_tables = models.InfluxDBStorage.objects.values(
         "table_id", "database", "real_table_name", "influxdb_proxy_storage_id", "partition_tag"
     )
