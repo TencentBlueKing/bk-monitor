@@ -153,7 +153,7 @@
                 }"
                 @click="operateHandler(props.row, 'clean')">
                 {{ $t('清洗') }}</bk-button>
-              <bk-dropdown-menu ref="dropdown" align="left">
+              <bk-dropdown-menu ref="dropdown" align="left" position-fixed>
                 <i
                   class="bk-icon icon-more"
                   style="font-size: 14px; font-weight: bold; display: inline-block;"

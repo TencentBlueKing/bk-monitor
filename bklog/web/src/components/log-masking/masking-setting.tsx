@@ -290,7 +290,7 @@ export default class MaskingSetting extends tsc<IProps> {
           updatedBy: item.updated_by,
           updatedAt: item.updated_at,
         };
-      });
+      }).sort((a, b) => (b.isPublic ? 1 : -1));
       this.tableStrList = this.tableList.map(item => item.ruleName);
       this.tableSearchList = deepClone(this.tableList);
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);

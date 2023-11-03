@@ -147,7 +147,7 @@ export default {
       pageLoading: 'pageLoading',
       asIframe: 'asIframe',
       authPageInfo: 'globals/authContainerInfo',
-      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      maskingToggle: 'maskingToggle',
     }),
     navActive() {
       return '';
@@ -170,9 +170,13 @@ export default {
         this.isAsIframe = val;
       },
     },
-    isShowMaskingTemplate(val) {
-      // 更新全局操作列表
-      this.$store.commit('updateGlobalSettingList', val ? this.dialogSettingList : []);
+    maskingToggle: {
+      deep: true,
+      handler(val) {
+        // 更新全局操作列表
+        const isShowSettingList = val.toggleString !== 'off';
+        this.$store.commit('updateGlobalSettingList', isShowSettingList ? this.dialogSettingList : []);
+      },
     },
   },
   created() {

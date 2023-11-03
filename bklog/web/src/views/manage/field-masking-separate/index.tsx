@@ -109,7 +109,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
             theme="primary"
             loading={this.submitLoading}
             onClick={() => this.submitSelectRule(true)}>
-            {this.$t('应用')}
+            {this.$t('下一步')}
           </Button>
           <Button theme="default" onClick={() => this.cancelSelectRule()}>{this.$t('取消')}</Button>
         </div>
