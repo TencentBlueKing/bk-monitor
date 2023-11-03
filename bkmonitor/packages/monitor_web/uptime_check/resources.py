@@ -25,6 +25,32 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.utils.translation import ugettext as _
+from requests.auth import to_native_string
+from yaml import SafeDumper
+
+from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.data_source import load_data_source
+from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
+from bkmonitor.utils.country import ISP_LIST
+from bkmonitor.utils.encode import EncodeWebhook
+from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
+from bkmonitor.utils.local import with_client_operator
+from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
+from bkmonitor.utils.time_tools import (
+    get_timestamp_range_by_biz_date,
+    localtime,
+    parse_time_range,
+)
+from bkmonitor.views import serializers
+from constants.alert import EventStatus
+from constants.cmdb import TargetNodeType
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api, resource
+from core.drf_resource.base import Resource
+from core.drf_resource.exceptions import CustomException
+from core.errors.api import BKAPIError
+from core.errors.dataapi import EmptyQueryException
 from monitor.models import UptimeCheckTaskSubscription
 from monitor.utils import update_task_config
 from monitor_web.collecting.constant import CollectStatus
@@ -57,32 +83,6 @@ from monitor_web.uptime_check.serializers import (
     UptimeCheckTaskBaseSerializer,
     UptimeCheckTaskSerializer,
 )
-from requests.auth import to_native_string
-from yaml import SafeDumper
-
-from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.data_source import load_data_source
-from bkmonitor.documents import AlertDocument
-from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
-from bkmonitor.utils.country import ISP_LIST
-from bkmonitor.utils.encode import EncodeWebhook
-from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
-from bkmonitor.utils.local import with_client_operator
-from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
-from bkmonitor.utils.time_tools import (
-    get_timestamp_range_by_biz_date,
-    localtime,
-    parse_time_range,
-)
-from bkmonitor.views import serializers
-from constants.alert import EventStatus
-from constants.cmdb import TargetNodeType
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api, resource
-from core.drf_resource.base import Resource
-from core.drf_resource.exceptions import CustomException
-from core.errors.api import BKAPIError
-from core.errors.dataapi import EmptyQueryException
 
 MAX_DISPLAY_TASK = 3
 
@@ -320,35 +320,6 @@ class GenerateYamlConfigResource(Resource):
             raise CustomException(_("生成yaml配置文件时出错：%s") % e)
 
         return yaml_content
-
-
-class UpdateConfigResource(Resource):
-    """
-    向拨测节点下发最新配置
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        node_id = serializers.IntegerField(required=True)
-
-    def perform_request(self, data):
-        try:
-            node = UptimeCheckNode.objects.get(pk=data["node_id"])
-        except UptimeCheckNode.DoesNotExist:
-            raise CustomException(_("不存在的节点id:%s") % data["node_id"])
-
-        config = ""
-        collector = UptimeCheckCollector(node.bk_biz_id)
-        if node.is_common:
-            with with_client_operator(node.update_user):
-                result = collector.deploy_config(
-                    [{"ip": node.ip, "plat_id": node.plat_id}], {"|".join([node.ip, str(node.plat_id)]): config}
-                )
-        else:
-            result = collector.deploy_config(
-                [{"ip": node.ip, "plat_id": node.plat_id}], {"|".join([node.ip, str(node.plat_id)]): config}
-            )
-
-        return result
 
 
 class TestTaskResource(Resource):
@@ -805,7 +776,6 @@ class TaskDataResource(Resource):
             filter_dict.update({"bk_target_ip": bk_target_ip, "bk_cloud_id": bk_cloud_id})
 
         for monitor_field in value_filed_list:
-
             kwargs = {
                 "data_source_label": UPTIME_DATA_SOURCE_LABEL,
                 "data_type_label": UPTIME_DATA_TYPE_LABEL,
@@ -2160,7 +2130,6 @@ class FileImportUptimeCheckResource(Resource):
         self.all_uptime_check_node = list(UptimeCheckNode.objects.filter(Q(bk_biz_id=biz_id) | Q(is_common=1)))
         # 数据解析和组装
         for task_conf in validated_request_data["task_list"]:
-
             try:
                 conf_list.append(self.import_data_assemble(task_conf))
             except CustomException as e:
@@ -2744,7 +2713,6 @@ class TopoTemplateHostResource(Resource):
         new_hosts = []
         hosts = validated_request_data["hosts"]
         if len(hosts) and hosts[0].get("bk_obj_id"):
-
             # 目标不能混用，如果第一个元素就是模板，则可以直接批量查询
             bk_obj_id = hosts[0]["bk_obj_id"]
 

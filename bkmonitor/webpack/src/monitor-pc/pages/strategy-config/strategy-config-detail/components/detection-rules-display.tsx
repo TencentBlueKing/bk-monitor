@@ -361,34 +361,39 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
   }
   advancedYearRoundTpl(type) {
     return this.advancedYearRoundTplData.map((item, index) => {
-      return type === 'AdvancedYearRound' ? (
-        <div class='rules-item advanced-item'>
-          <i18n
-            class='i18n-path'
-            path='较前{0}天同一时刻绝对值的均值{1}时触发告警'
-          >
-            <span class='i18n-span'>{this.config[item.value1] || '--'}</span>
-            <span class='i18n-span advance-status'>
-              <span class={`status-${index === 0 ? 'green' : 'red'}`}>{item.text}</span>&nbsp;
-              {this.config[item.value2] || '--'}%
-            </span>
-          </i18n>
-        </div>
-      ) : (
-        <div class='rules-item advanced-item'>
-          <i18n
-            class='i18n-path'
-            path='较前{0}个时间点的{1}{2}时触发告警'
-          >
-            <span class='i18n-span'>{this.config[item.value1] || '--'}</span>
-            <span class='i18n-span'>{this.fetchTypeMapping[this.config[item.value3]] || this.$t('均值')}</span>
-            <span class='i18n-span advance-status'>
-              <span class={`status-${index === 0 ? 'green' : 'red'}`}>{item.text}</span>&nbsp;
-              {this.config[item.value2] || '--'}%
-            </span>
-          </i18n>
-        </div>
-      );
+      const template = {
+        AdvancedYearRound: (
+          <div class='rules-item advanced-item'>
+            <i18n
+              class='i18n-path'
+              path='较前{0}天同一时刻绝对值的{1}{2}时触发告警'
+            >
+              <span class='i18n-span'>{this.config[item.value1] || '--'}</span>
+              <span class='i18n-span'>{this.fetchTypeMapping[this.config[item.value3]] || this.$t('均值')}</span>
+              <span class='i18n-span advance-status'>
+                <span class={`status-${index === 0 ? 'green' : 'red'}`}>{item.text}</span>&nbsp;
+                {this.config[item.value2] || '--'}%
+              </span>
+            </i18n>
+          </div>
+        ),
+        AdvancedRingRatio: (
+          <div class='rules-item advanced-item'>
+            <i18n
+              class='i18n-path'
+              path='较前{0}个时间点的{1}{2}时触发告警'
+            >
+              <span class='i18n-span'>{this.config[item.value1] || '--'}</span>
+              <span class='i18n-span'>{this.fetchTypeMapping[this.config[item.value3]] || this.$t('均值')}</span>
+              <span class='i18n-span advance-status'>
+                <span class={`status-${index === 0 ? 'green' : 'red'}`}>{item.text}</span>&nbsp;
+                {this.config[item.value2] || '--'}%
+              </span>
+            </i18n>
+          </div>
+        )
+      };
+      return template[type];
     });
   }
 
