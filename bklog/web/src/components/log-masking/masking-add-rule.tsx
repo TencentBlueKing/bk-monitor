@@ -189,10 +189,6 @@ export default class MaskingAddRule extends tsc<IProps> {
     return markVal;
   }
 
-  @Watch('formData.match_pattern')
-  watchPattern(val: string) {
-    if (!val) this.activeCollapse = [];
-  }
 
   @Watch('logOriginal')
   watchOriginStr(val: string) {
@@ -222,6 +218,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     this.baseFromData = deepClone(this.formData);
     if (this.addRuleFieldValue.field) this.initFiledValue();
     if (this.isEdit) this.initFormState();
+    this.activeCollapse = ['1'];
   }
 
   get spaceUid() {
@@ -233,7 +230,8 @@ export default class MaskingAddRule extends tsc<IProps> {
   }
 
   get isCanClickDebugBtn() {
-    return !this.matchExpressionCheckValue || !this.formData.match_pattern || !this.logOriginal;
+    return !this.matchExpressionCheckValue || !this.formData.match_pattern
+    || !this.logOriginal || !this.checkOperatorParams();
   }
 
   checkFieldsMatch() {
@@ -328,14 +326,27 @@ export default class MaskingAddRule extends tsc<IProps> {
     });
   }
 
+  /** 获取调试后的结果预览 */
   async handleDebugging() {
     this.debugRequesting = true;
-    const data = { log_sample: this.logOriginal, match_pattern: this.formData.match_pattern };
+    const fParams = this.formData.params;
+    const operatorParams = this.formData.operator === 'mask_shield'
+      ? {
+        preserve_tail: Number(fParams.preserve_tail),
+        preserve_head: Number(fParams.preserve_head),
+        replace_mark: fParams.replace_mark,
+      }
+      : { template_string: fParams.template_string ?? '' };
+    const data = {
+      log_sample: this.logOriginal,
+      match_pattern: this.formData.match_pattern,
+      operator: this.formData.operator,
+      params: operatorParams,
+    };
     await $http.request('masking/desensitizeDebug', { data }, { catchIsShowMessage: false })
       .then((res) => {
-        this.debugLog = res.data.log;
+        this.debugLog = res.data;
         this.debugErrorTipsStr = '';
-        this.activeCollapse = ['1'];
       })
       .catch((err) => {
         this.debugErrorTipsStr = err.message;
@@ -517,32 +528,13 @@ export default class MaskingAddRule extends tsc<IProps> {
                       v-model={this.formData.match_pattern}
                       disabled={!this.matchExpressionCheckValue}>
                     </Input>
-                    <Button
-                      outline
-                      theme="primary"
-                      disabled={this.isCanClickDebugBtn}
-                      onClick={this.handleDebugging}>
-                      {this.$t('调试')}
-                    </Button>
+                  </div>
+                  <div class="regex-item-tips" v-en-style="left: 175px;">
+                    <i v-bk-tooltips={{ content: this.$t('支持引用正则表达式中的命名分组。如正则表达式为 (?P<phone>\\w{6,16})，可通过 ${phone} 进行引用') }}
+                      class="log-icon icon-info-fill"></i>
                   </div>
                 </div>
               </FormItem>
-              <div class="debug-input">
-                <span class="debug-title">{this.$t('调试日志')}</span>
-                <div class="debugging-log">
-                  <Input
-                    placeholder=" "
-                    type="textarea"
-                    rows={3}
-                    class="debugging-input"
-                    input-style={this.inputStyle}
-                    v-model={this.logOriginal}>
-                  </Input>
-                  {
-                    !!this.debugErrorTipsStr && <span class="debug-error">{this.debugErrorTipsStr}</span>
-                  }
-                </div>
-              </div>
               <FormItem
                 label={(this.$t('脱敏算子') as String).replace('label-', '')}
                 class="masking-rule"
@@ -582,19 +574,52 @@ export default class MaskingAddRule extends tsc<IProps> {
             </Form>
 
             <Collapse ext-cls="regular-debugging" v-model={this.activeCollapse}>
-              <CollapseItem name="1" disabled={!this.formData.match_pattern}>
+              <CollapseItem name="1">
                 <div class="debugging-title">
                   <i class={{ 'bk-icon icon-play-shape': true, 'is-active': this.activeCollapse.length }}></i>
-                  <span>{this.$t('正则调试')}</span>
+                  <span>{this.$t('脱敏结果预览')}</span>
                 </div>
                 <div slot="content" class="debugging-box">
-                  <span>{this.$t('匹配结果')}</span>
-                  <div class="effect-log" v-bkloading={{ isLoading: this.debugRequesting, size: 'mini' }}>
-                    <TextHighlight
-                      style="word-break: break-all;"
-                      queries={this.markList}>
-                      {this.formatterStr(this.debugLog)}
-                    </TextHighlight>
+                  <div class="debug-input">
+                    <span class="debug-title">{this.$t('原始日志')}</span>
+                    <div class="debugging-log">
+                      <Input
+                        placeholder={this.$t('请输入')}
+                        type="textarea"
+                        rows={3}
+                        class="debugging-input"
+                        input-style={this.inputStyle}
+                        v-model={this.logOriginal}>
+                      </Input>
+                      {
+                        !!this.debugErrorTipsStr && <span class="debug-error">{this.debugErrorTipsStr}</span>
+                      }
+                    </div>
+                  </div>
+                  <span
+                    v-bk-tooltips={{
+                      disabled: !this.isCanClickDebugBtn,
+                      placement: 'right',
+                      content: this.$t('正则表达式，脱敏算子，原始日志都填写后才可点击预览。'),
+                    }}>
+                    <Button
+                      outline
+                      theme="primary"
+                      style="font-size: 12px;"
+                      disabled={this.isCanClickDebugBtn}
+                      onClick={this.handleDebugging}>
+                      {this.$t('结果预览')}
+                    </Button>
+                  </span>
+                  <div class="debug-input">
+                    <span class="debug-title">{this.$t('脱敏结果')}</span>
+                    <div class="effect-log" v-bkloading={{ isLoading: this.debugRequesting, size: 'mini' }}>
+                      <TextHighlight
+                        style="word-break: break-all; white-space:pre-line;"
+                        queries={this.markList}>
+                        {this.formatterStr(this.debugLog)}
+                      </TextHighlight>
+                    </div>
                   </div>
                 </div>
               </CollapseItem>

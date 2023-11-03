@@ -33,8 +33,17 @@
         </div>
       </div>
     </template>
-    <div ref="editorRefs"
-         :style="{ height: calcSize(renderHeight), width: calcSize(renderWidth), position: 'relative' }">
+    <div
+      ref="editorRefs"
+      :style="{ height: calcSize(renderHeight), width: calcSize(renderWidth), position: 'relative' }">
+
+      <div
+        v-if="placeholder"
+        :style="`font-size:${fontSize}px;`"
+        :class="['monaco-placeholder', { 'light-monaco-placeholder': theme === 'vs' }]">
+        {{placeholder}}
+      </div>
+
       <span
         v-if="isFull"
         class="bk-icon icon-un-full-screen"
@@ -68,6 +77,7 @@
 </template>
 <script>
 import * as monaco from 'monaco-editor';
+const PLACEHOLDER_SELECTOR = '.monaco-placeholder';
 
 self.MonacoEnvironment = {
   getWorkerUrl(moduleId, label) {
@@ -141,6 +151,10 @@ export default {
       type: Boolean,
       default: true,
     },
+    placeholder: {
+      type: String,
+      default: '',
+    },
     monacoConfig: {
       type: Object,
       default: () => ({}),
@@ -159,12 +173,16 @@ export default {
     };
   },
   watch: {
-    value(newValue) {
-      if (this.editor) {
-        if (newValue !== this.editor.getValue()) {
-          this.editor.setValue(newValue);
+    value: {
+      immediate: true,
+      handler(newValue) {
+        if (this.editor) {
+          if (newValue !== this.editor.getValue()) {
+            this.editor.setValue(newValue);
+          }
+          newValue === '' ? this.showPlaceholder('') : this.hidePlaceholder();
         }
-      }
+      },
     },
     options: {
       deep: true,
@@ -267,7 +285,26 @@ export default {
       this.editor.onMouseMove(event => this.$emit('mouseMove', event));
       this.editor.onMouseUp(event => this.$emit('mouseUp', event));
       this.isShowProblem && (this.markerChange(monaco));
-      this.editor.focus();
+      if (this.placeholder) {
+        this.value === '' ? this.showPlaceholder('') : this.hidePlaceholder();
+        this.editor.onDidBlurEditorWidget(() => {
+          this.showPlaceholder(this.editor.getValue());
+        });
+
+        this.editor.onDidFocusEditorWidget(() => {
+          this.hidePlaceholder();
+        });
+      }
+    },
+
+    showPlaceholder(value) {
+      if (value === '') {
+        document.querySelector(PLACEHOLDER_SELECTOR).style.display = 'initial';
+      }
+    },
+
+    hidePlaceholder() {
+      document.querySelector(PLACEHOLDER_SELECTOR).style.display = 'none';
     },
 
     exitFullScreen() {
@@ -466,6 +503,18 @@ export default {
     user-select: none;
     cursor: s-resize;
   }
+}
+
+.monaco-placeholder {
+  position: absolute;
+  top: 2px;
+  left: 24px;
+  z-index: 999;
+  color: #fff;
+}
+
+.light-monaco-placeholder {
+  color: #979ba5;
 }
 
 .editor-title {

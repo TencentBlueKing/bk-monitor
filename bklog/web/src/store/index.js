@@ -92,7 +92,16 @@ const store = new Vuex.Store({
     isEnLanguage: false,
     chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
     /** 是否展示全局脱敏弹窗 */
-    isShowMaskingDialog: false,
+    isShowGlobalDialog: false,
+    /** 当前全局设置弹窗的活跃id */
+    globalActiveLabel: 'masking-setting', // masking-setting
+    /** 全局设置列表 */
+    globalSettingList: [],
+    /** 日志灰度 */
+    maskingToggle: {
+      toggleString: 'off',
+      toggleList: [],
+    },
   },
   // 公共 getters
   getters: {
@@ -116,7 +125,14 @@ const store = new Vuex.Store({
     spaceBgColor: state => state.spaceBgColor,
     isEnLanguage: state => state.isEnLanguage,
     chartSizeNum: state => state.chartSizeNum,
-    isShowMaskingDialog: state => state.isShowMaskingDialog,
+    isShowGlobalDialog: state => state.isShowGlobalDialog,
+    globalActiveLabel: state => state.globalActiveLabel,
+    globalSettingList: state => state.globalSettingList,
+    maskingToggle: state => state.maskingToggle,
+    /** 脱敏灰度判断 */
+    isShowMaskingTemplate: state => (
+      state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(state.spaceUid)
+    ),
   },
   // 公共 mutations
   mutations: {
@@ -231,8 +247,17 @@ const store = new Vuex.Store({
     updateChartSize(state) {
       state.chartSizeNum += 1;
     },
-    updateIsShowMaskingDialog(state, val) {
-      state.isShowMaskingDialog = val;
+    updateIsShowGlobalDialog(state, val) {
+      state.isShowGlobalDialog = val;
+    },
+    updateGlobalActiveLabel(state, val) {
+      state.globalActiveLabel = val;
+    },
+    updateGlobalSettingList(state, val) {
+      state.globalSettingList = val;
+    },
+    updateMaskingToggle(state, val) {
+      state.maskingToggle = val;
     },
   },
   actions: {

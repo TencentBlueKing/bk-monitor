@@ -88,6 +88,13 @@
     color: #979ba5;
   }
 
+  .regex-item-tips {
+    position: absolute;
+    top: 0;
+    left: 112px;
+    color: #979ba5;
+  }
+
   .replace-item {
     height: 32px;
     margin-top: 12px;
@@ -138,8 +145,6 @@
   }
 
   .debug-input {
-    margin-top: 12px;
-
     .debug-title {
       font-size: 12px;
       color: #63656e;
@@ -211,6 +216,10 @@
       font-size: 12px;
       padding: 24px 16px;
       background: #fafbfd;
+
+      > :last-child {
+        margin-top: 12px;
+      }
     }
 
     .effect-log {

@@ -442,6 +442,10 @@ export default {
           visibility: hidden;
         }
       }
+
+      .timer-formatter {
+        transform: translateY(-1px);
+      }
     }
 
     th .cell:hover {

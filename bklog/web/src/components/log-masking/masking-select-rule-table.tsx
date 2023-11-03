@@ -225,12 +225,15 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       const otherList = [];
       const activeRule = res.data.filter(item => item.is_active);
       activeRule.forEach((item) => {
+        // 给推荐规则排序
         this.recommendRuleList.includes(item.id) ? selectList.push(item) : otherList.push(item);
       });
+      // 全局规则优先排序
+      otherList.sort((a, b) => (b.is_public ? 1 : -1));
 
-      // 给推荐规则排序
+      // 给当前选中了的规则排序到前面
       if (this.defaultSelectRuleList.length) {
-        otherList.sort((a, b) => (this.defaultSelectRuleList.includes(b.id) ? 1 : -1));
+        otherList.sort((a, b) => ((this.defaultSelectRuleList.includes(b.id) || b.is_public) ? 1 : -1));
       }
 
       if (newRuleId >= 0) {

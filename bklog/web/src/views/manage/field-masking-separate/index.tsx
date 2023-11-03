@@ -34,6 +34,7 @@ interface IProps {
   value: Boolean
 }
 
+Component.registerHooks(['beforeRouteEnter']);
 @Component
 export default class FieldMaskingSeparate extends tsc<IProps> {
   @Ref('maskingField') private readonly maskingFieldRef: HTMLElement; // 移动到分组实例
@@ -48,6 +49,18 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
     this.curCollect = {
       index_set_id: this.$route.params.indexSetId,
     };
+  }
+
+  /** 进入路由前判断是否是灰度业务 */
+  beforeRouteEnter(from, to, next) {
+    next((vm) => {
+      const { $store, $router  } = vm;
+      if (!$store.getters.isShowMaskingTemplate) {
+        $router.push({
+          name: 'retrieve',
+        });
+      }
+    });
   }
 
   async submitSelectRule(stepChange = false) {
@@ -88,6 +101,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
           <MaskingField
             ref="maskingField"
             collect-data={this.curCollect}
+            is-index-set-masking={false}
             onChangeData={() => this.submitSelectRule()} />
         </div>
         <div class="submit-content">
@@ -95,7 +109,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
             theme="primary"
             loading={this.submitLoading}
             onClick={() => this.submitSelectRule(true)}>
-            {this.$t('确定')}
+            {this.$t('应用')}
           </Button>
           <Button theme="default" onClick={() => this.cancelSelectRule()}>{this.$t('取消')}</Button>
         </div>

@@ -81,7 +81,8 @@
             </span>
             <span
               v-if="props.row.is_desensitize"
-              class="bk-icon log-icon icon-masking">
+              class="bk-icon log-icon icon-masking"
+              v-bk-tooltips.top="$t('已脱敏')">
             </span>
             <span
               v-if="!props.row.table_id"
@@ -309,7 +310,7 @@
                 {{ $t('清洗') }}
               </bk-button>
             </span>
-            <bk-dropdown-menu ref="dropdown" align="right" position-fixed>
+            <bk-dropdown-menu ref="dropdown" align="left" position-fixed>
               <i
                 class="bk-icon icon-more"
                 style="margin-left: 5px; font-size: 14px; font-weight: bold;"
@@ -327,7 +328,53 @@
                     {{ $t('详情') }}
                   </a>
                 </li>
-
+                <li v-if="isShowMaskingTemplate">
+                  <a href="javascript:;" @click.stop="operateHandler(props.row, 'masking')">
+                    {{ $t('字段脱敏') }}
+                  </a>
+                </li>
+                <!-- 存储设置 -->
+                <li>
+                  <a
+                    href="javascript:;"
+                    class="text-disabled"
+                    v-if="!props.row.table_id"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'storage'),
+                      disabled: !props.row.status || props.row.table_id,
+                      delay: 500,
+                    }">
+                    {{$t('存储设置')}}
+                  </a>
+                  <a
+                    href="javascript:;"
+                    v-else
+                    v-cursor="{
+                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                    }"
+                    @click.stop="operateHandler(props.row, 'storage')">{{$t('存储设置')}}</a>
+                </li>
+                <!-- 克隆 -->
+                <li>
+                  <a
+                    href="javascript:;"
+                    class="text-disabled"
+                    v-if="!props.row.table_id"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'clone'),
+                      disabled: !props.row.status || props.row.table_id,
+                      delay: 500,
+                    }">
+                    {{ $t('克隆') }}
+                  </a>
+                  <a
+                    href="javascript:;"
+                    v-else
+                    v-cursor="{
+                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                    }"
+                    @click.stop="operateHandler(props.row, 'clone')">{{ $t('克隆') }}</a>
+                </li>
                 <li v-if="props.row.is_active">
                   <a
                     href="javascript:;"
@@ -387,56 +434,9 @@
                     }"
                     @click.stop="operateHandler(props.row, 'delete')">{{$t('删除')}}</a>
                 </li>
-                <!-- 存储设置 -->
-                <li>
-                  <a
-                    href="javascript:;"
-                    class="text-disabled"
-                    v-if="!props.row.table_id"
-                    v-bk-tooltips.top="{
-                      content: getDisabledTipsMessage(props.row, 'storage'),
-                      disabled: !props.row.status || props.row.table_id,
-                      delay: 500,
-                    }">
-                    {{$t('存储设置')}}
-                  </a>
-                  <a
-                    href="javascript:;"
-                    v-else
-                    v-cursor="{
-                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                    }"
-                    @click.stop="operateHandler(props.row, 'storage')">{{$t('存储设置')}}</a>
-                </li>
-                <!-- 克隆 -->
-                <li>
-                  <a
-                    href="javascript:;"
-                    class="text-disabled"
-                    v-if="!props.row.table_id"
-                    v-bk-tooltips.top="{
-                      content: getDisabledTipsMessage(props.row, 'clone'),
-                      disabled: !props.row.status || props.row.table_id,
-                      delay: 500,
-                    }">
-                    {{ $t('克隆') }}
-                  </a>
-                  <a
-                    href="javascript:;"
-                    v-else
-                    v-cursor="{
-                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                    }"
-                    @click.stop="operateHandler(props.row, 'clone')">{{ $t('克隆') }}</a>
-                </li>
                 <li v-if="enableCheckCollector">
                   <a href="javascript:;" @click.stop="handleShowReport(props.row)">
                     {{ $t('一键检测') }}
-                  </a>
-                </li>
-                <li>
-                  <a href="javascript:;" @click.stop="operateHandler(props.row, 'masking')">
-                    {{ $t('字段脱敏') }}
                   </a>
                 </li>
               </ul>
@@ -586,6 +586,7 @@ export default {
       spaceUid: 'spaceUid',
       bkBizId: 'bkBizId',
       authGlobalInfo: 'globals/authContainerInfo',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     ...mapGetters('globals', ['globalsData']),
     authorityMap() {
@@ -729,6 +730,10 @@ export default {
         params.collectorId = row.collector_config_id;
         query.collectorId = row.collector_config_id;
         query.type = 'clone';
+      }
+      if (operateType === 'masking') {
+        // 直接跳转到脱敏页隐藏左侧的步骤
+        query.type = 'masking';
       }
       this.$store.commit('collect/setCurCollect', row);
       this.$router.push({
