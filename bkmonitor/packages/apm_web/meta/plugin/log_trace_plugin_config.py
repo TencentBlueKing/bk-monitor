@@ -54,6 +54,7 @@ class LogTracePluginConfig(object):
                     "data_type": DATA_TYPE,
                     "output_type": OUTPUT_TYPE
                 }
+
             }
         }
         steps = [
