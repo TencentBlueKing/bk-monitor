@@ -814,7 +814,9 @@ class UserGroupDetailSlz(UserGroupSlz):
             return
         # step 1: create new relations
         rules = [
-            DutyRuleRelation(user_group_id=self.instance.id, duty_rule_id=rule_id, order=index)
+            DutyRuleRelation(
+                user_group_id=self.instance.id, duty_rule_id=rule_id, order=index, bk_biz_id=self.instance.bk_biz_id
+            )
             for index, rule_id in enumerate(self.instance.duty_rules)
         ]
         DutyRuleRelation.objects.bulk_create(rules)

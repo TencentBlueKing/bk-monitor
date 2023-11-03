@@ -642,11 +642,14 @@ class DutyArrange(AbstractRecordModel):
         instance_id_key = "duty_rule_id"
         if isinstance(instance, UserGroup):
             # 如果关联关系是用户组，则过滤告警组相关的内容
-            existed_duty_queryset.filter(user_group_id=instance.id)
+            existed_duty_queryset = existed_duty_queryset.filter(user_group_id=instance.id)
             instance_id_key = "user_group_id"
         elif isinstance(instance, DutyRule):
             # 如果关联关系是轮值规则， 则过滤轮值规则内容
-            existed_duty_queryset.filter(duty_rule_id=instance.id)
+            existed_duty_queryset = existed_duty_queryset.filter(duty_rule_id=instance.id)
+        else:
+            # 如果不是这两种类型的其中一种，直接返回，否则后面是危险的删除操作，会删掉所有的轮值记录
+            return
 
         existed_duty_instances = {duty.hash: duty for duty in existed_duty_queryset}
 
@@ -662,9 +665,6 @@ class DutyArrange(AbstractRecordModel):
         new_duty_arranges = [
             duty_arrange for duty_hash, duty_arrange in duty_arranges.items() if duty_hash not in existed_duty
         ]
-
-        # TODO 针对DB已有的数据进行快照和计划的改变
-        # self.manage_duty_snap_and_plan(existed_duty)
 
         # delete old duty arranges
         cls.objects.filter(id__in=deleted_duty_ids).delete()

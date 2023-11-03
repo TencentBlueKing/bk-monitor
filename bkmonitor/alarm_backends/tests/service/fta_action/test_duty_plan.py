@@ -66,7 +66,7 @@ def manager_delay_mock(mocker):
 @pytest.fixture()
 def duty_rule_data():
     yield {
-        "name": "duty rule",
+        "name": "duty rule111",
         "bk_biz_id": 2,
         "effective_time": "2023-11-01 00:00:00",
         "end_time": "",
@@ -856,3 +856,12 @@ class TestDutyPlan:
         assert snap.next_plan_time[:10] == (datetime.datetime.today() + datetime.timedelta(days=30)).strftime(
             "%Y-%m-%d"
         )
+
+    def test_create_duty_rule(self, db_setup, duty_group, duty_rule_data):
+        """测试多次创建规则"""
+        assert DutyArrange.objects.all().count() == 1
+        dslz = DutyRuleDetailSlz(data=duty_rule_data)
+        dslz.is_valid(raise_exception=True)
+        dslz.save()
+
+        assert DutyArrange.objects.all().count() == 2
