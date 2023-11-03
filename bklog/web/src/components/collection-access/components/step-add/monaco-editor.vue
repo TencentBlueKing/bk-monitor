@@ -180,7 +180,9 @@ export default {
           if (newValue !== this.editor.getValue()) {
             this.editor.setValue(newValue);
           }
-          newValue === '' ? this.showPlaceholder('') : this.hidePlaceholder();
+          if (this.placeholder) {
+            newValue === '' ? this.showPlaceholder('') : this.hidePlaceholder();
+          }
         }
       },
     },

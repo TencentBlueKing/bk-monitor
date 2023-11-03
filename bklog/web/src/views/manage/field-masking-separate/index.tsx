@@ -54,7 +54,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
   /** 进入路由前判断是否是灰度业务 */
   beforeRouteEnter(from, to, next) {
     next((vm) => {
-      const { $store, $router  } = vm;
+      const { $store, $router } = vm;
       if (!$store.getters.isShowMaskingTemplate) {
         $router.push({
           name: 'retrieve',

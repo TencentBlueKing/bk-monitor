@@ -136,7 +136,6 @@ export default {
   computed: {
     ...mapState([
       'topMenu',
-      'spaceUid',
       'activeTopMenu',
       'activeManageNav',
       'userGuideData',
