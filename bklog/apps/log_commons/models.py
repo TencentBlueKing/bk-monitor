@@ -13,14 +13,13 @@ from django.utils.translation import ugettext_lazy as _
 from apps.api import BkItsmApi
 from apps.constants import (
     ACTION_ID_MAP,
-    ACTION_MAP,
     ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT,
-    Action,
     ApiTokenAuthType,
     ExternalPermissionActionEnum,
     ITSMStatusChoicesEnum,
     OperateEnum,
     TokenStatusEnum,
+    ViewSetActionEnum,
     ViewTypeEnum,
 )
 from apps.feature_toggle.models import FeatureToggle
@@ -478,21 +477,22 @@ class ExternalPermission(OperateRecordModel):
         return list(qs.values_list("action_id", flat=True).distinct())
 
     @classmethod
-    def is_action_valid(cls, view_set: str, action: str, action_id: str):
+    def is_action_valid(cls, view_set: str, view_action: str, action_id: str):
         """
         判断ViewSet和Action是否合法
         :param view_set: 视图ViewSet
-        :param action: 视图接口Action
+        :param view_action: 视图接口Action
         :param action_id: 后台定义操作ID, ActionEnum
         :return: bool
         """
-        allow_actions: List[Action] = ACTION_MAP.get(action_id, [])
-        for _action in allow_actions:
+        for _action in ViewSetActionEnum.get_keys():
+            if _action.action_id != action_id:
+                return False
             if _action.view_set != view_set:
                 continue
-            if not _action.action_id:
+            if not _action.view_action:
                 return True
-            if _action.action_id == action:
+            if _action.view_action == view_action:
                 return True
         return False
 

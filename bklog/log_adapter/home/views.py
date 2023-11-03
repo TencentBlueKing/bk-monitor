@@ -24,8 +24,13 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from rest_framework.response import Response
 
-from apps.constants import DEFAULT_ALLOWED_ACTION_LIST, ExternalPermissionActionEnum
+from apps.constants import (
+    ExternalPermissionActionEnum,
+    ViewSetAction,
+    ViewSetActionEnum,
+)
 from apps.iam import ActionEnum
 from apps.log_commons.models import (
     AuthorizerSettings,
@@ -68,7 +73,9 @@ class RequestProcessor:
         return None
 
     @classmethod
-    def filter_response_resource(cls, response, action_id, view_action, allow_resources_result):
+    def filter_response_resource(
+        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: Dict[str, Any]
+    ):
         """
         过滤接口返回中的资源
         暂时只过滤search-list
@@ -79,14 +86,30 @@ class RequestProcessor:
         """
         if not allow_resources_result["allowed"]:
             return response
+        # 目前只有log_search下的接口需要过滤资源
         if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return response
         allow_resources = allow_resources_result["resources"]
-        if view_action == "list":
+        view_set_class: ViewSetAction = ViewSetAction(action_id=action_id, view_set=view_set, view_action=view_action)
+        if view_set_class.is_one_of(
+            [ViewSetActionEnum.SEARCH_VIEWSET_LIST.value, ViewSetActionEnum.FAVORITE_VIEWSET_LIST.value]
+        ):
             data = response.data
             if isinstance(data, dict) and "data" in data:
                 data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
                 response.data = data
+                return response
+        if view_set_class.eq(ViewSetActionEnum.FAVORITE_VIEWSET_LIST_BY_GROUP.value):
+            data = response.data
+            if isinstance(data, dict) and "data" in data:
+                allowed_data = []
+                for fg in data["data"]:
+                    fg["favorites"] = [f for f in fg["favorites"] if f["index_set_id"] in allow_resources]
+                    allowed_data.append(fg)
+                data["data"] = allowed_data
+                response.data = data
+                return response
+
         return response
 
     @classmethod
@@ -94,11 +117,10 @@ class RequestProcessor:
         """
         是否是默认允许的接口
         """
-        for _d in DEFAULT_ALLOWED_ACTION_LIST:
-            if _d.view_set == view_set and not _d.action_id:
-                return True
-            if _d.view_set == view_set and _d.action == view_action:
-                return True
+        for _d in ViewSetActionEnum.get_keys():
+            if _d.view_set == view_set and _d.view_action == view_action:
+                if _d.action_id == ExternalPermissionActionEnum.LOG_COMMON.value or _d.default_permission:
+                    return True
         return False
 
 
@@ -243,7 +265,7 @@ def dispatch_external_proxy(request):
                 )
             is_allowed = False
             for _action_id in external_user_allowed_action_id_list:
-                if ExternalPermission.is_action_valid(view_set=view_set, action=view_action, action_id=_action_id):
+                if ExternalPermission.is_action_valid(view_set=view_set, view_action=view_action, action_id=_action_id):
                     is_allowed = True
                     action_id = _action_id
                     break
@@ -289,6 +311,7 @@ def dispatch_external_proxy(request):
         return RequestProcessor.filter_response_resource(
             response=response,
             action_id=action_id,
+            view_set=view_set,
             view_action=view_action,
             allow_resources_result=allow_resources_result,
         )
