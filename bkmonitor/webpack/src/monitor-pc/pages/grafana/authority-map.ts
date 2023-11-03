@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const VIEW_AUTH = 'view_dashboard_v2';
-export const MANAGE_AUTH = 'manage_dashboard_v2';
+// export const VIEW_AUTH = 'view_dashboard_v2';
+// export const MANAGE_AUTH = 'manage_dashboard_v2';
 export const DATASOURCE_AUTH = 'manage_datasource_v2';
+export const NEW_DASHBOARD_AUTH = 'new_dashboard';
