@@ -64,7 +64,7 @@ const settingFields = [ // 设置显示的字段
   },
   {
     id: 'matchPattern',
-    label: (i18n.t('匹配正则表达式') as String).replace('label-', ''),
+    label: i18n.t('匹配正则表达式'),
   },
   {
     id: 'maskingRules',
@@ -733,7 +733,7 @@ export default class MaskingSetting extends tsc<IProps> {
 
             {this.checkFields('matchPattern') ? (
               <TableColumn
-                label={(this.$t('匹配正则表达式') as String).replace('label-', '')}
+                label={this.$t('匹配正则表达式')}
                 key={'matchPattern'}
                 scopedSlots={matchExpressionSlot}
               ></TableColumn>

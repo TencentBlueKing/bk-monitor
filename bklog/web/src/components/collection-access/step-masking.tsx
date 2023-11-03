@@ -24,6 +24,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import {
   Component,
   Emit,
+  Prop,
   Ref,
 } from 'vue-property-decorator';
 import { Button } from 'bk-magic-vue';
@@ -37,8 +38,10 @@ interface IProps {
 
 @Component
 export default class StepMasking extends tsc<IProps> {
+  @Prop({ type: String, required: true }) operateType: string;
   @Ref('maskingField') private readonly maskingFieldRef: HTMLElement; // 移动到分组实例
   submitLoading = false;
+
   get curCollect() {
     return this.$store.getters['collect/curCollect'];
   }
@@ -47,12 +50,17 @@ export default class StepMasking extends tsc<IProps> {
   emitStepChange() {}
 
   @Emit('changeSubmit')
+  emitSubmitChange(val: boolean) {
+    return val;
+  }
+
+  /** 提交脱敏 */
   async submitSelectRule(stepChange = false) {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
     if (!data.field_configs.length && !isUpdate) {
       this.emitStepChange();
-      return true;
+      return this.emitSubmitChange(true);
     }; // 非更新状态且没有任何字段选择规则 直接下一步
     let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
     if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
@@ -64,14 +72,21 @@ export default class StepMasking extends tsc<IProps> {
       });
       this.$emit('changeIndexSetId', this.curCollect?.index_set_id || '');
       if (res.result && stepChange) this.emitStepChange();
-      return true;
+      return this.emitSubmitChange(true);
     } catch (err) {
-      return false;
+      return this.emitSubmitChange(false);
     } finally {
       this.submitLoading = false;
     };
   }
 
+  /** 跳过 */
+  handleNextPage() {
+    this.emitSubmitChange(true);
+    this.emitStepChange();
+  }
+
+  /** 取消 回到列表里 */
   cancelSelectRule() {
     this.$router.push({
       name: 'collection-item',
@@ -88,6 +103,7 @@ export default class StepMasking extends tsc<IProps> {
           <MaskingField
             ref="maskingField"
             collect-data={this.curCollect}
+            operate-type={this.operateType}
             onChangeData={() => this.submitSelectRule()} />
         </div>
         <div class="submit-content">
@@ -95,7 +111,13 @@ export default class StepMasking extends tsc<IProps> {
             theme="primary"
             loading={this.submitLoading}
             onClick={() => this.submitSelectRule(true)}>
-            {this.$t('确定')}
+            {this.$t('应用')}
+          </Button>
+          <Button
+            theme="default"
+            loading={this.submitLoading}
+            onClick={() => this.handleNextPage()}>
+            {this.$t('跳过')}
           </Button>
           <Button theme="default" onClick={() => this.cancelSelectRule()}>{this.$t('取消')}</Button>
         </div>

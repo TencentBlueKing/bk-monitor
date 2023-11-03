@@ -372,7 +372,10 @@ export default {
       const { href } = this.$router.resolve({
         name: routeName,
         params,
-        query: { spaceUid: this.$store.state.spaceUid },
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+          type: val === 'logMasking' ? 'masking' : undefined,
+        },
       });
       window.open(href, '_blank');
     },

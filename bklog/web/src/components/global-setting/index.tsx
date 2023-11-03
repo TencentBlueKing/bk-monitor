@@ -24,21 +24,43 @@ import { Component as tsc } from 'vue-tsx-support';
 import {
   Component,
   Model,
+  Prop,
 } from 'vue-property-decorator';
 import { Dialog } from 'bk-magic-vue';
-import MaskingSetting from './masking-setting';
-import './masking-dialog.scss';
+import MaskingSetting from '../log-masking/masking-setting';
+import './index.scss';
+
+interface IMenuItem {
+  id: string;
+  name: string;
+  href?: string;
+}
 
 interface IProps {
-  value: boolean
+  value: boolean;
+  /** 左侧menu list 不设置则不显示左侧栏 */
+  menuList?: IMenuItem[];
+  /** 选中的左侧栏项 */
+  activeMenu?: string;
 }
 
 @Component
 export default class MaskingDialog extends tsc<IProps> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
+  @Prop({ default: () => [], type: Array }) readonly menuList: IMenuItem[];
+  @Prop({ default: '', type: String }) readonly activeMenu: string;
 
   handleCloseDialog() {
-    this.$store.commit('updateIsShowMaskingDialog', false);
+    this.$store.commit('updateIsShowGlobalDialog', false);
+  }
+
+  getContentPanel(activeMenu: string) {
+    switch (activeMenu) {
+      case 'masking-setting':
+        return <MaskingSetting style={'padding: 20px 24px;'} />;
+      default:
+        return this.$slots.default;
+    }
   }
 
   render() {
@@ -61,11 +83,25 @@ export default class MaskingDialog extends tsc<IProps> {
         <div class="masking-container">
           <div class="masking-title">
             <div></div>
-            <span>{this.$t('全局脱敏设置')}</span>
+            <span>{this.$t('全局设置')}</span>
             <div class="bk-icon icon-close" onClick={this.handleCloseDialog}></div>
           </div>
           <div class="center-box">
-            <MaskingSetting />
+            <div
+              class='left-panel'
+              style={{ display: this.menuList?.length ? 'flex' : 'none' }}
+            >
+              {this.menuList.map(item => (
+                <div
+                  class={`menu-item ${this.activeMenu === item.id ? 'active-menu' : ''}`}
+                  key={item.id}
+                  onClick={() => this.activeMenu !== item.id && this.$emit('menuChange', item)}
+                >
+                  {this.$t(item.name)}
+                </div>
+              ))}
+            </div>
+            <div class='content-panel'>{this.getContentPanel(this.activeMenu)}</div>
           </div>
         </div>
       </Dialog>

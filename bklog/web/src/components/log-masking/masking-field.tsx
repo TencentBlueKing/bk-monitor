@@ -78,7 +78,10 @@ type TRuleChangeType = 'merge' | 'allInit' | 'allClear';
 @Component
 export default class MaskingField extends tsc<IProps> {
   @Prop({ type: Object, required: true }) collectData: any;
-  @Ref('syncRuleTable') private readonly syncRuleTableRef: HTMLElement; // 移动到分组实例
+  /** 是否是采集项脱敏 */
+  @Prop({ type: Boolean, default: true }) isIndexSetMasking: boolean;
+  @Prop({ type: String, required: true }) operateType: string;
+  @Ref('syncRuleTable') private readonly syncRuleTableRef: HTMLElement;
 
   /** 日志查询字符串 */
   configStr = ''
@@ -290,9 +293,6 @@ export default class MaskingField extends tsc<IProps> {
   emitSyncRule() {
     return true;
   }
-  // get isShowMaskingDialog() {
-  //   return this.$store.state.isShowMaskingDialog;
-  // }
 
   async created() {
     this.tableLoading = true;
@@ -320,15 +320,6 @@ export default class MaskingField extends tsc<IProps> {
       this.tableLoading = false;
     }
   }
-
-  // @Watch('isShowMaskingDialog')
-  // async watchIsShowMaskingDialog(val: boolean) {
-  //   if (!val) {
-  //     const initFieldConfigs = await this.getMaskingConfig(); // 获取脱敏配置信息
-  //     await this.matchMaskingRule();
-  //     this.initMergeTableList(initFieldConfigs, 'allInit');
-  //   }
-  // }
 
   getFieldIcon(fieldType) {
     return fieldTypeMap[fieldType] ? fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
@@ -526,6 +517,7 @@ export default class MaskingField extends tsc<IProps> {
         arrow: true,
         placement: 'bottom',
         theme: 'light',
+        interactive: true,
         onHidden: () => {
           this.tagPopoverInstance?.destroy();
           this.tagPopoverInstance = null;
@@ -1104,7 +1096,7 @@ export default class MaskingField extends tsc<IProps> {
     return {
       space_uid: this.spaceUid,
       field_configs: fieldConfigs,
-      text_fields: this.tableList[2]?.fieldList.map(item => item.field_name),
+      text_fields: this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name),
     };
   }
 
@@ -1183,9 +1175,9 @@ export default class MaskingField extends tsc<IProps> {
                       content: fieldTypeMap[item.field_type] && fieldTypeMap[item.field_type].name,
                       disabled: !fieldTypeMap[item.field_type],
                     }}></i>
-                  <span class="title-overflow" v-bk-overflow-tips>{item.field_name}</span>
+                  <span class="title-overflow" v-bk-overflow-tips={{ delay: 500 }}>{item.field_name}</span>
                   {
-                    item.field_alias && <span class="nick-name title-overflow" v-bk-overflow-tips>{item.field_alias}</span>
+                    item.field_alias && <span class="nick-name title-overflow" v-bk-overflow-tips={{ delay: 500 }}>{item.field_alias}</span>
                   }
                 </div>
               ))
@@ -1302,9 +1294,9 @@ export default class MaskingField extends tsc<IProps> {
             preview.map((pItem, pIndex) => {
               if (pIndex <= (rLength - 1)) {
                 return <div class="preview-result">
-                  <span class="old title-overflow" v-bk-overflow-tips>{pItem.origin}</span>
+                  <span class="old title-overflow" v-bk-overflow-tips={{ delay: 500 }}>{pItem.origin}</span>
                   <i class="bk-icon icon-arrows-right"></i>
-                  <span class="result title-overflow" v-bk-overflow-tips>{pItem.afterMasking}</span>
+                  <span class="result title-overflow" v-bk-overflow-tips={{ delay: 500 }}>{pItem.afterMasking}</span>
                   {getMorePreviewNum(preview, rLength, pIndex)}
                 </div>;
               }
@@ -1338,7 +1330,7 @@ export default class MaskingField extends tsc<IProps> {
             placement: 'top',
             theme: 'light',
           }}>
-          <div class="preview-excess-num">{previewList.length - rLength}</div>
+          <div class="preview-excess-num">{`+${previewList.length - rLength}`}</div>
           <div slot="content" class="preview">
             {
               showPreviewList.map(pItem => (
@@ -1378,9 +1370,11 @@ export default class MaskingField extends tsc<IProps> {
 
     return (
       <div class="masking-field">
-        {/* 日志采样输入框 */}
+        {/* 采样日志输入框 */}
         <MaskingFieldInput
           index-set-id={this.collectData?.index_set_id}
+          is-index-set-masking={this.isIndexSetMasking}
+          operate-type={this.operateType}
           onBlurInput={({ list, isPreview }) => this.handleBlurConfigInput(list, isPreview)}
           onCreateRule={this.handleCreateRule}
         />
@@ -1496,7 +1490,7 @@ export default class MaskingField extends tsc<IProps> {
                             .map(([matchKey, matchValue]) => (
                               <div class="item">
                                 <span class="key">{this.ruleDialogI18nMap[matchKey]} :</span>
-                                <span class="value title-overflow" v-bk-overflow-tips>{this.htmlDecode(matchValue)}</span>
+                                <span class="value title-overflow" v-bk-overflow-tips={{ delay: 500 }}>{this.htmlDecode(matchValue)}</span>
                               </div>
                             ))
                       }
@@ -1541,15 +1535,6 @@ export default class MaskingField extends tsc<IProps> {
               }} />
           </div>
         </Dialog>
-      {/*
-        <Dialog v-model={this.isShowAllSyncDialog}
-          theme="primary"
-          mask-close={false}
-          title={this.$t('是否一键同步规则')}
-          on-confirm={this.handleAllSync}>
-            {this.$t('一键同步所有规则，直接生效')}
-        </Dialog>
-      */}
       </div>
     );
   }

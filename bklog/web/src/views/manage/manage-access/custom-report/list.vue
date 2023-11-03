@@ -75,7 +75,8 @@
                 </span>
                 <span
                   v-if="props.row.is_desensitize"
-                  class="bk-icon log-icon icon-masking">
+                  class="bk-icon log-icon icon-masking"
+                  v-bk-tooltips.top="$t('已脱敏')">
                 </span>
               </div>
             </template>
@@ -152,7 +153,7 @@
                 }"
                 @click="operateHandler(props.row, 'clean')">
                 {{ $t('清洗') }}</bk-button>
-              <bk-dropdown-menu ref="dropdown" align="right">
+              <bk-dropdown-menu ref="dropdown" align="left">
                 <i
                   class="bk-icon icon-more"
                   style="font-size: 14px; font-weight: bold; display: inline-block;"
@@ -168,6 +169,16 @@
                       }"
                       @click="operateHandler(props.row, 'view')">
                       {{ $t('详情') }}
+                    </a>
+                  </li>
+                  <li v-if="isShowMaskingTemplate">
+                    <a
+                      href="javascript:;"
+                      v-cursor="{
+                        active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
+                      }"
+                      @click="operateHandler(props.row, 'masking')">
+                      {{ $t('字段脱敏') }}
                     </a>
                   </li>
                   <li v-if="props.row.is_active">
@@ -221,16 +232,6 @@
                       {{$t('删除')}}
                     </a>
                   </li>
-                  <li>
-                    <a
-                      href="javascript:;"
-                      v-cursor="{
-                        active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
-                      }"
-                      @click="operateHandler(props.row, 'masking')">
-                      {{ $t('字段脱敏') }}
-                    </a>
-                  </li>
                 </ul>
               </bk-dropdown-menu>
             </div>
@@ -281,6 +282,7 @@ export default {
       spaceUid: 'spaceUid',
       bkBizId: 'bkBizId',
       authGlobalInfo: 'globals/authContainerInfo',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     authorityMap() {
       return authorityMap;

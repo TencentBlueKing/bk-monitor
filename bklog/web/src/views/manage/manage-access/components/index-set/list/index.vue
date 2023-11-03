@@ -74,7 +74,8 @@
             </span>
             <span
               v-if="row.is_desensitize"
-              class="bk-icon log-icon icon-masking">
+              class="bk-icon log-icon icon-masking"
+              v-bk-tooltips.top="$t('已脱敏')">
             </span>
           </div>
         </template>
@@ -116,6 +117,7 @@
           </bk-button>
           <!-- { active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_INDICES_AUTH]) } -->
           <bk-button
+            v-if="isShowMaskingTemplate"
             theme="primary" text style="margin-right: 4px;"
             @click="manageIndexSet('masking', props.row)">{{ $t('字段脱敏') }}
           </bk-button>
@@ -186,6 +188,7 @@ export default {
     ...mapGetters({
       bkBizId: 'bkBizId',
       spaceUid: 'spaceUid',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     authorityMap() {
       return authorityMap;

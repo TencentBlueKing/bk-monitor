@@ -79,7 +79,11 @@
     </div>
     <auth-dialog />
     <bk-paas-login ref="login" />
-    <log-masking-dialog v-model="isShowMaskingDialog" />
+    <global-setting-dialog
+      v-model="isShowGlobalDialog"
+      :active-menu="globalActiveLabel"
+      :menu-list="globalSettingList"
+      @menuChange="handleChangeMenu" />
     <!-- <login-modal v-if="loginData" :login-data="loginData" /> -->
   </div>
 </template>
@@ -95,7 +99,7 @@ import BizMenuSelect from '@/components/biz-menu';
 import NoviceGuide from '@/components/novice-guide';
 import jsCookie from 'js-cookie';
 import BkPaasLogin from '@blueking/paas-login';
-import LogMaskingDialog from '@/components/log-masking/masking-dialog';
+import GlobalSettingDialog from '@/components/global-setting';
 
 export default {
   name: 'App',
@@ -108,7 +112,7 @@ export default {
     BizMenuSelect,
     NoviceGuide,
     BkPaasLogin,
-    LogMaskingDialog,
+    GlobalSettingDialog,
   },
   data() {
     return {
@@ -123,6 +127,10 @@ export default {
       visible: false, // 是否展示右键菜单
       top: 0, // 右键菜单定位top
       left: 0, // 右键菜单定位left
+      /** 全局设置列表 */
+      dialogSettingList: [
+        { id: 'masking-setting', name: this.$t('全局脱敏') },
+      ],
     };
   },
   computed: {
@@ -131,12 +139,15 @@ export default {
       'activeTopMenu',
       'activeManageNav',
       'userGuideData',
-      'isShowMaskingDialog',
+      'isShowGlobalDialog',
+      'globalSettingList',
+      'globalActiveLabel',
     ]),
     ...mapGetters({
       pageLoading: 'pageLoading',
       asIframe: 'asIframe',
       authPageInfo: 'globals/authContainerInfo',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     navActive() {
       return '';
@@ -159,6 +170,10 @@ export default {
         this.isAsIframe = val;
       },
     },
+    isShowMaskingTemplate(val) {
+      // 更新全局操作列表
+      this.$store.commit('updateGlobalSettingList', val ? this.dialogSettingList : []);
+    },
   },
   created() {
     const platform = window.navigator.platform.toLowerCase();
@@ -176,6 +191,8 @@ export default {
     }
     const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
     this.$store.commit('updateIsEnLanguage', isEnLanguage);
+    // 初始化脱敏灰度相关的代码
+    this.initMaskingToggle();
 
     // 弹窗登录
     window.bus.$on('show-login-modal', (loginData) => {
@@ -193,6 +210,33 @@ export default {
     window.LoginModal = this.$refs.login;
   },
   methods: {
+    /** 初始化脱敏灰度相关的数据 */
+    initMaskingToggle() {
+      const { log_desensitize: logDesensitize } = window.FEATURE_TOGGLE;
+      let toggleList = window.FEATURE_TOGGLE_WHITE_LIST?.log_desensitize || [];
+      switch (logDesensitize) {
+        case 'on':
+          toggleList = [];
+          break;
+        case 'off': {
+          toggleList = [];
+          // const index = this.dialogSettingList.findIndex(item => item.id === 'masking-setting');
+          // const newSettingList = this.dialogSettingList.slice(index, 1);
+          this.$store.commit('updateGlobalSettingList', []);
+          break;
+        }
+        default:
+          break;
+      }
+      this.$store.commit('updateMaskingToggle', {
+        toggleString: logDesensitize,
+        toggleList,
+      });
+    },
+    /** 更新全局弹窗的选项 */
+    handleChangeMenu(item) {
+      this.$store.commit('updateGlobalActiveLabel', item.id);
+    },
     getMenuIcon(item) {
       if (item.icon) {
         return `bk-icon log-icon icon-${item.icon}`;

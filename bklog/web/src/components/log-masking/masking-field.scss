@@ -235,11 +235,13 @@
     .masking-preview-box {
       @extend %preview-box;
 
-      > :not(:last-child) {
+      > :not(:nth-last-child(2)) {
         border-bottom: 1px solid #dcdee5;
       }
 
       .preview-excess-num {
+        display: inline-block;
+        min-width: 24px;
         margin-left: 4px;
         font-size: 12px;
         padding: 0 4px;
@@ -293,6 +295,8 @@
 }
 
 .preview-prop {
+  font-size: 12px;
+
   @extend %preview-box;
 
   .preview {
