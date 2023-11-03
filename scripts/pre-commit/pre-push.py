@@ -146,7 +146,7 @@ def lock(func):
     lockfile = os.path.join(repo.working_dir, ".git", "pre-push.lock")
     try:
         fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_RDWR)
-        os.write(fd, repo.head.commit.hexsha)
+        os.write(fd, repo.head.commit.hexsha.encode())
     except OSError:
         fd = os.open(lockfile, os.O_RDONLY)
         commit = os.read(fd, 40).decode().strip()
