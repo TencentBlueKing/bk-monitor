@@ -490,7 +490,7 @@ class UserGroup(AbstractRecordModel):
 
     @cached_property
     def duty_plans(self):
-        return DutyPlan.objects.filter(user_group_id=self.id, is_active=True).order_by("order")
+        return DutyPlan.objects.filter(user_group_id=self.id, is_effective=1).order_by("id")
 
     @staticmethod
     def translate_notice_ways(notify_config):
