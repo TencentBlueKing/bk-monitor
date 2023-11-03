@@ -389,7 +389,7 @@ class ViewSetActionEnum(ChoicesEnum):
     # META-MetaViewSet
     META_VIEWSET = ViewSetAction(view_set="MetaViewSet", default_permission=True)
     LANGUAGE_VIEWSET = ViewSetAction(view_set="LanguageViewSet", default_permission=True)
-    MENUVIEWSET = ViewSetAction(view_set="MenuViewSet", default_permission=True)
+    MENU_VIEWSET = ViewSetAction(view_set="MenuViewSet", default_permission=True)
 
     _choices_keys = (
         SEARCH_VIEWSET_LIST,
@@ -420,7 +420,7 @@ class ViewSetActionEnum(ChoicesEnum):
         STRATEGIES_VIEWSET,
         META_VIEWSET,
         LANGUAGE_VIEWSET,
-        MENUVIEWSET,
+        MENU_VIEWSET,
     )
 
 
