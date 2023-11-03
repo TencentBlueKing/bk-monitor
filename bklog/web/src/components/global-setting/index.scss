@@ -1,7 +1,7 @@
 .masking-container {
   height: calc(100vh - 52px);
   background: #f4f7fa;
-  overflow-y: hidden;
+  overflow: auto;
 
   .masking-title {
     display: flex;
@@ -50,16 +50,19 @@
   .center-box {
     margin-top: 20px;
     width: 100%;
+    min-height: calc(100vh - 128px);
     min-width: 1366px;
     display: flex;
     justify-content: center;
     position: relative;
+    overflow: auto;
 
     .content-panel {
       font-size: 12px;
       display: flex;
       width: 1312px;
-      min-height: calc(100vh - 200px);
+      max-height: calc(100vh - 200px);
+      min-height: 365px;
       background: #fff;
       box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
       overflow: hidden;

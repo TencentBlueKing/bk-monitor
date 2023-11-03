@@ -230,6 +230,7 @@ export default class MaskingAddRule extends tsc<IProps> {
   }
 
   get isCanClickDebugBtn() {
+    // 脱敏正则，脱敏算子，原始日志，且选中脱敏正则checkBox才可点击调试
     return !this.matchExpressionCheckValue || !this.formData.match_pattern
     || !this.logOriginal || !this.checkOperatorParams();
   }
