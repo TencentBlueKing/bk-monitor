@@ -149,7 +149,7 @@ def lock(func):
         os.write(fd, repo.head.commit.hexsha)
     except OSError:
         fd = os.open(lockfile, os.O_RDONLY)
-        commit = os.read(fd, 40).decode()
+        commit = os.read(fd, 40).decode().strip()
 
         if commit == repo.head.commit.hexsha:
             sys.exit(0)
