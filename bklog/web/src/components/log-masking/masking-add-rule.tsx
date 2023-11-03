@@ -565,7 +565,6 @@ export default class MaskingAddRule extends tsc<IProps> {
                       <Input
                         type="number"
                         v-model={this.formData.params.preserve_head}
-                        st
                         min={0}
                         onBlur={() => this.handleChangeCoverNumber()}></Input>
                       <Input
