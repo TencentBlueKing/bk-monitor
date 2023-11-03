@@ -512,13 +512,6 @@ class PreviewSerializer(serializers.Serializer):
             raise ValidationError("resource(%s) not existed" % internal_data["resource_type"])
         return instance
 
-    def validate(self, attrs):
-        if attrs["source_type"] == self.SourceType.API:
-            # 如果数据来源是API，直接返回
-            return attrs
-        if attrs["source_type"] == self.SourceType.DB and not attrs.get("id"):
-            raise ValidationError("field(id) is required where source-type is db or default")
-
 
 class UserGroupSlz(serializers.ModelSerializer):
     name = serializers.CharField(required=True)

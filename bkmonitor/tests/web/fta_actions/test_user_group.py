@@ -15,7 +15,11 @@ from django.test import TestCase
 
 from bkmonitor.action.serializers.strategy import *  # noqa
 from bkmonitor.models import DutyArrange, UserGroup
-from kernel_api.views.v4 import SaveDutyRuleResource
+from kernel_api.views.v4 import (
+    PreviewDutyRuleResource,
+    PreviewUserGroupPlanResource,
+    SaveDutyRuleResource,
+)
 
 
 class BaseTestCase(TestCase):
@@ -808,6 +812,16 @@ class TestDutyRuleSlz(BaseTestCase):
 
 
 class TestDutyRuleResource(BaseTestCase):
+    def setUp(self):
+        DutyRule.objects.all().delete()
+        DutyRuleSnap.objects.all().delete()
+        DutyPlan.objects.all().delete()
+
+    def tearDown(self):
+        DutyRule.objects.all().delete()
+        DutyRuleSnap.objects.all().delete()
+        DutyPlan.objects.all().delete()
+
     def test_create_multi_regular_duty_rule(self):
         duty_rule = {
             "name": "duty rule",
@@ -925,3 +939,80 @@ class TestDutyRuleResource(BaseTestCase):
         UserGroup.objects.create(**user_group_data)
 
         self.assertEqual(UserGroup.objects.filter(duty_rules__contains=new_data["id"]).count(), 1)
+
+    def test_api_duty_preview(self):
+        duty_rule = {
+            "name": "duty rule",
+            "bk_biz_id": 2,
+            "source_type": "API",
+            "effective_time": "2023-07-25 11:00:00",
+            "end_time": "",
+            "labels": ["mysql", "redis", "business"],
+            "enabled": True,
+            "category": "regular",
+            "duty_arranges": [
+                {
+                    "duty_time": [{"work_type": "daily", "work_days": [], "work_time": ["00:00--23:59"]}],
+                    "duty_users": [
+                        [
+                            {
+                                "id": "bk_biz_maintainer",
+                                "display_name": "运维人员",
+                                "logo": "",
+                                "type": "group",
+                                "members": [],
+                            }
+                        ]
+                    ],
+                    "backups": [],
+                }
+            ],
+        }
+        r = PreviewDutyRuleResource()
+        data = r.request(duty_rule)
+        self.assertEqual(len(data), 1)
+
+    def test_db_duty_preview(self):
+        duty_rule = {
+            "name": "duty rule",
+            "bk_biz_id": 2,
+            "effective_time": "2023-07-25 11:00:00",
+            "end_time": "",
+            "labels": ["mysql", "redis", "business"],
+            "enabled": True,
+            "category": "regular",
+            "duty_arranges": [
+                {
+                    "duty_time": [{"work_type": "daily", "work_days": [], "work_time": ["00:00--23:59"]}],
+                    "duty_users": [
+                        [
+                            {
+                                "id": "bk_biz_maintainer",
+                                "display_name": "运维人员",
+                                "logo": "",
+                                "type": "group",
+                                "members": [],
+                            }
+                        ]
+                    ],
+                    "backups": [],
+                }
+            ],
+        }
+
+        r = SaveDutyRuleResource()
+        data = r.request(duty_rule)
+        self.assertIsNotNone(data.get("id"))
+        duty_id = data["id"]
+        preview_data = {"source_type": "DB", "id": duty_id, "bk_biz_id": 2}
+
+        r = PreviewDutyRuleResource()
+        data = r.request(preview_data)
+        self.assertEqual(len(data), 1)
+        # 每天轮一次产生了30天的排班
+        self.assertEqual(len(data[0]["work_time"]), 30)
+
+        user_group_view = {"source_type": "API", "duty_rules": [duty_id], "bk_biz_id": 2}
+        r = PreviewUserGroupPlanResource()
+        data = r.request(user_group_view)
+        print(data)
