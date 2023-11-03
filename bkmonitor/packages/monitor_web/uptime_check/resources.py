@@ -392,7 +392,9 @@ class TestTaskResource(Resource):
             if len(biz_result["failed"]):
                 err_msg = ""
                 for err_obj in biz_result["failed"]:
-                    err_msg += _(" 节点:") + f"{err_obj['bk_host_id']}|{err_obj['ip']}" + " - " + err_obj["errmsg"]
+                    err_msg += (
+                        _(" 节点:") + f"{err_obj['bk_host_id']}|{err_obj.get('ip', '')}" + " - " + err_obj["errmsg"]
+                    )
                 raise CustomException(_("部分节点测试失败:%s") % err_msg, data=biz_result["failed"])
             success = success + biz_result["success"]
 
@@ -421,7 +423,9 @@ class TestTaskResource(Resource):
             if len(common_failed):
                 err_msg = ""
                 for err_obj in common_failed:
-                    err_msg += _(" 节点:") + f"{err_obj['bk_host_id']}|{err_obj['ip']}" + " - " + err_obj["errmsg"]
+                    err_msg += (
+                        _(" 节点:") + f"{err_obj['bk_host_id']}|{err_obj.get('ip', '')}" + " - " + err_obj["errmsg"]
+                    )
                 raise CustomException(_("部分节点测试失败:%s") % err_msg, data=common_failed)
             success = success + common_success
 

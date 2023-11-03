@@ -70,14 +70,18 @@ class JobTaskClient(object):
             "aix": aix_system_info,
         }
 
-    def get_linux_setup_path(self):
-        return posixpath.join(settings.LINUX_GSE_AGENT_PATH, "plugins", "bin")
+    def get_linux_setup_path(self, gse_agent_path=None):
+        if not gse_agent_path:
+            gse_agent_path = settings.LINUX_GSE_AGENT_PATH
+        return posixpath.join(gse_agent_path, "plugins", "bin")
 
     def get_linux_conf_path(self):
         return posixpath.join(settings.LINUX_GSE_AGENT_PATH, "plugins", "etc")
 
-    def get_windows_setup_path(self):
-        return ntpath.join(settings.WINDOWS_GSE_AGENT_PATH, "plugins", "bin")
+    def get_windows_setup_path(self, gse_agent_path=None):
+        if not gse_agent_path:
+            gse_agent_path = settings.WINDOWS_GSE_AGENT_PATH
+        return ntpath.join(gse_agent_path, "plugins", "bin")
 
     def get_windows_conf_path(self):
         return ntpath.join(settings.WINDOWS_GSE_AGENT_PATH, "plugins", "etc")
@@ -218,7 +222,7 @@ class JobTaskClient(object):
                 "divide_symbol": self.get_divide_symbol(),
                 "test_config_file_path": posixpath.join(settings.LINUX_FILE_DOWNLOAD_PATH, test_filename),
                 "test_config_yml": test_config_yml,
-                "setup_path": setup_path or self.get_linux_setup_path(),
+                "setup_path": self.get_linux_setup_path(setup_path),
                 "download_path": settings.LINUX_FILE_DOWNLOAD_PATH,
             },
         )
@@ -232,7 +236,7 @@ class JobTaskClient(object):
                             "divide_symbol": self.get_divide_symbol(),
                             "test_config_file_path": posixpath.join(settings.WINDOWS_FILE_DOWNLOAD_PATH, test_filename),
                             "test_config_yml": test_config_yml,
-                            "setup_path": setup_path or self.get_windows_setup_path(),
+                            "setup_path": self.get_windows_setup_path(setup_path),
                             "download_path": settings.WINDOWS_FILE_DOWNLOAD_PATH,
                         },
                     ),
