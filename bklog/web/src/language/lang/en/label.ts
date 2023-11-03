@@ -567,7 +567,7 @@ export default {
   "下载范围": "Download type",
   "日志下载": "Log download",
   "日志脱敏": "Log Desensitization",
-  "日志采样": "Log sampling",
   "脱敏算子": "Desensitization operator",
   "label-脱敏算子": "Desensitization Operator",
+  "全局脱敏": "Global Desensitization"
 };

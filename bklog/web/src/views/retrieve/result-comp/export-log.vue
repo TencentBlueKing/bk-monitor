@@ -85,7 +85,8 @@
           </bk-select>
           <!-- <div v-if="asyncExportUsable && isShowAsyncDownload" class="style-line"></div> -->
         </div>
-        <div class="desensitize-select-box">
+        <!-- v-if="isShowMaskingTemplate" -->
+        <div v-if="false" class="desensitize-select-box">
           <span class="middle-title">{{$t('日志类型')}}</span>
           <bk-radio-group class="desensitize-radio-box" v-model="desensitizeRadioType">
             <bk-radio v-for="[key, val] in Object.entries(logTypeMap)" :key="key" :value="key">{{val}}</bk-radio>
@@ -184,6 +185,7 @@ export default {
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     getAsyncText() { // 异步下载按钮前的文案
       return this.totalCount > this.exportSecondComparedSize

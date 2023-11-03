@@ -31,7 +31,7 @@
  * 脱敏规则正则调试
  */
  const desensitizeDebug = {
-  url: '/desensitize/rule/regex/debug/',
+  url: '/desensitize/rule/debug/',
   method: 'post',
 };
 /**

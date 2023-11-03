@@ -30,6 +30,7 @@ import {
   Button,
   Tab,
   TabPanel,
+  Alert,
 } from 'bk-magic-vue';
 import MonacoEditor from '../../components/collection-access/components/step-add/monaco-editor.vue';
 import $http from '../../api';
@@ -37,8 +38,11 @@ import './masking-field-input.scss';
 
 @Component
 export default class MaskingFieldInput extends tsc<{}> {
-  @Prop({ type: Number, required: true }) indexSetId: number;
-  /** 当前活跃的日志采样下标 */
+  /** 是否是采集项脱敏 */
+  @Prop({ type: Boolean, default: true }) isIndexSetMasking: boolean;
+  @Prop({ type: String, required: true }) operateType: string;
+  @Prop({ required: true }) indexSetId: string | number;
+  /** 当前活跃的采样日志下标 */
   activeTab = '0'
   /** 缓存的日志json列表 */
   catchJsonList = []
@@ -55,15 +59,8 @@ export default class MaskingFieldInput extends tsc<{}> {
   currentScreenY = null
   /** 当前收藏容器的高度 */
   collectHeight = 160
-  /** 日志采样列表 */
-  jsonValueList = [{
-    id: 0,
-    jsonStr: '',
-    catchJsonStr: '',
-    isJsonError: false,
-    name: '0',
-    label: `${window.mainComponent.$t('日志采样')}1`,
-  }];
+  /** 采样日志列表 */
+  jsonValueList = [];
   /** 是否展示无法同步规则tips */
   isShowCannotCreateRuleTips = false
   /** JSON格式错误tips */
@@ -83,8 +80,15 @@ export default class MaskingFieldInput extends tsc<{}> {
     minimap: {
       enabled: false, // 是否启用预览图
     },
+    scrollbar: { // 滚动条设置
+      verticalScrollbarSize: 4, // 竖滚动条
+      horizontalScrollbarSize: 4, // 横滚动条
+      // useShadows: true, // 失焦阴影动画
+    },
   }
-  /** 当前活跃的日志采样的元素 */
+  /** 是否是第一次添加采样 */
+  isAddNewPanel = false;
+  /** 当前活跃的采样日志的元素 */
   get activeJsonValue() {
     return this.jsonValueList[this.activeTab];
   }
@@ -93,6 +97,10 @@ export default class MaskingFieldInput extends tsc<{}> {
     return this.jsonValueList
       .filter(item => this.isHaveValJSON(item.jsonStr))
       .map(item => JSON.parse(item.jsonStr));
+  }
+  /** 是否展示正在下发采集配置警告 */
+  get isShowAlertTips() {
+    return this.operateType === 'add' && !this.isAddNewPanel && !this.jsonValueList.length;
   }
 
   @Emit('change')
@@ -108,9 +116,8 @@ export default class MaskingFieldInput extends tsc<{}> {
   @Emit('createRule')
   emitCreateRule() {}
 
-
   mounted() {
-    // 初始化日志采样输入框
+    // 初始化采样日志输入框
     this.handleRefreshConfigStr(false);
   }
 
@@ -128,10 +135,8 @@ export default class MaskingFieldInput extends tsc<{}> {
       if (res.data.list.length) {
         // 缓存当前的日志
         this.catchJsonList = res.data.list;
-        const index = Number(this.activeTab);
-        // 编辑器当前的第一个日志
-        this.activeJsonValue.jsonStr = JSON.stringify(this.catchJsonList[index] ?? '', null, 4);
         if (!isRefreshInput) { // 有数据 且不是刷新按钮点击的 全都一次性展示出来
+          this.addPanel(false);
           this.addPanel(false);
           this.addPanel(false);
         }
@@ -149,7 +154,7 @@ export default class MaskingFieldInput extends tsc<{}> {
    */
   async handleBlurConfigInput(isPreview = true) {
     // 与缓存的字符串一样 不更新
-    if (this.activeJsonValue.jsonStr === this.activeJsonValue.catchJsonStr) return;
+    if (this.activeJsonValue?.jsonStr === this.activeJsonValue?.catchJsonStr) return;
     this.activeJsonValue.catchJsonStr = this.activeJsonValue.jsonStr;
 
     this.handleBlurInput(isPreview);
@@ -163,6 +168,7 @@ export default class MaskingFieldInput extends tsc<{}> {
     this.isJSONStrError = this.activeJsonValue.isJsonError;
     this.emitCreateRule();
   }
+
   /** 切换采样 */
   tabChange(val) {
     this.activeTab = val;
@@ -177,27 +183,27 @@ export default class MaskingFieldInput extends tsc<{}> {
       catchJsonStr: '',
       name: String(id),
       isJsonError: false,
-      label: `${this.$t('日志采样')}${id + 1}`,
+      label: `${this.$t('采样日志')}${id + 1}`,
     });
     if (isQuery) {
       this.activeTab = String(id);
       this.handleBlurInput();
     }
+    this.isAddNewPanel = true;
   }
   /** 删除采样 */
   closePanel(index: number) {
     const actIndex = Number(this.activeTab);
-    if (index === 0) return;
-    // 当删除的下标和展示的下标相同时 直接展示第一个日志采样
+    // 当删除的下标和展示的下标相同时 直接展示第一个采样日志
     if (actIndex === index) this.activeTab = '0';
     // 当删除的下标小于展示的下标时 当前活跃的下标要 -1
     if (actIndex - index >= 1) this.activeTab = String(actIndex - 1);
     this.jsonValueList.splice(index, 1);
-    // 更新日志采样名
+    // 更新采样日志名
     this.jsonValueList.forEach((item, index) => {
       item.id = index;
       item.name = String(index);
-      item.label = `${this.$t('日志采样')}${index + 1}`;
+      item.label = `${this.$t('采样日志')}${index + 1}`;
     });
     this.handleBlurInput();
   }
@@ -210,7 +216,7 @@ export default class MaskingFieldInput extends tsc<{}> {
   isHaveValJSON(str: string): boolean {
     try {
       JSON.parse(str);
-      return JSON.parse(str) && str !== '{}';
+      return (JSON.parse(str) instanceof Object) && str !== '{}';
     } catch (error) {
       return false;
     }
@@ -246,11 +252,29 @@ export default class MaskingFieldInput extends tsc<{}> {
 
   render() {
     return (
-      <div class={['item-container field-input', { 'input-fix': this.inputFix }]}>
+      <div class={
+        ['item-container field-input',
+          {
+            'input-fix': this.inputFix,
+            'other-color': !this.isIndexSetMasking,
+          }]
+        }>
+        {
+          this.isShowAlertTips && <Alert
+          type="warning"
+          show-icon={false}
+          closable
+          style="margin-bottom: 16px;">
+          <div slot="title">
+            <i class="log-icon icon-log-loading"></i>
+            <span>{this.$t('正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…')}</span>
+          </div>
+        </Alert>
+        }
         <div class="item-title">
           <div class="left">
             <span class="title">{this.$t('采样日志')}</span>
-            <span class="alert">{this.$t('日志脱敏会结合您的采样日志自动匹配并选用规则，无采样日志无法展示预览结果，请确认您的采样日志规范。若有多类日志，可粘贴至下方采样框内')}</span>
+            <span class="alert">{this.$t('日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志')}</span>
           </div>
           <div class="right-fix" onClick={() => this.inputFix = !this.inputFix}>
             <i class={['log-icon', this.inputFix ? 'icon-fix-shape' : 'icon-fix-line']}></i>
@@ -260,6 +284,7 @@ export default class MaskingFieldInput extends tsc<{}> {
         <Tab
           closable
           type="border-card"
+          class={{ 'hidden-input': !this.jsonValueList.length }}
           active={this.activeTab}
           on-tab-change={this.tabChange}
           on-close-panel={this.closePanel}>
@@ -278,35 +303,47 @@ export default class MaskingFieldInput extends tsc<{}> {
               <TabPanel {...{ props: panel }} key={index} />
               ))
             }
-            <div class="json-editor" v-bkloading={{ isLoading: this.inputLoading }}>
-              <MonacoEditor
-                v-model={this.activeJsonValue.jsonStr}
-                is-show-top-label={false}
-                is-show-problem-drag={false}
-                theme="vs"
-                language="json"
-                height={this.collectHeight}
-                font-size={14}
-                monaco-config={this.monacoConfig}
-                on-get-problem-state={(err: boolean) => this.activeJsonValue.isJsonError = err}
-                on-blur={() => this.handleBlurConfigInput()}>
-              </MonacoEditor>
-            </div>
-            <div
-              class={['drag-right', { 'drag-ing': this.isChangingHeight }]}
-              onMousedown={this.dragBegin}
-            ></div>
+            {
+              !!this.jsonValueList.length
+                ? <div>
+                  <div
+                    class="json-editor"
+                    v-bkloading={{ isLoading: this.inputLoading }}>
+                    <MonacoEditor
+                      v-model={this.activeJsonValue.jsonStr}
+                      is-show-top-label={false}
+                      is-show-problem-drag={false}
+                      theme="vs"
+                      language="json"
+                      height={this.collectHeight}
+                      font-size={14}
+                      monaco-config={this.monacoConfig}
+                      placeholder={this.$t('请输入 JSON 格式日志')}
+                      on-get-problem-state={(err: boolean) => this.activeJsonValue.isJsonError = err}
+                      on-blur={() => this.handleBlurConfigInput()}>
+                    </MonacoEditor>
+                  </div>
+                  <div
+                    class={['drag-right', { 'drag-ing': this.isChangingHeight }]}
+                    onMousedown={this.dragBegin}
+                  ></div>
+                </div>
+                : <div class="no-data-tips">
+                    <span>{this.$t('暂无采样日志')}</span>
+                  </div>
+            }
         </Tab>
         <div class="sync-rule-box">
           <Button
             theme="primary"
             size="small"
             outline
+            disabled={!this.jsonValueList.length}
             onClick={() => this.handleCreateRule()}>
               {this.$t('自动匹配脱敏规则')}
           </Button>
           {
-            this.isShowCannotCreateRuleTips && <span>{this.$t('未检测到日志采样内容，无法同步规则')}</span>
+            this.isShowCannotCreateRuleTips && <span>{this.$t('未检测到采样日志内容，无法同步规则')}</span>
           }
           {
             this.isJSONStrError && <span>{this.$t('当前日志不符合JSON格式，请确认后重试')}</span>

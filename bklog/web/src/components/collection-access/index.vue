@@ -25,7 +25,7 @@
            v-bkloading="{ isLoading: basicLoading }">
     <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
     <div class="access-container" v-else-if="!basicLoading && !isCleaning">
-      <section class="access-step-wrapper">
+      <section class="access-step-wrapper" v-if="isShowStepDom">
         <div class="fixed-steps" :style="{ height: (stepList.length * 76) + 'px' }">
           <bk-steps
             v-if="stepList.length"
@@ -65,9 +65,10 @@
             :operate-type="operateType"
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
-            @setAssessmentItem="setAssessmentItem" />
+            @setAssessmentItem="setAssessmentItem"
+            @changeSubmit="changeSubmit" />
           <step-masking
-            v-if="curStep === 5"
+            v-if="curStep === 5 && isShowMaskingTemplate"
             :cur-step="curStep"
             :operate-type="operateType"
             :cur-collect="curCollect"
@@ -108,9 +109,10 @@
             :operate-type="operateType"
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
-            @setAssessmentItem="setAssessmentItem" />
+            @setAssessmentItem="setAssessmentItem"
+            @changeSubmit="changeSubmit" />
           <step-masking
-            v-if="curStep === 5"
+            v-if="curStep === 5 && isShowMaskingTemplate"
             :cur-step="curStep"
             :operate-type="operateType"
             :cur-collect="curCollect"
@@ -174,6 +176,7 @@ export default {
       itsmTicketIsApplying: false,
       applyData: {},
       containerLoading: false, // 容器日志提交loading
+      isShowStepDom: true,
     };
   },
   computed: {
@@ -183,6 +186,7 @@ export default {
     ...mapGetters('collect', ['curCollect']),
     ...mapGetters(['bkBizId']),
     ...mapGetters(['spaceUid']),
+    ...mapGetters(['isShowMaskingTemplate']),
     isCommon() {
       return ['add', 'edit'].some(item => item === this.operateType);
     },
@@ -199,7 +203,9 @@ export default {
       if (this.isItsmAndNotStartOrStop) {
         return this.curStep === 6;
       }
-      return finishRefer[this.operateType] === this.curStep;
+      // 非开关步骤下需要判断当前是否是字段脱敏步骤 如果不是 则当前step + 1 与stepFinish结束步骤保持同步
+      const isMaskingStep = this.isSwitch || this.isShowMaskingTemplate;
+      return finishRefer[this.operateType] === (isMaskingStep ? this.curStep : (this.curStep + 1));
     },
   },
   watch: {
@@ -303,6 +309,10 @@ export default {
       } else {
         this.operateType = routeType;
       }
+      // 脱敏隐藏左侧步骤Dom
+      if (type === 'masking') {
+        this.isShowStepDom = false;
+      }
       this.setSteps();
       this.basicLoading = false;
     },
@@ -320,7 +330,10 @@ export default {
       }
       const stepList = stepsConf[this.operateType];
 
-      this.stepList = JSON.parse(JSON.stringify(stepList));
+      // 判断当前业务是否展示脱敏 若不展示 隐藏脱敏步骤
+      const newStepList = this.isShowMaskingTemplate ? stepList : stepList.filter(item => !item.isMasking);
+
+      this.stepList = JSON.parse(JSON.stringify(newStepList));
 
       this.stepList.forEach((step, index) => {
         if (index < this.showSteps - 1) {
@@ -331,6 +344,7 @@ export default {
       });
     },
     stepChange(num, type = null) {
+      // 第一步骤 容器环境没有采集下发流程 跳2步
       if (type === 'add' && !this.isPhysics && !num) {
         this.curStep = this.curStep + 2;
         return;

@@ -403,6 +403,7 @@ export default {
       curCollect: 'collect/curCollect',
       globalsData: 'globals/globalsData',
       accessUserManage: 'accessUserManage',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     collectProject() {
       return projectManages(this.$store.state.topMenu, 'collection-item');
@@ -525,7 +526,8 @@ export default {
           }
           if (this.isCleanField) {
             this.messageSuccess(this.$t('保存成功'));
-            this.$emit('change-submit', true);
+            // 只有在不展示字段脱敏的情况下才改变保存状态
+            if (!this.isShowMaskingTemplate) this.$emit('change-submit', true);
             this.$emit('stepChange', 'back');
           } else {
             if (data.need_assessment && data.assessment_config.need_approval) {
