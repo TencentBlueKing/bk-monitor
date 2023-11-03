@@ -142,4 +142,15 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    repo = git.Repo()
+    lockfile = os.path.join(repo.working_dir, ".git", "pre-push.lock")
+    try:
+        fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+    except OSError:
+        sys.exit(0)
+
+    try:
+        sys.exit(main())
+    finally:
+        os.close(fd)
+        os.unlink(lockfile)
