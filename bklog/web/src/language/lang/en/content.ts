@@ -492,6 +492,12 @@ export default {
   "? 表示匹配单个任意字符": "? means match any single character",
   "例：a?d 可匹配 abd、a1d": "Example: a?d matches abd, a1d",
   "请前往 {0}": "Go to {0}",
+  '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; ':
+    'It is necessary to comply with company regulations and prohibit the disclosure of user or internal sensitive information (such as user PII information, account passwords, cloud AKSK, internal system authentication/Token, confidential documents, etc.). If data leakage is caused by improper authorization, corresponding responsibilities must be borne;',
+  '授权人的空间权限会影响被授权人，被授权人的权限范围<=授权人的权限范围，请谨慎变更。':
+    "The spatial permissions of the authorizer will affect the authorized person. The authorized person's permission range is less than or equal to the authorized person's permission range. Please change it carefully.",
+  '批量粘贴请使用;进行分隔': 'Please use bulk pasting; Separate',
+  已提交审批: 'Submitted for approval',
   "不是有效的json文件": "Not a valid json file.",
   "聚类规则为空，无法导出规则": "The clustering rules are empty and the rules cannot be exported."
 }

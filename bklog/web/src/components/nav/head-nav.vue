@@ -151,6 +151,8 @@ import { menuArr } from './complete-menu';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import { jsonp } from '@/common/jsonp';
 
+const EXTERNAL_MENU = ['retrieve', 'manage']; // 外部版包含的菜单模块
+
 export default {
   name: 'HeaderNav',
   components: {
@@ -179,6 +181,7 @@ export default {
       errorPage: state => state.errorPage,
       asIframe: state => state.asIframe,
       iframeQuery: state => state.iframeQuery,
+      isExternal: state => state.isExternal,
     }),
     ...mapGetters('globals', ['globalsData']),
     envConfig() {
@@ -203,7 +206,9 @@ export default {
       return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
     },
     menuList() {
-      return this.topMenu.filter(menu => menu.feature === 'on');
+      return this.topMenu.filter((menu) => {
+        return menu.feature === 'on' && (this.isExternal ? EXTERNAL_MENU.includes(menu.id) : true);
+      });
     },
   },
   async created() {

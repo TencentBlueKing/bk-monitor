@@ -294,6 +294,9 @@ export default {
      * @param { string } field
      */
     getRelationMonitorField(field) {
+      // 外部版不提供外链跳转
+      if (this.$store.state.isExternal) return false;
+
       const key = field.toLowerCase();
       switch (key) {
         // trace检索
