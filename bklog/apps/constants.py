@@ -219,16 +219,43 @@ class ITSMStatusChoicesEnum(ChoicesEnum):
     )
 
 
+class ExternalPermissionActionEnum(ChoicesEnum):
+    LOG_SEARCH = "log_search"
+    LOG_EXTRACT = "log_extract"
+    LOG_COMMON = "log_common"
+
+    _choices_labels = (
+        (LOG_SEARCH, _("日志检索")),
+        (LOG_EXTRACT, _("日志提取")),
+    )
+
+
 @dataclass
-class Action:
+class ViewSetAction:
     """
     定义一个行为, 用于权限校验
+    action_id: 外部版授权的操作合集ID, 枚举ExternalPermissionActionEnum
     view_set: 视图
     action_id: 视图下的方法, 当action为空时, 代表这个view_set下所有接口
     """
 
     view_set: str
-    action_id: str = ""
+    action_id: str = ExternalPermissionActionEnum.LOG_COMMON.value
+    view_action: str = ""
+    default_permission: bool = False
+
+    def __post_init__(self):
+        if self.action_id == ExternalPermissionActionEnum.LOG_COMMON.value:
+            self.default_permission = True
+
+    def eq(self, other):
+        return self.view_set == other.view_set and self.view_action == other.view_action
+
+    def is_one_of(self, others):
+        for other in others:
+            if self.eq(other):
+                return True
+        return False
 
 
 class ViewTypeEnum(ChoicesEnum):
@@ -253,49 +280,149 @@ class OperateEnum(ChoicesEnum):
     )
 
 
-class ExternalPermissionActionEnum(ChoicesEnum):
-    LOG_SEARCH = "log_search"
-    LOG_EXTRACT = "log_extract"
+class ViewSetActionEnum(ChoicesEnum):
+    """
+    定义一个行为, 用于权限校验
+    """
 
-    _choices_labels = (
-        (LOG_SEARCH, _("日志检索")),
-        (LOG_EXTRACT, _("日志提取")),
+    # 检索-SearchViewSet
+    SEARCH_VIEWSET_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="list"
+    )
+    SEARCH_VIEWSET_BIZS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="bizs"
+    )
+    SEARCH_VIEWSET_SEARCH = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="search"
+    )
+    SEARCH_VIEWSET_FIELDS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="fields"
+    )
+    SEARCH_VIEWSET_CONTEXT = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="context"
+    )
+    SEARCH_VIEWSET_TAILF = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="tailf"
+    )
+    SEARCH_VIEWSET_EXPORT = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="export"
+    )
+    SEARCH_VIEWSET_GET_EXPORT_HISTORY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="SearchViewSet",
+        view_action="get_export_history",
+    )
+    SEARCH_VIEWSET_HISTORY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="history"
+    )
+    # 聚合-AggsViewSet
+    AGGS_VIEWSET_TERMS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="terms"
+    )
+    AGGS_VIEWSET_DATE_HISTOGRAM = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="date_histogram"
+    )
+    # 收藏-FavoriteViewSet
+    FAVORITE_VIEWSET_RETRIEVE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="retrieve"
+    )
+    FAVORITE_VIEWSET_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="list"
+    )
+    FAVORITE_VIEWSET_LIST_BY_GROUP = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="list_by_group"
+    )
+    FAVORITE_VIEWSET_CREATE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="create"
+    )
+    FAVORITE_VIEWSET_GET_SEARCH_FIELDS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FavoriteViewSet",
+        view_action="get_search_fields",
+        default_permission=True,
+    )
+    FAVORITE_VIEWSET_GENERATE_QUERY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FavoriteViewSet",
+        view_action="generate_query",
+        default_permission=True,
+    )
+    FAVORITE_VIEWSET_INSPECT = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FavoriteViewSet",
+        view_action="inspect",
+        default_permission=True,
+    )
+    # 收藏组-FavoriteGroupViewSet
+    FAVORITE_GROUP_VIEWSET_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="list"
+    )
+    FAVORITE_GROUP_VIEWSET_CREATE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="create"
+    )
+    # IP选择器-IpChooserConfigViewSet,IpChooserHostViewSet,IpChooserTemplateViewSet,IpChooserDynamicGroupViewSet,IpChooserConfigViewSet
+    IP_CHOOSER_TOPO_VIEWSET = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IpChooserTopoViewSet"
+    )
+    IP_CHOOSER_HOST_VIEWSET = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IpChooserHostViewSet"
+    )
+    IP_CHOOSER_TEMPLATE_VIEWSET = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IpChooserTemplateViewSet"
+    )
+    IP_CHOOSER_DYNAMIC_GROUP_VIEWSET = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IpChooserDynamicGroupViewSet"
+    )
+    IP_CHOOSER_CONFIG_VIEWSET = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="IpChooserConfigViewSet",
+        default_permission=True,
+    )  # 默认允许
+    # 日志提取-ExplorerViewSet,TasksViewSet,StrategiesViewSet
+    EXPLORER_VIEWSET = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="ExplorerViewSet"
+    )
+    TASKS_VIEWSET = ViewSetAction(action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="TasksViewSet")
+    STRATEGIES_VIEWSET = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="StrategiesViewSet"
+    )
+    # META-MetaViewSet
+    META_VIEWSET = ViewSetAction(view_set="MetaViewSet", default_permission=True)
+    LANGUAGE_VIEWSET = ViewSetAction(view_set="LanguageViewSet", default_permission=True)
+    MENU_VIEWSET = ViewSetAction(view_set="MenuViewSet", default_permission=True)
+
+    _choices_keys = (
+        SEARCH_VIEWSET_LIST,
+        SEARCH_VIEWSET_BIZS,
+        SEARCH_VIEWSET_SEARCH,
+        SEARCH_VIEWSET_FIELDS,
+        SEARCH_VIEWSET_CONTEXT,
+        SEARCH_VIEWSET_TAILF,
+        SEARCH_VIEWSET_EXPORT,
+        AGGS_VIEWSET_TERMS,
+        AGGS_VIEWSET_DATE_HISTOGRAM,
+        FAVORITE_VIEWSET_RETRIEVE,
+        FAVORITE_VIEWSET_LIST,
+        FAVORITE_VIEWSET_LIST_BY_GROUP,
+        FAVORITE_VIEWSET_CREATE,
+        FAVORITE_VIEWSET_GET_SEARCH_FIELDS,
+        FAVORITE_VIEWSET_GENERATE_QUERY,
+        FAVORITE_VIEWSET_INSPECT,
+        FAVORITE_GROUP_VIEWSET_LIST,
+        FAVORITE_GROUP_VIEWSET_CREATE,
+        IP_CHOOSER_TOPO_VIEWSET,
+        IP_CHOOSER_HOST_VIEWSET,
+        IP_CHOOSER_TEMPLATE_VIEWSET,
+        IP_CHOOSER_DYNAMIC_GROUP_VIEWSET,
+        IP_CHOOSER_CONFIG_VIEWSET,
+        EXPLORER_VIEWSET,
+        TASKS_VIEWSET,
+        STRATEGIES_VIEWSET,
+        META_VIEWSET,
+        LANGUAGE_VIEWSET,
+        MENU_VIEWSET,
     )
 
-
-ACTION_MAP = {
-    ExternalPermissionActionEnum.LOG_SEARCH.value: [
-        # 检索
-        Action(view_set="SearchViewSet", action_id="list"),
-        Action(view_set="SearchViewSet", action_id="bizs"),
-        Action(view_set="SearchViewSet", action_id="search"),
-        Action(view_set="SearchViewSet", action_id="fields"),
-        Action(view_set="SearchViewSet", action_id="context"),
-        Action(view_set="SearchViewSet", action_id="tailf"),
-        Action(view_set="SearchViewSet", action_id="export"),
-        # 聚合
-        Action(view_set="AggsViewSet", action_id="terms"),
-        Action(view_set="AggsViewSet", action_id="date_histogram"),
-        # 收藏
-        Action(view_set="FavoriteViewSet"),
-        # IP选择器
-        Action(view_set="IpChooserTopoViewSet"),
-        Action(view_set="IpChooserHostViewSet"),
-        Action(view_set="IpChooserTemplateViewSet"),
-        Action(view_set="IpChooserDynamicGroupViewSet"),
-    ],
-    ExternalPermissionActionEnum.LOG_EXTRACT.value: [
-        Action(view_set="ExplorerViewSet"),
-        Action(view_set="TasksViewSet"),
-        Action(view_set="StrategiesViewSet"),
-    ],
-}
-
-# 默认允许的ACTION
-DEFAULT_ALLOWED_ACTION_LIST = [
-    Action(view_set="IpChooserConfigViewSet"),
-    Action(view_set="MetaViewSet"),
-]
 
 # 与权限中心的action_id对应关系
 ACTION_ID_MAP = {
