@@ -430,7 +430,7 @@ class MetaViewSet(APIViewSet):
             "result":true
         }
         """
-        username = get_request_username() or request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+        username = get_request_username() or getattr(request, "external_user", "")
         if not username:
             raise ValidationError(_("username 不能为空"))
         return Response(MetaHandler.get_user_guide(username=username))
