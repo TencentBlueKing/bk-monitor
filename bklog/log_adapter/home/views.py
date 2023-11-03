@@ -118,7 +118,9 @@ class RequestProcessor:
         是否是默认允许的接口
         """
         for _d in ViewSetActionEnum.get_keys():
-            if _d.view_set == view_set and _d.view_action == view_action:
+            if _d.view_set != view_set:
+                continue
+            if not _d.view_action or _d.view_action == view_action:
                 if _d.action_id == ExternalPermissionActionEnum.LOG_COMMON.value or _d.default_permission:
                     return True
         return False
