@@ -141,16 +141,28 @@ def main():
     return 0
 
 
-if __name__ == "__main__":
+def lock(func):
     repo = git.Repo()
     lockfile = os.path.join(repo.working_dir, ".git", "pre-push.lock")
     try:
         fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        os.write(fd, repo.head.commit.hexsha)
     except OSError:
-        sys.exit(0)
+        fd = os.open(lockfile, os.O_RDONLY)
+        commit = os.read(fd, 40).decode()
+
+        if commit == repo.head.commit.hexsha:
+            sys.exit(0)
+        else:
+            print(f"pre-push is running with commit({commit}), please wait")
+            sys.exit(1)
 
     try:
-        sys.exit(main())
+        sys.exit(func())
     finally:
         os.close(fd)
         os.unlink(lockfile)
+
+
+if __name__ == "__main__":
+    lock(func=main)
