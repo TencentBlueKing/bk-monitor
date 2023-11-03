@@ -15,11 +15,16 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+import logging
 
 from apm import constants
+from apm.core.deepflow.base import DeepFlowHandler
 from apm.core.handlers.query.base import EsQueryBuilderMixin
 from apm.utils.es_search import EsSearch
 from constants.apm import OtlpKey
+from core.drf_resource import api
+
+logger = logging.getLogger("deep-flow")
 
 
 class EbpfQuery(EsQueryBuilderMixin):
@@ -41,3 +46,29 @@ class EbpfQuery(EsQueryBuilderMixin):
         query = query.extra(size=constants.DISCOVER_BATCH_SIZE).sort(OtlpKey.START_TIME)
 
         return [i.to_dict() for i in query.execute()]
+
+
+class DeepFlowQuery:
+    @classmethod
+    def query_by_trace_id(cls, span: dict):
+        ebpf_spans = []
+        ebpf_param = {
+            "app_spans": [
+                {
+                    "trace_id": span.get("trace_id"),
+                    "span_id": "",
+                    "parent_span_id": "",
+                    "span_kind": span.get("kind"),
+                    "start_time_us": span.get("start_time"),
+                    "end_time_us": span.get("end_time"),
+                }
+            ]
+        }
+        try:
+            res = api.deepflow.query_tracing_completion_by_external_app_spans(ebpf_param)
+            for item in res.get("DATA", {}).get("tracing", []):
+                span_data = DeepFlowHandler.l7_flow_log_to_resource_span(item)
+                ebpf_spans.append(span_data)
+        except Exception as e:
+            logging.info("query_by_trace_id, {}".format(e))
+        return ebpf_spans

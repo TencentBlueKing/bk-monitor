@@ -24,7 +24,7 @@ from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.handlers.ebpf.base import EbpfHandler
 from apm.core.handlers.query.base import FakeQuery
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
-from apm.core.handlers.query.ebpf_query import EbpfQuery
+from apm.core.handlers.query.ebpf_query import DeepFlowQuery, EbpfQuery
 from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.statistics_query import StatisticsQuery
@@ -108,8 +108,9 @@ class QueryProxy:
         client = Permission()
         spans = self.span_query.query_by_trace_id(trace_id)
 
-        ebpf_spans = self.ebpf_query.query_by_trace_id(trace_id)
-        if ebpf_spans:
+        # ebpf_spans query and transfer
+        if spans:
+            ebpf_spans = DeepFlowQuery.query_by_trace_id(spans[0])
             spans += ebpf_spans
 
         relation_mapping = {}
