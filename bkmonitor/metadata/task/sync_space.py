@@ -601,7 +601,7 @@ def refresh_not_biz_space_data_source():
     logger.info("refresh not biz space data source successfully")
 
 
-def push_and_publish_space_router(space_type: Optional[str] = None, space_id: Optional[str] = None, is_public: Optional[bool] = True):
+def push_and_publish_space_router(space_type: Optional[str] = None, space_id: Optional[str] = None, is_publish: Optional[bool] = True):
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
     from metadata.models.space.ds_rt import get_space_table_id_data_id
@@ -636,7 +636,7 @@ def push_and_publish_space_router(space_type: Optional[str] = None, space_id: Op
         t.join()
 
     # 通知到使用方
-    if is_public:
+    if is_publish:
         space_uid_list = [f"{space['space_type_id']}__{space['space_id']}" for space in spaces]
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
 
@@ -651,15 +651,15 @@ def push_and_publish_space_router(space_type: Optional[str] = None, space_id: Op
             table_id_list.extend(tid_ds.keys())
 
     space_client = SpaceTableIDRedis()
-    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=is_public)
-    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_public)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_public)
+    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=is_publish)
+    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish)
 
 
 @share_lock(identify="metadata_push_and_publish_space_router")
 def push_and_publish_space_router_task():
     logger.info("start to push and publish space router")
 
-    push_and_publish_space_router(is_public=False)
+    push_and_publish_space_router(is_publish=False)
 
     logger.info("push and publish space router successfully")
