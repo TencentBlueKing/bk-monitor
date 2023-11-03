@@ -76,7 +76,7 @@ class GetDirectoryTree(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
     def perform_request(self, params):
-        org_id = get_or_create_org(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         request = get_request()
         try:
             username = request.user.username
