@@ -148,7 +148,9 @@ class DutyRuleManager:
         elif duty_time["work_type"] == RotationType.MONTHLY:
             # 按照月来轮班的情况
             days = duty_time["work_days"]
-        begin_time = duty_time.get("begin_time") or self.begin_time
+        begin_time = (
+            time_tools.str2datetime(duty_time["begin_time"]) if duty_time.get("begin_time") else self.begin_time
+        )
         # 只有按周，按月才有对应的交接工作日，就是页面配置的起始日期
         handoff_date = duty_time["work_days"][0] if duty_time.get("work_days") else None
         period_dates = []
@@ -205,7 +207,7 @@ class DutyRuleManager:
             # 如果需要轮转并且最后一个周期日期还没有合入，添加到结果中， 这种情况一般是最后一次循环跳出没有合入
             duty_dates.append(period_dates)
         # 更新当前时间段的下一次排班交接时间
-        duty_time["begin_time"] = (last_handoff_time + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+        duty_time["begin_time"] = time_tools.datetime2str(last_handoff_time + timedelta(days=1))
         return duty_dates if special_rotation else period_dates
 
     def get_auto_hour_periods(self, duty_time):
