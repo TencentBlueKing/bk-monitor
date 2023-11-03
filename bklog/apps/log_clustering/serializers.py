@@ -100,6 +100,15 @@ class SetLabelSerializer(serializers.Serializer):
     signature = serializers.CharField()
     label = serializers.CharField(allow_blank=True)
 
+class SetRemarkSerializer(serializers.Serializer):
+    signature = serializers.CharField()
+    remark = serializers.CharField()
+
+
+class SetOwnerSerializer(serializers.Serializer):
+    signature = serializers.CharField()
+    owners = serializers.ListField(child=serializers.CharField(), allow_empty=True)
+
 
 class UpdateStrategyAction(serializers.Serializer):
     signature = serializers.CharField()
