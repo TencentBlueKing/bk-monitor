@@ -106,3 +106,14 @@ export interface IContentsItem {
 }
 
 export const STATUS_LIST = ['PENDING', 'RUNNING', 'DEPLOYING', 'STARTING', 'STOPPING'];
+
+export const operatorMap = {
+  ROLLBACK: window.i18n.t('回滚'),
+  UPGRADE: window.i18n.t('升级'),
+  CREATE: window.i18n.t('新增'),
+  EDIT: window.i18n.t('编辑'),
+  ADD_DEL: window.i18n.t('增删目标'),
+  START: window.i18n.t('启用'),
+  STOP: window.i18n.t('停用'),
+  AUTO_DEPLOYING: window.i18n.t('自动执行')
+};
