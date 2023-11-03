@@ -108,7 +108,7 @@ class GetDirectoryTree(Resource):
                 # 仪表盘是否可编辑
                 record["editable"] = (
                     role >= GrafanaRole.Editor
-                    or dashboard_permissions.get(record["uid"], GrafanaPermission.View) > GrafanaPermission.Edit
+                    or dashboard_permissions.get(record["uid"], GrafanaPermission.View) >= GrafanaPermission.Edit
                 )
                 folder_id = record.pop("folderId", 0)
                 record.pop("folderUid", None)
