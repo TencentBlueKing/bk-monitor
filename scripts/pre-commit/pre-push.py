@@ -154,7 +154,7 @@ def lock(func):
         if commit == repo.head.commit.hexsha:
             sys.exit(0)
         else:
-            print(f"pre-push is running with commit({commit}), please wait")
+            print(f"pre-push is running with commit({commit}), please wait or remove {lockfile}")
             sys.exit(1)
 
     try:
