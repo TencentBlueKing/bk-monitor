@@ -101,6 +101,7 @@ export default {
         stop: this.$t('采集项停用完成'),
         storage: this.$t('采集项修改完成'),
         container: this.$t('采集项修改完成'),
+        masking: this.$t('采集项修改完成'),
       },
     };
   },

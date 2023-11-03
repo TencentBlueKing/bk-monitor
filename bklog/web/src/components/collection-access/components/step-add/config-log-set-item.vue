@@ -458,7 +458,7 @@ export default {
     // 分隔符字段过滤条件
     separatorFilters() {
       const { params } = this.subFormData;
-      return params.conditions.separator_filters || [{
+      return params.conditions?.separator_filters || [{
         fieldindex: '',
         word: '',
         op: '=',

@@ -48,6 +48,12 @@
       </ul>
     </div>
     <div class="nav-right fr" v-show="usernameRequested">
+      <span
+        :class="{
+          'setting bk-icon icon-cog-shape': true,
+          active: isShowMaskingDialog
+        }"
+        @click="handleShowMaskingDialog"></span>
       <!-- 语言 -->
       <bk-dropdown-menu
         align="center"
@@ -179,6 +185,7 @@ export default {
       errorPage: state => state.errorPage,
       asIframe: state => state.asIframe,
       iframeQuery: state => state.iframeQuery,
+      isShowMaskingDialog: state => state.isShowMaskingDialog,
     }),
     ...mapGetters('globals', ['globalsData']),
     envConfig() {
@@ -396,6 +403,9 @@ export default {
     handleQuit() {
       location.href = `${window.BK_PLAT_HOST}/console/accounts/logout/`;
     },
+    handleShowMaskingDialog() {
+      this.$store.commit('updateIsShowMaskingDialog', true);
+    },
   },
 };
 </script>
@@ -495,6 +505,36 @@ export default {
       color: #768197;
 
       @include clearfix;
+
+      .setting {
+        margin-right: 10px;
+        cursor: pointer;
+        position: relative;
+
+        &::before {
+          position: relative;
+          z-index: 999;
+        }
+
+        &.active,
+        &:hover {
+          color: #fff;
+        }
+
+        &.active::after,
+        &:hover::after {
+          content: '';
+          z-index: 99;
+          position: absolute;
+          bottom: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #424e5a;
+        }
+      }
 
       .select-business {
         margin-right: 22px;

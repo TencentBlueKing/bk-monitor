@@ -65,8 +65,15 @@
             :operate-type="operateType"
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
-            @setAssessmentItem="setAssessmentItem"
-            @change-submit="changeSubmit" />
+            @setAssessmentItem="setAssessmentItem" />
+          <step-masking
+            v-if="curStep === 5"
+            :cur-step="curStep"
+            :operate-type="operateType"
+            :cur-collect="curCollect"
+            @stepChange="stepChange"
+            @changeIndexSetId="updateIndexSetId"
+            @changeSubmit="changeSubmit" />
           <step-result
             v-if="isFinish"
             :operate-type="operateType"
@@ -101,8 +108,15 @@
             :operate-type="operateType"
             @changeIndexSetId="updateIndexSetId"
             @stepChange="stepChange"
-            @setAssessmentItem="setAssessmentItem"
-            @change-submit="changeSubmit" />
+            @setAssessmentItem="setAssessmentItem" />
+          <step-masking
+            v-if="curStep === 5"
+            :cur-step="curStep"
+            :operate-type="operateType"
+            :cur-collect="curCollect"
+            @stepChange="stepChange"
+            @changeIndexSetId="updateIndexSetId"
+            @changeSubmit="changeSubmit" />
           <step-result
             v-if="isFinish"
             :operate-type="operateType"
@@ -126,6 +140,7 @@ import stepIssued from './step-issued';
 import stepField from './step-field';
 import stepStorage from './step-storage.vue';
 import stepResult from './step-result';
+import stepMasking from './step-masking.tsx';
 import advanceCleanLand from '@/components/collection-access/advance-clean-land';
 import * as authorityMap from '../../common/authority-map';
 
@@ -139,6 +154,7 @@ export default {
     stepStorage,
     stepResult,
     advanceCleanLand,
+    stepMasking,
   },
   data() {
     return {
@@ -181,7 +197,7 @@ export default {
     },
     isFinish() {
       if (this.isItsmAndNotStartOrStop) {
-        return this.curStep === 5;
+        return this.curStep === 6;
       }
       return finishRefer[this.operateType] === this.curStep;
     },
@@ -255,19 +271,27 @@ export default {
           });
           if (statusRes.data[0].status === 'PREPARE') {
             // 准备中编辑时跳到第一步，所以不用修改步骤
-          } else if (this.isItsm) {
-            if (['edit', 'editFinish'].includes(this.operateType)) { // 未完成编辑
-              this.curStep = this.applyData.itsm_ticket_status === 'applying' ? 5 : 1;
-            } else if (this.operateType === 'field') {
-              this.curStep = this.applyData.itsm_ticket_status === 'applying' ? 5 : 3;
-            } else if (this.operateType === 'storage') {
-              this.curStep = this.applyData.itsm_ticket_status === 'applying' ? 5 : 4;
+          } else {
+            const finishPag = 6;
+            let jumpPage = 1;
+            switch (this.operateType) {
+              case 'edit', 'editFinish': // 未完成编辑
+                jumpPage = 1;
+                break;
+              case 'field':
+                jumpPage = 3;
+                break;
+              case 'storage':
+                jumpPage = 4;
+                break;
+              case 'masking':
+                jumpPage = 5;
+                break;
+              default:
+                break;
             }
             // 审批通过后编辑直接进入第三步字段提取，否则进入第二步容量评估
-          } else if (this.operateType === 'field') {
-            this.curStep = 3;
-          } else if (this.operateType === 'storage') {
-            this.curStep = 4;
+            this.curStep = (this.isItsm && this.applyData.itsm_ticket_status === 'applying') ? finishPag : jumpPage;
           }
           // 容器环境  非启用停用 非克隆状态则展示容器日志步骤
           if (!this.isPhysics && !this.isSwitch && type !== 'clone') {

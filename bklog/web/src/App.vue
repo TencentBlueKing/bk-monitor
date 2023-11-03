@@ -79,6 +79,7 @@
     </div>
     <auth-dialog />
     <bk-paas-login ref="login" />
+    <log-masking-dialog v-model="isShowMaskingDialog" />
     <!-- <login-modal v-if="loginData" :login-data="loginData" /> -->
   </div>
 </template>
@@ -94,6 +95,7 @@ import BizMenuSelect from '@/components/biz-menu';
 import NoviceGuide from '@/components/novice-guide';
 import jsCookie from 'js-cookie';
 import BkPaasLogin from '@blueking/paas-login';
+import LogMaskingDialog from '@/components/log-masking/masking-dialog';
 
 export default {
   name: 'App',
@@ -106,6 +108,7 @@ export default {
     BizMenuSelect,
     NoviceGuide,
     BkPaasLogin,
+    LogMaskingDialog,
   },
   data() {
     return {
@@ -128,6 +131,7 @@ export default {
       'activeTopMenu',
       'activeManageNav',
       'userGuideData',
+      'isShowMaskingDialog',
     ]),
     ...mapGetters({
       pageLoading: 'pageLoading',

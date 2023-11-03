@@ -98,7 +98,6 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 )
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.constants import InnerTag
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
 from django.conf import settings

@@ -35,7 +35,10 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
-from apps.log_desensitize.constants import MODEL_TO_DICT_EXCLUDE_FIELD
+from apps.log_desensitize.constants import (
+    MODEL_TO_DICT_EXCLUDE_FIELD,
+    DesensitizeRuleStateEnum,
+)
 from apps.log_desensitize.models import (
     DesensitizeConfig,
     DesensitizeFieldConfig,
@@ -595,10 +598,13 @@ class IndexSetHandler(APIModel):
 
             # 构建配置直接入库批量创建参数列表
             bulk_create_list = list()
+            field_names = list()
             for field_config in params["field_configs"]:
                 field_name = field_config.get("field_name")
                 sort_index = 0
                 rule_ids = list()
+                if field_name not in field_names:
+                    field_names.append(field_name)
                 for rule in field_config.get("rules"):
                     rule_id = rule.get("rule_id")
                     rule_state = rule.get("state")
@@ -609,7 +615,7 @@ class IndexSetHandler(APIModel):
                     }
                     if rule_id:
                         # 根据规则状态执行不同的操作
-                        if rule_state in ["add", "update"]:
+                        if rule_state in [DesensitizeRuleStateEnum.ADD.value, DesensitizeRuleStateEnum.UPDATE.value]:
                             if rule_id not in rules_mapping.keys():
                                 raise DesensitizeRuleException(
                                     DesensitizeRuleException.MESSAGE.format(field_name=field_name, rule_id=rule_id)
@@ -626,6 +632,8 @@ class IndexSetHandler(APIModel):
                                 rule_id=rule_id,
                                 defaults=model_params,
                             )
+                        elif rule_state == DesensitizeRuleStateEnum.DELETE.value:
+                            continue
                         else:
                             # 只更新优先级
                             DesensitizeFieldConfig.objects.filter(
@@ -650,7 +658,11 @@ class IndexSetHandler(APIModel):
                     DesensitizeFieldConfig.objects.filter(
                         index_set_id=self.index_set_id, field_name=field_name
                     ).exclude(rule_id__in=rule_ids).delete()
-
+            if field_names and not created:
+                # 处理删除的字段配置 删除库里存在但是更新时不存在的字段配置
+                DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).exclude(
+                    field_name__in=field_names
+                ).delete()
             if bulk_create_list:
                 DesensitizeFieldConfig.objects.bulk_create(bulk_create_list)
         except Exception as e:
@@ -658,15 +670,24 @@ class IndexSetHandler(APIModel):
 
         return params
 
-    def desensitize_config_retrieve(self):
+    def desensitize_config_retrieve(self, raise_exception=True):
         """
         脱敏配置详情
         """
         try:
             desensitize_obj = DesensitizeConfig.objects.get(index_set_id=self.index_set_id)
-            desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id)
+            desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(
+                index_set_id=self.index_set_id
+            ).order_by("sort_index")
         except DesensitizeConfig.DoesNotExist:
-            raise DesensitizeConfigDoseNotExistException()
+            if raise_exception:
+                raise DesensitizeConfigDoseNotExistException()
+            else:
+                return {}
+
+        rule_ids = set(desensitize_field_config_objs.values_list("rule_id", flat=True))
+        desensitize_rule_objs = DesensitizeRule.origin_objects.filter(id__in=rule_ids)
+        desensitize_rule_info = {_obj.id: model_to_dict(_obj) for _obj in desensitize_rule_objs}
 
         # 构建返回数据
         ret = model_to_dict(desensitize_obj)
@@ -678,10 +699,50 @@ class IndexSetHandler(APIModel):
             field_name = _obj.field_name
             if field_name not in field_info_mapping.keys():
                 field_info_mapping[field_name] = list()
-            field_info_mapping[field_name].append(model_to_dict(_obj, exclude=MODEL_TO_DICT_EXCLUDE_FIELD))
+            _rule = model_to_dict(_obj, exclude=MODEL_TO_DICT_EXCLUDE_FIELD)
+
+            rule_id = _rule["rule_id"]
+            if rule_id:
+                # 添加规则变更标识
+                if int(rule_id) in desensitize_rule_info.keys():
+                    _rule["rule_name"] = desensitize_rule_info[rule_id]["rule_name"]
+                    _rule["match_fields"] = desensitize_rule_info[rule_id]["match_fields"]
+
+                if int(rule_id) not in desensitize_rule_info.keys() or desensitize_rule_info[rule_id]["is_deleted"]:
+                    state = DesensitizeRuleStateEnum.DELETE.value
+                    new_rule = {}
+                elif (
+                    _rule["operator"] != desensitize_rule_info[rule_id]["operator"]
+                    or _rule["match_pattern"] != desensitize_rule_info[rule_id]["match_pattern"]
+                    or sorted(_rule["params"].items()) != sorted(desensitize_rule_info[rule_id]["params"].items())
+                ):
+                    state = DesensitizeRuleStateEnum.UPDATE.value
+                    new_rule = {
+                        "rule_name": desensitize_rule_info[rule_id]["rule_name"],
+                        "operator": desensitize_rule_info[rule_id]["operator"],
+                        "params": desensitize_rule_info[rule_id]["params"],
+                        "match_pattern": desensitize_rule_info[rule_id]["match_pattern"],
+                        "match_fields": desensitize_rule_info[rule_id]["match_fields"],
+                    }
+                else:
+                    state = DesensitizeRuleStateEnum.NORMAL.value
+                    new_rule = {}
+            else:
+                state = DesensitizeRuleStateEnum.NORMAL.value
+                new_rule = {}
+
+            _rule["state"] = state
+            _rule["new_rule"] = new_rule
+
+            field_info_mapping[field_name].append(_rule)
 
         for _field_name, _rules in field_info_mapping.items():
-            ret["field_configs"].append({"field_name": _field_name, "rules": _rules})
+            ret["field_configs"].append(
+                {
+                    "field_name": _field_name,
+                    "rules": sorted(_rules, key=lambda x: x["sort_index"]),
+                }
+            )
 
         return ret
 
@@ -692,6 +753,27 @@ class IndexSetHandler(APIModel):
         """
         DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
         DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
+
+    @staticmethod
+    def get_desensitize_config_state(index_set_ids: list):
+        """
+        获取索引集脱敏状态
+        """
+        if not index_set_ids:
+            return {}
+        index_set_exist_ids = set(
+            DesensitizeFieldConfig.objects.filter(index_set_id__in=index_set_ids).values_list("index_set_id", flat=True)
+        )
+
+        ret = dict()
+
+        for _index_set_id in set(index_set_ids):
+            if _index_set_id in index_set_exist_ids:
+                ret[_index_set_id] = {"is_desensitize": True}
+            else:
+                ret[_index_set_id] = {"is_desensitize": False}
+
+        return ret
 
     @staticmethod
     def _get_health(src: list):

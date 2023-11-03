@@ -22,7 +22,7 @@
 
 <template>
   <div class="editor-container">
-    <template>
+    <template v-if="isShowTopLabel">
       <div class="editor-title">
         <div>{{$t('编辑器')}}</div>
         <div class="right-container">
@@ -42,10 +42,11 @@
         @click="exitFullScreen"
       ></span>
 
-      <div v-if="problemList.length"
-           class="problems"
-           ref="problemsRef"
-           :style="`height: ${problemHeight}px;`">
+      <div
+        v-if="problemList.length && isShowProblemDrag"
+        ref="problemsRef"
+        :class="['problems', { 'light-problems': theme === 'vs' }]"
+        :style="`height: ${problemHeight}px; max-height: ${height - 50}px; font-size: ${fontSize}px;`">
         <div class="problems-drag" @mousedown="handleMouseDown"></div>
         <template v-for="(item, index) of problemList">
           <div
@@ -72,6 +73,9 @@ self.MonacoEnvironment = {
   getWorkerUrl(moduleId, label) {
     if (label === 'yaml') {
       return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/yaml.worker.js` : './yaml.worker.js';
+    }
+    if (label === 'json') {
+      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/json.worker.js` : './json.worker.js';
     }
     return process.env.NODE_ENV === 'production'
       ? `${window.BK_STATIC_URL}/editor.worker.js`
@@ -124,6 +128,18 @@ export default {
     warningList: {
       type: Array,
       default: () => [],
+    },
+    isShowTopLabel: {
+      type: Boolean,
+      default: true,
+    },
+    fontSize: {
+      type: Number,
+      default: 16,
+    },
+    isShowProblemDrag: {
+      type: Boolean,
+      default: true,
     },
   },
   data() {
@@ -207,7 +223,7 @@ export default {
           theme: this.theme,
           language: this.language,
           fontFamily: this.fontFamily,
-          fontSize: 16,
+          fontSize: this.fontSize,
           cursorBlinking: 'solid',
           automaticLayout: true,
         },
@@ -384,10 +400,21 @@ export default {
   padding: 6px 20px;
   position: absolute;
   overflow-y: auto;
-  max-height: 500px;
+  // max-height: 500px;
   z-index: 999;
   background: #212121;
   bottom: 0;
+}
+
+.light-problems {
+  background: #FAFBFD;
+  .problem {
+    color: #212121;
+    &:hover {
+      color: #313238;
+      background: #F0F1F5;
+    }
+  }
 }
 
 .problem {

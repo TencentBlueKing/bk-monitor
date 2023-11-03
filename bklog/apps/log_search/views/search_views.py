@@ -67,6 +67,7 @@ from apps.log_search.serializers import (
     SearchIndexSetScopeSerializer,
     SearchUserIndexSetConfigSerializer,
     UpdateIndexSetFieldsConfigSerializer,
+    OriginalSearchAttrSerializer,
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_username
@@ -261,6 +262,65 @@ class SearchViewSet(APIViewSet):
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
+        return Response(search_handler.search())
+
+    @detail_route(methods=["POST"], url_path="search/original")
+    def original_search(self, request, index_set_id=None):
+        """
+        @api {post} /search/index_set/$index_set_id/search/original/ 11_搜索-原始日志内容
+        @apiName search_original_log
+        @apiGroup 11_Search
+        @apiParam {Int} begin 起始位置
+        @apiParam {Int} size 条数
+        @apiParamExample {Json} 请求参数
+        {
+            "begin": 0,
+            "size": 3
+        }
+
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "total": 100,
+                "took": 0.29,
+                "list": [
+                    {
+                        "srcDataId": "2087",
+                        "dtEventTimeStamp": 1534825132000,
+                        "moduleName": "公共组件->consul",
+                        "log": "is_cluster</em>-COMMON: ok",
+                        "sequence": 1,
+                        "dtEventTime": "2018-08-21 04:18:52",
+                        "timestamp": 1534825132,
+                        "serverIp": "127.0.0.1",
+                        "errorCode": "0",
+                        "gseIndex": 152358,
+                        "dstDataId": "2087",
+                        "worldId": "-1",
+                        "logTime": "2018-08-21 12:18:52",
+                        "path": "/tmp/health_check.log",
+                        "platId": 0,
+                        "localTime": "2018-08-21 04:18:00"
+                    }
+                ],
+                "fields": {
+                    "agent": {
+                        "max_length": 101
+                    },
+                    "bytes": {
+                        "max_length": 4
+                    },
+                }
+            },
+            "result": true
+        }
+        """
+        data = self.params_valid(OriginalSearchAttrSerializer)
+        data["original_search"] = True
+        data["is_desensitize"] = False
+        search_handler = SearchHandlerEsquery(index_set_id, data)
         return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
