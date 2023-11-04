@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 import git
 import yaml
@@ -127,6 +128,8 @@ def main():
         # 复制build.yml
         shutil.copyfile(f"{repo.working_dir}/build.yml", f"{temp_dir}/build.yml")
 
+        sys.stdout.flush()
+
         # 执行PreCI
         child = subprocess.Popen(
             f"preci run --projectPath {temp_dir}", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True
@@ -137,6 +140,8 @@ def main():
                 break
             if output:
                 print(output, flush=True)
+            else:
+                time.sleep(0.1)
 
         result = child.returncode
 
