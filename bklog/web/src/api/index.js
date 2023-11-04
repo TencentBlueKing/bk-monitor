@@ -28,21 +28,21 @@
 import Vue from 'vue';
 import axios from 'axios';
 import store from '@/store';
-import { bus } from '@/common/bus';
-import { messageError } from '@/common/bkmagic';
+import {bus} from '@/common/bus';
+import {messageError} from '@/common/bkmagic';
 import CachedPromise from './cached-promise';
 import RequestQueue from './request-queue';
 import HttpRequst from './_httpRequest';
 import mockList from '@/mock/index.js';
 import serviceList from '@/services/index.js';
-import { context, trace } from '@opentelemetry/api';
-import { makeMessage } from '@/common/util';
+import {context, trace} from '@opentelemetry/api';
+import {makeMessage} from '@/common/util';
 import i18n from '@/language/i18n';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 // axios 实例
 const axiosInstance = axios.create({
-  headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  headers: {'X-Requested-With': 'XMLHttpRequest'},
   xsrfCookieName: 'bklog_csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
   withCredentials: true,
@@ -60,7 +60,7 @@ axiosInstance.interceptors.request.use((config) => {
   }
   // 外部版后端需要读取header里的 spaceUid
   if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
-    config.headers.space_uid = store.state.spaceUid;
+    config.headers.set('X-SPACE-UID', store.state.spaceUid);
   }
   return config;
 }, error => Promise.reject(error));
@@ -74,7 +74,7 @@ axiosInstance.interceptors.response.use(
 );
 
 const http = {
-  $request: new HttpRequst(axiosInstance, { mockList, serviceList }),
+  $request: new HttpRequst(axiosInstance, {mockList, serviceList}),
   queue: new RequestQueue(),
   cache: new CachedPromise(),
   cancelRequest: requestId => http.queue.cancel(requestId),
@@ -156,7 +156,7 @@ async function getPromise(method, url, data, userConfig = {}) {
         const axiosRequest = http.$request.request(url, data, config);
         const response = await axiosRequest;
         Object.assign(config, response.config || {});
-        handleResponse({ config, response, resolve, reject });
+        handleResponse({config, response, resolve, reject});
       } catch (error) {
         Object.assign(config, error.config);
         reject(error);
@@ -164,7 +164,7 @@ async function getPromise(method, url, data, userConfig = {}) {
     });
   }).catch(error => handleReject(error, config))
     .finally(() => {
-    // console.log('finally', config)
+      // console.log('finally', config)
     });
 
   // 添加请求队列
@@ -183,16 +183,16 @@ async function getPromise(method, url, data, userConfig = {}) {
  * @param {Function} promise 完成函数
  * @param {Function} promise 拒绝函数
  */
-function handleResponse({ config, response, resolve, reject }) {
-  const { code } = response;
+function handleResponse({config, response, resolve, reject}) {
+  const {code} = response;
   if (code === '9900403') {
-    reject({ message: response.message, code, data: response.data || {} });
+    reject({message: response.message, code, data: response.data || {}});
     store.commit('updateAuthDialogData', {
       apply_url: response.data.apply_url,
       apply_data: response.permission,
     });
   } else if (code !== 0 && config.globalError) {
-    reject({ message: response.message, code, data: response.data || {} });
+    reject({message: response.message, code, data: response.data || {}});
   } else {
     resolve(config.originalResponse ? response : response.data, config);
   }
@@ -221,8 +221,8 @@ function handleReject(error, config) {
   // 捕获 http status 错误
   if (config.globalError && error.response) {
     // status 是 httpStatus
-    const { status, data } = error.response;
-    const nextError = { message: error.message, response: error.response };
+    const {status, data} = error.response;
+    const nextError = {message: error.message, response: error.response};
     // 弹出登录框不需要出 bkMessage 提示
     if (status === 401) {
       // 窗口登录，页面跳转交给平台返回302
@@ -241,7 +241,8 @@ function handleReject(error, config) {
         handleLoginExpire();
       }
       return Promise.reject(nextError);
-    } if (status === 500) {
+    }
+    if (status === 500) {
       nextError.message = i18n.t('系统出现异常');
     } else if (data && data.message) {
       nextError.message = data.message;
@@ -253,7 +254,7 @@ function handleReject(error, config) {
   }
 
   // 捕获业务 code 错误
-  const { code } = error;
+  const {code} = error;
   if (code === '9900403') {
     return Promise.reject(new Error(error.message));
   }
