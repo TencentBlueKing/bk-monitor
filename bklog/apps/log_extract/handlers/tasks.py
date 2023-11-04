@@ -23,6 +23,13 @@ import ipaddress
 from datetime import timedelta
 from typing import List
 
+from django.conf import settings
+from django.utils import timezone
+from django.utils.translation import ugettext as _
+from pipeline.engine.exceptions import InvalidOperationException
+from pipeline.service import task_service
+from rest_framework.response import Response
+
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.iam import ActionEnum, Permission
@@ -38,21 +45,19 @@ from apps.log_extract.handlers.extract import ExtractLinkBase
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.log_extract.serializers import PollingResultSerializer
 from apps.log_extract.tasks.extract import log_extract_task
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.time_handler import format_user_time_zone
-from django.conf import settings
-from django.utils import timezone
-from django.utils.translation import ugettext as _
-from pipeline.engine.exceptions import InvalidOperationException
-from pipeline.service import task_service
-from rest_framework.response import Response
 
 
 class TasksHandler(object):
     @classmethod
     def list(cls, tasks_views, bk_biz_id, keyword):
-        request_user = get_request_username()
+        request_user = get_request_external_username() or get_request_username()
 
         # 运维人员可以看到完整的任务列表
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
