@@ -128,7 +128,9 @@ class RequestProcessor:
 
 @login_exempt
 def external(request):
-    """外部入口"""
+    """
+    外部入口
+    """
     space_uid = request.GET.get("space_uid", "")
     external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
     space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
