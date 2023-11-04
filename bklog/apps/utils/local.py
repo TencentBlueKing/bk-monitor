@@ -27,8 +27,9 @@ import sys  # noqa
 import uuid  # noqa
 from threading import local  # noqa
 
-from apps.exceptions import BaseException  # noqa
 from django.conf import settings  # noqa
+
+from apps.exceptions import BaseException  # noqa
 
 _local = local()
 
@@ -77,6 +78,15 @@ def get_request_username(default="admin"):
         username = get_request().user.username
     if not username and "celery" in sys.argv:
         username = default
+    return username
+
+
+def get_request_external_username():
+    from apps.utils.function import ignored
+
+    username = ""
+    with ignored(Exception):
+        username = get_request().external_user.username
     return username
 
 
