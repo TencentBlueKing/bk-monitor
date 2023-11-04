@@ -26,7 +26,12 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.handlers.pattern import PatternHandler
-from apps.log_clustering.serializers import PatternSearchSerlaizer, SetLabelSerializer, SetRemarkSerializer, SetOwnerSerializer
+from apps.log_clustering.serializers import (
+    PatternSearchSerlaizer,
+    SetLabelSerializer,
+    SetOwnerSerializer,
+    SetRemarkSerializer,
+)
 from apps.utils.drf import detail_route
 
 
@@ -129,7 +134,7 @@ class PatternViewSet(APIViewSet):
         params = self.params_valid(SetLabelSerializer)
         return Response(
             PatternHandler(index_set_id, {}).set_signature_config(
-                signature=params["signature"], configs={"label":params["label"]}
+                signature=params["signature"], configs={"label": params["label"]}
             )
         )
 
@@ -157,7 +162,7 @@ class PatternViewSet(APIViewSet):
         params = self.params_valid(SetRemarkSerializer)
         return Response(
             PatternHandler(index_set_id, {}).set_signature_config(
-                signature=params["signature"], configs={"remark":params["remark"]}
+                signature=params["signature"], configs={"remark": params["remark"]}
             )
         )
 
@@ -186,6 +191,6 @@ class PatternViewSet(APIViewSet):
         params = self.params_valid(SetOwnerSerializer)
         return Response(
             PatternHandler(index_set_id, {}).set_signature_config(
-                signature=params["signature"], configs={"owners":params["owners"]}
+                signature=params["signature"], configs={"owners": params["owners"]}
             )
         )
