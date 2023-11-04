@@ -512,7 +512,7 @@ class ExternalPermission(OperateRecordModel):
         """
         for _action in ViewSetActionEnum.get_keys():
             if _action.action_id != action_id:
-                return False
+                continue
             if _action.view_set != view_set:
                 continue
             if not _action.view_action:
