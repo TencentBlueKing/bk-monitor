@@ -279,7 +279,7 @@ def dispatch_external_proxy(request):
                     status=403,
                 )
             allow_resources_result = ExternalPermission.get_resources(
-                view_set=view_set, space_uid=space_uid, action_id=action_id, authorized_user=external_user
+                space_uid=space_uid, action_id=action_id, authorized_user=external_user
             )
             if allow_resources_result["allowed"]:
                 allow_resources = allow_resources_result["resources"]

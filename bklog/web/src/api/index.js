@@ -60,7 +60,7 @@ axiosInstance.interceptors.request.use((config) => {
   }
   // 外部版后端需要读取header里的 spaceUid
   if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
-    config.headers.set('X-SPACE-UID', store.state.spaceUid);
+    config.headers.set('X-Bk-Space-Uid', store.state.spaceUid);
   }
   return config;
 }, error => Promise.reject(error));
