@@ -21,9 +21,10 @@ the project delivered to anyone in the future.
 """
 import copy
 import json
+from typing import List
 
 import arrow
-from typing import List
+from django.utils.functional import cached_property
 
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
@@ -51,7 +52,6 @@ from apps.utils.function import map_if
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range, generate_time_range_shift
-from django.utils.functional import cached_property
 
 
 class PatternHandler:
@@ -254,7 +254,9 @@ class PatternHandler:
         日志聚类-数据指纹 页面展示信息修改
         """
         if self._clustering_config.model_output_rt:
-            qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_output_rt, signature=signature)
+            qs = AiopsSignatureAndPattern.objects.filter(
+                model_id=self._clustering_config.model_output_rt, signature=signature
+            )
         else:
             qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id, signature=signature)
         qs_obj = qs.first()
@@ -277,7 +279,6 @@ class PatternHandler:
                 else:
                     qs_obj.remark = [current_remark]
         qs_obj.save()
-
 
     @classmethod
     def _generate_strategy_result(cls, strategy_result):

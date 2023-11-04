@@ -100,6 +100,7 @@ class SetLabelSerializer(serializers.Serializer):
     signature = serializers.CharField()
     label = serializers.CharField(allow_blank=True)
 
+
 class SetRemarkSerializer(serializers.Serializer):
     signature = serializers.CharField()
     remark = serializers.CharField()
