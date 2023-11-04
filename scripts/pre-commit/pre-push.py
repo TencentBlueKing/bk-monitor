@@ -128,9 +128,18 @@ def main():
         shutil.copyfile(f"{repo.working_dir}/build.yml", f"{temp_dir}/build.yml")
 
         # 执行PreCI
-        sys.stdout.flush()
-        result = execute_command(f"preci run --projectPath {temp_dir}")
-        print("result:", result)
+        child = subprocess.Popen(
+            f"preci run --projectPath {temp_dir}", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True
+        )
+        while True:
+            output = child.stdout.readline().decode().strip()
+            if output == '' and child.poll() is not None:
+                break
+            if output:
+                print(output, flush=True)
+
+        result = child.returncode
+
         # 清理临时PreCI项目
         shutil.rmtree(temp_preci_path)
 
