@@ -141,6 +141,7 @@ def main():
             if output:
                 print(output, flush=True)
             else:
+                print("waiting for PreCI...", flush=True)
                 time.sleep(0.1)
 
         result = child.returncode
