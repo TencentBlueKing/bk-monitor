@@ -165,7 +165,7 @@ def lock(func):
         fd = os.open(lockfile, os.O_RDONLY)
         commit = os.read(fd, 40).decode().strip()
 
-        if not commit and commit == repo.head.commit.hexsha:
+        if not commit or commit == repo.head.commit.hexsha:
             sys.exit(0)
         else:
             print(f"pre-push is running with commit({commit}), please wait or remove {lockfile}")
