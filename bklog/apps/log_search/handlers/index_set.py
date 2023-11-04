@@ -52,6 +52,7 @@ from apps.log_search.constants import (
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
+    InnerTag
 )
 from apps.log_search.exceptions import (
     DesensitizeConfigCreateOrUpdateException,
@@ -68,6 +69,9 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
+    IndexSetTagNotExistException,
+    IndexSetInnerTagOperatorException,
+    IndexSetTagNameExistException
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
@@ -77,6 +81,7 @@ from apps.log_search.models import (
     Scenario,
     Space,
     UserIndexSetFieldsConfig,
+    IndexSetTag
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_trace.handlers.proto.proto import Proto
@@ -692,6 +697,94 @@ class IndexSetHandler(APIModel):
         """
         DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
         DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
+
+    def add_tag(self, tag_id: int):
+        """
+        索引集添加标签
+        """
+        # 校验标签是否存在
+        if not IndexSetTag.objects.filter(tag_id=int(tag_id)).exists():
+            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
+
+        # 校验是否为内置标签
+        if int(tag_id) in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        tag_ids.append(str(tag_id))
+
+        index_set_obj.tag_ids = list(set(tag_ids))
+
+        index_set_obj.save()
+
+        return
+
+    def cancel_tag(self, tag_id: int):
+        """
+        索引集取消标签
+        """
+        # 校验是否为内置标签
+        if int(tag_id) in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        if tag_ids and str(tag_id) in tag_ids:
+            tag_ids.remove(str(tag_id))
+            index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.save()
+
+        return
+
+    @staticmethod
+    def create_tag(params: dict):
+        """
+        创建标签
+        """
+        # 名称校验
+        if IndexSetTag.objects.filter(name=params["name"]).exists():
+            raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
+
+        obj = IndexSetTag.objects.create(
+            name=params["name"],
+            color=params["color"]
+        )
+
+        return model_to_dict(obj)
+
+    @staticmethod
+    def tag_list():
+        """
+        标签列表
+        """
+        objs = IndexSetTag.objects.filter()
+
+        ret = list()
+
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        for obj in objs:
+            _data = model_to_dict(obj)
+            if _data["name"] in inner_tag_names:
+                _data["is_built_in"] = True
+            else:
+                _data["is_built_in"] = False
+            ret.append(_data)
+
+        return ret
+
+    @staticmethod
+    def _get_inner_tag_ids():
+        """
+        获取内置标签ID列表
+        """
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        inner_tag_ids = list(IndexSetTag.objects.filter(name__in=inner_tag_names).values_list("tag_id", flat=True))
+        return inner_tag_ids
 
     @staticmethod
     def _get_health(src: list):

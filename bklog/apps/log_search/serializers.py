@@ -36,6 +36,7 @@ from apps.log_search.constants import (
     IndexSetType,
     InstanceTypeEnum,
     TemplateType,
+    TagColor,
 )
 from apps.log_search.models import ProjectInfo, Scenario
 from apps.utils.local import get_local_param
@@ -221,6 +222,24 @@ class CreateOrUpdateDesensitizeConfigSerializer(serializers.Serializer):
             else:
                 field_names.append(config["field_name"])
         return attrs
+
+
+class IndexSetAddTagSerializer(serializers.Serializer):
+    tag_id = serializers.IntegerField(label=_("标签ID"), required=True)
+
+
+class IndexSetCancelTagSerializer(serializers.Serializer):
+    tag_id = serializers.IntegerField(label=_("标签ID"), required=True)
+
+
+class CreateIndexSetTagSerializer(serializers.Serializer):
+    name = serializers.CharField(label=_("标签名称"), max_length=255, required=True)
+    color = serializers.ChoiceField(
+        label=_("标签颜色"),
+        choices=TagColor.get_choices(),
+        default=TagColor.GREEN.value,
+        required=False
+    )
 
 
 class SearchAttrSerializer(serializers.Serializer):
