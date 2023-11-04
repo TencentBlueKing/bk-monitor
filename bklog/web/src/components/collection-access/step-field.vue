@@ -155,7 +155,7 @@
                   v-for="option in globalsData.etl_config"
                   :key="option.id"
                   :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
-                  @click="params.etl_config = option.id"
+                  @click="handleSelectConfig(option.id)"
                   :class="params.etl_config === option.id ? 'is-selected' : ''"
                   :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`">
                   {{ option.name }}
@@ -250,6 +250,14 @@
                   @standard="dialogVisible = true"
                   @reset="getDetail">
                 </field-table>
+                <div
+                  class="add-field-container"
+                  v-if="isShowAddFields">
+                  <div class="text-btn" @click="addNewField">
+                    <i class="icon bk-icon icon-plus push"></i>
+                    <span class="text">{{$t('新增字段')}}</span>
+                  </div>
+                </div>
               </div>
             </template>
           </div>
@@ -470,6 +478,7 @@ import fieldTable from './field-table';
 import AuthContainerPage from '@/components/common/auth-container-page';
 import { projectManages } from '@/common/util';
 import * as authorityMap from '../../common/authority-map';
+import { deepClone } from '../../common/util';
 
 export default {
   components: {
@@ -485,8 +494,10 @@ export default {
     collectorId: String,
     isCleanField: Boolean,
     isTempField: Boolean,
+    /** 是否是字段提取 */
     isSetEdit: Boolean,
     setId: Number,
+    /** 字段提取是否禁用 */
     setDisabled: Boolean,
   },
   data() {
@@ -584,6 +595,25 @@ export default {
       cacheVisibleList: [], // 缓存多业务选择下拉框
       visibleIsToggle: false,
       docUrl: window.BK_ETL_DOC_URL,
+      /** 添加字段的基础数据 */
+      baseFieldObj: {
+        value: '',
+        option: {
+          time_zone: '',
+          time_format: '',
+        },
+        is_time: false,
+        verdict: false,
+        is_delete: false,
+        alias_name: '',
+        field_name: '',
+        field_type: '',
+        description: '',
+        is_analyzed: false,
+        is_built_in: false,
+        is_dimension: false,
+        previous_type: '',
+      },
     };
   },
   computed: {
@@ -647,6 +677,9 @@ export default {
     },
     isSetDisabled() {
       return this.isSetEdit && this.setDisabled;
+    },
+    isShowAddFields() {
+      return this.params.etl_config === 'bk_log_json';
     },
     // 可见范围单选判断，禁用下拉框
     scopeValueType() {
@@ -1211,6 +1244,9 @@ export default {
                     }, [])
                     list.splice(list.length, 0, ...deletedFileds)
                   }
+                  list.forEach((item, itemIndex) => {
+                    item.field_index = itemIndex;
+                  });
                   this.formData.fields.splice(0, fields.length, ...list)
                 }
 
@@ -1498,6 +1534,23 @@ export default {
     handleOpenDocument() {
       window.open(this.docUrl, '_blank');
     },
+    /** 切换匹配模式 */
+    handleSelectConfig(id) {
+      this.params.etl_config = id;
+      this.formData.fields = []; // 切换匹配模式时需要清空字段
+    },
+    /** json格式新增字段 */
+    addNewField() {
+      const fields = deepClone(this.formData.fields);
+      const newBaseFieldObj = {
+        ...this.baseFieldObj,
+        field_index: this.formData.fields.length,
+      };
+      // 获取table表格编辑的数据 新增新的字段对象
+      this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
+      this.deletedVisible = true;
+      this.savaFormData();
+    },
   },
 };
 </script>
@@ -1783,6 +1836,34 @@ export default {
 
     .field-method-result {
       margin-top: 8px;
+    }
+
+    .add-field-container {
+      height: 40px;
+      border: 1px solid #dcdee5;
+      border-top: none;
+      border-bottom: 1.5px solid #dcdee5;
+      border-radius: 0 0 2px 2px;
+      transform: translateY(-1px);
+      padding-left: 4px;
+      display: flex;
+      align-items: center;
+
+      .text-btn {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+
+        .text,
+        .icon {
+          font-size: 22px;
+          color: #3a84ff;
+        }
+
+        .text {
+          font-size: 12px;
+        }
+      }
     }
 
     .visible-select {

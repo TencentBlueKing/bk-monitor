@@ -105,6 +105,7 @@ class ClusteringConfig(SoftDeleteModel):
     options = models.JSONField(_("额外配置"), null=True, blank=True)
     task_records = models.JSONField(_("任务记录"), default=list)
     model_output_rt = models.CharField(_("模型输出结果表"), max_length=255, default="", null=True, blank=True)
+    clustered_rt = models.CharField(_("聚类结果表"), max_length=255, default="", null=True, blank=True)
     log_count_agg_rt = models.CharField(_("日志数量聚合结果表"), max_length=255, default="", null=True, blank=True)
     predict_flow = models.JSONField(_("predict_flow配置"), null=True, blank=True)
     predict_flow_id = models.IntegerField(_("预测flow_id"), null=True, blank=True)

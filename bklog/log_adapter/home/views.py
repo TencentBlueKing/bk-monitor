@@ -3,7 +3,7 @@
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at http://opensource.org/licenses/MIT
+You may obtain a copy of the License at https://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
@@ -12,17 +12,6 @@ import json
 from typing import Any, Dict
 from urllib.parse import urlsplit
 
-from apps.constants import ExternalPermissionActionEnum
-from apps.iam import ActionEnum
-from apps.log_commons.models import (
-    AuthorizerSettings,
-    ExternalPermission,
-    ExternalPermissionApplyRecord,
-)
-from apps.utils.db import get_toggle_data
-from apps.utils.local import set_local_param
-from apps.utils.log import logger
-from bkm_space.api import SpaceApi
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.contrib import auth
@@ -35,6 +24,23 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from rest_framework.response import Response
+
+from apps.constants import (
+    ExternalPermissionActionEnum,
+    ViewSetAction,
+    ViewSetActionEnum,
+)
+from apps.iam import ActionEnum
+from apps.log_commons.models import (
+    AuthorizerSettings,
+    ExternalPermission,
+    ExternalPermissionApplyRecord,
+)
+from apps.utils.db import get_toggle_data
+from apps.utils.local import set_local_param
+from apps.utils.log import logger
+from bkm_space.api import SpaceApi
 
 
 class RequestProcessor:
@@ -67,7 +73,9 @@ class RequestProcessor:
         return None
 
     @classmethod
-    def filter_response_resource(cls, response, action_id, view_action, allow_resources_result):
+    def filter_response_resource(
+        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: Dict[str, Any]
+    ):
         """
         过滤接口返回中的资源
         暂时只过滤search-list
@@ -78,15 +86,44 @@ class RequestProcessor:
         """
         if not allow_resources_result["allowed"]:
             return response
+        # 目前只有log_search下的接口需要过滤资源
         if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
             return response
         allow_resources = allow_resources_result["resources"]
-        if view_action == "list":
+        view_set_class: ViewSetAction = ViewSetAction(action_id=action_id, view_set=view_set, view_action=view_action)
+        if view_set_class.is_one_of(
+            [ViewSetActionEnum.SEARCH_VIEWSET_LIST.value, ViewSetActionEnum.FAVORITE_VIEWSET_LIST.value]
+        ):
             data = response.data
             if isinstance(data, dict) and "data" in data:
                 data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
                 response.data = data
+                return response
+        if view_set_class.eq(ViewSetActionEnum.FAVORITE_VIEWSET_LIST_BY_GROUP.value):
+            data = response.data
+            if isinstance(data, dict) and "data" in data:
+                allowed_data = []
+                for fg in data["data"]:
+                    fg["favorites"] = [f for f in fg["favorites"] if f["index_set_id"] in allow_resources]
+                    allowed_data.append(fg)
+                data["data"] = allowed_data
+                response.data = data
+                return response
+
         return response
+
+    @classmethod
+    def is_default_allowed(cls, view_set: str, view_action: str):
+        """
+        是否是默认允许的接口
+        """
+        for _d in ViewSetActionEnum.get_keys():
+            if _d.view_set != view_set:
+                continue
+            if not _d.view_action or _d.view_action == view_action:
+                if _d.action_id == ExternalPermissionActionEnum.LOG_COMMON.value or _d.default_permission:
+                    return True
+        return False
 
 
 @login_exempt
@@ -211,44 +248,48 @@ def dispatch_external_proxy(request):
         view_action = RequestProcessor.get_view_action(view_func=view_func, method=method.lower())
         # 内部定义的action_id, ActionEnum
         action_id = ""
-        # transfer request.user 进行外部权限替换
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
-        external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
-            space_uid=space_uid, authorizer=external_user
-        )
-        # 判断接口是否在管理范围内
-        if not external_user_allowed_action_id_list:
-            return JsonResponse(
-                {
-                    "result": False,
-                    "message": f"dispatch_plugin_query: external_user:{external_user} has no permission.",
-                },
-                status=403,
+        allow_resources_result = {"allowed": False, "resources": []}
+        # 判断是否是默认允许的接口, 默认允许的接口不需要进行权限校验
+        if not RequestProcessor.is_default_allowed(view_set=view_set, view_action=view_action):
+            # transfer request.user 进行外部权限替换
+            external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
+                space_uid=space_uid, authorizer=external_user
             )
-        is_allowed = False
-        for _action_id in external_user_allowed_action_id_list:
-            if ExternalPermission.is_action_valid(view_set=view_set, action=view_action, action_id=_action_id):
-                is_allowed = True
-                action_id = _action_id
-                break
-        if not is_allowed:
-            return JsonResponse(
-                {"result": False, "message": f"external_user:{external_user} has not enough permission."}, status=403
-            )
-        allow_resources_result = ExternalPermission.get_resources(
-            view_set=view_set, space_uid=space_uid, action_id=action_id, authorized_user=external_user
-        )
-        if allow_resources_result["allowed"]:
-            allow_resources = allow_resources_result["resources"]
-            resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data)
-            if resource and resource not in allow_resources:
+            # 判断接口是否在管理范围内
+            if not external_user_allowed_action_id_list:
                 return JsonResponse(
                     {
                         "result": False,
-                        "message": f"external_user:{external_user} cannot access resource(ID:{resource}).",
+                        "message": f"dispatch_plugin_query: external_user:{external_user} has no permission.",
                     },
                     status=403,
                 )
+            is_allowed = False
+            for _action_id in external_user_allowed_action_id_list:
+                if ExternalPermission.is_action_valid(view_set=view_set, view_action=view_action, action_id=_action_id):
+                    is_allowed = True
+                    action_id = _action_id
+                    break
+            if not is_allowed:
+                return JsonResponse(
+                    {"result": False, "message": f"external_user:{external_user} has not enough permission."},
+                    status=403,
+                )
+            allow_resources_result = ExternalPermission.get_resources(
+                view_set=view_set, space_uid=space_uid, action_id=action_id, authorized_user=external_user
+            )
+            if allow_resources_result["allowed"]:
+                allow_resources = allow_resources_result["resources"]
+                resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data)
+                if resource and resource not in allow_resources:
+                    return JsonResponse(
+                        {
+                            "result": False,
+                            "message": f"external_user:{external_user} cannot access resource(ID:{resource}).",
+                        },
+                        status=403,
+                    )
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
         user = auth.authenticate(username=authorizer)
@@ -272,6 +313,7 @@ def dispatch_external_proxy(request):
         return RequestProcessor.filter_response_resource(
             response=response,
             action_id=action_id,
+            view_set=view_set,
             view_action=view_action,
             allow_resources_result=allow_resources_result,
         )
@@ -291,14 +333,12 @@ def dispatch_external_proxy(request):
 @method_decorator(csrf_exempt)
 @require_POST
 def external_callback(request):
+    logger.info(f"[external_callback]: external_callback with header({request.headers}), body({request.body})")
     try:
         params = json.loads(request.body)
     except Exception:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
-    logger.info(
-        "[{}]: dispatch_grafana with header({}) and params({})".format("external_callback", request.META, params)
-    )
     result = ExternalPermissionApplyRecord.callback(params)
     if result["result"]:
         return JsonResponse(result, status=200)

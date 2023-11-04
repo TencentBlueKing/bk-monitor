@@ -178,6 +178,11 @@ export default class SearchComp extends tsc<IProps> {
     this.queryValueList(this.fieldsKeyStrList);
   }
 
+  @Watch('datePickerValue')
+  handleDatePickerValueChange() {
+    this.queryValueList(this.fieldsKeyStrList);
+  }
+
   @Watch('fieldLength', { immediate: true })
   setValueList() {
     this.initValueList();
