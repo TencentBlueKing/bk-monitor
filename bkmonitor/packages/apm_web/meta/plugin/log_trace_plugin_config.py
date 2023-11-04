@@ -11,10 +11,11 @@ specific language governing permissions and limitations under the License.
 
 from core.drf_resource import api
 
-
 COLLECTOR_ROW_PACKAGE_COUNT = 100
 IGNORE_OLDER = 2678400
 MAX_BYTES = 204800
+DATA_TYPE = "log_v2"
+OUTPUT_TYPE = "otlp_trace"
 
 
 class LogPluginInfo(object):
@@ -49,7 +50,9 @@ class LogTracePluginConfig(object):
                 "type": "output.bkcollector",
                 "param": {
                     "otlp_bk_data_token": output_param["bk_data_token"],
-                    "otlp_grpc_host": f"{host}:4317"
+                    "otlp_grpc_host": f"{host}:4317",
+                    "data_type": DATA_TYPE,
+                    "output_type": OUTPUT_TYPE
                 }
 
             }
