@@ -336,7 +336,11 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
 
     def process(self):
         with metrics.ACCESS_EVENT_PROCESS_TIME.labels(data_id=self.data_id).time():
-            exc = super(AccessCustomEventGlobalProcess, self).process()
+            if not self.strategies:
+                logger.info("no strategy to process")
+                exc = None
+            else:
+                exc = super(AccessCustomEventGlobalProcess, self).process()
 
         metrics.ACCESS_EVENT_PROCESS_COUNT.labels(
             data_id=self.data_id,
