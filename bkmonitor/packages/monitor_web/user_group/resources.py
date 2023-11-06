@@ -51,7 +51,7 @@ class PreviewUserGroupPlanResource(Resource):
         else:
             duty_rules = request_data["config"]["duty_rules"]
         if not duty_rules:
-            raise ValidationError("duty_rules is empty")
+            raise ValidationError(detail="duty_rules is empty")
         duty_rules = DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=duty_rules), many=True).data
         request_data["duty_rules"] = duty_rules
         request_data["user_group"] = user_group

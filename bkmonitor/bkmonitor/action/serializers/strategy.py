@@ -47,6 +47,7 @@ from constants.common import (
     WorkTimeType,
 )
 from core.drf_resource import api, resource
+from core.drf_resource.exceptions import CustomException
 
 
 class DateTimeField(serializers.CharField):
@@ -493,10 +494,8 @@ class PreviewSerializer(serializers.Serializer):
     config = serializers.DictField(required=False, label="配置信息", default=None)
 
     def to_internal_value(self, data):
+        self.initial_data = data
         internal_data = super(PreviewSerializer, self).to_internal_value(data)
-        if internal_data["source_type"] == self.SourceType.API and not internal_data["config"]:
-            # 如果数据来源是API，并且不带配置信息返回错误
-            raise ValidationError("params config is required when resource type is %s" % internal_data["source_type"])
         # 数据返回增加对应的存储记录
         if internal_data["source_type"] == self.SourceType.DB:
             internal_data["instance"] = self.get_instance(internal_data)
@@ -506,6 +505,11 @@ class PreviewSerializer(serializers.Serializer):
     def validate_config(self, value):
         if isinstance(value, dict):
             value["name"] = "[demo] for preview"
+        if self.initial_data.get(
+            "source_type", self.SourceType.API
+        ) == self.SourceType.API and not self.initial_data.get("config"):
+            # 如果数据来源是API，并且不带配置信息返回错误
+            raise ValidationError(detail='params config is required when resource type is API')
         return value
 
     def get_instance(self, internal_data):
@@ -513,11 +517,11 @@ class PreviewSerializer(serializers.Serializer):
         if internal_data["resource_type"] == "user_group":
             instance_model = UserGroup
         if internal_data["source_type"] == self.SourceType.DB and not internal_data.get("id"):
-            raise ValidationError("field(id) is required where source-type is db or default")
+            raise CustomException("field(id) is required where source-type is db or default")
         try:
             instance = instance_model.objects.get(id=internal_data["id"], bk_biz_id=internal_data["bk_biz_id"])
         except (DutyRule.DoesNotExist, UserGroup.DoesNotExist):
-            raise ValidationError("resource(%s) not existed" % internal_data["resource_type"])
+            raise CustomException(f"resource({internal_data['resource_type']}) not existed")
         return instance
 
 

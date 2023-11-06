@@ -1007,13 +1007,21 @@ class TestDutyRuleResource(BaseTestCase):
         data = r.request(duty_rule)
         self.assertIsNotNone(data.get("id"))
         duty_id = data["id"]
-        preview_data = {"source_type": "DB", "id": duty_id, "bk_biz_id": 2}
-
+        preview_data = {"source_type": "DB", "bk_biz_id": 2}
         r = PreviewDutyRulePlanResource()
+        with self.assertRaises(CustomException):
+            r.request(preview_data)
+        preview_data = {"source_type": "DB", "id": duty_id, "bk_biz_id": 2}
         data = r.request(preview_data)
         self.assertEqual(len(data), 1)
         # 每天轮一次产生了30天的排班
         self.assertEqual(len(data[0]["work_times"]), 30)
+
+        user_group_view = {"source_type": "API", "duty_rules": [duty_id], "bk_biz_id": 2}
+        r = PreviewUserGroupPlanResource()
+        with self.assertRaises(ValidationError):
+            # 通过API方式进行请求，应该返回config字段不能为空的error
+            r.validate_request_data(user_group_view)
 
         user_group_view = {"source_type": "API", "config": {"duty_rules": [duty_id]}, "bk_biz_id": 2}
         r = PreviewUserGroupPlanResource()
