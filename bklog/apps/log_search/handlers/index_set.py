@@ -703,11 +703,11 @@ class IndexSetHandler(APIModel):
         索引集添加标签
         """
         # 校验标签是否存在
-        if not IndexSetTag.objects.filter(tag_id=int(tag_id)).exists():
+        if not IndexSetTag.objects.filter(tag_id=tag_id).exists():
             raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
 
         # 校验是否为内置标签
-        if int(tag_id) in self._get_inner_tag_ids():
+        if tag_id in self._get_inner_tag_ids():
             raise IndexSetInnerTagOperatorException()
 
         index_set_obj = self._get_data()
@@ -722,12 +722,12 @@ class IndexSetHandler(APIModel):
 
         return
 
-    def cancel_tag(self, tag_id: int):
+    def delete_tag(self, tag_id: int):
         """
-        索引集取消标签
+        索引集删除标签
         """
         # 校验是否为内置标签
-        if int(tag_id) in self._get_inner_tag_ids():
+        if tag_id in self._get_inner_tag_ids():
             raise IndexSetInnerTagOperatorException()
 
         index_set_obj = self._get_data()
@@ -747,7 +747,7 @@ class IndexSetHandler(APIModel):
         创建标签
         """
         # 名称校验
-        if IndexSetTag.objects.filter(name=params["name"]).exists():
+        if params["name"] in list(InnerTag.get_dict_choices().keys()) or IndexSetTag.objects.filter(name=params["name"]).exists():
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
 
         obj = IndexSetTag.objects.create(
@@ -762,7 +762,7 @@ class IndexSetHandler(APIModel):
         """
         标签列表
         """
-        objs = IndexSetTag.objects.filter()
+        objs = IndexSetTag.objects.all()
 
         ret = list()
 
