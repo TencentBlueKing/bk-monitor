@@ -39,7 +39,8 @@ import { getBkchatGroup } from '../../../../monitor-api/modules/user_groups';
 import { random } from '../../../../monitor-common/utils/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { retrieveUserGroup } from '../.././../../monitor-api/modules/model';
-import DutyArranges, { dutyDataTransform, IDutyItem } from '../duty-arranges/duty-arranges';
+import { dutyDataTransform, IDutyItem } from '../duty-arranges/duty-arranges';
+import RotationPreview from '../rotation/rotation-preview';
 
 import './alarm-group-detail.scss';
 
@@ -406,41 +407,46 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
               {this.$t('通知对象')}
             </div>
             <div class='alarm-details-item alarm-details-person'>
-              {this.formData.needDuty ? (
-                <div class='duty-wrap'>
-                  <DutyArranges
+              {(() => {
+                if (this.formData.needDuty) {
+                  return (
+                    <div class='duty-wrap'>
+                      {/* <DutyArranges
                     value={this.dutyArranges}
                     readonly={true}
                     key={this.dutyArrangesKey}
                     dutyPlans={this.dutyPlans}
-                  ></DutyArranges>
-                </div>
-              ) : this.formData.users?.length ? (
-                this.formData.users.map(item => (
-                  <div
-                    class='person-box'
-                    key={item.id}
-                  >
-                    <div class='person-image'>
-                      {[
-                        item.logo ? <img src={item.logo} /> : undefined,
-                        !item.logo && item.type === 'group' ? (
-                          <i class='icon-monitor icon-mc-user-group no-img' />
-                        ) : undefined,
-                        !item.logo && item.type === 'user' ? (
-                          <i class='icon-monitor icon-mc-user-one no-img' />
-                        ) : undefined
-                      ]}
+                  ></DutyArranges> */}
+                      <RotationPreview></RotationPreview>
                     </div>
-                    <span class='person-name'>
-                      {item.id}
-                      {`(${item.display_name})`}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <span class='notice-empty'>--</span>
-              )}
+                  );
+                }
+                if (this.formData.users?.length) {
+                  return this.formData.users.map(item => (
+                    <div
+                      class='person-box'
+                      key={item.id}
+                    >
+                      <div class='person-image'>
+                        {[
+                          item.logo ? <img src={item.logo} /> : undefined,
+                          !item.logo && item.type === 'group' ? (
+                            <i class='icon-monitor icon-mc-user-group no-img' />
+                          ) : undefined,
+                          !item.logo && item.type === 'user' ? (
+                            <i class='icon-monitor icon-mc-user-one no-img' />
+                          ) : undefined
+                        ]}
+                      </div>
+                      <span class='person-name'>
+                        {item.id}
+                        {`(${item.display_name})`}
+                      </span>
+                    </div>
+                  ));
+                }
+                return '--';
+              })()}
             </div>
           </div>
           {!!this.formData.mention_list.length && (

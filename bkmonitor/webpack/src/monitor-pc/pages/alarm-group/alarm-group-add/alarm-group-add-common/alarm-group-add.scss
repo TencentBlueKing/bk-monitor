@@ -28,6 +28,10 @@
 $minWidth: 1036px;
 
 .alarm-group-add-wrap {
+  .width-508 {
+    width: 508px
+  }
+
   .biz-id-select {
     @include inputMinWidth();
   }

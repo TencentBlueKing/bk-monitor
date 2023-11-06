@@ -253,6 +253,14 @@ export const routeConfig: IRouteConfigItem[] = [
             href: '#/alarm-group'
           },
           {
+            name: '轮值',
+            icon: 'icon-monitor icon-menu-group menu-icon',
+            id: 'rotation',
+            path: '/rotation',
+            canStore: true,
+            href: '#/rotation'
+          },
+          {
             name: '指标管理',
             icon: 'icon-monitor icon-mc-custom-scene menu-icon',
             id: 'metrics-manager',
