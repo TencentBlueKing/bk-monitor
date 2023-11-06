@@ -231,7 +231,7 @@ class SearchHandler(object):
         self.serverIp: str = search_dict.get("serverIp")  # pylint: disable=invalid-name
         self.ip: str = search_dict.get("ip", "undefined")
         self.path: str = search_dict.get("path", "")
-        self.container_id: str = search_dict.get("container_id", None)
+        self.container_id: str = search_dict.get("container_id", None) or search_dict.get("__ext.container_id", None)
         self.logfile: str = search_dict.get("logfile", None)
         self._iteration_idx: str = search_dict.get("_iteration_idx", None)
         self.iterationIdx: str = search_dict.get("iterationIdx", None)  # pylint: disable=invalid-name

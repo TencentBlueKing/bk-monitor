@@ -19,13 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import os
 import sys
 
+from bkcrypto import constants as bkcrypto_constants
 from blueapps.conf.default_settings import *  # noqa
-from config.log import get_logging_config_dict
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
+
+from config.log import get_logging_config_dict
 
 # 使用k8s部署模式
 IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
@@ -207,6 +210,29 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
 )
+
+# bk crypto sdk配置
+BKCRYPTO = {
+    "SYMMETRIC_CIPHERS": {
+        "default": {
+            "get_key_config": "apps.utils.aes.get_default_symmetric_key_config",
+        },
+    },
+}
+
+# 对称加密类型
+if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "AES") == "SHANGMI":
+    BKCRYPTO.update(
+        {
+            "SYMMETRIC_CIPHER_TYPE": bkcrypto_constants.SymmetricCipherType.SM4.value,
+        }
+    )
+else:
+    BKCRYPTO.update(
+        {
+            "SYMMETRIC_CIPHER_TYPE": bkcrypto_constants.SymmetricCipherType.AES.value,
+        }
+    )
 
 # OTLP Service Name
 SERVICE_NAME = APP_CODE

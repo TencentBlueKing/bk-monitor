@@ -404,6 +404,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 记录检测点 下次从检测点开始重新检查
             checkpoint.set(last_checkpoint)
 
+        # 记录access最后一次数据拉取时间
+        access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
+        key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
+
         logger.info(
             "strategy_group_key({}), push records({}), last_checkpoint({})".format(
                 self.strategy_group_key,

@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 import git
 import yaml
@@ -127,10 +128,23 @@ def main():
         # 复制build.yml
         shutil.copyfile(f"{repo.working_dir}/build.yml", f"{temp_dir}/build.yml")
 
-        # 执行PreCI
         sys.stdout.flush()
-        result = execute_command(f"preci run --projectPath {temp_dir}")
-        print("result:", result)
+
+        # 执行PreCI
+        child = subprocess.Popen(
+            f"preci run --projectPath {temp_dir}", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True
+        )
+        while True:
+            output = child.stdout.readline().decode().strip()
+            if output == '' and child.poll() is not None:
+                break
+            if output:
+                print(output, flush=True)
+            else:
+                time.sleep(0.1)
+
+        result = child.returncode
+
         # 清理临时PreCI项目
         shutil.rmtree(temp_preci_path)
 
@@ -141,5 +155,28 @@ def main():
     return 0
 
 
+def lock(func):
+    repo = git.Repo()
+    lockfile = os.path.join(repo.working_dir, ".git", "pre-push.lock")
+    try:
+        fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        os.write(fd, repo.head.commit.hexsha.encode())
+    except OSError:
+        fd = os.open(lockfile, os.O_RDONLY)
+        commit = os.read(fd, 40).decode().strip()
+
+        if not commit or commit == repo.head.commit.hexsha:
+            sys.exit(0)
+        else:
+            print(f"pre-push is running with commit({commit}), please wait or remove {lockfile}")
+            sys.exit(1)
+
+    try:
+        sys.exit(func())
+    finally:
+        os.close(fd)
+        os.unlink(lockfile)
+
+
 if __name__ == "__main__":
-    exit(main())
+    lock(func=main)

@@ -30,7 +30,6 @@ import {
 } from 'vue-property-decorator';
 import { Switcher, Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
 import './condition.scss';
-import { Debounce } from '../../../common/util';
 
 interface IProps {
 }
@@ -170,7 +169,6 @@ export default class Condition extends tsc<IProps> {
     return v;
   }
 
-  @Debounce(300)
   @Emit('additionValueChange')
   handleAdditionChange(v: any, key: string, isQuery = true) {
     return { v, key, isQuery };
@@ -276,9 +274,9 @@ export default class Condition extends tsc<IProps> {
     }
     if (isCompared) this.localValue = this.localValue[0] ? [this.localValue[0]] : []; // 多输入的值变为单填时 拿下标为0的值
     const isQuery = !!this.localValue.length || isExists; // 值不为空 或 存在与不存在 的情况下才自动检索请求
-    this.handleAdditionChange(operatorItem.operator, 'operator', isQuery);  // 更新操作符
     this.handleAdditionChange(isExists ? [''] : queryValue, 'value', false);  // 更新值
     this.handleAdditionChange(operatorItem, 'operatorItem', false);  // 更新操作符Item
+    this.handleAdditionChange(operatorItem.operator, 'operator', isQuery);  // 更新操作符
   }
 
   /**
