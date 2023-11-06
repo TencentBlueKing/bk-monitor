@@ -733,7 +733,7 @@ export default class MaskingField extends tsc<IProps> {
         directives: [
           {
             name: 'bk-tooltips',
-            value: this.$t('脱预览会根的采样日志输出对应脱教结果，多条采样会多条脱敏结果'),
+            value: this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。'),
           },
         ],
       }),
