@@ -190,7 +190,7 @@ export default class SettingParams extends tsc<IProps, IEvents> {
           <bk-form-item label={this.$t('存储索引名')}>
             <div class='index-name-item'>
               <span class='index-name-label'>{this.setupData.index_prefix_name}</span>
-              <span class='index-name-value'>{this.appInfoData?.enName || '--'}</span>
+              <span class='index-name-value'>{this.appInfoData?.name || '--'}</span>
             </div>
           </bk-form-item>
           <bk-form-item label={this.$t('过期时间')}>
