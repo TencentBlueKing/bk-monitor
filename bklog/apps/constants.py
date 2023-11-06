@@ -378,6 +378,10 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="IpChooserConfigViewSet",
         default_permission=True,
     )  # 默认允许
+    # 获取主机展示名称, 默认允许
+    BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
+        view_set="BizsViewSet", view_action="get_display_name", default_permission=True
+    )
     # 日志提取-ExplorerViewSet,TasksViewSet,StrategiesViewSet
     EXPLORER_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="ExplorerViewSet"
@@ -423,6 +427,7 @@ class ViewSetActionEnum(ChoicesEnum):
         META_VIEWSET,
         LANGUAGE_VIEWSET,
         MENU_VIEWSET,
+        BIZS_VIEWSET_HOST_DISPLAY_NAME,
     )
 
 
