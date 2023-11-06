@@ -166,6 +166,11 @@ class TasksHandler(object):
             "link_id": link_id,
         }
         task = Tasks.objects.create(**params)
+        # 当请求为外部用户时，将创建者改为外部用户, 避免外部用户无法查看到他创建的任务
+        external_user = get_request_external_username()
+        if external_user:
+            task.created_by = external_user
+            task.save()
         params["ip_list"] = ip_list
         for pop_field in [
             "download_status",
@@ -200,7 +205,8 @@ class TasksHandler(object):
 
         # add user_operation_record
         operation_record = {
-            "username": get_request_username(),
+            # 外部请求时，记录真实的外部用户请求, 用于统计
+            "username": external_user or get_request_username(),
             "biz_id": bk_biz_id,
             "record_type": UserOperationTypeEnum.LOG_EXTRACT_TASKS,
             "record_object_id": task.task_id,
@@ -213,7 +219,7 @@ class TasksHandler(object):
         return {"task_id": task.task_id}
 
     def retrieve(self, tasks_views):
-        request_user = get_request_username()
+        request_user = get_request_external_username() or get_request_username()
         instance = tasks_views.get_object()
         serializer = tasks_views.get_serializer(instance)
         task = serializer.data

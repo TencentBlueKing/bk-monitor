@@ -382,14 +382,13 @@ class ViewSetActionEnum(ChoicesEnum):
     BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
         view_set="BizsViewSet", view_action="get_display_name", default_permission=True
     )
-    # 日志提取-ExplorerViewSet,TasksViewSet,StrategiesViewSet
+    # 日志提取-ExplorerViewSet,TasksViewSet
     EXPLORER_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="ExplorerViewSet"
     )
+
+    # 日志提取-TaskViewSet
     TASKS_VIEWSET = ViewSetAction(action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="TasksViewSet")
-    STRATEGIES_VIEWSET = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="StrategiesViewSet"
-    )
     # META-MetaViewSet
     META_VIEWSET = ViewSetAction(view_set="MetaViewSet", default_permission=True)
     LANGUAGE_VIEWSET = ViewSetAction(view_set="LanguageViewSet", default_permission=True)
@@ -421,9 +420,10 @@ class ViewSetActionEnum(ChoicesEnum):
         IP_CHOOSER_TEMPLATE_VIEWSET,
         IP_CHOOSER_DYNAMIC_GROUP_VIEWSET,
         IP_CHOOSER_CONFIG_VIEWSET,
-        EXPLORER_VIEWSET,
+        # TASKS_VIEWSET
         TASKS_VIEWSET,
-        STRATEGIES_VIEWSET,
+        EXPLORER_VIEWSET,
+        # META_VIEWSET
         META_VIEWSET,
         LANGUAGE_VIEWSET,
         MENU_VIEWSET,

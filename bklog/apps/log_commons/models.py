@@ -461,7 +461,7 @@ class ExternalPermission(OperateRecordModel):
         return AuthorizerSettings.get_authorizer(space_uid=space_uid)
 
     @classmethod
-    def get_resource_by_action(cls, action_id: str, space_uid: str = "") -> List[Dict, Any]:
+    def get_resource_by_action(cls, action_id: str, space_uid: str = "") -> List[Dict[str, Any]]:
         if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
             return cls._get_log_search_resource(space_uid=space_uid)
         if action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
@@ -469,7 +469,7 @@ class ExternalPermission(OperateRecordModel):
         return []
 
     @classmethod
-    def _get_log_search_resource(cls, space_uid: str) -> List[Dict, Any]:
+    def _get_log_search_resource(cls, space_uid: str) -> List[Dict[str, Any]]:
         from apps.log_search.models import LogIndexSet
 
         if not space_uid:
@@ -487,7 +487,7 @@ class ExternalPermission(OperateRecordModel):
         ]
 
     @classmethod
-    def _get_log_extract_resource(cls, space_uid: str) -> List[Dict, Any]:
+    def _get_log_extract_resource(cls, space_uid: str) -> List[Dict[str, Any]]:
         from apps.log_extract.models import Strategies
 
         if not space_uid:
