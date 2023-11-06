@@ -521,6 +521,7 @@ export default defineComponent({
     }
     function handMemberSelectChange(ind: number, val: ReplaceRotationUsersModel['value'][0]['value']) {
       localValue.users.value[ind].value = val;
+      handleEmitData();
     }
 
     function handleDragstart(e: DragEvent, index: number) {
