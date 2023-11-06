@@ -35,7 +35,6 @@
     "deepmerge": "^4.2.2",
     "echarts": "^4.8.0",
     "html-to-image": "^1.9.0",
-    "moment": "^2.29.2",
     "monitor-vue-grid-layout": "0.0.1",
     "resize-detector": "^0.2.2",
     "throttle-debounce": "^3.0.1",

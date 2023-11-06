@@ -54,7 +54,7 @@ export class TimeRange {
     /** 相对时间范围 */
     const match = timeStr.match(CUSTOM_TIME_RANGE_REG);
     if (!!match) {
-      momentRes = dayjs.tz();
+      momentRes = dayjs();
       const [target, , method, num, dateType, boundary] = match;
       /** 过去时间 */
       if (method === '-' && num && dateType) {
@@ -71,12 +71,12 @@ export class TimeRange {
       }
       /** 相对时间格式错误 */
       if (target !== timeStr) {
-        momentRes = dayjs.tz(null);
+        momentRes = dayjs();
       }
     } else {
       /** 绝对时间范围 */
       const time = intTimestampStr(timeStr);
-      momentRes = dayjs.tz(time);
+      momentRes = dayjs(time);
     }
     return momentRes.isValid() ? momentRes : null;
   }
@@ -114,9 +114,9 @@ export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType
 export function timestampTransformStr(value: number[]): TimeRangeType {
   return value.map(v => {
     if (String(v).length > 10) {
-      return dayjs.tz(Number(v)).format('YYYY-MM-DD HH:mm:ss');
+      return dayjs(Number(v)).format('YYYY-MM-DD HH:mm:ss');
     }
-    return dayjs.tz(Number(v) * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs(Number(v) * 1000).format('YYYY-MM-DD HH:mm:ss');
   }) as TimeRangeType;
 }
 

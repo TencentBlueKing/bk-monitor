@@ -130,7 +130,7 @@ export default class ToolsMixin extends Vue {
           panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
         }#/data-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
           this.toolTimeRange[1]
-        }`;
+        }&timezone=${(this as any).timezone || window.timezone}`;
         window.open(url);
       });
       return;
@@ -168,7 +168,7 @@ export default class ToolsMixin extends Vue {
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
       }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(removeUndefined(targets)))}&from=${
         this.toolTimeRange[0]
-      }&to=${this.toolTimeRange[1]}`;
+      }&to=${this.toolTimeRange[1]}&timezone=${(this as any).timezone || window.timezone}`;
       window.open(url);
     }
   }
@@ -228,7 +228,9 @@ export default class ToolsMixin extends Vue {
       }
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-      }#/strategy-config/add/?data=${JSON.stringify(result)}`;
+      }#/strategy-config/add/?data=${JSON.stringify(result)}&from=${this.toolTimeRange[0]}&to=${
+        this.toolTimeRange[1]
+      }&timezone=${(this as any).timezone || window.timezone}`;
       window.open(url);
     } catch (e) {
       console.info(e);

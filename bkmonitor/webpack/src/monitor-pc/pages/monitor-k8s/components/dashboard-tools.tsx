@@ -103,6 +103,8 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   @InjectReactive('readonly') readonly readonly: boolean; // 是否只读
   // 数据间隔
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
+  // 时区
+  @Prop({ type: String }) timezone: string;
   // 自动刷新数据间隔
   @Prop({ default: -1 }) readonly refleshInterval: number;
   // 是否显示分屏功能
@@ -422,6 +424,7 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
             <TimeRange
               class='dashboard-tools-timerange'
               value={this.curTimeRange}
+              timezone={this.timezone}
               onTimezoneChange={this.handleTimezoneChange}
               onChange={this.handleTimeRangeChange}
             />

@@ -914,6 +914,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               ref='tool'
               on-change={this.handleToolPanelChange}
               on-on-immediate-reflesh={this.handleRefreshView}
+              onTimezoneChange={this.handleRefreshView}
             ></strategy-view-tool>,
             <div class='strategy-view-content'>
               {(this.metricQueryData.length > 0 &&

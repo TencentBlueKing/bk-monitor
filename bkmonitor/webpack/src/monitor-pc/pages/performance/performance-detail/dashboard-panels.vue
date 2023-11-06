@@ -403,8 +403,8 @@ export default class DashboardPanels extends Vue {
           }
           if (startTime && endTime) {
             timerange = {
-              start_time: dayjs.tz(startTime).unix(),
-              end_time: dayjs.tz(endTime).unix()
+              start_time: dayjs(startTime).unix(),
+              end_time: dayjs(endTime).unix()
             };
           }
           if (item.datasourceId === 'log') {

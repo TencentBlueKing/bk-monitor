@@ -29,6 +29,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import dayjs from 'dayjs';
 
 import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
 import bus from '../../../../monitor-common/utils/event-bus';
@@ -44,6 +45,7 @@ import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
+import { updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
 import { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 // import { CHART_INTERVAL } from '../../../constant/constant';
@@ -474,6 +476,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 派发到子孙组件内的一些视图配置变量
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
+  // 时区
+  @ProvideReactive('timezone') timezone: string = dayjs.tz.guess();
   // 刷新间隔
   @ProvideReactive('refleshInterval') refleshInterval = -1;
   // 视图变量
@@ -521,6 +525,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     bus.$on('switch_scenes_type', this.handleLinkToDetail);
   }
   beforeDestroy() {
+    updateTimezone(dayjs.tz.guess());
     bus.$off('dashboardModeChange', this.handleDashboardModeChange);
     bus.$off('switch_scenes_type');
   }
@@ -639,6 +644,10 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
           } catch (err) {
             console.log(err);
           }
+        } else if (key === 'timezone') {
+          this.timezone = (val as string) || dayjs.tz.guess();
+          window.timezone = val as string;
+          updateTimezone(val as string);
         } else {
           this[key] = val;
         }
@@ -1205,6 +1214,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         // timeRange: this.timeRange as string,
         from: this.timeRange[0],
         to: this.timeRange[1],
+        timezone: this.timezone,
         refleshInterval: this.refleshInterval.toString(),
         // selectorSearchCondition: encodeURIComponent(JSON.stringify(this.selectorSearchCondition)),
         queryData: queryDataStr,
@@ -1284,7 +1294,12 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     this.handleResetRouteQuery();
     this.$emit('timeRangeChange', v);
   }
-
+  /** 时区变更 */
+  handleTimezoneChange(timezone: string) {
+    this.timezone = timezone;
+    this.handleResetRouteQuery();
+    this.$emit('timezoneChange', timezone);
+  }
   handleSelectorPanelChange(viewOptions: IViewOptions) {
     this.selectorReady = true;
     this.handleViewOptionsChange(viewOptions);
@@ -1604,6 +1619,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 isSplitPanel={this.isSplitPanel}
                 refleshInterval={this.refleshInterval}
                 timeRange={this.timeRange}
+                timezone={this.timezone}
                 showSplitPanel={this.isShowSplitPanel}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}
                 menuList={this.sceneData.dasbordToolMenuList}
@@ -1616,6 +1632,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 onSplitPanelChange={this.handleSplitPanel}
                 onSelectedMenu={this.handleShowSettingModel}
                 onDownSampleRangeChange={this.handleDownSampleRangeChange}
+                onTimezoneChange={this.handleTimezoneChange}
               >
                 {this.$slots.dashboardTools}
               </DashboardTools>

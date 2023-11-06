@@ -123,6 +123,8 @@ export class LineChart
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 立即刷新图表
   @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  // 时区
+  @InjectReactive('timezone') readonly timezone: string;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 当前粒度
@@ -222,6 +224,11 @@ export class LineChart
   handleRefleshImmediateChange(v: string) {
     if (v) this.getPanelData();
   }
+  @Watch('timezone')
+  // 时区变更刷新图表
+  handleTimezoneChange(v: string) {
+    if (v) this.getPanelData();
+  }
   @Watch('timeOffset')
   handleTimeOffsetChange(v: string[], o: string[]) {
     if (JSON.stringify(v) === JSON.stringify(o)) return;
@@ -233,8 +240,8 @@ export class LineChart
     if (!val) {
       const { startTime, endTime } = handleTimeRange(this.timeRange);
       this.getPanelData(
-        dayjs.tz(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
+        dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
       );
     } else {
       this.getPanelData(val[0], val[1]);
@@ -292,7 +299,7 @@ export class LineChart
     const timeMatch = val.match(/(-?\d+)(\w+)/);
     const hasMatch = timeMatch && timeMatch.length > 2;
     return hasMatch
-      ? (dayjs.tz() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+      ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
       : val.replace('current', window.i18n.tc('当前'));
   }
   /**
@@ -321,8 +328,8 @@ export class LineChart
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
-        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        start_time: start_time ? dayjs(start_time).unix() : startTime,
+        end_time: end_time ? dayjs(end_time).unix() : endTime
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {
@@ -1054,7 +1061,7 @@ export class LineChart
       this.panel.targets?.[0]?.data?.bk_biz_id || this.panel.bk_biz_id || this.$store.getters.bizId
     }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(result))}&from=${this.timeRange[0]}&to=${
       this.timeRange[1]
-    }`;
+    }&timezone=${this.timezone}`;
     window.open(url);
   }
   /** 处理点击左侧响铃图标 跳转策略的逻辑 */

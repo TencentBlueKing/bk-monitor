@@ -51,5 +51,6 @@ dayjs.locale({
 window.timezone = dayjs.tz.guess();
 dayjs.tz.setDefault(window.timezone);
 export const updateTimezone = (tz: string) => {
+  window.timezone = tz;
   dayjs.tz.setDefault(tz);
 };

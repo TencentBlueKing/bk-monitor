@@ -26,7 +26,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import DatePicker from '@blueking/date-picker/vue2';
-import dayjs from 'dayjs';
+
+import { updateTimezone } from '../../i18n/dayjs';
 
 import { DEFAULT_TIME_RANGE } from './utils';
 
@@ -38,6 +39,7 @@ type TimeRangeDisplayType = 'normal' | 'simplicity';
 interface IProps {
   value: TimeRangeType;
   type?: TimeRangeDisplayType;
+  timezone?: string;
 }
 interface IEvents {
   onChange: TimeRangeType;
@@ -48,15 +50,15 @@ interface IEvents {
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
-  @Prop({ default: dayjs.tz.guess(), type: String }) timezone: TimeRangeDisplayType; // 组件回显值
-
+  @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
   @Emit('change')
-  handleModelValueChange(v) {
+  handleModelValueChange(v: TimeRangeType) {
     return v;
   }
-
-  handleTimezoneChange(v) {
-    this.timezone = v;
+  @Emit('timezoneChange')
+  handleTimezoneChange(timezone: string) {
+    timezone && updateTimezone(timezone);
+    return timezone;
   }
   render() {
     return (

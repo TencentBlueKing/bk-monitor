@@ -187,6 +187,7 @@ export declare namespace IDataRetrievalView {
   interface ITools {
     refleshInterval: number;
     timeRange: TimeRangeType;
+    timezone: string;
   }
   interface ICompareValue {
     compare: ICompare;
