@@ -144,7 +144,6 @@
                 @click="operateHandler(props.row, 'edit')">
                 {{ $t('编辑') }}</bk-button>
               <bk-button
-                class="king-button"
                 theme="primary"
                 text
                 :disabled="!props.row.table_id"
@@ -519,10 +518,6 @@ export default {
 
           .king-button {
             margin-right: 14px;
-
-            &:last-child {
-              margin-right: 0;
-            }
           }
         }
 
@@ -551,5 +546,56 @@ export default {
       }
     }
 
+  }
+
+  .dot-menu {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .dot-menu-theme {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+
+    &::before {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #fff !important;
+    }
+  }
+
+  .collection-operation-list {
+    margin: 0;
+    min-width: 50px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    li {
+      padding: 4px 16px;
+      font-size: 12px;
+      line-height: 26px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #eaf3ff;
+        color: #3a84ff;
+      }
+    }
+
+    a {
+      display: inline-block;
+      width: 100%;
+      height: 100%;
+      color: #63656e;
+    }
+
+    .text-disabled {
+      color: #c4c6cc;
+
+      &:hover {
+        cursor: not-allowed;
+      }
+    }
   }
 </style>
