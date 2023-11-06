@@ -566,7 +566,9 @@ export default class MaskingSetting extends tsc<IProps> {
     /** 匹配字段名插槽 */
     const matchFieldNameSlot = {
       default: ({ row }) => (
-        <div class="title-overflow" v-bk-overflow-tips>
+        <div class="title-overflow" v-bk-overflow-tips={{
+          content: row.matchFields.join(' , '),
+        }}>
            {
             row.matchFields.length
               ? row.matchFields.map(item => (
@@ -748,7 +750,7 @@ export default class MaskingSetting extends tsc<IProps> {
                 render-header={this.$renderHeader}
                 filters={this.operatorFilters}
                 filter-method={this.operatorFilterMethod}
-                filter-multiple={true}
+                filter-multiple={false}
                 scopedSlots={maskingRuleSlot}
               ></TableColumn>
             ) : undefined}

@@ -542,10 +542,13 @@ export default class MaskingAddRule extends tsc<IProps> {
                     this.formData.operator === 'text_replace'
                     && <div class="regex-item-tips" v-en-style="left: 175px;">
                     <i v-bk-tooltips={{
-                      // eslint-disable-next-line prefer-template
-                      content: this.$t('支持引用正则表达式中的命名分组。如正则表达式为 ') + '(?P<' + 'phone' + '>\\w{6,16})' + this.$t('，可通过 ${phone} 进行引用'),
+                      allowHtml: true,
+                      content: '#rule-tips',
                     }}
                       class="log-icon icon-info-fill"></i>
+                    <div id='rule-tips'>
+                      <span>{`${this.$t('支持引用正则表达式中的命名分组。如正则表达式为 ')}(?P<` + 'phone' + `>\\w{6,16})${this.$t('，可通过 ${phone} 进行引用')}`}</span>
+                    </div>
                   </div>
                   }
                   <RadioGroup v-model={this.formData.operator}>

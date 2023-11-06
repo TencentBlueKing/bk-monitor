@@ -152,14 +152,20 @@
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                 }"
                 @click="operateHandler(props.row, 'clean')">
-                {{ $t('清洗') }}</bk-button>
-              <bk-dropdown-menu ref="dropdown" align="left" position-fixed>
+                {{ $t('清洗') }}
+              </bk-button>
+              <bk-popover
+                class="dot-menu"
+                placement="bottom-start"
+                theme="dot-menu light"
+                offset="15"
+                :arrow="false"
+                :distance="0">
                 <i
                   class="bk-icon icon-more"
-                  style="font-size: 14px; font-weight: bold; display: inline-block;"
-                  slot="dropdown-trigger">
+                  style="margin-left: 5px; font-size: 14px; font-weight: bold;">
                 </i>
-                <ul class="bk-dropdown-list" slot="dropdown-content">
+                <ul class="collection-operation-list" slot="content">
                   <!-- 查看详情 -->
                   <li>
                     <a
@@ -233,7 +239,7 @@
                     </a>
                   </li>
                 </ul>
-              </bk-dropdown-menu>
+              </bk-popover>
             </div>
           </bk-table-column>
           <div slot="empty">
