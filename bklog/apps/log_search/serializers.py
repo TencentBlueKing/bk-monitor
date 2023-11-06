@@ -228,7 +228,7 @@ class IndexSetAddTagSerializer(serializers.Serializer):
     tag_id = serializers.IntegerField(label=_("标签ID"), required=True)
 
 
-class IndexSetCancelTagSerializer(serializers.Serializer):
+class IndexSetDeleteTagSerializer(serializers.Serializer):
     tag_id = serializers.IntegerField(label=_("标签ID"), required=True)
 
 
