@@ -437,6 +437,14 @@ class Host(BaseNode):
         "rack_id",
         "bk_svr_device_cls_name",
         "svr_device_class",
+        "docker_client_version",
+        "docker_server_version",
+        "bk_mem",
+        "bk_disk",
+        "bk_os_bit",
+        "bk_os_version",
+        "bk_cpu_module",
+        "bk_cpu",
     )
     HOST_DISABLE_MONITOR_STATES = settings.HOST_DISABLE_MONITOR_STATES
     HOST_DISABLE_NOTICE_STATES = settings.HOST_DISABLE_NOTICE_STATES
