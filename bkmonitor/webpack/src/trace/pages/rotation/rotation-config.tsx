@@ -32,6 +32,7 @@ import { random } from 'lodash';
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import NavBar from '../../components/nav-bar/nav-bar';
 
+import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
 import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
 import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
@@ -64,6 +65,7 @@ export default defineComponent({
         endTime: ''
       }
     });
+    const previewData = ref([]);
     /**
      * 表单错误信息
      */
@@ -104,6 +106,7 @@ export default defineComponent({
     });
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
+      getPreviewData();
     }
     function getGroupList() {
       getReceiver().then(data => {
@@ -158,8 +161,7 @@ export default defineComponent({
       return res;
     }
 
-    function handleSubmit() {
-      if (!validate()) return;
+    function getParams() {
       let dutyArranges;
       // 轮值类型数据转化
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
@@ -177,7 +179,12 @@ export default defineComponent({
         effective_time: effective.startTime,
         end_time: effective.endTime
       };
+      return params;
+    }
 
+    function handleSubmit() {
+      if (!validate()) return;
+      const params = getParams();
       console.log(params);
     }
 
@@ -194,6 +201,23 @@ export default defineComponent({
           rotationTypeData.handoff = replaceRotationTransform(res.duty_arranges, 'data');
         }
       });
+    }
+
+    /**
+     * @description 获取预览数据
+     */
+    function getPreviewData() {
+      const dutyParams = getParams();
+      const startDate = getCalendar()[0][0];
+      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00`;
+      const params = {
+        begin_time: beginTime,
+        days: 31,
+        source_type: 'API',
+        config: dutyParams
+      };
+      console.log(params);
+      previewData.value = setPreviewDataOfServer([]);
     }
 
     onMounted(() => {
@@ -221,6 +245,7 @@ export default defineComponent({
       fixedRotationTabRef,
       replaceRotationTabRef,
       rotationTypeData,
+      previewData,
       handleRotationTypeDataChange,
       handleSubmit,
       handleBack,
@@ -323,7 +348,10 @@ export default defineComponent({
             label={this.$t('轮值预览')}
             class='mt-24'
           >
-            <RotationCalendarPreview class='width-974'></RotationCalendarPreview>
+            <RotationCalendarPreview
+              class='width-974'
+              value={this.previewData}
+            ></RotationCalendarPreview>
           </FormItem>
           <FormItem class='mt-32'>
             <Button

@@ -23,12 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { randomColor } from '../utils';
+
+export interface ICalendarDataUser {
+  color: string;
+  timeRange: string[];
+  users: { id: string; name: string }[];
+}
 export interface ICalendarData {
-  users: {
-    color: string;
-    timeRange: string[];
-    users: { id: string; name: string }[];
-  }[];
+  users: ICalendarDataUser[];
   data: {
     dates: {
       // 日历表一行的数据
@@ -186,4 +189,40 @@ export function calendarDataConversion(data: ICalendarData) {
     };
   });
   return calendarData;
+}
+
+interface IDutyPlans {
+  users: {
+    id: string;
+    display_name: string;
+    type: string;
+  }[];
+  work_time: {
+    start_time: string;
+    end_time: string;
+  }[];
+}
+
+export interface IDutyPreviewParams {
+  rule_id: number | string;
+  duty_plans: IDutyPlans[];
+}
+/**
+ * @description 根据后台接口数据转换为预览数据
+ * @param params
+ */
+export function setPreviewDataOfServer(params: IDutyPlans[]) {
+  const data = [];
+  params.forEach((item, index) => {
+    const users = item.users.map(u => ({ id: u.id, name: u.display_name }));
+    item.work_time.forEach(work => {
+      data.push({
+        users,
+        color: randomColor(index),
+        timeRange: [work.start_time, work.end_time]
+      });
+    });
+  });
+  console.log(params, data);
+  return data;
 }
