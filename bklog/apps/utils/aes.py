@@ -19,14 +19,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
+
 """
 AES加密模块
 """
 import base64  # noqa
 import math  # noqa
 
-from Crypto.Cipher import AES  # noqa
+from bkcrypto.contrib.django.init_configs import SymmetricKeyConfig
 from Crypto import Random  # noqa
+from Crypto.Cipher import AES  # noqa
 
 
 class AESCipher(object):
@@ -112,3 +115,13 @@ class AESCipher(object):
             target += target * block_size
 
         return target[:block_size]
+
+
+def get_default_symmetric_key_config(cipher_type: str) -> SymmetricKeyConfig:
+    """
+    获取项目默认对称加密配置
+    :param cipher_type:
+    :return:
+    """
+    # 统一使用 APP_SECRET 作为对称加密密钥，SDK 会截断，取符合预期的 key length
+    return SymmetricKeyConfig(key=settings.SECRET_KEY)

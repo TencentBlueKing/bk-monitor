@@ -19,12 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.constants import UserOperationTypeEnum, UserOperationActionEnum
-from apps.log_extract.exceptions import TaskNotHaveExtractLink
-from apps.log_extract.models import ExtractLink, Tasks, ExtractLinkHost
-from apps.log_extract import exceptions, constants
-from apps.utils.local import get_request_username
+from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
+from apps.log_extract import constants, exceptions
+from apps.log_extract.exceptions import TaskNotHaveExtractLink
+from apps.log_extract.models import ExtractLink, ExtractLinkHost, Tasks
+from apps.utils.local import get_request_username
 
 
 class LinkHandler(object):
@@ -53,7 +53,8 @@ class LinkHandler(object):
             "operator": self.data.operator,
             "op_bk_biz_id": self.data.op_bk_biz_id,
             "qcloud_secret_id": self.data.qcloud_secret_id,
-            "qcloud_secret_key": self.data.qcloud_secret_key,
+            # 编辑提取链路-获取详情时：secret_key返回空值，前端使用*作为掩码
+            "qcloud_secret_key": "",
             "qcloud_cos_bucket": self.data.qcloud_cos_bucket,
             "qcloud_cos_region": self.data.qcloud_cos_region,
             "is_enable": self.data.is_enable,
@@ -109,7 +110,9 @@ class LinkHandler(object):
             self.data.operator = operator
             self.data.op_bk_biz_id = op_bk_biz_id
             self.data.qcloud_secret_id = qcloud_secret_id
-            self.data.qcloud_secret_key = qcloud_secret_key
+            # 编辑时：secret_key不为空则更新，为空则维持原key值
+            if qcloud_secret_key:
+                self.data.qcloud_secret_key = qcloud_secret_key
             self.data.qcloud_cos_bucket = qcloud_cos_bucket
             self.data.qcloud_cos_region = qcloud_cos_region
             self.data.is_enable = is_enable
