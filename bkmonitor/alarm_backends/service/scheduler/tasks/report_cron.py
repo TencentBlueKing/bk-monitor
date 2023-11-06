@@ -50,7 +50,7 @@ REPORT_CRONTAB = [
     (report_transfer_operation_data, "*/5 * * * *", "global"),
     (refresh_es_storage, "*/10 * * * *", "global"),  # NOTE: ES 周期性任务先放到当前队列中
     # SLI指标和运营数据调整到report周期任务
-    (fetch_sli_data_and_push, "* * * * *", "global"),
+    (fetch_sli_data_and_push, "* * * * *", "cluster"),
     (fetch_operation_data_and_push, "*/5 * * * *", "global"),
 ]
 
