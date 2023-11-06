@@ -24,33 +24,36 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
-import { ResizeLayout } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
-import FailureContent from './failure-content/failure-content';
-import FailureHeader from './failure-header/failure-header';
-import FailureNav from './failure-nav/failure-nav';
+import FailureMenu from '../failure-menu/failure-menu';
 
-import './failure.scss';
+import './failure-nav.scss';
 
 export default defineComponent({
-  setup() {},
+  setup() {
+    const { t } = useI18n();
+    const tabList = [
+      {
+        name: 'DealWith',
+        label: t('故障处理')
+      },
+      {
+        name: 'Circulation',
+        label: t('故障流转')
+      }
+    ];
+    return {
+      tabList
+    };
+  },
   render() {
     return (
-      <div class='failure-wrapper'>
-        <FailureHeader />
-        <div class='failure-tags'></div>
-        <ResizeLayout
-          class='failure-content-layout'
-          style={{ height: `calc(100vh - 200px)` }}
-          auto-minimize={400}
-          border={false}
-          collapsible
-          initial-divide={500}
-          v-slots={{
-            aside: <FailureNav></FailureNav>,
-            main: <FailureContent></FailureContent>
-          }}
-        ></ResizeLayout>
+      <div class='failure-nav'>
+        <FailureMenu
+          tabList={this.tabList}
+          active='DealWith'
+        ></FailureMenu>
       </div>
     );
   }
