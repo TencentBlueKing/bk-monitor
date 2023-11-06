@@ -30,10 +30,12 @@ import { Button, Sideslider, Spin, Table, TableColumn } from 'bk-magic-vue';
 
 import {
   batchRetry,
+  batchRevokeTargetNodes,
   getCollectLogDetail,
   isTaskReady,
   retryTargetNodes
 } from '../../../../monitor-api/modules/collecting';
+import { copyText } from '../../../../monitor-common/utils/utils.js';
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
 import { transformJobUrl } from '../../../utils/index';
 import {
@@ -62,6 +64,7 @@ interface IProps {
   data: any;
   updateKey: string;
   onCanPolling: (_v) => void;
+  onRefresh: () => void;
 }
 
 @Component
@@ -76,9 +79,6 @@ export default class CollectorStatusDetails extends tsc<IProps> {
 
   /* 所有表格内容 */
   contents: IContentsItem[] = [];
-  configInfo = {
-    target_object_type: ''
-  };
 
   /* 表格字段 */
   tableColumns = [
@@ -112,6 +112,17 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       total: 0
     }
   };
+
+  disBatch = false;
+
+  get haveDeploying() {
+    const resArr = [];
+    this.contents.forEach(item => {
+      const res = item.child.some(one => ['DEPLOYING', 'RUNNING', 'PENDING'].includes(one.status));
+      resArr.push(res);
+    });
+    return resArr.some(item => item);
+  }
 
   /**
    * @description 更新数据
@@ -323,6 +334,48 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       });
   }
 
+  /**
+   * @description 批量停止
+   */
+  handleBatchStop() {
+    this.disBatch = true;
+    this.refresh = false;
+    batchRevokeTargetNodes({ id: this.config.id }).finally(() => {
+      this.header.batchRetry = false;
+      this.refresh = true;
+      this.disBatch = false;
+      this.handleRefreshData();
+    });
+  }
+
+  /**
+   * @description 刷新表格数据
+   */
+  handleRefreshData() {
+    this.$emit('refresh');
+  }
+
+  /**
+   * @description 复制目标
+   */
+  handleCopyTargets() {
+    let copyStr = '';
+    this.contents.forEach(ct => {
+      ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
+    });
+    copyText(copyStr, msg => {
+      this.$bkMessage({
+        theme: 'error',
+        message: msg
+      });
+      return;
+    });
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('复制成功')
+    });
+  }
+
   render() {
     return (
       <div class='collector-status-details-component'>
@@ -375,8 +428,22 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               <span class='icon-monitor icon-zhongzhi1 mr-6'></span>
               <span>{this.$t('批量重试')}</span>
             </Button>
-            <Button class='mr-10'>{this.$t('批量终止')}</Button>
-            <Button>{this.$t('复制目标')}</Button>
+            <Button
+              class='mr-10'
+              v-authority={{ active: !this.authority.MANAGE_AUTH }}
+              icon={this.disBatch ? 'loading' : ''}
+              disabled={!this.haveDeploying || this.disBatch}
+              hover-theme='primary'
+              onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchStop() : this.handleShowAuthorityDetail())}
+            >
+              {this.$t('批量终止')}
+            </Button>
+            <Button
+              hover-theme='primary'
+              onClick={() => this.handleCopyTargets}
+            >
+              {this.$t('复制目标')}
+            </Button>
           </div>
         </div>
         <div class='table-content'>
@@ -442,7 +509,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                     if (!content.child.length) {
                       return (
                         <span class='num'>
-                          {this.configInfo.target_object_type ? (
+                          {this.config?.target_object_type ? (
                             <i18n path='共{0}台主机'>
                               <span style='color: #63656e;'>0</span>
                             </i18n>
@@ -460,7 +527,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                     <span class='num fix-same-code'>
                       <i18n
                         path={`共{0}${
-                          this.configInfo.target_object_type === 'HOST' ? this.$t('台主机') : this.$t('个实例')
+                          this.config?.target_object_type === 'HOST' ? this.$t('台主机') : this.$t('个实例')
                         }`}
                       >
                         {content.successNum + content.failedNum + content.pendingNum}

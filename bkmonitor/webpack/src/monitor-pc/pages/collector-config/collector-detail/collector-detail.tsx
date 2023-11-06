@@ -151,7 +151,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   }
 
   handleRefreshData() {
-    return collectInstanceStatus({ id: this.collectId })
+    collectInstanceStatus({ id: this.collectId })
       .then(data => {
         this.allData[TabEnum.TargetDetail].data = data;
         this.allData[TabEnum.TargetDetail].updateKey = random(8);
@@ -185,6 +185,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               data={this.allData[TabEnum.TargetDetail].data}
               updateKey={this.allData[TabEnum.TargetDetail].updateKey}
               onCanPolling={this.handlePolling}
+              onRefresh={this.handleRefreshData}
             ></CollectorStatusDetails>
           </TabPanel>
           <TabPanel
