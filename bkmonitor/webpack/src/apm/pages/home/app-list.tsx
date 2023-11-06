@@ -42,6 +42,7 @@ import { Debounce } from '../../../monitor-common/utils/utils';
 import EmptyStatus from '../../../monitor-pc/components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
 import GuidePage from '../../../monitor-pc/components/guide-page/guide-page';
+import { INodeType, TargetObjectType } from '../../../monitor-pc/components/monitor-ip-selector/typing';
 import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 // import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
@@ -67,6 +68,13 @@ export interface ICreateAppFormData {
   enName: string;
   desc: string;
   pluginId: string;
+  plugin_config?: {
+    target_node_type: INodeType;
+    target_object_type: TargetObjectType;
+    target_nodes: any[];
+    data_encoding: string;
+    paths: string[];
+  };
 }
 
 const commonTableProps: ICommonTableProps = {
@@ -222,6 +230,7 @@ export default class AppList extends tsc<{}> {
   async getPluginList() {
     const {
       plugins = [],
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       setup: { guide_url = {} }
     } = await metaConfigInfo().catch(() => ({}));
     this.pluginsList = plugins.map(
@@ -428,6 +437,7 @@ export default class AppList extends tsc<{}> {
     this.tableData.pagination.current = 1;
     this.getTableData();
   }
+  // eslint-disable-next-line @typescript-eslint/no-dupe-class-members
   handleShowAuthorityDetail(actionIds: string | string[]) {
     authorityStore.getAuthorityDetail(actionIds);
   }
@@ -438,6 +448,7 @@ export default class AppList extends tsc<{}> {
       this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
       return Promise.reject();
     }
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { is_enabled, application_id } = row;
     return new Promise((resolve, reject) => {
       this.$bkInfo({
