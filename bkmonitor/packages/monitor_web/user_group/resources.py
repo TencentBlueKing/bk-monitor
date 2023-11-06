@@ -106,7 +106,9 @@ class PreviewUserGroupPlanResource(Resource):
 
         for duty_plan in origin_duty_plans:
             if duty_plan.duty_rule_id in duty_plans:
-                duty_plans[duty_plan.duty_rule_id].append({"users": duty_plan.users, "work_time": duty_plan.work_times})
+                duty_plans[duty_plan.duty_rule_id].append(
+                    {"users": duty_plan.users, "work_times": duty_plan.work_times}
+                )
         response_plans = []
         for rule in validated_request_data["duty_rules"]:
             response_plans.append({"rule_id": rule["id"], "duty_plans": duty_plans.get(rule["id"], [])})
