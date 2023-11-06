@@ -41,6 +41,8 @@ export default class StepMasking extends tsc<IProps> {
   @Prop({ type: String, required: true }) operateType: string;
   @Ref('maskingField') private readonly maskingFieldRef: HTMLElement; // 移动到分组实例
   submitLoading = false;
+  /** 应用模式下 是否请求了接口 */
+  isApplicationSubmit = false;
 
   get curCollect() {
     return this.$store.getters['collect/curCollect'];
@@ -51,7 +53,10 @@ export default class StepMasking extends tsc<IProps> {
   }
 
   @Emit('stepChange')
-  emitStepChange() {}
+  emitStepChange() {
+    if (this.isApplicationSubmit && !this.isShowJump) this.messageSuccess(this.$t('保存成功'));
+    return this.isShowJump ? '' : 'back';
+  }
 
   @Emit('changeSubmit')
   emitSubmitChange(val: boolean) {
@@ -63,8 +68,10 @@ export default class StepMasking extends tsc<IProps> {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
     if (!data.field_configs.length && !isUpdate) {
+      this.isApplicationSubmit = true;
+      this.emitSubmitChange(true);
       this.emitStepChange();
-      return this.emitSubmitChange(true);
+      return;
     }; // 非更新状态且没有任何字段选择规则 直接下一步
     let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
     if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
@@ -75,10 +82,13 @@ export default class StepMasking extends tsc<IProps> {
         data,
       });
       this.$emit('changeIndexSetId', this.curCollect?.index_set_id || '');
-      if (res.result && stepChange) this.emitStepChange();
-      return this.emitSubmitChange(true);
+      this.emitSubmitChange(true);
+      if (res.result && stepChange) {
+        this.isApplicationSubmit = true;
+        this.emitStepChange();
+      }
     } catch (err) {
-      return this.emitSubmitChange(false);
+      this.emitSubmitChange(false);
     } finally {
       this.submitLoading = false;
     };
@@ -115,7 +125,7 @@ export default class StepMasking extends tsc<IProps> {
             theme="primary"
             loading={this.submitLoading}
             onClick={() => this.submitSelectRule(true)}>
-            {this.$t('下一步')}
+            {this.isShowJump ? this.$t('下一步') : this.$t('应用')}
           </Button>
           {
             this.isShowJump && <Button

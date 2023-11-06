@@ -344,6 +344,15 @@ export default {
       });
     },
     stepChange(num, type = null) {
+      if (num === 'back') {
+        this.$router.push({
+          name: 'log-collection',
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+        return;
+      }
       // 第一步骤 容器环境没有采集下发流程 跳2步
       if (type === 'add' && !this.isPhysics && !num) {
         this.curStep = this.curStep + 2;
