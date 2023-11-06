@@ -14,6 +14,7 @@ from django.conf.urls import include, url
 from core.drf_resource.routers import ResourceRouter
 from monitor_web.user_group.views import (
     BkchatGroupViewSet,
+    DutyPlanViewSet,
     DutyRuleViewSet,
     UserGroupViewSet,
 )
@@ -22,6 +23,7 @@ router = ResourceRouter()
 router.register(r"user_groups", UserGroupViewSet, basename="user_group")
 router.register(r"duty_rules", DutyRuleViewSet, basename="duty_rule")
 router.register(r"bkchat_group", BkchatGroupViewSet, basename="bkchat_group")
+router.register(r"duty_plan", DutyPlanViewSet, basename="duty_plan")
 
 
 urlpatterns = [url(r"^", include(router.urls))]

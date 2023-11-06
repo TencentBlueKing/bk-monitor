@@ -483,22 +483,30 @@ class PreviewSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
     id = serializers.IntegerField(required=False, label="规则组ID")
+    begin_time = DateTimeField(required=False, label="预览生效开始时间", default="")
     days = serializers.IntegerField(required=False, label="预览天数", default=30)
     timezone = serializers.CharField(required=False, default="Asia/Shanghai")
     resource_type = serializers.ChoiceField(
         required=False, choices=["user_group", "duty_rule"], default="duty_rule", label="资源类型"
     )
     source_type = serializers.ChoiceField(required=False, choices=SourceType.choices, default=SourceType.API)
+    config = serializers.DictField(required=False, label="配置信息", default=None)
 
     def to_internal_value(self, data):
         internal_data = super(PreviewSerializer, self).to_internal_value(data)
-        data.update(internal_data)
-        if internal_data["source_type"] == self.SourceType.API:
-            # 如果数据来源是API，直接返回原始数据
-            return data
+        if internal_data["source_type"] == self.SourceType.API and not internal_data["config"]:
+            # 如果数据来源是API，并且不带配置信息返回错误
+            raise ValidationError("params config is required when resource type is %s" % internal_data["source_type"])
         # 数据返回增加对应的存储记录
-        data["instance"] = self.get_instance(internal_data)
-        return data
+        if internal_data["source_type"] == self.SourceType.DB:
+            internal_data["instance"] = self.get_instance(internal_data)
+        # 如果是预览的话，可以随便设置一个名字
+        return internal_data
+
+    def validate_config(self, value):
+        if isinstance(value, dict):
+            value["name"] = "[demo] for preview"
+        return value
 
     def get_instance(self, internal_data):
         instance_model = DutyRule
@@ -508,7 +516,7 @@ class PreviewSerializer(serializers.Serializer):
             raise ValidationError("field(id) is required where source-type is db or default")
         try:
             instance = instance_model.objects.get(id=internal_data["id"], bk_biz_id=internal_data["bk_biz_id"])
-        except DutyRule.DoesNotExist:
+        except (DutyRule.DoesNotExist, UserGroup.DoesNotExist):
             raise ValidationError("resource(%s) not existed" % internal_data["resource_type"])
         return instance
 

@@ -84,3 +84,10 @@ class DutyRuleViewSet(UserGroupPermissionViewSet):
 
 class BkchatGroupViewSet(ResourceViewSet):
     resource_routes = [ResourceRoute("GET", resource.user_group.get_bkchat_group, endpoint="get_bkchat_group")]
+
+
+class DutyPlanViewSet(ResourceViewSet):
+    resource_routes = [
+        ResourceRoute("POST", resource.user_group.preview_duty_rule_plan, endpoint="preview_duty_rule_plan"),
+        ResourceRoute("POST", resource.user_group.preview_user_group_plan, endpoint="preview_user_group_plan"),
+    ]

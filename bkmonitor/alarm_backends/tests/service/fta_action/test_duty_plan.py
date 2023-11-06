@@ -246,7 +246,7 @@ class TestDutyPreview:
         duty_plan = m.get_duty_plan()
         print(duty_plan)
         assert len(duty_plan) == 1
-        assert duty_plan[0]["work_time"] == [
+        assert duty_plan[0]["work_times"] == [
             {'start_time': '2023-07-25 00:00', 'end_time': '2023-07-25 23:59'},
             {'start_time': '2023-07-26 00:00', 'end_time': '2023-07-26 23:59'},
         ]
@@ -273,7 +273,7 @@ class TestDutyPreview:
         duty_plan = m.get_duty_plan()
         print(duty_plan)
         assert len(duty_plan) == 1
-        assert duty_plan[0]["work_time"] == [
+        assert duty_plan[0]["work_times"] == [
             {'start_time': '2023-07-25 22:00', 'end_time': '2023-07-26 06:00'},
             {'start_time': '2023-07-26 22:00', 'end_time': '2023-07-27 06:00'},
         ]
@@ -299,7 +299,7 @@ class TestDutyPreview:
         )
         m = DutyRuleManager(duty_rule=regular_duty_rule, days=7)
         duty_plan = m.get_duty_plan()
-        assert len(duty_plan[0]["work_time"]) == 5
+        assert len(duty_plan[0]["work_times"]) == 5
 
     def test_regular_monthly_duty_rule(self, regular_duty_rule):
         regular_duty_rule["duty_arranges"].append(
@@ -320,7 +320,7 @@ class TestDutyPreview:
         )
         m = DutyRuleManager(duty_rule=regular_duty_rule, days=7)
         duty_plan = m.get_duty_plan()
-        assert len(duty_plan[0]["work_time"]) == 2
+        assert len(duty_plan[0]["work_times"]) == 2
 
     def test_regular_date_range_duty_rule(self, regular_duty_rule):
         """
@@ -348,7 +348,7 @@ class TestDutyPreview:
         )
         m = DutyRuleManager(duty_rule=regular_duty_rule, days=7)
         duty_plan = m.get_duty_plan()
-        assert len(duty_plan[0]["work_time"]) == 4
+        assert len(duty_plan[0]["work_times"]) == 4
 
     def test_multi_regular_weekly_duty_rule(self, regular_duty_rule):
         regular_duty_rule["effective_time"] = "2023-07-23 11:00:00"
@@ -376,8 +376,8 @@ class TestDutyPreview:
         m = DutyRuleManager(duty_rule=regular_duty_rule, days=7)
         duty_plan = m.get_duty_plan()
         assert len(duty_plan) == 2
-        assert len(duty_plan[0]["work_time"]) == 2
-        assert len(duty_plan[1]["work_time"]) == 5
+        assert len(duty_plan[0]["work_times"]) == 2
+        assert len(duty_plan[1]["work_times"]) == 5
 
     def test_custom_even_rotation_duty_rule(self, rotation_duty_rule):
         """
@@ -527,7 +527,7 @@ class TestDutyPreview:
         ]
 
         # 最后一个周期的轮班时间应该也是2天
-        assert len(duty_plan[-1]["work_time"]) == 2
+        assert len(duty_plan[-1]["work_times"]) == 2
 
         # 下一个周期, 需要从开始时间生成5天，实际上上一次第一天已经安排，应该从31号开始
         m = DutyRuleManager(rotation_duty_rule, begin_time="2023-07-30 00:00:00", days=5)
@@ -535,7 +535,7 @@ class TestDutyPreview:
         duty_plan = m.get_duty_plan()
         print(duty_plan)
         assert len(duty_plan) == 2
-        assert duty_plan[-1]["work_time"] == [
+        assert duty_plan[-1]["work_times"] == [
             {'start_time': '2023-08-02 00:00', 'end_time': '2023-08-02 23:59'},
             {'start_time': '2023-08-03 00:00', 'end_time': '2023-08-03 23:59'},
         ]

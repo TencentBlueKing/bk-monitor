@@ -228,7 +228,7 @@ class DutyRuleManager:
                     work_time.extend(self.get_duty_work_time(work_date, duty_time["work_time"]))
 
             if work_time:
-                duty_plans.append({"users": duty_arrange["duty_users"][0], "work_time": work_time})
+                duty_plans.append({"users": duty_arrange["duty_users"][0], "work_times": work_time})
         return duty_plans
 
     def get_rotation_duty_plan(self):
@@ -295,7 +295,7 @@ class DutyRuleManager:
                 for day in one_period_dates:
                     duty_work_time.extend(self.get_duty_work_time(day["date"], day["work_time_list"]))
 
-            duty_plans.append({"users": users, "work_time": duty_work_time})
+            duty_plans.append({"users": users, "work_times": duty_work_time})
         return duty_plans
 
     @staticmethod
@@ -488,7 +488,7 @@ class GroupDutyRuleManager:
                     user_group_id=self.user_group.id,
                     duty_rule_id=rule_snap.duty_rule_id,
                     users=duty_plan["users"],
-                    work_times=duty_plan["work_time"],
+                    work_times=duty_plan["work_times"],
                     is_effective=1,
                     order=1,
                 )

@@ -8,19 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import defaultdict
-from datetime import datetime, timedelta
-
-import pytz
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from bkmonitor.action.duty_manage import DutyRuleManager
 from bkmonitor.action.serializers import (
     DutyRuleDetailSlz,
     DutyRuleSlz,
-    PreviewSerializer,
     UserGroupDetailSlz,
     UserGroupSlz,
 )
@@ -28,14 +22,12 @@ from bkmonitor.models import (
     ActionConfig,
     DutyArrange,
     DutyRule,
-    DutyRuleSnap,
     StrategyActionConfigRelation,
     UserGroup,
 )
 from bkmonitor.strategy.serializers import NoticeGroupSerializer
-from bkmonitor.utils import time_tools
 from constants.action import ActionSignal, NoticeWay, NotifyStep
-from core.drf_resource import Resource
+from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.errors.notice_group import NoticeGroupHasStrategy
 
@@ -413,78 +405,6 @@ class DeleteUserGroupResource(Resource):
         return {"ids": deleted_group_ids}
 
 
-class PreviewUserGroupPlanResource(Resource):
-    # TODO 预览某个组的排班情况
-
-    def validate_request_data(self, request_data):
-        """
-        校验请求数据
-        """
-        request_data["resource_type"] = "user_group"
-        preview_slz = PreviewSerializer(data=request_data)
-        preview_slz.is_valid(raise_exception=True)
-        request_data = preview_slz.validated_data
-        user_group = request_data.pop("instance", None)
-        if user_group:
-            duty_rules = user_group.duty_rules
-        else:
-            duty_rules = request_data.get("duty_rules", [])
-        if not duty_rules:
-            raise ValidationError("duty_rules is empty")
-        duty_rules = DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=duty_rules), many=True).data
-
-        request_data["duty_rules"] = duty_rules
-        request_data["user_group"] = user_group
-        return request_data
-
-    def perform_request(self, validated_request_data):
-        # 告警组的预览生成，需要包含已有的未有的
-        current_time = datetime.now(tz=pytz.timezone(validated_request_data["timezone"]))
-        begin_time = time_tools.datetime2str(current_time)
-        end_time = time_tools.datetime2str(current_time + timedelta(days=validated_request_data["days"]))
-        user_group = validated_request_data["user_group"]
-        duty_plans = defaultdict(list)
-        origin_duty_plans = user_group.duty_plans if user_group else []
-        for duty_rule in validated_request_data["duty_rules"]:
-            # step1 找到当前规则的最后一次plan_time
-            effective_time = begin_time
-            if not user_group:
-                duty_manager = DutyRuleManager(
-                    duty_rule=duty_rule,
-                    begin_time=effective_time,
-                    end_time=end_time,
-                )
-                duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
-                continue
-            if DutyRuleSnap.objects.filter(
-                next_plan_time__gte=end_time, user_group_id=user_group.id, duty_rule_id=duty_rule["id"]
-            ).exists():
-                # 如果当前规则已经排到了结束时间，忽略
-                continue
-            # 找到最近一个排班过的
-            latest_snap = (
-                DutyRuleSnap.objects.filter(
-                    next_plan_time__lt=end_time, user_group_id=user_group.id, duty_rule_id=duty_rule["id"]
-                )
-                .order_by("next_plan_time")
-                .first()
-            )
-            if latest_snap:
-                # 如果最后一个存在，则开始生效时间为最后一次的排班时间，生成这段时间内的即可
-                effective_time = latest_snap.next_plan_time
-            duty_manager = DutyRuleManager(
-                duty_rule=duty_rule,
-                begin_time=effective_time,
-                end_time=end_time,
-            )
-            duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
-
-        for duty_plan in origin_duty_plans:
-            if duty_plan.duty_rule_id in duty_plans:
-                duty_plans[duty_plan.duty_rule_id].append({"users": duty_plan.users, "work_time": duty_plan.work_times})
-        return duty_plans
-
-
 class SearchDutyRuleResource(Resource):
     """
     查询通知组
@@ -590,39 +510,6 @@ class DeleteDutyRuleResource(Resource):
         return {"ids": deleted_rule_ids}
 
 
-class PreviewDutyRuleResource(Resource):
-    """
-    预览轮值排班计划
-    """
-
-    def validate_request_data(self, request_data):
-        """
-        校验请求数据
-        """
-        preview_slz = PreviewSerializer(data=request_data)
-        preview_slz.is_valid(raise_exception=True)
-        request_data = preview_slz.validated_data
-        duty_rule = request_data.pop("instance", None)
-        if duty_rule:
-            # 如果预览内置对应的规则，直接返回DB数据
-            validated_data = DutyRuleDetailSlz(instance=duty_rule).data
-        else:
-            request_slz = DutyRuleDetailSlz(data=request_data)
-            request_slz.is_valid(raise_exception=True)
-            validated_data = request_slz.validated_data
-        validated_data["timezone"] = request_data["timezone"]
-        validated_data["days"] = request_data["days"]
-        return validated_data
-
-    def perform_request(self, validated_request_data):
-        duty_manager = DutyRuleManager(
-            duty_rule=validated_request_data,
-            begin_time=validated_request_data["effective_time"],
-            days=validated_request_data["days"],
-        )
-        return duty_manager.get_duty_plan()
-
-
 class NoticeGroupViewSet(ResourceViewSet):
     """
     通知组API
@@ -645,7 +532,7 @@ class UserGroupViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchUserGroupDetailResource, endpoint="search_detail"),
         ResourceRoute("POST", DeleteUserGroupResource, endpoint="delete"),
         ResourceRoute("POST", SaveUserGroupResource, endpoint="save"),
-        ResourceRoute("POST", PreviewUserGroupPlanResource, endpoint="preview"),
+        ResourceRoute("POST", resource.user_group.preview_user_group_plan, endpoint="preview"),
     ]
 
 
@@ -659,5 +546,5 @@ class DutyRuleViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchDutyRuleDetailResource, endpoint="search_detail"),
         ResourceRoute("POST", DeleteDutyRuleResource, endpoint="delete"),
         ResourceRoute("POST", SaveDutyRuleResource, endpoint="save"),
-        ResourceRoute("POST", PreviewDutyRuleResource, endpoint="preview"),
+        ResourceRoute("POST", resource.user_group.preview_duty_rule_plan, endpoint="preview"),
     ]
