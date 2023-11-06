@@ -85,6 +85,8 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   @Prop({ type: Number, default: 0 }) refleshNumber: number;
   @Prop({ type: Boolean, default: false }) queryLoading: boolean;
   @Prop({ type: String, default: 'empty' }) emptyStatus: IDataRetrievalView.IProps['emptyStatus'];
+  /** 时区 */
+  @Prop({ type: String, default: window.timezone }) timezone: string;
   @ProvideReactive('downSampleRange') downSampleRange = 'auto';
   @InjectReactive('onlyShowView') onlyShowView: boolean;
   loading = false;

@@ -125,8 +125,8 @@ class MonitorBaseEchart extends BaseEchart {
         this.instance.dispatchAction({
           type: 'restore'
         });
-        const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-        const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+        const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+        const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
         this.$emit('dataZoom', timeFrom, timeTo);
       }
     } else {

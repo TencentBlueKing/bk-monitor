@@ -42,7 +42,6 @@ interface IBkInfoProps {
   escClose?: any;
   showFooter?: boolean;
   extCls?: string;
-  timezone?: string;
   okText?: string | TranslateResult;
   cancelText?: string;
   confirmFn: (v: unknown) => void;
@@ -117,6 +116,7 @@ declare global {
     };
     host_data_fields: string[];
     bkchat_manage_url: string;
+    timezone: string;
     show_realtime_strategy: boolean;
   }
   namespace VueTsxSupport.JSX {

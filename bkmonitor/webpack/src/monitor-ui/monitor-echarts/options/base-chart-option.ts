@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { ChartType, IChartOptionPorps } from './type-interface';
 
@@ -55,17 +55,17 @@ export default class EchartsSeries {
     minX &&
       maxX &&
       (formatterFunc = (v: any) => {
-        const duration = moment.duration(moment(maxX).diff(moment(minX))).asSeconds();
+        const duration = dayjs.duration(dayjs.tz(maxX).diff(dayjs.tz(minX))).asSeconds();
         if (duration < 60 * 60 * 24 * 2) {
-          return moment(v).format('HH:mm');
+          return dayjs.tz(v).format('HH:mm');
         }
         if (duration < 60 * 60 * 24 * 8) {
-          return moment(v).format('MM-DD HH:mm');
+          return dayjs.tz(v).format('MM-DD HH:mm');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
-          return moment(v).format('MM-DD');
+          return dayjs.tz(v).format('MM-DD');
         }
-        return moment(v).format('YYYY-MM-DD');
+        return dayjs.tz(v).format('YYYY-MM-DD');
       });
     return formatterFunc;
   }

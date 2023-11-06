@@ -38,6 +38,8 @@
           <div class="time-shift">
             <time-range
               :value="timeRange"
+              :timezone="timezone"
+              @timezoneChange="handleTimezoneChange"
               @change="handleSelectTimeRangeChange"
             />
             <!-- <monitor-date-range
@@ -80,6 +82,7 @@ import DropDownMenu from '../../../../components/monitor-dropdown/dropdown-menu.
 import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import { ICompareChangeType, IOption } from '../../../performance/performance-type';
+import { updateTimezone } from '../../../../i18n/dayjs';
 
 @Component({
   name: 'tool-panel',
@@ -124,10 +127,11 @@ export default class ToolPanel extends Vue {
   })
   readonly refleshList: IOption[];
 
-  private showText = false;
+  showText = false;
   timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
-  private refleshInterval = 5 * 60 * 1000;
-  private resizeHandler: Function = null;
+  timezone: string = window.timezone;
+  refleshInterval = 5 * 60 * 1000;
+  resizeHandler: Function = null;
 
   @Watch('timeRange')
   handleTimeRangeChange(range) {
@@ -152,8 +156,15 @@ export default class ToolPanel extends Vue {
     };
   }
 
+  @Emit('timezoneChange')
+  handleTimezoneChange(v: string) {
+    this.timezone = v;
+    return v;
+  }
+
   handleSelectTimeRangeChange(val: TimeRangeType) {
     this.timeRange = val;
+    updateTimezone(this.timezone)
     this.handleValueChange('timeRange');
   }
 
@@ -164,6 +175,7 @@ export default class ToolPanel extends Vue {
     };
     this.resizeHandler();
     addListener(this.refPanelWrap, this.resizeHandler);
+    this.timezone = window.timezone
   }
 
   beforeDestroy() {

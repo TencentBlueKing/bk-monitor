@@ -52,6 +52,7 @@ import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/c
 import SpaceSelect from '../../../monitor-pc/components/space-select/space-select';
 import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
+import { updateTimezone } from '../../../monitor-pc/i18n/dayjs';
 import * as eventAuth from '../../../monitor-pc/pages/event-center/authority-map';
 import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import SplitPanel from '../../../monitor-pc/pages/monitor-k8s/components/split-panel';
@@ -233,6 +234,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   commonFilterData: ICommonTreeItem[] = [];
   /* 默认事件范围为近24小时 */
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
+  /* 时区 */
+  timezone: string;
   refleshInterval = 5 * 60 * 1000;
   refleshInstance = null;
   allowedBizList = [];
@@ -441,7 +444,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     next(async (vm: Event) => {
       vm.routeStateKeyList = [];
       const params = vm.handleUrl2Params();
-      Object.keys(params).forEach(key => (vm[key] = params[key]));
+      Object.keys(params).forEach(key => {
+        if (key === 'timezone') {
+          updateTimezone(params[key]);
+        }
+        vm[key] = params[key];
+      });
       if (vm.bizIds?.length) {
         vm.showPermissionTips = vm.bizIds
           .filter(id => ![authorityBizId, hasDataBizId].includes(+id))
@@ -1141,6 +1149,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       // timeRange: 3600000,
       from: 'now-30d',
       to: 'now',
+      timezone: dayjs.tz.guess(),
       refleshInterval: 300000,
       activePanel: 'list',
       chartInterval: 'auto',
@@ -1176,6 +1185,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       if (['from', 'to'].includes(key)) {
         key === 'from' && ([newData[key]] = this.timeRange);
         key === 'to' && ([, newData[key]] = this.timeRange);
+      } else if (key === 'timezone') {
+        newData[key] = this.timezone;
       }
       return false;
     });
@@ -1374,6 +1385,19 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.handleGetFilterData();
     this.pagination.current = 1;
     this.handleGetTableData();
+  }
+  /**
+   *
+   * @param v 时区
+   * @description 时区改变时触发
+   */
+  handleTimezoneChange(v: string) {
+    this.timezone = v;
+    updateTimezone(v);
+    this.chartKey = random(10);
+    this.handleGetFilterData();
+    this.handleGetTableData();
+    this.handleRefleshChange(this.refleshInterval);
   }
   handleBizIdsChange(v: number[]) {
     this.bizIds = v;
@@ -2098,11 +2122,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               refleshInterval={this.refleshInterval}
               showListMenu={false}
               timeRange={this.timeRange}
+              timezone={this.timezone}
               onSplitPanelChange={this.handleSplitPanel}
               onFullscreenChange={this.handleFullscreen}
               onImmediateReflesh={this.handleImmediateReflesh}
               onRefleshChange={this.handleRefleshChange}
               onTimeRangeChange={this.handleTimeRangeChange}
+              onTimezoneChange={this.handleTimezoneChange}
             />
           </div>
           <div
