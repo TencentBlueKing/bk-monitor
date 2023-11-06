@@ -8,6 +8,9 @@
 # an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
+# add path env
+export PATH=~$PATH:~/PreCI
+
 # shellcheck disable=SC2006
 preci info > /dev/null 2>&1
 if [ $? -ne "0" ]; then
