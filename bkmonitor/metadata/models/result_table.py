@@ -16,7 +16,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
 from django.db import models
@@ -225,6 +225,36 @@ class ResultTable(models.Model):
             except (DataSourceOption.DoesNotExist, ValueError):
                 return False
         return False
+
+    @classmethod
+    def get_table_id_cutter(cls, table_ids: Union[List, Set]) -> Dict:
+        """获取结果表是否禁用切分模块"""
+        table_id_data_id_map = {
+            dr["table_id"]: dr["bk_data_id"]
+            for dr in DataSourceResultTable.objects.filter(table_id__in=table_ids).values("table_id", "bk_data_id")
+        }
+        data_id_option_map = {
+            dso["bk_data_id"]: dso["value"]
+            for dso in DataSourceOption.objects.filter(
+                bk_data_id__in=table_id_data_id_map.values(), name=DataSourceOption.OPTION_DISABLE_METRIC_CUTTER
+            ).values("bk_data_id", "value")
+        }
+        # 组装数据
+        table_id_cutter = {}
+        for table_id in table_ids:
+            bk_data_id = table_id_data_id_map.get(table_id)
+            # 默认为 False
+            if not bk_data_id:
+                table_id_cutter[table_id] = False
+                continue
+            json_option_value = data_id_option_map.get(bk_data_id) or "false"
+            try:
+                option_value = json.loads(json_option_value)
+            except Exception:
+                option_value = False
+            table_id_cutter[table_id] = option_value
+
+        return table_id_cutter
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -477,12 +507,17 @@ class ResultTable(models.Model):
 
         # 针对归属具体业务的结果表，直接推送 redis
         try:
-            from metadata.task.tasks import publish_redis
+            from metadata.task.tasks import publish_redis, push_and_publish_space_router
 
-            if target_bk_biz_id != 0 and space_id and space_type:
-                publish_redis(space_type, space_id, table_id=table_id)
-            else:
-                on_commit(lambda: publish_redis.delay(space_type, space_id))
+            if default_storage == ClusterInfo.TYPE_INFLUXDB:
+                if target_bk_biz_id != 0 and space_id and space_type:
+                    push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
+                    publish_redis(space_type, space_id, table_id=table_id)
+                else:
+                    on_commit(
+                        lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[table_id])
+                    )
+                    on_commit(lambda: publish_redis.delay(space_type, space_id))
         except Exception as e:
             logger.error("push and publish redis error, %s", e)
         return result_table

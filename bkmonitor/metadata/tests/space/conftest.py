@@ -20,6 +20,8 @@ DEFAULT_MQ_CONFIG_ID = 10001
 DEFAULT_SPACE_TYPE = "bkcc"
 DEFAULT_SPACE_ID = "test"
 DEFAULT_OTHER_SPACE_ID = "other"
+DEFAULT_TABLE_ID = "demo.test"
+DEFAULT_CREATOR = "system"
 
 pytestmark = pytest.mark.django_db
 
@@ -62,6 +64,16 @@ def create_and_delete_record(mocker):
             space_type_id="all",
         ),
     ]
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=DEFAULT_DATA_ID, table_id=DEFAULT_TABLE_ID, creator=DEFAULT_CREATOR
+    )
+    models.ResultTable.objects.create(
+        table_id=DEFAULT_TABLE_ID,
+        table_name_zh=DEFAULT_TABLE_ID,
+        is_custom_table=False,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        bk_biz_id=DEFAULT_BIZ_ID,
+    )
     models.DataSource.objects.bulk_create(params)
     models.SpaceDataSource.objects.create(
         space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID, bk_data_id=DEFAULT_DATA_ID
@@ -69,10 +81,24 @@ def create_and_delete_record(mocker):
     models.SpaceDataSource.objects.create(
         space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID, bk_data_id=DEFAULT_DATA_ID + 1
     )
+    models.InfluxDBStorage.objects.create(
+        table_id=DEFAULT_TABLE_ID,
+        storage_cluster_id=1,
+        influxdb_proxy_storage_id=1,
+        database="demo",
+        real_table_name="test",
+    )
+    models.InfluxDBProxyStorage.objects.create(
+        id=1, instance_cluster_name="test_cluster", is_default=True, proxy_cluster_id=1
+    )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.filter(data_name__startswith=DEFAULT_NAME).delete()
     models.SpaceDataSource.objects.all().delete()
+    models.ResultTable.objects.filter(table_id=DEFAULT_TABLE_ID).delete()
+    models.DataSourceResultTable.objects.filter(bk_data_id=DEFAULT_DATA_ID).delete()
+    models.InfluxDBStorage.objects.filter(table_id=DEFAULT_TABLE_ID).delete()
+    models.InfluxDBProxyStorage.objects.filter(id=1).delete()
 
 
 def consul_client(*args, **kwargs):

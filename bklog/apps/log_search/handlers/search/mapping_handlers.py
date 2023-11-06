@@ -24,8 +24,15 @@ import re
 from collections import defaultdict
 from typing import Any, Dict, List
 
+from django.conf import settings
+from django.db.transaction import atomic
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext as _
+
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -53,10 +60,6 @@ from apps.log_search.models import (
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.time_handler import generate_time_range
-from django.conf import settings
-from django.db.transaction import atomic
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
 INNER_PRODUCE_FIELDS = [
@@ -139,6 +142,13 @@ class MappingHandlers(object):
             key = f"{last_key}.{property_key}" if last_key else property_key
             conflict_result[key].add(property_define["type"])
 
+    def add_clustered_fields(self, field_list):
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
+        if clustering_config and clustering_config.clustered_rt:
+            field_list.extend(PATTERN_SEARCH_FIELDS)
+            return field_list
+        return field_list
+
     def virtual_fields(self, field_list):
         """
         virtual_fields
@@ -206,6 +216,7 @@ class MappingHandlers(object):
             }
             for field in fields_result
         ]
+        fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
         fields_list = self._combine_description_field(fields_list)
         return self._combine_fields(fields_list)
@@ -827,6 +838,10 @@ class MappingHandlers(object):
             realtime_search_usable = True
             if "bk_host_id" in fields_list:
                 judge.add("bk_host_id")
+            if "container_id" in fields_list and "container_id" not in judge:
+                judge.add("container_id")
+            if "__ext.container_id" in fields_list and "__ext.container_id" not in judge:
+                judge.add("__ext.container_id")
             return {
                 "context_search_usable": context_search_usable,
                 "realtime_search_usable": realtime_search_usable,
