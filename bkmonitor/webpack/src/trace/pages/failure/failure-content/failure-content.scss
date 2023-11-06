@@ -1,0 +1,9 @@
+.failure-content {
+  position: relative;
+  max-height: calc(100vh - 200px);
+
+  .failure-menu {
+    position: absolute;
+    top: -40px;
+  }
+}

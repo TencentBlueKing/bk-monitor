@@ -23,34 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-import { ResizeLayout } from 'bkui-vue';
+import { defineComponent, PropType, ref } from 'vue';
 
-import FailureContent from './failure-content/failure-content';
-import FailureHeader from './failure-header/failure-header';
-import FailureNav from './failure-nav/failure-nav';
+import './failure-menu.scss';
 
-import './failure.scss';
+interface ITabItem {
+  name: string;
+  label: string;
+}
 
 export default defineComponent({
-  setup() {},
+  props: {
+    active: {
+      type: String,
+      default: ''
+    },
+    tabList: {
+      type: Array as PropType<Array<ITabItem>>,
+      default: () => []
+    }
+  },
+  emits: ['change'],
+  setup(props, { emit }) {
+    const activeName = ref<string>(props.active);
+    const handleActive = (name: string) => {
+      if (activeName.value === name) {
+        return;
+      }
+      activeName.value = name;
+      emit('change', name);
+    };
+    return {
+      activeName,
+      handleActive
+    };
+  },
   render() {
     return (
-      <div class='failure-wrapper'>
-        <FailureHeader />
-        <div class='failure-tags'></div>
-        <ResizeLayout
-          class='failure-content-layout'
-          style={{ height: `calc(100vh - 200px)` }}
-          auto-minimize={400}
-          border={false}
-          collapsible
-          initial-divide={500}
-          v-slots={{
-            aside: <FailureNav></FailureNav>,
-            main: <FailureContent></FailureContent>
-          }}
-        ></ResizeLayout>
+      <div class='failure-menu'>
+        <ul class='detail-tab-content'>
+          {this.tabList.map(item => (
+            <li
+              class={{ active: this.activeName === item.name }}
+              onClick={this.handleActive.bind(this, item.name)}
+            >
+              {item.label}
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }

@@ -1,0 +1,27 @@
+.failure-menu {
+  .detail-tab-content {
+    display: flex;
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 120px;
+      height: 40px;
+      margin-right: 6px;
+      font-size: 14px;
+      line-height: 22px;
+      color: #63656e;
+      letter-spacing: 0;
+      cursor: pointer;
+      background: #eaebf0;
+      border-radius: 4px 4px 0 0;
+      border-radius: 4px 4px 0 0;
+
+      &.active {
+        color: #3a84ff;
+        background: white;
+      }
+    }
+  }
+}
