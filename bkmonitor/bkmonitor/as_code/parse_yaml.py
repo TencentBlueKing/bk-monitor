@@ -378,6 +378,7 @@ class StrategyConfigParser(BaseConfigParser):
                     "unit": "percent",
                 },
                 "assign_mode": config["notice"]["assign_mode"],
+                "chart_image_enabled": config["notice"]["chart_image_enabled"],
                 "upgrade_config": {}
                 if not config["notice"].get("upgrade_config")
                 else {
@@ -583,6 +584,9 @@ class StrategyConfigParser(BaseConfigParser):
             notice["biz_converge"] = biz_converge
 
         notice["assign_mode"] = notice_config["options"].get("assign_mode") or ["only_notice", "by_rule"]
+
+        if notice_config["options"].get("chart_image_enabled") is False:
+            notice["chart_image_enabled"] = False
 
         upgrade_config = notice_config["options"].get("upgrade_config") or {}
         if upgrade_config.get("is_enabled"):
@@ -1036,7 +1040,6 @@ class AssignGroupRuleParser(BaseConfigParser):
     """
 
     def __init__(self, bk_biz_id: int, notice_group_ids: Dict[str, int], action_ids: Dict[str, int]):
-
         super(AssignGroupRuleParser, self).__init__(bk_biz_id)
 
         self.notice_group_ids = notice_group_ids
