@@ -23,6 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// export const VIEW_AUTH = 'view_dashboard_v2';
-// export const MANAGE_AUTH = 'manage_dashboard_v2';
-export const NEW_DASHBOARD_AUTH = 'new_dashboard';
+
+import { MetricDetail } from '../strategy-config-set-new/typings';
+
+/**
+ * @description: 日志指标重置指标id
+ * @param metricId 指标id
+ * @returns 转换后的指标id
+ */
+export function transformLogMetricId(metric: MetricDetail) {
+  if (!metric?.metric_id) return '';
+  if (!(metric?.data_type_label === 'log' && metric?.data_source_label === 'bk_log_search')) return metric.metric_id;
+  const metricId = metric.metric_id.toString();
+  const metricIdList = metricId.split('.');
+  if (metricIdList.length < 4) return metricId;
+  return metricIdList.slice(0, 3).join('.');
+}

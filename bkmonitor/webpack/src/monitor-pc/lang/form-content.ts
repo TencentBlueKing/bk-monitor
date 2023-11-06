@@ -38,8 +38,8 @@ export default {
     'Based on dimension {0}, notifications are sent only when the proportion of abnormal alarms in the current rule reaches {1}%. ',
   '当{0}分钟内执行{1}次时，防御动作{2}': 'When executed {1} times within {0} minutes, defense action {2}',
   '较前{0}个时间点的{1}{2}时触发告警': 'The alarm is triggered at {1}{2} earlier than {0} time points',
-  '较前{0}天同一时刻绝对值的均值{1}时触发告警':
-    'The alarm is triggered when the mean value of the absolute value at the same time on the previous {0} day is {1}',
+  '较前{0}天同一时刻绝对值的{1}{2}时触发告警':
+    'The alarm is triggered when the absolute value is {1}{2} higher than the same time on the previous {0} day.',
   CMDB中定义的字段名: 'Field Name Defined in CMDB',
   PID文件: 'PID file',
   Ping不可达算法: 'Ping Unreachable Algorithm',

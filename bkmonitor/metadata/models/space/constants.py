@@ -68,6 +68,35 @@ SPACE_CHANNEL = os.environ.get("SPACE_CHANNEL", "bkmonitorv3:spaces")
 # 空间唯一标识连接符
 SPACE_UID_HYPHEN = "__"
 
+# 优化后的空间路由配置
+SPACE_REDIS_PREFIX_KEY = "bkmonitorv3:spaces"
+# 空间关联的结果表
+SPACE_TO_RESULT_TABLE_KEY = os.environ.get(
+    "SPACE_TO_RESULT_TABLE_KEY", f"{SPACE_REDIS_PREFIX_KEY}:space_to_result_table"
+)
+SPACE_TO_RESULT_TABLE_CHANNEL = os.environ.get(
+    "SPACE_TO_RESULT_TABLE_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:space_to_result_table:channel"
+)
+# 指标关联的结果表
+FIELD_TO_RESULT_TABLE_KEY = os.environ.get(
+    "FIELD_TO_RESULT_TABLE_KEY", f"{SPACE_REDIS_PREFIX_KEY}:field_to_result_table"
+)
+FIELD_TO_RESULT_TABLE_CHANNEL = os.environ.get(
+    "FIELD_TO_RESULT_TABLE_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:field_to_result_table:channel"
+)
+# 数据标签关联的结果表
+DATA_LABEL_TO_RESULT_TABLE_KEY = os.environ.get(
+    "DATA_LABEL_TO_RESULT_TABLE_KEY", f"{SPACE_REDIS_PREFIX_KEY}:data_label_to_result_table"
+)
+DATA_LABEL_TO_RESULT_TABLE_CHANNEL = os.environ.get(
+    "DATA_LABEL_TO_RESULT_TABLE_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:data_label_to_result_table:channel"
+)
+# 结果表详情
+RESULT_TABLE_DETAIL_KEY = os.environ.get("RESULT_TABLE_DETAIL_KEY", f"{SPACE_REDIS_PREFIX_KEY}:result_table_detail")
+RESULT_TABLE_DETAIL_CHANNEL = os.environ.get(
+    "RESULT_TABLE_DETAIL_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:result_table_detail:channel"
+)
+
 
 class EtlConfigs(Enum):
     # 多指标单表(system)
@@ -118,3 +147,6 @@ class BCSClusterTypes(Enum):
 
 # 授权蓝盾使用的数据源 ID
 BKCI_AUTHORIZED_DATA_LIST = [1001]
+
+# 1001 跨空间类型允许 bkci 访问的结果表前缀
+BKCI_1001_TABLE_ID_PREFIX = "devx_system."

@@ -23,6 +23,8 @@ from apps.api import BkDataDataFlowApi
 from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext as _
 
+from apps.log_search.constants import OPERATORS
+
 DEFAULT_TIME_FIELD = "timestamp"
 DEFAULT_CLUSTERING_FIELD = "log"
 NOT_CLUSTERING_FILTER_RULE = " where ip is null"
@@ -30,6 +32,7 @@ OPERATOR_AND = "and"
 # 聚类不参与sql字段
 NOT_CONTAIN_SQL_FIELD_LIST = ["timestamp", "_startTime_", "_endTime_"]
 DIST_FIELDS = ["dist_01", "dist_03", "dist_05", "dist_07", "dist_09"]
+RENAME_DIST_FIELDS = ["__dist_01", "__dist_03", "__dist_05", "__dist_07", "__dist_09"]
 DIST_CLUSTERING_FIELDS = [
     "dist_01 AS __dist_01",
     "dist_03 AS __dist_03",
@@ -120,6 +123,23 @@ class RealTimePredictFlowNode(object):
     PREDICT_CLUSTERING = "clustering"
     PREDICT_NOT_CLUSTERING = "not_clustering"
     PREDICT_NODE = "clustering_output"
+
+
+# 查询字段   __dist_xx
+PATTERN_SEARCH_FIELDS = [
+    {
+      "field_type": "keyword",
+      "field_name": field_name,
+      "field_alias": "",
+      "is_display": False,
+      "is_editable": True,
+      "tag": "dimension",
+      "es_doc_values": True,
+      "is_analyzed": False,
+      "field_operator": OPERATORS.get("keyword", []),
+      "description": None
+    } for field_name in RENAME_DIST_FIELDS
+]
 
 
 DEFAULT_MODEL_INPUT_FIELDS = [

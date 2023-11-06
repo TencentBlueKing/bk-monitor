@@ -48,12 +48,19 @@ class AdvancedYearRoundSerializer(serializers.Serializer):
     floor_interval = serializers.IntegerField(required=True, allow_null=True, min_value=1)
     ceil = serializers.FloatField(required=True, allow_null=True, min_value=0)
     ceil_interval = serializers.IntegerField(required=True, allow_null=True, min_value=1)
+    # 新增历史数据获取类型: 均值或顺时值
+    fetch_type = serializers.CharField(default="avg")
 
     def validate(self, attrs):
         floor = attrs["floor"]
         floor_interval = attrs["floor_interval"]
         ceil = attrs["ceil"]
         ceil_interval = attrs["ceil_interval"]
+        # 校验历史数据获取类型
+        fetch_type = attrs["fetch_type"]
+        if fetch_type not in ["avg", "last"]:
+            raise InvalidAdvancedYearRoundConfig(config=attrs)
+
         floor_configured = all([floor, floor_interval])
         ceil_configured = all([ceil, ceil_interval])
         if not floor_configured:
@@ -72,20 +79,11 @@ class AdvancedRingRatioSerializer(AdvancedYearRoundSerializer):
     高级环比算法serializer,复用高级同比算法serializer
     """
 
-    # 新增历史数据获取类型: 均值或顺时值
-    fetch_type = serializers.CharField(default="avg")
-
     def validate(self, attrs):
-        fetch_type = attrs["fetch_type"]
-        if fetch_type not in ["avg", "last"]:
-            raise InvalidAdvancedRingRatioConfig(config=attrs)
         try:
-            attrs = super(AdvancedRingRatioSerializer, self).validate(attrs)
+            return super(AdvancedRingRatioSerializer, self).validate(attrs)
         except InvalidAdvancedYearRoundConfig:
             raise InvalidAdvancedRingRatioConfig(config=attrs)
-
-        attrs["fetch_type"] = fetch_type
-        return attrs
 
 
 class RingRatioAmplitudeSerializer(serializers.Serializer):

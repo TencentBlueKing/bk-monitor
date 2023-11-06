@@ -9,19 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import re
+import sys
 
 """
 校验提交信息是否包含规范的前缀
 """
-
-import sys
-
-try:
-    reload(sys)
-    sys.setdefaultencoding("utf-8")
-except NameError:
-    # py3
-    pass
 
 
 ALLOWED_COMMIT_MSG_PREFIX = [
@@ -33,16 +25,7 @@ ALLOWED_COMMIT_MSG_PREFIX = [
     ("perf", "A code change that improves performance"),
     ("test", "Adding missing or correcting existing tests"),
     ("chore", "Changes to the build process or auxiliary tools and libraries such as documentation generation"),
-]
-
-# 即将启用的prefix，仍保留一段时间
-DEPRECATED_COMMIT_MSG_PREFIX = [
-    ("feature", "新特性"),
-    ("bugfix", "线上功能bug"),
-    ("minor", "不重要的修改（换行，拼写错误等）"),
-    ("optimization", "功能优化"),
-    ("sprintfix", "未上线代码修改 （功能模块未上线部分bug）"),
-    ("merge", "分支合并及冲突解决"),
+    ("merge", "Merge branch and fix conflicts"),
 ]
 
 
@@ -63,7 +46,7 @@ def main():
     result = re.match(r"^(\w+)(\(\S+\))?!?:\s*([^\n\r]+)$", content)
     if result:
         label, scope, subject = result.groups()
-        for prefix in ALLOWED_COMMIT_MSG_PREFIX + DEPRECATED_COMMIT_MSG_PREFIX:
+        for prefix in ALLOWED_COMMIT_MSG_PREFIX:
             if label == prefix[0]:
                 return 0
 

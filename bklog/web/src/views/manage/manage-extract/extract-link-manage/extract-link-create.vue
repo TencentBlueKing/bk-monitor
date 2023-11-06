@@ -102,6 +102,7 @@
             property="qcloud_secret_key">
             <bk-input
               v-model="formData.qcloud_secret_key"
+              type="password"
               data-test-id="basicInformation_input_SecretKey"
             ></bk-input>
           </bk-form-item>
@@ -308,6 +309,9 @@ export default {
           });
           // 字符串转成数组展示
           formData.operator = [formData.operator];
+          if (formData.link_type === 'qcloud_cos') {
+            formData.qcloud_secret_key = res.qcloud_secret_key || '******';
+          }
           this.formData = Object.assign({}, this.formData, formData);
           this.basicLoading = false;
           this.editInitLinkType = this.formData.link_type;
@@ -368,6 +372,9 @@ export default {
           delete requestData.qcloud_cos_region;
           delete requestData.qcloud_secret_id;
           delete requestData.qcloud_secret_key;
+        }
+        if (requestData.link_type === 'qcloud_cos' && requestData.qcloud_secret_key === '******') {
+          requestData.qcloud_secret_key = '';
         }
         requestData.hosts.forEach((host) => {
           delete host.keyId;
