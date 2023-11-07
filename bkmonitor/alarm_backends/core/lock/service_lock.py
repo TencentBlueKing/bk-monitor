@@ -14,7 +14,8 @@ import functools
 import time
 from contextlib import contextmanager
 
-from alarm_backends.core.lock import RedisLock, MultiRedisLock
+from alarm_backends.core.cluster import get_cluster
+from alarm_backends.core.lock import MultiRedisLock, RedisLock
 from alarm_backends.core.storage.redis import Cache
 from core.errors.alarm_backends import LockError
 
@@ -56,7 +57,8 @@ def share_lock(ttl=600, identify=None):
             token = str(time.time())
             # 防止函数重名导致方法失效，增加一个ID参数，可以通过ID参数屏蔽多模块函数名重复的问题
             # 例如，可以为`${module}_${method_used_for}`
-            cache_key = "celery_%s" % func.__name__ if identify is None else identify
+            name = func.__name__ if identify is None else identify
+            cache_key = f"{get_cluster().name}_celery_lock_{name}"
             client = Cache("cache")
             lock_success = client.set(cache_key, token, ex=ttl, nx=True)
             if not lock_success:

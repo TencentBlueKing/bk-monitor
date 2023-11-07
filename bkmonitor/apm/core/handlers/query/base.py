@@ -27,6 +27,7 @@ class EsOperator:
     EQUAL = "equal"
     NOT_EQUAL = "not_equal"
     BETWEEN = "between"
+    LIKE = "like"
 
 
 class LogicSupportOperator:
@@ -51,6 +52,7 @@ class EsQueryBuilderMixin:
             EsOperator.EQUAL: lambda q, k, v: q.query("bool", must=[Q("terms", **{k: v})]),
             EsOperator.NOT_EQUAL: lambda q, k, v: q.query("bool", must_not=[Q("terms", **{k: v})]),
             EsOperator.BETWEEN: lambda q, k, v: q.query("bool", must=[Q("range", **{k: {"gte": v[0], "lte": v[1]}})]),
+            EsOperator.LIKE: lambda q, k, v: q.query("bool", must=[Q("wildcard", **{k: f'*{v[0]}*'})]),
             LogicSupportOperator.LOGIC: lambda q, k, v: self._add_logic_filter(q, k, v),
         }
 

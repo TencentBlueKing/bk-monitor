@@ -36,7 +36,7 @@ class AccessVMRecord(models.Model):
     )
 
     data_type = models.CharField("数据类型", max_length=32, choices=DATA_TYPE_CHOICES, default=BCS_CLUSTER_K8S)
-    result_table_id = models.CharField("结果表ID", max_length=64, help_text="结果表ID")
+    result_table_id = models.CharField("结果表ID", max_length=128, help_text="结果表ID")
     # 仅当 data_type 为bcs_cluster时才有值
     bcs_cluster_id = models.CharField("bcs集群ID", max_length=32, null=True, blank=True, help_text="bcs集群ID")
     storage_cluster_id = models.IntegerField("对接使用的storage域名", null=True, blank=True, help_text="对接使用的集群ID")

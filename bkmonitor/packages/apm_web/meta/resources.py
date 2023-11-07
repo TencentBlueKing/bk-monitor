@@ -19,8 +19,11 @@ from urllib.parse import urlparse
 
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
+    DB_SYSTEM_TUPLE,
+    DEFAULT_DB_CONFIG,
     DEFAULT_DIMENSION_DATA_PERIOD,
     DEFAULT_NO_DATA_PERIOD,
+    DEFAULT_SPLIT_SYMBOL,
     NODATA_ERROR_STRATEGY_CONFIG_KEY,
     Apdex,
     BizConfigKey,
@@ -32,22 +35,26 @@ from apm_web.constants import (
     DefaultSetupConfig,
     InstanceDiscoverKeys,
     SamplerTypeChoices,
+    SceneEventKey,
     ServiceRelationLogTypeChoices,
     TopoNodeKind,
 )
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
+from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.instance_handler import InstanceHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.plugin.help import Help
+from apm_web.meta.plugin.log_trace_plugin_config import EncodingsEnum
 from apm_web.meta.plugin.plugin import (
     DeploymentEnum,
     LanguageEnum,
     Opentelemetry,
     PluginEnum,
+    LOG_TRACE,
 )
 from apm_web.metric_handler import (
     ApdexInstance,
@@ -93,6 +100,7 @@ from monitor.models import ApplicationConfig
 from monitor_web.constants import AlgorithmType
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
+    LinkListTableFormat,
     LinkTableFormat,
     NumberTableFormat,
     ScopedSlotsFormat,
@@ -131,6 +139,19 @@ class CreateApplicationResource(Resource):
             es_shards = serializers.IntegerField(label="es索引分片数量", min_value=1)
             es_slice_size = serializers.IntegerField(label="es索引切分大小", default=500)
 
+        class PluginConfigSerializer(serializers.Serializer):
+            target_node_type = serializers.CharField(label="节点类型", max_length=255)
+            target_nodes = serializers.ListField(
+                label="目标节点",
+                required=False,
+            )
+            target_object_type = serializers.CharField(label="目标类型", max_length=255)
+            data_encoding = serializers.CharField(label="日志字符集", max_length=255)
+            paths = serializers.ListSerializer(
+                label="语言",
+                child=serializers.CharField(max_length=255),
+                required=False,
+            )
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_-]+$")
         app_alias = serializers.CharField(label="应用别名", max_length=255)
@@ -153,17 +174,26 @@ class CreateApplicationResource(Resource):
             default=[LanguageEnum.PYTHON.id],
         )
         datasource_option = DatasourceOptionSerializer(required=True)
+        plugin_config = PluginConfigSerializer(required=False)
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = Application
             fields = "__all__"
 
+        def to_representation(self, instance):
+            data = super(CreateApplicationResource.ResponseSerializer, self).to_representation(instance)
+            application = Application.objects.filter(application_id=instance.application_id).first()
+            data["plugin_config"] = application.plugin_config
+            return data
+
     def perform_request(self, validated_request_data):
         if Application.origin_objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         ).exists():
             raise ValueError(_("应用名称: {}已被创建").format(validated_request_data['app_name']))
+
+        plugin_config = validated_request_data.get("plugin_config")
         app = Application.create_application(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -173,6 +203,7 @@ class CreateApplicationResource(Resource):
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
             datasource_option=validated_request_data["datasource_option"],
+            plugin_config=plugin_config
         )
         from apm_web.tasks import report_apm_application_event
 
@@ -297,6 +328,12 @@ class ApplicationInfoResource(Resource):
             data["deployment_ids"] = instance.deployment_ids
             data["language_ids"] = instance.language_ids
             data["no_data_period"] = instance.no_data_period
+            # db 类型配置
+            data["application_db_system"] = DB_SYSTEM_TUPLE
+            # 补充默认配置
+            if "application_db_config" not in data:
+                data["application_db_config"] = [DEFAULT_DB_CONFIG]
+            data["plugin_config"] = instance.plugin_config
             return data
 
     def perform_request(self, validated_request_data):
@@ -337,6 +374,7 @@ class StartResource(Resource):
     @atomic
     def perform_request(self, validated_request_data):
         Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=True)
+        Application.start_plugin_config(validated_request_data["application_id"])
         return api.apm_api.start_application(validated_request_data)
 
 
@@ -347,6 +385,8 @@ class StopResource(Resource):
     @atomic
     def perform_request(self, validated_request_data):
         Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=False)
+        Application.stop_plugin_config(validated_request_data["application_id"])
+
         return api.apm_api.stop_application(validated_request_data)
 
 
@@ -383,6 +423,29 @@ class SetupResource(Resource):
 
             dimensions = serializers.ListField(child=_DimensionSerializer(), label="维度配置")
 
+        class DbConfigSerializer(serializers.Serializer):
+            db_system = serializers.CharField(label="DB类型", allow_blank=True)
+            trace_mode = serializers.CharField(label="追踪模式")
+            length = serializers.IntegerField(label="保留长度")
+            threshold = serializers.IntegerField(label="阀值")
+            enabled_slow_sql = serializers.BooleanField(label="是否启用慢语句")
+
+        class PluginConfigSerializer(serializers.Serializer):
+            target_node_type = serializers.CharField(label="节点类型", max_length=255)
+            target_nodes = serializers.ListField(
+                label=_("目标节点"),
+                required=False,
+            )
+            target_object_type = serializers.CharField(label="目标类型", max_length=255)
+            data_encoding = serializers.CharField(label=_("日志字符集"), max_length=255)
+            paths = serializers.ListSerializer(
+                label="语言",
+                child=serializers.CharField(max_length=255),
+                required=False,
+            )
+            bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+            subscription_id = serializers.IntegerField(label="订阅任务id", required=False)
+            bk_data_id = serializers.IntegerField(label="数据id", required=False)
         application_id = serializers.IntegerField(label="应用id")
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="应用描述", max_length=255, allow_blank=True, required=False)
@@ -391,9 +454,11 @@ class SetupResource(Resource):
         application_sampler_config = SamplerConfigSerializer(required=False)
         application_instance_name_config = InstanceNameConfigSerializer(required=False)
         application_dimension_config = DimensionConfigSerializer(required=False)
+        application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), default=[])
 
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
         is_enabled = serializers.BooleanField(label="启/停", required=False)
+        plugin_config = PluginConfigSerializer(required=False)
 
     class SetupProcessor:
         update_key = []
@@ -471,6 +536,14 @@ class SetupResource(Resource):
                 self._application.dimension_config, self._params, self._application.DIMENSION_CONFIG_KEY
             )
 
+    class DbSetupProcessor(SetupProcessor):
+        update_key = ["application_db_config"]
+
+        def setup(self):
+            self._application.setup_config(
+                self._application.db_config, self._params["application_db_config"], self._application.DB_CONFIG_KEY
+            )
+
     def perform_request(self, validated_request_data):
         try:
             application = Application.objects.get(application_id=validated_request_data["application_id"])
@@ -487,6 +560,7 @@ class SetupResource(Resource):
                 self.InstanceNameSetupProcessor,
                 # self.DimensionSetupProcessor,
                 self.NoDataPeriodProcessor,
+                self.DbSetupProcessor,
             ]
         ]
 
@@ -519,7 +593,8 @@ class SetupResource(Resource):
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
         from apm_web.tasks import update_application_config
-
+        if application.plugin_id == LOG_TRACE:
+            Application.update_plugin_config(application.application_id, validated_request_data["plugin_config"])
         update_application_config.delay(application.application_id)
 
 
@@ -945,13 +1020,17 @@ class QueryExceptionEventResource(PageListResource):
 
     def perform_request(self, validated_request_data):
         filter_params = self.build_filter_params(validated_request_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
+        DbComponentHandler.build_component_filter_params(
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
             filter_params,
             validated_request_data.get("service_params"),
             validated_request_data.get("component_instance_id"),
         )
+        category = validated_request_data.get("service_params", {}).get("category")
+        if category:
+            db_system_filter = DbComponentHandler.build_db_system_param(category=category)
+            filter_params.extend(db_system_filter)
 
         events = api.apm_api.query_event(
             {
@@ -1653,11 +1732,46 @@ class QueryEndpointStatisticsResource(PageListResource):
 
     def get_columns(self, column_type=None):
         return [
-            StringTableFormat(id="summary", name=_("请求内容")),
-            StringTableFormat(id="request_count", name=_("请求次数"), sortable=True),
-            NumberTableFormat(id="average", name=_("平均耗时"), checked=True, unit="ms", decimal=0, sortable=True),
-            NumberTableFormat(id="max_elapsed", name=_("最大耗时"), checked=True, unit="ms", decimal=0, sortable=True),
-            NumberTableFormat(id="min_elapsed", name=_("最小耗时"), checked=True, unit="ms", decimal=0, sortable=True),
+            StringTableFormat(id="summary", name=_("请求内容"), min_width=120),
+            StringTableFormat(id="request_count", name=_("请求次数"), sortable=True, width=110),
+            NumberTableFormat(
+                id="average", name=_("平均耗时"), checked=True, unit="ms", decimal=0, sortable=True, width=110
+            ),
+            NumberTableFormat(
+                id="max_elapsed", name=_("最大耗时"), checked=True, unit="ms", decimal=0, sortable=True, width=110
+            ),
+            NumberTableFormat(
+                id="min_elapsed", name=_("最小耗时"), checked=True, unit="ms", decimal=0, sortable=True, width=110
+            ),
+            LinkListTableFormat(
+                id="operation",
+                name=_("操作"),
+                checked=True,
+                disabled=True,
+                width=90,
+                links=[
+                    LinkTableFormat(
+                        id="trace",
+                        name=_("调用链"),
+                        url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
+                        + '&search_type=scope'
+                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&listType=span',
+                        target="blank",
+                        event_key=SceneEventKey.SWITCH_SCENES_TYPE,
+                    ),
+                    LinkTableFormat(
+                        id="statistics",
+                        name=_("统计"),
+                        url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
+                        + '&search_type=scope'
+                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&listType=interfaceStatistics',
+                        target="blank",
+                        event_key=SceneEventKey.SWITCH_SCENES_TYPE,
+                    ),
+                ],
+            ),
         ]
 
     class RequestSerializer(serializers.Serializer):
@@ -1698,6 +1812,47 @@ class QueryEndpointStatisticsResource(PageListResource):
 
         return res
 
+    def add_extra_params(self, params):
+
+        return {
+            "bk_biz_id": params.get("bk_biz_id"),
+            "app_name": params.get("app_name"),
+            "start_time": datetime.datetime.fromtimestamp(params.get("start_time")).strftime("%Y-%m-%d+%H:%M:%S"),
+            "end_time": datetime.datetime.fromtimestamp(params.get("end_time")).strftime("%Y-%m-%d+%H:%M:%S"),
+        }
+
+    def get_pagination_data(self, data, params, column_type=None, skip_sorted=False):
+        items = super(QueryEndpointStatisticsResource, self).get_pagination_data(data, params, column_type)
+
+        # url 拼接
+        for item in items["data"]:
+            tmp = {}
+            filter_http_url = ""
+            if item["filter_key"] in ["attributes.http.url"]:
+                filter_http_url = f'&query=attributes.http.url:"{item["summary"]}"'
+            else:
+                tmp[item.get("filter_key")] = {
+                    "selectedCondition": {"label": "=", "value": "equal"},
+                    "isInclude": True,
+                    "selectedConditionValue": [item.get("summary")],
+                }
+            service_name = params.get("filter_params", {}).get(
+                OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)
+            )
+            if service_name:
+                tmp[OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)] = {
+                    "selectedCondition": {"label": "=", "value": "equal"},
+                    "isInclude": True,
+                    "selectedConditionValue": [service_name],
+                }
+
+            for i in item["operation"]:
+                i["url"] = i["url"] + '&conditionList=' + json.dumps(tmp)
+                if filter_http_url:
+                    i["url"] += filter_http_url
+
+        return items
+
     def perform_request(self, validated_data):
         """
         根据app_name service_name查询span 遍历span然后取db.system,http.method..等等这些字段 没有就为空
@@ -1736,6 +1891,7 @@ class QueryEndpointStatisticsResource(PageListResource):
         summary_mappings = defaultdict(list)
         for span in spans:
             summary = None
+            filter_key = None
             if not is_component:
                 # http 类服务summary处理
                 if (
@@ -1750,6 +1906,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                     for uri_config in uri_configs:
                         if re.match(uri_config.uri, url):
                             summary = SpanHandler.generate_uri(urlparse(url))
+                            filter_key = "http.url"
 
                 if not summary:
                     # 否则取span的分析字段
@@ -1767,19 +1924,37 @@ class QueryEndpointStatisticsResource(PageListResource):
             else:
                 # 组件类服务summary处理
                 summary = span[OtlpKey.SPAN_NAME]
-
+            if not filter_key:
+                filter_key = next(
+                    iter(
+                        attr
+                        for attr in self.SPAN_KEYS
+                        if attr in span[OtlpKey.ATTRIBUTES] and span[OtlpKey.ATTRIBUTES][attr]
+                    ),
+                    None,
+                )
+            if filter_key:
+                filter_key = OtlpKey.ATTRIBUTES + "." + filter_key
+                summary = DEFAULT_SPLIT_SYMBOL.join([filter_key, summary])
             summary_mappings[summary].append(span)
 
         res = []
         for summary, items in summary_mappings.items():
             intervals = [int(str(i["end_time"])[:-3]) - int(str(i["start_time"])[:-3]) for i in items]
+            tmp = str(summary).split(DEFAULT_SPLIT_SYMBOL, maxsplit=1)
+            filter_key = OtlpKey.SPAN_NAME
+            if len(tmp) == 2:
+                summary = tmp[-1]
+                filter_key = tmp[0]
             res.append(
                 {
                     "summary": summary,
+                    "filter_key": filter_key,
                     "request_count": len(items),
                     "average": round(sum(intervals) / len(intervals), 2),
                     "max_elapsed": max(intervals),
                     "min_elapsed": min(intervals),
+                    "operation": {"trace": _("调用链"), "statistics": _("统计")},
                 }
             )
         return self.get_pagination_data(res, validated_data)
@@ -2375,7 +2550,13 @@ class DeleteApplicationResource(Resource):
         app = Application.objects.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]).first()
         if not app:
             raise ValueError(_("应用{}不存在").format(data['app_name']))
-
+        Application.delete_plugin_config(app.application_id)
         api.apm_api.delete_application(application_id=app.application_id)
         app.delete()
         return True
+
+
+class GETDataEncodingResource(Resource):
+    def perform_request(self, data):
+        data = EncodingsEnum.get_choices_list_dict()
+        return data
