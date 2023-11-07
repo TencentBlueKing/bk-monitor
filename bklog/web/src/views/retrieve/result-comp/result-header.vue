@@ -139,7 +139,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapGetters, mapState } from 'vuex';
 import BizMenuSelect from '@/components/biz-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import StepBox from '@/components/step-box';
@@ -253,6 +253,9 @@ export default {
     ...mapState({
       bkBizId: state => state.bkBizId,
       userGuideData: state => state.userGuideData,
+    }),
+    ...mapGetters({
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     refreshTimeText() {
       if (!this.refreshTimeout) return 'off';
@@ -415,8 +418,9 @@ export default {
       this.maskingRouteKey = detailStr;
       // 判断是否展示字段设置
       const filterMenuList = this.isAiopsToggle ? this.settingMenuList.filter(item => (isFilterExtract ? item.id !== 'extract' : true)) : [];
+      const accessList = this.accessList.filter(item => (this.isShowMaskingTemplate ? true : item.id !== 'logMasking'));
       // 合并其他
-      this.showSettingMenuList = filterMenuList.concat(this.accessList);
+      this.showSettingMenuList = filterMenuList.concat(accessList);
     },
     handleClickResultIcon(type) {
       if (type === 'collect') {

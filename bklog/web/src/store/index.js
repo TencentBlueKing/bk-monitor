@@ -131,7 +131,7 @@ const store = new Vuex.Store({
     maskingToggle: state => state.maskingToggle,
     /** 脱敏灰度判断 */
     isShowMaskingTemplate: state => (
-      state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(state.spaceUid)
+      state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId))
     ),
   },
   // 公共 mutations

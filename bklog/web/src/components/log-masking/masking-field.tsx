@@ -723,6 +723,23 @@ export default class MaskingField extends tsc<IProps> {
     ]);
   }
 
+  renderHeaderPreview(h) {
+    return h('div', {
+      class: 'sync-render-header',
+    }, [
+      h('span', this.$t('脱敏预览')),
+      h('span', {
+        class: 'log-icon icon-info-fill',
+        directives: [
+          {
+            name: 'bk-tooltips',
+            value: this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。'),
+          },
+        ],
+      }),
+    ]);
+  }
+
   /**
    * @desc: 输入框失焦触发
    * @param {Boolean} isPreview 是否更新预览
@@ -1411,7 +1428,6 @@ export default class MaskingField extends tsc<IProps> {
             ></TableColumn>
 
             <TableColumn
-              label={(this.$t('label-脱敏算子') as String).replace('label-', '')}
               key={'match_method'}
               render-header={this.renderHeaderRule}
               scopedSlots={maskingRuleSlot}
@@ -1419,7 +1435,7 @@ export default class MaskingField extends tsc<IProps> {
 
             {
               this.previewSwitch && <TableColumn
-                label={this.$t('脱敏预览')}
+                render-header={this.renderHeaderPreview}
                 key={'match_content'}
                 scopedSlots={maskingPreviewSlot}
               ></TableColumn>
