@@ -437,6 +437,11 @@
           ],
           "description": "通知分派配置"
         },
+        "chart_image_enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否开启通知图片"
+        },
         "upgrade_config":{
           "type": "object",
           "required": [],
