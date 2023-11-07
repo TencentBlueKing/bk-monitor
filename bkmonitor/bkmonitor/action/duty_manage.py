@@ -159,9 +159,15 @@ class DutyRuleManager:
         while begin_time <= last_handoff_time:
             # 在有效的时间范围内，获取有效的排期
             is_valid = False
-            new_period = True
+            # 如果是指定
             begin_date = begin_time.strftime("%Y-%m-%d")
             next_day_time = begin_time + timedelta(days=1)
+
+            # 是否为新的周期，只有那种需要指定班次轮值的情况下才生效，所以其他场景默认都为新的周期就好
+            new_period = (
+                self.is_new_period(duty_time["work_type"], handoff_date, next_day_time) if special_rotation else True
+            )
+
             if (
                 duty_time["work_type"] == RotationType.DAILY
                 or begin_time.isoweekday() in weekdays
@@ -170,16 +176,6 @@ class DutyRuleManager:
                 # 如果是每天都轮班，则一定生效
                 # 如果是按周轮班，当天在工作日内
                 # 如果按月轮班，当天在工作日内
-                if special_rotation:
-                    new_period = False
-                    if duty_time["work_type"] == RotationType.DAILY:
-                        new_period = True
-                    if duty_time["work_type"] in RotationType.WEEK_MODE and next_day_time.isoweekday() == handoff_date:
-                        # 按周轮转，如果下一天为交接日期，表示将会开启一个新的交接
-                        new_period = True
-                    elif duty_time["work_type"] == RotationType.MONTHLY and next_day_time.day != handoff_date:
-                        # 按月轮转，如果下一天为交接日期，表示将会开启一个新的交接
-                        new_period = True
                 is_valid = True
             else:
                 for date_range in date_ranges:
@@ -199,7 +195,7 @@ class DutyRuleManager:
                 duty_dates.append(period_dates)
                 period_dates = []
 
-            if not new_period and last_handoff_time < next_day_time:
+            if new_period is False and last_handoff_time < next_day_time:
                 # 如果不是一个新的周期，表示要继续
                 last_handoff_time = next_day_time
             begin_time = next_day_time
@@ -209,6 +205,22 @@ class DutyRuleManager:
         # 更新当前时间段的下一次排班交接时间
         duty_time["begin_time"] = time_tools.datetime2str(last_handoff_time + timedelta(days=1))
         return duty_dates if special_rotation else period_dates
+
+    @staticmethod
+    def is_new_period(work_type, handoff_date, next_day_time: datetime):
+        """
+        判断是否为新的周期，只有那种需要指定班次轮值的情况下才生效，所以其他场景默认都为新的周期就好
+        """
+        new_period = False
+        if work_type == RotationType.DAILY:
+            new_period = True
+        elif work_type in RotationType.WEEK_MODE and next_day_time.isoweekday() == handoff_date:
+            # 按周轮转，如果下一天为交接日期，表示将会开启一个新的交接
+            new_period = True
+        elif work_type == RotationType.MONTHLY and next_day_time.day != handoff_date:
+            # 按月轮转，如果下一天为交接日期，表示将会开启一个新的交接
+            new_period = True
+        return new_period
 
     def get_auto_hour_periods(self, duty_time):
         # TODO 获取根据小时轮转的周期
@@ -285,6 +297,7 @@ class DutyRuleManager:
             current_duty_dates = duty_date_times[date_index : date_index + period_interval]
             date_index = date_index + period_interval
             # 根据设置的用户数量进行轮转
+            current_user_index = self.last_user_index
             users, self.last_user_index = self.get_group_duty_users(
                 duty_users, self.last_user_index, group_user_number, duty_arrange["group_type"]
             )
@@ -295,7 +308,7 @@ class DutyRuleManager:
                 for day in one_period_dates:
                     duty_work_time.extend(self.get_duty_work_time(day["date"], day["work_time_list"]))
 
-            duty_plans.append({"users": users, "work_times": duty_work_time})
+            duty_plans.append({"users": users, "user_index": current_user_index, "work_times": duty_work_time})
         return duty_plans
 
     @staticmethod
@@ -326,9 +339,10 @@ class DutyRuleManager:
         if next_user_index >= len(duty_users):
             # 重置user_index 为 0
             user_index = 0
-            next_user_index = group_user_number - len(users)
+            next_user_index = user_index + group_user_number
             if group_type == DutyGroupType.AUTO:
                 # 如果自动分组，需要补齐人数
+                next_user_index = group_user_number - len(users)
                 users.extend(duty_users[user_index:next_user_index])
         return users, next_user_index
 
@@ -490,7 +504,7 @@ class GroupDutyRuleManager:
                     users=duty_plan["users"],
                     work_times=duty_plan["work_times"],
                     is_effective=1,
-                    order=1,
+                    order=duty_plan["user_index"],
                 )
             )
 
