@@ -41,7 +41,7 @@ COPY ./scripts/dev/supervisord.conf ./scripts/dev/code-server.yaml /app/etc/
 
 # 复制监控代码目录
 COPY ./ /app/code/
-COPY ./scripts/dev/local_settings.py.tpl /app/code/bkmonitor/local_settings.py
+COPY ./scripts/dev/local_settings.py.tpl /app/code/local_settings.py
 
 WORKDIR /app/code
 CMD /app/run.sh
