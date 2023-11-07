@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, Loading, Sideslider } from 'bkui-vue';
 
+import { retrieveDutyRule } from '../../../monitor-api/modules/model';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { IAuthority } from '../../typings/authority';
 
@@ -35,7 +36,6 @@ import { getCalendar, setPreviewDataOfServer } from './components/calendar-previ
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationSelectTextMap, RotationSelectTypeEnum, RotationTabTypeEnum } from './typings/common';
-import { mockRequest } from './mockData';
 import { randomColor, transformDetailTimer, transformDetailUsers } from './utils';
 
 import './rotation-detail.scss';
@@ -85,8 +85,8 @@ export default defineComponent({
 
     function getData() {
       loading.value = true;
-      mockRequest(RotationTabTypeEnum.HANDOFF)
-        .then((res: any) => {
+      retrieveDutyRule(props.id)
+        .then(res => {
           detailData.value = res;
           type.value = res.category;
           rotationType.value = res.duty_arranges?.[0]?.duty_time?.[0].work_type || RotationSelectTypeEnum.Weekly;

@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 
-import { listDutyRule } from '../../../monitor-api/modules/model';
+import { destroyDutyRule, listDutyRule, partialUpdateDutyRule } from '../../../monitor-api/modules/model';
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
@@ -233,7 +233,8 @@ export default defineComponent({
       value: []
     });
     const detailData = reactive({
-      show: false
+      show: false,
+      id: ''
     });
     /* 轮值列表全量数据 */
     const allRotationList = shallowRef([]);
@@ -375,13 +376,20 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    function handleEnableBeforeChange(value) {
+    function handleEnableBeforeChange(value, row) {
       return new Promise((resolve, reject) => {
         InfoBox({
-          title: '确认停用',
+          title: value ? t('确认启用') : t('确认停用'),
           onConfirm: () => {
-            console.log(value);
-            resolve(value);
+            partialUpdateDutyRule(row.id, {
+              enabled: value
+            })
+              .then(() => {
+                resolve(value);
+              })
+              .catch(() => {
+                reject();
+              });
           },
           onClosed: () => {
             reject();
@@ -443,7 +451,8 @@ export default defineComponent({
       setFilterList();
     }
 
-    function handleShowDetail() {
+    function handleShowDetail(row) {
+      detailData.id = row.id;
       detailData.show = true;
     }
 
@@ -470,14 +479,23 @@ export default defineComponent({
           if (delIndex >= 0) {
             loading.value = true;
             setTimeout(() => {
-              allRotationList.value.splice(delIndex, 1);
-              tableData.pagination.current = 1;
-              setFilterList();
-              loading.value = false;
-              Message({
-                theme: 'success',
-                message: t('删除成功')
-              });
+              destroyDutyRule({ id: row.id })
+                .then(() => {
+                  allRotationList.value.splice(delIndex, 1);
+                  tableData.pagination.current = 1;
+                  setFilterList();
+                  loading.value = false;
+                  Message({
+                    theme: 'success',
+                    message: t('删除成功')
+                  });
+                })
+                .catch(() => {
+                  Message({
+                    theme: 'danger',
+                    message: t('删除失败')
+                  });
+                });
             }, 2000);
           }
         },
@@ -499,7 +517,7 @@ export default defineComponent({
             <Button
               text
               theme='primary'
-              onClick={() => handleShowDetail()}
+              onClick={() => handleShowDetail(row)}
             >
               {row.name}
             </Button>
@@ -549,7 +567,7 @@ export default defineComponent({
               size='small'
               theme='primary'
               value={row.enabled}
-              beforeChange={handleEnableBeforeChange}
+              beforeChange={v => handleEnableBeforeChange(v, row)}
               onChange={v => (row.enabled = v)}
             ></Switcher>
           );
@@ -697,6 +715,7 @@ export default defineComponent({
 
         <RotationDetail
           show={this.detailData.show}
+          id={this.detailData.id}
           onShowChange={v => (this.detailData.show = v)}
         ></RotationDetail>
       </div>
