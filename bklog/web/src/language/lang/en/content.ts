@@ -543,5 +543,6 @@ export default {
   "支持引用正则表达式中的命名分组。如正则表达式为 ": "Support for naming named groups in quoted regular expressions. For example, the regular expression is ",
   "，可通过 ${phone} 进行引用":", which can be referenced through ${phone}",
   "暂无采样日志": "No sampling log",
-  "正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…": "The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later..."
+  "正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…": "The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...",
+  "脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。": "The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results."
 }

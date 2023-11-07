@@ -144,7 +144,6 @@
                 @click="operateHandler(props.row, 'edit')">
                 {{ $t('编辑') }}</bk-button>
               <bk-button
-                class="king-button"
                 theme="primary"
                 text
                 :disabled="!props.row.table_id"
@@ -152,14 +151,20 @@
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                 }"
                 @click="operateHandler(props.row, 'clean')">
-                {{ $t('清洗') }}</bk-button>
-              <bk-dropdown-menu ref="dropdown" align="left" position-fixed>
+                {{ $t('清洗') }}
+              </bk-button>
+              <bk-popover
+                class="dot-menu"
+                placement="bottom-start"
+                theme="dot-menu light"
+                offset="15"
+                :arrow="false"
+                :distance="0">
                 <i
                   class="bk-icon icon-more"
-                  style="font-size: 14px; font-weight: bold; display: inline-block;"
-                  slot="dropdown-trigger">
+                  style="margin-left: 5px; font-size: 14px; font-weight: bold;">
                 </i>
-                <ul class="bk-dropdown-list" slot="dropdown-content">
+                <ul class="collection-operation-list" slot="content">
                   <!-- 查看详情 -->
                   <li>
                     <a
@@ -233,7 +238,7 @@
                     </a>
                   </li>
                 </ul>
-              </bk-dropdown-menu>
+              </bk-popover>
             </div>
           </bk-table-column>
           <div slot="empty">
@@ -513,10 +518,6 @@ export default {
 
           .king-button {
             margin-right: 14px;
-
-            &:last-child {
-              margin-right: 0;
-            }
           }
         }
 
@@ -545,5 +546,56 @@ export default {
       }
     }
 
+  }
+
+  .dot-menu {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .dot-menu-theme {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+
+    &::before {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #fff !important;
+    }
+  }
+
+  .collection-operation-list {
+    margin: 0;
+    min-width: 50px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    li {
+      padding: 4px 16px;
+      font-size: 12px;
+      line-height: 26px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #eaf3ff;
+        color: #3a84ff;
+      }
+    }
+
+    a {
+      display: inline-block;
+      width: 100%;
+      height: 100%;
+      color: #63656e;
+    }
+
+    .text-disabled {
+      color: #c4c6cc;
+
+      &:hover {
+        cursor: not-allowed;
+      }
+    }
   }
 </style>
