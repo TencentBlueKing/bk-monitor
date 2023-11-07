@@ -61,7 +61,7 @@ class DutyRuleViewSet(UserGroupPermissionViewSet):
     queryset = DutyRule.objects.all()
     serializer_class = serializers.DutyRuleDetailSlz
 
-    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"], "labels": ["contains"]}
+    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
     pagination_class = None
 
     def get_serializer_class(self):
