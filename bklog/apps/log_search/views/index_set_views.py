@@ -24,7 +24,12 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.log_search.serializers import CreateOrUpdateDesensitizeConfigSerializer
+from apps.log_search.serializers import (
+    CreateOrUpdateDesensitizeConfigSerializer,
+    IndexSetAddTagSerializer,
+    IndexSetDeleteTagSerializer,
+    CreateIndexSetTagSerializer,
+)
 from apps.utils.drf import detail_route, list_route
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -145,7 +150,10 @@ class IndexSetViewSet(ModelViewSet):
             "retrieve": ShowMoreSerializer,
             "replace": ReplaceSerializer,
             "desensitize_config_create": CreateOrUpdateDesensitizeConfigSerializer,
-            "desensitize_config_update": CreateOrUpdateDesensitizeConfigSerializer
+            "desensitize_config_update": CreateOrUpdateDesensitizeConfigSerializer,
+            "add_tag": IndexSetAddTagSerializer,
+            "delete_tag": IndexSetDeleteTagSerializer,
+            "create_tag": CreateIndexSetTagSerializer
         }
         return action_serializer_map.get(self.action, CustomSerializer)
 
@@ -949,3 +957,42 @@ class IndexSetViewSet(ModelViewSet):
         }
         """
         return Response(IndexSetHandler(int(index_set_id)).desensitize_config_delete())
+
+    @detail_route(methods=["POST"], url_path="tag/add")
+    def add_tag(self, request, index_set_id, *args, **kwargs):
+        """
+        @api {POST} /index_set/$index_set_id/tag/add/ 索引集添加标签
+        @apiName add_tag
+        @apiGroup 05_AccessIndexSet
+        """
+        data = self.validated_data
+        return Response(IndexSetHandler(int(index_set_id)).add_tag(tag_id=int(data["tag_id"])))
+
+    @detail_route(methods=["POST"], url_path="tag/delete")
+    def delete_tag(self, request, index_set_id, *args, **kwargs):
+        """
+        @api {POST} /index_set/$index_set_id/tag/delete/ 索引集取消标签
+        @apiName cancel_tag
+        @apiGroup 05_AccessIndexSet
+        """
+        data = self.validated_data
+        return Response(IndexSetHandler(int(index_set_id)).delete_tag(tag_id=int(data["tag_id"])))
+
+    @list_route(methods=["POST"], url_path="tag")
+    def create_tag(self, request, *args, **kwargs):
+        """
+        @api {POST} /index_set/tag/ 创建标签
+        @apiName create_tag
+        @apiGroup 05_AccessIndexSet
+        """
+        data = self.validated_data
+        return Response(IndexSetHandler().create_tag(params=data))
+
+    @list_route(methods=["GET"], url_path="tag/list")
+    def tag_list(self, request, *args, **kwargs):
+        """
+        @api {POST} /index_set/tag/list/ 标签列表
+        @apiName list_tag
+        @apiGroup 05_AccessIndexSet
+        """
+        return Response(IndexSetHandler().tag_list())
