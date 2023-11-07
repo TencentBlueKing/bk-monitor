@@ -198,6 +198,7 @@ CELERY_IMPORTS = (
     "apps.log_search.handlers.index_set",
     "apps.log_search.tasks.mapping",
     "apps.log_search.tasks.no_data",
+    "apps.log_search.tasks.sync_index_set_archive",
     "apps.log_databus.tasks.collector",
     "apps.log_databus.tasks.itsm",
     "apps.log_databus.tasks.bkdata",
