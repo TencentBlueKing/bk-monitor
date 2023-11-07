@@ -88,7 +88,7 @@ def sync_index_set_archive(index_set_id: int = None):
         if deleted_table_id in archived_table_ids:
             params = {"table_id": deleted_table_id}
             multi_execute_func.append(
-                result_key="delete_result_table_snapshot",
+                result_key=f"delete_result_table_snapshot_{deleted_table_id}",
                 func=TransferApi.delete_result_table_snapshot,
                 params=params
             )
@@ -103,7 +103,7 @@ def sync_index_set_archive(index_set_id: int = None):
                 "snapshot_days": snapshot_days
             }
             multi_execute_func.append(
-                result_key="create_result_table_snapshot",
+                result_key=f"create_result_table_snapshot_{normal_table_id}",
                 func=TransferApi.create_result_table_snapshot,
                 params=params
             )
