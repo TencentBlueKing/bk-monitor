@@ -277,7 +277,7 @@ def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     # 如果以 '__default__'结尾，则取前半部分
     if table_id.endswith("__default__"):
         table_id = table_id.split(".__default__")[0]
-    name = f"{table_id.replace('.', '_').lstrip('_')[-40:]}"
+    name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
     # NOTE: 清洗结果表不能出现双下划线
     vm_name = f"vm_{name}".replace('__', '_')
 
