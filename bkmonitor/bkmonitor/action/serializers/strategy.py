@@ -24,6 +24,7 @@ from bkmonitor.action.utils import (
     get_duty_rule_user_groups,
     get_user_group_assign_rules,
     get_user_group_strategies,
+    validate_datetime_range,
     validate_time_range,
 )
 from bkmonitor.models import (
@@ -149,12 +150,18 @@ class DutyTimeSerializer(serializers.Serializer):
         return value
 
     def validate_work_time(self, value):
-        # TODO 需要改造，目前还有带时间范围的
+        """
+        校验工作时间
+        """
         if not value:
             return value
         for work_time in value:
-            if not validate_time_range(work_time):
-                raise ValidationError(detail=_("设置的时间范围不正确, 正确格式为00:00--23:59"))
+            if self.initial_data.get("work_time_type") == WorkTimeType.TIME_RANGE:
+                if not validate_time_range(work_time):
+                    raise ValidationError(detail=_("设置的时间范围不正确, 正确格式为00:00--23:59"))
+            else:
+                if not validate_datetime_range(work_time):
+                    raise ValidationError(detail=_("设置的时间范围不正确, 正确格式为01 00:00--01 23:59"))
         return value
 
 

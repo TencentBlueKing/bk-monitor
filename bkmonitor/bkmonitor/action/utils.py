@@ -195,3 +195,16 @@ def validate_time_range(value, format_str="%H:%M"):
     except ValueError:
         return False
     return True
+
+
+def validate_datetime_range(value, format_str="%d %H:%M"):
+    """
+    校验前端的日期时间格式
+    """
+    try:
+        [start_time, end_time] = value.split("--")
+        datetime.strptime(start_time, format_str)
+        datetime.strptime(end_time, format_str)
+    except ValueError:
+        return False
+    return True
