@@ -446,8 +446,6 @@ class Host(BaseNode):
         "bk_cpu_module",
         "bk_cpu",
     )
-    HOST_DISABLE_MONITOR_STATES = settings.HOST_DISABLE_MONITOR_STATES
-    HOST_DISABLE_NOTICE_STATES = settings.HOST_DISABLE_NOTICE_STATES
 
     def __init__(self, attrs: Optional[dict] = None, **kwargs):
         if attrs is None:
@@ -486,11 +484,11 @@ class Host(BaseNode):
 
     @cached_property
     def ignore_monitoring(self):
-        return self.bk_state in self.HOST_DISABLE_MONITOR_STATES
+        return self.bk_state in settings.HOST_DISABLE_MONITOR_STATES
 
     @cached_property
     def is_shielding(self):
-        return self.bk_state in self.HOST_DISABLE_NOTICE_STATES
+        return self.bk_state in settings.HOST_DISABLE_NOTICE_STATES
 
     @cached_property
     def bk_province_name(self):

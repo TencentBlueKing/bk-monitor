@@ -15,9 +15,11 @@ import logging
 
 from django.conf import settings
 
+from alarm_backends.cluster import TargetType
 from alarm_backends.core.cache import clear_mem_cache, key
 from alarm_backends.core.cache.key import ACCESS_EVENT_LOCKS
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.detect_result import ANOMALY_LABEL, CheckResult
 from alarm_backends.core.lock.service_lock import service_lock
@@ -218,6 +220,10 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
         处理策略信息
         """
         for biz_id, strategy_id_list in list(strategies.items()):
+            # 过滤出集群需要处理的业务ID
+            if not get_cluster().match(TargetType.biz, biz_id):
+                continue
+
             for strategy_id in strategy_id_list:
                 self.strategies.setdefault(int(biz_id), {})[strategy_id] = Strategy(strategy_id)
 
@@ -283,8 +289,15 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             logger.warning("[access] dataid:(%s) no topic" % self.data_id)
             return
 
+        # group_prefix
+        cluster_name = get_cluster().name
+        if cluster_name == "default":
+            group_prefix = f"access.event.{self.data_id}"
+        else:
+            group_prefix = f"{cluster_name}.access.event.{self.data_id}"
+
         try:
-            kafka_queue = self.get_kafka_queue(topic=topic, group_prefix="access.event.%s" % self.data_id)
+            kafka_queue = self.get_kafka_queue(topic=topic, group_prefix=group_prefix)
             try:
                 with service_lock(ACCESS_EVENT_LOCKS, data_id=self.data_id):
                     # 加锁成功，拉取数据
@@ -323,7 +336,11 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
 
     def process(self):
         with metrics.ACCESS_EVENT_PROCESS_TIME.labels(data_id=self.data_id).time():
-            exc = super(AccessCustomEventGlobalProcess, self).process()
+            if not self.strategies:
+                logger.info("no strategy to process")
+                exc = None
+            else:
+                exc = super(AccessCustomEventGlobalProcess, self).process()
 
         metrics.ACCESS_EVENT_PROCESS_COUNT.labels(
             data_id=self.data_id,

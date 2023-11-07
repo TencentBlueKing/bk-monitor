@@ -182,8 +182,23 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 str(getattr(host, "docker_client_version", "")) + " " + str(getattr(host, "docker_server_version", ""))
             )
 
+        host_state = str(host.bk_state)
+        monitor_mapping = {
+            # 不告警
+            "is_shielding": {"type": "is_shielding", "text": host_state},
+            # 不监控
+            "ignore_monitoring": {"type": "ignore_monitoring", "text": host_state},
+            "normal": {"type": "normal", "text": host_state},
+        }
+        monitor_status = "normal"
+        if host.is_shielding:
+            monitor_status = "is_shielding"
+        if host.ignore_monitoring:
+            monitor_status = "ignore_monitoring"
+
         return [
-            {"name": _("运营状态"), "type": "string", "value": str(getattr(host, "bk_state", ""))},
+            # 运营状态作为特殊类型
+            {"name": _("运营状态"), "type": "monitor_status", "value": monitor_mapping[monitor_status]},
             {"name": _("采集状态"), "type": "status", "value": status_mapping[status]},
             {"name": _("主机名"), "type": "string", "value": host.bk_host_name, "need_copy": bool(host.bk_host_name)},
             {
