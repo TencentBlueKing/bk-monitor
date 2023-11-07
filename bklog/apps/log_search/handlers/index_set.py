@@ -78,6 +78,7 @@ from apps.log_search.models import (
     Space,
     UserIndexSetFieldsConfig,
 )
+from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_trace.handlers.proto.proto import Proto
 from apps.models import model_to_dict
@@ -1346,6 +1347,9 @@ class BaseIndexSetHandler(object):
 
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
+
+        # 更新索引集归档配置
+        sync_index_set_archive.delay(self.index_set_obj.index_set_id)
 
         return self.index_set_obj
 

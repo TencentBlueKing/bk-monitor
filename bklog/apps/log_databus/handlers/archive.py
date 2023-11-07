@@ -171,7 +171,7 @@ class ArchiveHandler:
                         "snapshot_days": self.archive.snapshot_days
                     }
                     multi_execute_func.append(
-                        result_key="modify_result_table_snapshot",
+                        result_key=f"modify_result_table_snapshot_{table_id}",
                         func=TransferApi.modify_result_table_snapshot,
                         params=params
                     )
@@ -210,7 +210,7 @@ class ArchiveHandler:
                     "snapshot_days": create_obj.snapshot_days
                 }
                 multi_execute_func.append(
-                    result_key="create_result_table_snapshot",
+                    result_key=f"create_result_table_snapshot_{table_id}",
                     func=TransferApi.create_result_table_snapshot,
                     params=params
                 )
@@ -238,7 +238,7 @@ class ArchiveHandler:
             for table_id in table_ids:
                 params = {"table_id": table_id}
                 multi_execute_func.append(
-                    result_key="delete_result_table_snapshot",
+                    result_key=f"delete_result_table_snapshot_{table_id}",
                     func=TransferApi.delete_result_table_snapshot,
                     params=params
                 )
@@ -458,7 +458,7 @@ class ArchiveHandler:
             for meta_restore_id in meta_restore_ids:
                 params = {"restore_id": meta_restore_id, "expired_time": expired_time}
                 multi_execute_func.append(
-                    result_key="modify_restore_result_table_snapshot",
+                    result_key=f"modify_restore_result_table_snapshot_{meta_restore_id}",
                     func=TransferApi.modify_restore_result_table_snapshot,
                     params=params
                 )
@@ -498,7 +498,7 @@ class ArchiveHandler:
             for meta_restore_id in meta_restore_ids:
                 params = {"restore_id": meta_restore_id}
                 multi_execute_func.append(
-                    result_key="delete_restore_result_table_snapshot",
+                    result_key=f"delete_restore_result_table_snapshot_{meta_restore_id}",
                     func=TransferApi.delete_restore_result_table_snapshot,
                     params=params
                 )

@@ -15,7 +15,6 @@ import logging
 from os import path
 
 import requests
-from common.context_processors import Platform
 from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
@@ -28,6 +27,7 @@ from bkmonitor.utils.text import (
     cut_str_by_max_bytes,
     get_content_length,
 )
+from common.context_processors import Platform
 from constants.action import ActionPluginType, NoticeType, NoticeWay
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -411,20 +411,30 @@ class Sender(BaseSender):
             params = {"msgtype": msgtype, "chatid": chat_id}
             chat_mentioned_users = mentioned_users.get(chat_id, [])
             msg_content = {}
+            send_content = content.rstrip("\n")
             if chat_mentioned_users:
                 if msgtype == "markdown":
                     # 如果是markdown格式，组装markdown的内容
                     mentioned_users_string = "".join([f"<@{user}>" for user in chat_mentioned_users])
-                    mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}"
-                    content = "\n".join([content, mentioned_users_string])
+                    mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}\n"
+                    logger.info("send wxwork to %s, mentioned_users_string %s", chat_id, mentioned_users_string)
+                    if "--mention-users--" in content:
+                        # 如果有提醒占位符位置，需要做替换，一般异常告警提醒人的位置在中间，需要做替换
+                        send_content = content.replace("--mention-users--\n", mentioned_users_string)
+                    else:
+                        # 没有的话，直接做拼接
+                        send_content = "\n".join([content, mentioned_users_string])
                 else:
                     msg_content["mentioned_list"] = chat_mentioned_users
-            content = Sender.get_notice_content(NoticeWay.WX_BOT, content, Sender.Utf8Encoding)
-            msg_content["content"] = content
+            else:
+                send_content = content.replace("--mention-users--\n", "")
+            send_content = Sender.get_notice_content(NoticeWay.WX_BOT, send_content, Sender.Utf8Encoding)
+            msg_content["content"] = send_content
             params[msgtype] = msg_content
             try:
                 response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
                 if response["errcode"] != 0:
+                    send_result["errcode"] = -1
                     send_result["errmsg"].append(f"send to {chat_id} failed: {response['errmsg']}")
             except Exception as error:
                 send_result["errcode"] = -1

@@ -271,6 +271,17 @@ STRATEGY_CHECKPOINT_KEY = register_key_with_config(
     }
 )
 
+ACCESS_RUN_TIMESTAMP_KEY = register_key_with_config(
+    {
+        "label": "[access]access任务运行时间",
+        "key_type": "string",
+        "key_tpl": "access.run.strategy_group_{strategy_group_key}",
+        "ttl": CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
+
 ACCESS_DUPLICATE_KEY = register_key_with_config(
     {
         "label": "[access]数据拉取去重",

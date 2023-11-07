@@ -74,7 +74,6 @@ class OtlpKey:
     # apdex_type自身维度
     APDEX_TYPE = "apdex_type"
 
-
     @classmethod
     def get_resource_key(cls, key: str) -> str:
         return f"{cls.RESOURCE}.{key}"
