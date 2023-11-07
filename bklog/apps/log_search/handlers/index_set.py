@@ -1349,7 +1349,7 @@ class BaseIndexSetHandler(object):
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
 
         # 更新索引集归档配置
-        sync_index_set_archive.delay(self.index_set_obj.index_set_id, to_delete_indexes, to_append_indexes)
+        sync_index_set_archive.delay(self.index_set_obj.index_set_id)
 
         return self.index_set_obj
 
