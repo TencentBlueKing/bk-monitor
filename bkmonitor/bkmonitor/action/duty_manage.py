@@ -338,8 +338,7 @@ class DutyRuleManager:
             users = duty_users[user_index]
         if next_user_index >= len(duty_users):
             # 重置user_index 为 0
-            user_index = 0
-            next_user_index = user_index + group_user_number
+            next_user_index = user_index = 0
             if group_type == DutyGroupType.AUTO:
                 # 如果自动分组，需要补齐人数
                 next_user_index = group_user_number - len(users)
