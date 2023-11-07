@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref, watch } from 'vue';
+import { defineComponent, inject, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, Loading, Sideslider } from 'bkui-vue';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
+import { IAuthority } from '../../typings/authority';
 
+import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationSelectTextMap, RotationSelectTypeEnum, RotationTabTypeEnum } from './typings/common';
@@ -57,15 +59,20 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const router = useRouter();
+    const authority = inject<IAuthority>('authority');
+
     const loading = ref(false);
 
     const historyList = ref([]);
+
+    const previewData = ref([]);
 
     watch(
       () => props.show,
       (v: boolean) => {
         if (v) {
           getData();
+          getPreviewData();
         }
       }
     );
@@ -96,16 +103,36 @@ export default defineComponent({
           loading.value = false;
         });
     }
+    /**
+     * @description 获取轮值预览
+     */
+    function getPreviewData() {
+      const startDate = getCalendar()[0][0];
+      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00`;
+      const params = {
+        source_type: 'DB',
+        id: props.id,
+        begin_time: beginTime,
+        days: 31
+      };
+      console.log(params);
+      previewData.value = setPreviewDataOfServer([]);
+    }
 
     function renderUserLogo(user) {
       if (user.logo) return <img src={user.logo}></img>;
       if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
       return <span class='icon-monitor icon-mc-user-one no-img'></span>;
     }
-
+    /**
+     * @description 关闭侧栏
+     */
     function handleClosed() {
       props.onShowChange(false);
     }
+    /**
+     * @description 跳转到编辑页
+     */
     function handleToEdit() {
       router.push({
         name: 'rotation-edit'
@@ -119,6 +146,8 @@ export default defineComponent({
       users,
       timeList,
       historyList,
+      previewData,
+      authority,
       renderUserLogo,
       handleClosed,
       t,
@@ -143,7 +172,12 @@ export default defineComponent({
                   class='mr-8'
                   theme='primary'
                   outline
-                  onClick={() => this.handleToEdit()}
+                  onClick={() =>
+                    this.authority.auth.MANAGE_AUTH
+                      ? this.handleToEdit()
+                      : this.authority.showDetail([this.authority.map.MANAGE_AUTH])
+                  }
+                  v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                 >
                   {this.t('编辑')}
                 </Button>
@@ -259,7 +293,10 @@ export default defineComponent({
                   label={this.t('轮值预览')}
                   hasColon={true}
                 >
-                  <RotationCalendarPreview class='width-806'></RotationCalendarPreview>
+                  <RotationCalendarPreview
+                    class='width-806'
+                    value={this.previewData}
+                  ></RotationCalendarPreview>
                 </FormItem>
               </div>
             </Loading>

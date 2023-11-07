@@ -23,13 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive, ref, shallowRef } from 'vue';
+import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 
 import { useAppStore } from '../../store/modules/app';
+import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
+import { IAuthority } from '../../typings/authority';
 
+import * as authMap from './authority-map';
 import { rotationListData } from './mock';
 import RotationDetail from './rotation-detail';
 
@@ -101,6 +104,12 @@ export default defineComponent({
     const { t } = useI18n();
     const router = useRouter();
     const appStore = useAppStore();
+    const authorityStore = useAuthorityStore();
+    const authority = reactive<IAuthority>({
+      map: authMap,
+      auth: {},
+      showDetail: authorityStore.getAuthorityDetail
+    });
     const tableData = reactive({
       loading: false,
       data: [],
@@ -229,12 +238,16 @@ export default defineComponent({
     /* 轮值列表全量数据 */
     const allRotationList = shallowRef([]);
     const loading = ref(false);
+
+    provide('authority', authority);
+
     /**
      * @description 跳转到新增页
      */
     init();
     async function init() {
       loading.value = true;
+      authority.auth = await getAuthorityMap(authMap);
       const list = (await rotationListData().catch(() => [])) as any;
       const labelsSet = new Set();
       const filterLabelOptions = [];
@@ -557,7 +570,10 @@ export default defineComponent({
                       theme='primary'
                       class='mr-8'
                       disabled={!row.edit_allowed}
-                      onClick={() => handleEdit(row)}
+                      onClick={() =>
+                        authority.auth.MANAGE_AUTH ? handleEdit(row) : authority.showDetail([authority.map.MANAGE_AUTH])
+                      }
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('编辑')}
                     </Button>
@@ -577,7 +593,12 @@ export default defineComponent({
                       text
                       theme='primary'
                       disabled={!row.delete_allowed}
-                      onClick={() => handleDelete(row)}
+                      onClick={() =>
+                        authority.auth.MANAGE_AUTH
+                          ? handleDelete(row)
+                          : authority.showDetail([authority.map.MANAGE_AUTH])
+                      }
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('删除')}
                     </Button>
