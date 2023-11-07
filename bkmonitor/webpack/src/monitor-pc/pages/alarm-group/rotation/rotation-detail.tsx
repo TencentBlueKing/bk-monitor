@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Sideslider } from 'bk-magic-vue';
 
-import { mockRequest } from '../../../../trace/pages/rotation/mockData';
+import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
 import {
   RotationSelectTextMap,
   RotationSelectTypeEnum,
@@ -42,11 +42,13 @@ import './rotation-detail.scss';
 
 interface IProps {
   show: boolean;
+  id: number | string;
   onShowChange?: (v: boolean) => void;
 }
 
 @Component
 export default class RotationDetail extends tsc<IProps> {
+  @Prop({ type: [Number, String], default: '' }) id: number | string;
   @Prop({ type: Boolean, default: false }) show: boolean;
 
   detailData = null;
@@ -80,7 +82,7 @@ export default class RotationDetail extends tsc<IProps> {
 
   getData() {
     this.loading = true;
-    mockRequest('replace')
+    retrieveDutyRule(this.id)
       .then((res: any) => {
         this.detailData = res;
         this.type = res.category;

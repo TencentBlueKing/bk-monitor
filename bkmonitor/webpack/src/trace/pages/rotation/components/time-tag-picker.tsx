@@ -183,10 +183,10 @@ export default defineComponent({
           class='time-picker'
           v-model={this.currentTime.value}
           type='timerange'
-          format='hh:mm'
+          format='HH:mm'
           open={this.currentTime.show}
-          append-to-body
-          allow-cross-day
+          appendToBody
+          allowCrossDay
           ext-popover-cls='time-picker-popover'
         >
           {{

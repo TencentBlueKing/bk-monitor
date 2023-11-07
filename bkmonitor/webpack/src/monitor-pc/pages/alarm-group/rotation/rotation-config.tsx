@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Button, Checkbox, Input } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../monitor-common/utils';
-import { rotationListData } from '../../../../trace/pages/rotation/mock';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 
 import DutyNoticeConfig from './duty-notice-config';
@@ -69,6 +68,7 @@ export default class RotationConfig extends tsc<IProps> {
   showNotice = false;
 
   detailData = {
+    id: '',
     show: false
   };
 
@@ -97,7 +97,7 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   async init() {
-    const list = (await rotationListData().catch(() => [])) as any;
+    const list = [] as any;
     this.allDutyList = list.map(item => ({
       ...item,
       isCheck: false,
@@ -255,7 +255,7 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   handleShowDetail(item) {
-    console.log(item);
+    this.detailData.id = item.id;
     this.detailData.show = true;
   }
 
@@ -357,6 +357,7 @@ export default class RotationConfig extends tsc<IProps> {
           )}
         </div>
         <RotationDetail
+          id={this.detailData.id}
           show={this.detailData.show}
           onShowChange={v => (this.detailData.show = v)}
         ></RotationDetail>

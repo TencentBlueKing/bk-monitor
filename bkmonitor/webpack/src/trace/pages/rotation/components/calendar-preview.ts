@@ -197,7 +197,7 @@ interface IDutyPlans {
     display_name: string;
     type: string;
   }[];
-  work_time: {
+  work_times: {
     start_time: string;
     end_time: string;
   }[];
@@ -215,7 +215,7 @@ export function setPreviewDataOfServer(params: IDutyPlans[]) {
   const data = [];
   params.forEach((item, index) => {
     const users = item.users.map(u => ({ id: u.id, name: u.display_name }));
-    item.work_time.forEach(work => {
+    item.work_times.forEach(work => {
       data.push({
         users,
         color: randomColor(index),
