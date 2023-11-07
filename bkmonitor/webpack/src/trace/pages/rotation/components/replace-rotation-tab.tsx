@@ -143,7 +143,7 @@ export default defineComponent({
         key: random(8, true),
         workTime: [],
         workDays: [],
-        periodSettings: { unit: 'hour', duration: 1 }
+        periodSettings: { unit: 'day', duration: 1 }
       };
     }
 
@@ -417,10 +417,10 @@ export default defineComponent({
               clearable={false}
               onChange={handleEmitData}
             >
-              <Select.Option
+              {/* <Select.Option
                 label={t('小时')}
                 value='hour'
-              />
+              /> */}
               <Select.Option
                 label={t('天')}
                 value='day'

@@ -29,6 +29,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Button, DatePicker, Input, TagInput } from 'bkui-vue';
 import { random } from 'lodash';
 
+import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import NavBar from '../../components/nav-bar/nav-bar';
 
@@ -38,7 +39,6 @@ import FormItem from './components/form-item';
 import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationSelectTypeEnum, RotationTabTypeEnum } from './typings/common';
-import { mockRequest } from './mockData';
 import { fixedRotationTransform, replaceRotationTransform } from './utils';
 
 import './rotation-config.scss';
@@ -66,6 +66,7 @@ export default defineComponent({
       }
     });
     const previewData = ref([]);
+    const loading = ref(false);
     /**
      * 表单错误信息
      */
@@ -82,7 +83,7 @@ export default defineComponent({
     // --------------轮值类型-------------------
     const defaultUserGroup = ref([]);
     provide('defaultGroup', readonly(defaultUserGroup));
-    const rotationType = ref<RotationTabTypeEnum>(RotationTabTypeEnum.HANDOFF);
+    const rotationType = ref<RotationTabTypeEnum>(RotationTabTypeEnum.REGULAR);
     const fixedRotationTabRef = ref<InstanceType<typeof FixedRotationTab>>();
     const replaceRotationTabRef = ref<InstanceType<typeof ReplaceRotationTab>>();
     const rotationTypeData = reactive<RotationTypeData>({
@@ -95,7 +96,7 @@ export default defineComponent({
           isCustom: false,
           customTab: 'duration',
           customWorkDays: [],
-          value: [{ key: random(8, true), workTime: [], workDays: [], periodSettings: { unit: 'hour', duration: 1 } }]
+          value: [{ key: random(8, true), workTime: [], workDays: [], periodSettings: { unit: 'day', duration: 1 } }]
         },
         users: {
           type: 'specified',
@@ -185,11 +186,19 @@ export default defineComponent({
     function handleSubmit() {
       if (!validate()) return;
       const params = getParams();
-      console.log(params);
+      loading.value = true;
+      const req = id.value ? updateDutyRule(id.value, params) : createDutyRule(params);
+      req
+        .then(() => {
+          router.push({ name: 'rotation' });
+        })
+        .finally(() => {
+          loading.value = false;
+        });
     }
 
     function getData() {
-      mockRequest(rotationType.value).then((res: any) => {
+      retrieveDutyRule(id.value).then(res => {
         rotationType.value = res.category;
         formData.name = res.name;
         formData.labels = res.labels;
@@ -246,6 +255,7 @@ export default defineComponent({
       replaceRotationTabRef,
       rotationTypeData,
       previewData,
+      loading,
       handleRotationTypeDataChange,
       handleSubmit,
       handleBack,
@@ -358,6 +368,7 @@ export default defineComponent({
               theme='primary'
               class='mr-8 width-88'
               onClick={this.handleSubmit}
+              loading={this.loading}
             >
               {this.$t('提交')}
             </Button>
