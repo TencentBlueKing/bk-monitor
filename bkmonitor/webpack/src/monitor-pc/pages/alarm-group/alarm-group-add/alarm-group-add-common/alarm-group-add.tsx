@@ -209,6 +209,13 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   defaultUserList: IUserItem[] = []; // 切换轮值时默认用户
   bkchatList = [];
 
+  /* 轮值数据 ---- 新 */
+  rotationData = {
+    dutyArranges: [],
+    dutyNotice: {},
+    rendreKey: random(8)
+  };
+
   get memberSelectorKey(): string {
     return `${random(8)}-${this.defaultGroupList.length}`;
   }

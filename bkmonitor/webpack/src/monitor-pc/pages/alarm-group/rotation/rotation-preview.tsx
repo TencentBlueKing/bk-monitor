@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
@@ -35,158 +35,10 @@ interface IProps {
   value?: any;
 }
 
-const mockData1 = [
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-8 12:00', '2023-10-9 12:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-10 08:00', '2023-10-10 18:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 08:00', '2023-10-13 13:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-11 08:00', '2023-10-11 13:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 15:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  }
-];
-const mockData2 = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FFB848',
-    range: [0, 0],
-    timeRange: ['2023-10-7 00:00', '2023-10-7 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-11 00:00', '2023-10-11 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 00:00', '2023-10-13 02:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 19:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  }
-];
-const mockData3 = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    range: [0, 0],
-    timeRange: ['2023-10-13 00:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    range: [0, 0],
-    timeRange: ['2023-10-11 00:00', '2023-10-11 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  }
-];
-
 @Component
 export default class RotationPreview extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) value: any[];
+
   @Ref('previewContent') previewContentRef: HTMLDivElement;
   @Ref('userTip') userTipRef: HTMLDivElement;
   showNoData = true;
@@ -194,11 +46,7 @@ export default class RotationPreview extends tsc<IProps> {
   // 预览数据
   dutyData: IDutyData = {
     dates: getCalendarOfNum(),
-    data: [
-      { id: '1', name: '周末排班', data: mockData1 },
-      { id: '2', name: '业务A排班', data: mockData2 },
-      { id: '3', name: '国庆排班', data: mockData3 }
-    ],
+    data: [],
     freeTimes: [],
     overlapTimes: []
   };
@@ -226,6 +74,14 @@ export default class RotationPreview extends tsc<IProps> {
       });
     });
     this.observer.observe(this.previewContentRef);
+  }
+
+  @Watch('value')
+  handleWatchValue(value) {
+    this.dutyData = dutyDataConversion({
+      ...this.dutyData,
+      data: value
+    });
   }
   /**
    * @description 展开预览

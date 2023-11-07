@@ -27,6 +27,8 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Checkbox, Input } from 'bk-magic-vue';
 
+import { listDutyRule } from '../../../../monitor-api/modules/model';
+import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
 import { Debounce } from '../../../../monitor-common/utils';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 
@@ -34,6 +36,7 @@ import DutyNoticeConfig from './duty-notice-config';
 import RotationDetail from './rotation-detail';
 import RotationPreview from './rotation-preview';
 import { IDutyItem, IDutyListItem } from './typing';
+import { getCalendarOfNum, setPreviewDataOfServer } from './utils';
 
 import './rotation-config.scss';
 
@@ -43,7 +46,8 @@ const operatorText = {
 };
 
 interface IProps {
-  value?: any;
+  dutyArranges?: (number | string)[];
+  dutyNotice?: any;
   defaultGroupList?: IGroupListItem[];
   onChange?: (v: any) => void;
 }
@@ -51,6 +55,9 @@ interface IProps {
 @Component
 export default class RotationConfig extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) defaultGroupList: IGroupListItem[];
+  @Prop({ default: () => [], type: Array }) dutyArranges: (number | string)[];
+  @Prop({ default: () => [], type: Object }) dutyNotice: any;
+  @Prop({ default: '', type: String }) rendreKey: string;
   @Ref('wrap') wrapRef: HTMLDivElement;
 
   /* 添加规则弹层实例 */
@@ -59,8 +66,11 @@ export default class RotationConfig extends tsc<IProps> {
   search = '';
   /* 所有值班规则 */
   allDutyList: IDutyListItem[] = [];
-
   dutyList: IDutyItem[] = [];
+  /* 轮值规则按钮的loading */
+  dutyLoading = false;
+  cacheDutyList = '';
+  previewData = [];
   draggedIndex = -1;
   droppedIndex = -1;
   needDrag = false;
@@ -97,13 +107,36 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   async init() {
-    const list = [] as any;
-    this.allDutyList = list.map(item => ({
-      ...item,
-      isCheck: false,
-      show: true,
-      typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
-    }));
+    if (!this.allDutyList.length) {
+      this.dutyLoading = true;
+      const list = (await listDutyRule().catch(() => [])) as any;
+      this.allDutyList = list.map(item => ({
+        ...item,
+        isCheck: false,
+        show: true,
+        typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
+      }));
+      this.dutyLoading = false;
+    }
+  }
+
+  async getPreviewData() {
+    if (this.cacheDutyList === JSON.stringify(this.dutyList.map(d => d.id))) {
+      return;
+    }
+    this.cacheDutyList = JSON.stringify(this.dutyList.map(d => d.id));
+    const startTime = getCalendarOfNum()[0];
+    const beginTime = `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
+    const params = {
+      source_type: 'API',
+      days: 7,
+      begin_time: beginTime,
+      config: {
+        duty_rules: this.dutyList.map(d => d.id)
+      }
+    };
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
 
   @Emit('change')
@@ -142,6 +175,7 @@ export default class RotationConfig extends tsc<IProps> {
     this.draggedIndex = -1;
     this.droppedIndex = -1;
     this.needDrag = false;
+    this.getPreviewData();
   }
   /**
    * @description 判断是否可拖拽
@@ -169,7 +203,10 @@ export default class RotationConfig extends tsc<IProps> {
         arrow: false,
         placement: 'bottom-start',
         boundary: 'window',
-        hideOnClick: true
+        hideOnClick: true,
+        onHide: () => {
+          this.getPreviewData();
+        }
       });
     }
     this.popInstance?.show?.();
@@ -252,6 +289,7 @@ export default class RotationConfig extends tsc<IProps> {
     this.allDutyList.forEach(d => {
       d.isCheck = ids.has(d.id);
     });
+    this.getPreviewData();
   }
 
   handleShowDetail(item) {
@@ -266,7 +304,8 @@ export default class RotationConfig extends tsc<IProps> {
           <Button
             outline
             theme='primary'
-            onClick={this.handleAddRotation}
+            loading={this.dutyLoading}
+            onClick={e => !this.dutyLoading && this.handleAddRotation(e)}
           >
             <span class='icon-monitor icon-plus-line'></span>
             <span>{this.$t('值班规则')}</span>
@@ -315,7 +354,10 @@ export default class RotationConfig extends tsc<IProps> {
             ))}
           </transition-group>
         </div>
-        <RotationPreview class='mt-12'></RotationPreview>
+        <RotationPreview
+          class='mt-12'
+          value={this.previewData}
+        ></RotationPreview>
         <div
           class='expan-btn mb-6'
           onClick={this.handleExpanNotice}
