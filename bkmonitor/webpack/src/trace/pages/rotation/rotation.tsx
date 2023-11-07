@@ -28,12 +28,12 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 
+import { listDutyRule } from '../../../monitor-api/modules/model';
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
 
 import * as authMap from './authority-map';
-import { rotationListData } from './mock';
 import RotationDetail from './rotation-detail';
 
 import './rotation.scss';
@@ -248,7 +248,7 @@ export default defineComponent({
     async function init() {
       loading.value = true;
       authority.auth = await getAuthorityMap(authMap);
-      const list = (await rotationListData().catch(() => [])) as any;
+      const list = await listDutyRule().catch(() => []);
       const labelsSet = new Set();
       const filterLabelOptions = [];
       allRotationList.value = list.map(item => {
