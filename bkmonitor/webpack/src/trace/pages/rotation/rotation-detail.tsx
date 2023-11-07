@@ -29,6 +29,7 @@ import { useRouter } from 'vue-router';
 import { Button, Loading, Sideslider } from 'bkui-vue';
 
 import { retrieveDutyRule } from '../../../monitor-api/modules/model';
+import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { IAuthority } from '../../typings/authority';
 
@@ -106,17 +107,17 @@ export default defineComponent({
     /**
      * @description 获取轮值预览
      */
-    function getPreviewData() {
+    async function getPreviewData() {
       const startDate = getCalendar()[0][0];
-      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00`;
+      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
       const params = {
         source_type: 'DB',
         id: props.id,
         begin_time: beginTime,
-        days: 31
+        days: 42
       };
-      console.log(params);
-      previewData.value = setPreviewDataOfServer([]);
+      const data = await previewDutyRulePlan(params).catch(() => []);
+      previewData.value = setPreviewDataOfServer(data);
     }
 
     function renderUserLogo(user) {
