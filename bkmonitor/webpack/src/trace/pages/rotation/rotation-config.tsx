@@ -31,6 +31,7 @@ import { random } from 'lodash';
 
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
+import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import NavBar from '../../components/nav-bar/nav-bar';
 
 import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
@@ -209,24 +210,37 @@ export default defineComponent({
         } else {
           rotationTypeData.handoff = replaceRotationTransform(res.duty_arranges, 'data');
         }
+        console.log(id.value);
+        getPreviewData(true);
       });
     }
 
     /**
      * @description 获取预览数据
      */
-    function getPreviewData() {
-      const dutyParams = getParams();
+    async function getPreviewData(init = false) {
       const startDate = getCalendar()[0][0];
-      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00`;
-      const params = {
-        begin_time: beginTime,
-        days: 31,
-        source_type: 'API',
-        config: dutyParams
-      };
-      console.log(params);
-      previewData.value = setPreviewDataOfServer([]);
+      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
+      if (init) {
+        const params = {
+          source_type: 'DB',
+          id: id.value,
+          begin_time: beginTime,
+          days: 42
+        };
+        const data = await previewDutyRulePlan(params).catch(() => []);
+        previewData.value = setPreviewDataOfServer(data);
+      } else {
+        const dutyParams = getParams();
+        const params = {
+          begin_time: beginTime,
+          days: 42,
+          source_type: 'API',
+          config: dutyParams
+        };
+        const data = await previewDutyRulePlan(params).catch(() => []);
+        previewData.value = setPreviewDataOfServer(data);
+      }
     }
 
     onMounted(() => {

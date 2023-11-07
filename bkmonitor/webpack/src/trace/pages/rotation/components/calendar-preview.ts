@@ -214,7 +214,7 @@ export interface IDutyPreviewParams {
 export function setPreviewDataOfServer(params: IDutyPlans[]) {
   const data = [];
   params.forEach((item, index) => {
-    const users = item.users.map(u => ({ id: u.id, name: u.display_name }));
+    const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
     item.work_times.forEach(work => {
       data.push({
         users,
