@@ -74,6 +74,7 @@ class PreviewUserGroupPlanResource(Resource):
             # step1 找到当前规则的最后一次plan_time
             effective_time = begin_time
             if not user_group:
+                # 如果不是通过内部保存内容预览，直接生成
                 duty_manager = DutyRuleManager(
                     duty_rule=duty_rule,
                     begin_time=effective_time,
@@ -105,10 +106,7 @@ class PreviewUserGroupPlanResource(Resource):
             duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
 
         for duty_plan in origin_duty_plans:
-            if duty_plan.duty_rule_id in duty_plans:
-                duty_plans[duty_plan.duty_rule_id].append(
-                    {"users": duty_plan.users, "work_times": duty_plan.work_times}
-                )
+            duty_plans[duty_plan.duty_rule_id].append({"users": duty_plan.users, "work_times": duty_plan.work_times})
         response_plans = []
         for rule in validated_request_data["duty_rules"]:
             response_plans.append({"rule_id": rule["id"], "duty_plans": duty_plans.get(rule["id"], [])})
