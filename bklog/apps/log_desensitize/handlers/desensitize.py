@@ -654,6 +654,8 @@ class DesensitizeRuleHandler(object):
 
         res = dict()
 
+        all_field_names = field_names.union(set(text_fields))
+
         # 日志原文脱敏处理
         for _log in logs:
             _log = expand_nested_data(_log)
@@ -675,7 +677,7 @@ class DesensitizeRuleHandler(object):
             # 处理日志原文字段自身的脱敏逻辑
             result = text_fields_desensitize_handler.transform_dict(_log)
 
-            for _field_name in field_names:
+            for _field_name in all_field_names:
                 if _field_name not in res:
                     res[_field_name] = list()
                 res[_field_name].append(result.get(_field_name))
