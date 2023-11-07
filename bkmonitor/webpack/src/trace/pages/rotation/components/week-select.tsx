@@ -197,7 +197,7 @@ export default defineComponent({
             trigger='click'
             is-show={this.show}
             theme='light'
-            extCls='week-select-popover'
+            extCls='week-select-popover component'
             arrow={false}
             placement='bottom'
             onAfterHidden={this.handleAfterHidden}

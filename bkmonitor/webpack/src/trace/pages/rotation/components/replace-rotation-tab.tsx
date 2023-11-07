@@ -217,6 +217,7 @@ export default defineComponent({
         } else {
           item.workTime[1] = val;
         }
+        if (item.workTime[0] && item.workTime[1]) handleEmitData();
       }
       /**
        * 渲染起止时间类型的单班时间项

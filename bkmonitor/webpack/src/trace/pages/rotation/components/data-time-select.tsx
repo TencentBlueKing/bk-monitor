@@ -160,7 +160,7 @@ export default defineComponent({
             trigger='click'
             is-show={this.show}
             theme='light'
-            extCls='data-time-select-popover'
+            extCls='data-time-select-popover component'
             arrow={false}
             placement='bottom-start'
             onAfterHidden={this.handleAfterHidden}

@@ -210,7 +210,6 @@ export default defineComponent({
         } else {
           rotationTypeData.handoff = replaceRotationTransform(res.duty_arranges, 'data');
         }
-        console.log(id.value);
         getPreviewData(true);
       });
     }

@@ -59,7 +59,6 @@ export default defineComponent({
       () => props.modelValue,
       val => {
         localValue.splice(0, localValue.length, ...val);
-        sourceValue.value = [...val];
       },
       {
         immediate: true
@@ -103,6 +102,7 @@ export default defineComponent({
       currentTime.index = ind ?? -1;
       currentTime.value = time ? [...time] : [];
       currentTime.show = !currentTime.show;
+      sourceValue.value = JSON.parse(JSON.stringify(localValue));
     }
 
     /**
@@ -111,7 +111,7 @@ export default defineComponent({
      * @returns 格式化后的名称
      */
     function tagNameFormat(time: string[]) {
-      const isBefore = moment(time[0], 'hh:mm').isSameOrBefore(moment(time[1], 'hh:mm'));
+      const isBefore = moment(time[0], 'hh:mm').isBefore(moment(time[1], 'hh:mm'));
       return isBefore ? time.join(' - ') : `${time[0]} - ${t('次日')}${time[1]}`;
     }
 

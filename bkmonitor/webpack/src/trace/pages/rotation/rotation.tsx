@@ -479,7 +479,7 @@ export default defineComponent({
           if (delIndex >= 0) {
             loading.value = true;
             setTimeout(() => {
-              destroyDutyRule({ id: row.id })
+              destroyDutyRule(row.id)
                 .then(() => {
                   allRotationList.value.splice(delIndex, 1);
                   tableData.pagination.current = 1;
