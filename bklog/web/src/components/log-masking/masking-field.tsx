@@ -480,9 +480,9 @@ export default class MaskingField extends tsc<IProps> {
    * @desc: 重选规则规则
    */
   async handleResetSelectRule() {
+    const resetRule = (this.syncRuleTableRef as any).getSyncSelectRule(); // 重选的规则
     // 这里先更新match匹配规则的接口
     await this.matchMaskingRule();
-    const resetRule = (this.syncRuleTableRef as any).getSyncSelectRule(); // 重选的规则
     this.tableValueChange(this.currentOperateField, async (fItem: IFieldItem) => {
       resetRule.masking_rule = this.getMaskingRuleStr(resetRule); // 初始化脱敏规则
       resetRule.change_state = 'add'; // 设置提交状态为新增
@@ -1184,7 +1184,6 @@ export default class MaskingField extends tsc<IProps> {
     }, 50);
   }
 
-
   handleLeaveRow() {
     setTimeout(() => {
       this.hoverFieldName = '';
@@ -1554,6 +1553,7 @@ export default class MaskingField extends tsc<IProps> {
           width="640"
           mask-close={false}
           header-position="left"
+          render-directive="if"
           title={this.$t('选择脱敏规则')}
           on-confirm={this.handleResetSelectRule}>
           <div>
