@@ -1202,7 +1202,7 @@ class PushUrlResource(Resource):
     def get_proxy_info(self, bk_biz_id):
         proxy_host_info = []
         try:
-            proxy_hosts = api.node_man.query_hosts(node_type="PROXY", bk_biz_id=bk_biz_id)
+            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
             for host in proxy_hosts:
                 bk_cloud_id = int(host["bk_cloud_id"])
                 ip = host.get("conn_ip") or host.get("inner_ip")
