@@ -21,6 +21,7 @@ from django.utils.timezone import now as tz_now
 from metadata import models
 from metadata.models.space import utils
 from metadata.models.space.constants import (
+    BKCI_1001_TABLE_ID_PREFIX,
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
     FIELD_TO_RESULT_TABLE_CHANNEL,
@@ -33,7 +34,6 @@ from metadata.models.space.constants import (
     EtlConfigs,
     MeasurementType,
     SpaceTypes,
-    BKCI_1001_TABLE_ID_PREFIX,
 )
 from metadata.models.space.ds_rt import (
     get_cluster_data_ids,
@@ -78,12 +78,19 @@ class SpaceTableIDRedis:
         """
         logger.info("start to push field table_id data")
         table_ids = self._refine_table_ids(table_id_list)
-        table_id_fields_qs = models.ResultTableField.objects.filter(
+
+        fields = models.ResultTableField.objects.filter(
             tag=models.ResultTableField.FIELD_TAG_METRIC, table_id__in=table_ids
-        ).values("table_id", "field_name")
+        ).values_list("field_name", flat=True)
         # 如果指标存在，则以指标进行过滤
         if field_list:
-            table_id_fields_qs = table_id_fields_qs.filter(field_name__in=field_list)
+            fields = fields.filter(field_name__in=field_list)
+
+        # 通过指标在反查结果表
+        table_id_fields_qs = models.ResultTableField.objects.filter(
+            tag=models.ResultTableField.FIELD_TAG_METRIC, field_name__in=fields
+        ).values("table_id", "field_name")
+
         table_ids = {data["table_id"] for data in table_id_fields_qs}
         # 根据 option 过滤是否有开启黑名单，如果开启黑名单，则指标会有过期时间
         white_tables = set(
@@ -138,14 +145,16 @@ class SpaceTableIDRedis:
         """推送 data_label 及对应的结果表"""
         logger.info("start to push data_label table_id data")
         table_ids = self._refine_table_ids(table_id_list)
-        # 过滤掉结果表为
-        rt_dl_qs = (
+        # 过滤掉结果表数据标签为空或者为 None 的记录
+        data_labels = (
             models.ResultTable.objects.filter(table_id__in=table_ids)
             .exclude(Q(data_label="") | Q(data_label=None))
-            .values("table_id", "data_label")
+            .values_list("data_label", flat=True)
         )
         if data_label_list:
-            rt_dl_qs = rt_dl_qs.filter(data_label__in=data_label_list)
+            data_labels = data_labels.filter(data_label__in=data_label_list)
+        # 再通过 data_label 过滤到结果表
+        rt_dl_qs = models.ResultTable.objects.filter(data_label__in=data_labels).values("table_id", "data_label")
         # 组装数据
         rt_dl_map = {}
         for data in rt_dl_qs:
