@@ -72,6 +72,7 @@ interface ColumnItem {
   hidden?: boolean;
   authHidden?: boolean;
   props?: any;
+  minWidth?: number;
 }
 
 interface UserListItem {
@@ -146,13 +147,13 @@ export default class AuthorizationList extends tsc<{}, {}> {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200 },
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.resources,
         name: $i18n.t('操作实例'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { minWidth: 200, filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.authorizer,
@@ -238,13 +239,13 @@ export default class AuthorizationList extends tsc<{}, {}> {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200 },
+        props: { filters: [], 'filter-method': this.filterMethod },
       },
       {
         prop: TableColumnEnum.resources,
         name: $i18n.t('操作实例'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { filters: [], 'filter-method': this.filterMethod, minWidth: 200 },
       },
       {
         prop: TableColumnEnum.expire_time,
@@ -269,6 +270,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
   loading = false;
   resourcesLoading = true; // 操作实例loading
   resourceList = []; // 操作实例可选列表
+  resourceMaps = {}; // 多个操作实例映射列表
   rowData: EditModel | null = null; // 编辑行数据
   emptyStatusType: EmptyStatusType = 'empty';
   visible = false;
@@ -307,8 +309,9 @@ export default class AuthorizationList extends tsc<{}, {}> {
         const val = Array.isArray(item[key]) ? item[key] : [item[key]];
         if (key === TableColumnEnum.resources || key === TableColumnEnum.resource_id) {
           return val.some((id) => {
-            const { text } = this.resourceList.find(item => item.id === id);
-            return text.includes(this.searchValue);
+            const resourceList = this.resourceMaps[item[TableColumnEnum.action_id]] || [];
+            const { text } = resourceList.find(item => item.id === id);
+            return text?.includes(this.searchValue) ?? '';
           });
         }
         if (key === TableColumnEnum.action_id) {
@@ -324,17 +327,18 @@ export default class AuthorizationList extends tsc<{}, {}> {
     return filterList.slice((current - 1) * limit, current * limit);
   }
 
-  created() {
+  async created() {
     this.spaceUid = this.$store.state.spaceUid;
     this.getBizRoleList();
+    await this.getActionList();
     this.getListData();
-    this.getActionList();
     this.getAuthUser();
   }
 
   async getActionList() {
     const res = await $http.request('authorization/getActionList');
     this.actionList = res?.data || [];
+    this.getResources();
   }
 
   /**
@@ -491,17 +495,19 @@ export default class AuthorizationList extends tsc<{}, {}> {
   async getResources() {
     this.resourcesLoading = true;
     try {
-      // 目前后端只支持view_grafana， 也没有确定后续多个时，action_id的传值格式
-      const res = await $http.request('authorization/getByAction', {
-        query: {
-          space_uid: this.spaceUid,
-          action_id: 'log_search',
-        },
+      this.actionList.forEach(async (item) => {
+        const res = await $http.request('authorization/getByAction', {
+          query: {
+            space_uid: this.spaceUid,
+            action_id: item.id,
+          },
+        });
+        this.resourceMaps[item.id] = res?.data || [];
       });
-      this.resourceList = res?.data || [];
+
       this.columnFilter();
     } catch (error) {
-      this.resourceList = [];
+      this.resourceMaps = {};
     }
     this.resourcesLoading = false;
   }
@@ -529,14 +535,23 @@ export default class AuthorizationList extends tsc<{}, {}> {
         const { prop } = item;
         this.totalListData.forEach((item) => {
           const data = Array.isArray(item[prop]) ? item[prop] : [item[prop]];
-          data.forEach(val => set.add(val));
+          data.forEach((val) => {
+            if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
+              // set.add(`${item[TableColumnEnum.action_id]}-${val}`);
+              set.add({ id: val, action: item[TableColumnEnum.action_id] });
+            } else {
+              set.add(val);
+            }
+          });
         });
         // 操作实例列需要通过ID在resourceList找到匹配的text
         if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
-          item.props.filters = Array.from(set).map(id => ({
-            text: this.resourceList.find(item => item.uid === id)?.text,
-            value: id,
-          }));
+          item.props.filters = Array.from(set).map((obj: { id: number, action: string }) => {
+            return {
+              text: this.resourceMaps[obj.action].find(item => item.id === obj.id)?.text,
+              value: obj.id,
+            };
+          });
         } else if (prop === TableColumnEnum.action_id) {
           item.props.filters = Array.from(set).map((id: string) => ({
             text: this.actionList.find(item => item.id === id)?.name,
@@ -593,11 +608,13 @@ export default class AuthorizationList extends tsc<{}, {}> {
           }}
           scopedSlots={{
             default: ({ row }) => {
+              const resourceList = this.resourceMaps[row.action_id] || [];
+
               if (column.prop === 'resources') {
                 return (
                   <div v-bkloading={{ isLoading: this.resourcesLoading }}>
                     {row.resources?.map((id, ind) => (ind < 3 || row.isExpand ? (
-                        <div class='resource-item'>{this.resourceList.find(item => item.uid === id)?.text}</div>
+                        <div class='resource-item'>{resourceList.find(item => item.uid === id)?.text}</div>
                     ) : undefined),
                     )}
                     {row.resources?.length > 3 && (
@@ -615,7 +632,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
               }
               return (
                 <div v-bkloading={{ isLoading: this.resourcesLoading }}>
-                  <div>{this.resourceList.find(item => item.uid === row.resource_id)?.text}</div>
+                  <div>{resourceList.find(item => item.uid === row.resource_id)?.text}</div>
                 </div>
               );
             },
