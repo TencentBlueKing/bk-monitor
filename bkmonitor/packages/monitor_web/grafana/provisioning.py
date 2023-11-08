@@ -45,6 +45,9 @@ class ApmEbpfDatasourceProvisioning:
     _DATASOURCE_CACHE_KEY = "datasource:{org_name}"
     _DATASOURCE_CACHE_EXPIRE = 300
 
+    # 仪表盘存放目录
+    _FOLDER_NAME = "eBPF"
+
     @classmethod
     def datasources(cls, org_name: str, *_) -> List[Datasource]:
         key = cls._DATASOURCE_CACHE_KEY.format(org_name=org_name)
@@ -84,47 +87,43 @@ class ApmEbpfDatasourceProvisioning:
 
         return False
 
-    @staticmethod
+    @classmethod
     def generate_default_dashboards(
-        datasources, org_id, org_name, _, template, folder_id
+        cls, datasources, org_id, _1, _2, template, folder_id
     ) -> typing.List[_DashboardInstance]:
 
-        name_mapping = {
-            d["name"]: {"type": "datasource", "pluginId": d["type"], "value": d.get("uid", "")} for d in datasources
+        type_mapping = {
+            # 可能会存在多个相同的DeepFlow数据源导致Key相互覆盖 但是这里我们只需要任意取其中一个即可
+            d["type"]: {"type": "datasource", "pluginId": d["type"], "value": d.get("uid", "")}
+            for d in datasources
         }
 
-        res = []
-        org_datasources = ApmEbpfDatasourceProvisioning.datasources(org_name)
+        inputs = []
+        for input_field in template.get("__inputs", []):
+            if input_field["type"] != "datasource" or input_field["pluginId"] not in type_mapping:
+                continue
+            inputs.append({"name": input_field["name"], **type_mapping[input_field["pluginId"]]})
 
-        for item in org_datasources:
-            inputs = []
-            for input_field in template.get("__inputs", []):
-                if input_field["type"] != "datasource" or item.name not in name_mapping:
-                    continue
-                inputs.append({"name": input_field["name"], **name_mapping[item.name]})
+        folders = api.grafana.search_folder_or_dashboard(org_id=org_id, type="dash-folder")
+        folder_mapping = {i["title"]: i for i in folders["data"]}
 
-            folders = api.grafana.search_folder_or_dashboard(org_id=org_id, type="dash-folder")
-            folder_mapping = {i["title"]: i for i in folders["data"]}
-            if folder_id == 0:
-                # 存放在以集群分类的单独文件夹中 以数据源名称作为文件夹名
-                if item.name not in folder_mapping:
-                    folder_id = api.grafana.create_folder(org_id=org_id, title=item.name)["data"]["id"]
-                else:
-                    folder_id = folder_mapping[item.name]["id"]
+        if folder_id == 0:
+            if cls._FOLDER_NAME not in folder_mapping:
+                folder_id = api.grafana.create_folder(org_id=org_id, title=cls._FOLDER_NAME)["data"]["id"]
+            else:
+                folder_id = folder_mapping[cls._FOLDER_NAME]["id"]
 
-            res.append(
-                _DashboardInstance(
-                    dashboard=template,
-                    org_id=org_id,
-                    inputs=inputs,
-                    folderId=folder_id,
-                )
+        return [
+            _DashboardInstance(
+                dashboard=template,
+                org_id=org_id,
+                inputs=inputs,
+                folderId=folder_id,
             )
-
-        return res
+        ]
 
     @classmethod
-    def get_dashboard_mapping(cls, org_name):
+    def get_dashboard_mapping(cls, _):
         """
         获取此业务下所有的默认仪表盘
         """
@@ -134,10 +133,9 @@ class ApmEbpfDatasourceProvisioning:
         path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards")
         templates = [n for n in os.listdir(path) if fnmatch.fnmatch(n, "apm-ebpf-*.json")]
 
-        for datasource in cls.datasources(org_name):
-            for template in templates:
-                origin_name, _ = os.path.splitext(template)
-                res[f"{org_name}:{datasource.name}:{origin_name}"] = origin_name
+        for template in templates:
+            origin_name, _ = os.path.splitext(template)
+            res[origin_name] = origin_name
 
         return res
 

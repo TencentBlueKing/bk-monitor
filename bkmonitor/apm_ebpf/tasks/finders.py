@@ -37,6 +37,7 @@ def ebpf_discover_cron():
     spaces = SpaceApi.list_spaces()
 
     business = [i for i in spaces if i.space_type_id == SpaceTypeEnum.BKCC.value]
+    logger.info(f"[ebpf_discover_cron] business length: {len(business)} slug: {slug}")
     # 目前只遍历业务下集群
     for index, biz in enumerate(business):
         try:
