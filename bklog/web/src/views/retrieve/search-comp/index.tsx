@@ -40,6 +40,7 @@ import UiQuery from './ui-query';
 import { formatDate } from '@/common/util';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { deepClone } from '../../../components/monitor-echarts/utils';
+import { Debounce } from '../../../common/util';
 
 interface IProps {
   tableLoading: boolean;
@@ -422,6 +423,7 @@ export default class SearchComp extends tsc<IProps> {
     }
   }
 
+  @Debounce(300)
   searchAdditionQuery(isQuery = true) { // 获得当前开启的字段并且有有效值进行检索
     const addition = this.conditionList
       .filter((item) => {

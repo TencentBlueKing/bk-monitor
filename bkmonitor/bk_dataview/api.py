@@ -79,6 +79,8 @@ def get_org_by_name(org_name: str) -> Optional[dict]:
     """
     获取组织
     """
+    org_name = str(org_name)
+
     if org_name in _ORG_CACHE:
         return _ORG_CACHE[org_name]
 

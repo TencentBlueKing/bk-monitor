@@ -60,7 +60,7 @@ axiosInstance.interceptors.request.use((config) => {
   }
   // 外部版后端需要读取header里的 spaceUid
   if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
-    config.headers.space_uid = store.state.spaceUid;
+    config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
   }
   return config;
 }, error => Promise.reject(error));
@@ -164,7 +164,7 @@ async function getPromise(method, url, data, userConfig = {}) {
     });
   }).catch(error => handleReject(error, config))
     .finally(() => {
-    // console.log('finally', config)
+      // console.log('finally', config)
     });
 
   // 添加请求队列
@@ -241,7 +241,8 @@ function handleReject(error, config) {
         handleLoginExpire();
       }
       return Promise.reject(nextError);
-    } if (status === 500) {
+    }
+    if (status === 500) {
       nextError.message = i18n.t('系统出现异常');
     } else if (data && data.message) {
       nextError.message = data.message;

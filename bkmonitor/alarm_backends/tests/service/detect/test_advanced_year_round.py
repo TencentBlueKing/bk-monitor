@@ -15,7 +15,11 @@ import pytest
 
 from alarm_backends.service.detect.strategy.advanced_year_round import AdvancedYearRound
 from alarm_backends.tests.service.detect import DataPoint
-from core.errors.alarm_backends.detect import InvalidAdvancedYearRoundConfig, InvalidAlgorithmsConfig, InvalidDataPoint
+from core.errors.alarm_backends.detect import (
+    InvalidAdvancedYearRoundConfig,
+    InvalidAlgorithmsConfig,
+    InvalidDataPoint,
+)
 
 datapoint200 = DataPoint(200, 100000000, "%", "item")
 datapoint101 = DataPoint(101, 100000000, "%", "item")
@@ -103,6 +107,30 @@ class TestAdvancedYearRound(object):
             anomaly_result = detect_engine.detect_records(_datapoint_1, 1)
             assert len(anomaly_result) == 1
             assert anomaly_result[0].anomaly_message == ("avg(测试指标)较前3天内同一时刻绝对值的均值(67.0%)" "下降超过101.0%, 当前值-1%")
+
+    def test_anomaly_message_with_last_point(self):
+        with mock.patch(
+            "alarm_backends.service.detect.strategy." "advanced_year_round.AdvancedYearRound.history_point_fetcher",
+            return_value=[datapoint99, datapoint_1, datapoint101],
+        ):
+            algorithms_config = {
+                "floor": 101,
+                "ceil": 100,
+                "ceil_interval": 3,
+                "floor_interval": 3,
+                "fetch_type": "last",
+            }
+            from .test_threshold import mock_datapoint_with_value
+
+            _datapoint500 = mock_datapoint_with_value(500)
+            _datapoint_5 = mock_datapoint_with_value(-5)
+            detect_engine = AdvancedYearRound(config=algorithms_config)
+            anomaly_result = detect_engine.detect_records(_datapoint500, 1)
+            assert len(anomaly_result) == 1
+            assert anomaly_result[0].anomaly_message == "avg(测试指标)较前3天内同一时刻绝对值的瞬间值(101%)" "上升超过100.0%, 当前值500%"
+            anomaly_result = detect_engine.detect_records(_datapoint_5, 1)
+            assert len(anomaly_result) == 1
+            assert anomaly_result[0].anomaly_message == "avg(测试指标)较前3天内同一时刻绝对值的瞬间值(101%)" "下降超过101.0%, 当前值-5%"
 
     def test_detect_with_invalid_datapoint(self):
         algorithms_config = {"floor": 101, "ceil": 100, "ceil_interval": 3, "floor_interval": 3}

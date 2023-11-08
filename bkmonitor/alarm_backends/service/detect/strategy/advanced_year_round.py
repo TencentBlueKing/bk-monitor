@@ -12,11 +12,10 @@ specific language governing permissions and limitations under the License.
 高级同比算法
 """
 
-
 import logging
 
-from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
 from six.moves import range
 
 from alarm_backends.constants import CONST_ONE_DAY
@@ -33,32 +32,48 @@ class AdvancedYearRound(RangeRatioAlgorithmsCollection):
     expr_op = "or"
 
     floor_desc_tpl = _(
-        "{% load unit %}较前{{floor_interval}}天内同一时刻绝对值的均值({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
+        "{% load unit %}较前{{floor_interval}}天内同一时刻绝对值的{{fetch_desc}}"
+        "({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
     )
     ceil_desc_tpl = _(
-        "{% load unit %}较前{{ceil_interval}}天内同一时刻绝对值的均值({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
+        "{% load unit %}较前{{ceil_interval}}天内同一时刻绝对值的{{fetch_desc}}"
+        "({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
     )
 
     def extra_context(self, context):
-        env = dict()
+        env = {
+            "fetch_desc": {
+                "avg": _("均值"),
+                "last": _("瞬间值"),
+            }[self.validated_config["fetch_type"]]
+        }
         floor_history_data_points = self.history_point_fetcher(
             context.data_point, days=self.validated_config["floor_interval"] or 0
         )
         if not isinstance(floor_history_data_points, list):
             raise InvalidDataPoint(data_point=floor_history_data_points)
+        # 新增瞬时值获取，瞬时值取倒数第一个数据点（因为数据拉取按照时间倒序）
         if floor_history_data_points:
-            env["floor_history_value"] = round(
-                sum([abs(p.value) for p in floor_history_data_points]) * 1.0 / len(floor_history_data_points),
-                settings.POINT_PRECISION,
+            env["floor_history_value"] = (
+                round(
+                    sum([abs(p.value) for p in floor_history_data_points]) * 1.0 / len(floor_history_data_points),
+                    settings.POINT_PRECISION,
+                )
+                if self.validated_config["fetch_type"] == "avg"
+                else abs(floor_history_data_points[-1].value)
             )
 
         ceil_history_data_points = self.history_point_fetcher(
             context.data_point, days=self.validated_config["ceil_interval"] or 0
         )
         if ceil_history_data_points:
-            env["ceil_history_value"] = round(
-                sum([abs(p.value) for p in ceil_history_data_points]) * 1.0 / len(ceil_history_data_points),
-                settings.POINT_PRECISION,
+            env["ceil_history_value"] = (
+                round(
+                    sum([abs(p.value) for p in ceil_history_data_points]) * 1.0 / len(ceil_history_data_points),
+                    settings.POINT_PRECISION,
+                )
+                if self.validated_config["fetch_type"] == "avg"
+                else abs(ceil_history_data_points[-1].value)
             )
 
         env.update(self.validated_config)

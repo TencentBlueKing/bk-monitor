@@ -378,14 +378,17 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="IpChooserConfigViewSet",
         default_permission=True,
     )  # 默认允许
-    # 日志提取-ExplorerViewSet,TasksViewSet,StrategiesViewSet
+    # 获取主机展示名称, 默认允许
+    BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
+        view_set="BizsViewSet", view_action="get_display_name", default_permission=True
+    )
+    # 日志提取-ExplorerViewSet,TasksViewSet
     EXPLORER_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="ExplorerViewSet"
     )
+
+    # 日志提取-TaskViewSet
     TASKS_VIEWSET = ViewSetAction(action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="TasksViewSet")
-    STRATEGIES_VIEWSET = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="StrategiesViewSet"
-    )
     # META-MetaViewSet
     META_VIEWSET = ViewSetAction(view_set="MetaViewSet", default_permission=True)
     LANGUAGE_VIEWSET = ViewSetAction(view_set="LanguageViewSet", default_permission=True)
@@ -399,6 +402,8 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_CONTEXT,
         SEARCH_VIEWSET_TAILF,
         SEARCH_VIEWSET_EXPORT,
+        SEARCH_VIEWSET_HISTORY,
+        SEARCH_VIEWSET_GET_EXPORT_HISTORY,
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
         FAVORITE_VIEWSET_RETRIEVE,
@@ -415,12 +420,14 @@ class ViewSetActionEnum(ChoicesEnum):
         IP_CHOOSER_TEMPLATE_VIEWSET,
         IP_CHOOSER_DYNAMIC_GROUP_VIEWSET,
         IP_CHOOSER_CONFIG_VIEWSET,
-        EXPLORER_VIEWSET,
+        # TASKS_VIEWSET
         TASKS_VIEWSET,
-        STRATEGIES_VIEWSET,
+        EXPLORER_VIEWSET,
+        # META_VIEWSET
         META_VIEWSET,
         LANGUAGE_VIEWSET,
         MENU_VIEWSET,
+        BIZS_VIEWSET_HOST_DISPLAY_NAME,
     )
 
 

@@ -89,7 +89,11 @@ from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.lucene import generate_query_string
 from bkm_ipchooser.constants import CommonEnum
@@ -227,7 +231,7 @@ class SearchHandler(object):
         self.serverIp: str = search_dict.get("serverIp")  # pylint: disable=invalid-name
         self.ip: str = search_dict.get("ip", "undefined")
         self.path: str = search_dict.get("path", "")
-        self.container_id: str = search_dict.get("container_id", None)
+        self.container_id: str = search_dict.get("container_id", None) or search_dict.get("__ext.container_id", None)
         self.logfile: str = search_dict.get("logfile", None)
         self._iteration_idx: str = search_dict.get("_iteration_idx", None)
         self.iterationIdx: str = search_dict.get("iterationIdx", None)  # pylint: disable=invalid-name
@@ -792,7 +796,8 @@ class SearchHandler(object):
         @param kwargs:
         @return:
         """
-        username = get_request_username()
+        # 外部用户获取搜索历史的时候, 用external_username
+        username = get_request_external_username() or get_request_username()
         if index_set_id:
             history_obj = (
                 UserIndexSetSearchHistory.objects.filter(
