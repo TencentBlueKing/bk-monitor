@@ -1,0 +1,533 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_trisolaris\",\"select\":[{\"key\":\"metrics.req_count\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1e15e0ed-3ef3-0a77-d7b7-405b5bc8f395\",\"type\":\"metric\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"metrics.max_delay\",\"func\":\"Max\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"dab7cc16-3387-2e9d-b41c-5805fde4cb2c\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Max\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"metrics.avg_delay\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"0432449c-c1db-1069-b025-f2e48a597ec9\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Avg\",\"params\":[]}}],\"where\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"GetPrometheusLabelIDs\",\"value\":\"GetPrometheusLabelIDs\"}],\"as\":\"\",\"params\":[],\"uuid\":\"c2f4a224-590a-0ecf-8a66-860be3767272\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ed055da8-008c-4a9a-9bb3-9575cae9b691\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"462e3d44-7326-70d8-67b3-be94f38ff196\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fbea2b85-4b5d-24bb-23f1-dd0479e92c57\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"slimit\":\"\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Sum(metrics.req_count)",
+              "name": "Sum(metrics.req_count)",
+              "type": 1,
+              "unit": ""
+            },
+            {
+              "displayName": "Max(metrics.max_delay)",
+              "name": "Max(metrics.max_delay)",
+              "type": 1,
+              "unit": ""
+            },
+            {
+              "displayName": "Avg(metrics.avg_delay)",
+              "name": "Avg(metrics.avg_delay)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.grpc_type",
+              "isResource": false,
+              "name": "tag.grpc_type"
+            }
+          ],
+          "sql": "SELECT Sum(`metrics.req_count`) AS `Sum(metrics.req_count)`, Max(`metrics.max_delay`) AS `Max(metrics.max_delay)`, Avg(`metrics.avg_delay`) AS `Avg(metrics.avg_delay)`, time(time, 60) AS `time_60`, `tag.grpc_type` FROM `deepflow_server_controller_trisolaris` WHERE `tag.grpc_type` IN ('GetPrometheusLabelIDs') AND time>='1686629086' AND time<='1686650686' GROUP BY `time_60`, `tag.grpc_type` SLIMIT 20 LIMIT 10000"
+        }
+      ],
+      "title": "gRPC time cost",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "width": 0
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_trisolaris\",\"select\":[{\"type\":\"metric\",\"key\":\"metrics.receive_metric_count\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"4bed1666-5265-849c-d600-18f269d5ef86\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"metrics.send_metric_count\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6f6776b0-0156-1260-0f26-890cc80b248a\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}}],\"where\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"GetPrometheusLabelIDsDetail\",\"value\":\"GetPrometheusLabelIDsDetail\"}],\"as\":\"\",\"params\":[],\"uuid\":\"c1534f55-2cd1-228f-028a-2a4cd323703f\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fb206d49-fc03-c2c7-5bd8-330c35a90ddc\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3ffee9b9-2697-a487-7645-85d48fa4e05b\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"f86231ff-112f-0b59-4118-d13cf031cb45\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"slimit\":\"\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Sum(metrics.receive_metric_count)",
+              "name": "Sum(metrics.receive_metric_count)",
+              "type": 1,
+              "unit": ""
+            },
+            {
+              "displayName": "Sum(metrics.send_metric_count)",
+              "name": "Sum(metrics.send_metric_count)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.grpc_type",
+              "isResource": false,
+              "name": "tag.grpc_type"
+            }
+          ],
+          "sql": "SELECT Sum(`metrics.receive_metric_count`) AS `Sum(metrics.receive_metric_count)`, Sum(`metrics.send_metric_count`) AS `Sum(metrics.send_metric_count)`, time(time, 60) AS `time_60`, `tag.grpc_type` FROM `deepflow_server_controller_trisolaris` WHERE `tag.grpc_type` IN ('GetPrometheusLabelIDsDetail') AND time>='1686628178' AND time<='1686649778' GROUP BY `time_60`, `tag.grpc_type` SLIMIT 20 LIMIT 10000"
+        }
+      ],
+      "title": " gRPC metric count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_trisolaris\",\"select\":[{\"key\":\"metrics.receive_label_count\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b97ba383-3a96-5ec9-c82d-da18e47916be\",\"type\":\"metric\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"metrics.send_label_count\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6b1b31c8-77bf-cd77-33e0-9bfab6641cf1\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}}],\"where\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"GetPrometheusLabelIDsDetail\",\"value\":\"GetPrometheusLabelIDsDetail\"}],\"as\":\"\",\"params\":[],\"uuid\":\"153211b1-2251-7bf7-8d35-0cb8a2940a3e\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"751c75e9-f40a-a53c-e9b9-333967684fc0\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fdaeb664-c9dd-7746-cc15-efb659b20d8d\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"69bf26ff-18b2-3dae-48fd-267b68337ba8\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"slimit\":\"\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Sum(metrics.receive_label_count)",
+              "name": "Sum(metrics.receive_label_count)",
+              "type": 1,
+              "unit": ""
+            },
+            {
+              "displayName": "Sum(metrics.send_label_count)",
+              "name": "Sum(metrics.send_label_count)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.grpc_type",
+              "isResource": false,
+              "name": "tag.grpc_type"
+            }
+          ],
+          "sql": "SELECT Sum(`metrics.receive_label_count`) AS `Sum(metrics.receive_label_count)`, Sum(`metrics.send_label_count`) AS `Sum(metrics.send_label_count)`, time(time, 60) AS `time_60`, `tag.grpc_type` FROM `deepflow_server_controller_trisolaris` WHERE `tag.grpc_type` IN ('GetPrometheusLabelIDsDetail') AND time>='1686627587' AND time<='1686649187' GROUP BY `time_60`, `tag.grpc_type` SLIMIT 20 LIMIT 10000"
+        }
+      ],
+      "title": " gRPC label count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": "$datasource",
+          "debug": false,
+          "metaExtra": {},
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"deepflow_system\",\"sources\":\"\",\"from\":\"deepflow_server_controller_trisolaris\",\"select\":[{\"key\":\"metrics.receive_target_count\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b97ba383-3a96-5ec9-c82d-da18e47916be\",\"type\":\"metric\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"metrics.send_target_count\",\"func\":\"Sum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6b1b31c8-77bf-cd77-33e0-9bfab6641cf1\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false,\"cache\":{\"func\":\"Sum\",\"params\":[]}}],\"where\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"GetPrometheusLabelIDsDetail\",\"value\":\"GetPrometheusLabelIDsDetail\"}],\"as\":\"\",\"params\":[],\"uuid\":\"153211b1-2251-7bf7-8d35-0cb8a2940a3e\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"having\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"38912371-4f05-000e-0b40-8747d8de2831\",\"type\":\"metric\"}],\"groupBy\":[{\"key\":\"tag.grpc_type\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fdaeb664-c9dd-7746-cc15-efb659b20d8d\",\"type\":\"tag\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false,\"isIpType\":false}],\"orderBy\":[{\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"69bf26ff-18b2-3dae-48fd-267b68337ba8\",\"type\":\"metric\",\"sort\":\"asc\"}],\"interval\":\"60\",\"slimit\":\"\",\"limit\":\"10000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
+            {
+              "displayName": "Sum(metrics.receive_target_count)",
+              "name": "Sum(metrics.receive_target_count)",
+              "type": 1,
+              "unit": ""
+            },
+            {
+              "displayName": "Sum(metrics.send_target_count)",
+              "name": "Sum(metrics.send_target_count)",
+              "type": 1,
+              "unit": ""
+            }
+          ],
+          "returnTags": [
+            {
+              "displayName": "time_60",
+              "isResource": false,
+              "name": "`time_60`"
+            },
+            {
+              "displayName": "tag.grpc_type",
+              "isResource": false,
+              "name": "tag.grpc_type"
+            }
+          ],
+          "sql": "SELECT Sum(`metrics.receive_target_count`) AS `Sum(metrics.receive_target_count)`, Sum(`metrics.send_target_count`) AS `Sum(metrics.send_target_count)`, time(time, 60) AS `time_60`, `tag.grpc_type` FROM `deepflow_server_controller_trisolaris` WHERE `tag.grpc_type` IN ('GetPrometheusLabelIDsDetail') AND time>='1686627745' AND time<='1686649345' GROUP BY `time_60`, `tag.grpc_type` SLIMIT 20 LIMIT 10000"
+        }
+      ],
+      "title": " gRPC target count",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "value": "1"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "deepflowio-deepflow-datasource",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "DeepFlow Controller - Prometheus",
+  "uid": "DeepFlow_Controller_Prometheus",
+  "version": 35,
+  "weekStart": "",
+  "__inputs": [
+    {
+      "name": "DS_DeepFlow_-_uid",
+      "label": "蓝鲸监控 - DeepFlow数据",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "deepflowio-deepflow-datasource",
+      "pluginName": "DeepFlow Datasource"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "deepflowio-deepflow-datasource",
+      "name": "DeepFlow Datasource"
+    }
+  ]
+}

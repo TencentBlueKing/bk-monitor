@@ -12,10 +12,11 @@ import logging
 import os
 import sys
 
+from jinja2 import DebugUndefined
+
 from config.tools.consul import get_consul_settings
 from config.tools.rabbitmq import get_rabbitmq_settings
 from config.tools.redis import get_cache_redis_settings, get_redis_settings
-from jinja2 import DebugUndefined
 
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
@@ -53,6 +54,7 @@ INSTALLED_APPS += (  # noqa: F405
     "metadata",
     "alarm_backends",
     "apm",
+    "apm_ebpf",
     "core.drf_resource",
 )
 
@@ -157,6 +159,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
+    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每分钟触发-每次处理1/10业务
+    ("apm_ebpf.tasks.finders.ebpf_discover_cron", "* * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -339,6 +343,7 @@ def get_logger_config(log_path, logger_level, log_file_prefix):
             "recovery": LOGGER_DEFAULT,
             "fta_action": LOGGER_DEFAULT,
             "bkmonitor": LOGGER_DEFAULT,
+            "apm_ebpf": LOGGER_DEFAULT,
             "apm": LOGGER_DEFAULT,
             "data_source": LOGGER_DEFAULT,
             "alarm_backends": LOGGER_DEFAULT,

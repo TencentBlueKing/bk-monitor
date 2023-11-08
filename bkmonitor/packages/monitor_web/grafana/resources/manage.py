@@ -14,12 +14,12 @@ from typing import Dict
 from blueapps.utils import get_request
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from monitor_web.grafana.auth import GrafanaAuthSync
 from rest_framework import serializers
 
 from bkmonitor.models.external_iam import ExternalPermission
 from core.drf_resource import Resource, api
 from core.errors.dashboard import GetFolderOrDashboardError
+from monitor_web.grafana.auth import GrafanaAuthSync
 
 
 class GetDashboardList(Resource):
@@ -301,17 +301,20 @@ class QuickImportDashboard(Resource):
         org_id = GrafanaAuthSync.get_or_create_org_id(bk_biz_id)
         # 确定存放目录
         if folder_name and folder_name != "General":
-            folder_list = api.grafana.search_folder_or_dashboard(
-                type="dash-folder", org_id=org_id, query=folder_name
-            )["data"]
+            folder_list = api.grafana.search_folder_or_dashboard(type="dash-folder", org_id=org_id, query=folder_name)[
+                "data"
+            ]
             folder_list = [fold["id"] for fold in folder_list if fold["title"] == folder_name]
             if folder_list:
                 folder_id = folder_list[0]
 
-        from bk_dataview.grafana import settings    # noqa
+        from bk_dataview.grafana import settings  # noqa
         from monitor_web.grafana.provisioning import BkMonitorProvisioning
+
         # 寻找对应仪表盘文件
-        if not BkMonitorProvisioning.create_default_dashboard(org_id, json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id):
+        if not BkMonitorProvisioning.create_default_dashboard(
+            org_id, str(bk_biz_id), json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id
+        ):
             raise ImportError(f"bk_biz_id[{bk_biz_id}], quick import dashboard[{dash_name}] failed")
 
         return
