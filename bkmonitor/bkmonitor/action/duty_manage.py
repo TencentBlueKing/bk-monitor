@@ -17,7 +17,7 @@ from django.db.models import Q
 
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
 from bkmonitor.utils import time_tools
-from constants.common import DutyGroupType, RotationType
+from constants.common import DutyGroupType, RotationType, WorkTimeType
 
 logger = logging.getLogger("fta_action.run")
 
@@ -135,7 +135,7 @@ class DutyRuleManager:
         weekdays = []
         days = []
         duty_dates = []
-
+        work_days = self.get_work_days(duty_time)
         if duty_time["work_type"] == RotationType.DATE_RANGE:
             # 如果是根据时间返回来获取的, 则根据时间范围来获取
             for item in duty_time["work_date_range"]:
@@ -144,15 +144,16 @@ class DutyRuleManager:
                 date_ranges.append((begin_date, end_date))
         elif duty_time["work_type"] in RotationType.WEEK_MODE:
             # 按照周来处理的
-            weekdays = duty_time["work_days"]
+            weekdays = work_days
         elif duty_time["work_type"] == RotationType.MONTHLY:
             # 按照月来轮班的情况
-            days = duty_time["work_days"]
+            days = work_days
         begin_time = (
             time_tools.str2datetime(duty_time["begin_time"]) if duty_time.get("begin_time") else self.begin_time
         )
         # 只有按周，按月才有对应的交接工作日，就是页面配置的起始日期
-        handoff_date = duty_time["work_days"][0] if duty_time.get("work_days") else None
+
+        handoff_date = work_days[0] if work_days else None
         period_dates = []
         # 标记最近一次交接时间
         last_handoff_time = self.end_time - timedelta(days=1)
@@ -207,6 +208,33 @@ class DutyRuleManager:
         return duty_dates if special_rotation else period_dates
 
     @staticmethod
+    def get_work_days(duty_time):
+        """
+        获取轮值的有效工作日
+        """
+        if duty_time.get("work_time_type") != WorkTimeType.DATETIME_RANGE:
+            return duty_time.get("work_days", [])
+
+        # 定义时间范围的一个最大日期
+        max_work_day = 7 if duty_time["work_type"] in RotationType.WEEK_MODE else 31
+        for work_time in duty_time["work_time"]:
+            # 起止时间的场景下，只有一个工作时间段
+            [start_time, end_time] = work_time.split("--")
+            start_work_day = int(start_time[:2])
+            end_work_day = int(end_time[:2])
+            if start_work_day <= end_work_day:
+                # 如果开始小于结束，则表示
+                work_days = list(range(start_work_day, end_work_day + 1))
+            else:
+                # 如果是大于于，需要分成两段
+                # 第一段 是开始时间至最大结束时间
+                first_stage = list(range(start_work_day, max_work_day + 1))
+                second_stage = list(range(1, end_work_day + 1))
+                work_days = first_stage + second_stage
+            #  只有一个时间范围，直接返回
+            return work_days
+
+    @staticmethod
     def is_new_period(work_type, handoff_date, next_day_time: datetime):
         """
         判断是否为新的周期，只有那种需要指定班次轮值的情况下才生效，所以其他场景默认都为新的周期就好
@@ -217,7 +245,7 @@ class DutyRuleManager:
         elif work_type in RotationType.WEEK_MODE and next_day_time.isoweekday() == handoff_date:
             # 按周轮转，如果下一天为交接日期，表示将会开启一个新的交接
             new_period = True
-        elif work_type == RotationType.MONTHLY and next_day_time.day != handoff_date:
+        elif work_type == RotationType.MONTHLY and next_day_time.day == handoff_date:
             # 按月轮转，如果下一天为交接日期，表示将会开启一个新的交接
             new_period = True
         return new_period
@@ -237,7 +265,7 @@ class DutyRuleManager:
                 duty_dates = self.get_duty_dates(duty_time)
                 for work_date in duty_dates:
                     # 获取到有效的日期，进行排班
-                    work_time.extend(self.get_duty_work_time(work_date, duty_time["work_time"]))
+                    work_time.extend(self.get_time_range_work_time(work_date, duty_time["work_time"]))
 
             if work_time:
                 duty_plans.append({"users": duty_arrange["duty_users"][0], "work_times": work_time})
@@ -283,7 +311,15 @@ class DutyRuleManager:
             period_duty_date_times = []
             for one_period_dates in period_duty_dates:
                 period_duty_date_times.append(
-                    [{"date": one_date, "work_time_list": duty_time["work_time"]} for one_date in one_period_dates]
+                    [
+                        {
+                            "date": one_date,
+                            "work_time_type": duty_time["work_time_type"],
+                            "work_type": duty_time["work_type"],
+                            "work_time_list": duty_time["work_time"],
+                        }
+                        for one_date in one_period_dates
+                    ]
                 )
 
             duty_date_times.append(period_duty_date_times)
@@ -306,13 +342,23 @@ class DutyRuleManager:
                 if not isinstance(one_period_dates, list):
                     one_period_dates = [one_period_dates]
                 for day in one_period_dates:
-                    duty_work_time.extend(self.get_duty_work_time(day["date"], day["work_time_list"]))
+                    if day.get("work_time_type") == WorkTimeType.DATETIME_RANGE:
+                        duty_work_time.extend(
+                            self.get_datetime_range_work_time(day["date"], day["work_time_list"], day["work_type"])
+                        )
+
+                        continue
+
+                    duty_work_time.extend(self.get_time_range_work_time(day["date"], day["work_time_list"]))
 
             duty_plans.append({"users": users, "user_index": current_user_index, "work_times": duty_work_time})
         return duty_plans
 
     @staticmethod
     def flat_rotation_duty_dates(duty_dates):
+        """
+        将有效的排班日期打平
+        """
         max_column_len = max(len(period_column) for period_column in duty_dates)
         new_duty_dates = []
         for column in range(0, max_column_len):
@@ -346,7 +392,7 @@ class DutyRuleManager:
         return users, next_user_index
 
     @staticmethod
-    def get_duty_work_time(work_date, work_time_list: list):
+    def get_time_range_work_time(work_date, work_time_list: list):
         duty_work_time = []
         for time_range in work_time_list:
             # TODO 根据日期时间范围的还未处理
@@ -362,9 +408,40 @@ class DutyRuleManager:
                     start_time="{date} {start_time}".format(
                         date=start_date.strftime("%Y-%m-%d"), start_time=start_time
                     ),
-                    end_time="{date} {start_time}".format(date=end_date.strftime("%Y-%m-%d"), start_time=end_time),
+                    end_time="{date} {end_time}".format(date=end_date.strftime("%Y-%m-%d"), end_time=end_time),
                 )
             )
+        return duty_work_time
+
+    @staticmethod
+    def get_datetime_range_work_time(work_date: datetime, work_time_list: list, work_type):
+        """
+        根据日期时间范围的类型获取工作时间
+        """
+        duty_work_time = []
+        time_range = work_time_list[0]
+        [start_time, finished_time] = time_range.split("--")
+        begin_time = "00:00"
+        end_time = "23:59"
+        weekday = day = 0
+        if work_type in RotationType.WEEK_MODE:
+            weekday = work_date.isoweekday()
+        else:
+            day = work_date.day
+        if weekday == int(start_time[:2]) or day == int(start_time[:2]):
+            # 当前为第一天的时候，起点时间以配置时间为准
+            begin_time = start_time[2:]
+
+        if weekday == int(finished_time[:2]) or day == int(finished_time[:2]):
+            # 当前为最后一天的时候，结束时间以配置时间为准
+            end_time = finished_time[2:]
+
+        duty_work_time.append(
+            dict(
+                start_time="{date} {start_time}".format(date=work_date.strftime("%Y-%m-%d"), start_time=begin_time),
+                end_time="{date} {end_time}".format(date=work_date.strftime("%Y-%m-%d"), end_time=end_time),
+            )
+        )
         return duty_work_time
 
 

@@ -391,6 +391,107 @@ class TestDutyPreview:
         assert duty_plan[2]["user_index"] == 2
         assert duty_plan[3]["user_index"] == 0
 
+    def test_weekly_datetime_range_handoff(self, rotation_duty_rule):
+        """
+        周一 至 可以工作周五
+        """
+        rotation_duty_rule["duty_arranges"] = [
+            {
+                "duty_time": [
+                    {
+                        "work_type": "weekly",
+                        "work_days": [],
+                        "work_time_type": "datetime_range",
+                        "work_time": ["04 10:00--03 23:00"],
+                        "period_settings": {},
+                    }
+                ],
+                "duty_users": [
+                    [
+                        {"id": "Alan", "type": "user"},
+                        {"id": "Frances", "type": "user"},
+                        {"id": "Lucile", "type": "user"},
+                    ],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                ],
+                "group_type": "specified",
+                "group_number": 0,
+            }
+        ]
+
+        rotation_duty_rule["effective_time"] = "2023-11-08 00:00:00"
+
+        m = DutyRuleManager(duty_rule=rotation_duty_rule, days=21)
+        duty_plan = m.get_duty_plan()
+        print(duty_plan)
+
+        assert len(duty_plan) == 4
+        assert len(duty_plan[0]["work_times"]) == 1
+        assert duty_plan[0]["user_index"] == 0
+        assert len(duty_plan[1]["work_times"]) == 7
+        assert duty_plan[1]["user_index"] == 1
+        assert len(duty_plan[2]["work_times"]) == 7
+        assert duty_plan[2]["user_index"] == 2
+        assert duty_plan[3]["user_index"] == 0
+
+    def test_monthly_datetime_range_handoff(self, rotation_duty_rule):
+        """
+        1号至15号一班
+        16号至31号一班
+        3个班轮流来
+        """
+        rotation_duty_rule["duty_arranges"] = [
+            {
+                "duty_time": [
+                    {
+                        "work_type": "monthly",
+                        "work_days": [],
+                        "work_time_type": "datetime_range",
+                        "work_time": ["01 00:00--15 23:59"],
+                        "period_settings": {},
+                    },
+                    {
+                        "work_type": "monthly",
+                        "work_days": [],
+                        "work_time_type": "datetime_range",
+                        "work_time": ["16 00:00--31 23:59"],
+                        "period_settings": {},
+                    },
+                ],
+                "duty_users": [
+                    [
+                        {"id": "Alan", "type": "user"},
+                        {"id": "Frances", "type": "user"},
+                        {"id": "Lucile", "type": "user"},
+                    ],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                    [
+                        {"id": "Brian1", "type": "user"},
+                        {"id": "Danny1", "type": "user"},
+                        {"id": "Alice1", "type": "user"},
+                    ],
+                ],
+                "group_type": "specified",
+                "group_number": 0,
+            }
+        ]
+
+        rotation_duty_rule["effective_time"] = "2023-12-01 00:00:00"
+
+        m = DutyRuleManager(duty_rule=rotation_duty_rule, days=60)
+        duty_plan = m.get_duty_plan()
+        print(duty_plan)
+
+        assert len(duty_plan) == 4
+        assert len(duty_plan[0]["work_times"]) == 15
+        assert duty_plan[0]["user_index"] == 0
+        assert len(duty_plan[1]["work_times"]) == 16
+        assert duty_plan[1]["user_index"] == 1
+        assert len(duty_plan[2]["work_times"]) == 15
+        assert duty_plan[2]["user_index"] == 2
+        assert duty_plan[3]["user_index"] == 0
+
     def test_multi_regular_weekly_duty_rule(self, regular_duty_rule):
         regular_duty_rule["effective_time"] = "2023-07-23 11:00:00"
         regular_duty_rule["duty_arranges"] = [
