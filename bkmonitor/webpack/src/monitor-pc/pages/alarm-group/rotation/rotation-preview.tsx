@@ -27,22 +27,31 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
+import { retrieveUserGroup } from '../../../../monitor-api/modules/model';
+
 import { dutyDataConversion, getCalendarOfNum, IDutyData } from './utils';
 
 import './rotation-preview.scss';
 
 interface IProps {
   value?: any;
+  alarmGroupId?: string | number;
+  dutyPlans?: any[];
   onStartTimeChange?: (v: string) => void;
 }
 
 @Component
 export default class RotationPreview extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: any[];
+  @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
+  /* 轮值历史 */
+  @Prop({ default: () => [], type: Array }) dutyPlans: any[];
 
   @Ref('previewContent') previewContentRef: HTMLDivElement;
   @Ref('userTip') userTipRef: HTMLDivElement;
+  /* 是否展示未排班 */
   showNoData = true;
+  /* 是否展开 */
   isExpan = true;
   // 预览数据
   dutyData: IDutyData = {
@@ -51,18 +60,18 @@ export default class RotationPreview extends tsc<IProps> {
     freeTimes: [],
     overlapTimes: []
   };
-
+  /* 用户组tip */
   popoverInstance = null;
   popover = {
     users: '',
     time: ''
   };
-
+  /* 容器宽度 */
   containerWidth = 1000;
-
   observer = null;
-
   showDetail = false;
+  /* 当前明细/历史标题 */
+  detailTitle = '';
 
   created() {
     this.dutyData = dutyDataConversion(this.dutyData);
@@ -147,9 +156,17 @@ export default class RotationPreview extends tsc<IProps> {
    * @description 显示排班明细和轮值历史
    * @param v
    */
-  handleShowDetail(v: boolean) {
-    console.log(v);
+  async handleShowDetail(v: boolean, title, isHistory = false) {
     this.showDetail = v;
+    this.detailTitle = title;
+    if (!v) {
+      return;
+    }
+    if (isHistory) {
+    } else {
+      const data = await retrieveUserGroup(this.alarmGroupId);
+      console.log(data);
+    }
   }
 
   render() {
@@ -174,26 +191,28 @@ export default class RotationPreview extends tsc<IProps> {
             ></Switcher>
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
-          <span
-            class='text-btn mr-24 ml-auto'
-            onClick={(e: Event) => {
-              e.stopPropagation();
-              this.handleShowDetail(true);
-            }}
-          >
-            <span class='icon-monitor icon-mc-detail mr-6'></span>
-            <span>{this.$t('排班明细')}</span>
-          </span>
-          <span
-            class='text-btn'
-            onClick={(e: Event) => {
-              e.stopPropagation();
-              this.handleShowDetail(true);
-            }}
-          >
-            <span class='icon-monitor icon-lishijilu mr-6'></span>
-            <span>{this.$t('轮值历史')}</span>
-          </span>
+          {!!this.alarmGroupId && [
+            <span
+              class='text-btn mr-24 ml-auto'
+              onClick={(e: Event) => {
+                e.stopPropagation();
+                this.handleShowDetail(true, this.$t('排班明细'));
+              }}
+            >
+              <span class='icon-monitor icon-mc-detail mr-6'></span>
+              <span>{this.$t('排班明细')}</span>
+            </span>,
+            <span
+              class='text-btn'
+              onClick={(e: Event) => {
+                e.stopPropagation();
+                this.handleShowDetail(true, this.$t('轮值历史'), true);
+              }}
+            >
+              <span class='icon-monitor icon-lishijilu mr-6'></span>
+              <span>{this.$t('轮值历史')}</span>
+            </span>
+          ]}
         </div>
         <div class={['preview-content', { expan: this.isExpan }]}>
           <div class='preview-content-left'>
@@ -312,7 +331,7 @@ export default class RotationPreview extends tsc<IProps> {
           transfer={true}
           extCls={'rotation-preview-side'}
           quickClose={true}
-          before-close={() => this.handleShowDetail(false)}
+          before-close={() => this.handleShowDetail(false, '')}
         >
           <div slot='content'>
             <div class='content-item'>

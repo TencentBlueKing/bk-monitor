@@ -51,6 +51,8 @@ interface IProps {
   dutyNotice?: any;
   defaultGroupList?: IGroupListItem[];
   rendreKey?: string;
+  alarmGroupId?: string | number;
+  dutyPlans?: any[];
   onNoticeChange?: (_v) => void;
   onDutyChange?: (v: number[]) => void;
 }
@@ -58,9 +60,14 @@ interface IProps {
 @Component
 export default class RotationConfig extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) defaultGroupList: IGroupListItem[];
+  /* 轮值规则 */
   @Prop({ default: () => [], type: Array }) dutyArranges: (number | string)[];
+  /* 值班通知设置数据 */
   @Prop({ default: () => [], type: Object }) dutyNotice: any;
   @Prop({ default: '', type: String }) rendreKey: string;
+  @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
+  /* 轮值历史 */
+  @Prop({ default: () => [], type: Array }) dutyPlans: any[];
   @Ref('wrap') wrapRef: HTMLDivElement;
 
   /* 添加规则弹层实例 */
@@ -77,12 +84,13 @@ export default class RotationConfig extends tsc<IProps> {
   previewData = [];
   /* 预览loading */
   previewLoading = false;
+  /* 排序退拽相关 */
   draggedIndex = -1;
   droppedIndex = -1;
   needDrag = false;
-
+  /* 是否展开值班通知设置 */
   showNotice = false;
-
+  /* 轮值详情侧栏数据 */
   detailData = {
     id: '',
     show: false
@@ -424,6 +432,8 @@ export default class RotationConfig extends tsc<IProps> {
           class='mt-12'
           v-bkloading={{ isLoading: this.previewLoading }}
           value={this.previewData}
+          alarmGroupId={this.alarmGroupId}
+          dutyPlans={this.dutyPlans}
           onStartTimeChange={this.handleStartTimeChange}
         ></RotationPreview>
         <div

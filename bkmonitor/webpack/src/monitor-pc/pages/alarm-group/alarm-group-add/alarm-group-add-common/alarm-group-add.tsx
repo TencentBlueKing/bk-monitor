@@ -214,8 +214,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   rotationData = {
     dutyArranges: [],
     dutyNotice: {
-      plan_notice: { enabled: true, days: 7, chat_ids: [''], type: 'weekly', date: 1, time: '00:00' },
-      personal_notice: { enabled: true, hours_ago: 168, duty_rules: [0] }
+      plan_notice: { enabled: false, days: 7, chat_ids: [''], type: 'weekly', date: 1, time: '00:00' },
+      personal_notice: { enabled: false, hours_ago: 168, duty_rules: [0] }
     },
     rendreKey: random(8)
   };
@@ -354,9 +354,14 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         });
         if (needDuty) {
           // this.dutyArranges = dutyDataTransform(data.duty_arranges);
-          // this.dutyPlans = data.duty_plans;
+          this.dutyPlans = data.duty_plans;
           this.rotationData.dutyArranges = data.duty_rules;
-          this.rotationData.dutyNotice = data.duty_notice;
+          if (data.duty_notice?.personal_notice) {
+            this.rotationData.dutyNotice.personal_notice = data.duty_notice.personal_notice;
+          }
+          if (data.duty_notice?.plan_notice) {
+            this.rotationData.dutyNotice.plan_notice = data.duty_notice.plan_notice;
+          }
           this.rotationData.rendreKey = random(8);
         } else {
           const users = [];
@@ -594,7 +599,17 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
             }
           ],
       duty_rules: needDuty ? this.rotationData.dutyArranges : undefined,
-      duty_notice: needDuty ? this.rotationData.dutyNotice : undefined,
+      duty_notice: needDuty
+        ? {
+            ...this.rotationData.dutyNotice,
+            plan_notice: this.rotationData.dutyNotice.plan_notice.enabled
+              ? this.rotationData.dutyNotice.plan_notice
+              : undefined,
+            personal_notice: this.rotationData.dutyNotice.personal_notice.enabled
+              ? this.rotationData.dutyNotice.personal_notice
+              : undefined
+          }
+        : undefined,
       alert_notice: this.noticeParams(ALERT_NOTICE),
       action_notice: this.noticeParams(ACTION_NOTICE),
       // 有些项可能会被删掉，这里做一次处理
@@ -1022,6 +1037,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 dutyArranges={this.rotationData.dutyArranges}
                 dutyNotice={this.rotationData.dutyNotice}
                 rendreKey={this.rotationData.rendreKey}
+                alarmGroupId={this.groupId}
+                dutyPlans={this.dutyPlans}
                 onDutyChange={v => (this.rotationData.dutyArranges = v)}
                 onNoticeChange={v => (this.rotationData.dutyNotice = v)}
               ></RotationConfig>

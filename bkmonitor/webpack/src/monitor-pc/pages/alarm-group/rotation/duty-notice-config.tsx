@@ -57,14 +57,14 @@ const weekList = [
  * @returns
  */
 export const initData = () => ({
-  isSend: true,
+  isSend: false,
   sendType: 'week',
   week: 1,
   month: 1,
   sendTime: '00:00',
   nearDay: 7,
   rtxId: '',
-  needNotice: true,
+  needNotice: false,
   startNum: 1,
   timeType: 'week',
   rotationId: []
