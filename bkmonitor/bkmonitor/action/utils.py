@@ -175,7 +175,7 @@ def get_duty_rule_user_groups(duty_rule_ids):
 
     duty_rule_user_groups = defaultdict(list)
     for relation in DutyRuleRelation.objects.filter(duty_rule_id__in=duty_rule_ids):
-        duty_rule_user_groups[relation.duty_rule_id].append(relation.duty_rule_id)
+        duty_rule_user_groups[relation.duty_rule_id].append(relation.user_group_id)
     return duty_rule_user_groups
 
 

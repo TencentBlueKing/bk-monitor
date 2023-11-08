@@ -407,7 +407,7 @@ class DutyRuleSlz(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super(DutyRuleSlz, self).to_representation(instance)
-        data["user_groups"] = self.rule_group_dict.get(instance.id, [])
+        data["user_groups"] = list(set(self.rule_group_dict.get(instance.id, [])))
         data["user_groups_count"] = len(data["user_groups"])
         data["delete_allowed"] = data["user_groups_count"] == 0
         data["edit_allowed"] = instance.bk_biz_id != 0

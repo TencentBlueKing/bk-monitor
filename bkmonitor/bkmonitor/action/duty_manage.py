@@ -535,7 +535,7 @@ class GroupDutyRuleManager:
 
         # step2 然后再来一波更新
         if updated_rule_snaps:
-            DutyRuleSnap.objects.bulk_update(updated_rule_snaps, update_fields=['next_plan_time'])
+            DutyRuleSnap.objects.bulk_update(updated_rule_snaps, fields=['next_plan_time'])
 
         # step 3 删除掉过期的
         if expired_snaps:
