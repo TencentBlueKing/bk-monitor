@@ -31,7 +31,6 @@ from apps.log_clustering.components.collections.data_access_component import (
 )
 from apps.log_clustering.components.collections.flow_component import (
     CreateLogCountAggregationFlow,
-    CreateOnlineTaskNewIndexSet,
     CreatePredictFlow,
 )
 from apps.log_clustering.handlers.pipline_service.base_pipline_service import (
@@ -120,8 +119,6 @@ class AiopsBkdataOnlineService(BasePipeLineService):
         start.extend(AddResourceGroupSet(index_set_id=index_set_id).add_resource_group).extend(
             AddProjectData(index_set_id=index_set_id).add_project_data
         ).extend(CreatePredictFlow(index_set_id=index_set_id).create_predict_flow).extend(
-            CreateOnlineTaskNewIndexSet(index_set_id=index_set_id).create_online_task_new_index_set
-        ).extend(
             CreateLogCountAggregationFlow(index_set_id=index_set_id).create_log_count_aggregation_flow
         ).extend(
             end

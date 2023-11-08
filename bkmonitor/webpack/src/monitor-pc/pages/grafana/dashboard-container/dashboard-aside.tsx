@@ -142,27 +142,27 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       {
         id: MoreType.dashboard,
         name: window.i18n.tc('仪表盘'),
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: this.authority.NEW_DASHBOARD_AUTH,
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
       },
       {
         id: MoreType.dir,
         name: window.i18n.tc('目录'),
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: this.authority.NEW_DASHBOARD_AUTH,
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
       },
       {
         id: MoreType.import,
         name: window.i18n.tc('导入'),
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: this.authority.NEW_DASHBOARD_AUTH,
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
       },
       process.env.APP !== 'external'
         ? {
             id: MoreType.imports,
             name: window.i18n.tc('批量导入'),
-            hasAuth: this.authority.MANAGE_AUTH,
-            action_id: this.authorityMap.MANAGE_AUTH
+            hasAuth: this.authority.NEW_DASHBOARD_AUTH,
+            action_id: this.authorityMap.NEW_DASHBOARD_AUTH
           }
         : undefined
     ].filter(Boolean);
@@ -279,6 +279,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       return [];
     });
     this.grafanaList = this.handleGrafanaTreeData(list);
+    console.info(this.grafanaList);
     this.grafanaList.unshift({
       id: 99999,
       title: 'Home',
@@ -304,6 +305,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         uid,
         isStarred,
         isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),
+        editable: item.editable ?? true,
         children: this.handleGrafanaTreeData(dashboards)
       };
     });

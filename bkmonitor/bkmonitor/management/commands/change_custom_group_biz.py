@@ -87,8 +87,11 @@ class Command(BaseCommand):
                 self.stdout.write(f"update spacedatasource occur error: {e}")
                 return
             finally:
+                from metadata.task.sync_space import push_and_publish_space_router
+
                 if Space.objects.filter(space_id=bk_biz_id).exists():
                     push_and_publish_all_space(space_id=bk_biz_id)
+                    push_and_publish_space_router(space_id=bk_biz_id)
 
     def add_arguments(self, parser):
         parser.add_argument("--group_name", type=str, required=True, help="时序分组名")

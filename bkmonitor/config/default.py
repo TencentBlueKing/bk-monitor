@@ -10,17 +10,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import base64
 import ntpath
 from urllib.parse import urljoin
 
 from bkcrypto import constants
-from bkcrypto.asymmetric.interceptors import BaseAsymmetricInterceptor
-from bkcrypto.symmetric import interceptors
-from bkcrypto.symmetric.ciphers import AESSymmetricCipher, BaseSymmetricCipher
-from bkcrypto.symmetric.ciphers.base import EncryptionMetadata
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
-from bkcrypto.utils import convertors
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
@@ -687,9 +681,7 @@ PING_SERVER_TARGET_NUMBER_LIMIT = 6000
 DISABLE_BIZ_ID = []
 
 # 是否开启聚合网关上报
-METRIC_AGG_GATEWAY_URL = ""
-# TODO: remove me after checking
-HTTP_METRIC_AGG_GATEWAY_URL = os.getenv("HTTP_METRIC_AGG_GATEWAY_URL", "")
+METRIC_AGG_GATEWAY_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_URL", "")
 
 # 网关API域名
 APIGW_BASE_URL = os.getenv("BKAPP_APIGW_BASE_URL", "")
@@ -1224,14 +1216,6 @@ BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_MONITOR_HOST)
 
 # 蓝鲸业务名
 BLUEKING_NAME = os.getenv("BKAPP_BLUEKING_NAME", "蓝鲸")
-
-# https设置
-SECURE_SSL_REDIRECT = os.getenv("BKAPP_SECURE_SSL_REDIRECT", "").lower() == "true"
-SECURE_SSL_HOST = os.getenv("BKAPP_SECURE_SSL_HOST", "")
-SECURE_REDIRECT_EXEMPT = os.getenv("BKAPP_SECURE_REDIRECT_EXEMPT", "")
-if SECURE_REDIRECT_EXEMPT:
-    SECURE_REDIRECT_EXEMPT = SECURE_REDIRECT_EXEMPT.split(",")
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # 后台任务多进程并行数量，默认设置为1个
 MAX_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)

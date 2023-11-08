@@ -135,7 +135,9 @@ export default class IconBtn extends tsc<IProps, IEvents> {
                 <div
                   class='icon-option'
                   v-authority={{ active: !opt.hasAuth }}
-                  onClick={() => (opt.hasAuth ? this.handleSelected(opt) : this.handleShowAuthorityDetail())}
+                  onClick={() =>
+                    opt.hasAuth ? this.handleSelected(opt) : this.handleShowAuthorityDetail(opt.action_id)
+                  }
                 >
                   {!!opt.icon && (
                     <i

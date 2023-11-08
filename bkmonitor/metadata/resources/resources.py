@@ -41,7 +41,7 @@ from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.models.space.utils import get_space_by_table_id
 from metadata.task.bcs import refresh_dataid_resource
-from metadata.task.tasks import publish_redis
+from metadata.task.tasks import publish_redis, push_and_publish_space_router
 from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.es_tools import get_client
 
@@ -254,6 +254,9 @@ class ModifyResultTableResource(Resource):
         try:
             space_info = get_space_by_table_id(result_table.table_id)
             publish_redis.delay(space_info["space_type_id"], space_info["space_id"])
+            push_and_publish_space_router.delay(
+                space_info["space_type_id"], space_info["space_id"], table_id_list=[table_id]
+            )
         except Exception as e:
             logger.error("publish redis error, %s", e)
 

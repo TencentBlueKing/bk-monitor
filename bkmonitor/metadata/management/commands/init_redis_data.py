@@ -18,6 +18,7 @@ from metadata.models.space.constants import (
     SpaceTypes,
 )
 from metadata.models.space.space_redis import push_redis_data
+from metadata.task.sync_space import push_and_publish_space_router
 from metadata.utils.redis_tools import RedisTools
 
 
@@ -29,18 +30,37 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--force", action='store_true', default=False, help="force push redis data")
+        parser.add_argument(
+            "--push_pre_version", action='store_true', default=False, help="include pre-version redis data struct"
+        )
 
     def handle(self, *args, **options):
         """
         NOTE: 因为后续 redis 的 hmset 会被废弃，因此，这里直接使用 hset 直接推送数据
         """
-        print("start push space to redis")
+        self.stdout.write("start to push space to redis")
 
         force_push = options.get("force")
         # 判断redis中是否存在数据，如果存在，则直接返回
         if not force_push and RedisTools.is_member_exist(self.space_redis_key):
             print("space data has pushed to redis")
             return
+
+        # 推送数据
+        push_and_publish_space_router()
+
+        # 推送历史版本的数据结构
+        if options.get("push_pre_version"):
+            try:
+                self._push_pre_version_data()
+            except Exception as e:
+                self.stderr.write("push pre-version data error，error: %s", e)
+
+        self.stdout.write("push space to redis successfully")
+
+    def _push_pre_version_data(self):
+        """推送先前版本的数据"""
+        self.stdout.write("start to push pre-version data to redis")
 
         spaces = Space.objects.all().values("space_type_id", "space_id")
         # 推送空间数据，格式: key: bkmonitorv3:spaces value: space_type_id__space_id
@@ -57,4 +77,4 @@ class Command(BaseCommand):
         # NOTE: 为防止变动更新没有通知到unify-query, 增加一次空间发布
         RedisTools.publish(SPACE_CHANNEL, space_uid_list)
 
-        print("push space to redis successfully")
+        self.stdout.write("push pre-version data successfully")

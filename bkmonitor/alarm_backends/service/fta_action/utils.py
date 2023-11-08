@@ -14,6 +14,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import List
 
+from dateutil.relativedelta import relativedelta
+from django.utils.translation import ugettext as _
+
 from alarm_backends.core.cache.cmdb.host import HostManager
 from alarm_backends.core.cache.cmdb.module import ModuleManager
 from alarm_backends.core.cache.key import ALERT_DETECT_RESULT
@@ -25,6 +28,9 @@ from alarm_backends.core.context.utils import (
 from alarm_backends.core.i18n import i18n
 from alarm_backends.service.converge.dimension import DimensionCalculator
 from alarm_backends.service.converge.tasks import run_converge
+from bkmonitor.documents import ActionInstanceDocument, AlertDocument
+from bkmonitor.models import ActionInstance, DutyArrange, DutyPlan, UserGroup
+from bkmonitor.utils import time_tools
 from constants.action import (
     ACTION_DISPLAY_STATUS_DICT,
     ActionNoticeType,
@@ -35,12 +41,6 @@ from constants.action import (
     NoticeType,
     NoticeWay,
 )
-from dateutil.relativedelta import relativedelta
-from django.utils.translation import ugettext as _
-
-from bkmonitor.documents import ActionInstanceDocument, AlertDocument
-from bkmonitor.models import ActionInstance, DutyArrange, DutyPlan, UserGroup
-from bkmonitor.utils import time_tools
 
 logger = logging.getLogger("fta_action.run")
 
@@ -548,7 +548,7 @@ class AlertAssignee:
             return notify_configs
 
         for notice_way, users in notify_configs.items():
-            if notice_way == NoticeWay.WX_BOT:
+            if notice_way in [NoticeWay.WX_BOT, "wxbot_mention_users"]:
                 continue
             if notice_way == NoticeWay.VOICE and appointee not in users:
                 users.append(appointee)
