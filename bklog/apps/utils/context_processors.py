@@ -93,4 +93,5 @@ def mysetting(request):
         "BK_ASSESSMEN_HOST_COUNT": str(settings.BK_ASSESSMEN_HOST_COUNT),
         "BK_ETL_DOC_URL": settings.BK_ETL_DOC_URL,
         "ENABLE_CHECK_COLLECTOR": "true" if request.user.is_superuser else "false",
+        "IS_EXTERNAL": request.headers.get("Is-External", "false"),
     }

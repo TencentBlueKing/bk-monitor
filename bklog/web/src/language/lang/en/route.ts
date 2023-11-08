@@ -42,6 +42,7 @@ export default {
   "提取链路管理": "Log Export Link",
   "日志提取配置": "Log Export Configuration",
   "采集链路管理": "Log Ingestion Configuration",
+  "外部授权列表": "Authorization List",
   "route-新建清洗": "Add Parsing",
   "route-采集详情": "Collection Details",
   "route-编辑清洗": "Edit Parsing",

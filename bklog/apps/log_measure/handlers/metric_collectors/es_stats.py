@@ -869,6 +869,7 @@ def query(cluster_id):
 
 
 def process_metric(data, metric, xtype, path, xform=None, dimensions=None):
+
     """
     process_metric
     @param data:
@@ -910,7 +911,6 @@ def process_stats_data(metrics, get, version, base_dimensions):
     @return:
     """
     data = get(get_url(version)["stats_url"])
-    print(data)
     if not data:
         return
     base_dimensions["elastic_name"] = data["cluster_name"]
