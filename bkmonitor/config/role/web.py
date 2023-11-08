@@ -116,6 +116,7 @@ DATABASES = locals()["DATABASES"]
 # 未配置节点管理，默认和监控 SaaS 共用 DB
 DATABASES["nodeman"] = {}
 DATABASES["nodeman"].update(DATABASES["default"])
+DATABASES["nodeman"]["NAME"] = "bk_nodeman"
 # 设置节点管理数据库配置
 for db_key in [
     "BKAPP_NODEMAN_DB_NAME",
