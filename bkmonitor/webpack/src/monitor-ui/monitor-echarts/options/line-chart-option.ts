@@ -69,6 +69,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const hasSeries = series && series.length > 0;
     const formatterFunc =
       hasSeries && series[0].data && series[0].data.length ? this.handleSetFormatterFunc(series[0].data) : null;
+    debugger;
     let { series: newSeries, legendData } = this.getSeriesData(series);
     // 上下边界处理
     let minBase = 0;
