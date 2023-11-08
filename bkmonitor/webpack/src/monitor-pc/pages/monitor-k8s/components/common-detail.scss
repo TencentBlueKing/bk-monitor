@@ -333,12 +333,21 @@
       }
     }
 
-    .icon-menu-shield,
-    .icon-inform-circle,
-    .icon-celvepingbi,
-    .icon-mc-help-fill {
+    .icon-monitor {
       font-size: 16px;
-      color: #ffb848;
+
+      &.icon-menu-shield,
+      &.icon-celvepingbi {
+        color: #ffb848;
+      }
+
+      &.icon-inform-circle {
+        color: #a3c5fd;
+      }
+
+      &.icon-mc-help-fill {
+        color: #c4c6cc;
+      }
     }
 
     .text {

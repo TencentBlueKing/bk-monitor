@@ -309,8 +309,10 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
     });
   }
   /** 所属模块 的信息 */
-  get moduleData(): { name: string; type: string; value: any | string[] } {
-    return this.data.find(item => item.name === '所属模块');
+  get moduleData(): { name: string; type: string; value: any | string[] }[] {
+    const result = this.data.find(item => item.name === '所属模块');
+    if (result) return [result];
+    return [];
   }
   /** 不确定是否要保留，因为后端返回的文本貌似不太靠谱的样子 */
   get collectionStatusMessage() {
@@ -352,43 +354,47 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
         {/* 状态展示相关 */}
         <div class='status-container'>
           {/* 运营状态 */}
-          <div class={['status-item', `bg-failed`]}>
-            {this.maintainStatusIcon}
-            {/* 当 type 为 string 且 文本为空时 即为：未设置。 */}
-            {!(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text && (
-              <i class='icon-monitor icon-mc-help-fill'></i>
-            )}
-            <span class='text'>
-              {(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text || '--'}
-            </span>
-          </div>
-
-          <div
-            class={[
-              'status-item',
-              `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`
-            ]}
-          >
-            <span class={['common-status-wrap', 'status-wrap-flex']}>
-              <span
-                class={[
-                  'status-icon',
-                  `status-${
-                    (this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type || 'disabled'
-                  }`
-                ]}
-              ></span>
-              <span class='common-status-name'>
-                {(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.text}
+          {this.statusData[this.targetStatusName[0]] && (
+            <div class={['status-item', `bg-failed`]}>
+              {this.maintainStatusIcon}
+              {/* 当 type 为 string 且 文本为空时 即为：未设置。 */}
+              {!(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text && (
+                <i class='icon-monitor icon-mc-help-fill'></i>
+              )}
+              <span class='text'>
+                {(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text || '--'}
               </span>
-            </span>
-          </div>
+            </div>
+          )}
+
+          {this.statusData[this.targetStatusName[1]] && (
+            <div
+              class={[
+                'status-item',
+                `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`
+              ]}
+            >
+              <span class={['common-status-wrap', 'status-wrap-flex']}>
+                <span
+                  class={[
+                    'status-icon',
+                    `status-${
+                      (this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type || 'disabled'
+                    }`
+                  ]}
+                ></span>
+                <span class='common-status-name'>
+                  {(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.text}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
         <BkCollapse
           v-model={this.activeCollapseName}
           class='detail-collapse-title'
         >
-          {this.labelListData.concat(this.moduleData as IDetailItem).map(item => (
+          {this.labelListData.concat(this.moduleData as IDetailItem[]).map(item => (
             <div>
               {this.targetListName.includes(item.name) && <div class='divider'></div>}
               <BkCollapseItem
