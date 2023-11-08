@@ -251,9 +251,9 @@
 </template>
 <script lang="ts">
 import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
-import deepMerge from 'deepmerge';
 // import { handleTimeRange } from '../../../utils/index';
-import moment from 'moment';
+import dayjs from 'dayjs';
+import deepMerge from 'deepmerge';
 
 import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
@@ -412,8 +412,8 @@ export default class DashboardPanels extends Vue {
         }
         if (startTime && endTime) {
           timerange = {
-            start_time: moment(startTime).unix(),
-            end_time: moment(endTime).unix()
+            start_time: dayjs(startTime).unix(),
+            end_time: dayjs(endTime).unix()
           };
         }
         if (item.datasourceId === 'log') {
@@ -537,7 +537,7 @@ export default class DashboardPanels extends Vue {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-              ? moment().add(-timeMatch[1], timeMatch[2])
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2])
                 .fromNow()
                 .replace(/\s*/g, '')
               : val.replace('current', this.$t('当前'))

@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Checkbox, Pagination, Popover, Select, Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { eventTopN, searchEvent } from '../../../../monitor-api/modules/alert';
 import EmptyStatus from '../../../../monitor-pc/components/empty-status/empty-status';
@@ -174,7 +174,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           minWidth: 130,
           sortable: 'custom',
-          formatter: (row: IEventItem) => <span>{moment(row.time * 1000).format('YYYY-MM-DD HH:mm')}</span>
+          formatter: (row: IEventItem) => <span>{dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mm')}</span>
         }
       },
       {
@@ -259,7 +259,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => moment(row.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+          formatter: (row: IEventItem) => dayjs.tz(row.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss')
         }
       },
       {
@@ -500,7 +500,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       {
         children: [
           { title: this.$t('事件ID'), content: `${child.event_id}` },
-          { title: this.$t('异常时间'), content: moment(child.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss') }
+          { title: this.$t('异常时间'), content: dayjs.tz(child.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss') }
         ]
       },
       {
@@ -535,7 +535,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       },
       {
         children: [
-          { title: this.$t('事件时间'), content: moment(child.time * 1000).format('YYYY-MM-DD HH:mm:ss') },
+          { title: this.$t('事件时间'), content: dayjs.tz(child.time * 1000).format('YYYY-MM-DD HH:mm:ss') },
           {
             title: <span>{this.$t('标签')}</span>,
             content: child.tags?.length ? (

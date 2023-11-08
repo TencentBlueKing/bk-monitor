@@ -27,7 +27,7 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import Big from 'big.js';
 import { Button, Exception, Input, Option, Select } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { throttle } from 'throttle-debounce';
 
 import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
@@ -394,7 +394,7 @@ export default class Home extends tsc<IHomeProps> {
    * @description 根据时间戳获取更新时间
    */
   getUpdataTime(time: number) {
-    const str = moment(time * 1000).fromNow();
+    const str = dayjs.tz(time * 1000).fromNow();
     this.updataTimeStr = window.i18n.t('更新于 {0} ', [str]);
   }
 

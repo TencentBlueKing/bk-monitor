@@ -25,8 +25,8 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import moment from 'moment';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { random } from '../../../../monitor-common/utils/utils';
@@ -85,8 +85,8 @@ export class ApdexChart extends LineChart {
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       const promiseList = [];
       const timeShiftList = ['', ...this.timeOffset];

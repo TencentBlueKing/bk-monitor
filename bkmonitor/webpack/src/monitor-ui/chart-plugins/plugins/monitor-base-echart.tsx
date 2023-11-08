@@ -25,9 +25,9 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import echarts, { EChartOption } from 'echarts';
-import moment from 'moment';
 
 import { hexToRgbA } from '../../../monitor-common/utils/utils';
 import { ICurPoint } from '../typings';
@@ -125,8 +125,8 @@ class MonitorBaseEchart extends BaseEchart {
         this.instance.dispatchAction({
           type: 'restore'
         });
-        const timeFrom = moment(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-        const timeTo = moment(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+        const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+        const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
         this.$emit('dataZoom', timeFrom, timeTo);
       }
     } else {
@@ -205,7 +205,7 @@ class MonitorBaseEchart extends BaseEchart {
     }
     let liHtmls = [];
     let ulStyle = '';
-    const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     if (params[0]?.data?.tooltips) {
       liHtmls.push(params[0].data.tooltips);
     } else {

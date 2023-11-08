@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
-import moment from 'moment';
 
 import { deepClone } from '../../../monitor-common/utils/utils';
 import { IIableTdArrItem } from '../../../monitor-pc/pages/view-detail/utils';
@@ -41,25 +41,25 @@ export const handleTimeRange = (timeRange: number | string | string[]): { startT
   let startTime = null;
   let endTime = null;
   if (typeof timeRange === 'number') {
-    endTime = moment().unix();
+    endTime = dayjs.tz().unix();
     startTime = endTime - timeRange / 1000;
   } else {
     switch (timeRange) {
       case 'today': // 今天到现在为止
-        startTime = moment().format('YYYY-MM-DD 00:00:00');
-        endTime = moment().unix();
+        startTime = dayjs.tz().format('YYYY-MM-DD 00:00:00');
+        endTime = dayjs.tz().unix();
         break;
       case 'yesterday': // 昨天
-        startTime = moment().subtract(1, 'days').format('YYYY-MM-DD 00:00:00');
-        endTime = moment().subtract(1, 'days').format('YYYY-MM-DD 23:59:59');
+        startTime = dayjs.tz().subtract(1, 'days').format('YYYY-MM-DD 00:00:00');
+        endTime = dayjs.tz().subtract(1, 'days').format('YYYY-MM-DD 23:59:59');
         break;
       case 'beforeYesterday': // 前天
-        startTime = moment().subtract(2, 'days').format('YYYY-MM-DD 00:00:00');
-        endTime = moment().subtract(2, 'days').format('YYYY-MM-DD 23:59:59');
+        startTime = dayjs.tz().subtract(2, 'days').format('YYYY-MM-DD 00:00:00');
+        endTime = dayjs.tz().subtract(2, 'days').format('YYYY-MM-DD 23:59:59');
         break;
       case 'thisWeek': // 本周一到现在为止
-        startTime = moment().day('Monday').format('YYYY-MM-DD 00:00:00');
-        endTime = moment().unix();
+        startTime = dayjs.tz().day(0).format('YYYY-MM-DD 00:00:00');
+        endTime = dayjs.tz().unix();
         break;
       default:
         // 自定义时间段
@@ -73,8 +73,8 @@ export const handleTimeRange = (timeRange: number | string | string[]): { startT
         }
         break;
     }
-    endTime = typeof endTime === 'number' ? endTime : moment(endTime).unix();
-    startTime = typeof startTime === 'number' ? startTime : moment(startTime).unix();
+    endTime = typeof endTime === 'number' ? endTime : dayjs.tz(endTime).unix();
+    startTime = typeof startTime === 'number' ? startTime : dayjs.tz(startTime).unix();
   }
   return {
     startTime,
@@ -112,9 +112,9 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
         value: (set.value || []).join(',')
       })) || [],
     // eslint-disable-next-line camelcase
-    start_time: start_time ? moment(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
+    start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
     // eslint-disable-next-line camelcase
-    end_time: end_time ? moment(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
+    end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
     time_range
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
@@ -284,7 +284,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   //  原始数据表格数据
   tableTdArr = data[0].datapoints.map(set => [
     {
-      value: moment(set[1]).format('YYYY-MM-DD HH:mm:ss'),
+      value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ss'),
       originValue: set[1]
     }
   ]);
@@ -382,7 +382,7 @@ export function handleAddStrategy(
     const [startTime, endTime] = handleTransformToTimestamp(timeRange as any);
     const interval = reviewInterval(
       scopedVars.interval!,
-      moment(endTime).unix() - moment(startTime).unix(),
+      dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
       panel.collect_interval
     );
     const variablesService = new VariablesService({ ...scopedVars, interval });

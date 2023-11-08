@@ -62,6 +62,7 @@ interface IBkInfoProps {
   subTitle: unknown;
   width: string | number;
   type: string;
+  timezone: string;
   confirmLoading: boolean;
   subHeader?: any;
   maskClose?: boolean;

@@ -25,8 +25,8 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import dayjs from 'dayjs';
 import { EChartOption } from 'echarts';
-import moment from 'moment';
 
 import 'echarts/map/js/china.js';
 
@@ -114,8 +114,8 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
       let legend = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       const interval = reviewInterval(
         this.viewOptions.interval,
