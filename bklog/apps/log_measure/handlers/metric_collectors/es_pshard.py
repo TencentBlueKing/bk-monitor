@@ -30,7 +30,7 @@ class EsPShard:
     @register_metric(
         "es_monitor", description=_("es 索引集信息"), data_name="pshard_stats", time_filter=TimeFilterEnum.MINUTE2
     )
-    def elastic_indices():
+    def elastic_pshard_stats():
         """
         elastic indices
         @return:

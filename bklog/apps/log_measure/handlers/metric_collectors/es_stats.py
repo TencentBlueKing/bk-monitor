@@ -868,11 +868,12 @@ def query(cluster_id):
     return get
 
 
-def process_metric(data, metric, path, xform=None, dimensions=None):
+def process_metric(data, metric, xtype, path, xform=None, dimensions=None):
     """
     process_metric
     @param data:
     @param metric:
+    @param xtype:
     @param path:
     @param xform:
     @param dimensions:
@@ -909,6 +910,7 @@ def process_stats_data(metrics, get, version, base_dimensions):
     @return:
     """
     data = get(get_url(version)["stats_url"])
+    print(data)
     if not data:
         return
     base_dimensions["elastic_name"] = data["cluster_name"]
@@ -1123,6 +1125,8 @@ def get_es_metrics(metric_type):
                 method(metrics, get_func, version, base_dimensions)
         except Exception as e:  # pylint:disable=broad-except
             logger.exception(f"[{metric_type}] failed get es info {e}")
+
+    return metrics
 
 
 class EsStats:

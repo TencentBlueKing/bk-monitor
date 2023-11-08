@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
+
 import importlib
-import time
 import logging
+import time
+
 import arrow
 
+from apps.log_measure.utils.metric import build_metric_id
 from bk_monitor.utils.metric import REGISTERED_METRICS
 
 logger = logging.getLogger("bk_monitor")
@@ -40,9 +43,12 @@ class MetricCollector(object):
                         "data_name": metric_method["data_name"],
                     }
                 )
+                metric_id = build_metric_id(
+                    metric_method["namespace"], metric_method["data_name"], metric_method["prefix"]
+                )
                 logger.info(
                     "[statistics_data] collect metric->[{}] took {} ms".format(
-                        metric_method["namespace"], int((time.time() - begin_time) * 1000)
+                        metric_id, int((time.time() - begin_time) * 1000)
                     ),
                 )
             except Exception as e:  # pylint: disable=broad-except
