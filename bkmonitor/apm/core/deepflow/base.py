@@ -77,7 +77,7 @@ class DeepFlowHandler:
         字符串时间 --> 时间戳, 单位 us
         """
         datetime_obj = datetime.strptime(str_time, "%Y-%m-%d %H:%M:%S.%f")
-        return int(datetime_obj.timestamp() * 1e6)
+        return int(datetime_obj.timestamp() * 1000 * 1000)
 
     @classmethod
     def response_status_to_span_status_message(cls, status: int):
@@ -466,7 +466,7 @@ class DeepFlowHandler:
         status["message"] = cls.response_status_to_span_status_message(item.get("response_status"))
 
         cls.put_value_map(span_attrs, "df.span.endpoint", item.get("endpoint"))
-        cls.put_value_map(span_attrs, "df.span.type", item.get("type"))
+        cls.put_value_map(span_attrs, "df.span.type", item.get("Enum(type)"))
 
         # 数据补充
         if not span_resource.get("service.name"):
