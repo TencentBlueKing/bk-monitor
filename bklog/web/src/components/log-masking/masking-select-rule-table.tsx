@@ -34,7 +34,6 @@ import {
   TableColumn,
   Input,
   Button,
-  Alert,
   Checkbox,
 } from 'bk-magic-vue';
 import './masking-select-rule-table.scss';
@@ -430,35 +429,6 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     };
     return (
       <div class="masking-select-rule-table">
-        <Alert type="info" class="top-alert">
-          <div slot="title">
-            {
-              this.isSyncSelect
-                ? <span>{this.$t('蓝底选项为系统已匹配选项。当前字段格式支持单选;')}</span>
-                : <div style="line-height: 16px;">
-                    <span>{this.$t('蓝底选项为系统已匹配选项。当前字段格式支持多选;')}</span><br/>
-                    <i18n path="选择多条规则时，系统按顺序依次执行规则后输出结果。可通过规则前方{0}调整规则执行顺序。">
-                      <span>
-                        " <i class="bk-icon bk-tag-icon bk-icon icon-grag-fill"></i> "
-                      </span>
-                    </i18n><br/>
-                    <span style="color: #3a84ff;" v-bk-tooltips={{
-                      content: this.orderTipsRef,
-                      placement: 'bottom',
-                      theme: 'light',
-                    }}>{this.$t('为什么要调整顺序?')}</span>
-                    <div v-show={false}>
-                      <div ref="orderTips">
-                        <span>{this.$t('目标值: 12345678912。选中规则 \\d{3}-> 替换替换为***，\\d{9}-> 掩码保留前2位后2位。')}</span><br/>
-                        <span>{this.$t('先执行\\d{3}，后执行\\d{9}，输出结果为 *********12')}</span><br/>
-                        <span>{this.$t('先执行\\d{9}，后执行\\d{3}，输出结果为 12*****8912')}</span>
-                      </div>
-                    </div>
-                  </div>
-            }
-          </div>
-        </Alert>
-
         <div class="input-box">
           <Button
             outline
