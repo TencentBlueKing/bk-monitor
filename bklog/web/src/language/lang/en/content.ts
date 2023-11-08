@@ -496,7 +496,6 @@ export default {
   "确认{n}该规则？": "Confirm {n} this rule?",
   "保留前{0}位, 后{1}位": "Keep the first {0} digits and the last {1} digits",
   "当前脱敏规则被应用{n}次，如停用/删除，将无法选用该规则，请确认是否{v}。": "The current desensitization rule has been applied {n} times. If it is stopped/deleted, this rule will not be available. Please confirm whether to {v}.",
-  "系统已置顶匹配规则，您也可选择其他规则。若无所需脱敏规则，可直接 {0}": "The system has set the top matching rule, and you can also choose other rules. If there is no required desensitization rule, you can directly {0}",
   "已同步 {0} 个脱敏结果": "Synchronized {0} desensitization results",
   "当前脱敏规则被应用{n}次，修改规则后，现有脱敏配置需同步后生效，请确认是否保存编辑。": "The current desensitization rule has been applied {n} times. After modifying the rule, the existing desensitization configuration needs to be synchronized to take effect. Please confirm whether to save the edit.",
   "当前规则【{n}】已进行了变更，同步该规则可能会导致命中结果变更，请确认是否需要同步该变更或忽略，也可重新选择规则": "The current rule [{n}] has been changed. Synchronizing this rule may cause changes in the hit results. Please confirm whether to synchronize the change or ignore it, or you can choose a new rule.",
@@ -544,5 +543,12 @@ export default {
   "，可通过 ${phone} 进行引用":", which can be referenced through ${phone}",
   "暂无采样日志": "No sampling log",
   "正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…": "The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...",
-  "脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。": "The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results."
+  "脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。": "The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.",
+  "选择多条规则时，系统按顺序依次执行规则后输出结果。可通过规则前方{0}调整规则执行顺序。": "When multiple rules are selected, the system executes the rules in sequence and outputs the results. The order of rule execution can be adjusted by {0} in front of the rule.",
+  "蓝底选项为系统已匹配选项。当前字段格式支持单选;": "Options with a blue background are options that have been matched by the system. The current field format supports single selection;",
+  "蓝底选项为系统已匹配选项。当前字段格式支持多选;": "Options with a blue background are options that have been matched by the system. The current field format supports multiple selection;",
+  "为什么要调整顺序?": "Why adjust the order ?",
+  "目标值: 12345678912。选中规则 \\d{3}-> 替换替换为***，\\d{9}-> 掩码保留前2位后2位。": "Target value: 12345678912. Select the rule \\d{3}-> Replace with ***, \\d{9}-> Keep the first 2 digits and the last 2 digits in the mask.",
+  "先执行\\d{3}，后执行\\d{9}，输出结果为 *********12": "Execute \\d{3} first, then \\d{9}, and the output result is *********12",
+  "先执行\\d{9}，后执行\\d{3}，输出结果为 12*****8912": "Execute \\d{9} first, then \\d{3}, and the output result is 12*****8912"
 }

@@ -9,6 +9,10 @@
     .bk-button-text {
       font-size: 12px;
     }
+
+    .icon-info {
+      @include flex-align(center);
+    }
   }
 
   .rule-name-box {
@@ -35,8 +39,34 @@
     }
   }
 
-  .search-input {
+  .input-box {
     margin: 16px 0;
+
+    @include flex-justify(space-between);
+
+    .new-rule-btn {
+      padding: 0 12px;
+      margin-left: 0;
+    }
+
+    .right-box {
+      @include flex-center();
+
+      .search-input {
+        width: 240px;
+      }
+
+      .refresh-btn {
+        min-width: auto;
+        width: 32px;
+        padding: 0;
+      }
+
+      .bk-icon {
+        font-size: 18px;
+        top: 0;
+      }
+    }
   }
 
   .bk-page-selection-count {
