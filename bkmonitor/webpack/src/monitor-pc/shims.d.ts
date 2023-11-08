@@ -116,6 +116,7 @@ declare global {
     };
     host_data_fields: string[];
     bkchat_manage_url: string;
+    timezone: string;
     show_realtime_strategy: boolean;
   }
   namespace VueTsxSupport.JSX {

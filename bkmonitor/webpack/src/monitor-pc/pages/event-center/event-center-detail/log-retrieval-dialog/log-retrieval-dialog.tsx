@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, DatePicker, Dialog, Form, FormItem, Input, Option, Select } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { isEn } from '../../../../i18n/i18n';
 
@@ -119,8 +119,8 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
     this.refForm.validate().then(
       () => {
         // 验证成功
-        const startTime = encodeURIComponent(moment(this.data.time[0]).format('YYYY-MM-DD HH:mm:ss'));
-        const endTime = encodeURIComponent(moment(this.data.time[1]).format('YYYY-MM-DD HH:mm:ss'));
+        const startTime = encodeURIComponent(dayjs.tz(this.data.time[0]).format('YYYY-MM-DD HH:mm:ss'));
+        const endTime = encodeURIComponent(dayjs.tz(this.data.time[1]).format('YYYY-MM-DD HH:mm:ss'));
         const host = window.bk_log_search_url || window.bklogsearch_host;
         const url = `${host}#/retrieve/${this.data.indexSet}?bizId=${
           this.bizId || this.$store.getters.bizId

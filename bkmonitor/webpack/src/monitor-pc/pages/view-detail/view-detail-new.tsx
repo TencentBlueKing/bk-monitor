@@ -40,6 +40,7 @@ import SortButton from '../../components/sort-button/sort-button';
 import TimeRange, { TimeRangeType } from '../../components/time-range/time-range';
 // import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { updateTimezone } from '../../i18n/dayjs';
 import { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
 import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
@@ -70,6 +71,8 @@ export default class ViewDetailNew extends tsc<IProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 刷新间隔
   @ProvideReactive('refleshInterval') refleshInterval = -1;
+  // 时区
+  @ProvideReactive('timezone') timezone = window.timezone;
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -120,6 +123,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   rightShow = true;
   compareTypeList = ['none', 'time', 'metric'];
   cacheTimeRange = [];
+  defaultTimezone = '';
   created() {
     this.compareTypeList = [
       'none',
@@ -141,11 +145,15 @@ export default class ViewDetailNew extends tsc<IProps> {
   }
 
   handleBackStep() {
+    updateTimezone(this.defaultTimezone);
     this.$emit('close-modal');
   }
 
   handleTimeRangeChange(val: TimeRangeType) {
     this.timeRange = [...val];
+  }
+  handleTimezoneChange(timezone: string) {
+    this.timezone = timezone;
   }
 
   handleRefleshChange(val) {
@@ -166,6 +174,8 @@ export default class ViewDetailNew extends tsc<IProps> {
     }
     this.timeRange = tools.timeRange || DEFAULT_TIME_RANGE;
     this.refleshInterval = tools.refleshInterval || -1;
+    this.defaultTimezone = window.timezone;
+    this.timezone = tools.timezome || window.timezone;
     const { targets } = data.config;
     this.queryconfig = deepClone(targets);
     const str = 'ABCDEFGHIJKLNMOPQRSTUVWXYZ';
@@ -469,7 +479,9 @@ export default class ViewDetailNew extends tsc<IProps> {
                         <TimeRange
                           class='dashboard-tools-timerange'
                           value={this.timeRange}
+                          timezone={this.timezone}
                           onChange={this.handleTimeRangeChange}
+                          onTimezoneChange={this.handleTimezoneChange}
                         />
                       )}
                       <MonitorDropdown
