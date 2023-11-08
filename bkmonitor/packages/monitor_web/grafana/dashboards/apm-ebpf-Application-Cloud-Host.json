@@ -29,31 +29,6 @@
         "type": "deepflowio-deepflow-datasource",
         "uid": "${DS_DeepFlow_-_uid}"
       },
-      "gridPos": {
-        "h": 3,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 13,
-      "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "[English doc](https://deepflow.io/docs/features/universal-map/application-metrics/?from=deepflow_grafana) | [中文文档](https://deepflow.io/docs/zh/features/universal-map/application-metrics/?from=deepflow_grafana) ",
-        "mode": "markdown"
-      },
-      "pluginVersion": "9.2.5",
-      "title": "Help doc",
-      "type": "text"
-    },
-    {
-      "datasource": {
-        "type": "deepflowio-deepflow-datasource",
-        "uid": "${DS_DeepFlow_-_uid}"
-      },
       "fieldConfig": {
         "defaults": {
           "color": {
