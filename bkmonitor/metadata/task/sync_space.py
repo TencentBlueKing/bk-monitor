@@ -601,7 +601,9 @@ def refresh_not_biz_space_data_source():
     logger.info("refresh not biz space data source successfully")
 
 
-def push_and_publish_space_router(space_type: Optional[str] = None, space_id: Optional[str] = None, is_publish: Optional[bool] = True):
+def push_and_publish_space_router(
+    space_type: Optional[str] = None, space_id: Optional[str] = None, is_publish: Optional[bool] = True
+):
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
     from metadata.models.space.ds_rt import get_space_table_id_data_id

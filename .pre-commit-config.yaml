@@ -37,7 +37,7 @@ repos:
       # 执行 preci 流水线
       - id: check-pre-ci-pipeline
         name: check pre ci pipeline
-        entry: python scripts/pre-commit/pre-push.py
+        entry: python3 scripts/pre-commit/pre-push.py
         language: system
         stages: [ push ]
         verbose: true
