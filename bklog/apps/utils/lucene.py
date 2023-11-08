@@ -1,7 +1,15 @@
+import copy
 import re
 from collections import Counter, deque
 from dataclasses import asdict, dataclass
 from typing import List
+
+from django.utils.translation import ugettext_lazy as _
+from luqum.auto_head_tail import auto_head_tail
+from luqum.exceptions import IllegalCharacterError, ParseSyntaxError
+from luqum.parser import lexer, parser
+from luqum.utils import UnknownOperationResolver
+from luqum.visitor import TreeTransformer
 
 from apps.constants import (
     BRACKET_DICT,
@@ -20,12 +28,6 @@ from apps.constants import (
 from apps.exceptions import UnknownLuceneOperatorException
 from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_search.constants import DEFAULT_BK_CLOUD_ID, OperatorEnum
-from django.utils.translation import ugettext_lazy as _
-from luqum.auto_head_tail import auto_head_tail
-from luqum.exceptions import IllegalCharacterError, ParseSyntaxError
-from luqum.parser import lexer, parser
-from luqum.utils import UnknownOperationResolver
-from luqum.visitor import TreeTransformer
 
 
 def get_node_lucene_syntax(node):
@@ -312,7 +314,7 @@ class BaseInspector(object):
         elif pos >= len(self.keyword) - 1:
             self.keyword = self.keyword[:-1] + char
         else:
-            self.keyword = self.keyword[:pos] + char + self.keyword[pos + 1:]
+            self.keyword = self.keyword[:pos] + char + self.keyword[pos + 1 :]
 
 
 class ChinesePunctuationInspector(BaseInspector):
@@ -643,3 +645,108 @@ def generate_query_string(params: dict) -> str:
 
         query_string += " AND (" + " AND ".join(str_additions) + ")"
     return query_string
+
+
+class EnhanceLucene(object):
+    """
+    增强Lucene语法
+    """
+
+    RE = ""
+
+    def __init__(self, query_string: str = ""):
+        self.query_string = query_string
+
+    def match(self) -> bool:
+        raise NotImplementedError
+
+    def transform(self) -> str:
+        raise NotImplementedError
+
+
+class CaseInsensitiveLogicalEnhanceLucene(EnhanceLucene):
+    """
+    不区分大小写的逻辑运算符
+    例如: A and B => A AND B
+    """
+
+    RE = r'\b(and|or|not)\b'
+
+    def __init__(self, query_string: str):
+        super().__init__(query_string)
+
+    def match(self) -> bool:
+        pattern = re.compile(self.RE, re.IGNORECASE)
+        split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
+        for part in split_strings:
+            if ':' not in part and re.search(pattern, part):
+                return True
+        return False
+
+    def transform(self) -> str:
+        if not self.match():
+            return self.query_string
+        pattern = re.compile(self.RE, re.IGNORECASE)
+        split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
+        for i, part in enumerate(split_strings):
+            if ':' not in part:
+                split_strings[i] = pattern.sub(lambda m: m.group().upper(), part)
+        return ''.join(split_strings)
+
+
+class OperatorEnhanceLucene(EnhanceLucene):
+    """
+    兼容用户忘记运算符之前输入:的情况
+    例如: A > 3 => A : > 3
+    """
+
+    RE = r'(?<=[a-zA-Z0-9_])\s*(>=|<=|>|<|=|!=)\s*([\d.]+)'
+
+    def __init__(self, query_string: str):
+        super().__init__(query_string)
+
+    def match(self):
+        if re.search(self.RE, self.query_string):
+            return True
+        return False
+
+    def transform(self) -> str:
+        if not self.match():
+            return self.query_string
+        return re.sub(self.RE, r': \1 \2', self.query_string)
+
+
+class ReservedLogicalEnhanceLucene(EnhanceLucene):
+    """
+    将内置的逻辑运算符转换为带引号的形式, 兼容用户真的想查询这些词的情况
+    例如: A: AND => A: "AND"
+    """
+
+    RE = r'(?<![a-zA-Z0-9_])(and|or|not|AND|OR|NOT)(?![a-zA-Z0-9_])'
+
+    def match(self):
+        matches = list(re.finditer(self.RE, self.query_string))
+        if matches:
+            return True
+        return False
+
+    def transform(self) -> str:
+        if not self.match():
+            return self.query_string
+        query_string = copy.deepcopy(self.query_string)
+        matches = list(re.finditer(self.RE, self.query_string))
+        offset = 0
+        for match in matches:
+            start, end = match.span()
+            operator = match.group()
+
+            # 检查逻辑运算符前面是否有冒号
+            colon_index = query_string.rfind(':', 0, start + offset)
+            if colon_index != -1:
+                # 如果找到冒号，检查冒号后面是否有空白字符和逻辑运算符
+                post_colon = query_string[colon_index + 1 : start + offset].strip()
+                if post_colon == "":
+                    # 将逻辑运算符替换为带引号的形式，保留原始大小写
+                    query_string = query_string[: start + offset] + f'"{operator}"' + query_string[end + offset :]
+                    offset += 2
+        return query_string
