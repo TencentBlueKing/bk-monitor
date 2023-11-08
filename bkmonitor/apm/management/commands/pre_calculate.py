@@ -31,6 +31,7 @@ class Command(BaseCommand):
         选择应用进行新版预计算灰度
         用法:
         manage.py set_ebpf_config add 2 触发应用ID为2的应用进行新版预计算 旧版预计算将会忽略此应用
+        TODO 支持指定队列
         """
         params = options.get("params")
 
