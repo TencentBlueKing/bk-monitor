@@ -23,7 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+<<<<<<< HEAD
 import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
+=======
+>>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
 import dayjs from 'dayjs';
 
 import { TimeRangeType } from './time-range';
