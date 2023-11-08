@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
@@ -33,6 +33,7 @@ import './rotation-preview.scss';
 
 interface IProps {
   value?: any;
+  onStartTimeChange?: (v: string) => void;
 }
 
 @Component
@@ -112,6 +113,11 @@ export default class RotationPreview extends tsc<IProps> {
     });
     this.popoverInstance?.show(100);
   }
+  @Emit('startTimeChange')
+  handleStartTimeChange() {
+    const startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
+    return startTime;
+  }
   /**
    * @description 上一个周期
    */
@@ -123,6 +129,7 @@ export default class RotationPreview extends tsc<IProps> {
       ...this.dutyData,
       dates: getCalendarOfNum(7, preDay)
     });
+    this.handleStartTimeChange();
   }
   /**
    * @description 下一个周期
@@ -134,6 +141,7 @@ export default class RotationPreview extends tsc<IProps> {
       ...this.dutyData,
       dates: getCalendarOfNum(7, preDay)
     });
+    this.handleStartTimeChange();
   }
   /**
    * @description 显示排班明细和轮值历史

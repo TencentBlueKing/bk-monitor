@@ -73,7 +73,10 @@ export default class RotationConfig extends tsc<IProps> {
   /* 轮值规则按钮的loading */
   dutyLoading = false;
   cacheDutyList = '[]';
+  /* 预览数据 */
   previewData = [];
+  /* 预览loading */
+  previewLoading = false;
   draggedIndex = -1;
   droppedIndex = -1;
   needDrag = false;
@@ -144,6 +147,7 @@ export default class RotationConfig extends tsc<IProps> {
       }
     });
     this.dutyList = dutyList;
+    this.getPreviewData();
   }
 
   async getPreviewData() {
@@ -162,7 +166,27 @@ export default class RotationConfig extends tsc<IProps> {
       }
     };
     this.handleDutyChange();
+    this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewLoading = false;
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
+  }
+  /**
+   * @description 周期切换
+   * @param startTime
+   */
+  async handleStartTimeChange(startTime) {
+    const params = {
+      source_type: 'API',
+      days: 7,
+      begin_time: startTime,
+      config: {
+        duty_rules: this.dutyList.map(d => d.id)
+      }
+    };
+    this.previewLoading = true;
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewLoading = false;
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
 
@@ -398,7 +422,9 @@ export default class RotationConfig extends tsc<IProps> {
         </div>
         <RotationPreview
           class='mt-12'
+          v-bkloading={{ isLoading: this.previewLoading }}
           value={this.previewData}
+          onStartTimeChange={this.handleStartTimeChange}
         ></RotationPreview>
         <div
           class='expan-btn mb-6'
