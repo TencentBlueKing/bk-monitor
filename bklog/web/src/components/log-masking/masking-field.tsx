@@ -1178,6 +1178,19 @@ export default class MaskingField extends tsc<IProps> {
     return output;
   }
 
+  handleHoverRow(fieldName: string) {
+    setTimeout(() => {
+      this.hoverFieldName = fieldName;
+    }, 50);
+  }
+
+
+  handleLeaveRow() {
+    setTimeout(() => {
+      this.hoverFieldName = '';
+    }, 50);
+  }
+
   render() {
     const fieldSlot = {
       default: ({ row }) => (
@@ -1191,16 +1204,8 @@ export default class MaskingField extends tsc<IProps> {
                 <div
                   class="field"
                   style={this.getFieldItemStyle(item)}
-                  onMouseenter={() => {
-                    setTimeout(() => {
-                      this.hoverFieldName = item.field_name;
-                    }, 50);
-                  }}
-                  onMouseleave={() => {
-                    setTimeout(() => {
-                      this.hoverFieldName = '';
-                    }, 50);
-                  }}>
+                  onMouseenter={() => this.handleHoverRow(item.field_name)}
+                  onMouseleave={() => this.handleLeaveRow()}>
                   <i
                     class={['field-type-icon', this.getFieldIcon(item.field_type) || 'log-icon icon-unkown']}
                     v-bk-tooltips={{
@@ -1283,16 +1288,8 @@ export default class MaskingField extends tsc<IProps> {
               <div
                 class="rule"
                 style={this.getFieldItemStyle(item)}
-                onMouseenter={() => {
-                  setTimeout(() => {
-                    this.hoverFieldName = item.field_name;
-                  }, 50);
-                }}
-                onMouseleave={() => {
-                  setTimeout(() => {
-                    this.hoverFieldName = '';
-                  }, 50);
-                }}>
+                onMouseenter={() => this.handleHoverRow(item.field_name)}
+                onMouseleave={() => this.handleLeaveRow()}>
                   {
                     this.getIsShowAddRuleBtn(item)
                       ? <div>
@@ -1395,16 +1392,8 @@ export default class MaskingField extends tsc<IProps> {
               <div class="preview"
                 style={this.getFieldItemStyle(item)}
                 v-bkloading={{ isLoading: (this.isPreviewLoading && this.previewLoadingField === row.field_name) }}
-                onMouseenter={() => {
-                  setTimeout(() => {
-                    this.hoverFieldName = item.field_name;
-                  }, 50);
-                }}
-                onMouseleave={() => {
-                  setTimeout(() => {
-                    this.hoverFieldName = '';
-                  }, 50);
-                }}>
+                onMouseenter={() => this.handleHoverRow(item.field_name)}
+                onMouseleave={() => this.handleLeaveRow()}>
                 { getSyncNumDom(item) }
                 {
                   !!item.rules.length ? getPreviewDom(item) : <div class="preview-result">{'-'}</div>
