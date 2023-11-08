@@ -35,12 +35,12 @@ import {
   getNotifyConfig
 } from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
-import { getBkchatGroup, previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
+import { getBkchatGroup, previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
 import { random } from '../../../../monitor-common/utils/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-import { retrieveUserGroup } from '../.././../../monitor-api/modules/model';
+import { listDutyRule, retrieveUserGroup } from '../.././../../monitor-api/modules/model';
 import RotationPreview from '../rotation/rotation-preview';
-import { getCalendarOfNum } from '../rotation/utils';
+import { getCalendarOfNum, setPreviewDataOfServer } from '../rotation/utils';
 
 import './alarm-group-detail.scss';
 
@@ -132,7 +132,9 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   receiverList = [];
 
   /* 轮值数据 --- 新 */
-  preivewData = [];
+  previewData = [];
+  previewLoading = false;
+  dutyList = [];
 
   get title() {
     return `${this.$t('告警组详情')} - #${this.id} ${this.formData.name}`;
@@ -227,6 +229,16 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   }
 
   async getPreviewData(list) {
+    const dutyList = [];
+    const allDutyList = (await listDutyRule().catch(() => [])) as any;
+    const sets = new Set(list);
+    allDutyList.forEach(item => {
+      if (sets.has(item.id)) {
+        item.isCheck = true;
+        dutyList.push(item);
+      }
+    });
+    this.dutyList = dutyList;
     const startTime = getCalendarOfNum()[0];
     const beginTime = `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
     const params = {
@@ -237,8 +249,22 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         duty_rules: list
       }
     };
-    const data = await previewDutyRulePlan(params).catch(() => []);
-    this.preivewData = data;
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
+  }
+  async handleStartTimeChange(startTime) {
+    const params = {
+      source_type: 'API',
+      days: 7,
+      begin_time: startTime,
+      config: {
+        duty_rules: this.dutyList.map(d => d.id)
+      }
+    };
+    this.previewLoading = true;
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewLoading = false;
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
 
   /**
@@ -436,7 +462,11 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                     key={this.dutyArrangesKey}
                     dutyPlans={this.dutyPlans}
                   ></DutyArranges> */}
-                      <RotationPreview value={this.preivewData}></RotationPreview>
+                      <RotationPreview
+                        v-bkloading={{ isLoading: this.previewLoading }}
+                        value={this.previewData}
+                        onStartTimeChange={this.handleStartTimeChange}
+                      ></RotationPreview>
                     </div>
                   );
                 }
