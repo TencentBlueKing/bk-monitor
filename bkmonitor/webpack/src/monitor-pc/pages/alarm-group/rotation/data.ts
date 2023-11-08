@@ -48,7 +48,7 @@ export function dutyNoticeConfigToParams(data) {
     personal_notice: {
       enabled: data.needNotice,
       hours_ago: hoursAgo,
-      duty_rules: [data.rotationId]
+      duty_rules: data.rotationId
     }
   };
 }
@@ -82,6 +82,6 @@ export function paramsToDutyNoticeConfig(dutyNotice) {
     needNotice: dutyNotice.personal_notice.enabled,
     startNum: hoursAgo.startNum,
     timeType: hoursAgo.timeType,
-    rotationId: dutyNotice.personal_notice.duty_rules[0]
+    rotationId: dutyNotice.personal_notice.duty_rules
   };
 }

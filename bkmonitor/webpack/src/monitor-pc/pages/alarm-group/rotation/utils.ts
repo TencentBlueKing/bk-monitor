@@ -24,6 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { randomColor } from '../duty-arranges/color';
+
+import { IDutyItem } from './typing';
+
 interface IOverlapTimesItem {
   verticalRange: number[];
   range: {
@@ -208,7 +212,9 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
     }
     return cur;
   }, false as any);
-  return freeTimes.filter(t => t[0] < totalRangeTime[1]).map(t => getDateStrAndRange(t, totalRangeTime));
+  return freeTimes
+    .filter(t => t[0] < totalRangeTime[1] && t[1] - t[0] !== 60000)
+    .map(t => getDateStrAndRange(t, totalRangeTime));
 }
 
 /**
@@ -295,13 +301,15 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
           } else if (tempRange[1] > totalRangeTime[1]) {
             tempRange = [tempRange[0], totalRangeTime[1]];
           }
-          overlapTimes.push({
-            verticalRange: [i, j],
-            range: {
-              ...getDateStrAndRange(tempRange, totalRangeTime),
-              tempRange
-            }
-          });
+          if (tempRange[0] !== tempRange[1]) {
+            overlapTimes.push({
+              verticalRange: [i, j],
+              range: {
+                ...getDateStrAndRange(tempRange, totalRangeTime),
+                tempRange
+              }
+            });
+          }
         }
       });
     }
@@ -396,4 +404,55 @@ export function dutyDataConversion(dutyData: IDutyData) {
   /* 计算重叠区域 */
   dutyDataTemp.overlapTimes = getOverlapTimeRanges(allTimeRanges, totalTimeRange);
   return dutyDataTemp;
+}
+
+interface IDutyPlans {
+  users: {
+    id: string;
+    display_name: string;
+    type: string;
+  }[];
+  user_index?: number;
+  work_times: {
+    start_time: string;
+    end_time: string;
+  }[];
+}
+
+export interface IDutyPreviewParams {
+  rule_id: number | string;
+  duty_plans: IDutyPlans[];
+}
+
+/**
+ * @description 将接口的预览数据转为组件数据
+ * @param params
+ * @param ids
+ */
+export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: IDutyItem[]) {
+  const data = dutyList.map(item => ({
+    id: item.id,
+    name: item.name,
+    data: []
+  }));
+  params.forEach(item => {
+    const id = item.rule_id;
+    const dataItem = data.find(d => d.id === id);
+    item.duty_plans.forEach((plans, pIndex) => {
+      const users = plans.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
+      const userStr = users.map(u => `${u.id}(${u.name})`).join(', ');
+      plans.work_times.forEach(w => {
+        dataItem.data.push({
+          users,
+          color: randomColor(plans.user_index === undefined ? pIndex : plans.user_index),
+          timeRange: [w.start_time, w.end_time],
+          other: {
+            time: '',
+            users: userStr
+          }
+        });
+      });
+    });
+  });
+  return data;
 }

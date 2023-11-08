@@ -178,7 +178,7 @@ export function calendarDataConversion(data: ICalendarData) {
           isStartBorder: rangeStr.isStartBorder,
           other: {
             time: rangeStr.timeStr,
-            users: u.users.map(user => user.name).join(', ')
+            users: u.users.map(user => `${user.id}(${user.name})`).join(', ')
           }
         });
       }
@@ -192,6 +192,7 @@ export function calendarDataConversion(data: ICalendarData) {
 }
 
 interface IDutyPlans {
+  user_index?: number;
   users: {
     id: string;
     display_name: string;
@@ -218,11 +219,10 @@ export function setPreviewDataOfServer(params: IDutyPlans[]) {
     item.work_times.forEach(work => {
       data.push({
         users,
-        color: randomColor(index),
+        color: randomColor(item.user_index === undefined ? index : item.user_index),
         timeRange: [work.start_time, work.end_time]
       });
     });
   });
-  console.log(params, data);
   return data;
 }

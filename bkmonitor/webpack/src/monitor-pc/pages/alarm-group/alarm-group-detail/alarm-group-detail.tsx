@@ -35,12 +35,12 @@ import {
   getNotifyConfig
 } from '../../../../fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
-import { getBkchatGroup } from '../../../../monitor-api/modules/user_groups';
+import { getBkchatGroup, previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
 import { random } from '../../../../monitor-common/utils/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-import { retrieveUserGroup } from '../.././../../monitor-api/modules/model';
-import { dutyDataTransform, IDutyItem } from '../duty-arranges/duty-arranges';
+import { listDutyRule, retrieveUserGroup } from '../.././../../monitor-api/modules/model';
 import RotationPreview from '../rotation/rotation-preview';
+import { getCalendarOfNum, setPreviewDataOfServer } from '../rotation/utils';
 
 import './alarm-group-detail.scss';
 
@@ -118,7 +118,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   noticeWayList = [];
 
   /* 轮值数据 */
-  dutyArranges: IDutyItem[] = [];
+  // dutyArranges: IDutyItem[] = [];
   dutyPlans = [];
   dutyArrangesKey = random(8);
   refreshKey = {
@@ -130,6 +130,11 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   editAllowed = false;
 
   receiverList = [];
+
+  /* 轮值数据 --- 新 */
+  previewData = [];
+  previewLoading = false;
+  dutyList = [];
 
   get title() {
     return `${this.$t('告警组详情')} - #${this.id} ${this.formData.name}`;
@@ -199,8 +204,9 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         this.channels = channels || ['user'];
         const users = [];
         if (needDuty) {
-          this.dutyArranges = dutyDataTransform(data.duty_arranges);
+          // this.dutyArranges = dutyDataTransform(data.duty_arranges);
           this.dutyPlans = data.duty_plans;
+          this.getPreviewData(data.duty_rules);
         } else {
           data.duty_arranges.forEach(item => {
             item.users && users.push(...item.users);
@@ -220,6 +226,45 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         this.refreshKey.actionKey = true;
         this.loading = false;
       });
+  }
+
+  async getPreviewData(list) {
+    const dutyList = [];
+    const allDutyList = (await listDutyRule().catch(() => [])) as any;
+    const sets = new Set(list);
+    allDutyList.forEach(item => {
+      if (sets.has(item.id)) {
+        item.isCheck = true;
+        dutyList.push(item);
+      }
+    });
+    this.dutyList = dutyList;
+    const startTime = getCalendarOfNum()[0];
+    const beginTime = `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
+    const params = {
+      source_type: 'API',
+      days: 7,
+      begin_time: beginTime,
+      config: {
+        duty_rules: list
+      }
+    };
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
+  }
+  async handleStartTimeChange(startTime) {
+    const params = {
+      source_type: 'API',
+      days: 7,
+      begin_time: startTime,
+      config: {
+        duty_rules: this.dutyList.map(d => d.id)
+      }
+    };
+    this.previewLoading = true;
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewLoading = false;
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
 
   /**
@@ -417,7 +462,11 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                     key={this.dutyArrangesKey}
                     dutyPlans={this.dutyPlans}
                   ></DutyArranges> */}
-                      <RotationPreview></RotationPreview>
+                      <RotationPreview
+                        v-bkloading={{ isLoading: this.previewLoading }}
+                        value={this.previewData}
+                        onStartTimeChange={this.handleStartTimeChange}
+                      ></RotationPreview>
                     </div>
                   );
                 }

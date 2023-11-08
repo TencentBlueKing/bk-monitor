@@ -159,7 +159,7 @@ export default defineComponent({
                             class='user-content'
                             style={{ color: data.color }}
                           >
-                            <span>{data.users.map(u => u.id).join(',')}</span>
+                            <span>{data.users.map(u => u.name).join(',')}</span>
                           </div>
                         </div>
                       ) : (

@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Button, Sideslider } from 'bk-magic-vue';
 
 import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
+import { previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
+import { getCalendar, setPreviewDataOfServer } from '../../../../trace/pages/rotation/components/calendar-preview';
 import {
   RotationSelectTextMap,
   RotationSelectTypeEnum,
@@ -57,6 +59,8 @@ export default class RotationDetail extends tsc<IProps> {
   users = [];
   timeList = [];
 
+  previewData = [];
+
   loading = false;
 
   get historyList() {
@@ -72,6 +76,7 @@ export default class RotationDetail extends tsc<IProps> {
   handleShow(v: boolean) {
     if (v) {
       this.getData();
+      this.getPreviewData();
     }
   }
 
@@ -93,6 +98,19 @@ export default class RotationDetail extends tsc<IProps> {
       .finally(() => {
         this.loading = false;
       });
+  }
+
+  async getPreviewData() {
+    const startDate = getCalendar()[0][0];
+    const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
+    const params = {
+      source_type: 'DB',
+      id: this.id,
+      begin_time: beginTime,
+      days: 42
+    };
+    const data = await previewDutyRulePlan(params).catch(() => []);
+    this.previewData = setPreviewDataOfServer(data);
   }
 
   handleToEdit() {
@@ -220,7 +238,7 @@ export default class RotationDetail extends tsc<IProps> {
               this.detailData?.end_time || this.$t('永久')
             }`}</span>
           )}
-          {formItem(this.$t('轮值预览'), <RotationCalendarPreview></RotationCalendarPreview>)}
+          {formItem(this.$t('轮值预览'), <RotationCalendarPreview value={this.previewData}></RotationCalendarPreview>)}
         </div>
       </Sideslider>
     );

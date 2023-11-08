@@ -23,77 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
   calendarDataConversion,
   getCalendar,
-  ICalendarData
+  ICalendarData,
+  ICalendarDataUser
 } from '../../../../trace/pages/rotation/components/calendar-preview';
 
 import './rotation-calendar-preview.scss';
 
-const mockdata = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    timeRange: ['2023-10-4 00:00', '2023-10-4 23:59']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#3A84FF',
-    timeRange: ['2023-10-5 00:00', '2023-10-5 23:59']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    timeRange: ['2023-10-6 00:00', '2023-10-6 23:59']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#3A84FF',
-    timeRange: ['2023-10-7 00:00', '2023-10-8 12:00']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#3A84FF',
-    timeRange: ['2023-10-18 00:00', '2023-10-18 12:00']
-  },
-  {
-    users: [],
-    color: '#FF5656',
-    timeRange: ['2023-10-9 00:00', '2023-10-9 23:59']
-  },
-  {
-    users: [],
-    color: '#FF5656',
-    timeRange: ['2023-10-26 12:00', '2023-10-27 12:59']
-  }
-];
+interface IProps {
+  value?: ICalendarDataUser[];
+}
 
 @Component
-export default class RotationCalendarPreview extends tsc<{}> {
+export default class RotationCalendarPreview extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) value: ICalendarDataUser[];
   @Ref('content') contentRef;
   @Ref('userTip') userTipRef: HTMLDivElement;
 
   curCalendarData: ICalendarData = {
-    users: mockdata,
+    users: [],
     data: getCalendar().map(item => ({
       dates: item,
       data: []
@@ -132,6 +85,12 @@ export default class RotationCalendarPreview extends tsc<{}> {
   }
   mounted() {
     this.observer.observe(this.contentRef);
+  }
+
+  @Watch('value')
+  handleWatchValue(value) {
+    this.curCalendarData.users = value;
+    this.curCalendarData = calendarDataConversion(this.curCalendarData);
   }
 
   async handleMouseenter(e: Event, data) {
@@ -213,7 +172,7 @@ export default class RotationCalendarPreview extends tsc<{}> {
                       class='user-content'
                       style={{ color: data.color }}
                     >
-                      <span>{data.users.map(u => u.id).join(',')}</span>
+                      <span>{data.users.map(u => u.name || u.id).join(',')}</span>
                     </div>
                   </div>
                 ) : (

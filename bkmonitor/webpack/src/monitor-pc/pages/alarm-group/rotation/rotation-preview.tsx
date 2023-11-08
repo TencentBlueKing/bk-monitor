@@ -23,9 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
+
+import { retrieveUserGroup } from '../../../../monitor-api/modules/model';
 
 import { dutyDataConversion, getCalendarOfNum, IDutyData } from './utils';
 
@@ -33,187 +35,43 @@ import './rotation-preview.scss';
 
 interface IProps {
   value?: any;
+  alarmGroupId?: string | number;
+  dutyPlans?: any[];
+  onStartTimeChange?: (v: string) => void;
 }
-
-const mockData1 = [
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-8 12:00', '2023-10-9 12:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-10 08:00', '2023-10-10 18:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 08:00', '2023-10-13 13:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-11 08:00', '2023-10-11 13:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 15:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  }
-];
-const mockData2 = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FFB848',
-    range: [0, 0],
-    timeRange: ['2023-10-7 00:00', '2023-10-7 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-11 00:00', '2023-10-11 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 00:00', '2023-10-13 02:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 19:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  }
-];
-const mockData3 = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    range: [0, 0],
-    timeRange: ['2023-10-13 00:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    range: [0, 0],
-    timeRange: ['2023-10-11 00:00', '2023-10-11 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  }
-];
 
 @Component
 export default class RotationPreview extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) value: any[];
+  @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
+  /* 轮值历史 */
+  @Prop({ default: () => [], type: Array }) dutyPlans: any[];
+
   @Ref('previewContent') previewContentRef: HTMLDivElement;
   @Ref('userTip') userTipRef: HTMLDivElement;
+  /* 是否展示未排班 */
   showNoData = true;
+  /* 是否展开 */
   isExpan = true;
   // 预览数据
   dutyData: IDutyData = {
     dates: getCalendarOfNum(),
-    data: [
-      { id: '1', name: '周末排班', data: mockData1 },
-      { id: '2', name: '业务A排班', data: mockData2 },
-      { id: '3', name: '国庆排班', data: mockData3 }
-    ],
+    data: [],
     freeTimes: [],
     overlapTimes: []
   };
-
+  /* 用户组tip */
   popoverInstance = null;
   popover = {
     users: '',
     time: ''
   };
-
+  /* 容器宽度 */
   containerWidth = 1000;
-
   observer = null;
-
   showDetail = false;
+  /* 当前明细/历史标题 */
+  detailTitle = '';
 
   created() {
     this.dutyData = dutyDataConversion(this.dutyData);
@@ -226,6 +84,14 @@ export default class RotationPreview extends tsc<IProps> {
       });
     });
     this.observer.observe(this.previewContentRef);
+  }
+
+  @Watch('value')
+  handleWatchValue(value) {
+    this.dutyData = dutyDataConversion({
+      ...this.dutyData,
+      data: value
+    });
   }
   /**
    * @description 展开预览
@@ -256,6 +122,11 @@ export default class RotationPreview extends tsc<IProps> {
     });
     this.popoverInstance?.show(100);
   }
+  @Emit('startTimeChange')
+  handleStartTimeChange() {
+    const startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
+    return startTime;
+  }
   /**
    * @description 上一个周期
    */
@@ -267,6 +138,7 @@ export default class RotationPreview extends tsc<IProps> {
       ...this.dutyData,
       dates: getCalendarOfNum(7, preDay)
     });
+    this.handleStartTimeChange();
   }
   /**
    * @description 下一个周期
@@ -278,14 +150,23 @@ export default class RotationPreview extends tsc<IProps> {
       ...this.dutyData,
       dates: getCalendarOfNum(7, preDay)
     });
+    this.handleStartTimeChange();
   }
   /**
    * @description 显示排班明细和轮值历史
    * @param v
    */
-  handleShowDetail(v: boolean) {
-    console.log(v);
+  async handleShowDetail(v: boolean, title, isHistory = false) {
     this.showDetail = v;
+    this.detailTitle = title;
+    if (!v) {
+      return;
+    }
+    if (isHistory) {
+    } else {
+      const data = await retrieveUserGroup(this.alarmGroupId);
+      console.log(data);
+    }
   }
 
   render() {
@@ -310,26 +191,28 @@ export default class RotationPreview extends tsc<IProps> {
             ></Switcher>
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
-          <span
-            class='text-btn mr-24 ml-auto'
-            onClick={(e: Event) => {
-              e.stopPropagation();
-              this.handleShowDetail(true);
-            }}
-          >
-            <span class='icon-monitor icon-mc-detail mr-6'></span>
-            <span>{this.$t('排班明细')}</span>
-          </span>
-          <span
-            class='text-btn'
-            onClick={(e: Event) => {
-              e.stopPropagation();
-              this.handleShowDetail(true);
-            }}
-          >
-            <span class='icon-monitor icon-lishijilu mr-6'></span>
-            <span>{this.$t('轮值历史')}</span>
-          </span>
+          {!!this.alarmGroupId && [
+            <span
+              class='text-btn mr-24 ml-auto'
+              onClick={(e: Event) => {
+                e.stopPropagation();
+                this.handleShowDetail(true, this.$t('排班明细'));
+              }}
+            >
+              <span class='icon-monitor icon-mc-detail mr-6'></span>
+              <span>{this.$t('排班明细')}</span>
+            </span>,
+            <span
+              class='text-btn'
+              onClick={(e: Event) => {
+                e.stopPropagation();
+                this.handleShowDetail(true, this.$t('轮值历史'), true);
+              }}
+            >
+              <span class='icon-monitor icon-lishijilu mr-6'></span>
+              <span>{this.$t('轮值历史')}</span>
+            </span>
+          ]}
         </div>
         <div class={['preview-content', { expan: this.isExpan }]}>
           <div class='preview-content-left'>
@@ -403,7 +286,7 @@ export default class RotationPreview extends tsc<IProps> {
                           class='user-content'
                           style={{ color: duty.color }}
                         >
-                          <span>{duty.users.map(u => u.id).join(',')}</span>
+                          <span>{duty.users.map(u => u.name || u.id).join(',')}</span>
                         </div>
                       </div>
                     ))}
@@ -448,7 +331,7 @@ export default class RotationPreview extends tsc<IProps> {
           transfer={true}
           extCls={'rotation-preview-side'}
           quickClose={true}
-          before-close={() => this.handleShowDetail(false)}
+          before-close={() => this.handleShowDetail(false, '')}
         >
           <div slot='content'>
             <div class='content-item'>
