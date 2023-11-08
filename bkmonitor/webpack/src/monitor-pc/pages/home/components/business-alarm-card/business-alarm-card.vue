@@ -57,7 +57,7 @@
 </template>
 
 <script>
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 // import { graphPoint } from '../../../../../monitor-api/modules/alert_events';
 import { alertGraphQuery } from '../../../../../monitor-api/modules/alert';
@@ -191,8 +191,8 @@ export default {
         ...(this.homeItemBizId ? { bk_biz_id: this.homeItemBizId } : {}),
         id: this.id,
         chart_type: 'main',
-        time_range: `${moment().add(-1, 'day')
-          .format('YYYY-MM-DD HH:mm:ss')} -- ${moment().format('YYYY-MM-DD HH:mm:ss')}`,
+        time_range: `${dayjs.tz().add(-1, 'day')
+          .format('YYYY-MM-DD HH:mm:ss')} -- ${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`,
         functions: [],
         expression: ''
       }, {
@@ -248,16 +248,16 @@ export default {
   padding: 4px 0 20px 0;
 
   &__title {
+    max-width: 208px;
+    padding-left: 6px;
+    margin: 0 0 10px 0;
+    overflow: hidden;
     font-size: 12px;
     color: $defaultFontColor;
-    padding-left: 6px;
-    border-left: 2px solid #a3c5fd;
     text-align: left;
-    margin: 0 0 10px 0;
-    max-width: 208px;
     text-overflow: ellipsis;
-    overflow: hidden;
     white-space: nowrap;
+    border-left: 2px solid #a3c5fd;
 
     @include hover();
   }
@@ -266,18 +266,18 @@ export default {
     min-width: 210px;
     min-height: 37px;
     overflow: auto;
-    background: #fafbfd;
-    text-align: center;
-    line-height: 37px;
     font-weight: bold;
+    line-height: 37px;
+    text-align: center;
+    background: #fafbfd;
 
     .error-content {
       display: block;
       width: 100%;
       max-width: 208px;
       height: 100%;
-      text-overflow: ellipsis;
       overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
 
       @include hover();

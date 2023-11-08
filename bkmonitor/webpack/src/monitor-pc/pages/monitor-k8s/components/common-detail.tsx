@@ -26,7 +26,7 @@
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from '../../../../monitor-api/index';
@@ -435,8 +435,8 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
   timeFormatter(time: ITableItem<'time'>) {
     if (!time) return '--';
     if (typeof time !== 'number') return time;
-    if (time.toString().length < 13) return moment(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-    return moment(time).format('YYYY-MM-DD HH:mm:ss');
+    if (time.toString().length < 13) return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
   }
   // list类型格式化
   listFormatter(item: IDetailItem) {

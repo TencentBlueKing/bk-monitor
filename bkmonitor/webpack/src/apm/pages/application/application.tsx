@@ -28,7 +28,7 @@ import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-prope
 import { Dialog, Spin } from 'bk-magic-vue';
 
 import { random } from '../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
+import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 import CommonAlert from '../../../monitor-pc/pages/monitor-k8s/components/common-alert';
 import CommonNavBar from '../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';

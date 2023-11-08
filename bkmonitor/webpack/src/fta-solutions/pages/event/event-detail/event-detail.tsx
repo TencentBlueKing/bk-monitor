@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { throttle } from 'throttle-debounce';
 
 import { alertDetail, listAlertFeedback, searchAction } from '../../../../monitor-api/modules/alert';
@@ -33,6 +33,7 @@ import { graphTraceQuery } from '../../../../monitor-api/modules/grafana';
 import { checkAllowedByActionIds } from '../../../../monitor-api/modules/iam';
 import { getPluginInfoByResultTable } from '../../../../monitor-api/modules/scene_view';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
+import { updateTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import * as eventAuth from '../../../../monitor-pc/pages/event-center/authority-map';
 import LogRetrievalDialog from '../../../../monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
 import authorityStore from '../../../../monitor-pc/store/modules/authority';
@@ -181,7 +182,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.logRetrieval.isMounted = true;
   }
 
-  beforeDestory() {
+  beforeDestroy() {
+    updateTimezone();
     this.scrollEl?.removeEventListener('scroll', this.throttledScroll);
   }
 
@@ -418,8 +420,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const params: any = {
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
-      start_time: moment(startTime).unix(),
-      end_time: moment(endTime).unix()
+      start_time: dayjs.tz(startTime).unix(),
+      end_time: dayjs.tz(endTime).unix()
     };
     if (graph_panel) {
       const [{ data: queryConfig }] = graph_panel.targets;

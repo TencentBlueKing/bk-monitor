@@ -32,7 +32,7 @@
  */
 import { TranslateResult } from 'vue-i18n';
 
-import { TimeRangeType } from '../../components/time-range/time-range';
+import type { TimeRangeType } from '../../components/time-range/time-range';
 
 export interface IHostData {
   hosts: any[];
