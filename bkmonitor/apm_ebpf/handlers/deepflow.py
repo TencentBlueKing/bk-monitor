@@ -33,7 +33,6 @@ class DeepflowDatasourceInfo:
 
     @property
     def is_valid(self):
-
         if not self.bk_biz_id or not self.name or not self.request_url:
             return False
 
@@ -141,7 +140,6 @@ class DeepflowHandler:
                 continue
 
             for service in services:
-
                 if service.name == DeepflowComp.SERVICE_SERVER:
                     # 从deepflow-server获取RequestUrl
                     port = WorkloadContent.extra_port(service.content, DeepflowComp.SERVICE_SERVER_PORT_QUERY)
@@ -166,9 +164,10 @@ class DeepflowHandler:
         nodes = k8s_client.core_api.list_node()
 
         for node in nodes.items:
-            for addr in node.status.addresses:
-                if addr.type == "InternalIP":
-                    return addr.address
+            if node.status.addresses:
+                for addr in node.status.addresses:
+                    if addr.type == "InternalIP":
+                        return addr.address
 
         return None
 
