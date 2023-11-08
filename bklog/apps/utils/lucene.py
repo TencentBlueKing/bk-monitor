@@ -676,7 +676,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLucene):
         super().__init__(query_string)
 
     def match(self) -> bool:
-        pattern = re.compile(self.RE, re.IGNORECASE)
+        pattern = re.compile(self.RE)
         split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
         for part in split_strings:
             if ':' not in part and re.search(pattern, part):
@@ -686,7 +686,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLucene):
     def transform(self) -> str:
         if not self.match():
             return self.query_string
-        pattern = re.compile(self.RE, re.IGNORECASE)
+        pattern = re.compile(self.RE)
         split_strings = re.split(r'(:\s*\S+\s*)', self.query_string)
         for i, part in enumerate(split_strings):
             if ':' not in part:
@@ -727,7 +727,15 @@ class ReservedLogicalEnhanceLucene(EnhanceLucene):
     def match(self):
         matches = list(re.finditer(self.RE, self.query_string))
         if matches:
-            return True
+            for match in matches:
+                start, end = match.span()
+                # 检查逻辑运算符前面是否有冒号
+                colon_index = self.query_string.rfind(':', 0, start)
+                if colon_index != -1:
+                    # 如果找到冒号，检查冒号后面是否有空白字符和逻辑运算符
+                    post_colon = self.query_string[colon_index + 1 : start].strip()
+                    if post_colon == "":
+                        return True
         return False
 
     def transform(self) -> str:
