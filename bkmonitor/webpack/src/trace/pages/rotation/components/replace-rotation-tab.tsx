@@ -29,7 +29,6 @@ import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
 
 import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
-import draggableIcon from '../../../static/img/draggable.svg';
 import { RotationSelectTypeEnum } from '../typings/common';
 import { randomColor } from '../utils';
 
@@ -641,13 +640,7 @@ export default defineComponent({
                                 class='member-select-prefix'
                                 style={{ 'border-left-color': randomColor(ind) }}
                               >
-                                <div class='draggable-icon-wrap'>
-                                  <img
-                                    class='icon'
-                                    draggable={false}
-                                    src={draggableIcon}
-                                  />
-                                </div>
+                                <span class='icon-monitor icon-mc-tuozhuai'></span>
                               </div>
                             )
                           }}

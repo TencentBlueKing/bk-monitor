@@ -147,19 +147,6 @@
         cursor: pointer;
         border-left: 4px solid transparent;
         transform: translate(-1px, -1px);
-
-        .draggable-icon-wrap {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 14px;
-          height: 14px;
-          border: 1px dashed #c4c6cc;
-
-          .icon {
-            height: 10px;
-          }
-        }
       }
     }
   }
