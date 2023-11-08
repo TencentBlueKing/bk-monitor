@@ -26,6 +26,7 @@
 import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 
+import { updateTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
 
@@ -50,7 +51,9 @@ export default class IndexRetrieval extends Mixins(authorityMixinCreate(authMap)
       vm.dataRetrieval.handleBeforeRouteEnter(to, from);
     });
   }
-
+  beforeDestroy() {
+    updateTimezone();
+  }
   render() {
     return <DataRetrieval ref='dataRetrieval' />;
   }

@@ -528,6 +528,7 @@ export default class DataRetrieval extends tsc<{}> {
   }
 
   beforeDestroy() {
+    updateTimezone();
     window.removeEventListener('message', this.handleMessage, false);
   }
   /** 非路由组件无法触发 BeforeRouteEnter 钩子 在其父组件触发后跳用此方法 */
