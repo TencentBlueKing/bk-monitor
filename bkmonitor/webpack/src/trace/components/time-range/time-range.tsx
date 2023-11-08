@@ -28,6 +28,8 @@ import { defineComponent, PropType } from 'vue';
 import { DatePicker } from '@blueking/date-picker';
 import dayjs from 'dayjs';
 
+import { updateTimezone } from '../../i18n/dayjs';
+
 import { TimeRangeType } from './utils';
 
 import '@blueking/date-picker/dist/vue3-light.css';
@@ -44,17 +46,21 @@ export default defineComponent({
     },
     timezone: {
       type: String,
-      default: dayjs.tz.guess()
+      default: window.timezone
+    },
+    needTimezone: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['update:timezone', 'update:modelValue'],
   setup(_, { emit }) {
-    const handleChange = (value: TimeRangeType) => {
+    const handleChange = (value: any[]) => {
       emit('update:modelValue', value);
     };
     const handleTimezoneChange = (value: string) => {
+      updateTimezone(value);
       emit('update:timezone', value);
-      window.timezone = value || dayjs.tz.guess();
     };
     return {
       handleChange,
@@ -68,6 +74,7 @@ export default defineComponent({
         behavior='simplicity'
         modelValue={this.modelValue}
         timezone={this.timezone}
+        needTimezone={this.needTimezone}
         onUpdate:modelValue={this.handleChange}
         onUpdate:timezone={this.handleTimezoneChange}
       />

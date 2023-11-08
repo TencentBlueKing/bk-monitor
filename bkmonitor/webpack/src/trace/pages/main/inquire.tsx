@@ -26,6 +26,7 @@
 import {
   computed,
   defineComponent,
+  onBeforeUnmount,
   onDeactivated,
   onMounted,
   onUnmounted,
@@ -1122,6 +1123,9 @@ export default defineComponent({
     onMounted(() => {
       state.autoQuery = (localStorage.getItem('bk_monitor_auto_query_enable') || 'true') === 'true';
       checkRouterHasQuery();
+    });
+    onBeforeUnmount(() => {
+      updateTimezone();
     });
     onUnmounted(() => {
       clearInterval(refleshIntervalInstace.value);

@@ -23,33 +23,4 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import dayjs from 'dayjs';
-import en from 'dayjs/locale/en';
-import cn from 'dayjs/locale/zh-cn';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
-import duration from 'dayjs/plugin/duration';
-import localizedFormat from 'dayjs/plugin/localizedFormat';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import tz from 'dayjs/plugin/timezone';
-import utc from 'dayjs/plugin/utc';
-
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
-import { docCookies } from '../../monitor-common/utils/utils';
-
-dayjs.extend(customParseFormat);
-dayjs.extend(localizedFormat);
-dayjs.extend(relativeTime);
-dayjs.extend(tz);
-dayjs.extend(utc);
-dayjs.extend(duration);
-
-const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
-dayjs.locale({
-  ...(currentLang === 'en' ? en : cn),
-  weekStart: 1
-});
-window.timezone = dayjs.tz.guess();
-dayjs.tz.setDefault(window.timezone);
-export const updateTimezone = (tz: string) => {
-  dayjs.tz.setDefault(tz);
-};
+export * from '../../monitor-pc/i18n/dayjs';
