@@ -29,6 +29,8 @@ import { Input, Option, Select, Switcher, TimePicker } from 'bk-magic-vue';
 
 import SimpleDayPick from '../duty-arranges/simple-day-pick';
 
+import { IDutyListItem } from './typing';
+
 import './duty-notice-config.scss';
 
 const typeList = [
@@ -50,7 +52,11 @@ const weekList = [
   { label: window.i18n.t('周日'), value: 7 }
 ];
 
-const initData = () => ({
+/**
+ * @description 默认表单数据
+ * @returns
+ */
+export const initData = () => ({
   isSend: true,
   sendType: 'week',
   week: 1,
@@ -61,20 +67,34 @@ const initData = () => ({
   needNotice: true,
   startNum: 1,
   timeType: 'week',
-  rotationId: 0
+  rotationId: []
 });
 
+interface IProps {
+  renderKey?: string;
+  value?: any;
+  dutyList?: IDutyListItem[];
+  onChange?: (_v) => void;
+}
+
 @Component
-export default class DutyNoticeConfig extends tsc<{}> {
+export default class DutyNoticeConfig extends tsc<IProps> {
   @Prop({ default: '', type: String }) renderKey: string;
   @Prop({ default: () => initData(), type: Object }) value;
+  @Prop({ default: () => [], type: Array }) dutyList: IDutyListItem[];
 
   formData = initData();
 
+  /**
+   * @description 初始化
+   */
   created() {
     this.formData = { ...this.value };
   }
 
+  /**
+   * @description 更新数据
+   */
   @Watch('renderKey')
   handleWatch() {
     this.formData = { ...this.value };
@@ -252,9 +272,29 @@ export default class DutyNoticeConfig extends tsc<{}> {
           <Select
             class='width-305'
             v-model={this.formData.rotationId}
+            multiple
             clearable={false}
+            searchable
             onChange={() => this.handleChange()}
-          ></Select>,
+          >
+            {this.dutyList.map(item => (
+              <Option
+                id={item.id}
+                key={item.id}
+                name={item.name}
+              >
+                <span>{item.name}</span>
+                <span
+                  style={{
+                    'margin-left': '8px',
+                    color: '#c4c6cc'
+                  }}
+                >
+                  {item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')}
+                </span>
+              </Option>
+            ))}
+          </Select>,
           'mt-16'
         )}
       </div>

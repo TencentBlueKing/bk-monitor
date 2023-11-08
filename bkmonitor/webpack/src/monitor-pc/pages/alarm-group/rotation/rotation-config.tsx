@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Checkbox, Input } from 'bk-magic-vue';
 
 import { listDutyRule } from '../../../../monitor-api/modules/model';
 import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
-import { Debounce } from '../../../../monitor-common/utils';
+import { Debounce, random } from '../../../../monitor-common/utils';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 
-import DutyNoticeConfig from './duty-notice-config';
+import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
+import DutyNoticeConfig, { initData as noticeData } from './duty-notice-config';
 import RotationDetail from './rotation-detail';
 import RotationPreview from './rotation-preview';
 import { IDutyItem, IDutyListItem } from './typing';
@@ -49,7 +50,9 @@ interface IProps {
   dutyArranges?: (number | string)[];
   dutyNotice?: any;
   defaultGroupList?: IGroupListItem[];
-  onChange?: (v: any) => void;
+  rendreKey?: string;
+  onNoticeChange?: (_v) => void;
+  onDutyChange?: (v: number[]) => void;
 }
 
 @Component
@@ -69,7 +72,7 @@ export default class RotationConfig extends tsc<IProps> {
   dutyList: IDutyItem[] = [];
   /* 轮值规则按钮的loading */
   dutyLoading = false;
-  cacheDutyList = '';
+  cacheDutyList = '[]';
   previewData = [];
   draggedIndex = -1;
   droppedIndex = -1;
@@ -81,6 +84,9 @@ export default class RotationConfig extends tsc<IProps> {
     id: '',
     show: false
   };
+
+  noticeConfig = noticeData();
+  noticeRenderKey = random(8);
 
   /* 轮值预览下的统计信息 */
   userPreviewList: { name: string; id: string }[] = [];
@@ -116,8 +122,28 @@ export default class RotationConfig extends tsc<IProps> {
         show: true,
         typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
       }));
+      this.setDutyList();
       this.dutyLoading = false;
     }
+  }
+
+  @Watch('rendreKey')
+  handleWatchrRendreKey() {
+    this.setDutyList();
+    this.noticeConfig = paramsToDutyNoticeConfig(this.dutyNotice);
+    this.noticeRenderKey = random(8);
+  }
+
+  setDutyList() {
+    const dutyList = [];
+    const sets = new Set(this.dutyArranges);
+    this.allDutyList.forEach(item => {
+      if (sets.has(item.id)) {
+        item.isCheck = true;
+        dutyList.push(item);
+      }
+    });
+    this.dutyList = dutyList;
   }
 
   async getPreviewData() {
@@ -135,13 +161,24 @@ export default class RotationConfig extends tsc<IProps> {
         duty_rules: this.dutyList.map(d => d.id)
       }
     };
+    this.handleDutyChange();
     const data = await previewUserGroupPlan(params).catch(() => []);
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
 
-  @Emit('change')
-  handleChange() {
-    //
+  @Emit('dutyChange')
+  handleDutyChange() {
+    return this.dutyList.map(item => item.id);
+  }
+  @Emit('noticeChange')
+  handleNoticeChange() {
+    return dutyNoticeConfigToParams(this.noticeConfig);
+  }
+
+  validate() {
+    return new Promise((resolve, _reject) => {
+      resolve(true);
+    });
   }
 
   /**
@@ -297,6 +334,11 @@ export default class RotationConfig extends tsc<IProps> {
     this.detailData.show = true;
   }
 
+  handleNoticeConfigChange(value) {
+    this.noticeConfig = value;
+    this.handleNoticeChange();
+  }
+
   render() {
     return (
       <div class='alarm-group-rotation-config-component'>
@@ -365,7 +407,13 @@ export default class RotationConfig extends tsc<IProps> {
           <span class={['icon-monitor icon-double-up', { expand: !this.showNotice }]}></span>
           <span class='expan-btn-text'>{this.$t('值班通知设置')}</span>
         </div>
-        <DutyNoticeConfig class={{ displaynone: !this.showNotice }}></DutyNoticeConfig>
+        <DutyNoticeConfig
+          class={{ displaynone: !this.showNotice }}
+          value={this.noticeConfig}
+          renderKey={this.noticeRenderKey}
+          dutyList={this.allDutyList}
+          onChange={this.handleNoticeConfigChange}
+        ></DutyNoticeConfig>
         <div class='user-preivew'>
           {this.userGroupData.map(
             item =>

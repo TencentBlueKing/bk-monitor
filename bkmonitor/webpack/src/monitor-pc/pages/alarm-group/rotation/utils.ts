@@ -410,6 +410,7 @@ interface IDutyPlans {
     display_name: string;
     type: string;
   }[];
+  user_index?: number;
   work_times: {
     start_time: string;
     end_time: string;
@@ -441,7 +442,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
       plans.work_times.forEach(w => {
         dataItem.data.push({
           users,
-          color: randomColor(pIndex),
+          color: randomColor(plans.user_index === undefined ? pIndex : plans.user_index),
           timeRange: [w.start_time, w.end_time],
           other: {
             time: '',
