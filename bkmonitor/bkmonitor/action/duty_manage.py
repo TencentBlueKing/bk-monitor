@@ -540,7 +540,12 @@ class GroupDutyRuleManager:
         # step 3 删除掉过期的
         if expired_snaps:
             DutyRuleSnap.objects.filter(id__in=expired_snaps).delete()
-        for rule_snap in DutyRuleSnap.objects.filter(next_plan_time__lte=task_time, enabled=True):
+
+        # 排班的时候提前7天造好数据
+        plan_time = time_tools.str2datetime(task_time) + timedelta(days=7)
+        for rule_snap in DutyRuleSnap.objects.filter(
+            next_plan_time__lte=time_tools.datetime2str(plan_time), enabled=True
+        ):
             self.manage_duty_plan(rule_snap=rule_snap)
 
     def manage_duty_plan(self, rule_snap: DutyRuleSnap):
