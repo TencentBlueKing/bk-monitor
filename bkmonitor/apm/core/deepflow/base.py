@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import time
+from datetime import datetime
 
 from apm.core.deepflow.constants import (
     L7_PROTOCOL_DNS,
@@ -24,6 +25,7 @@ from apm.core.deepflow.constants import (
     L7_PROTOCOL_POSTGRE,
     L7_PROTOCOL_REDIS,
 )
+from apm_web.constants import EbpfTapSideType
 from constants.apm import SpanKind
 
 
@@ -69,6 +71,13 @@ class Span:
 
 
 class DeepFlowHandler:
+    @classmethod
+    def str_time_to_unit_time(cls, str_time: str):
+        """
+        字符串时间 --> 时间戳, 单位 us
+        """
+        datetime_obj = datetime.strptime(str_time, "%Y-%m-%d %H:%M:%S.%f")
+        return int(datetime_obj.timestamp() * 1e6)
 
     @classmethod
     def response_status_to_span_status_message(cls, status: int):
@@ -118,7 +127,7 @@ class DeepFlowHandler:
         if item.get("response_code") is not None:
             span_attrs["df.dns.response_code"] = int(item.get("response_code"))
 
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -139,21 +148,21 @@ class DeepFlowHandler:
         if item.get("response_code") is not None:
             span_attrs["http.status_code"] = int(item.get("response_code"))
 
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
-        if item.get("RequestType") and item.get("RequestResource"):
-            span.span_name = " ".join([item.get("RequestType"), item.get("RequestResource")])
+        if item.get("request_type") and item.get("l7_protocol_str"):
+            span.span_name = " ".join([item.get("l7_protocol_str"), item.get("request_type")])
 
     @classmethod
     def set_dubbo(cls, span: Span, span_attrs: dict, item: dict):
         span_attrs["rpc.system"] = "apache_dubbo"
         cls.put_value_map(span_attrs, "rpc.service", item.get("request_resource"))
         cls.put_value_map(span_attrs, "rpc.method", item.get("request_type"))
-        if item.get("RequestType") and item.get("RequestResource"):
-            span.span_name = "/".join([item.get("RequestResource"), item.get("RequestType")])
+        if item.get("request_type") and item.get("request_resource"):
+            span.span_name = "/".join([item.get("request_resource"), item.get("request_type")])
 
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -177,10 +186,10 @@ class DeepFlowHandler:
         if item.get("request_id") is not None:
             span_attrs["df.global.request_id"] = int(*item.get("request_id"))
 
-        if item.get("RequestType") is not None and item.get("RequestResource") is not None:
-            span.span_name = "/".join([item.get("RequestResource"), item.get("RequestType")])
+        if item.get("request_type") is not None and item.get("request_resource") is not None:
+            span.span_name = "/".join([item.get("request_resource"), item.get("request_type")])
 
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -198,7 +207,7 @@ class DeepFlowHandler:
         if item.get("response_code") is not None:
             span_attrs["df.kafka.response_code"] = item.get("response_code")
 
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -213,7 +222,7 @@ class DeepFlowHandler:
         if item.get("response_code") is not None:
             span_attrs["df.mqtt.response_code"] = item.get("response_code")
 
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -224,7 +233,7 @@ class DeepFlowHandler:
         cls.put_value_map(span_attrs, "db.operation", operation)
         cls.put_value_map(span_attrs, "db.statement", item.get("request_resource"))
         cls.put_value_map(span_attrs, "df.mysql.request_type", item.get("request_type"))
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -237,7 +246,7 @@ class DeepFlowHandler:
         cls.put_value_map(span_attrs, "db.operation", operation)
         cls.put_value_map(span_attrs, "db.statement", item.get("request_resource"))
         cls.put_value_map(span_attrs, "df.postgresql.request_type", item.get("request_type"))
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -248,7 +257,7 @@ class DeepFlowHandler:
         cls.put_value_map(span_attrs, "db.system", "redis")
         cls.put_value_map(span_attrs, "db.operation", item.get("request_type"))
         cls.put_value_map(span_attrs, "db.statement", item.get("request_resource"))
-        if item.get("response_exception") is not None:
+        if item.get("response_exception"):
             span.events.append({"name": item.get("response_exception")})
             span.status["message"] = item.get("response_exception")
 
@@ -285,26 +294,26 @@ class DeepFlowHandler:
     @classmethod
     def tap_side_to_name(cls, tap_side: str):
         switcher = {
-            "c": "Client NIC",
-            "c-nd": "Client K8s Node",
-            "c-hv": "Client VM Hypervisor",
-            "c-gw-hv": "Client-side Gateway Hypervisor",
-            "c-gw": "Client-side Gateway",
-            "local": "Local NIC",
-            "rest": "Other NIC",
-            "s-gw": "Server-side Gateway",
-            "s-gw-hv": "Server-side Gateway Hypervisor",
-            "s-hv": "Server VM Hypervisor",
-            "s-nd": "Server K8s Node",
-            "s": "Server NIC",
-            "c-p": "Client Process",
-            "s-p": "Server Process",
-            "c-app": "Client Application",
-            "s-app": "Server Application",
-            "app": "Application",
+            "c": EbpfTapSideType.CLIENT_NIC,
+            "c-nd": EbpfTapSideType.CLIENT_K8S_NODE,
+            "c-hv": EbpfTapSideType.CLIENT_VM_HYPERVISOR,
+            "c-gw-hv": EbpfTapSideType.CLIENT_SIDE_GATEWAY_HYPERVISOR,
+            "c-gw": EbpfTapSideType.CLIENT_SIDE_GATEWAY,
+            "local": EbpfTapSideType.LOCAL_NIC,
+            "rest": EbpfTapSideType.OTHER_NIC,
+            "s-gw": EbpfTapSideType.SERVER_SIDE_GATEWAY,
+            "s-gw-hv": EbpfTapSideType.SERVER_SIDE_GATEWAY_HYPERVISOR,
+            "s-hv": EbpfTapSideType.SERVER_VM_HYPERVISOR,
+            "s-nd": EbpfTapSideType.SERVER_K8S_NODE,
+            "s": EbpfTapSideType.SERVER_NIC,
+            "c-p": EbpfTapSideType.CLIENT_PROCESS,
+            "s-p": EbpfTapSideType.SERVER_PROCESS,
+            "c-app": EbpfTapSideType.CLIENT_APPLICATION,
+            "s-app": EbpfTapSideType.SERVER_APPLICATION,
+            "app": EbpfTapSideType.APPLICATION,
         }
 
-        return switcher.get(tap_side, tap_side)
+        return switcher.get(tap_side)
 
     @classmethod
     def tap_port_type_to_string(cls, tap_port_type: int):
@@ -329,12 +338,20 @@ class DeepFlowHandler:
         span_attrs = span.attributes
         span_resource = span.resource
         status = span.status
-        span.start_time = item.get("start_time_us")
-        span.end_time = item.get("end_time_us")
         span.trace_id = item.get("trace_id")
         span.span_id = item.get("span_id")
         span.parent_span_id = item.get("parent_span_id")
-        span.elapsed_time = item.get("duration")
+
+        if item.get("start_time"):
+            span.start_time = cls.str_time_to_unit_time(item.get("start_time"))
+
+        if item.get("end_time"):
+            span.end_time = cls.str_time_to_unit_time(item.get("end_time"))
+
+        if item.get("kind"):
+            span.kind = item.get("kind")
+        else:
+            span.kind = cls.tap_side_to_span_kind(item.get("tap_side"))
 
         # attribute
         if item.get("attribute") and isinstance(item.get("attribute"), dict):
@@ -454,5 +471,8 @@ class DeepFlowHandler:
         # 数据补充
         if not span_resource.get("service.name"):
             cls.put_value_map(span_resource, "service.name", "deepflow")
+
+        if span.elapsed_time:
+            span.elapsed_time = span.end_time - span.start_time
 
         return span.span_to_dict()

@@ -50,25 +50,17 @@ class EbpfQuery(EsQueryBuilderMixin):
 
 class DeepFlowQuery:
     @classmethod
-    def query_by_trace_id(cls, span: dict):
+    def get_ebpf(cls, trace_id: str):
+        """
+        获取ebpf数据
+        """
         ebpf_spans = []
-        ebpf_param = {
-            "app_spans": [
-                {
-                    "trace_id": span.get("trace_id"),
-                    "span_id": "",
-                    "parent_span_id": "",
-                    "span_kind": span.get("kind"),
-                    "start_time_us": span.get("start_time"),
-                    "end_time_us": span.get("end_time"),
-                }
-            ]
-        }
+        ebpf_param = {"trace_id": trace_id}
         try:
-            res = api.deepflow.query_tracing_completion_by_external_app_spans(ebpf_param)
-            for item in res.get("DATA", {}).get("tracing", []):
+            res = api.deepflow.query(ebpf_param)
+            for item in res:
                 span_data = DeepFlowHandler.l7_flow_log_to_resource_span(item)
                 ebpf_spans.append(span_data)
         except Exception as e:
-            logging.info("query_by_trace_id, {}".format(e))
+            logging.info("get_ebpf, {}".format(e))
         return ebpf_spans

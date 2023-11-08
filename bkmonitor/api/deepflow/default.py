@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import logging
 import os
 
 import requests
@@ -18,8 +17,6 @@ from six.moves.urllib.parse import urljoin
 
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
-
-logger = logging.getLogger(__name__)
 
 
 class DeepFlowAPIResource(Resource):
@@ -33,7 +30,7 @@ class DeepFlowAPIResource(Resource):
     # 获取deep_flow_app_host and deep_flow_app_port todo
     @classmethod
     def get_deep_flow_base_url(cls):
-        return os.getenv("BK_MONITOR_DEEP_FLOW_URL", "http://172.17.1.140:20418")
+        return os.getenv("BK_MONITOR_DEEPFLOW_SERVER_URL")
 
     def perform_request(self, params):
         base_url = self.get_deep_flow_base_url()
@@ -54,23 +51,38 @@ class DeepFlowAPIResource(Resource):
         return r.json()
 
 
-class QueryTracingCompletionByExternalAppSpansResource(DeepFlowAPIResource):
+class Query(DeepFlowAPIResource):
     """
-    查询数据
+    查询eBPF数据
     """
+
+    SQL = (
+        "SELECT client_port, req_tcp_seq, resp_tcp_seq, l7_protocol, l7_protocol_str, version, Enum(type), "
+        "request_type, request_domain, request_resource, request_id, response_status, response_code, "
+        "response_exception, app_service, app_instance, endpoint, trace_id, span_id, parent_span_id, "
+        "Enum(span_kind) AS kind, http_proxy_client, syscall_trace_id_request, syscall_trace_id_response, "
+        "syscall_thread_0, syscall_thread_1, syscall_cap_seq_0, syscall_cap_seq_1, flow_id, signal_source, "
+        "tap, vtap, nat_source, tap_port, tap_port_name, tap_port_type, tap_side, tap_id, vtap_id, "
+        "toString(start_time) AS start_time, toString(end_time) AS end_time FROM l7_flow_log"
+    )
 
     method = "POST"
-    path = "/v1/stats/querier/tracing-completion-by-external-app-spans/"
+    path = "/v1/query/"
 
     class RequestSerializer(serializers.Serializer):
-        class AppSpanSerializer(serializers.Serializer):
-            trace_id = serializers.CharField(label="TraceID")
-            span_id = serializers.CharField(label="SpanID", allow_blank=True)
-            parent_span_id = serializers.CharField(label="ParentSpanID", allow_blank=True)
-            span_kind = serializers.IntegerField(label="span kind")
-            start_time_us = serializers.IntegerField(label="开始时间")
-            end_time_us = serializers.IntegerField(label="结束时间")
+        trace_id = serializers.CharField(label="TraceID", max_length=255)
 
-        app_spans = serializers.ListSerializer(child=AppSpanSerializer())
-        max_iteration = serializers.IntegerField(label="系统 Span 追踪的深度", required=False, min_value=1)
-        network_delay_us = serializers.IntegerField(label="网络 Span 追踪的时间跨度 ", required=False, min_value=1)
+    @classmethod
+    def build_param(cls, params):
+        sql = cls.SQL + " WHERE trace_id = '{}' ".format(params["trace_id"])
+        return {"db": "flow_log", "sql": sql}
+
+    def perform_request(self, params):
+        query_params = self.build_param(params)
+        response = super().perform_request(query_params)
+        result = response.get("result", {})
+
+        ebpf_data = []
+        for values in result.get("values", []):
+            ebpf_data.append(dict(zip(result.get("columns", []), values)))
+        return ebpf_data

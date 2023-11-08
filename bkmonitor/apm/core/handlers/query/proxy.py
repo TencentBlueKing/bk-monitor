@@ -109,8 +109,8 @@ class QueryProxy:
         spans = self.span_query.query_by_trace_id(trace_id)
 
         # ebpf_spans query and transfer
-        if spans:
-            ebpf_spans = DeepFlowQuery.query_by_trace_id(spans[0])
+        ebpf_spans = DeepFlowQuery.get_ebpf(trace_id)
+        if ebpf_spans:
             spans += ebpf_spans
 
         relation_mapping = {}
