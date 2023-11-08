@@ -569,7 +569,9 @@ class GroupDutyRuleManager:
 
         duty_plans = []
         for duty_plan in duty_manager.get_duty_plan():
-            finished_time = duty_manager.end_time.strftime("%Y-%m-%d %H:%M:%S")
+            duty_end_times = [f'{work_time["end_time"]}:59' for work_time in duty_plan["work_times"]]
+            # 结束时间获取当前有效的排班时间最后一天即可
+            finished_time = max(duty_end_times)
             start_time = duty_manager.begin_time.strftime("%Y-%m-%d %H:%M:%S")
             duty_plans.append(
                 DutyPlan(
