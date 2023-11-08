@@ -101,6 +101,43 @@ def duty_rule_data():
     }
 
 
+@pytest.fixture()
+def weekly_duty_rule_data():
+    yield {
+        "name": "weekly duty rule111",
+        "bk_biz_id": 2,
+        "effective_time": "2023-11-01 00:00:00",
+        "end_time": "",
+        "labels": ["mysql", "redis", "business"],
+        "enabled": True,
+        "category": "handoff",
+        "duty_arranges": [
+            {
+                "duty_time": [
+                    {
+                        "work_type": "weekly",
+                        "work_days": [4, 5, 1, 3],
+                        "work_time_type": "time_range",
+                        "work_time": ["10:00--23:00"],
+                        "period_settings": {},
+                    }
+                ],
+                "duty_users": [
+                    [
+                        {"id": "Alan", "type": "user"},
+                        {"id": "Frances", "type": "user"},
+                        {"id": "Lucile", "type": "user"},
+                    ],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                ],
+                "group_type": "specified",
+                "group_number": 0,
+            }
+        ],
+    }
+
+
 def get_user_group_data():
     return {
         "name": "蓝鲸业务的告警组-新的数据格式告警组",
@@ -969,10 +1006,13 @@ class TestDutyPlan:
         # 原有的排班计划被设置为非激活状态
         assert DutyPlan.objects.filter(user_group_id=duty_group.id, is_effective=0).count() == 15
 
-    def test_generate_duty_plan_task(self, db_setup, duty_rule_data, user_group_data, manager_delay_mock):
+    def test_generate_duty_plan_task(
+        self, db_setup, duty_rule_data, user_group_data, manager_delay_mock, weekly_duty_rule_data
+    ):
         """
         测试一个没有进行过排班的分组
         """
+        # 方案 1 两天一班，一共30班
         dslz = DutyRuleDetailSlz(data=duty_rule_data)
         dslz.is_valid(raise_exception=True)
         dslz.save()
@@ -998,6 +1038,21 @@ class TestDutyPlan:
         assert snap.next_plan_time[:10] == (datetime.datetime.today() + datetime.timedelta(days=30)).strftime(
             "%Y-%m-%d"
         )
+
+        week_slz = DutyRuleDetailSlz(data=weekly_duty_rule_data)
+        week_slz.is_valid(raise_exception=True)
+        week_slz.save()
+
+        user_group.duty_rules.append(week_slz.instance.id)
+        DutyRuleRelation.objects.create(duty_rule_id=week_slz.instance.id, user_group_id=user_group.id)
+        user_group.save()
+
+        managers = generate_duty_plan_task()
+
+        # 此时再进行一次任务的执行
+        manage_group_duty_snap(managers[0])
+        assert DutyRuleSnap.objects.filter(user_group_id=user_group.id).count() == 2
+        assert DutyPlan.objects.filter(user_group_id=user_group.id).count() > 15
 
     def test_create_duty_rule(self, db_setup, duty_group, duty_rule_data):
         """测试多次创建规则"""
