@@ -155,6 +155,7 @@ class SpaceTableIDRedis:
             data_labels = data_labels.filter(data_label__in=data_label_list)
         # 再通过 data_label 过滤到结果表
         rt_dl_qs = models.ResultTable.objects.filter(data_label__in=data_labels).values("table_id", "data_label")
+
         # 组装数据
         rt_dl_map = {}
         for data in rt_dl_qs:
