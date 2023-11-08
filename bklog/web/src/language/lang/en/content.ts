@@ -544,11 +544,4 @@ export default {
   "暂无采样日志": "No sampling log",
   "正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…": "The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...",
   "脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。": "The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.",
-  "选择多条规则时，系统按顺序依次执行规则后输出结果。可通过规则前方{0}调整规则执行顺序。": "When multiple rules are selected, the system executes the rules in sequence and outputs the results. The order of rule execution can be adjusted by {0} in front of the rule.",
-  "蓝底选项为系统已匹配选项。当前字段格式支持单选;": "Options with a blue background are options that have been matched by the system. The current field format supports single selection;",
-  "蓝底选项为系统已匹配选项。当前字段格式支持多选;": "Options with a blue background are options that have been matched by the system. The current field format supports multiple selection;",
-  "为什么要调整顺序?": "Why adjust the order ?",
-  "目标值: 12345678912。选中规则 \\d{3}-> 替换替换为***，\\d{9}-> 掩码保留前2位后2位。": "Target value: 12345678912. Select the rule \\d{3}-> Replace with ***, \\d{9}-> Keep the first 2 digits and the last 2 digits in the mask.",
-  "先执行\\d{3}，后执行\\d{9}，输出结果为 *********12": "Execute \\d{3} first, then \\d{9}, and the output result is *********12",
-  "先执行\\d{9}，后执行\\d{3}，输出结果为 12*****8912": "Execute \\d{9} first, then \\d{3}, and the output result is 12*****8912"
 }

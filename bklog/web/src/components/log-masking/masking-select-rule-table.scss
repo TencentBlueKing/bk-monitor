@@ -3,18 +3,6 @@
 .masking-select-rule-table {
   width: 100%;
 
-  .top-alert {
-    width: 100%;
-
-    .bk-button-text {
-      font-size: 12px;
-    }
-
-    .icon-info {
-      @include flex-align(center);
-    }
-  }
-
   .rule-name-box {
     @include flex-align();
 
@@ -40,7 +28,7 @@
   }
 
   .input-box {
-    margin: 16px 0;
+    margin-bottom: 16px;
 
     @include flex-justify(space-between);
 
