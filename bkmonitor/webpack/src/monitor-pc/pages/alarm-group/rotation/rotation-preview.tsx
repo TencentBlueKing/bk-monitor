@@ -286,7 +286,7 @@ export default class RotationPreview extends tsc<IProps> {
                           class='user-content'
                           style={{ color: duty.color }}
                         >
-                          <span>{duty.users.map(u => u.id).join(',')}</span>
+                          <span>{duty.users.map(u => u.name || u.id).join(',')}</span>
                         </div>
                       </div>
                     ))}

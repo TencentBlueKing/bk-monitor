@@ -178,7 +178,7 @@ export function calendarDataConversion(data: ICalendarData) {
           isStartBorder: rangeStr.isStartBorder,
           other: {
             time: rangeStr.timeStr,
-            users: u.users.map(user => user.name).join(', ')
+            users: u.users.map(user => `${user.id}(${user.name})`).join(', ')
           }
         });
       }

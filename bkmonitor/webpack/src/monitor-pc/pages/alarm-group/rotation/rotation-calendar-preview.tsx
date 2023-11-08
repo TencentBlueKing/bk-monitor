@@ -172,7 +172,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
                       class='user-content'
                       style={{ color: data.color }}
                     >
-                      <span>{data.users.map(u => u.id).join(',')}</span>
+                      <span>{data.users.map(u => u.name || u.id).join(',')}</span>
                     </div>
                   </div>
                 ) : (
