@@ -23,15 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
+import { DateRange } from '@blueking/date-picker/vue2';
 import dayjs from 'dayjs';
 
 import { TimeRangeType } from './time-range';
-import {DateRange} from '@blueking/date-picker/vue2'
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
-
-type TimeType = 'from' | 'to';
 
 type TimestampsType = [number, number];
 
