@@ -218,6 +218,7 @@ export default defineComponent({
      * @description 获取预览数据
      */
     async function getPreviewData(init = false) {
+      if (!validate()) return;
       const startDate = getCalendar()[0][0];
       const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
       if (init) {

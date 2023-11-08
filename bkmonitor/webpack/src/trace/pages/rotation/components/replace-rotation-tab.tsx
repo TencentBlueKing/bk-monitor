@@ -632,7 +632,7 @@ export default defineComponent({
                           v-model={item.value}
                           hasDefaultGroup={true}
                           defaultGroup={this.defaultGroup}
-                          onChange={val => this.handMemberSelectChange(ind, val)}
+                          onSelectEnd={val => this.handMemberSelectChange(ind, val)}
                         >
                           {{
                             prefix: () => (
@@ -680,7 +680,7 @@ export default defineComponent({
                       v-model={this.localValue.users.value[0].value}
                       hasDefaultGroup={true}
                       defaultGroup={this.defaultGroup}
-                      onChange={val => this.handMemberSelectChange(0, val)}
+                      onSelectEnd={val => this.handMemberSelectChange(0, val)}
                     />
                   </FormItem>
                   <FormItem

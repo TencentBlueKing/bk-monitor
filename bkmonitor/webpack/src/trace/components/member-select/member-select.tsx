@@ -23,25 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  computed,
-  defineComponent,
-  nextTick,
-  onMounted,
-  onUnmounted,
-  PropType,
-  reactive,
-  ref,
-  TransitionGroup,
-  watch
-} from 'vue';
+import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { listUsersUser } from '@api/modules/model';
 import { getReceiver } from '@api/modules/notice_group';
 import { Loading, Popover } from 'bkui-vue';
 import { debounce } from 'lodash';
-
-import draggableIcon from '../../static/img/draggable.svg';
 
 import './member-select.scss';
 
@@ -88,7 +75,7 @@ export default defineComponent({
       default: ''
     }
   },
-  emits: ['update:modelValue', 'change'],
+  emits: ['update:modelValue', 'change', 'selectEnd'],
   setup(props, { emit }) {
     const { t } = useI18n();
     // ------------------ 用户数据----------------------
@@ -180,20 +167,6 @@ export default defineComponent({
         return obj;
       });
     }
-    function handleWrapMouseenter() {
-      document.addEventListener('click', handleDocClick);
-    }
-    function handleWrapMouseleave() {
-      if (inputIndex.value > -1) return;
-      document.removeEventListener('click', handleDocClick);
-    }
-    /** 用于清除弹窗和输入框 */
-    function handleDocClick(e: Event) {
-      if (!memberSelectRef.value.contains(e.target as Node) && !popoverWrapRef.value.contains(e.target as Node)) {
-        resetInputPosition(-1);
-        document.removeEventListener('click', handleDocClick);
-      }
-    }
 
     // ----------------标签---------------------
     const tags = reactive<DateItem[]>([]);
@@ -243,13 +216,7 @@ export default defineComponent({
         return [renderUserLogo(tag), <span class='user-name'>{tag?.username}</span>];
       }
       return [
-        <div class='draggable-icon-wrap'>
-          <img
-            class='icon'
-            draggable={false}
-            src={draggableIcon}
-          />
-        </div>,
+        <span class='icon-monitor icon-mc-tuozhuai'></span>,
         <span class='user-name'>{tag?.username}</span>,
         <span
           class='icon-monitor icon-mc-close'
@@ -328,12 +295,13 @@ export default defineComponent({
     function renderInputContent() {
       return (
         <Popover
-          trigger='manual'
+          trigger='click'
           theme='light'
           extCls='member-select-popover component'
           arrow={false}
           placement='bottom-start'
           is-show={popoverShow.value}
+          onAfterHidden={handleAfterHidden}
         >
           {{
             content: () => renderPopoverContent(),
@@ -364,6 +332,11 @@ export default defineComponent({
       }
       return inputValue.value ? userAndGroupList.user : userAndGroupList.group;
     });
+    function handleAfterHidden({ isShow }) {
+      popoverShow.value = isShow;
+      resetInputPosition(-1);
+      emitSelectEnd();
+    }
     /**
      * 选择事件
      * @param item 选择项
@@ -420,13 +393,14 @@ export default defineComponent({
       emit('update:modelValue', tags);
     }
 
+    /** 用户选择操作结束后触发 */
+    function emitSelectEnd() {
+      emit('selectEnd', tags);
+    }
+
     onMounted(() => {
       !props.hasDefaultGroup && getReceiverGroup();
       debounceGetUserList();
-    });
-
-    onUnmounted(() => {
-      document.removeEventListener('click', handleDocClick);
     });
 
     return {
@@ -436,8 +410,6 @@ export default defineComponent({
       memberSelectRef,
       tags,
       handleWrapClick,
-      handleWrapMouseenter,
-      handleWrapMouseleave,
       handleTagClick,
       renderTagItemContent,
       handleDragstart,
@@ -463,8 +435,6 @@ export default defineComponent({
         ref='memberSelectRef'
         class='member-select-component'
         onClick={this.handleWrapClick}
-        onMouseenter={this.handleWrapMouseenter}
-        onMouseleave={this.handleWrapMouseleave}
       >
         <div class='prefix'>{this.$slots.prefix?.()}</div>
         <div class={['member-select-wrapper', `${this.showType}-type`]}>

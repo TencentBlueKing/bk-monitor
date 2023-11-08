@@ -220,7 +220,7 @@ export default defineComponent({
                 v-model={item.users}
                 hasDefaultGroup={true}
                 defaultGroup={this.defaultGroup}
-                onChange={val => this.handleUserChange(val, item)}
+                onSelectEnd={val => this.handleUserChange(val, item)}
               />
             </td>
             {this.localValue.length > 1 && (
