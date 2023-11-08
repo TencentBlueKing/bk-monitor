@@ -21,9 +21,9 @@ the project delivered to anyone in the future.
 import re
 from collections import defaultdict
 
+from django.utils.translation import ugettext as _
 from six import iteritems, itervalues
 
-from django.utils.translation import ugettext as _
 from apps.api import BkLogApi
 from apps.log_measure.constants import RESULT_TABLE_ID_RE
 from apps.log_measure.utils.metric import MetricUtils
@@ -837,8 +837,6 @@ def get_url(version):
     """
     Compute the URLs we need to hit depending on the running ES version
     """
-    pshard_stats_url = "_stats"
-    health_url = "_cluster/health"
 
     if version >= [0, 90, 10]:
         pending_tasks_url = "_cluster/pending_tasks"
@@ -851,7 +849,12 @@ def get_url(version):
         pending_tasks_url = None
         stats_url = "_cluster/nodes/stats?all=true"
 
-    return health_url, stats_url, pshard_stats_url, pending_tasks_url
+    return {
+        "health_url": "_cluster/health",
+        "pshard_stats_url": "_stats",
+        "stats_url": stats_url,
+        "pending_tasks_url": pending_tasks_url,
+    }
 
 
 def query(cluster_id):
@@ -865,12 +868,11 @@ def query(cluster_id):
     return get
 
 
-def process_metric(data, metric, xtype, path, xform=None, dimensions=None):
+def process_metric(data, metric, path, xform=None, dimensions=None):
     """
     process_metric
     @param data:
     @param metric:
-    @param xtype:
     @param path:
     @param xform:
     @param dimensions:
@@ -897,17 +899,16 @@ def process_metric(data, metric, xtype, path, xform=None, dimensions=None):
         )
 
 
-def process_stats_data(metrics, stats_url, get, version, base_dimensions):
+def process_stats_data(metrics, get, version, base_dimensions):
     """
     process_stats_data
     @param metrics:
-    @param stats_url:
     @param get:
     @param version:
     @param base_dimensions:
     @return:
     """
-    data = get(stats_url)
+    data = get(get_url(version)["stats_url"])
     if not data:
         return
     base_dimensions["elastic_name"] = data["cluster_name"]
@@ -928,17 +929,16 @@ def process_stats_data(metrics, stats_url, get, version, base_dimensions):
                 metrics.append(result_metric)
 
 
-def process_pshard_stats_data(metrics, pshard_url, get, version, base_dimensions):
+def process_pshard_stats_data(metrics, get, version, base_dimensions):
     """
     process_pshard_stats_data
     @param metrics:
-    @param pshard_url:
     @param get:
     @param version:
     @param base_dimensions:
     @return:
     """
-    data = get(pshard_url)
+    data = get(get_url(version)["pshard_url"])
     if not data:
         return
     pshard_stats_metrics = pshard_stats_for_version(version)
@@ -960,17 +960,16 @@ def process_pshard_stats_data(metrics, pshard_url, get, version, base_dimensions
                 metrics.append(result_metric)
 
 
-def process_health_data(metrics, health_url, get, version, base_dimensions):
+def process_health_data(metrics, get, version, base_dimensions):
     """
     process_health_data
     @param metrics:
-    @param health_url:
     @param get:
     @param version:
     @param base_dimensions:
     @return:
     """
-    data = get(health_url)
+    data = get(get_url(version)["health_url"])
     if not data:
         return
     cluster_health_metrics = health_stats_for_version(version)
@@ -980,16 +979,16 @@ def process_health_data(metrics, health_url, get, version, base_dimensions):
             metrics.append(result_metric)
 
 
-def process_pending_tasks_data(metrics, pending_tasks_url, get, base_dimensions):
+def process_pending_tasks_data(metrics, get, version, base_dimensions):
     """
     process_pending_tasks_data
     @param metrics:
-    @param pending_tasks_url:
     @param get:
+    @param version:
     @param base_dimensions:
     @return:
     """
-    data = get(pending_tasks_url)
+    data = get(get_url(version)["pending_tasks_url"])
     if not data:
         return
     p_tasks = defaultdict(int)
@@ -1098,34 +1097,41 @@ def process_cat_allocation_data(metrics, get, version, base_dimensions):
                 metrics.append(result_metric)
 
 
-class EsMonitor:
+ES_COLLECT_METHOD_MAP = {
+    "stats": [process_stats_data],
+    "pshard_stats": [process_pshard_stats_data],
+    "indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
+}
+
+
+def get_es_metrics(metric_type):
+    metrics = []
+    for cluster_info in MetricUtils.get_instance().cluster_infos.values():
+        try:
+            version = get_version(cluster_info["cluster_config"]["version"])
+            cluster_id = cluster_info["cluster_config"]["cluster_id"]
+            get_func = query(cluster_id)
+            cluster_name = cluster_info["cluster_config"]["cluster_name"]
+            target_biz_id = cluster_info["cluster_config"]["custom_option"]["bk_biz_id"]
+            base_dimensions = {
+                "cluster_id": cluster_id,
+                "cluster_name": cluster_name,
+                "bk_biz_id": target_biz_id,
+            }
+
+            for method in ES_COLLECT_METHOD_MAP[metric_type]:
+                method(metrics, get_func, version, base_dimensions)
+        except Exception as e:  # pylint:disable=broad-except
+            logger.exception(f"[{metric_type}] failed get es info {e}")
+
+
+class EsStats:
     @staticmethod
-    @register_metric("es_monitor", description=_("es 监控信息"), data_name="es_monitor", time_filter=TimeFilterEnum.MINUTE2)
-    def elastic():
+    @register_metric("es_monitor", description=_("es 监控状态信息"), data_name="stats", time_filter=TimeFilterEnum.MINUTE2)
+    def elastic_stats():
         """
-        elastic
+        elastic_stats
         @return:
         """
-        metrics = []
-        for cluster_info in MetricUtils.get_instance().cluster_infos.values():
-            try:
-                version = get_version(cluster_info["cluster_config"]["version"])
-                cluster_id = cluster_info["cluster_config"]["cluster_id"]
-                get_func = query(cluster_id)
-                cluster_name = cluster_info["cluster_config"]["cluster_name"]
-                target_biz_id = cluster_info["cluster_config"]["custom_option"]["bk_biz_id"]
-                health_url, stats_url, pshard_stats_url, pending_tasks_url = get_url(version)
-                base_dimensions = {
-                    "cluster_id": cluster_id,
-                    "cluster_name": cluster_name,
-                    "bk_biz_id": target_biz_id,
-                }
-                process_stats_data(metrics, stats_url, get_func, version, base_dimensions)
-                process_pshard_stats_data(metrics, pshard_stats_url, get_func, version, base_dimensions)
-                process_health_data(metrics, health_url, get_func, version, base_dimensions)
-                process_pending_tasks_data(metrics, pending_tasks_url, get_func, base_dimensions)
-                get_index_metrics(metrics, get_func, version, base_dimensions)
-                process_cat_allocation_data(metrics, get_func, version, base_dimensions)
-            except Exception as e:  # pylint:disable=broad-except
-                logger.exception("failed get es info {}".format(e))
-        return metrics
+
+        return get_es_metrics("stats")

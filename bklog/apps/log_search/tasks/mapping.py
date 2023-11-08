@@ -19,12 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from celery.schedules import crontab
+from celery.task import periodic_task, task
+
 from apps.exceptions import ApiResultError
 from apps.log_search.constants import BkDataErrorCode
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
-from celery.schedules import crontab
-from celery.task import periodic_task, task
 
 
 @periodic_task(run_every=crontab(minute="*/10"))
@@ -33,13 +34,12 @@ def sync_index_set_mapping_snapshot():
     index_set_list = LogIndexSet.objects.filter(is_active=True)
 
     for index_set in index_set_list:
-        sync_single_index_set_mapping_snapshot.delay(index_set.index_set_id)
+        sync_single_index_set_mapping_snapshot_periodic.delay(index_set.index_set_id)
 
     logger.info(f"[sync_index_set_mapping_snapshot] task publish end, total: {len(index_set_list)}")
 
 
-@task(ignore_result=True)
-def sync_single_index_set_mapping_snapshot(index_set_id=None):  # pylint: disable=function-name-too-long
+def sync_mapping_snapshot_subtask(index_set_id=None):
     try:
         index_set_obj = LogIndexSet.objects.get(index_set_id=index_set_id)
     except LogIndexSet.DoesNotExist:
@@ -62,3 +62,13 @@ def sync_single_index_set_mapping_snapshot(index_set_id=None):  # pylint: disabl
         )
     else:
         logger.info(f"[sync_single_index_set_mapping_snapshot] index_set({index_set_obj.index_set_id}) sync success")
+
+
+@task(ignore_result=True)
+def sync_single_index_set_mapping_snapshot_periodic(index_set_id=None):  # pylint: disable=function-name-too-long
+    sync_mapping_snapshot_subtask(index_set_id)
+
+
+@task(ignore_result=True, queue="high_priority")
+def sync_single_index_set_mapping_snapshot(index_set_id=None):  # pylint: disable=function-name-too-long
+    sync_mapping_snapshot_subtask(index_set_id)
