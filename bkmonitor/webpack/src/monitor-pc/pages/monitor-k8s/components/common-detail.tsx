@@ -27,6 +27,10 @@ import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } fr
 import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+import dayjs from 'dayjs';
+>>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
 =======
 import dayjs from 'dayjs';
 >>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
@@ -412,6 +416,213 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     });
     this.$bkMessage({ theme: 'success', message: msgStr });
   }
+<<<<<<< HEAD
+=======
+  // 常用值格式化
+  commonFormatter(val: IDetailValItem<'string'> | IDetailValItem<'number'>, item: IDetailItem) {
+    const text = `${val ?? ''}`;
+    return (
+      <div class='common-detail-text'>
+        <span
+          class='text'
+          v-bk-overflow-tips
+        >
+          {text || '--'}
+        </span>
+        {item.need_copy && !!text && (
+          <i
+            class='text-copy icon-monitor icon-mc-copy'
+            v-bk-tooltips={{ content: this.$t('复制'), delay: 200, boundary: 'window' }}
+            onClick={() => this.handleCopyText(text)}
+          ></i>
+        )}
+      </div>
+    );
+  }
+  // 时间格式化
+  timeFormatter(time: ITableItem<'time'>) {
+    if (!time) return '--';
+    if (typeof time !== 'number') return time;
+    if (time.toString().length < 13) return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
+  }
+  // list类型格式化
+  listFormatter(item: IDetailItem) {
+    const val = item.value as ITableItem<'list'>;
+    const key = random(10);
+    return (
+      <div id={key}>
+        <Collapse
+          defaultHeight={110} // 超过五条显示展开按钮
+          maxHeight={300}
+          expand={item.isExpand}
+          needCloseButton={false}
+          onExpandChange={val => {
+            item.isExpand = val;
+          }}
+          onOverflow={val => {
+            item.isOverflow = val;
+          }}
+        >
+          <div class='list-type-wrap'>
+            {val.length
+              ? val.map((item, index) => [
+                  <div
+                    v-bk-overflow-tips
+                    key={index}
+                    class='list-type-item'
+                  >
+                    {item}
+                  </div>
+                ])
+              : '--'}
+          </div>
+        </Collapse>
+        {item.isOverflow ? (
+          <span
+            class='expand-btn'
+            onClick={() => {
+              item.isExpand = !item.isExpand;
+            }}
+          >
+            {item.isExpand ? '收起' : '展开'}
+          </span>
+        ) : undefined}
+      </div>
+    );
+  }
+  // tag类型格式化
+  tagFormatter(val: ITableItem<'tag'>) {
+    return <CommonTagList value={val}></CommonTagList>;
+  }
+  // key-value数据
+  kvFormatter(val: ITableItem<'kv'>) {
+    const key = random(10);
+    return (
+      <div
+        class='tag-column'
+        id={key}
+      >
+        {val?.length
+          ? val.map((item, index) => (
+              <div
+                key={index}
+                class='tag-item set-item'
+                v-bk-overflow-tips
+              >
+                <span
+                  class='tag-item-key'
+                  key={`key__${index}`}
+                >
+                  {item.key}
+                </span>
+                &nbsp;:&nbsp;
+                <span
+                  class='tag-item-val'
+                  key={`val__${index}`}
+                >
+                  {item.value}
+                </span>
+              </div>
+            ))
+          : '--'}
+      </div>
+    );
+  }
+  // link格式化
+  linkFormatter(val: ITableItem<'link'>, item: IDetailItem) {
+    return (
+      <div class='common-link-text'>
+        <a
+          class='link-col'
+          v-bk-overflow-tips
+          onClick={() => this.handleLinkClick(val)}
+        >
+          {val.value}
+        </a>
+        {item.need_copy && !!val.value && (
+          <i
+            class='text-copy icon-monitor icon-mc-copy'
+            v-bk-tooltips={{ content: this.$t('复制'), delay: 200, boundary: 'window' }}
+            onClick={() => this.handleCopyText(val.value)}
+          ></i>
+        )}
+      </div>
+    );
+  }
+  // link点击事件
+  handleLinkClick(item: ITableItem<'link'>) {
+    if (!item.url || this.readonly) return;
+    if (item.target === 'self') {
+      const route = this.$router.resolve({
+        path: item.url
+      });
+      if (route.resolved.name === this.$route.name) {
+        location.href = route.href;
+        location.reload();
+      } else {
+        this.$router.push({
+          path: item.url
+        });
+      }
+      return;
+    }
+    if (item.target === 'event') {
+      this.handleLinkToDetail(item);
+    } else {
+      window.open(item.url, random(10));
+    }
+  }
+  @Emit('linkToDetail')
+  handleLinkToDetail(data: ITableItem<'link'>) {
+    return data;
+  }
+  // status格式化
+  statusFormatter(val: ITableItem<'status'>) {
+    return (
+      <CommonStatus
+        type={val.type}
+        text={val.text}
+      />
+    );
+  }
+  // 进度条
+  progressFormatter(val: ITableItem<'progress'>) {
+    return (
+      <div>
+        {<div>{val.label}</div>}
+        <bk-progress
+          class={['common-progress-color', `color-${val.status}`]}
+          showText={false}
+          percent={Number((val.value * 0.01).toFixed(2)) || 0}
+        ></bk-progress>
+      </div>
+    );
+  }
+  handleTransformVal(item: IDetailItem) {
+    if (item.type === undefined || item.type === null) return <div>--</div>;
+    const { value } = item;
+    switch (item.type) {
+      case 'time':
+        return this.timeFormatter(value as ITableItem<'time'>);
+      case 'list':
+        return this.listFormatter(item);
+      case 'tag':
+        return this.tagFormatter(value as ITableItem<'tag'>);
+      case 'kv':
+        return this.kvFormatter(value as ITableItem<'kv'>);
+      case 'link':
+        return this.linkFormatter(value as ITableItem<'link'>, item);
+      case 'status':
+        return this.statusFormatter(value as ITableItem<'status'>);
+      case 'progress':
+        return this.progressFormatter(value as ITableItem<'progress'>);
+      default:
+        return this.commonFormatter(value as IDetailValItem<'string'>, item);
+    }
+  }
+
+>>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
   /**
    * 控制展开、收起索引列表
    */
