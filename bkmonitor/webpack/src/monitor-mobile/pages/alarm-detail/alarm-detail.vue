@@ -108,7 +108,7 @@
 <script lang="ts">
 // eslint-disable
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { Cell, CellGroup, Col, Collapse, CollapseItem, Row } from 'vant';
 
 import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
@@ -291,9 +291,9 @@ export default class AlarmDetail extends Vue {
   async handleGetSeriesData() {
     const data = await EventModule.getChartData({
       event_id: this.id,
-      start_time: moment().add(-1, 'h')
+      start_time: dayjs().add(-1, 'h')
         .unix(),
-      end_time: moment().unix()
+      end_time: dayjs().unix()
     });
     let chartData = [];
     const chartSeries = data?.find(item => item?.metric?.metric_field === 'value');

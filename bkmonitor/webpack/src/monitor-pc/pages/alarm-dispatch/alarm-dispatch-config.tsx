@@ -26,7 +26,7 @@
 import { Component, Inject, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Checkbox, Option, Popconfirm, Select, Switcher } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { listActionConfig, listAssignGroup, listAssignRule, listUserGroup } from '../../../monitor-api/modules/model';
 import { getCookie, random, transformDataKey } from '../../../monitor-common/utils';
@@ -879,7 +879,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
       tdArr.push(row);
     });
     const csvStr = transformTableDataToCsvStr(thArr, tdArr);
-    downCsvFile(csvStr, `${this.ruleGroupData.name}-${moment().format('YYYY-MM-DD HH-mm-ss')}.csv`);
+    downCsvFile(csvStr, `${this.ruleGroupData.name}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.csv`);
   }
 
   /** 导入 */

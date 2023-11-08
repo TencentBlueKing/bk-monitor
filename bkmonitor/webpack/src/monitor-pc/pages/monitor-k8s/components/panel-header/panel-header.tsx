@@ -42,6 +42,7 @@ import './panel-header.scss';
 export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeaderType.IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
   @Prop({ default: -1, type: Number }) refleshInterval: number;
+  @Prop({ type: String }) timezone: string;
   /** 工具栏时间间隔列表 */
   @Prop({ default: () => TIME_RANGE_DEFAULT_LIST }) readonly timeRangeList: OptionsItem[];
   /** 工具栏刷新时间间隔列表 */
@@ -103,6 +104,11 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
     return val;
   }
 
+  @Emit('timezoneChange')
+  handleTimezoneChange(val: string) {
+    return val;
+  }
+
   /** 选择收藏 */
   @Emit('selectFav')
   handleSelectFav(data) {
@@ -147,7 +153,9 @@ export default class PanelHeader extends tsc<PanelHeaderType.IProps, PanelHeader
           )}
           <TimeRange
             value={this.localTimeRange}
+            timezone={this.timezone}
             onChange={this.handleTimeRangeChange}
+            onTimezoneChange={this.handleTimezoneChange}
           />
           {/* <MonitorDateRange
             icon="icon-mc-time-shift"
