@@ -89,8 +89,8 @@ export default defineComponent({
     function handleTimeRangeChange(time: TimeRangeType) {
       emit('timeRangeChange', time);
     }
-    function handleTimezoneChange(time: string) {
-      emit('timezoneChange', time);
+    function handleTimezoneChange(timezone: string) {
+      emit('timezoneChange', timezone);
     }
     return () => (
       <div class='inquire-header-wrap'>
