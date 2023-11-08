@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
 import dayjs from 'dayjs';
 
 import { TimeRangeType } from './time-range';
@@ -189,13 +190,5 @@ export const DEFAULT_TIME_RANGE: TimeRangeType = ['now-1h', 'now'];
 
 /*  */
 export const getTimeDisplay = timeRange => {
-  const shortcutsMap = shortcuts.reduce((map, cur) => {
-    map.set(cur.value.join(' -- '), cur.text);
-    return map;
-  }, new Map());
-  let timeDisplay = timeRange.join(' -- ');
-  if (shortcutsMap.get(timeDisplay)) {
-    timeDisplay = shortcutsMap.get(timeDisplay);
-  }
-  return timeDisplay;
+  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
 };
