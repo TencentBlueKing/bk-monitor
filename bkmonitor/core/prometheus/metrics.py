@@ -35,14 +35,6 @@ def report_all(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollecto
         # 失败不处理，handler已经打了日志了，这里只是为了防止上报过程出现任何异常导致正常逻辑无法走下去
         return
 
-    try:
-        # 发送到旁路网关
-        if settings.HTTP_METRIC_AGG_GATEWAY_URL:
-            push_to_gateway(gateway=settings.HTTP_METRIC_AGG_GATEWAY_URL, job=job, registry=registry)
-    except Exception:
-        logger.exception("Failed to send metrics to PushGateway via HTTP")
-        # 当 TCP 发送失败时继续，不影响正常流程
-
     registry.clear_data()
 
 
