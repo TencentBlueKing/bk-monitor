@@ -60,7 +60,7 @@ class BkMonitorProvisioning(SimpleProvisioning):
         for i in not_created:
             if self.create_default_dashboard(org_id, f"{grafana_default_dashboard_map[i]}.json"):
                 ApplicationConfig.objects.get_or_create(cc_biz_id=org_name, key=i, value="created")
-        logger.info("monitor grafana, {}".format(not_created))
+
         yield from []
 
     @staticmethod
