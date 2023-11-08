@@ -50,7 +50,7 @@ import { random } from '../../../monitor-common/utils/utils';
 import { showAccessRequest } from '../../../monitor-pc/components/access-request-dialog';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
 import SpaceSelect from '../../../monitor-pc/components/space-select/space-select';
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
+import { type TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
 import { updateTimezone } from '../../../monitor-pc/i18n/dayjs';
 import * as eventAuth from '../../../monitor-pc/pages/event-center/authority-map';
@@ -492,6 +492,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
 
   beforeDestroy() {
+    updateTimezone(dayjs.tz.guess());
     this.routeStateKeyList = [];
     window.removeEventListener('popstate', this.handlePopstate);
     const { contentWrap } = this.$refs as any;

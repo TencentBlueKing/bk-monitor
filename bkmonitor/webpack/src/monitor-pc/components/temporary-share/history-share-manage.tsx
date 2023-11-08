@@ -25,8 +25,7 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import type { DateValue } from '@blueking/date-picker';
-import { getDateValueToString } from '@blueking/date-picker/vue2';
+import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
 import { Button, Checkbox, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
@@ -356,17 +355,12 @@ export default class HistoryShareManage extends tsc<IProps> {
     this.handlePopoerHidden();
     const timeRangeItem = row.params_info.find(item => item.name === 'time_range');
     if (timeRangeItem) {
-      let timeRangeStr = '';
-      if (!!timeRangeItem?.default_time_range) {
-        timeRangeStr =
-          this.shortcutsMap.get(timeRangeItem.default_time_range.join(' -- ')) ||
-          getDateValueToString(timeRangeItem?.default_time_range as DateValue, 'YYYY-MM-DD HH:mm:ss');
-      } else {
-        const formatStr = 'YYYY-MM-DD HH:mm:ss';
-        timeRangeStr = `${dayjs.tz(timeRangeItem.start_time * 1000).format(formatStr)}--${dayjs
-          .tz(timeRangeItem.end_time * 1000)
-          .format(formatStr)}`;
-      }
+      const range = !!timeRangeItem?.default_time_range?.length
+        ? timeRangeItem.default_time_range
+        : [timeRangeItem.start_time * 1000, timeRangeItem.end_time * 1000];
+      const timeRangeStr =
+        this.shortcutsMap.get(range.join(' -- ')) ||
+        new DateRange(range, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
       this.variableDetail = [
         { name: this.$tc('时间选择'), isUpdate: !timeRangeItem.lock_search, timeRange: timeRangeStr }
       ];

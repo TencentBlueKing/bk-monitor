@@ -52,7 +52,7 @@ export class TimeRange {
   transformTimeString(timeStr: string, type: TimeType): dayjs.Dayjs {
     let momentRes: dayjs.Dayjs = null;
     /** 相对时间范围 */
-    const match = timeStr.match(CUSTOM_TIME_RANGE_REG);
+    const match = timeStr?.match?.(CUSTOM_TIME_RANGE_REG);
     if (!!match) {
       momentRes = dayjs();
       const [target, , method, num, dateType, boundary] = match;

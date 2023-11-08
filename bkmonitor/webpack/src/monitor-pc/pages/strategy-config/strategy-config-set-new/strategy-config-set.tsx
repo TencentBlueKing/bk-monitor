@@ -477,6 +477,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
   beforeDestroy() {
+    updateTimezone();
     bus.$off(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
   @Watch('fromRouteName', { immediate: true })
