@@ -1323,7 +1323,9 @@ export default class MaskingField extends tsc<IProps> {
 
     const getPreviewDom = (fieldItem: IFieldItem) => {
       const preview = fieldItem.preview;
-      const rLength = fieldItem.rules.length;
+      let rLength = fieldItem.rules.length;
+      // 原始日志没有规则的时候，规则默认为1
+      if (fieldItem.is_origin && !fieldItem.rules.length) rLength = 1;
       if (preview?.length) {
         return <div class="result-box">
           {
@@ -1371,9 +1373,9 @@ export default class MaskingField extends tsc<IProps> {
             {
               showPreviewList.map(pItem => (
                 <div class="preview-result">
-                  <span class="old title-overflow" v-bk-overflow-tips={{ placement: 'left' }}>{pItem.origin}</span>
+                  <span class="old title-overflow" v-bk-overflow-tips={{ placement: 'top' }}>{pItem.origin}</span>
                   <i class="bk-icon icon-arrows-right"></i>
-                  <span class="result title-overflow" v-bk-overflow-tips={{ placement: 'left' }}>{pItem.afterMasking}</span>
+                  <span class="result title-overflow" v-bk-overflow-tips={{ placement: 'top' }}>{pItem.afterMasking}</span>
                 </div>
               ))
             }
@@ -1394,9 +1396,7 @@ export default class MaskingField extends tsc<IProps> {
                 onMouseenter={() => this.handleHoverRow(item.field_name)}
                 onMouseleave={() => this.handleLeaveRow()}>
                 { getSyncNumDom(item) }
-                {
-                  !!item.rules.length ? getPreviewDom(item) : <div class="preview-result">{'-'}</div>
-                }
+                { getPreviewDom(item) }
               </div>
             ))
           }
