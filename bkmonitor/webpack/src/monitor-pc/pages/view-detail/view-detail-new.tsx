@@ -39,7 +39,7 @@ import MonitorDropdown from '../../components/monitor-dropdown';
 import SortButton from '../../components/sort-button/sort-button';
 import TimeRange, { TimeRangeType } from '../../components/time-range/time-range';
 // import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/utils';
 import { updateTimezone } from '../../i18n/dayjs';
 import { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
@@ -474,7 +474,7 @@ export default class ViewDetailNew extends tsc<IProps> {
                     <div class='compare-panel-right'>
                       <span class='margin-left-auto'></span>
                       {window.__BK_WEWEB_DATA__?.lockTimeRange ? (
-                        <span class='dashboard-tools-timerange'>{this.timeRange.join(' - ')}</span>
+                        <span class='dashboard-tools-timerange'>{getTimeDisplay(this.timeRange)}</span>
                       ) : (
                         <TimeRange
                           class='dashboard-tools-timerange'
