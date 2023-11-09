@@ -46,11 +46,9 @@
       class="finger-cluster-table table-no-data"
       row-key="$index"
       ref="fingerTableRef"
+      reserve-selection
       :data="fingerList"
-      :outer-border="false"
-      :reserve-selection="true"
-      @row-mouse-enter="(index) => hoverLabelIndex = index"
-      @row-mouse-leave="() => hoverLabelIndex = -1">
+      :outer-border="false">
 
       <bk-table-column
         width="50"
@@ -135,30 +133,37 @@
 
       <bk-table-column label="Pattern" min-width="350" class-name="symbol-column">
         <!-- eslint-disable-next-line -->
-        <template slot-scope="{ row, column, $index }">
-          <div :class="['pattern-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
-            <cluster-event-popover
-              :context="row.pattern"
-              :tippy-options="{ offset: '0, 10', boundary: scrollContent }"
-              @eventClick="(option) => handleMenuClick(option,row)">
-              <text-highlight
-                style="word-break: break-all; white-space:pre-line;"
-                :queries="getHeightLightList(row.pattern)">
-                {{getHeightLightStr(row.pattern)}}
-              </text-highlight>
-            </cluster-event-popover>
-            <p
-              v-if="!cacheExpandStr.includes($index)"
-              class="show-whole-btn"
-              @click.stop="handleShowWhole($index)">
-              {{ $t('展开全部') }}
-            </p>
-            <p
-              v-else
-              class="hide-whole-btn"
-              @click.stop="handleHideWhole($index)">
-              {{ $t('收起') }}
-            </p>
+        <template slot-scope="{ row, $index }">
+          <div class="pattern">
+            <div
+              class="pattern-remark"
+              @mouseenter="e => handleHoverRemarkIcon(e, row, $index)">
+              <i class="log-icon icon-log-remark"></i>
+            </div>
+            <div :class="['pattern-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
+              <cluster-event-popover
+                :context="row.pattern"
+                :tippy-options="tippyOptions"
+                @eventClick="(option) => handleMenuClick(option,row)">
+                <text-highlight
+                  style="word-break: break-all; white-space: pre-line;"
+                  :queries="getHeightLightList(row.pattern)">
+                  {{getHeightLightStr(row.pattern)}}
+                </text-highlight>
+              </cluster-event-popover>
+              <p
+                v-if="!cacheExpandStr.includes($index)"
+                class="show-whole-btn"
+                @click.stop="handleShowWhole($index)">
+                {{ $t('展开全部') }}
+              </p>
+              <p
+                v-else
+                class="hide-whole-btn"
+                @click.stop="handleHideWhole($index)">
+                {{ $t('收起') }}
+              </p>
+            </div>
           </div>
         </template>
       </bk-table-column>
@@ -180,71 +185,22 @@
       </template>
 
       <bk-table-column
-        :label="$t('告警')"
-        :render-header="$renderHeader"
-        width="103"
-        class-name="symbol-column">
-        <template slot-scope="{ row }">
-          <div class="fl-ac" style="margin-top: 2px;">
-            <div @click.stop="handleClickAlarmSwitch(row)">
-              <bk-switcher
-                v-model="row.monitor.is_active"
-                theme="primary"
-                :disabled="isRequestAlarm"
-                :pre-check="() => false">
-              </bk-switcher>
-            </div>
-            <bk-popover v-if="row.monitor.is_active" :content="$t('可去告警策略编辑')">
-              <span
-                class="bk-icon icon-edit2 link-color"
-                @click="policyEditing(row.monitor.strategy_id)"></span>
-            </bk-popover>
-          </div>
-        </template>
-      </bk-table-column>
-
-      <bk-table-column
-        :label="$t('标签')"
-        :render-header="$renderHeader"
         width="160"
         align="center"
-        header-align="center">
+        :label="$t('责任人')"
+        :render-header="$renderHeader">
         <template slot-scope="{ row, $index }">
-          <div class="lable-edit-box" v-if="editLabelIndex === $index">
-            <bk-form
-              ref="labelRef"
-              style="width: 100%"
-              :rules="rules"
-              :label-width="0">
-              <bk-form-item property="labelRuels">
-                <bk-input
-                  clearable
-                  behavior="simplicity"
-                  v-model="verifyData.editLabelStr"
-                  @enter="handleChangeLabel(row)"></bk-input>
-              </bk-form-item>
-            </bk-form>
-            <div class="operate-button">
-              <span class="bk-icon icon-check-line" @click="handleChangeLabel(row)"></span>
-              <span class="bk-icon icon-close-line-2" @click="handleCancelLable"></span>
-            </div>
-          </div>
-          <div class="row-label" v-else>
-            <div class="label-container">
-              <span class="label-str title-overflow" v-bk-overflow-tips>
-                {{row.label || '--'}}
-              </span>
-              <span
-                v-show="hoverLabelIndex === $index"
-                class="bk-icon icon-edit-line"
-                @click="handleEditLabel(row.label, $index)">
-              </span>
-            </div>
-          </div>
+          <bk-user-selector
+            class="principal-input"
+            placeholder=" "
+            :multiple="false"
+            :value="row.owners"
+            :api="userApi"
+            :empty-text="$t('无匹配人员')"
+            @change="(val) => handleChangePrincipal(val, $index)">
+          </bk-user-selector>
         </template>
       </bk-table-column>
-
-      <!-- <bk-table-column :label="$t('备注')" width="100" prop="remark"></bk-table-column> -->
 
       <template slot="append" v-if="fingerList.length && isPageOver">
         <clustering-loader :width-list="loaderWidthList" />
@@ -264,10 +220,54 @@
             <p>{{getLeaveText}}</p>
             <span class="empty-leave" @click="handleLeaveCurrent">{{$t('去设置')}}</span>
           </div>
-          <p v-if="fingerList.length === 0 && configData.extra.signature_switch">{{$t('暂无数据')}}</p>
+          <p v-if="!fingerList.length && configData.extra.signature_switch">{{$t('暂无数据')}}</p>
         </empty-status>
       </div>
     </bk-table>
+
+    <div v-show="false">
+      <div id="remark-tips" ref="remarkTips">
+        <div v-show="currentRemarkList.length" class="remark-list">
+          <div v-for="(remark, index) in currentRemarkList" :key="index">
+            <div v-if="remark.username">
+              <span>{{remark.create_time}}</span>
+              <span>&nbsp;{{remark.username}}</span>
+            </div>
+            <div style="padding: 4px 0;">{{remark.remark}}</div>
+          </div>
+        </div>
+        <div class="add-new-remark">
+          <div class="text-btn" @click="handleClickAddNewRemark">
+            <i class="icon bk-icon icon-plus push"></i>
+            <span class="text">{{$t('新增备注')}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <bk-dialog
+      v-model="isShowStrInputDialog"
+      header-position="left"
+      :title="$t('备注')"
+      :width="480"
+      :confirm-fn="confirmDialogStr">
+      <bk-form
+        ref="labelRef"
+        style="width: 100%"
+        :model="verifyData"
+        :rules="rules"
+        :label-width="0">
+        <bk-form-item property="labelRuels">
+          <bk-input
+            type="textarea"
+            v-model="verifyData.textInputStr"
+            :placeholder="$t('请输入')"
+            :maxlength="100"
+            :rows="5">
+          </bk-input>
+        </bk-form-item>
+      </bk-form>
+    </bk-dialog>
   </div>
 </template>
 
@@ -275,9 +275,10 @@
 import ClusterEventPopover from './components/cluster-event-popover';
 import ClusteringLoader from '@/skeleton/clustering-loader';
 import fingerSelectColumn from './components/finger-select-column';
-import { copyMessage } from '@/common/util';
+import { copyMessage, formatDate } from '@/common/util';
 import TextHighlight from 'vue-text-highlight';
 import EmptyStatus from '@/components/empty-status';
+import BkUserSelector from '@blueking/user-selector';
 
 export default {
   components: {
@@ -285,6 +286,7 @@ export default {
     ClusteringLoader,
     TextHighlight,
     EmptyStatus,
+    BkUserSelector,
   },
   props: {
     fingerList: {
@@ -324,22 +326,23 @@ export default {
       selectList: [], // 当前选中的数组
       isRequestAlarm: false, // 是否正在请求告警接口
       checkValue: 0, // 0为不选 1为半选 2为全选
-      editLabelIndex: -1,
-      // editLabelStr: '',
+      /** 当前编辑备注或标签的下标 */
+      editDialogIndex: -1,
       hoverLabelIndex: -1,
+      /** 输入框弹窗的字符串 */
       verifyData: {
-        editLabelStr: '',
+        textInputStr: '',
       },
       rules: {
         labelRuels: [
           {
             validator: this.checkName,
-            message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('标签') }),
+            message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('备注') }),
             trigger: 'blur',
           },
           {
-            max: 50,
-            message: this.$t('不能多于50个字符'),
+            max: 100,
+            message: this.$t('不能多于{n}个字符', { n: 100 }),
             trigger: 'blur',
           },
         ],
@@ -356,6 +359,18 @@ export default {
         year_on_year_count: '101',
         year_on_year_percentage: '101',
       },
+      /** 备注的tips设置 */
+      tippyOptions: {
+        distance: -10,
+        boundary: this.scrollContent,
+        placement: 'top',
+      },
+      /** 编辑标签或备注的弹窗 */
+      isShowStrInputDialog: false,
+      /** 当前备注信息 */
+      currentRemarkList: [],
+      popoverInstance: null,
+      userApi: window.BK_LOGIN_URL,
     };
   },
   inject: ['addFilterCondition'],
@@ -374,6 +389,10 @@ export default {
     },
     getTableWidth() {
       return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+    },
+    /** 获取当前hover操作的数据 */
+    getHoverRowValue() {
+      return this.fingerList[this.editDialogIndex];
     },
   },
   watch: {
@@ -493,26 +512,6 @@ export default {
         },
       });
     },
-    handleClickAlarmSwitch(row) {
-      const { monitor: { is_active: isActive } } = row;
-      const msg = isActive ?  this.$t('是否关闭该告警') : this.$t('是否开启该告警');
-      this.$bkInfo({
-        title: msg,
-        confirmFn: () => {
-          this.requestAlarm([row], !isActive, (result, strategyID) => {
-            if (this.requestData.group_by.length) {
-              this.$emit('updateRequest');
-              return;
-            }
-            // 单次成功后告警状态取反
-            if (result) {
-              row.monitor.is_active = !isActive;
-              row.monitor.strategy_id = strategyID;
-            }
-          });
-        },
-      });
-    },
     getSetList(list = []) {
       const setIDList = new Set();
       const returnList = list.filter((el) => {
@@ -589,10 +588,6 @@ export default {
           this.isRequestAlarm = false;
         });
     },
-    policyEditing(strategyID) {
-      // 监控编辑策略跳转
-      window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config/edit/${strategyID}`, '_blank');
-    },
     handleScroll() {
       if (this.throttle) return;
       this.throttle = true;
@@ -657,43 +652,98 @@ export default {
     getHeightLightList(str) {
       return str.match(/#.*?#/g) || [];
     },
-    handleEditLabel(labelStr, index) {
-      this.editLabelIndex = index;
-      this.verifyData.editLabelStr = labelStr;
-    },
-    async handleChangeLabel(row) {
-      this.$refs.labelRef.validate().then(() => {
-        this.$http.request('/logClustering/editLabel', {
-          params: {
-            index_set_id: this.$route.params.indexId,
-          },
-          data: {
-            signature: row.signature,
-            label: this.verifyData.editLabelStr.trim(),
-          },
-        }).then((res) => {
-          if (res.result) {
-            row.label = this.verifyData.editLabelStr.trim();
-            this.editLabelIndex = -1;
-            this.$bkMessage({
-              theme: 'success',
-              message: this.$t('修改成功'),
-            });
-          }
-        })
-          .finally(() => {
-            this.verifyData.editLabelStr = '';
+    /** 设置负责人 */
+    handleChangePrincipal(val, index) {
+      this.editDialogIndex = index;
+      this.$http.request('/logClustering/setOwner', {
+        params: {
+          index_set_id: this.$route.params.indexId,
+        },
+        data: {
+          signature: this.getHoverRowValue.signature,
+          owners: val,
+        },
+      }).then((res) => {
+        if (res.result) {
+          this.getHoverRowValue.owners = res.data.owners;
+          this.$bkMessage({
+            theme: 'success',
+            message: this.$t('操作成功'),
           });
+          this.editDialogIndex = -1;
+        }
       });
     },
-    checkName() {
-      if (this.verifyData.editLabelStr.trim() === '') return true;
-      // eslint-disable-next-line no-useless-escape
-      return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(this.verifyData.editLabelStr.trim());
+    /** 设置备注 */
+    handleAddRemark() {
+      this.$http.request('/logClustering/setRemark', {
+        params: {
+          index_set_id: this.$route.params.indexId,
+        },
+        data: {
+          signature: this.getHoverRowValue.signature,
+          remark: this.verifyData.textInputStr.trim(),
+        },
+      }).then((res) => {
+        if (res.result) {
+          this.getHoverRowValue.remark = res.data.remark;
+          this.$bkMessage({
+            theme: 'success',
+            message: this.$t('操作成功'),
+          });
+          this.editDialogIndex = -1;
+        }
+      })
+        .finally(() => {
+          this.verifyData.textInputStr = '';
+        });
     },
-    handleCancelLable() {
-      this.editLabelIndex = -1;
-      this.verifyData.editLabelStr = '';
+    checkName() {
+      if (this.verifyData.textInputStr.trim() === '') return true;
+      // eslint-disable-next-line no-useless-escape
+      return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(this.verifyData.textInputStr.trim());
+    },
+    handleHoverRemarkIcon(e, row, index) {
+      if (!this.popoverInstance) {
+        this.currentRemarkList = row.remark.map(item => ({
+          ...item,
+          create_time: item.create_time > 0 ? formatDate(item.create_time) : '',
+        }));
+        this.popoverInstance = this.$bkPopover(event.target, {
+          content: this.$refs.remarkTips,
+          allowHTML: true,
+          arrow: true,
+          theme: 'light',
+          sticky: true,
+          duration: [275, 0],
+          interactive: true,
+          boundary: 'window',
+          placement: 'top',
+          width: 240,
+          onHidden: () => {
+            this.popoverInstance && this.popoverInstance.destroy();
+            this.popoverInstance = null;
+          },
+        });
+      }
+      this.editDialogIndex = index;
+      this.popoverInstance.show();
+    },
+    /** 提交新的备注 */
+    async confirmDialogStr() {
+      try {
+        await this.$refs.labelRef.validate();
+        this.handleAddRemark();
+        this.isShowStrInputDialog = false;
+      } catch (err) {
+        return false;
+      }
+    },
+    /** 点击新增备注 */
+    handleClickAddNewRemark() {
+      this.popoverInstance.hide();
+      this.verifyData.textInputStr = '';
+      this.isShowStrInputDialog = true;
     },
   },
 };
@@ -785,10 +835,33 @@ export default {
       }
     }
 
+    .pattern {
+      display: flex;
+      align-items: center;
+    }
+
+    .pattern-remark {
+      width: 22px;
+      height: 22px;
+      background: #f0f1f5;
+      border-radius: 2px;
+      flex-shrink: 0;
+      margin-right: 8px;
+      font-size: 16px;
+      cursor: pointer;
+
+      @include flex-center;
+
+      &:hover {
+        color: #3a84ff;
+        background: #e1ecff;
+      }
+    }
+
     .pattern-content {
       position: relative;
-      padding: 10px 15px 0 0;
-      margin: 4px 0 10px 0;
+      padding: 0 6px;
+      margin-bottom: 15px;
       overflow: hidden;
       display: inline-block;
 
@@ -799,7 +872,16 @@ export default {
 
     .hover-row {
       .show-whole-btn {
-        background-color: #f0f1f5;
+        background-color: #f5f7fa;
+      }
+
+      .principal-input {
+        &:hover {
+          :deep(.user-selector-container) {
+            /* stylelint-disable-next-line declaration-no-important */
+            background: #eaebf0 !important;
+          }
+        }
       }
     }
 
@@ -823,36 +905,9 @@ export default {
       }
     }
 
-    .lable-edit-box {
-      display: flex;
-      align-items: center;
-
-      .operate-button {
-        display: flex;
-        margin-left: 6px;
-        justify-content: space-between;
-        color: #979ba5;
-
-        span {
-          font-size: 16px;
-          display: inline-block;
-          cursor: pointer;
-        }
-
-        > :first-child {
-          color: #33d05c;
-          margin-right: 12px;
-        }
-
-        > :last-child {
-          color: #979ba5;
-        }
-      }
-    }
-
     .show-whole-btn {
       position: absolute;
-      top: 72px;
+      top: 80px;
       width: 100%;
       height: 24px;
       color: #3a84ff;
@@ -929,5 +984,49 @@ export default {
 
 .bk-icon {
   font-size: 24px;
+}
+
+.principal-input {
+  width: 100%;
+
+  :deep(.user-selector-container) {
+    /* stylelint-disable-next-line declaration-no-important */
+    border: none !important;
+    background: transparent;
+  }
+}
+
+#remark-tips {
+  .remark-list {
+    font-size: 12px;
+    color: #63656e;
+    max-height: 120px;
+    overflow-y: auto;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #eaebf0;
+
+    > div:not(:last-child) {
+      margin-bottom: 20px;
+    }
+  }
+
+  .add-new-remark {
+    @include flex-center();
+
+    .text-btn {
+      cursor: pointer;
+
+      @include flex-align(center);
+
+      .text,
+      .icon {
+        color: #3a84ff;
+      }
+
+      .text {
+        font-size: 12px;
+      }
+    }
+  }
 }
 </style>

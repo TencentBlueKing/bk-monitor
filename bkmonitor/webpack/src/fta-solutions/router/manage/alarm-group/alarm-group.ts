@@ -43,7 +43,7 @@ export default [
       title: '告警组',
       navId: 'alarm-group',
       route: {
-        parent: 'manage'
+        parent: 'manager'
       },
       authority: {
         map: AlarmGroupAuth,
