@@ -1,11 +1,11 @@
 import time
 from datetime import datetime, timedelta, timezone
 
+import mock as _mock
 from django.conf import settings
 from django.test import TestCase
 from elasticsearch_dsl import AttrDict
 from mock import MagicMock, patch
-from monitor_web.tests import mock
 
 from alarm_backends.core.cache.key import ALERT_SNAPSHOT_KEY
 from alarm_backends.service.converge.shield.shield_obj import ShieldObj
@@ -24,11 +24,11 @@ from bkmonitor.utils.elasticsearch.fake_elasticsearch import FakeElasticsearchBu
 from constants.action import ActionStatus
 from constants.alert import EventStatus
 
-mock.patch(
+_mock.patch(
     "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
 ).start()
-mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
-mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
+_mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
+_mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
 
 
 def clear_index():
