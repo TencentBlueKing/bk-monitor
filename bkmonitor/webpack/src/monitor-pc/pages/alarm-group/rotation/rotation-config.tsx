@@ -69,6 +69,7 @@ export default class RotationConfig extends tsc<IProps> {
   /* 轮值历史 */
   @Prop({ default: () => [], type: Array }) dutyPlans: any[];
   @Ref('wrap') wrapRef: HTMLDivElement;
+  @Ref('noticeConfig') noticeConfigRef: DutyNoticeConfig;
 
   /* 添加规则弹层实例 */
   popInstance = null;
@@ -101,6 +102,8 @@ export default class RotationConfig extends tsc<IProps> {
 
   /* 轮值预览下的统计信息 */
   userPreviewList: { name: string; id: string }[] = [];
+
+  errMsg = '';
 
   /* 用于统计信息 */
   get userGroupData(): {
@@ -201,6 +204,7 @@ export default class RotationConfig extends tsc<IProps> {
 
   @Emit('dutyChange')
   handleDutyChange() {
+    this.errMsg = '';
     return this.dutyList.map(item => item.id);
   }
   @Emit('noticeChange')
@@ -209,8 +213,12 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   validate() {
-    return new Promise((resolve, _reject) => {
-      resolve(true);
+    return new Promise(async (resolve, _reject) => {
+      if (!this.dutyList.length) {
+        this.errMsg = this.$t('请选择值班规则') as string;
+      }
+      const noticeValidate = await this.noticeConfigRef.validate();
+      resolve(!this.errMsg && noticeValidate);
     });
   }
 
@@ -429,6 +437,7 @@ export default class RotationConfig extends tsc<IProps> {
             ))}
           </transition-group>
         </div>
+        {!!this.errMsg && <div class='err-msg'>{this.errMsg}</div>}
         <RotationPreview
           class='mt-12'
           v-bkloading={{ isLoading: this.previewLoading }}
@@ -445,6 +454,7 @@ export default class RotationConfig extends tsc<IProps> {
           <span class='expan-btn-text'>{this.$t('值班通知设置')}</span>
         </div>
         <DutyNoticeConfig
+          ref='noticeConfig'
           class={{ displaynone: !this.showNotice }}
           value={this.noticeConfig}
           renderKey={this.noticeRenderKey}
