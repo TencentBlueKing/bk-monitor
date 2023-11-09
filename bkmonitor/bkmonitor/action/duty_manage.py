@@ -223,8 +223,8 @@ class DutyRuleManager:
             [start_time, end_time] = work_time.split("--")
             start_work_day = int(start_time[:2])
             end_work_day = int(end_time[:2])
-            if start_work_day <= end_work_day:
-                # 如果开始小于结束，则表示
+            if start_work_day < end_work_day:
+                # 如果开始小于结束，则表示是一周范围之内的
                 work_days = list(range(start_work_day, end_work_day + 1))
             else:
                 # 如果是大于于，需要分成两段
@@ -402,8 +402,8 @@ class DutyRuleManager:
             [start_time, end_time] = time_range.split("--")
             start_date = end_date = work_date
 
-            if start_time > end_time:
-                # 如果开始时间段 大于 结束时间段表示有跨天
+            if start_time >= end_time:
+                # 如果开始时间段 大于或者等于的情况下 结束时间段表示有跨天
                 end_date += timedelta(days=1)
 
             duty_work_time.append(
@@ -439,10 +439,15 @@ class DutyRuleManager:
             # 当前为最后一天的时候，结束时间以配置时间为准
             end_time = finished_time[2:]
 
+        begin_date = end_date = work_date
+        if start_time >= end_time:
+            # 如果开始时间段 大于 结束时间段表示有跨天
+            end_date += timedelta(days=1)
+
         duty_work_time.append(
             dict(
-                start_time="{date} {start_time}".format(date=work_date.strftime("%Y-%m-%d"), start_time=begin_time),
-                end_time="{date} {end_time}".format(date=work_date.strftime("%Y-%m-%d"), end_time=end_time),
+                start_time="{date} {start_time}".format(date=begin_date.strftime("%Y-%m-%d"), start_time=begin_time),
+                end_time="{date} {end_time}".format(date=end_date.strftime("%Y-%m-%d"), end_time=end_time),
             )
         )
         return duty_work_time

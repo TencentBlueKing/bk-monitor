@@ -279,6 +279,7 @@ class TestDutyPreview:
                 "backups": [],
             }
         )
+        regular_duty_rule["enabled"] = False
         m = DutyRuleManager(duty_rule=regular_duty_rule, days=2)
         duty_plan = m.get_duty_plan()
         print(duty_plan)
@@ -471,6 +472,49 @@ class TestDutyPreview:
         assert len(duty_plan[2]["work_times"]) == 7
         assert duty_plan[2]["user_index"] == 2
         assert duty_plan[3]["user_index"] == 0
+
+    def test_weekly_datetime_range_handoff_on_eight(self, rotation_duty_rule):
+        """
+        周一 至 可以工作周五
+        """
+        rotation_duty_rule["duty_arranges"] = [
+            {
+                "duty_time": [
+                    {
+                        "work_type": "weekly",
+                        "work_days": [],
+                        "work_time_type": "datetime_range",
+                        "work_time": ["01 08:00--01 08:00"],
+                        "period_settings": {},
+                    }
+                ],
+                "duty_users": [
+                    [
+                        {"id": "Alan", "type": "user"},
+                        {"id": "Frances", "type": "user"},
+                        {"id": "Lucile", "type": "user"},
+                    ],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                ],
+                "group_type": "specified",
+                "group_number": 0,
+            }
+        ]
+
+        rotation_duty_rule["effective_time"] = "2023-11-13 08:00:00"
+
+        m = DutyRuleManager(duty_rule=rotation_duty_rule, days=21)
+        duty_plan = m.get_duty_plan()
+        print(duty_plan)
+
+        assert len(duty_plan) == 3
+        assert len(duty_plan[0]["work_times"]) == 7
+        assert duty_plan[0]["user_index"] == 0
+        assert len(duty_plan[1]["work_times"]) == 7
+        assert duty_plan[1]["user_index"] == 1
+        assert len(duty_plan[2]["work_times"]) == 7
+        assert duty_plan[2]["user_index"] == 2
 
     def test_monthly_datetime_range_handoff(self, rotation_duty_rule):
         """

@@ -35,7 +35,9 @@ class GetBkchatGroupResource(Resource):
 
 
 class PreviewUserGroupPlanResource(Resource):
-    # 预览某个组的排班情况
+    """
+    预览某个组的排班情况
+    """
 
     def validate_request_data(self, request_data):
         """
