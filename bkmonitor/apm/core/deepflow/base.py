@@ -70,7 +70,7 @@ class Span:
         }
 
 
-class DeepFlowHandler:
+class EBPFHandler:
     @classmethod
     def str_time_to_unit_time(cls, str_time: str):
         """

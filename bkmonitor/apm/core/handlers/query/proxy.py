@@ -103,13 +103,13 @@ class QueryProxy:
         )
         return asdict(TraceInfoList(total=size, data=data))
 
-    def query_trace_detail(self, trace_id):
+    def query_trace_detail(self, trace_id, bk_biz_id=None):
         """Trace详情"""
         client = Permission()
         spans = self.span_query.query_by_trace_id(trace_id)
 
         # ebpf_spans query and transfer
-        ebpf_spans = DeepFlowQuery.get_ebpf(trace_id)
+        ebpf_spans = DeepFlowQuery.get_ebpf(trace_id, bk_biz_id)
         if ebpf_spans:
             spans += ebpf_spans
 

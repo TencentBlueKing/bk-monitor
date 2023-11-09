@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from apm.core.deepflow.base import DeepFlowHandler
+from apm.core.deepflow.base import EBPFHandler
 
 EBPF_DATA = {
     "client_port": 46730,
@@ -57,38 +57,38 @@ EBPF_DATA = {
 
 
 def test_span_name():
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
 
     assert span.get("span_name") == "HTTP POST"
 
 
 def test_service_name():
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
 
     assert span.get("resource", {}).get("service.name") == "deepflow"
 
 
 def test_status_code():
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
     assert span.get("status", {}).get("code") == 2
 
     EBPF_DATA["response_status"] = 0
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
     assert span.get("status", {}).get("code") == 1
 
     EBPF_DATA["response_status"] = 1
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
     assert span.get("status", {}).get("code") == 2
 
     EBPF_DATA["response_status"] = 2
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
     assert span.get("status", {}).get("code") == 0
 
     EBPF_DATA["response_status"] = 3
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
     assert span.get("status", {}).get("code") == 2
 
 
 def test_kind():
-    span = DeepFlowHandler.l7_flow_log_to_resource_span(EBPF_DATA)
+    span = EBPFHandler.l7_flow_log_to_resource_span(EBPF_DATA)
     assert span.get("kind") == 3
