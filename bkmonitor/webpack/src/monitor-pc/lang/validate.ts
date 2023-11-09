@@ -263,5 +263,7 @@ export default {
   匹配规则重复了: 'The matching rule is duplicated',
   '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000',
   生效起始时间必填: 'Effective start time is required',
-  每条轮值规则最少添加一个用户: 'Add at least one user per rotation rule'
+  每条轮值规则最少添加一个用户: 'Add at least one user per rotation rule',
+  请选择值班规则: 'Please select the duty rule',
+  请输入企业微信群ID: 'Please enter the group ID of enterprise wechat'
 };
