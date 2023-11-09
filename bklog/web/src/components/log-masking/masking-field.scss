@@ -229,6 +229,14 @@
           height: 18px;
           line-height: 18px;
         }
+
+        .add-rule-icon {
+          visibility: hidden;
+        }
+
+        &:hover .add-rule-icon {
+          visibility: visible;
+        }
       }
     }
 
@@ -464,6 +472,12 @@
     font-size: 12px;
     transform: scale(.7);
     color: #3a84ff;
+  }
+
+  .icon-info-fill {
+    font-size: 14px;
+    margin-left: 6px;
+    color: #979ba5;
   }
 
   .icon-brush {

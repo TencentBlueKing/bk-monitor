@@ -61,6 +61,10 @@ export default class FieldInfo extends tsc<IProps> {
     return this.$store.state.spaceUid;
   }
 
+  get isShowMaskingTemplate() {
+    return this.$store.getters.isShowMaskingTemplate;
+  }
+
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
     text_replace: window.mainComponent.$t('替换'),
@@ -396,12 +400,14 @@ export default class FieldInfo extends tsc<IProps> {
             prop={'field_type'}
           ></TableColumn> */}
 
-          <TableColumn
+          {
+            this.isShowMaskingTemplate && <TableColumn
             label={this.$t('脱敏状态')}
             key={'masking_state'}
             width="160"
             scopedSlots={maskingStateSlot}
           ></TableColumn>
+          }
 
           <TableColumn
             label={this.$t('分词')}

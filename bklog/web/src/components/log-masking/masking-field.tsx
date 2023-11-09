@@ -305,7 +305,7 @@ export default class MaskingField extends tsc<IProps> {
       const initFieldConfigs = await this.getMaskingConfig(); // 获取脱敏配置信息
       if (initFieldConfigs.length) { // 判断有无脱敏信息 执行不同逻辑的代码
         this.isUpdate = true;
-        // 根据当前的日志查询字符串  已保存过脱敏规则 生成字段脱敏列表
+        // 根据当前的日志查询字符串  已保存过脱敏规则 生成日志脱敏列表
         this.tableList = this.initTableList(initFieldConfigs);
         const fieldConfigs = await this.matchMaskingRule();
         this.initMergeTableList(fieldConfigs, 'allInit');
@@ -444,7 +444,10 @@ export default class MaskingField extends tsc<IProps> {
   async handleSelectRule(selectList: Array<IRuleItem>) {
     // 这里先更新match匹配规则的接口
     await this.matchMaskingRule();
-    const curIdList = this.currentOperateField.rules.map(item => item.rule_id);
+    // 把已删除的过滤掉
+    const curIdList = this.currentOperateField.rules
+      .filter(rItem => rItem.state !== 'delete')
+      .map(item => item.rule_id);
     const selectIdList = selectList.map(item => item.id);
     const differenceIdList = curIdList.concat(selectIdList)
       .filter(v => !curIdList.includes(v) || !selectIdList.includes(v)); // 获取新增差集的rule_id
@@ -462,6 +465,9 @@ export default class MaskingField extends tsc<IProps> {
             newRule.disabled = true;
           }
           fItem.rules.push(newRule);
+        } else { // 除去已删除的 删除了的规则 直接删掉
+          const spliceIndex = fItem.rules.findIndex(rItem => rItem.rule_id === dItem);
+          if (spliceIndex >= 0) fItem.rules.splice(spliceIndex, 1);
         }
       });
       await this.updatePreview(fItem); // 更新脱敏预览
@@ -474,9 +480,9 @@ export default class MaskingField extends tsc<IProps> {
    * @desc: 重选规则规则
    */
   async handleResetSelectRule() {
+    const resetRule = (this.syncRuleTableRef as any).getSyncSelectRule(); // 重选的规则
     // 这里先更新match匹配规则的接口
     await this.matchMaskingRule();
-    const resetRule = (this.syncRuleTableRef as any).getSyncSelectRule(); // 重选的规则
     this.tableValueChange(this.currentOperateField, async (fItem: IFieldItem) => {
       resetRule.masking_rule = this.getMaskingRuleStr(resetRule); // 初始化脱敏规则
       resetRule.change_state = 'add'; // 设置提交状态为新增
@@ -723,6 +729,23 @@ export default class MaskingField extends tsc<IProps> {
     ]);
   }
 
+  renderHeaderPreview(h) {
+    return h('div', {
+      class: 'sync-render-header',
+    }, [
+      h('span', this.$t('脱敏预览')),
+      h('span', {
+        class: 'log-icon icon-info-fill',
+        directives: [
+          {
+            name: 'bk-tooltips',
+            value: this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。'),
+          },
+        ],
+      }),
+    ]);
+  }
+
   /**
    * @desc: 输入框失焦触发
    * @param {Boolean} isPreview 是否更新预览
@@ -831,7 +854,7 @@ export default class MaskingField extends tsc<IProps> {
   }
 
   /**
-   * @desc: 获取初始化字段脱敏表格列表
+   * @desc: 获取初始化日志脱敏表格列表
    * @param {Array} maskingList 字段列表
    * @param {String} changeRuleState 规则根据什么情况改变
    * @param {String} isFirstInit 是否是第一次初始化
@@ -1005,6 +1028,7 @@ export default class MaskingField extends tsc<IProps> {
         data: {
           logs: this.jsonParseList,
           field_configs: fieldConfigs,
+          text_fields: this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name),
         },
       });
       return res.data;
@@ -1154,6 +1178,18 @@ export default class MaskingField extends tsc<IProps> {
     return output;
   }
 
+  handleHoverRow(fieldName: string) {
+    setTimeout(() => {
+      this.hoverFieldName = fieldName;
+    }, 50);
+  }
+
+  handleLeaveRow() {
+    setTimeout(() => {
+      this.hoverFieldName = '';
+    }, 50);
+  }
+
   render() {
     const fieldSlot = {
       default: ({ row }) => (
@@ -1167,8 +1203,8 @@ export default class MaskingField extends tsc<IProps> {
                 <div
                   class="field"
                   style={this.getFieldItemStyle(item)}
-                  onMouseenter={() => this.hoverFieldName = item.field_name}
-                  onMouseleave={() => this.hoverFieldName = ''}>
+                  onMouseenter={() => this.handleHoverRow(item.field_name)}
+                  onMouseleave={() => this.handleLeaveRow()}>
                   <i
                     class={['field-type-icon', this.getFieldIcon(item.field_type) || 'log-icon icon-unkown']}
                     v-bk-tooltips={{
@@ -1251,8 +1287,8 @@ export default class MaskingField extends tsc<IProps> {
               <div
                 class="rule"
                 style={this.getFieldItemStyle(item)}
-                onMouseenter={() => this.hoverFieldName = item.field_name}
-                onMouseleave={() => this.hoverFieldName = ''}>
+                onMouseenter={() => this.handleHoverRow(item.field_name)}
+                onMouseleave={() => this.handleLeaveRow()}>
                   {
                     this.getIsShowAddRuleBtn(item)
                       ? <div>
@@ -1287,7 +1323,9 @@ export default class MaskingField extends tsc<IProps> {
 
     const getPreviewDom = (fieldItem: IFieldItem) => {
       const preview = fieldItem.preview;
-      const rLength = fieldItem.rules.length;
+      let rLength = fieldItem.rules.length;
+      // 原始日志没有规则的时候，规则默认为1
+      if (fieldItem.is_origin && !fieldItem.rules.length) rLength = 1;
       if (preview?.length) {
         return <div class="result-box">
           {
@@ -1335,9 +1373,9 @@ export default class MaskingField extends tsc<IProps> {
             {
               showPreviewList.map(pItem => (
                 <div class="preview-result">
-                  <span class="old title-overflow" v-bk-overflow-tips={{ placement: 'left' }}>{pItem.origin}</span>
+                  <span class="old title-overflow" v-bk-overflow-tips={{ placement: 'top' }}>{pItem.origin}</span>
                   <i class="bk-icon icon-arrows-right"></i>
-                  <span class="result title-overflow" v-bk-overflow-tips={{ placement: 'left' }}>{pItem.afterMasking}</span>
+                  <span class="result title-overflow" v-bk-overflow-tips={{ placement: 'top' }}>{pItem.afterMasking}</span>
                 </div>
               ))
             }
@@ -1355,12 +1393,10 @@ export default class MaskingField extends tsc<IProps> {
               <div class="preview"
                 style={this.getFieldItemStyle(item)}
                 v-bkloading={{ isLoading: (this.isPreviewLoading && this.previewLoadingField === row.field_name) }}
-                onMouseenter={() => this.hoverFieldName = item.field_name}
-                onMouseleave={() => this.hoverFieldName = ''}>
+                onMouseenter={() => this.handleHoverRow(item.field_name)}
+                onMouseleave={() => this.handleLeaveRow()}>
                 { getSyncNumDom(item) }
-                {
-                  !!item.rules.length ? getPreviewDom(item) : <div class="preview-result">{'-'}</div>
-                }
+                { getPreviewDom(item) }
               </div>
             ))
           }
@@ -1411,7 +1447,6 @@ export default class MaskingField extends tsc<IProps> {
             ></TableColumn>
 
             <TableColumn
-              label={(this.$t('label-脱敏算子') as String).replace('label-', '')}
               key={'match_method'}
               render-header={this.renderHeaderRule}
               scopedSlots={maskingRuleSlot}
@@ -1419,7 +1454,7 @@ export default class MaskingField extends tsc<IProps> {
 
             {
               this.previewSwitch && <TableColumn
-                label={this.$t('脱敏预览')}
+                render-header={this.renderHeaderPreview}
                 key={'match_content'}
                 scopedSlots={maskingPreviewSlot}
               ></TableColumn>
@@ -1518,6 +1553,7 @@ export default class MaskingField extends tsc<IProps> {
           width="640"
           mask-close={false}
           header-position="left"
+          render-directive="if"
           title={this.$t('选择脱敏规则')}
           on-confirm={this.handleResetSelectRule}>
           <div>

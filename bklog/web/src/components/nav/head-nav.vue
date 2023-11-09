@@ -256,6 +256,7 @@ export default {
       }
     },
     jumpToHome() {
+      this.$store.commit('updateIsShowGlobalDialog', false);
       this.$router.push({
         name: 'retrieve',
         query: {

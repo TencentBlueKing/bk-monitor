@@ -284,7 +284,7 @@ export default class MaskingFieldInput extends tsc<{}> {
         <Tab
           closable
           type="border-card"
-          class={{ 'hidden-input': !this.jsonValueList.length }}
+          class={{ 'hidden-input is-not-log': !this.jsonValueList.length }}
           active={this.activeTab}
           on-tab-change={this.tabChange}
           on-close-panel={this.closePanel}>

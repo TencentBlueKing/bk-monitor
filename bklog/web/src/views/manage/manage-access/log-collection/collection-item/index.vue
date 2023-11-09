@@ -310,13 +310,18 @@
                 {{ $t('清洗') }}
               </bk-button>
             </span>
-            <bk-dropdown-menu ref="dropdown" align="left" position-fixed>
+            <bk-popover
+              class="dot-menu"
+              placement="bottom-start"
+              theme="dot-menu light"
+              :arrow="false"
+              offset="15"
+              :distance="0">
               <i
                 class="bk-icon icon-more"
-                style="margin-left: 5px; font-size: 14px; font-weight: bold;"
-                slot="dropdown-trigger">
+                style="margin-left: 5px; font-size: 14px; font-weight: bold;">
               </i>
-              <ul class="bk-dropdown-list collection-operation-list" slot="dropdown-content">
+              <ul class="collection-operation-list" slot="content">
                 <!-- 查看详情 -->
                 <li>
                   <a
@@ -330,7 +335,7 @@
                 </li>
                 <li v-if="isShowMaskingTemplate">
                   <a href="javascript:;" @click.stop="operateHandler(props.row, 'masking')">
-                    {{ $t('字段脱敏') }}
+                    {{ $t('日志脱敏') }}
                   </a>
                 </li>
                 <!-- 存储设置 -->
@@ -440,7 +445,7 @@
                   </a>
                 </li>
               </ul>
-            </bk-dropdown-menu>
+            </bk-popover>
           </div>
         </bk-table-column>
         <bk-table-column type="setting">
@@ -1065,27 +1070,56 @@ export default {
         }
       }
     }
+  }
 
-    .bk-dropdown-list a.text-disabled:hover {
-      color: #c4c6cc;
-      cursor: not-allowed;
+  .dot-menu {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .dot-menu-theme {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+
+    &::before {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #fff !important;
+    }
+  }
+
+  .collection-operation-list {
+    margin: 0;
+    min-width: 50px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    li {
+      padding: 4px 16px;
+      font-size: 12px;
+      line-height: 26px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #eaf3ff;
+        color: #3a84ff;
+      }
     }
 
-    .collection-operation-list {
-      max-height: 220px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-
-    .collect-table-operate {
-      display: flex;
-    }
-
-    .bk-dropdown-trigger {
-      display: flex;
-      align-items: center;
+    a {
+      display: inline-block;
+      width: 100%;
       height: 100%;
+      color: #63656e;
+    }
+
+    .text-disabled {
+      color: #c4c6cc;
+
+      &:hover {
+        cursor: not-allowed;
+      }
     }
   }
 

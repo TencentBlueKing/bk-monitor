@@ -139,7 +139,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapGetters, mapState } from 'vuex';
 import BizMenuSelect from '@/components/biz-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import StepBox from '@/components/step-box';
@@ -233,9 +233,9 @@ export default {
         manage: 'bkdata-index-set-manage',
         indexManage: 'log-index-set-manage',
       },
-      /** 字段脱敏路由跳转key */
+      /** 日志脱敏路由跳转key */
       maskingRouteKey: 'log',
-      /** 字段脱敏路由 */
+      /** 日志脱敏路由 */
       maskingConfigRoute: {
         log: 'collectMasking',
         es: 'es-index-set-masking',
@@ -253,6 +253,9 @@ export default {
     ...mapState({
       bkBizId: state => state.bkBizId,
       userGuideData: state => state.userGuideData,
+    }),
+    ...mapGetters({
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     refreshTimeText() {
       if (!this.refreshTimeout) return 'off';
@@ -411,12 +414,13 @@ export default {
       } else {
         this.detailJumpRouteKey = detailStr;
       };
-      // 字段脱敏的路由key
+      // 日志脱敏的路由key
       this.maskingRouteKey = detailStr;
       // 判断是否展示字段设置
       const filterMenuList = this.isAiopsToggle ? this.settingMenuList.filter(item => (isFilterExtract ? item.id !== 'extract' : true)) : [];
+      const accessList = this.accessList.filter(item => (this.isShowMaskingTemplate ? true : item.id !== 'logMasking'));
       // 合并其他
-      this.showSettingMenuList = filterMenuList.concat(this.accessList);
+      this.showSettingMenuList = filterMenuList.concat(accessList);
     },
     handleClickResultIcon(type) {
       if (type === 'collect') {

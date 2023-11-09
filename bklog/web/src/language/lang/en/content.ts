@@ -498,7 +498,6 @@ export default {
   "确认{n}该规则？": "Confirm {n} this rule?",
   "保留前{0}位, 后{1}位": "Keep the first {0} digits and the last {1} digits",
   "当前脱敏规则被应用{n}次，如停用/删除，将无法选用该规则，请确认是否{v}。": "The current desensitization rule has been applied {n} times. If it is stopped/deleted, this rule will not be available. Please confirm whether to {v}.",
-  "系统已置顶匹配规则，您也可选择其他规则。若无所需脱敏规则，可直接 {0}": "The system has set the top matching rule, and you can also choose other rules. If there is no required desensitization rule, you can directly {0}",
   "已同步 {0} 个脱敏结果": "Synchronized {0} desensitization results",
   "当前脱敏规则被应用{n}次，修改规则后，现有脱敏配置需同步后生效，请确认是否保存编辑。": "The current desensitization rule has been applied {n} times. After modifying the rule, the existing desensitization configuration needs to be synchronized to take effect. Please confirm whether to save the edit.",
   "当前规则【{n}】已进行了变更，同步该规则可能会导致命中结果变更，请确认是否需要同步该变更或忽略，也可重新选择规则": "The current rule [{n}] has been changed. Synchronizing this rule may cause changes in the hit results. Please confirm whether to synchronize the change or ignore it, or you can choose a new rule.",
@@ -542,7 +541,9 @@ export default {
   "脱敏结果预览": "Desensitization results preview",
   "正则表达式，脱敏算子，原始日志都填写后才可点击预览。": "Regular expressions, desensitization operators, and original logs must be filled in before you can click preview.",
   "请输入 JSON 格式日志": "Please enter JSON log format",
-  "支持引用正则表达式中的命名分组。如正则表达式为 (?P<phone>\\w{6,16})，可通过 ${phone} 进行引用": "Support for naming named groups in quoted regular expressions. For example, the regular expression is (?P<phone>\\w{6,16}), which can be referenced through ${phone}",
+  "支持引用正则表达式中的命名分组。如正则表达式为 ": "Support for naming named groups in quoted regular expressions. For example, the regular expression is ",
+  "，可通过 ${phone} 进行引用":", which can be referenced through ${phone}",
   "暂无采样日志": "No sampling log",
-  "正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…": "The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later..."
+  "正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…": "The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...",
+  "脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。": "The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.",
 }
