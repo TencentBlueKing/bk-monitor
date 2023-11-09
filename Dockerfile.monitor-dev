@@ -33,15 +33,15 @@ RUN npm install -g npm@latest pnpm
 # 安装python依赖
 RUN pip install --upgrade --no-cache-dir pip==20.2.3 setuptools==57.5.0
 
-COPY ./scripts/dev/run.sh /app/
+COPY bkmonitor/scripts/dev/run.sh /app/
 RUN chmod +x /app/run.sh
 
 # 复制supervisor/code-server启动配置
-COPY ./scripts/dev/supervisord.conf ./scripts/dev/code-server.yaml /app/etc/
+COPY bkmonitor/scripts/dev/supervisord.conf ./scripts/dev/code-server.yaml /app/etc/
 
 # 复制监控代码目录
 COPY ./ /app/code/
-COPY ./scripts/dev/local_settings.py.tpl /app/code/local_settings.py
+COPY bkmonitor/scripts/dev/local_settings.py.tpl /app/code/local_settings.py
 
 WORKDIR /app/code
 CMD /app/run.sh
