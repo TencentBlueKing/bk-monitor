@@ -13,7 +13,7 @@ import json
 import logging
 import os.path
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Dict, List, Union
 
 import yaml
@@ -116,22 +116,57 @@ class SimpleProvisioning(BaseProvisioning):
                                 yield Dashboard(title=title, dashboard=dashboard)
 
 
-_ORG_DATASOURCES_CACHE = defaultdict(set)
-
-
 def sync_data_sources(org_id: int, data_sources: List[Datasource]):
-    """同步数据源"""
-
-    if org_id not in _ORG_DATASOURCES_CACHE:
-        exists_data_sources = set(DataSource.objects.filter(org_id=org_id).values_list("name", flat=True))
-        _ORG_DATASOURCES_CACHE[org_id] = exists_data_sources
-
+    """
+    创建/更新数据源
+    """
+    logger.info(f"synchronize {len(data_sources)} datasources of org_id: {org_id}.")
     for ds in data_sources:
-        if ds.name in _ORG_DATASOURCES_CACHE[org_id]:
-            continue
+        instance = DataSource.objects.filter(org_id=org_id, name=ds.name).first()
+        if not instance:
+            client.create_datasource(org_id, ds)
+            logger.info(f"org_id: {org_id} datasource: {ds.name} not exists, created.")
+        else:
+            if _is_datasource_change(instance, ds):
+                client.update_datasource(org_id, instance.id, ds)
+                logger.info(f"datasource: {ds.name}(id: {instance.id}) changed, updated.")
+                continue
+            logger.info(f"datasource: {ds.name}(id: {instance.id}) not updated, skipped.")
 
-        client.create_datasource(org_id, ds)
-        _ORG_DATASOURCES_CACHE[org_id].add(ds.name)
+
+def _is_datasource_change(instance, dataclass_instance):
+    """
+    检查数据源是否有更新
+    """
+    ignore_fields = ["version"]
+    for f in fields(dataclass_instance):
+        if f.name in ignore_fields:
+            # version字段为grafana自动补充 这里不进行校验
+            continue
+        instance_v = getattr(instance, _camel_to_snake(f.name))
+        dataclass_instance_v = getattr(dataclass_instance, f.name)
+        if not instance_v and not dataclass_instance_v:
+            # 避免None和空字符串产生误判
+            continue
+        if isinstance(dataclass_instance_v, dict):
+            # JSON格式在Datasource使用Text存储 所以这里进行转换
+            dataclass_instance_v = json.dumps(dataclass_instance_v)
+        if instance_v != dataclass_instance_v:
+            return True
+
+    return False
+
+
+def _camel_to_snake(s):
+    """将aaBBCc转换aa_b_b_cc格式"""
+    result = []
+    for c in s:
+        if c.isupper():
+            result.append('_')
+            result.append(c.lower())
+        else:
+            result.append(c)
+    return ''.join(result)
 
 
 _ORG_DASHBOARD_CACHE = defaultdict(set)
@@ -152,3 +187,18 @@ def sync_dashboards(org_id: int, dashboards: List[Dashboard]):
 
         client.update_dashboard(org_id, 0, db)
         _ORG_DASHBOARD_CACHE[org_id].add(db.title)
+
+
+def group_by(iterators, get_key):
+    res = {}
+    for item in iterators:
+        key = get_key(item)
+        if not key:
+            continue
+
+        if key in res:
+            res[key].append(item)
+        else:
+            res[key] = [item]
+
+    return res
