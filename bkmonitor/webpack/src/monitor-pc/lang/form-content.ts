@@ -38,8 +38,8 @@ export default {
     'Based on dimension {0}, notifications are sent only when the proportion of abnormal alarms in the current rule reaches {1}%. ',
   '当{0}分钟内执行{1}次时，防御动作{2}': 'When executed {1} times within {0} minutes, defense action {2}',
   '较前{0}个时间点的{1}{2}时触发告警': 'The alarm is triggered at {1}{2} earlier than {0} time points',
-  '较前{0}天同一时刻绝对值的均值{1}时触发告警':
-    'The alarm is triggered when the mean value of the absolute value at the same time on the previous {0} day is {1}',
+  '较前{0}天同一时刻绝对值的{1}{2}时触发告警':
+    'The alarm is triggered when the absolute value is {1}{2} higher than the same time on the previous {0} day.',
   CMDB中定义的字段名: 'Field Name Defined in CMDB',
   PID文件: 'PID file',
   Ping不可达算法: 'Ping Unreachable Algorithm',
@@ -97,5 +97,9 @@ export default {
   区间: 'Range',
   蓝鲸信息流: 'Bkchat',
   '查看{0}条数据': 'View data in {0} bar',
-  查看指定数据: 'View specified data'
+  查看指定数据: 'View specified data',
+  '已选择{0}个静态主机': '{0} static hosts selected',
+  '已动态选择{0}个节点': '{0} nodes have been dynamically selected',
+  '已选择{0}个服务模板': '{0} service templates selected',
+  '已选择{0}个集群模板': '{0} cluster templates selected'
 };

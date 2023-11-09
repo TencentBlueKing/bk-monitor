@@ -27,6 +27,7 @@ from apps.log_esquery.exceptions import (
     BaseSearchIndexSetException,
     BaseSearchIndexSetIdTimeFieldException,
 )
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import SCROLL
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.cache import cache_one_minute
@@ -101,8 +102,19 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
+
+        # 过滤的字段获取field进行检索__dist的判断
+        is_clustered_fields = False
+        _filter: list = attrs.get("filter")
+        if _filter and isinstance(_filter, list):
+            for __filter in _filter:
+                field: str = __filter.get("key", "") if __filter.get("key", "") else __filter.get("field", "")
+                # bool值，是否是聚合字段
+                if field.startswith("__dist"):
+                    is_clustered_fields = True
+                    break
         if index_set_id:
-            index_info = _get_index_info(index_set_id)
+            index_info = _get_index_info(index_set_id, is_clustered_fields=is_clustered_fields)
             indices = index_info["indices"]
             scenario_id = index_info["scenario_id"]
             storage_cluster_id = index_info["storage_cluster_id"]
@@ -367,12 +379,12 @@ class EsQueryMappingAttrSerializer(serializers.Serializer):
         return attrs
 
 
-def _get_index_info(index_set_id):
-    return _init_index_info(index_set_id=index_set_id)
+def _get_index_info(index_set_id, is_clustered_fields=False):
+    return _init_index_info(index_set_id=index_set_id, is_clustered_fields=is_clustered_fields)
 
 
-@cache_one_minute("esquery_index_set_info_{index_set_id}")
-def _init_index_info(*, index_set_id):
+@cache_one_minute("esquery_index_set_info_{index_set_id}_{is_clustered_fields}")
+def _init_index_info(*, index_set_id, is_clustered_fields):
     tmp_index_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
     if tmp_index_obj:
         scenario_id = tmp_index_obj.scenario_id
@@ -394,6 +406,11 @@ def _init_index_info(*, index_set_id):
                     )
             else:
                 time_field = "dtEventTimeStamp"
+            # 过滤的字段获取 field进行检索__dist的判断
+            if is_clustered_fields:
+                clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+                if clustering_config and clustering_config.clustered_rt:
+                    indices = clustering_config.clustered_rt
             return {
                 "indices": indices,
                 "scenario_id": scenario_id,

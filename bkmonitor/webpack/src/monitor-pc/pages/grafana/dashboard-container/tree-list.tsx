@@ -76,22 +76,21 @@ export default class TreeList extends tsc<IProps, IEvents> {
         style: {
           'font-size': '20px'
         },
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: this.authority.NEW_DASHBOARD_AUTH,
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
       },
       {
         id: MoreType.export,
         name: window.i18n.tc('导出'),
         icon: 'icon-xiazai1',
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: true
       },
       {
         id: MoreType.delete,
         name: window.i18n.tc('删除'),
         icon: 'icon-mc-delete-line',
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: this.authority.NEW_DASHBOARD_AUTH,
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
       }
     ];
   }
@@ -100,8 +99,8 @@ export default class TreeList extends tsc<IProps, IEvents> {
       {
         id: MoreType.dashboard,
         name: window.i18n.tc('仪表盘'),
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: this.authority.NEW_DASHBOARD_AUTH,
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
       }
       // {
       //   id: MoreType.dir,
@@ -117,8 +116,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
         id: MoreType.export,
         name: window.i18n.tc('导出'),
         icon: 'icon-xiazai1',
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        hasAuth: true
       },
       {
         id: MoreType.fav,
@@ -127,8 +125,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
         style: {
           'font-size': '12px'
         },
-        hasAuth: this.authority.VIEW_AUTH,
-        action_id: this.authorityMap.VIEW_AUTH
+        hasAuth: true
       },
       {
         id: MoreType.unfav,
@@ -137,15 +134,12 @@ export default class TreeList extends tsc<IProps, IEvents> {
         style: {
           'font-size': '12px'
         },
-        hasAuth: this.authority.VIEW_AUTH,
-        action_id: this.authorityMap.VIEW_AUTH
+        hasAuth: true
       },
       {
         id: MoreType.delete,
         name: window.i18n.tc('删除'),
-        icon: 'icon-mc-delete-line',
-        hasAuth: this.authority.MANAGE_AUTH,
-        action_id: this.authorityMap.MANAGE_AUTH
+        icon: 'icon-mc-delete-line'
       }
     ];
   }
@@ -243,12 +237,19 @@ export default class TreeList extends tsc<IProps, IEvents> {
     return item;
   }
   getDashboardMoreOptions(item: TreeMenuItem) {
-    return this.dashboardMoreOptions.filter(set => {
-      if (item.isStarred) {
-        return set.id !== MoreType.fav;
-      }
-      return set.id !== MoreType.unfav;
-    });
+    return this.dashboardMoreOptions
+      .filter(set => {
+        if (item.isStarred) {
+          return set.id !== MoreType.fav;
+        }
+        return set.id !== MoreType.unfav;
+      })
+      .filter(set => {
+        if (set.id === MoreType.delete) {
+          return item.editable;
+        }
+        return true;
+      });
   }
   render() {
     return (

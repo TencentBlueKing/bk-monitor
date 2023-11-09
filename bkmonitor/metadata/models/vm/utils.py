@@ -151,7 +151,8 @@ def access_vm_by_kafka(table_id: str, raw_data_name: str, vm_cluster_name: str, 
             kafka_data = refine_bkdata_kafka_info()
         except Exception as e:
             logger.error("get bkdata kafka host error: %s", e)
-            storage_cluster_id = kafka_data["cluster_id"]
+            return {"err_msg": f"request vm api error, {e}"}
+        storage_cluster_id = kafka_data["cluster_id"]
         try:
             vm_data = access_vm(
                 raw_data_name=raw_data_name,
@@ -276,7 +277,7 @@ def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
     # 如果以 '__default__'结尾，则取前半部分
     if table_id.endswith("__default__"):
         table_id = table_id.split(".__default__")[0]
-    name = f"{table_id.replace('.', '_').lstrip('_')[-40:]}"
+    name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
     # NOTE: 清洗结果表不能出现双下划线
     vm_name = f"vm_{name}".replace('__', '_')
 
