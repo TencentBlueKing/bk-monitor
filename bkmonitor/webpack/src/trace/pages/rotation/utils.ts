@@ -122,7 +122,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
             } else {
               pre.value.push({
                 key: random(8, true),
-                workTime: cur.work_time.map(item => item.split('--').map(item => item.split(' ')))
+                workTime: cur.work_time.map(item => item.split('--').map(item => item.split(' ')))[0] || []
               });
             }
             break;
