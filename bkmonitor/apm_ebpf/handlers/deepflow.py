@@ -12,6 +12,7 @@ import operator
 from dataclasses import dataclass
 
 import requests
+from django.core.cache import cache
 
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
@@ -65,6 +66,11 @@ class DeepflowHandler:
     ]
 
     _scheme = "http"
+
+    _SERVER_ACCESS_CACHE_KEY = "apm_ebpf:deepflow:server:{bk_biz_id}:{cluster_id}"
+    _APP_ACCESS_CACHE_KEY = "apm_ebpf:deepflow:app:{bk_biz_id}:{cluster_id}"
+    # 缓存过期时间: 1h
+    _CACHE_EXPIRE = 60 * 60
 
     def __init__(self, bk_biz_id):
         self.bk_biz_id = bk_biz_id
@@ -142,14 +148,10 @@ class DeepflowHandler:
             for service in services:
                 if service.name == DeepflowComp.SERVICE_SERVER:
                     # 从deepflow-server获取RequestUrl
-                    port = WorkloadContent.extra_port(service.content, DeepflowComp.SERVICE_SERVER_PORT_QUERY)
-                    if port:
-                        info.request_url = f"{self._scheme}://{node_ip}:{port}"
-                elif service.name == DeepflowComp.SERVICE_APP:
+                    info.request_url = self.get_server_access(cluster_id, service.content)
+                if service.name == DeepflowComp.SERVICE_APP:
                     # 从deepflow-app获取TracingUrl
-                    port = WorkloadContent.extra_port(service.content, DeepflowComp.SERVICE_APP_PORT_QUERY)
-                    if port:
-                        info.tracing_url = f"{self._scheme}://{node_ip}:{port}"
+                    info.tracing_url = self.get_app_access(cluster_id, service.content)
 
             if info.is_valid:
                 res.append(info)
@@ -198,3 +200,50 @@ class DeepflowHandler:
 
         # 过滤共享集群
         return [i for i in clusters if not i["is_shared"]]
+
+    def get_server_access(self, cluster_id, service_content=None):
+        """
+        获取DeepFlow-server访问地址
+        """
+        return self._get_access(
+            cluster_id,
+            service_content,
+            self._SERVER_ACCESS_CACHE_KEY,
+            DeepflowComp.SERVICE_SERVER,
+            DeepflowComp.SERVICE_SERVER_PORT_QUERY,
+        )
+
+    def get_app_access(self, cluster_id, service_content):
+        """
+        获取DeepFlow-app访问地址
+        """
+        return self._get_access(
+            cluster_id,
+            service_content,
+            self._APP_ACCESS_CACHE_KEY,
+            DeepflowComp.SERVICE_APP,
+            DeepflowComp.SERVICE_APP_PORT_QUERY,
+        )
+
+    def _get_access(self, cluster_id, service_content, cache_key, comp_name, port_name):
+        data = cache.get(cache_key)
+        if data:
+            return data
+
+        node_ip = self._get_cluster_access_ip(cluster_id)
+        if not node_ip:
+            return None
+
+        if not service_content:
+            services = WorkloadHandler.list_services(self.bk_biz_id, DeepflowComp.NAMESPACE, cluster_id)
+            server_service = next((i for i in services if i.name == comp_name), None)
+            if not server_service:
+                raise ValueError(f"业务Id: {self.bk_biz_id} 集群Id: {cluster_id}下无法找到{comp_name}服务")
+
+            service_content = server_service.content
+
+        port = WorkloadContent.extra_port(service_content, port_name)
+        url = f"{self._scheme}://{node_ip}:{port}"
+        cache.set(cache_key, url, self._CACHE_EXPIRE)
+
+        return url

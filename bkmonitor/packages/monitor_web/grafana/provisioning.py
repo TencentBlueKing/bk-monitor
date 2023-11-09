@@ -91,7 +91,6 @@ class ApmEbpfDatasourceProvisioning:
     def generate_default_dashboards(
         cls, datasources, org_id, _1, _2, template, folder_id
     ) -> typing.List[_DashboardInstance]:
-
         type_mapping = {
             # 可能会存在多个相同的DeepFlow数据源导致Key相互覆盖 但是这里我们只需要任意取其中一个即可
             d["type"]: {"type": "datasource", "pluginId": d["type"], "value": d.get("uid", "")}
@@ -141,6 +140,14 @@ class ApmEbpfDatasourceProvisioning:
 
 
 class BkMonitorProvisioning(SimpleProvisioning):
+    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
+        res = list(super(BkMonitorProvisioning, self).datasources(request, org_name, org_id))
+
+        # 增加EBPF数据源
+        res.extend(ApmEbpfDatasourceProvisioning.datasources(org_name, org_id))
+
+        return res
+
     def dashboards(self, request, org_name: str, org_id: int):
         """
         只执行一次
@@ -282,11 +289,3 @@ class BkMonitorProvisioning(SimpleProvisioning):
             inputs.append({"name": input_field["name"], **data_sources[input_field["pluginId"]]})
 
         return [_DashboardInstance(dashboard=template, org_id=org_id, inputs=inputs, folderId=folder_id)]
-
-    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
-        res = list(super(BkMonitorProvisioning, self).datasources(request, org_name, org_id))
-
-        # 增加EBPF数据源
-        res.extend(ApmEbpfDatasourceProvisioning.datasources(org_name, org_id))
-
-        return res
