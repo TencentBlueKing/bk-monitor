@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 from celery.task import task
 from django.conf import settings
 
+
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.utils.log import logger
 

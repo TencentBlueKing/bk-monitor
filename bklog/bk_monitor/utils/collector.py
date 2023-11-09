@@ -5,6 +5,7 @@ import importlib
 import logging
 import time
 
+
 from apps.log_measure.utils.metric import build_metric_id
 from bk_monitor.utils.metric import REGISTERED_METRICS
 

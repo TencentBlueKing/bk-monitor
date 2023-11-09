@@ -23,6 +23,13 @@ import ipaddress
 from datetime import timedelta
 from typing import List
 
+from django.conf import settings
+from django.utils import timezone
+from django.utils.translation import ugettext as _
+from pipeline.engine.exceptions import InvalidOperationException
+from pipeline.service import task_service
+from rest_framework.response import Response
+
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.iam import ActionEnum, Permission
@@ -38,21 +45,19 @@ from apps.log_extract.handlers.extract import ExtractLinkBase
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.log_extract.serializers import PollingResultSerializer
 from apps.log_extract.tasks.extract import log_extract_task
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.time_handler import format_user_time_zone
-from django.conf import settings
-from django.utils import timezone
-from django.utils.translation import ugettext as _
-from pipeline.engine.exceptions import InvalidOperationException
-from pipeline.service import task_service
-from rest_framework.response import Response
 
 
 class TasksHandler(object):
     @classmethod
     def list(cls, tasks_views, bk_biz_id, keyword):
-        request_user = get_request_username()
+        request_user = get_request_external_username() or get_request_username()
 
         # 运维人员可以看到完整的任务列表
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
@@ -161,6 +166,11 @@ class TasksHandler(object):
             "link_id": link_id,
         }
         task = Tasks.objects.create(**params)
+        # 当请求为外部用户时，将创建者改为外部用户, 避免外部用户无法查看到他创建的任务
+        external_user = get_request_external_username()
+        if external_user:
+            task.created_by = external_user
+            task.save()
         params["ip_list"] = ip_list
         for pop_field in [
             "download_status",
@@ -195,7 +205,8 @@ class TasksHandler(object):
 
         # add user_operation_record
         operation_record = {
-            "username": get_request_username(),
+            # 外部请求时，记录真实的外部用户请求, 用于统计
+            "username": external_user or get_request_username(),
             "biz_id": bk_biz_id,
             "record_type": UserOperationTypeEnum.LOG_EXTRACT_TASKS,
             "record_object_id": task.task_id,
@@ -208,7 +219,7 @@ class TasksHandler(object):
         return {"task_id": task.task_id}
 
     def retrieve(self, tasks_views):
-        request_user = get_request_username()
+        request_user = get_request_external_username() or get_request_username()
         instance = tasks_views.get_object()
         serializer = tasks_views.get_serializer(instance)
         task = serializer.data

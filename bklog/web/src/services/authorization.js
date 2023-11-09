@@ -20,42 +20,72 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-// 全局函数
-const getTopWindow = function () {
-  try {
-    if (window.top?.document) {
-      return window.top;
-    }
-    return window;
-  } catch (err) {
-    console.log(err);
-    return window;
-  }
+/**
+ * 外部版授权相关接口
+ */
+
+// 获取运维人员列表呢
+const getAuthorizerList = {
+  url: '/external_permission/get_maintainer/',
+  method: 'get',
 };
 
-const topWindow = getTopWindow();
-const openLoginDialog = function () {
-  window.parent.LoginModal?.show?.();
-};
-const closeLoginDialog = function () {
-  try {
-    window.parent.LoginModal && (window.parent.LoginModal.$data.visible = false);
-    window.location.reload();
-  } catch (err) {
-    console.log(err);
-  }
+// 修改授权人
+const createOrUpdateAuthorizer = {
+  url: '/external_permission/maintainer/',
+  method: 'post',
 };
 
-try {
-  window.top.BLUEKING.corefunc.open_login_dialog = openLoginDialog;
-  window.top.BLUEKING.corefunc.close_login_dialog = closeLoginDialog;
-} catch (_) {
-  topWindow.BLUEKING = {
-    corefunc: {
-      open_login_dialog: openLoginDialog,
-      close_login_dialog: closeLoginDialog,
-    },
-  };
-  window.open_login_dialog = openLoginDialog;
-  window.close_login_dialog = closeLoginDialog;
-}
+// 获取授权人
+const getAuthorizer = {
+  url: '/external_permission/authorizer/',
+  method: 'get',
+};
+
+// 获取审批记录
+const getApplyRecordList = {
+  url: '/external_permission/apply_record/',
+  method: 'get',
+};
+
+// 获取授权列表
+const getExternalPermissionList = {
+  url: '/external_permission/',
+  method: 'get',
+};
+
+// 删除外部权限
+const deleteExternalPermission = {
+  url: '/external_permission/drop/',
+  method: 'post',
+};
+
+// 创建或更新外部权限
+const createOrUpdateExternalPermission = {
+  url: '/external_permission/create_or_update/',
+  method: 'post',
+};
+
+// 获取操作类型对应的资源列表
+const getByAction = {
+  url: '/external_permission/resource_by_action/',
+  method: 'get',
+};
+
+// 获取操作类型
+const getActionList = {
+  url: '/external_permission/action/',
+  method: 'get',
+};
+
+export {
+  getAuthorizerList,
+  createOrUpdateAuthorizer,
+  getAuthorizer,
+  getApplyRecordList,
+  getExternalPermissionList,
+  deleteExternalPermission,
+  createOrUpdateExternalPermission,
+  getByAction,
+  getActionList,
+};
