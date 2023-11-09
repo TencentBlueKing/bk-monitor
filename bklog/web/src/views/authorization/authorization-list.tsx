@@ -282,7 +282,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
   // 当前操作人是否有cmdb运维角色
   get hasCMDBRole(): boolean {
-    const username = this.$store.state.userMeta?.userName ?? '';
+    const username = this.$store.state.userMeta?.username ?? '';
     return this.bizCMDBRoleList.includes(username);
   }
 
