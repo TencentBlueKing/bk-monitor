@@ -15,12 +15,12 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-from apm.core.discover.precalculation.daemon import DaemonTaskHandler
 from django.core.management import BaseCommand
+
+from apm.core.discover.precalculation.daemon import DaemonTaskHandler
 
 
 class Command(BaseCommand):
-
     help = "operate apm pre_calculate"
 
     def add_arguments(self, parser):
@@ -31,7 +31,7 @@ class Command(BaseCommand):
         选择应用进行新版预计算灰度
         用法:
         manage.py set_ebpf_config add 2 触发应用ID为2的应用进行新版预计算 旧版预计算将会忽略此应用
-        TODO 支持指定队列
+        TODO 支持将任务发送到指定队列
         """
         params = options.get("params")
 
