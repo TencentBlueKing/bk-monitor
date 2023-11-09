@@ -46,6 +46,7 @@ export default {
   轮值时间: 'Rotation Time',
   生效时间段: 'Effective Period',
   时间范围: 'Time Range',
+  生效时间范围: 'Effective Range',
   通知时间: 'Notification Time',
   异常时间: 'Exception Time',
   时间: 'Time',
@@ -209,6 +210,7 @@ export default {
   阶段耗时: 'Phase time',
   执行耗时: 'Execution time',
   '阶段耗时 (同步)': 'Phase time (sync)',
+  永久: 'Permanent',
 
   // 名
   字段名: 'Field Name',
@@ -496,6 +498,9 @@ export default {
   按月: 'Monthly',
   上周: 'Last week',
   分: 'min', // 如果这个只用于指标检索的周期单位没有问题， 如果还有其他地方需要确认
+  '工作日(周一至周五)': 'Working days (Monday to Friday)',
+  '周末(周六、周日)': 'Weekends (Saturday and Sunday)',
+  次日: 'Next Day',
 
   '1 小时前': '1 hour ago',
   '7 日内': 'Last 7 days',
@@ -552,6 +557,8 @@ export default {
   准备中: 'Preparing',
   等待中: 'Waiting',
   调试中: 'Debugging',
+  生效中: 'Effective',
+  待生效: 'PendingEffect',
   已停用: 'Disabled',
   已删除: 'Deleted',
   已上线: 'Online',
@@ -1781,6 +1788,15 @@ export default {
   收到通知: 'Received notice',
   指定轮值规则: 'Specifies the rotation rule',
   值班人员: 'Duty Officer',
+  值班用户组: 'Duty user group',
+  单班时间: 'Classes Time',
   工作时间范围: 'Working hours',
-  群提醒人: 'Group Reminder'
+  起止时间: 'Start and end time',
+  有效日期: 'Effective Date',
+  有效时间: 'Effective Time',
+  指定时长: 'Specify Duration',
+  指定班次: 'Specify Classes',
+  单班时长: 'Classes Duration',
+  轮值人员: 'Rotating Personnel',
+  单次值班: 'Single Duty'
 };

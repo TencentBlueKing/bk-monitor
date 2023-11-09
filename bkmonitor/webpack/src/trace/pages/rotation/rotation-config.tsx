@@ -58,7 +58,7 @@ export default defineComponent({
     const id = computed(() => route.params.id);
     /* 路由 */
     const navList = computed(() => {
-      return [{ name: id.value ? t('编辑轮值') : t('新增轮值'), id: '' }];
+      return [{ name: id.value ? t('route-编辑轮值') : t('route-新增轮值'), id: '' }];
     });
     const formData = reactive({
       name: '',
@@ -143,7 +143,7 @@ export default defineComponent({
       }
       // 规则名称
       if (!formData.name) {
-        errMsg.name = t('该项必填');
+        errMsg.name = t('必填项');
         valid = false;
       }
       return valid;
@@ -156,13 +156,13 @@ export default defineComponent({
         const hasUsers = (data as FixedDataModel[]).every(item => item.users.length);
         if (!hasUsers) {
           res.err = true;
-          res.msg = t('用户必填');
+          res.msg = t('每条轮值规则最少添加一个用户');
         }
       } else {
         const hasUsers = (data as ReplaceDataModel).users.value.some(item => item.value.length);
         if (!hasUsers) {
           res.err = true;
-          res.msg = t('用户必填');
+          res.msg = t('每条轮值规则最少添加一个用户');
         }
       }
       return res;

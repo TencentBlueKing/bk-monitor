@@ -670,7 +670,7 @@ export default defineComponent({
               </Button>
               <SearchSelect
                 class='width-350'
-                placeholder={this.t('ID/告警组名称')}
+                placeholder={this.t('ID / 告警组名称')}
                 modelValue={this.searchData.value}
                 data={this.searchData.data}
                 onUpdate:modelValue={v => this.handleSearch(v)}

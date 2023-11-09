@@ -105,6 +105,10 @@ export default {
   '日志文件为绝对路径，可使用通配符': 'The log file is an absolute path, wildcards can be used',
   固定值班: 'Fixed duty',
   交替轮值: 'Alternate shifts',
+  日常值班: 'Daily duty',
   '近{0}天的排班结果': 'The result of scheduling for nearly {0} days',
-  '值班开始前{0}天收到通知': 'Received notice {0} days before shift start'
+  '值班开始前{0}天收到通知': 'Received notice {0} days before shift start',
+
+  至: 'to',
+  人: 'People'
 };

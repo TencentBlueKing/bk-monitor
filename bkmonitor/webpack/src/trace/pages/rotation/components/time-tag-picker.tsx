@@ -208,7 +208,7 @@ export default defineComponent({
                       {this.tagNameFormat(item)}
                     </Tag>
                   ))}
-                  {!this.localValue.length && <span class='placeholder'>{this.t('请选择')}</span>}
+                  {!this.localValue.length && <span class='placeholder'>{this.t('选择')}</span>}
                 </div>
               </div>
             )

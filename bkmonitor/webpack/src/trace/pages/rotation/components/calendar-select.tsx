@@ -82,7 +82,7 @@ export default defineComponent({
     watch(
       () => sortLocalValue.value,
       val => {
-        contentTextRef.value.innerText = val.length ? val.join('、') : t('请选择');
+        contentTextRef.value.innerText = val.length ? val.join('、') : t('选择');
       }
     );
 
@@ -210,7 +210,7 @@ export default defineComponent({
     }
 
     onMounted(() => {
-      contentTextRef.value.innerText = sortLocalValue.value.length ? sortLocalValue.value.join('、') : t('请选择');
+      contentTextRef.value.innerText = sortLocalValue.value.length ? sortLocalValue.value.join('、') : t('选择');
     });
 
     return {

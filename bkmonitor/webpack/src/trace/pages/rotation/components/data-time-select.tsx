@@ -105,13 +105,13 @@ export default defineComponent({
     });
     const timeList = generateTimeSlots();
     const weekList = [
-      { id: '01', label: '周一' },
-      { id: '02', label: '周二' },
-      { id: '03', label: '周三' },
-      { id: '04', label: '周四' },
-      { id: '05', label: '周五' },
-      { id: '06', label: '周六' },
-      { id: '07', label: '周日' }
+      { id: '01', label: t('周一') },
+      { id: '02', label: t('周二') },
+      { id: '03', label: t('周三') },
+      { id: '04', label: t('周四') },
+      { id: '05', label: t('周五') },
+      { id: '06', label: t('周六') },
+      { id: '07', label: t('周日') }
     ];
     /** 当前日期 */
     const currentDate = new Date().getDate();
@@ -178,7 +178,7 @@ export default defineComponent({
                             class={['list-item date', date.id === this.localValue[0] && 'selected']}
                             onClick={() => this.handleSelect(date.id, 'date')}
                           >
-                            {this.t(date.label)}
+                            {date.label}
                           </div>
                         ))}
                       </div>
@@ -216,7 +216,7 @@ export default defineComponent({
               ),
               default: () => (
                 <div class={['content-wrapper', !this.localText && 'placeholder']}>
-                  {this.localText || this.t('请选择')}
+                  {this.localText || this.t('选择')}
                 </div>
               )
             }}
