@@ -455,7 +455,10 @@ GRAPH_WATERMARK = True
 GRAFANA = {
     "HOST": GRAFANA_URL,
     "PROVISIONING_PATH": BASE_DIR + "/packages/monitor_web/grafana/provisioning",  # noqa
-    "PROVISIONING_CLASSES": ["monitor_web.grafana.provisioning.BkMonitorProvisioning"],
+    "PROVISIONING_CLASSES": [
+        "monitor_web.grafana.provisioning.BkMonitorProvisioning",
+        "monitor_web.grafana.provisioning.ApmEbpfProvisioning",
+    ],
     "PERMISSION_CLASSES": ["monitor_web.grafana.permissions.DashboardPermission"],
     "CODE_INJECTIONS": {
         "<head>": """<head>

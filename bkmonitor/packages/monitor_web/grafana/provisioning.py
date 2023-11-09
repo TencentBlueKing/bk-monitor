@@ -21,41 +21,27 @@ from django.core.cache import cache
 
 from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.deepflow import DeepflowHandler
-from bk_dataview.provisioning import Datasource, SimpleProvisioning, sync_data_sources
+from bk_dataview.provisioning import (
+    Dashboard,
+    Datasource,
+    SimpleProvisioning,
+    sync_data_sources,
+)
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
 from monitor_web.grafana.utils import patch_home_panels
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class _DashboardInstance:
-    dashboard: typing.Dict
-    org_id: str
-    inputs: typing.List
-    folderId: int
-
-
-class ApmEbpfDatasourceProvisioning:
-    """
-    APM EBPF数据源
-    """
-
-    _DATASOURCE_CACHE_KEY = "datasource:{org_name}"
-    _DATASOURCE_CACHE_EXPIRE = 300
-
-    # 仪表盘存放目录
+class ApmEbpfProvisioning(SimpleProvisioning):
     _FOLDER_NAME = "eBPF"
 
-    @classmethod
-    def datasources(cls, org_name: str, *_) -> List[Datasource]:
-        key = cls._DATASOURCE_CACHE_KEY.format(org_name=org_name)
-        res = cache.get(key)
-        if res:
-            return res
-
+    @using_cache(CacheType.GRAFANA)
+    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
         res = []
+        # 增加EBPF数据源
         datasources = DeepflowHandler(org_name).list_datasources()
 
         for datasource in datasources:
@@ -70,29 +56,45 @@ class ApmEbpfDatasourceProvisioning:
                 )
             )
 
-        cache.set(key, res, cls._DATASOURCE_CACHE_EXPIRE)
+        return res
+
+    def dashboards(self, request, org_name: str, org_id: int):
+        """
+        注册默认仪表盘
+        @ApmEbpfProvisioning返回空列表 不走外层sync_dashboards逻辑
+        注册仪表盘操作在@method: self.upsert_dashboards里完成
+        """
+
+        # 接入APM EBPF仪表盘
+        dashboard_mapping = self.get_dashboard_mapping(org_name)
+
+        self.upsert_dashboards(org_id, org_name, dashboard_mapping)
+
+        yield from []
+
+    def get_dashboard_mapping(self, _):
+        """
+        获取此业务下所有的默认仪表盘
+        """
+        res = {}
+
+        # 获取apm_ebpf目录下所有*.json文件
+        directory = "apm_ebpf"
+        path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards/{directory}")
+        templates = [n for n in os.listdir(path) if fnmatch.fnmatch(n, "*.json")]
+
+        for template in templates:
+            origin_name, _ = os.path.splitext(template)
+            res[f"{directory}_{origin_name}"] = os.path.join(directory, origin_name)
+
         return res
 
     @classmethod
-    def is_deepflow_template(cls, content):
-        """
-        判断是否是grafana-deepflow模版
-        """
-        for input_field in content.get("__inputs", []):
-            if (
-                input_field["type"] == "datasource"
-                and input_field["pluginId"] == DeepflowComp.GRAFANA_DATASOURCE_TYPE_NAME
-            ):
-                return True
-
-        return False
-
-    @classmethod
-    def generate_default_dashboards(
-        cls, datasources, org_id, _1, _2, template, folder_id
-    ) -> typing.List[_DashboardInstance]:
+    def _generate_default_dashboards(
+        cls, datasources, org_id, json_name, template, folder_id
+    ) -> typing.List[Dashboard]:
         type_mapping = {
-            # 可能会存在多个相同的DeepFlow数据源导致Key相互覆盖 但是这里我们只需要任意取其中一个即可
+            # 可能会存在多个相同的DeepFlow数据源导致Key相互覆盖 但是这里我们只需要任意取其中一个即可 因为多个数据源可以共用一个仪表盘
             d["type"]: {"type": "datasource", "pluginId": d["type"], "value": d.get("uid", "")}
             for d in datasources
         }
@@ -107,76 +109,35 @@ class ApmEbpfDatasourceProvisioning:
         folder_mapping = {i["title"]: i for i in folders["data"]}
 
         if folder_id == 0:
+            # 如果没有指定文件ID 则将仪表盘存放只eBPF目录下
             if cls._FOLDER_NAME not in folder_mapping:
                 folder_id = api.grafana.create_folder(org_id=org_id, title=cls._FOLDER_NAME)["data"]["id"]
             else:
                 folder_id = folder_mapping[cls._FOLDER_NAME]["id"]
 
         return [
-            _DashboardInstance(
-                dashboard=template,
+            Dashboard(
                 org_id=org_id,
+                dashboard=template,
                 inputs=inputs,
                 folderId=folder_id,
             )
         ]
 
-    @classmethod
-    def get_dashboard_mapping(cls, _):
-        """
-        获取此业务下所有的默认仪表盘
-        """
-        res = {}
-
-        # 获取所有以apm-ebpf开头的仪表盘模版
-        directory = "apm_ebpf"
-        path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards/{directory}")
-        templates = [n for n in os.listdir(path) if fnmatch.fnmatch(n, "*.json")]
-
-        for template in templates:
-            origin_name, _ = os.path.splitext(template)
-            res[f"{directory}_{origin_name}"] = os.path.join(directory, origin_name)
-
-        return res
-
 
 class BkMonitorProvisioning(SimpleProvisioning):
-    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
-        res = list(super(BkMonitorProvisioning, self).datasources(request, org_name, org_id))
-
-        # 增加EBPF数据源
-        res.extend(ApmEbpfDatasourceProvisioning.datasources(org_name, org_id))
-
-        return res
-
     def dashboards(self, request, org_name: str, org_id: int):
         """
-        只执行一次
+        注册默认仪表盘
+        @BkMonitorProvisioning返回空列表 不走外层sync_dashboards逻辑
+        注册仪表盘操作在@method: self.upsert_dashboards里完成
         """
 
-        dashboard_mapping = {}
-        dashboard_mapping.update(self.get_dashboard_mapping(org_name))
-        # 接入APM EBPF仪表盘
-        dashboard_mapping.update(ApmEbpfDatasourceProvisioning.get_dashboard_mapping(org_name))
+        dashboard_mapping = self.get_dashboard_mapping(org_name)
 
         self.upsert_dashboards(org_id, org_name, dashboard_mapping)
 
         yield from []
-
-    @classmethod
-    def upsert_dashboards(cls, org_id, org_name, dashboard_mapping):
-        from monitor.models import ApplicationConfig
-
-        dashboard_keys = set(dashboard_mapping.keys())
-        created = set(
-            ApplicationConfig.objects.filter(key__in=dashboard_keys, cc_biz_id=org_name, value="created").values_list(
-                "key", flat=True
-            )
-        )
-        not_created = dashboard_keys - created
-        for i in not_created:
-            if cls.create_default_dashboard(org_id, org_name, f"{dashboard_mapping[i]}.json"):
-                ApplicationConfig.objects.get_or_create(cc_biz_id=org_name, key=i, value="created")
 
     @classmethod
     def get_dashboard_mapping(cls, org_name):
@@ -211,67 +172,10 @@ class BkMonitorProvisioning(SimpleProvisioning):
 
         return grafana_default_dashboard_map
 
-    @staticmethod
-    def create_default_dashboard(org_id, org_name, json_name="host.json", folder_id=0, bk_biz_id=None):
-        """
-        创建仪表盘，并且设置为组织默认仪表盘
-        :param org_id: 组织ID
-        :param org_name: 组织名称
-        :type org_id: int
-        :param json_name: 配置文件名
-        :type json_name: string
-        :param folder_id: 目录 id
-        :param bk_biz_id: 业务 id ==> org_name
-        """
-        datasources = api.grafana.get_all_data_source(org_id=org_id)["data"]
-        if not datasources:
-            org_name = str(bk_biz_id)
-            provisioning = SimpleProvisioning()
-            ds_list = []
-            for ds in provisioning.datasources(None, org_name, org_id):
-                if not isinstance(ds, Datasource):
-                    raise ValueError("{} is not instance {}".format(type(ds), Datasource))
-                ds_list.append(ds)
-            sync_data_sources(org_id, ds_list)
-            datasources = api.grafana.get_all_data_source(org_id=org_id)["data"]
-
-        path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards/{json_name}")
-        try:
-            errors = []
-
-            with open(path, encoding="utf-8") as f:
-                dashboard_config = json.loads(f.read())
-
-            if ApmEbpfDatasourceProvisioning.is_deepflow_template(dashboard_config):
-                # Step1: 判断是否为deepflow仪表盘文件 -> 执行多仪表盘创建逻辑
-                dashboards = ApmEbpfDatasourceProvisioning.generate_default_dashboards(
-                    datasources, org_id, org_name, json_name, dashboard_config, folder_id
-                )
-            else:
-                # Step2: 默认逻辑: 创建单仪表盘
-                dashboards = BkMonitorProvisioning.generate_default_dashboards(
-                    datasources, org_id, org_name, json_name, dashboard_config, folder_id
-                )
-
-            for dashboard in dashboards:
-                result = api.grafana.import_dashboard(**asdict(dashboard))
-
-                if not result["result"]:
-                    errors.append(f"组织({org_id})创建默认仪表盘({json_name})失败。接口返回：{result}")
-
-            if errors:
-                logger.exception(errors)
-                return False
-
-            return True
-        except Exception as err:  # noqa
-            logger.exception("组织({})创建默认仪表盘{}失败: {}".format(org_id, json_name, err))
-            return False
-
-    @staticmethod
-    def generate_default_dashboards(
-        datasources, org_id, _, json_name, template, folder_id
-    ) -> typing.List[_DashboardInstance]:
+    @classmethod
+    def _generate_default_dashboards(
+        cls, datasources, org_id, json_name, template, folder_id
+    ) -> typing.List[Dashboard]:
         data_sources = {
             data_source["type"]: {
                 "type": "datasource",
@@ -289,4 +193,11 @@ class BkMonitorProvisioning(SimpleProvisioning):
                 continue
             inputs.append({"name": input_field["name"], **data_sources[input_field["pluginId"]]})
 
-        return [_DashboardInstance(dashboard=template, org_id=org_id, inputs=inputs, folderId=folder_id)]
+        return [
+            Dashboard(
+                org_id=org_id,
+                dashboard=template,
+                inputs=inputs,
+                folderId=folder_id,
+            )
+        ]
