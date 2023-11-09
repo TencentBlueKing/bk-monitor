@@ -757,7 +757,7 @@ class DutyPlan(Model):
         data_time = data_time or time_tools.datetime2str(datetime.now(tz=pytz.timezone(self.timezone)))
         finished_time = self.finished_time or "3000-01-01 00:00:00"
 
-        if not self.start_time <= data_time <= finished_time:
+        if finished_time < self.start_time or not self.start_time <= data_time <= finished_time:
             # 如果当前时间不满足区间条件，则直接
             return False
 

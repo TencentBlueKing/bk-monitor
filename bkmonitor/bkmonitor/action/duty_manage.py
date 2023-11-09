@@ -576,9 +576,11 @@ class GroupDutyRuleManager:
         duty_plans = []
         for duty_plan in duty_manager.get_duty_plan():
             duty_end_times = [f'{work_time["end_time"]}:59' for work_time in duty_plan["work_times"]]
+            duty_start_times = [f'{work_time["start_time"]}:00' for work_time in duty_plan["work_times"]]
             # 结束时间获取当前有效的排班时间最后一天即可
             finished_time = max(duty_end_times)
-            start_time = duty_manager.begin_time.strftime("%Y-%m-%d %H:%M:%S")
+            # 开始时间取当前时间取当前排班内容里的最小一位
+            start_time = min(duty_start_times)
             duty_plans.append(
                 DutyPlan(
                     start_time=start_time,
