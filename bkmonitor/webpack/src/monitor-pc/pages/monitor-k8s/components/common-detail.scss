@@ -2,13 +2,13 @@
 @import './common-table.scss';
 
 .common-detail {
+  z-index: 9;
   display: flex;
+  flex-direction: column;
   height: 100%; 
   color: #63656e;
   background-color: white;
-  flex-direction: column;
   box-shadow: 0 2px 4px 0 rgb(0 0 0 / 16%);
-  z-index: 9;
 
   @include common-progress-color;
 
@@ -77,8 +77,8 @@
         }
 
         .icon-search {
-          color: #979ba5;
           font-size: 14px;
+          color: #979ba5;
 
           &:hover {
             color: #3a84ff;
@@ -95,8 +95,8 @@
 
           .index-search-input {
             input {
-              padding-left: 0;
               height: 24px;
+              padding-left: 0;
               font-size: 12px;
             }
           }
@@ -116,13 +116,13 @@
 
   &-title {
     display: flex;
+    flex: 0 0 42px;
+    align-items: center;
     height: 42px;
     padding: 0 8px 0 16px;
     font-size: 14px;
     color: #313238;
     white-space: nowrap;
-    flex: 0 0 42px;
-    align-items: center;
 
     .title-end-content {
       margin-left: auto;
@@ -170,14 +170,13 @@
 
     .list-type-wrap {
       .list-type-item {
+        overflow: hidden;
         
         line-height: 22px;
-        overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
 
         @include ellipsis;
-
         @include ellipsis;
 
         &:not(:last-child) {
@@ -199,10 +198,10 @@
 
       .item-title {
         display: flex;
-        height: 20px;
-        min-width: 80px;
-        color: #979ba5;
         align-items: center;
+        min-width: 80px;
+        height: 20px;
+        color: #979ba5;
 
         &.title-middle {
           height: initial;
@@ -210,11 +209,11 @@
       }
 
       .item-value {
+        flex: 1;
         margin-left: 2px;
+        overflow: hidden;
         line-height: 20px;
         color: #63656e;
-        flex: 1;
-        overflow: hidden;
       }
     }
 
@@ -241,7 +240,6 @@
     }
 
     .text-copy {
-      flex: 1;
       margin-left: 8px;
       font-size: 14px;
       color: #3a84ff;
@@ -251,11 +249,181 @@
   
   .show-mode-button {
     position: absolute;
-    right: -16px;
     top: 8px;
+    right: -16px;
   }
 }
 
 .common-detail-theme {
   @include common-theme();
+}
+
+.status-container {
+  display: flex;
+  padding: 0 16px;
+  margin-bottom: 10px;
+
+  .status-item {
+    display: flex;
+    flex-grow: 1;
+    align-items: center;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #313238;
+    border-radius: 2px;
+
+    @mixin status-icon($bg-color) {
+      &::before,
+      &::after {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 2;
+        width: 6px;
+        height: 6px;
+        content: '';
+        background-color: $bg-color;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+      }
+    
+      &::before {
+        top: 50%;
+        left: 50%;
+        width: 12px;
+        height: 12px;
+        opacity: .16;
+      }
+    }
+
+    &:nth-child(n+2) {
+      margin-left: 8px;
+    }
+
+    &.bg- {
+      &normal {
+        background-color: #f2fff4;
+      }
+
+      &disabled {
+        background-color: #fee;
+      }
+
+      &failed {
+        background-color: #f0f1f5;
+      }
+    }
+    
+    .status-icon {
+      position: relative;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    
+      &.status-normal {
+        @include status-icon(#3FC06D);
+      }
+    
+      &.status-disabled {
+        @include status-icon(#EA3636);
+      }
+    
+      &.status-failed {
+        @include status-icon(#979ba5);
+      }
+    }
+
+    .icon-monitor {
+      font-size: 16px;
+
+      &.icon-menu-shield,
+      &.icon-celvepingbi {
+        color: #ffb848;
+      }
+
+      &.icon-inform-circle {
+        color: #a3c5fd;
+      }
+
+      &.icon-mc-help-fill {
+        color: #c4c6cc;
+      }
+    }
+
+    .text {
+      margin-left: 6px;
+    }
+
+    .status-wrap-flex {
+      display: inline-flex;
+      align-items: center;
+
+      &.common-status-wrap .common-status-name {
+        line-height: 12px;
+      }
+    }
+  }
+}
+// 右侧详情栏
+.detail-collapse-title {
+  .bk-collapse-item .bk-collapse-item-header {
+    height: auto;
+    padding: 0;
+    font-size: 12px;
+    line-height: normal;
+  }
+
+  .item-collapse-data-length {
+    padding: 1px 4px;
+    font-size: 12px;
+    color: #63656e;
+    background-color: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .detail-collapse-content {
+    padding: 8px 16px;
+    margin-bottom: 12px;
+    background-color: #f5f7fa;
+    border-radius: 2px;
+
+    .row {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+
+      &:nth-child(n+2) {
+        margin-top: 8px;
+      }
+      
+      .label {
+        min-width: 80px;
+        margin-right: 2px;
+        font-size: 12px;
+        color: #63656e;
+        word-wrap: break-word;
+      }
+
+      .value-container {
+        width: calc(100% - 80px - 2px);
+
+        .value {
+          width: 100%;
+          overflow: hidden;
+          font-size: 12px;
+          color: #313238;
+          text-align: right;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+
+  .divider {
+    width: calc(100% - (16px + 16px));
+    padding-bottom: 16px;
+    margin: 0 auto;
+    border-top: 1px solid #eaebf0;
+  }
 }
