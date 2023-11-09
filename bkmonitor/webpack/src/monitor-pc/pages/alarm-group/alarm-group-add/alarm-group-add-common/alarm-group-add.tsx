@@ -334,6 +334,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           name,
           desc,
           channels,
+          timezone,
           bk_biz_id: bizId,
           alert_notice: alertNotice,
           action_notice: actionNotice,
@@ -346,6 +347,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         this.formData.name = name;
         this.formData.desc = desc;
         this.formData.bizId = bizId;
+        this.formData.timezone = timezone;
         this.formData.channels = channels || ['user'];
         this.channels = channels || ['user'];
         // 通知类型回显

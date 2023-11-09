@@ -26,6 +26,7 @@
 import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { SearchSelect } from 'bk-magic-vue';
 import moment from 'moment';
 import { debounce } from 'throttle-debounce';
 
@@ -117,6 +118,9 @@ export default class AlarmGroup extends tsc<IGroupList> {
     { label: i18n.t('配置分组'), prop: 'app', minWidth: 70, width: 170, props: {}, formatter: row => row.app || '--' },
     { label: i18n.t('操作'), prop: 'handle', minWidth: null, width: 130, props: {}, formatter: () => {} }
   ];
+
+  searchCondition = [];
+
   handleSearch: Function = () => {};
 
   get isMonitor(): boolean {
@@ -364,6 +368,18 @@ export default class AlarmGroup extends tsc<IGroupList> {
     }
   }
 
+  /**
+   * @description 条件搜索
+   * @param value
+   */
+  handleSearchCondition(value) {
+    this.searchCondition = value;
+    this.emptyType = value?.length ? 'search-empty' : 'empty';
+    this.tableInstance.searchCondition = value;
+    this.tableInstance.page = 1;
+    this.tableData = this.tableInstance.getTableData();
+  }
+
   render(): VNode {
     return (
       <div
@@ -384,13 +400,35 @@ export default class AlarmGroup extends tsc<IGroupList> {
             {' '}
             {this.$t('新建')}
           </bk-button>
-          <bk-input
+          <SearchSelect
+            class='tool-search'
+            values={this.searchCondition}
+            placeholder={this.$t('ID / 告警组名称')}
+            data={[
+              {
+                name: 'ID',
+                id: 'id'
+              },
+              {
+                name: this.$t('告警组名称'),
+                id: 'name'
+              },
+              {
+                name: this.$t('轮值规则'),
+                id: 'rule'
+              }
+            ]}
+            strink={false}
+            show-condition={false}
+            onChange={this.handleSearchCondition}
+          ></SearchSelect>
+          {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}
             value={this.keyword}
             onChange={this.handleSearch}
             right-icon='bk-icon icon-search'
-          ></bk-input>
+          ></bk-input> */}
         </div>
         <bk-table
           class='alarm-group-table'
