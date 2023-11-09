@@ -13,10 +13,14 @@
   "dependencies": {
     "@blueking/bk-weweb": "0.0.22",
 <<<<<<< HEAD
+<<<<<<< HEAD
     "@blueking/date-picker": "^0.0.41",
 =======
     "@blueking/date-picker": "^0.0.37",
 >>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
+=======
+    "@blueking/date-picker": "^0.0.39",
+>>>>>>> 2bcc6ba (feat: 新版监控日期选择 --story=114879880 (#148))
     "@blueking/ip-selector": "0.0.1-beta.134",
     "@blueking/paas-login": "0.0.6",
     "@blueking/user-selector": "^1.0.5-beta.2",

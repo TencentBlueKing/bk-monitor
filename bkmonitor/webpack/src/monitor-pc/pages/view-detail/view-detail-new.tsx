@@ -40,10 +40,14 @@ import SortButton from '../../components/sort-button/sort-button';
 import TimeRange, { TimeRangeType } from '../../components/time-range/time-range';
 // import { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/utils';
 =======
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 >>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
+=======
+import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/utils';
+>>>>>>> 2bcc6ba (feat: 新版监控日期选择 --story=114879880 (#148))
 import { updateTimezone } from '../../i18n/dayjs';
 import { IRefleshItem } from '../monitor-k8s/components/dashboard-tools';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
