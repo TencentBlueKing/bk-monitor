@@ -1,4 +1,5 @@
 import copy
+import logging
 import re
 from collections import Counter, deque
 from dataclasses import asdict, dataclass
@@ -647,7 +648,7 @@ def generate_query_string(params: dict) -> str:
     return query_string
 
 
-class EnhanceLucene(object):
+class EnhanceLuceneBase(object):
     """
     增强Lucene语法
     """
@@ -664,7 +665,7 @@ class EnhanceLucene(object):
         raise NotImplementedError
 
 
-class CaseInsensitiveLogicalEnhanceLucene(EnhanceLucene):
+class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
     """
     不区分大小写的逻辑运算符
     例如: A and B => A AND B
@@ -694,7 +695,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLucene):
         return ''.join(split_strings)
 
 
-class OperatorEnhanceLucene(EnhanceLucene):
+class OperatorEnhanceLucene(EnhanceLuceneBase):
     """
     兼容用户忘记运算符之前输入:的情况
     例如: A > 3 => A : > 3
@@ -716,7 +717,7 @@ class OperatorEnhanceLucene(EnhanceLucene):
         return re.sub(self.RE, r': \1 \2', self.query_string)
 
 
-class ReservedLogicalEnhanceLucene(EnhanceLucene):
+class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
     """
     将内置的逻辑运算符转换为带引号的形式, 兼容用户真的想查询这些词的情况
     例如: A: AND => A: "AND"
@@ -758,3 +759,29 @@ class ReservedLogicalEnhanceLucene(EnhanceLucene):
                     query_string = query_string[: start + offset] + f'"{operator}"' + query_string[end + offset :]
                     offset += 2
         return query_string
+
+
+class EnhanceLuceneAdapter(object):
+    """
+    增强Lucene语法适配器
+    依次检查是否满足需要兼容的语法类型, 并转换成lucene支持的语法
+    REGISTERED_ENHANCERS中的顺序决定了检查的顺序
+    """
+
+    REGISTERED_ENHANCERS = EnhanceLuceneBase.__subclasses__()
+
+    def __init__(self, query_string: str):
+        self.query_string: str = query_string
+        self.enhanced: bool = False
+
+    def enhance(self) -> str:
+        query_string = copy.deepcopy(self.query_string)
+        for enhancer_class in self.REGISTERED_ENHANCERS:
+            enhancer = enhancer_class(query_string)
+            if enhancer.match():
+                self.enhanced = True
+                query_string = enhancer.transform()
+        if self.enhanced:
+            logging.info(f"Enhanced lucene query string from [{self.query_string}] to [{query_string}]")
+            self.query_string = query_string
+        return self.query_string
