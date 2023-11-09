@@ -50,12 +50,12 @@ class RequestProcessor:
 
     @classmethod
     def get_request_user_info(cls, request) -> Dict[str, Any]:
-        external_user = request.META.get("USER", "")
+        external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
         try:
             external_user = json.loads(external_user)
         except Exception:
             logger.error(f"解析外部用户信息失败({external_user})")
-            external_user = {}
+            external_user = {"username": external_user}
             return external_user
         return external_user
 
