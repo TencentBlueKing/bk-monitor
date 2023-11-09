@@ -359,8 +359,10 @@ export default {
       jsCookie.remove('blueking_language', { path: '' });
       jsCookie.set('blueking_language', value, {
         expires: 3600,
-        domain: this.envConfig.bkDomain || location.host,
-        domain: this.envConfig.bkDomain,
+        domain: this.envConfig.bkDomain
+                  || location.host.split('.').slice(-2)
+                    .join('.')
+                    .replace(`:${location.port}`, ''),
       });
       await jsonp(
         `${this.envConfig.host}/api/c/compapi/v2/usermanage/fe_update_user_language/?language=${value}`,
