@@ -25,6 +25,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+
 .icon-app-store:before {
   content: '\e162';
 }
@@ -385,7 +386,7 @@
   content: '\e180';
 }
 
-.icon-delete:before {
+.icon-log-delete:before {
   content: '\e181';
 }
 
