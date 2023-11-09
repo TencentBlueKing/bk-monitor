@@ -79,6 +79,7 @@ export default defineComponent({
 
     function handleEffectiveChange(val: string, type: 'startTime' | 'endTime') {
       formData.effective[type] = val;
+      getPreviewData();
     }
 
     // --------------轮值类型-------------------
@@ -97,7 +98,8 @@ export default defineComponent({
           isCustom: false,
           customTab: 'duration',
           customWorkDays: [],
-          value: [{ key: random(8, true), workTime: [], workDays: [], periodSettings: { unit: 'day', duration: 1 } }]
+          periodSettings: { unit: 'day', duration: 1 },
+          value: [{ key: random(8, true), workTime: [], workDays: [1, 2, 3, 4, 5] }]
         },
         users: {
           type: 'specified',

@@ -120,6 +120,7 @@ export default defineComponent({
      * @param ind 索引
      */
     function handleTagClose(ind: number) {
+      sourceValue.value = JSON.parse(JSON.stringify(localValue));
       localValue.splice(ind, 1);
       handleEmitData();
     }

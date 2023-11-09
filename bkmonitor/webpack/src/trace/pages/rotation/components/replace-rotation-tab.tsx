@@ -46,7 +46,6 @@ export interface ReplaceRotationDateModel {
   key: number;
   workDays?: number[];
   workTime: string[][];
-  periodSettings?: { unit: 'hour' | 'day'; duration: number };
 }
 export interface ReplaceRotationUsersModel {
   type: 'specified' | 'auto';
@@ -58,10 +57,11 @@ export interface ReplaceDataModel {
   id?: number;
   date: {
     type: RotationSelectTypeEnum;
-    workTimeType?: WorkTimeType;
+    workTimeType: WorkTimeType;
     isCustom: boolean;
-    customTab?: CustomTabType;
-    customWorkDays?: number[];
+    customTab: CustomTabType;
+    customWorkDays: number[];
+    periodSettings: { unit: 'hour' | 'day'; duration: number };
     value: ReplaceRotationDateModel[];
   };
   users: ReplaceRotationUsersModel;
@@ -97,7 +97,11 @@ export default defineComponent({
         isCustom: false,
         customTab: 'duration',
         customWorkDays: [],
-        value: [createDefaultDate()]
+        periodSettings: {
+          unit: 'day',
+          duration: 1
+        },
+        value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)]
       },
       users: {
         type: 'specified',
@@ -121,7 +125,7 @@ export default defineComponent({
           localValue.date.isCustom = false;
           localValue.date.type = val;
         }
-        localValue.date.value = [createDefaultDate()];
+        localValue.date.value = [createDefaultDate(val)];
       }
     });
 
@@ -137,12 +141,29 @@ export default defineComponent({
       }
     );
 
-    function createDefaultDate(): ReplaceRotationDateModel {
+    function createDefaultDate(type: RotationSelectTypeEnum): ReplaceRotationDateModel {
+      let days = [];
+      switch (type) {
+        case RotationSelectTypeEnum.WorkDay:
+          days = [1, 2, 3, 4, 5];
+          break;
+        case RotationSelectTypeEnum.Weekend:
+          days = [6, 7];
+          break;
+        case RotationSelectTypeEnum.Daily:
+          days = [1, 2, 3, 4, 5, 6, 7];
+          break;
+        case RotationSelectTypeEnum.Monthly:
+        case RotationSelectTypeEnum.Weekly:
+        case RotationSelectTypeEnum.Custom:
+          days = [];
+          break;
+      }
+
       return {
         key: random(8, true),
         workTime: [],
-        workDays: [],
-        periodSettings: { unit: 'day', duration: 1 }
+        workDays: days
       };
     }
 
@@ -151,7 +172,7 @@ export default defineComponent({
      */
     function handleClassesItemChange(type: 'add' | 'del', ind = 1) {
       if (type === 'add') {
-        localValue.date.value.push(createDefaultDate());
+        localValue.date.value.push(createDefaultDate(localValue.date.type));
       } else {
         localValue.date.value.splice(ind, 1);
         handleEmitData();
@@ -172,7 +193,7 @@ export default defineComponent({
        */
       function handleDateTypeChange(type: WorkTimeType) {
         localValue.date.workTimeType = type;
-        localValue.date.value = [createDefaultDate()];
+        localValue.date.value = [createDefaultDate(localValue.date.type)];
       }
 
       /**
@@ -407,13 +428,13 @@ export default defineComponent({
             class='classes-duration-form-item'
           >
             <Input
-              v-model={value[0].periodSettings.duration}
+              v-model={localValue.date.periodSettings.duration}
               type='number'
               min={1}
               onblur={handleEmitData}
             />
             <Select
-              v-model={value[0].periodSettings.unit}
+              v-model={localValue.date.periodSettings.unit}
               clearable={false}
               onChange={handleEmitData}
             >

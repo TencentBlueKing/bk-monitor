@@ -98,13 +98,17 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
           pre.workTimeType = cur.work_time_type || 'time_range';
           pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
           pre.customWorkDays = cur.work_days;
+          pre.periodSettings = cur.period_settings || {
+            unit: 'day',
+            duration: 1
+          };
         }
         const time = cur.work_time.map(item => item.split('--'));
         switch (cur.work_type) {
           case RotationSelectTypeEnum.Daily:
           case RotationSelectTypeEnum.WorkDay:
           case RotationSelectTypeEnum.Weekend: {
-            pre.value.push({ key: random(8, true), workTime: time });
+            pre.value.push({ key: random(8, true), workTime: time, workDays: cur.work_days });
             break;
           }
           case RotationSelectTypeEnum.Weekly:
@@ -126,11 +130,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
           case RotationSelectTypeEnum.Custom: {
             pre.value.push({
               key: random(8, true),
-              workTime: time,
-              periodSettings: {
-                unit: cur.period_settings.window_unit || 'hour',
-                duration: cur.period_settings.duration || 1
-              }
+              workTime: time
             });
           }
         }
@@ -168,7 +168,9 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
     case RotationSelectTypeEnum.WorkDay: {
       dutyTime = data.value.map(item => ({
         work_type: data.type,
-        work_time: item.workTime.map(val => val.join('--'))
+        work_time: item.workTime.map(val => val.join('--')),
+        work_days: item.workDays,
+        work_time_type: 'time_range'
       }));
       break;
     }
@@ -185,6 +187,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
         dutyTime = data.value.map(item => ({
           work_type: data.type,
           work_time_type: data.workTimeType,
+          work_days: item.workDays,
           work_time: [item.workTime.length && item.workTime.map(item => item.join(' ')).join('--')]
         }));
       }
@@ -192,14 +195,13 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
     }
     case RotationSelectTypeEnum.Custom: {
       dutyTime = data.value.map(item => {
-        const { unit, duration } = item.periodSettings;
-        const periodSettings = data.customTab === 'duration' ? { window_unit: unit, duration } : {};
         return {
           is_custom: true,
           work_type: data.type,
           work_days: data.customWorkDays,
           work_time: item.workTime.map(val => val.join('--')),
-          ...periodSettings
+          work_time_type: 'time_range',
+          ...data.periodSettings
         };
       });
       break;
@@ -262,7 +264,8 @@ export function fixedRotationTransform<T extends 'params' | 'data'>(
         dutyTimeItem = {
           work_type: item.type,
           work_date_range: [dateRange],
-          work_time: item.workTime.map(item => item.join('--'))
+          work_time: item.workTime.map(item => item.join('--')),
+          work_time_type: 'time_range'
         };
         break;
       }
