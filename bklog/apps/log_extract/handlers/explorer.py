@@ -24,9 +24,14 @@ import re
 import time
 from itertools import product
 
+from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api import CCApi
+from apps.constants import ExternalPermissionActionEnum
 from apps.exceptions import ApiResultError
 from apps.iam import ActionEnum, Permission
+from apps.log_commons.models import ExternalPermission
 from apps.log_extract import constants, exceptions
 from apps.log_extract.constants import (
     BATCH_GET_JOB_INSTANCE_IP_LOG_IP_LIST_SIZE,
@@ -37,19 +42,19 @@ from apps.log_extract.handlers.thread import ThreadPool
 from apps.log_extract.models import Strategies
 from apps.log_search.handlers.biz import BizHandler
 from apps.utils.db import array_chunk
-from apps.utils.local import get_request_username
+from apps.utils.local import get_request_external_username, get_request_username
 from apps.utils.log import logger
 from bkm_ipchooser.constants import CommonEnum
 from bkm_ipchooser.handlers import topo_handler
 from bkm_ipchooser.query import resource
 from bkm_ipchooser.tools import topo_tool
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class ExplorerHandler(object):
     def __init__(self):
         self.request_user = get_request_username()
+        self.external_user = get_request_external_username()
 
     def list_files(self, bk_biz_id, ip, request_dir, is_search_child, time_range, start_time, end_time):
         """
@@ -224,7 +229,9 @@ class ExplorerHandler(object):
                 raise exceptions.ExplorerOsTypeMismatch
 
         # step 3: 获取ip可以访问的策略信息
-        strategies = self.get_user_strategies(bk_biz_id, self.request_user)
+        strategies = self.get_user_strategies(
+            bk_biz_id=bk_biz_id, request_user=self.request_user, external_user=self.external_user
+        )
         allowed_strategies = []
         for request_topo_list_sub in request_topo_list:
             allowed_strategies.append(self.get_allowed_dir_file_list(strategies, request_topo_list_sub["topo"]))
@@ -807,16 +814,27 @@ class ExplorerHandler(object):
                     return True
         return False
 
-    def get_user_strategies(self, bk_biz_id, request_user):
+    def get_user_strategies(self, bk_biz_id, request_user, external_user: str = ""):
         """
         获取用户可查看的策略列表
         """
-        strategies = (
-            Strategies.objects.filter(bk_biz_id=bk_biz_id, user_list__contains=f",{request_user},")
-            .exclude(operator="")
-            .values("strategy_id", "select_type", "modules", "visible_dir", "file_type", "operator", "strategy_name")
-            .all()
+        qs = Strategies.objects.filter(bk_biz_id=bk_biz_id, user_list__contains=f",{request_user},").exclude(
+            operator=""
         )
+        # 增加外部用户权限处理
+        if external_user:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            allowed_resources_result = ExternalPermission.get_resources(
+                action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value,
+                space_uid=space_uid,
+                authorized_user=external_user,
+            )
+            if not allowed_resources_result.get("resources", []):
+                raise exceptions.ExplorerStrategiesFailed
+            qs = qs.filter(strategy_id__in=allowed_resources_result["resources"])
+        strategies = qs.values(
+            "strategy_id", "select_type", "modules", "visible_dir", "file_type", "operator", "strategy_name"
+        ).all()
         if not strategies:
             raise exceptions.ExplorerStrategiesFailed
         # file_type前加 '.', "*" 替换为 "[^/]*"

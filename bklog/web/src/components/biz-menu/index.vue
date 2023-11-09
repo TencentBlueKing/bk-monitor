@@ -59,7 +59,7 @@
       <ul
         id="space-type-ul"
         class="space-type-list"
-        v-if="spaceTypeIdList.length > 1">
+        v-if="showSpaceTypeIdList">
         <li
           v-for="(item) in spaceTypeIdList"
           class="space-type-item"
@@ -97,7 +97,7 @@
         </div> -->
         <div
           class="menu-select-extension-item"
-          v-if="demoUid"
+          v-if="!isExternal && demoUid"
           @mousedown.stop="experienceDemo"
         >
           <span class="icon log-icon icon-app-store"></span>
@@ -109,7 +109,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import menuList from './list';
 import { deepClone } from '../monitor-echarts/utils';
@@ -135,6 +135,10 @@ export default {
       default: 'dark',
     },
     handlePropsClick: Function,
+    isExternalAuth: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -175,13 +179,18 @@ export default {
       searchTypeId: '',
       spaceBgColor: '#3799BA',
       bizBoxWidth: 418,
+      exterlAuthSpaceName: '', // 用于授权外部版选择器显示
     };
   },
   computed: {
+    ...mapState([
+      'isExternal',
+    ]),
     ...mapGetters({
       demoUid: 'demoUid',
     }),
     bizName() {
+      if (this.isExternalAuth && !!this.exterlAuthSpaceName) return this.exterlAuthSpaceName;
       return this.mySpaceList.find(item => item.space_uid === this.spaceUid)?.space_name;
     },
     bizNameIcon() {
@@ -189,6 +198,9 @@ export default {
     },
     allKeyWorldLength() {
       return Object.values(this.groupList).reduce((pre, cur) => ((pre += cur.keywordList.length), pre), 0);
+    },
+    showSpaceTypeIdList() { // 外部版不展示空间分类
+      return !this.isExternal && this.spaceTypeIdList.length > 1;
     },
   },
   watch: {
@@ -199,7 +211,7 @@ export default {
       if (val) {
         await this.$nextTick();
         const el = document.querySelector('#space-type-ul');
-        this.bizBoxWidth = Math.max(394, el.clientWidth ?? 394) + 24;
+        this.bizBoxWidth = Math.max(394, el?.clientWidth ?? 394) + 24;
       }
     },
   },
@@ -271,6 +283,11 @@ export default {
      */
     handleClickMenuItem(space, type) {
       try {
+        if (this.isExternalAuth) {
+          this.exterlAuthSpaceName = space.space_name;
+          this.$emit('spaceChange', space.space_uid);
+          return;
+        }
         if (typeof this.handlePropsClick === 'function') return this.handlePropsClick(space); // 外部function调用
         if (type === 'haveAuth') this.commonAssignment(space.space_uid); // 点击有权限的业务时更新常用的ul列表
         this.checkSpaceChange(space.space_uid); // 检查是否有权限然后进行空间切换
@@ -513,13 +530,12 @@ export default {
       }
 
       &-search {
-        padding: 0 5px;
+        padding: 0 12px;
         flex: 1;
         width: inherit;
 
         .left-icon {
           color: #63656e;
-          left: 12px;
         }
 
         .bk-form-input {

@@ -151,6 +151,8 @@ import { menuArr } from './complete-menu';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import { jsonp } from '@/common/jsonp';
 
+const EXTERNAL_MENU = ['retrieve', 'manage']; // 外部版包含的菜单模块
+
 export default {
   name: 'HeaderNav',
   components: {
@@ -179,6 +181,7 @@ export default {
       errorPage: state => state.errorPage,
       asIframe: state => state.asIframe,
       iframeQuery: state => state.iframeQuery,
+      isExternal: state => state.isExternal,
     }),
     ...mapGetters('globals', ['globalsData']),
     envConfig() {
@@ -203,7 +206,9 @@ export default {
       return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
     },
     menuList() {
-      return this.topMenu.filter(menu => menu.feature === 'on');
+      return this.topMenu.filter((menu) => {
+        return menu.feature === 'on' && (this.isExternal ? EXTERNAL_MENU.includes(menu.id) : true);
+      });
     },
   },
   async created() {
@@ -354,8 +359,10 @@ export default {
       jsCookie.remove('blueking_language', { path: '' });
       jsCookie.set('blueking_language', value, {
         expires: 3600,
-        domain: this.envConfig.bkDomain || location.host,
-        domain: this.envConfig.bkDomain,
+        domain: this.envConfig.bkDomain
+                  || location.host.split('.').slice(-2)
+                    .join('.')
+                    .replace(`:${location.port}`, ''),
       });
       await jsonp(
         `${this.envConfig.host}/api/c/compapi/v2/usermanage/fe_update_user_language/?language=${value}`,

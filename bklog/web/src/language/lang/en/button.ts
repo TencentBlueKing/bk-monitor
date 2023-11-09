@@ -135,6 +135,9 @@ export default {
   "button-数据指纹": "Data Fingerprint",
   "添加目标": "Add target",
   "前往高级清洗": "Go To Advanced Parsing",
+  变更授权人: 'Change Auth Person',
+  添加授权: 'Add',
+  编辑授权: 'Edit',
   "新增字段": "Add new field",
   "导入": "Import"
 };
