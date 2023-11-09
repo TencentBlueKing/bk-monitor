@@ -260,7 +260,7 @@ class DutyRuleManager:
         获取常规轮值的排班计划
         """
         duty_plans = []
-        for duty_arrange in self.duty_arranges:
+        for index, duty_arrange in enumerate(self.duty_arranges):
             work_time = []
             for duty_time in duty_arrange["duty_time"]:
                 duty_dates = self.get_duty_dates(duty_time)
@@ -269,7 +269,9 @@ class DutyRuleManager:
                     work_time.extend(self.get_time_range_work_time(work_date, duty_time["work_time"]))
 
             if work_time:
-                duty_plans.append({"users": duty_arrange["duty_users"][0], "work_times": work_time})
+                duty_plans.append(
+                    {"users": duty_arrange["duty_users"][0], "user_index": index, "work_times": work_time}
+                )
         return duty_plans
 
     def get_rotation_duty_plan(self):
@@ -562,16 +564,16 @@ class GroupDutyRuleManager:
         begin_time = rule_snap.next_plan_time
 
         duty_manager = DutyRuleManager(rule_snap.rule_snap, begin_time=begin_time)
-
-        # 在指定日期之前生效的需要取消
-        DutyPlan.objects.filter(
+        duty_plan_queryset = DutyPlan.objects.filter(
             duty_rule_id=rule_snap.duty_rule_id, user_group_id=self.user_group.id, is_effective=1
-        ).filter(Q(start_time__gte=begin_time)).update(is_effective=0)
+        )
+        # 在指定日期之前生效的需要取消
+        duty_plan_queryset.filter(Q(start_time__gte=begin_time)).update(is_effective=0)
 
         # 在开始时间之后还生效的部分，设置结束时间为开始时间
-        DutyPlan.objects.filter(
-            duty_rule_id=rule_snap.duty_rule_id, user_group_id=self.user_group.id, is_effective=1
-        ).filter(Q(finished_time__gt=begin_time) | Q(finished_time=None)).update(finished_time=begin_time)
+        duty_plan_queryset.filter(Q(finished_time__gt=begin_time) | Q(finished_time=None) | Q(finished_time="")).update(
+            finished_time=begin_time
+        )
 
         duty_plans = []
         for duty_plan in duty_manager.get_duty_plan():
@@ -590,7 +592,7 @@ class GroupDutyRuleManager:
                     users=duty_plan["users"],
                     work_times=duty_plan["work_times"],
                     is_effective=1,
-                    order=duty_plan["user_index"],
+                    order=duty_plan.get("user_index", 0),
                 )
             )
 

@@ -961,7 +961,7 @@ class TestDutyPlan:
         # 重新修改
         origin_rule = DutyRule.objects.get(id=duty_group.duty_rules[0])
         duty_rule_data["id"] = duty_group.duty_rules[0]
-        #  3天后生效
+        #  3天后才生效
         duty_rule_data["effective_time"] = (datetime.datetime.today() + datetime.timedelta(days=3)).strftime(
             "%Y-%m-%d 00:00:00"
         )
@@ -977,14 +977,15 @@ class TestDutyPlan:
         m.manage_duty_rule_snap(duty_rule_data["effective_time"])
 
         assert DutyRuleSnap.objects.filter(user_group_id=duty_group.id).count() == 1
-        assert DutyPlan.objects.filter(user_group_id=duty_group.id, is_effective=1).count() == 30
+        # 三天后产生一波新的，之前配置三天后开始的失效
+        assert DutyPlan.objects.filter(user_group_id=duty_group.id, is_effective=1).count() == 17
 
         # 第一次安排的有效期限提前到下一次生效之前
         assert (
             DutyPlan.objects.filter(
-                user_group_id=duty_group.id, is_effective=1, finished_time=duty_rule_data["effective_time"]
+                user_group_id=duty_group.id, finished_time__lte=duty_rule_data["effective_time"], is_effective=1
             ).count()
-            == 15
+            == 2
         )
 
     def test_disable_duty_rule(self, db_setup, duty_group, duty_rule_data):

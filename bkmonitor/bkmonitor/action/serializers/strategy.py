@@ -156,12 +156,11 @@ class DutyTimeSerializer(serializers.Serializer):
         if not value:
             return value
         for work_time in value:
-            if self.initial_data.get("work_time_type") == WorkTimeType.TIME_RANGE:
-                if not validate_time_range(work_time):
-                    raise ValidationError(detail=_("设置的时间范围不正确, 正确格式为00:00--23:59"))
-            else:
+            if self.initial_data.get("work_time_type") == WorkTimeType.DATETIME_RANGE:
                 if not validate_datetime_range(work_time):
                     raise ValidationError(detail=_("设置的时间范围不正确, 正确格式为01 00:00--01 23:59"))
+            elif not validate_time_range(work_time):
+                raise ValidationError(detail=_("设置的时间范围不正确, 正确格式为00:00--23:59"))
         return value
 
 
