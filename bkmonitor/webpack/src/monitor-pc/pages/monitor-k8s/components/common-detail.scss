@@ -395,26 +395,29 @@
       &:nth-child(n+2) {
         margin-top: 8px;
       }
-      
-      .label {
-        min-width: 80px;
-        margin-right: 2px;
-        font-size: 12px;
-        color: #63656e;
-        word-wrap: break-word;
-      }
 
+      .label-container {
+        display: flex;
+        flex-wrap: nowrap;
+
+        .label {
+          max-width: 80px;
+          margin-right: 2px;
+          font-size: 12px;
+          color: #63656e;
+          word-wrap: break-word;
+        }
+      }
+      
       .value-container {
         width: calc(100% - 80px - 2px);
 
         .value {
           width: 100%;
-          overflow: hidden;
           font-size: 12px;
           color: #313238;
           text-align: right;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          word-wrap: break-word;
         }
       }
     }
