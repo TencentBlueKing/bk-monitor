@@ -869,7 +869,6 @@ def query(cluster_id):
 
 
 def process_metric(data, metric, xtype, path, xform=None, dimensions=None):
-
     """
     process_metric
     @param data:
@@ -1131,7 +1130,7 @@ def get_es_metrics(metric_type):
 
 class EsStats:
     @staticmethod
-    @register_metric("es_monitor", description=_("es 监控状态信息"), data_name="stats", time_filter=TimeFilterEnum.MINUTE2)
+    @register_metric("es_monitor", description=_("es 监控状态信息"), data_name="stats", time_filter=TimeFilterEnum.MINUTE5)
     def elastic_stats():
         """
         elastic_stats

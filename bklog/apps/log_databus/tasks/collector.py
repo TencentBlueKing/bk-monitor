@@ -51,7 +51,7 @@ from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 
 
-@task(ignore_result=True, queue="high_priority")
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def shutdown_collector_warm_storage_config(cluster_id):
     """异步关闭冷热集群的采集项"""
     result_table_list = []
@@ -231,7 +231,7 @@ def get_biz_storage_capacity(bk_biz_id, cluster):
     return round(total_size / 1024, 2)
 
 
-@task(ignore_result=True, queue="high_priority")
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def create_container_release(bcs_cluster_id: str, container_config_id: int, config_name: str, config_params: dict):
     container_config = ContainerCollectorConfig.objects.get(pk=container_config_id)
     container_config.status = ContainerCollectStatus.RUNNING.value
@@ -252,7 +252,7 @@ def create_container_release(bcs_cluster_id: str, container_config_id: int, conf
     container_config.save(update_fields=["status", "status_detail"])
 
 
-@task(ignore_result=True, queue="high_priority")
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def delete_container_release(
     bcs_cluster_id: str, container_config_id: int, config_name: str, delete_config: bool = False
 ):
