@@ -409,6 +409,7 @@ export default {
       spaceUid: state => state.spaceUid,
       currentMenu: state => state.currentMenu,
       storedIndexID: state => state.indexId, // 路由切换时缓存当前选择的索引
+      isExternal: state => state.isExternal,
     }),
     ...mapGetters(['asIframe', 'iframeQuery']),
     ...mapGetters({
@@ -1277,7 +1278,7 @@ export default {
 
       try {
         const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-        const res = await axios({
+        const params = {
           method: 'post',
           url: `/search/index_set/${this.indexId}/search/`,
           cancelToken: new CancelToken((c) => {
@@ -1296,7 +1297,13 @@ export default {
             start_time: formatDate(startTimeStamp),
             end_time: formatDate(endTimeStamp),
           },
-        }).then((res) => {
+        };
+        if (this.isExternal) {
+          params.headers = {
+            'X-Bk-Space-Uid': this.spaceUid,
+          };
+        }
+        const res = await axios(params).then((res) => {
           return readBlobRespToJson(res.data);
         });
 
