@@ -80,6 +80,11 @@ interface INotice {
   actionActive: string;
 }
 
+const noticeTypeMap = {
+  weekly: window.i18n.t('每周'),
+  monthly: window.i18n.t('每月')
+};
+
 @Component
 export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   @Prop({ type: [String, Number], default: 0 }) id: number | string;
@@ -135,6 +140,23 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   previewData = [];
   previewLoading = false;
   dutyList = [];
+
+  /* 值班通知设置  */
+  dutyNotice = {
+    plan_notice: {
+      enabled: false,
+      chat_ids: ['apsojgldjgngmfmdkgjfhdhsjfkdjfld'],
+      days: 7,
+      type: 'weekly',
+      date: 1,
+      time: '00:00'
+    },
+    personal_notice: {
+      enabled: false,
+      hours_ago: 0,
+      duty_rules: []
+    }
+  };
 
   get title() {
     return `${this.$t('告警组详情')} - #${this.id} ${this.formData.name}`;
@@ -203,10 +225,18 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         }
         this.channels = channels || ['user'];
         const users = [];
+        this.dutyNotice.plan_notice.enabled = false;
+        this.dutyNotice.personal_notice.enabled = false;
         if (needDuty) {
           // this.dutyArranges = dutyDataTransform(data.duty_arranges);
           this.dutyPlans = data.duty_plans;
           this.getPreviewData(data.duty_rules);
+          if (data.duty_notice?.plan_notice?.enabled) {
+            this.dutyNotice.plan_notice = data.duty_notice.plan_notice;
+          }
+          if (data.duty_notice?.personal_notice?.enabled) {
+            this.dutyNotice.personal_notice = data.duty_notice.personal_notice;
+          }
         } else {
           data.duty_arranges.forEach(item => {
             item.users && users.push(...item.users);
@@ -467,6 +497,47 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                         value={this.previewData}
                         onStartTimeChange={this.handleStartTimeChange}
                       ></RotationPreview>
+                      {/* 值班通知设置 */}
+                      {this.dutyNotice.plan_notice.enabled && (
+                        <div class='duty-notice'>
+                          <div class='mt-16'>{this.$t('排班表发送')}</div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('发送时间')}</span>
+                            <span>
+                              <span>{noticeTypeMap[this.dutyNotice.plan_notice.type]}</span>
+                              <span class='mr-8'>{this.dutyNotice.plan_notice.date}</span>
+                              <span>{this.dutyNotice.plan_notice.time}</span>
+                            </span>
+                          </div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('发送内容')}</span>
+                            <span>
+                              <i18n path={'近{0}天的排班结果'}>{this.dutyNotice.plan_notice.days}</i18n>
+                            </span>
+                          </div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('企业微信群ID')}</span>
+                            <span>{this.dutyNotice.plan_notice.chat_ids.join(',')}</span>
+                          </div>
+                        </div>
+                      )}
+                      {this.dutyNotice.personal_notice.enabled && (
+                        <div class='duty-notice'>
+                          <div class='mt-16'>{this.$t('个人轮值通知')}</div>
+                          <div class='mt-16'>
+                            <i18n
+                              class='notice-label'
+                              path={'值班开始前{0}天收到通知'}
+                            >
+                              {this.dutyNotice.personal_notice.hours_ago / 24}
+                            </i18n>
+                          </div>
+                          <div class='mt-16'>
+                            <span class='notice-label'>{this.$t('指定轮值规则')}</span>
+                            <span>{this.dutyList.map(item => item.name).join(',')}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 }
