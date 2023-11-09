@@ -26,7 +26,7 @@
 import { computed, defineComponent, onMounted, provide, reactive, readonly, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { Button, DatePicker, Input, TagInput } from 'bkui-vue';
+import { Button, DatePicker, Input, Switcher, TagInput } from 'bkui-vue';
 import { random } from 'lodash';
 
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
@@ -63,6 +63,7 @@ export default defineComponent({
     const formData = reactive({
       name: '',
       labels: [],
+      enabled: true,
       effective: {
         startTime: '',
         endTime: ''
@@ -175,12 +176,13 @@ export default defineComponent({
       } else {
         dutyArranges = replaceRotationTransform(rotationTypeData.handoff, 'params');
       }
-      const { name, labels, effective } = formData;
+      const { name, labels, effective, enabled } = formData;
       const params = {
         id: id.value,
         name,
         category: rotationType.value,
         labels,
+        enabled,
         duty_arranges: dutyArranges,
         effective_time: effective.startTime,
         end_time: effective.endTime
@@ -207,6 +209,7 @@ export default defineComponent({
         rotationType.value = res.category;
         formData.name = res.name;
         formData.labels = res.labels;
+        formData.enabled = res.enabled;
         formData.effective.startTime = res.effective_time || '';
         formData.effective.endTime = res.end_time || '';
         if (res.category === 'regular') {
@@ -290,7 +293,7 @@ export default defineComponent({
         ></NavBar>
         <div class='rotation-config-page-content'>
           <FormItem
-            label={this.$t('规则名称')}
+            label={this.t('规则名称')}
             require
             class='mt-24'
             errMsg={this.errMsg.name}
@@ -301,7 +304,7 @@ export default defineComponent({
             ></Input>
           </FormItem>
           <FormItem
-            label={this.$t('标签')}
+            label={this.t('标签')}
             class='mt-24'
           >
             <TagInput
@@ -311,7 +314,18 @@ export default defineComponent({
             ></TagInput>
           </FormItem>
           <FormItem
-            label={this.$t('轮值类型')}
+            label={this.t('启/停')}
+            class='mt-24'
+          >
+            <div class='enabled-switch'>
+              <Switcher
+                theme='primary'
+                v-model={this.formData.enabled}
+              ></Switcher>
+            </div>
+          </FormItem>
+          <FormItem
+            label={this.t('轮值类型')}
             require
             errMsg={this.errMsg.rotationType}
             class='mt-24'
@@ -350,7 +364,7 @@ export default defineComponent({
             </div>
           </FormItem>
           <FormItem
-            label={this.$t('生效时间范围')}
+            label={this.t('生效时间范围')}
             require
             class='mt-24'
             errMsg={this.errMsg.effective}
@@ -373,7 +387,7 @@ export default defineComponent({
             ></DatePicker>
           </FormItem>
           <FormItem
-            label={this.$t('轮值预览')}
+            label={this.t('轮值预览')}
             class='mt-24'
           >
             <RotationCalendarPreview
@@ -388,13 +402,13 @@ export default defineComponent({
               onClick={this.handleSubmit}
               loading={this.loading}
             >
-              {this.$t('提交')}
+              {this.t('提交')}
             </Button>
             <Button
               class='width-88'
               onClick={this.handleBack}
             >
-              {this.$t('取消')}
+              {this.t('取消')}
             </Button>
           </FormItem>
         </div>

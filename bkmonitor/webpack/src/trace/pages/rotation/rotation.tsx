@@ -666,7 +666,7 @@ export default defineComponent({
                 onClick={this.handleAdd}
               >
                 <span class='icon-monitor icon-plus-line mr-6'></span>
-                <span>{this.$t('新建')}</span>
+                <span>{this.t('新建')}</span>
               </Button>
               <SearchSelect
                 class='width-350'

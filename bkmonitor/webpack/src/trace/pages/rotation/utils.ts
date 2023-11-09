@@ -195,13 +195,17 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
     }
     case RotationSelectTypeEnum.Custom: {
       dutyTime = data.value.map(item => {
+        const { unit, duration } = data.periodSettings;
         return {
           is_custom: true,
           work_type: data.type,
           work_days: data.customWorkDays,
           work_time: item.workTime.map(val => val.join('--')),
           work_time_type: 'time_range',
-          ...data.periodSettings
+          period_settings: {
+            window_unit: unit,
+            duration
+          }
         };
       });
       break;
