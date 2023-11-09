@@ -1,5 +1,4 @@
 import copy
-import logging
 import re
 from collections import Counter, deque
 from dataclasses import asdict, dataclass
@@ -29,6 +28,7 @@ from apps.constants import (
 from apps.exceptions import UnknownLuceneOperatorException
 from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_search.constants import DEFAULT_BK_CLOUD_ID, OperatorEnum
+from apps.utils.log import logger
 
 
 def get_node_lucene_syntax(node):
@@ -782,6 +782,6 @@ class EnhanceLuceneAdapter(object):
                 self.enhanced = True
                 query_string = enhancer.transform()
         if self.enhanced:
-            logging.info(f"Enhanced lucene query string from [{self.query_string}] to [{query_string}]")
+            logger.info(f"Enhanced lucene query string from [{self.query_string}] to [{query_string}]")
             self.query_string = query_string
         return self.query_string
