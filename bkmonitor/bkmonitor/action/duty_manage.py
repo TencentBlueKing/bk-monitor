@@ -102,7 +102,8 @@ class DutyRuleManager:
     ):
         self.duty_arranges = duty_rule["duty_arranges"]
         self.category = duty_rule.get("category")
-        self.begin_time = time_tools.str2datetime(begin_time or duty_rule["effective_time"])
+        begin_time = begin_time or ""
+        self.begin_time = time_tools.str2datetime(max(begin_time, duty_rule["effective_time"]))
         self.end_time = None
         self.last_user_index = last_user_index
         self.last_time_index = last_time_index
@@ -544,7 +545,7 @@ class GroupDutyRuleManager:
         # 排班的时候提前7天造好数据
         plan_time = time_tools.str2datetime(task_time) + timedelta(days=7)
         for rule_snap in DutyRuleSnap.objects.filter(
-            next_plan_time__lte=time_tools.datetime2str(plan_time), enabled=True
+            next_plan_time__lte=time_tools.datetime2str(plan_time), user_group_id=self.user_group.id, enabled=True
         ):
             self.manage_duty_plan(rule_snap=rule_snap)
 
