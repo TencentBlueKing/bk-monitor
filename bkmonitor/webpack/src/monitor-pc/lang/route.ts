@@ -100,7 +100,7 @@ export default {
   'route-配置应用': 'Configuration Application',
   'route-应用监控': 'Application Monitoring',
   'route-轮值': 'Rotation',
-
+  'route-管理': 'Management',
   // 面包屑 标题定位
   'route-新建策略': 'New Alert Rules',
   'route-新建拨测任务': 'New Check',

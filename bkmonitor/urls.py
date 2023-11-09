@@ -49,7 +49,7 @@ schema_view = get_schema_view(
 @require_GET
 @login_exempt
 def metrics(request):
-    gateway_url = get_metric_agg_gateway_url(protocol="tcp")
+    gateway_url = get_metric_agg_gateway_url()
     if not gateway_url:
         return HttpResponse("Fetch metrics error: `METRIC_AGG_GATEWAY_URL` is not set, please check!")
     response = requests.get(f"http://{gateway_url.strip('/')}/metrics")
