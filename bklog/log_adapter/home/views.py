@@ -51,7 +51,13 @@ class RequestProcessor:
     @classmethod
     def get_request_user_info(cls, request) -> Dict[str, Any]:
         external_user = request.META.get("USER", "")
-        return json.loads(external_user)
+        try:
+            external_user = json.loads(external_user)
+        except Exception:
+            logger.error(f"解析外部用户信息失败({external_user})")
+            external_user = {}
+            return external_user
+        return external_user
 
     @classmethod
     def get_view_set(cls, view_func):
