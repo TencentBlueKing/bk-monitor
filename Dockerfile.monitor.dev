@@ -37,7 +37,7 @@ COPY bkmonitor/scripts/dev/run.sh /app/
 RUN chmod +x /app/run.sh
 
 # 复制supervisor/code-server启动配置
-COPY bkmonitor/scripts/dev/supervisord.conf ./scripts/dev/code-server.yaml /app/etc/
+COPY bkmonitor/scripts/dev/supervisord.conf bkmonitor/scripts/dev/code-server.yaml /app/etc/
 
 # 复制监控代码目录
 COPY ./ /app/code/
