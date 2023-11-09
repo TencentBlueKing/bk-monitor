@@ -2,7 +2,7 @@
 
 mkdir -p /app/logs/ /app/run/
 
-cd /app/code/
+cd /app/code/bkmonitor/
 
 pip install -r requirements.txt -i https://mirrors.tencent.com/pypi/simple
 
