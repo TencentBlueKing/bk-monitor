@@ -24,6 +24,23 @@ from django.db import models, transaction
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import ugettext as _
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
+from bkm_space.define import SpaceTypeEnum
+from bkmonitor.data_source import load_data_source
+from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
+from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.time_tools import date_convert, parse_time_range
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api, resource
+from core.drf_resource.base import Resource
+from core.errors.api import BKAPIError
+from core.errors.custom_report import (
+    CustomEventValidationError,
+    CustomValidationLabelError,
+    CustomValidationNameError,
+)
 from monitor_web.constants import ETL_CONFIG, EVENT_TYPE
 from monitor_web.custom_report.serializers import (
     CustomEventGroupDetailSerializer,
@@ -43,23 +60,6 @@ from monitor_web.models.custom_report import (
 from monitor_web.plugin.constant import PluginType
 from monitor_web.strategies.resources import GetMetricListV2Resource
 from monitor_web.tasks import append_custom_ts_metric_list_cache
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
-
-from bkm_space.define import SpaceTypeEnum
-from bkmonitor.data_source import load_data_source
-from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
-from bkmonitor.utils.request import get_request_username
-from bkmonitor.utils.time_tools import date_convert, parse_time_range
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api, resource
-from core.drf_resource.base import Resource
-from core.errors.api import BKAPIError
-from core.errors.custom_report import (
-    CustomEventValidationError,
-    CustomValidationLabelError,
-    CustomValidationNameError,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -579,17 +579,6 @@ class ProxyHostInfo(Resource):
     def perform_request(self, validated_request_data):
         port = getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
         proxy_host_info = []
-        if settings.BK_NODEMAN_VERSION.startswith("1."):
-            # 老版本不再支持
-            raise BKAPIError(
-                system_name="node_man",
-                url="query_hosts",
-                result={
-                    "message": "this action is only supported in node_manV1.3"
-                    "please upgrade to 2.0 or above and check settings"
-                    "with keyword [BK_NODEMAN_VERSION]"
-                },
-            )
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
         for host in proxy_hosts:
@@ -742,7 +731,6 @@ class ModifyCustomTimeSeries(Resource):
         operator = serializers.CharField(label="操作者", required=False, default="")
 
         def validate(self, attrs):
-
             if attrs.get("name"):
                 ValidateCustomTsGroupName().request(
                     name=attrs["name"], bk_biz_id=attrs["bk_biz_id"], time_series_group_id=attrs["time_series_group_id"]

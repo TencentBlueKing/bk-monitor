@@ -20,7 +20,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-import json
 from typing import List
 
 import arrow
@@ -46,6 +45,7 @@ from apps.log_clustering.models import (
     SignatureStrategySettings,
 )
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
+from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
@@ -268,7 +268,7 @@ class PatternHandler:
             if k == "owners":
                 qs_obj.owners = v
             if k == "remark":
-                now = arrow.now().timestamp
+                now = int(arrow.now().timestamp * 1000)
                 current_remark = {
                     "username": get_request_username(),
                     "create_time": now,
@@ -279,6 +279,7 @@ class PatternHandler:
                 else:
                     qs_obj.remark = [current_remark]
         qs_obj.save()
+        return model_to_dict(qs_obj)
 
     @classmethod
     def _generate_strategy_result(cls, strategy_result):

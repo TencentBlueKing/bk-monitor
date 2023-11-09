@@ -493,19 +493,6 @@ class TasksResource(NodeManAPIGWResource):
         global_params = GlobalParams(required=True, label="全局参数")
 
 
-class QueryHostsResource(NodeManAPIGWResource):
-    """
-    【节点管理1.3】获取主机信息
-    """
-
-    action = "query_hosts/"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(required=False, label="业务ID")
-        node_type = serializers.ChoiceField(required=False, label="节点类型", choices=["AGENT", "PROXY", "PAGENT"])
-
-
 class GetProxiesResource(NodeManAPIGWResource):
     """
     【节点管理2.0】查询云区域下的proxy列表

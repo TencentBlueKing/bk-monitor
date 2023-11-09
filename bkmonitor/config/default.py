@@ -1099,7 +1099,6 @@ BKHCAT_APP_CODE = os.getenv("BKHCAT_APP_CODE", "")
 BKHCAT_APP_SECRET = os.getenv("BKHCAT_APP_SECRET", "")
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
-BK_NODEMAN_VERSION = "2.0"  # 节点管理版本，默认是2.0，如果还是老的版本，需要在全局配置页面修改为1.3
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
 )
