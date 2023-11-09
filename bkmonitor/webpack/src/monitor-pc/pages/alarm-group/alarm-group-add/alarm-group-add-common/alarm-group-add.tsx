@@ -347,7 +347,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         this.formData.name = name;
         this.formData.desc = desc;
         this.formData.bizId = bizId;
-        this.formData.timezone = timezone;
+        this.formData.timezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         this.formData.channels = channels || ['user'];
         this.channels = channels || ['user'];
         // 通知类型回显
