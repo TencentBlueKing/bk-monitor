@@ -213,7 +213,7 @@ class DeepflowHandler:
             DeepflowComp.SERVICE_SERVER_PORT_QUERY,
         )
 
-    def get_app_access(self, cluster_id, service_content):
+    def get_app_access(self, cluster_id, service_content=None):
         """
         获取DeepFlow-app访问地址
         """
