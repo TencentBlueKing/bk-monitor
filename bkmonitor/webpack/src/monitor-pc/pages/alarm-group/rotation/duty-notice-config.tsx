@@ -85,6 +85,13 @@ export default class DutyNoticeConfig extends tsc<IProps> {
 
   formData = initData();
 
+  errrMsg = {
+    sendTime: '',
+    sendContent: '',
+    sendChat: '',
+    rules: ''
+  };
+
   /**
    * @description 初始化
    */
@@ -101,7 +108,29 @@ export default class DutyNoticeConfig extends tsc<IProps> {
   }
   @Emit('change')
   handleChange() {
+    Object.keys(this.errrMsg).forEach(key => {
+      this.errrMsg[key] = '';
+    });
     return this.formData;
+  }
+
+  validate() {
+    return new Promise((resolve, _reject) => {
+      if (this.formData.isSend) {
+        if (!this.formData.rtxId) {
+          this.errrMsg.sendChat = this.$t('请输入企业微信群ID') as string;
+        }
+        if (!this.formData.sendTime) {
+          this.errrMsg.sendTime = this.$t('请输入发送时间') as string;
+        }
+      }
+      if (this.formData.needNotice) {
+        if (!this.formData.rotationId.length) {
+          this.errrMsg.rules = this.$t('请输入轮值规则') as string;
+        }
+      }
+      resolve(!Object.keys(this.errrMsg).some(key => !!this.errrMsg[key]));
+    });
   }
 
   render() {
@@ -113,11 +142,14 @@ export default class DutyNoticeConfig extends tsc<IProps> {
         </div>
       );
     }
-    function formItem(label: string | any, content: any, cls?: string) {
+    function formItem(label: string | any, content: any, cls?: string, err?) {
       return (
         <div class={['form-item', cls]}>
           <span class='form-item-label'>{label}</span>
-          <span class='form-item-content'>{content}</span>
+          <div>
+            <span class='form-item-content'>{content}</span>
+            {!!err && <div class='err-msg'>{err}</div>}
+          </div>
         </div>
       );
     }
@@ -182,7 +214,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               onChange={() => this.handleChange()}
             ></TimePicker>
           ],
-          'mt-16'
+          'mt-16',
+          this.errrMsg.sendTime
         )}
         {formItem(
           this.$t('发送内容'),
@@ -202,7 +235,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
             </Input>,
             <span class='content-text'>{this.$t('天的排班结果')}</span>
           ],
-          'mt-16'
+          'mt-16',
+          this.errrMsg.sendContent
         )}
         {formItem(
           this.$t('企业微信群ID'),
@@ -223,7 +257,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               }}
             ></span>
           ],
-          'mt-16'
+          'mt-16',
+          this.errrMsg.sendChat
         )}
         {formItemBig(
           this.$t('个人轮值通知'),
@@ -295,7 +330,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               </Option>
             ))}
           </Select>,
-          'mt-16'
+          'mt-16',
+          this.errrMsg.rules
         )}
       </div>
     );
