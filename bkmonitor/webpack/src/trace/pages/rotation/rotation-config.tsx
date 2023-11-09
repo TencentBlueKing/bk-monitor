@@ -57,7 +57,9 @@ export default defineComponent({
     const route = useRoute();
     const id = computed(() => route.params.id);
     /* 路由 */
-    const navList = ref([{ name: t('新增轮值'), id: '' }]);
+    const navList = computed(() => {
+      return [{ name: id.value ? t('编辑轮值') : t('新增轮值'), id: '' }];
+    });
     const formData = reactive({
       name: '',
       labels: [],
