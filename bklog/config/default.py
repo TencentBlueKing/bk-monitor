@@ -234,6 +234,9 @@ else:
         }
     )
 
+# celery web worker高优先级队列配置
+BK_LOG_HIGH_PRIORITY_QUEUE = os.getenv("BK_LOG_HIGH_PRIORITY_QUEUE", "default")
+
 # OTLP Service Name
 SERVICE_NAME = APP_CODE
 if BKAPP_IS_BKLOG_API:

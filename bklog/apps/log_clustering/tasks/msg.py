@@ -34,7 +34,7 @@ from apps.log_search.models import LogIndexSet, Space
 from apps.utils.local import set_local_param
 
 
-@task(ignore_result=True, queue="high_priority")
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def send(index_set_id):
     clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
     log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)

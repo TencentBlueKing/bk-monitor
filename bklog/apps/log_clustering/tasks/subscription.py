@@ -334,7 +334,7 @@ def send_mail(params: dict, receivers: list, log_prefix: str):
     logger.info(f"{log_prefix} Successfully sent mail params: {send_params}")
 
 
-@task(queue="high_priority")
+@task(queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def send(
     config: ClusteringSubscription, time_config: dict, space_name: str, language: str, log_prefix: str, time_zone: str
 ):
