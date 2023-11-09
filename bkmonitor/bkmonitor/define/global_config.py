@@ -291,7 +291,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
         ("PING_SERVER_TARGET_NUMBER_LIMIT", slz.IntegerField(label=_("单台机器Ping采集目标数量限制"), default=6000)),
-        ("BK_NODEMAN_VERSION", slz.CharField(label=_("节点管理版本号"), default="2.0")),
         (
             "MAX_AVAILABLE_DURATION_LIMIT",
             slz.IntegerField(label=_("拨测任务最大超时限制(ms)"), default=60000, min_value=1000),
