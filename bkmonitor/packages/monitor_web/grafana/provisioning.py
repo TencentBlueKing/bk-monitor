@@ -129,12 +129,13 @@ class ApmEbpfDatasourceProvisioning:
         res = {}
 
         # 获取所有以apm-ebpf开头的仪表盘模版
-        path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards")
-        templates = [n for n in os.listdir(path) if fnmatch.fnmatch(n, "apm-ebpf-*.json")]
+        directory = "apm_ebpf"
+        path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards/{directory}")
+        templates = [n for n in os.listdir(path) if fnmatch.fnmatch(n, "*.json")]
 
         for template in templates:
             origin_name, _ = os.path.splitext(template)
-            res[origin_name] = origin_name
+            res[f"{directory}_{origin_name}"] = os.path.join(directory, origin_name)
 
         return res
 
