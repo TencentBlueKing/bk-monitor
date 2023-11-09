@@ -148,13 +148,39 @@ class PatternViewSet(APIViewSet):
         @apiParam {String} remark 备注内容
         @apiParamExample {json} 请求参数
         {
-          "signature": "xxx",
-          "remark": "xxx"
+          "signature": "456",
+          "remark": "备注信息"
         }
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
-            "data": null,
+            "data": {
+                "id": 1,
+                "created_at": "2023-11-03T08:02:44.675115Z",
+                "created_by": "xxx",
+                "updated_at": "2023-11-09T02:44:58.997461Z",
+                "updated_by": "xxx",
+                "is_deleted": false,
+                "deleted_at": null,
+                "deleted_by": null,
+                "model_id": "xxx_xxx_xxx",
+                "signature": "456",
+                "pattern": "",
+                "label": "合并label",
+                "remark": [
+                    {
+                        "remark": "合并label",
+                        "username": "",
+                        "create_time": 0
+                    },
+                    {
+                        "username": "xxx",
+                        "create_time": 1699497898000,
+                        "remark": "备注信息"
+                    }
+                ],
+                "owners": []
+            },
             "code": 0,
             "message": ""
         }
@@ -177,13 +203,28 @@ class PatternViewSet(APIViewSet):
         @apiParam {String} owner 负责人
         @apiParamExample {json} 请求参数
         {
-          "signature": "xxx",
+          "signature": "123",
           "owners": ["xxx", "xxx"]
         }
         @apiSuccessExample {json} 成功返回:
-         {
+        {
             "result": true,
-            "data": null,
+            "data": {
+                "id": 1,
+                "created_at": "2023-11-03T08:02:44.675115Z",
+                "created_by": "xxx",
+                "updated_at": "2023-11-09T02:44:58.997461Z",
+                "updated_by": "xxx",
+                "is_deleted": false,
+                "deleted_at": null,
+                "deleted_by": null,
+                "model_id": "xxx_xxx_xxx",
+                "signature": "123",
+                "pattern": "",
+                "label": "",
+                "remark": [],
+                "owners": ["xxx", "xxx"]
+            },
             "code": 0,
             "message": ""
         }
