@@ -211,12 +211,6 @@ CLEAR_CACHE_ON_RESTART = False
 # esb组件地址
 COMMON_USERNAME = os.environ.get("BK_ESB_SUPER_USER", "admin")
 
-# 节点管理数据库，仅当监控SaaS与节点管理公用DB实例时适用
-# TODO: smart v3应用需要进行额外配置
-DATABASES["nodeman"] = {}
-DATABASES["nodeman"].update(DATABASES["default"])
-DATABASES["nodeman"]["NAME"] = os.environ.get("BKAPP_NODEMAN_DB_NAME", "bk_nodeman")
-
 AES_TOKEN_KEY = os.environ.get("AK_AES_TOKEN_KEY", "ALERT_RESULT")
 
 INGESTER_CONSUL = os.environ.get("INGESTER_CONSUL", "")
