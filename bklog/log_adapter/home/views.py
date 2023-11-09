@@ -57,6 +57,7 @@ class RequestProcessor:
             logger.error(f"解析外部用户信息失败({external_user})")
             external_user = {"username": external_user}
             return external_user
+        logger.debug(f"get_request_user_info, external_user: ({external_user})")
         return external_user
 
     @classmethod
