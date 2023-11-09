@@ -1,7 +1,7 @@
 lockfileVersion: 5.4
 
 overrides:
-  '@blueking/date-picker': ^0.0.39
+  '@blueking/date-picker': ^0.0.41
   '@blueking/stylelint-config': 0.0.3
   '@blueking/user-selector>vue': 2.7.14
   '@typescript-eslint/eslint-plugin': ^5.20.0
@@ -361,7 +361,7 @@ importers:
   src/monitor-pc:
     specifiers:
       '@blueking/bk-weweb': 0.0.22
-      '@blueking/date-picker': ^0.0.39
+      '@blueking/date-picker': ^0.0.41
       '@blueking/ip-selector': 0.0.1-beta.134
       '@blueking/paas-login': 0.0.6
       '@blueking/user-selector': ^1.0.5-beta.2
@@ -411,7 +411,7 @@ importers:
       xlsx: ^0.16.0
     dependencies:
       '@blueking/bk-weweb': 0.0.22
-      '@blueking/date-picker': 0.0.39_dayjs@1.11.10+vue@2.7.14
+      '@blueking/date-picker': 0.0.41_dayjs@1.11.10+vue@2.7.14
       '@blueking/ip-selector': 0.0.1-beta.134
       '@blueking/paas-login': 0.0.6_zsvgnygygkpxf5mjeshj5ibkme
       '@blueking/user-selector': 1.0.11
@@ -598,7 +598,7 @@ importers:
   src/trace:
     specifiers:
       '@antv/g6': ^4.7.0
-      '@blueking/date-picker': ^0.0.39
+      '@blueking/date-picker': ^0.0.41
       '@blueking/ip-selector': 0.0.1-beta.134
       '@types/d3': ^7.4.0
       '@types/deep-freeze': ^0.1.2
@@ -652,7 +652,7 @@ importers:
       vue-router: ^4.0.14
     dependencies:
       '@antv/g6': 4.8.23
-      '@blueking/date-picker': 0.0.39_vv3sagmblyycaxqjel5smio6l4
+      '@blueking/date-picker': 0.0.41_vv3sagmblyycaxqjel5smio6l4
       '@blueking/ip-selector': 0.0.1-beta.134
       bkui-vue: 0.0.2-beta.78.beta.1_vue@3.3.8
       d3-array: 3.2.4
@@ -2340,26 +2340,24 @@ packages:
       - whiskers
     dev: false
 
-  /@blueking/date-picker/0.0.39_dayjs@1.11.10+vue@2.7.14:
-    resolution: {integrity: sha512-vopgGb4qOJATJhsSPpbM0kBOGvjdPyKIsIkOySTS6iLovg0ybxbXwSBVSoUURCppWff3QFg24NLBv0uXlO35Pg==}
+  /@blueking/date-picker/0.0.41_dayjs@1.11.10+vue@2.7.14:
+    resolution: {integrity: sha512-K6hYdBLwFVa4DK1sG+Z63XQ/ePA0/40haHJ4OWAJ49msJjRjXu+5w2LL0rygmSJE/5x8SQWmYWzN39AL9my/vg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       bkui-vue: ^0.0.2-beta.83
       dayjs: ^1.11.10
-      lodash-es: ^4.17.21
       vue: ^3.2.0
     dependencies:
       dayjs: 1.11.10
       vue: 2.7.14
     dev: false
 
-  /@blueking/date-picker/0.0.39_vv3sagmblyycaxqjel5smio6l4:
-    resolution: {integrity: sha512-vopgGb4qOJATJhsSPpbM0kBOGvjdPyKIsIkOySTS6iLovg0ybxbXwSBVSoUURCppWff3QFg24NLBv0uXlO35Pg==}
+  /@blueking/date-picker/0.0.41_vv3sagmblyycaxqjel5smio6l4:
+    resolution: {integrity: sha512-K6hYdBLwFVa4DK1sG+Z63XQ/ePA0/40haHJ4OWAJ49msJjRjXu+5w2LL0rygmSJE/5x8SQWmYWzN39AL9my/vg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       bkui-vue: ^0.0.2-beta.83
       dayjs: ^1.11.10
-      lodash-es: ^4.17.21
       vue: ^3.2.0
     dependencies:
       bkui-vue: 0.0.2-beta.78.beta.1_vue@3.3.8
