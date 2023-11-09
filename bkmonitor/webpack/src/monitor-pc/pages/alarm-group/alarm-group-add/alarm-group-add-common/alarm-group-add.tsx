@@ -587,6 +587,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     const params: any = {
       name,
       desc,
+      timezone: this.formData.timezone,
       need_duty: needDuty,
       duty_arranges: needDuty
         ? // ? paramsTransform(this.dutyArranges)

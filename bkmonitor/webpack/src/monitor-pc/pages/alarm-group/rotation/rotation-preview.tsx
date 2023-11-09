@@ -86,7 +86,7 @@ export default class RotationPreview extends tsc<IProps> {
     this.observer.observe(this.previewContentRef);
   }
 
-  @Watch('value')
+  @Watch('value', { immediate: true })
   handleWatchValue(value) {
     this.dutyData = dutyDataConversion({
       ...this.dutyData,
