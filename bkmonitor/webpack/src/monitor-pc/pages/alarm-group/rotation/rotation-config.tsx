@@ -438,14 +438,16 @@ export default class RotationConfig extends tsc<IProps> {
           </transition-group>
         </div>
         {!!this.errMsg && <div class='err-msg'>{this.errMsg}</div>}
-        <RotationPreview
-          class='mt-12'
-          v-bkloading={{ isLoading: this.previewLoading }}
-          value={this.previewData}
-          alarmGroupId={this.alarmGroupId}
-          dutyPlans={this.dutyPlans}
-          onStartTimeChange={this.handleStartTimeChange}
-        ></RotationPreview>
+        {!!this.dutyList.length && (
+          <RotationPreview
+            class='mt-12'
+            v-bkloading={{ isLoading: this.previewLoading }}
+            value={this.previewData}
+            alarmGroupId={this.alarmGroupId}
+            dutyPlans={this.dutyPlans}
+            onStartTimeChange={this.handleStartTimeChange}
+          ></RotationPreview>
+        )}
         <div
           class='expan-btn mb-6'
           onClick={this.handleExpanNotice}

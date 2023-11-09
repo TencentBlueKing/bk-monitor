@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { timeRangeMerger } from '../../../../trace/pages/rotation/components/calendar-preview';
 import { randomColor } from '../duty-arranges/color';
 
 import { IDutyItem } from './typing';
@@ -441,7 +442,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
     item.duty_plans.forEach((plans, pIndex) => {
       const users = plans.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
       const userStr = users.map(u => `${u.id}(${u.name})`).join(', ');
-      plans.work_times.forEach(w => {
+      timeRangeMerger(plans.work_times).forEach(w => {
         dataItem.data.push({
           users,
           color: randomColor(plans.user_index === undefined ? pIndex : plans.user_index),

@@ -208,6 +208,42 @@ export interface IDutyPreviewParams {
   rule_id: number | string;
   duty_plans: IDutyPlans[];
 }
+
+/**
+ * @description 将时间段相交的区域进行合并处理
+ * @param times
+ */
+export function timeRangeMerger(timePeriods: { start_time: string; end_time: string }[]) {
+  // 先对时间段按照开始时间进行排序
+  timePeriods.sort((a, b) => {
+    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+  });
+
+  const mergedPeriods = [];
+  let currentPeriod = timePeriods[0];
+
+  for (let i = 1; i < timePeriods.length; i++) {
+    const nextPeriod = timePeriods[i];
+
+    const currentEndTime = new Date(currentPeriod.end_time);
+    const nextStartTime = new Date(nextPeriod.start_time);
+
+    if (nextStartTime.getTime() <= currentEndTime.getTime()) {
+      // 时间段相交，更新当前时间段的结束时间
+      currentPeriod.end_time = nextPeriod.end_time;
+    } else {
+      // 时间段不相交，将当前时间段加入到合并后的数组中，并更新当前时间段为下一个时间段
+      mergedPeriods.push(currentPeriod);
+      currentPeriod = nextPeriod;
+    }
+  }
+
+  // 将最后一个时间段加入到合并后的数组中
+  mergedPeriods.push(currentPeriod);
+
+  return mergedPeriods;
+}
+
 /**
  * @description 根据后台接口数据转换为预览数据
  * @param params
@@ -216,7 +252,7 @@ export function setPreviewDataOfServer(params: IDutyPlans[]) {
   const data = [];
   params.forEach((item, index) => {
     const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
-    item.work_times.forEach(work => {
+    timeRangeMerger(item.work_times).forEach(work => {
       data.push({
         users,
         color: randomColor(item.user_index === undefined ? index : item.user_index),
