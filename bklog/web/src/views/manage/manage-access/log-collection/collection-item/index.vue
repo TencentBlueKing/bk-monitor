@@ -335,7 +335,7 @@
                 </li>
                 <li v-if="isShowMaskingTemplate">
                   <a href="javascript:;" @click.stop="operateHandler(props.row, 'masking')">
-                    {{ $t('字段脱敏') }}
+                    {{ $t('日志脱敏') }}
                   </a>
                 </li>
                 <!-- 存储设置 -->

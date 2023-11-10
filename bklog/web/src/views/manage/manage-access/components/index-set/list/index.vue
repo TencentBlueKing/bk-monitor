@@ -119,7 +119,7 @@
           <bk-button
             v-if="isShowMaskingTemplate"
             theme="primary" text style="margin-right: 4px;"
-            @click="manageIndexSet('masking', props.row)">{{ $t('字段脱敏') }}
+            @click="manageIndexSet('masking', props.row)">{{ $t('日志脱敏') }}
           </bk-button>
           <bk-button
             theme="primary" text style="margin-right: 4px;"

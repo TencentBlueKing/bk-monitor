@@ -27,13 +27,13 @@ import {
   Emit,
   Prop,
   Watch,
+  Ref,
 } from 'vue-property-decorator';
 import {
   Table,
   TableColumn,
   Input,
   Button,
-  Alert,
   Checkbox,
 } from 'bk-magic-vue';
 import './masking-select-rule-table.scss';
@@ -68,6 +68,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     field: '',
     fieldLog: '',
   }) }) addRuleFieldValue: IAddRuleFieldValue;
+  @Ref('orderTips') orderTipsRef: HTMLElement;
 
   searchStr = ''
   selectList = [];
@@ -151,6 +152,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
 
   @Emit('submit')
   submitSelectRule() {
+    this.syncSelectRuleID = -1;
     return this.tableList.filter(item => this.selectList.includes(item.id));
   }
 
@@ -236,6 +238,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         otherList.sort((a, b) => ((this.defaultSelectRuleList.includes(b.id) || b.is_public) ? 1 : -1));
       }
 
+      // 新增规则 把新的规则变绿
       if (newRuleId >= 0) {
         otherList.sort((a, b) => (newRuleId === b.id ? 1 : -1));
         otherList[0].is_add = true;
@@ -245,6 +248,9 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       this.selectList = this.defaultSelectRuleList;
       // 判断当前是否是同步重新选择列表，将展示不同的顺序
       this.tableList = selectList.concat(otherList);
+      if (this.isSyncSelect) {      // 如果是重选或同步的列表 直接去除掉之前选中过的规则
+        this.tableList = this.tableList.filter(tItem => !this.defaultSelectRuleList.includes(tItem.id));
+      }
       this.tableStrList = this.tableList.map(item => item.rule_name);
       this.tableSearchList = deepClone(this.tableList);
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
@@ -253,6 +259,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         count: this.tableSearchList.length,
       });
       this.emptyType = 'empty';
+      this.searchStr = '';
     } catch (err) {
       this.emptyType = '500';
     } finally {
@@ -318,6 +325,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   }
 
   changeCheckValue(newLength) {
+    // 单选时直接显示未选
+    if (this.isSyncSelect) return 0;
     // 根据手动选择列表长度来判断全选框显示 全选 半选 不选
     if (!newLength) {
       this.checkValue = 0;
@@ -420,26 +429,31 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     };
     return (
       <div class="masking-select-rule-table">
-        <Alert type="info" class="top-alert">
-          <div slot="title">
-            <i18n class="alert-box" path="系统已置顶匹配规则，您也可选择其他规则。若无所需脱敏规则，可直接 {0}">
-              <Button
-                text
-                style="margin-left: 4px;"
-                v-cursor={{ active: !this.isAllowed }}
-                onClick={() => this.handleAddNewRule()}>
-                {this.$t('新建规则')}
-              </Button>
-            </i18n>
+        <div class="input-box">
+          <Button
+            outline
+            theme="primary"
+            class="new-rule-btn"
+            v-cursor={{ active: !this.isAllowed }}
+            onClick={() => this.handleAddNewRule()}>
+            <i class="bk-icon icon-plus push"></i>
+            {this.$t('新建规则')}
+          </Button>
+          <div class="right-box">
+            <Input
+              v-model={this.searchStr}
+              class="search-input"
+              right-icon="bk-icon icon-search"
+              onEnter={this.searchRule}
+              onChange={this.handleSearchChange}/>
+            <Button
+              class="refresh-btn"
+              v-bk-tooltips={this.$t('刷新')}
+              onClick={() => this.initTableList()}>
+              <i class="icon bk-icon icon-right-turn-line"></i>
+            </Button>
           </div>
-        </Alert>
-
-        <Input
-          v-model={this.searchStr}
-          class="search-input"
-          right-icon="bk-icon icon-search"
-          onEnter={this.searchRule}
-          onChange={this.handleSearchChange}/>
+        </div>
 
         <Table
           data={this.tableShowList}

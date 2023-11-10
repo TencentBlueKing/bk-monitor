@@ -183,7 +183,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   }
   // 监控条件改变
   @Emit('condition-change')
-  handleConditionChange(item: MetricDetail, v: any) {
+  handleConditionChange(item: MetricDetail, v: any[]) {
     item.agg_condition = v;
   }
 
@@ -200,7 +200,19 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     return functions;
   }
   @Emit('methodChange')
-  emitMethodChange(val: string) {
+  emitMethodChange(metric: MetricDetail, val: string) {
+    metric.agg_method = val;
+    // 日志检索指标 转换回原始指标
+    if (this.isLogSearchType) {
+      if (val === 'COUNT') {
+        const metricList = metric.metric_id.toString().split('.');
+        if (metricList.length > 3) {
+          metric.metric_id = metricList.slice(0, 3).join('.');
+        }
+      } else {
+        metric.metric_id = metric.curRealMetric?.metric_id || metric.logMetricList?.[0]?.metric_id || '';
+      }
+    }
     return val;
   }
   @Emit('functionChange')
@@ -431,7 +443,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       clearable={false}
                       v-model={item.agg_method}
                       popover-width={getPopoverWidth(item?.aggMethodList || [])}
-                      onSelected={this.emitMethodChange}
+                      onSelected={v => this.emitMethodChange(item, v)}
                     >
                       {item?.aggMethodList.map(option => (
                         <bk-option
@@ -453,7 +465,6 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       popover-min-width=''
                       v-model={item.metric_id}
                       popover-width={getPopoverWidth(item?.logMetricList || [])}
-                      onSelected={this.emitMethodChange}
                     >
                       {item.logMetricList?.map(option => (
                         <bk-option

@@ -23,15 +23,8 @@ logger = logging.getLogger(__name__)
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
-def get_metric_agg_gateway_url(protocol: str = "udp"):
-    if settings.IS_CONTAINER_MODE:
-        if protocol == "udp":
-            port = 81
-        else:
-            port = 80
-        return f"bk-monitor-prom-agg-gateway:{port}"
-    else:
-        return settings.METRIC_AGG_GATEWAY_URL
+def get_metric_agg_gateway_url():
+    return settings.METRIC_AGG_GATEWAY_URL
 
 
 def udp_handler(url, method, timeout, headers, data):

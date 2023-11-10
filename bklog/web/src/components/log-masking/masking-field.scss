@@ -229,6 +229,14 @@
           height: 18px;
           line-height: 18px;
         }
+
+        .add-rule-icon {
+          visibility: hidden;
+        }
+
+        &:hover .add-rule-icon {
+          visibility: visible;
+        }
       }
     }
 

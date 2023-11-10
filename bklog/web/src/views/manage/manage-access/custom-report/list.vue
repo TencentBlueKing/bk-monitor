@@ -183,7 +183,7 @@
                         active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
                       }"
                       @click="operateHandler(props.row, 'masking')">
-                      {{ $t('字段脱敏') }}
+                      {{ $t('日志脱敏') }}
                     </a>
                   </li>
                   <li v-if="props.row.is_active">

@@ -18,7 +18,6 @@ import yaml
 from django.conf import settings
 from django.db.models import Q
 from django.db.models.query import QuerySet
-from django.db.transaction import atomic
 from django.utils.translation import ugettext as _
 from kafka import KafkaConsumer, TopicPartition
 from kubernetes import utils
@@ -41,7 +40,7 @@ from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.models.space.utils import get_space_by_table_id
 from metadata.task.bcs import refresh_dataid_resource
-from metadata.task.tasks import publish_redis
+from metadata.task.tasks import publish_redis, push_and_publish_space_router
 from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.es_tools import get_client
 
@@ -254,6 +253,9 @@ class ModifyResultTableResource(Resource):
         try:
             space_info = get_space_by_table_id(result_table.table_id)
             publish_redis.delay(space_info["space_type_id"], space_info["space_id"])
+            push_and_publish_space_router.delay(
+                space_info["space_type_id"], space_info["space_id"], table_id_list=[table_id]
+            )
         except Exception as e:
             logger.error("publish redis error, %s", e)
 
@@ -337,13 +339,11 @@ class QueryDataSourceResource(Resource):
     """查询数据源"""
 
     class RequestSerializer(serializers.Serializer):
-
         bk_data_id = serializers.IntegerField(required=False, label="数据源ID", default=None)
         data_name = serializers.CharField(required=False, label="数据源名称", default=None)
         with_rt_info = serializers.BooleanField(required=False, label="是否需要ResultTable信息", default=True)
 
     def perform_request(self, request_data):
-
         if request_data["bk_data_id"] is not None:
             data_source = models.DataSource.objects.get(bk_data_id=request_data["bk_data_id"])
         elif request_data["data_name"] is not None:
@@ -370,7 +370,6 @@ class ModifyDataSource(Resource):
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=None)
 
     def perform_request(self, request_data):
-
         try:
             data_source = models.DataSource.objects.get(bk_data_id=request_data["data_id"])
 
@@ -426,16 +425,14 @@ class UpgradeResultTableResource(Resource):
         table_id_list = serializers.ListField(required=True, label="结果表ID列表")
 
     def perform_request(self, request_data):
-
         result_table_list = []
 
         for table_id in request_data["table_id_list"]:
             result_table = models.ResultTable.get_result_table(table_id=table_id)
             result_table_list.append(result_table)
 
-        with atomic(config.DATABASE_CONNECTION_NAME):
-            for result_table in result_table_list:
-                result_table.upgrade_result_table()
+        for result_table in result_table_list:
+            result_table.upgrade_result_table()
 
         return
 
@@ -468,7 +465,6 @@ class CreateResultTableMetricSplitResource(Resource):
         cmdb_level = serializers.CharField(required=True, label="CMDB拆分层级目标")
 
     def perform_request(self, request_data):
-
         try:
             result_table = models.ResultTable.objects.get(table_id=request_data["table_id"], is_deleted=False)
 
@@ -489,7 +485,6 @@ class CleanResultTableMetricSplitResource(Resource):
         cmdb_level = serializers.CharField(required=True, label="CMDB拆分层级目标")
 
     def perform_request(self, validated_request_data):
-
         try:
             result_table = models.ResultTable.objects.get(table_id=validated_request_data["table_id"], is_deleted=False)
 
@@ -529,7 +524,6 @@ class GetResultTableStorageResult(Resource):
         is_plain_text = serializers.BooleanField(required=False, label="是否明文显示链接信息")
 
     def perform_request(self, validated_request_data):
-
         # 判断请求的存储类型是否有效
         storage_type = validated_request_data["storage_type"]
         if storage_type not in models.ResultTable.REAL_STORAGE_DICT:
@@ -621,7 +615,6 @@ class ModifyClusterInfoResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
-
         request = get_request()
         bk_app_code = get_app_code_by_request(request)
 
@@ -688,7 +681,6 @@ class QueryClusterInfoResource(Resource):
         is_plain_text = serializers.BooleanField(required=False, label="是否需要明文显示登陆信息", default=False)
 
     def perform_request(self, validated_request_data):
-
         query_dict = {}
         if validated_request_data["cluster_id"] is not None:
             query_dict = {
@@ -741,7 +733,6 @@ class QueryEventGroupResource(Resource):
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
 
     def perform_request(self, validated_request_data):
-
         # 默认都是返回已经删除的内容
         query_set = models.EventGroup.objects.filter(is_delete=False)
 
@@ -814,7 +805,6 @@ class ModifyEventGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
 
     def perform_request(self, validated_request_data):
-
         try:
             event_group = models.EventGroup.objects.get(
                 # 将事件分组的ID去掉
@@ -836,7 +826,6 @@ class DeleteEventGroupResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
-
         try:
             event_group = models.EventGroup.objects.get(
                 # 将事件分组的ID去掉
@@ -857,7 +846,6 @@ class GetEventGroupResource(Resource):
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
 
     def perform_request(self, validated_request_data):
-
         try:
             event_group = models.EventGroup.objects.get(
                 # 将事件分组的ID去掉
@@ -1035,7 +1023,6 @@ class ModifyTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
 
     def perform_request(self, validated_request_data):
-
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
                 time_series_group_id=validated_request_data.pop("time_series_group_id"), is_delete=False
@@ -1055,7 +1042,6 @@ class DeleteTimeSeriesGroupResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
-
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
                 time_series_group_id=validated_request_data.pop("time_series_group_id"), is_delete=False
@@ -1073,7 +1059,6 @@ class GetTimeSeriesGroupResource(Resource):
         with_result_table_info = serializers.BooleanField(required=False, label="是否需要带结果表信息")
 
     def perform_request(self, validated_request_data):
-
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
                 time_series_group_id=validated_request_data.pop("time_series_group_id"), is_delete=False
@@ -1100,7 +1085,6 @@ class GetTimeSeriesMetricsResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
 
     def perform_request(self, validated_request_data):
-
         table_id = validated_request_data.pop("table_id")
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(table_id=table_id)
@@ -1270,7 +1254,6 @@ class QueryTagValuesResource(Resource):
         tag_name = serializers.CharField(required=True, label="dimension/tag名称")
 
     def perform_request(self, validated_request_data):
-
         table_id = validated_request_data.pop("table_id")
         try:
             rt = models.ResultTable.objects.get(table_id=table_id)

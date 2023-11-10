@@ -1,0 +1,47 @@
+FROM python:3.6.15
+
+# 更换debian源
+RUN rm /etc/apt/sources.list \
+    && echo "deb https://mirrors.cloud.tencent.com/debian/ buster main contrib non-free \n\
+deb https://mirrors.cloud.tencent.com/debian/ buster-updates main contrib non-free \n\
+deb https://mirrors.cloud.tencent.com/debian/ buster-backports main contrib non-free \n\
+deb https://mirrors.cloud.tencent.com/debian-security/ buster/updates main contrib non-free \n\
+deb-src https://mirrors.cloud.tencent.com/debian/ buster main contrib non-free \n\
+deb-src https://mirrors.cloud.tencent.com/debian/ buster-updates main contrib non-free \n\
+deb-src https://mirrors.cloud.tencent.com/debian/ buster-backports main contrib non-free \n\
+deb-src https://mirrors.cloud.tencent.com/debian-security/ buster/updates main contrib non-free" >> /etc/apt/sources.list
+
+# 安装工具包及npm
+RUN apt update && apt install -y curl wget git vim supervisor \
+    && curl -fsSL https://code-server.dev/install.sh | sh \
+    && mkdir -p /usr/local/lib/nodejs \
+    && wget https://nodejs.org/download/release/v18.18.2/node-v18.18.2-linux-x64.tar.xz \
+    && tar -xvf node-v18.18.2-linux-x64.tar.xz -C /usr/local/lib/nodejs \
+    && echo 'export PATH=/usr/local/lib/nodejs/node-v18.18.2-linux-x64/bin:$PATH' >> ~/.bashrc
+
+# 安装code-server插件
+RUN code-server --install-extension ms-python.python && \
+    code-server --install-extension Equinusocio.vsc-material-theme && \
+    code-server --install-extension equinusocio.vsc-material-theme-icons && \
+    code-server --install-extension xyz.local-history && \
+    code-server --install-extension eamodio.gitlens
+
+# npm加入PATH环境变量
+ENV PATH="/usr/local/lib/nodejs/node-v18.18.2-linux-x64/bin:${PATH}"
+RUN npm install -g npm@latest pnpm
+
+# 安装python依赖
+RUN pip install --upgrade --no-cache-dir pip==20.2.3 setuptools==57.5.0
+
+COPY ./scripts/dev/run.sh /app/
+RUN chmod +x /app/run.sh
+
+# 复制supervisor/code-server启动配置
+COPY ./scripts/dev/supervisord.conf ./scripts/dev/code-server.yaml /app/etc/
+
+# 复制监控代码目录
+COPY ./ /app/code/
+COPY ./scripts/dev/local_settings.py.tpl /app/code/local_settings.py
+
+WORKDIR /app/code
+CMD /app/run.sh

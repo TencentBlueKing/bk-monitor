@@ -135,6 +135,8 @@ export default {
   "button-数据指纹": "Data Fingerprint",
   "添加目标": "Add target",
   "前往高级清洗": "Go To Advanced Parsing",
+  "新增字段": "Add new field",
+  "导入": "Import",
   "添加规则": "Add Rule",
   "已变更": "Changed",
   "同步脱敏": "Sync Desensitization",

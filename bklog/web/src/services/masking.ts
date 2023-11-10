@@ -108,21 +108,21 @@ const updateDesensitize = {
   method: 'post',
 }
 /**
- * 创建字段脱敏配置
+ * 创建日志脱敏配置
  */
  const createDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/create/',
   method: 'post',
 }
 /**
- * 创建字段脱敏配置
+ * 创建日志脱敏配置
  */
  const updateDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/update/',
   method: 'put',
 }
 /**
- * 删除字段脱敏配置
+ * 删除日志脱敏配置
  */
  const deleteDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/delete/',

@@ -12,14 +12,15 @@ from collections import defaultdict
 from typing import Dict
 
 from blueapps.utils import get_request
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from monitor_web.grafana.auth import GrafanaAuthSync
 from rest_framework import serializers
 
-from bkmonitor.models.external_iam import ExternalPermission
+from bk_dataview.api import get_or_create_org
+from bk_dataview.permissions import GrafanaPermission, GrafanaRole
 from core.drf_resource import Resource, api
 from core.errors.dashboard import GetFolderOrDashboardError
+from monitor_web.grafana.auth import GrafanaAuthSync
+from monitor_web.grafana.permissions import DashboardPermission
 
 
 class GetDashboardList(Resource):
@@ -75,31 +76,23 @@ class GetDirectoryTree(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
-
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
+        request = get_request()
         try:
-            username = get_request().user.username
+            username = request.user.username
         except Exception:
             username = "admin"
 
         result = api.grafana.search_folder_or_dashboard(org_id=org_id, username=username)
-
-        request = get_request()
-        filter_resources = []
-        is_external = request and getattr(request, "external_user", None)
-        if is_external:
-            for external_permission in ExternalPermission.objects.filter(
-                authorized_user=request.external_user,
-                bk_biz_id=params["bk_biz_id"],
-                action_id="view_grafana",
-                expire_time__gt=timezone.now(),
-            ):
-                filter_resources.extend(external_permission.resources)
-
         if not result:
             raise GetFolderOrDashboardError(**result)
 
+        # 获取仪表盘权限
+        _, role, dashboard_permissions = DashboardPermission.has_permission(request, None, params["bk_biz_id"])
+
         folders: Dict[int, Dict] = defaultdict(lambda: {"dashboards": []})
+
+        # 补充默认目录
         folders[0].update(
             {"id": 0, "uid": "", "title": "General", "uri": "", "url": "", "slug": "", "tags": [], "isStarred": False}
         )
@@ -109,17 +102,21 @@ class GetDirectoryTree(Resource):
             if _type == "dash-folder":
                 folders[record["id"]].update(record)
             elif _type == "dash-db":
-                if is_external and not record["uid"] in filter_resources:
+                # 过滤仪表盘权限
+                if role == GrafanaRole.Anonymous and record["uid"] not in dashboard_permissions:
                     continue
+                # 仪表盘是否可编辑
+                record["editable"] = (
+                    role >= GrafanaRole.Editor
+                    or dashboard_permissions.get(record["uid"], GrafanaPermission.View) >= GrafanaPermission.Edit
+                )
                 folder_id = record.pop("folderId", 0)
                 record.pop("folderUid", None)
                 record.pop("folderTitle", None)
                 record.pop("folderUrl", None)
                 folders[folder_id]["dashboards"].append(record)
 
-        if is_external:
-            return [folder for folder_id, folder in folders.items() if folder["dashboards"]]
-        return list(folders.values())
+        return [folder for folder_id, folder in folders.items()]
 
 
 class CreateDashboardOrFolder(Resource):
@@ -301,17 +298,20 @@ class QuickImportDashboard(Resource):
         org_id = GrafanaAuthSync.get_or_create_org_id(bk_biz_id)
         # 确定存放目录
         if folder_name and folder_name != "General":
-            folder_list = api.grafana.search_folder_or_dashboard(
-                type="dash-folder", org_id=org_id, query=folder_name
-            )["data"]
+            folder_list = api.grafana.search_folder_or_dashboard(type="dash-folder", org_id=org_id, query=folder_name)[
+                "data"
+            ]
             folder_list = [fold["id"] for fold in folder_list if fold["title"] == folder_name]
             if folder_list:
                 folder_id = folder_list[0]
 
-        from bk_dataview.grafana import settings    # noqa
+        from bk_dataview.grafana import settings  # noqa
         from monitor_web.grafana.provisioning import BkMonitorProvisioning
+
         # 寻找对应仪表盘文件
-        if not BkMonitorProvisioning.create_default_dashboard(org_id, json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id):
+        if not BkMonitorProvisioning.create_default_dashboard(
+            org_id, json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id
+        ):
             raise ImportError(f"bk_biz_id[{bk_biz_id}], quick import dashboard[{dash_name}] failed")
 
         return
