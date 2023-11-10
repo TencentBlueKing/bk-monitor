@@ -270,7 +270,6 @@ export default class MaskingAddRule extends tsc<IProps> {
       if (this.isEdit) this.cacheRuleName = this.formData.rule_name;
       this.matchFieldCheckValue = !!this.formData.match_fields.length;
       this.matchExpressionCheckValue = !!this.formData.match_pattern;
-      this.editAccessValue;
     } catch (err) {
     } finally {
       this.formLoading = false;
