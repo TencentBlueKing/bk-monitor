@@ -88,7 +88,6 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
           class='service-configuration-nav'
           routeList={this.routeList}
           needShadow={true}
-          needCopyLink
           needBack={false}
         />
         <div class='monitor-k8s-detail service-add-content'>

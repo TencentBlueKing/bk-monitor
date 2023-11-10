@@ -31,7 +31,7 @@ export const allRouteConfig = [
   },
   {
     id: 'event-center',
-    name: '事件',
+    name: '告警事件',
     route: 'event-center'
   },
   {
@@ -40,7 +40,7 @@ export const allRouteConfig = [
     route: 'intergrations'
   },
   {
-    id: 'manage',
+    id: 'manager',
     name: '管理',
     route: 'set-meal',
     children: [
@@ -81,8 +81,8 @@ export const allRouteConfig = [
             name: '告警屏蔽',
             icon: 'icon-monitor icon-menu-shield menu-icon',
             id: 'alarm-shield',
-            path: '/alarm-shield',
-            href: '#/alarm-shield'
+            path: '/trace/alarm-shield',
+            href: '#/trace/alarm-shield'
           },
           {
             name: '告警组',

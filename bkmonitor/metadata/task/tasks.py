@@ -11,14 +11,16 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import threading
 import traceback
-from typing import Optional
+from typing import Dict, List, Optional
 
 from django.utils.translation import ugettext as _
 
 from alarm_backends.service.scheduler.app import app
 from metadata import models
 from metadata.models.space.constants import SPACE_REDIS_KEY
+from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
 
@@ -119,13 +121,14 @@ def delete_restore_indices(restore_id):
 
 
 def update_time_series_metrics(time_series_metrics, task_result_queue):
-    data_id_list = []
+    data_id_list, table_id_list = [], []
     for time_series_group in time_series_metrics:
         try:
             is_updated = time_series_group.update_time_series_metrics()
             # 记录是否有更新，如果有更新则推送到redis
             if is_updated:
                 data_id_list.append(time_series_group.bk_data_id)
+                table_id_list.append(time_series_group.table_id)
         except Exception as e:
             logger.error(
                 "data_id->[{data_id}], table_id->[{table_id}] try to update ts metrics from redis failed, error->[{err_msg}], traceback_detail->[{detail}]".format(  # noqa
@@ -139,6 +142,14 @@ def update_time_series_metrics(time_series_metrics, task_result_queue):
             logger.info(
                 "time_series_group->[{}] metric update from redis success.".format(time_series_group.bk_data_id)
             )
+    # 更新空间路由信息
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+    space_client = SpaceTableIDRedis()
+    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=True)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
+    logger.info("ts updated table_id: %s", json.dumps(table_id_list))
+
     # 如果有更新时，刷新数据到 redis
     # NOTE: 因为一个空间下关联不止一个 data id，所以先过滤到空间数据，然后再进行推送消息
     updated_spaces = {
@@ -203,6 +214,72 @@ def publish_redis(space_type_id: Optional[str] = None, space_id: Optional[str] =
 
     push_and_publish_all_space()
     logger.info("push and publish all space successfully")
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def push_and_publish_space_router(
+    space_type: Optional[str] = None,
+    space_id: Optional[str] = None,
+    table_id_list: Optional[List] = None,
+):
+    """推送并发布空间路由功能"""
+    logger.info("start to push and publish space_type: %s, space_id: %s router", space_type, space_id)
+    from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL, SpaceTypes
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+    space_client = SpaceTableIDRedis()
+    # 更新数据
+    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=True)
+    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
+    # 更新空间下的结果表相关数据
+    if space_type and space_id:
+        # 更新相关数据到 redis
+        space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
+    else:
+        # NOTE: 现阶段仅针对 bkcc 类型做处理
+        space_type = SpaceTypes.BKCC.value
+        space_ids = models.Space.objects.filter(space_type_id=space_type).values_list("space_id", flat=True)
+        # 拼装数据
+        space_list = [{"space_type": space_type, "space_id": space_id} for space_id in space_ids]
+        # 设置线程数为 20，使用线程处理
+        MAX_TASK_THREAD_NUM = 20
+        count = len(space_list)
+        chunk_size = (
+            count // MAX_TASK_THREAD_NUM + 1 if count % MAX_TASK_THREAD_NUM != 0 else int(count / MAX_TASK_THREAD_NUM)
+        )
+        # 分组
+        chunks = [space_list[i : i + chunk_size] for i in range(0, count, chunk_size)]
+        threads = []
+        for chunk in chunks:
+            t = threading.Thread(target=multi_push_space_table_ids, args=(chunk,))
+            t.start()
+            threads.append(t)
+
+        # 等待所有线程完成
+        for t in threads:
+            t.join()
+
+        # 通知到使用方
+        push_redis_keys = [f"{space_type}__{space_id}" for space_id in space_ids]
+        RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
+
+    logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
+
+
+def multi_push_space_table_ids(space_list: List[Dict]):
+    """批量推送数据"""
+    logger.info("start to multi push space table ids")
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+    space_client = SpaceTableIDRedis()
+    for space in space_list:
+        try:
+            space_client.push_space_table_ids(space_type=space["space_type"], space_id=space["space_id"])
+        except Exception as e:
+            logger.error("push space to redis error, %s", e)
+
+    logger.info("multi push space table ids successfully")
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

@@ -14,7 +14,6 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from monitor_web.constants import AGENT_STATUS
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -26,6 +25,7 @@ from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.request import get_request
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
+from monitor_web.constants import AGENT_STATUS
 
 
 class GetHostProcessPortStatusResource(Resource):
@@ -168,43 +168,131 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
             AGENT_STATUS.UNKNOWN: {"type": "disabled", "text": _("未知")},
         }
 
+        bk_os_display_name = " ".join(
+            [getattr(host, "bk_os_name", ""), getattr(host, "bk_os_version", ""), getattr(host, "bk_os_bit", "")]
+        )
+
+        bk_os_display_type = ""
+        if getattr(host, "bk_os_type", ""):
+            bk_os_display_type = settings.OS_TYPE_NAME_DICT.get(int(host.bk_os_type))
+
+        docker_info = ""
+        if getattr(host, "docker_client_version", "") or getattr(host, "docker_server_version", ""):
+            docker_info = (
+                str(getattr(host, "docker_client_version", "")) + " " + str(getattr(host, "docker_server_version", ""))
+            )
+
+        host_state = str(host.bk_state)
+        monitor_mapping = {
+            # 不告警
+            "is_shielding": {"type": "is_shielding", "text": host_state},
+            # 不监控
+            "ignore_monitoring": {"type": "ignore_monitoring", "text": host_state},
+            "normal": {"type": "normal", "text": host_state},
+        }
+        monitor_status = "normal"
+        if host.is_shielding:
+            monitor_status = "is_shielding"
+        if host.ignore_monitoring:
+            monitor_status = "ignore_monitoring"
+
         return [
+            # 运营状态作为特殊类型
+            {"name": _("运营状态"), "type": "monitor_status", "value": monitor_mapping[monitor_status]},
+            {"name": _("采集状态"), "type": "status", "value": status_mapping[status]},
             {"name": _("主机名"), "type": "string", "value": host.bk_host_name, "need_copy": bool(host.bk_host_name)},
             {
                 "name": _("内网IP"),
+                "count": 2,
                 "type": "link",
                 "need_copy": bool(host.bk_host_innerip),
                 "value": {
                     "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{host.bk_host_id}"),
                     "value": host.bk_host_innerip,
                 },
+                "children": [
+                    {
+                        "name": _("IPv4"),
+                        "type": "string",
+                        "value": host.bk_host_innerip,
+                    },
+                    {
+                        "name": _("IPv6"),
+                        "type": "string",
+                        "value": host.bk_host_innerip_v6,
+                    },
+                ],
             },
-            {
-                "name": _("内网IPv6"),
-                "type": "link",
-                "need_copy": bool(host.bk_host_innerip_v6),
-                "value": {
-                    "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{host.bk_host_id}"),
-                    "value": host.bk_host_innerip_v6,
-                },
-            },
-            {"name": _("云区域"), "type": "string", "value": str(getattr(host, "bk_cloud_name", ""))},
-            {"name": _("云区域ID"), "type": "string", "value": str(getattr(host, "bk_cloud_id", ""))},
             {
                 "name": _("外网IP"),
                 "type": "string",
                 "value": host.bk_host_outerip,
+                "count": 2,
                 "need_copy": bool(host.bk_host_outerip),
+                "children": [
+                    {
+                        "name": _("IPv4"),
+                        "type": "string",
+                        "value": host.bk_host_outerip,
+                    },
+                    {
+                        "name": _("IPv6"),
+                        "type": "string",
+                        "value": host.bk_host_outerip_v6,
+                    },
+                ],
             },
             {
-                "name": _("外网IPv6"),
+                "name": _("操作系统"),
                 "type": "string",
-                "value": host.bk_host_outerip_v6,
-                "need_copy": bool(host.bk_host_outerip_v6),
+                "value": str(bk_os_display_name),
+                "count": 4,
+                "children": [
+                    {
+                        "name": _("名称"),
+                        "type": "string",
+                        "value": str(getattr(host, "bk_os_name", "")),
+                    },
+                    {
+                        "name": _("版本"),
+                        "type": "string",
+                        "value": str(getattr(host, "bk_os_version", "")),
+                    },
+                    {
+                        "name": _("类型"),
+                        "type": "string",
+                        "value": bk_os_display_type,
+                    },
+                    {
+                        "name": _("位数"),
+                        "type": "string",
+                        "value": str(getattr(host, "bk_os_bit", "")),
+                    },
+                ],
             },
-            {"name": _("OS名称"), "type": "string", "value": str(getattr(host, "bk_os_name", ""))},
-            {"name": _("运营状态"), "type": "string", "value": str(getattr(host, "bk_state", ""))},
-            {"name": _("采集状态"), "type": "status", "value": status_mapping[status]},
+            {"name": _("CPU"), "type": "string", "value": str(getattr(host, "bk_cpu", ""))},
+            {"name": _("内存容量"), "type": "string", "value": str(getattr(host, "bk_mem", ""))},
+            {"name": _("磁盘容量"), "type": "string", "value": str(getattr(host, "bk_disk", ""))},
+            {
+                "name": _("Docker"),
+                "type": "string",
+                "value": docker_info,
+                "count": 2,
+                "children": [
+                    {
+                        "name": _("docker client版本"),
+                        "type": "string",
+                        "value": str(getattr(host, "docker_client_version", "")),
+                    },
+                    {
+                        "name": _("docker server版本"),
+                        "type": "string",
+                        "value": str(getattr(host, "docker_server_version", "")),
+                    },
+                ],
+            },
+            {"name": _("云区域"), "type": "string", "value": str(getattr(host, "bk_cloud_name", ""))},
+            {"name": _("云区域ID"), "type": "string", "value": str(getattr(host, "bk_cloud_id", ""))},
             {
                 "name": _("所属模块"),
                 "type": "list",

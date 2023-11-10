@@ -17,6 +17,17 @@ from collections import defaultdict
 from dataclasses import asdict
 from urllib.parse import urlparse
 
+from django.conf import settings
+from django.core.cache import cache
+from django.db.models import Count, Q
+from django.db.transaction import atomic
+from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+from rest_framework import serializers
+
+from api.cmdb.define import Business
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
@@ -48,7 +59,9 @@ from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.plugin.help import Help
+from apm_web.meta.plugin.log_trace_plugin_config import EncodingsEnum
 from apm_web.meta.plugin.plugin import (
+    LOG_TRACE,
     DeploymentEnum,
     LanguageEnum,
     Opentelemetry,
@@ -87,13 +100,22 @@ from apm_web.service.serializers import (
 )
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import group_by, span_time_strft
+from bkmonitor.iam import ActionEnum
+from bkmonitor.models import UserGroup
+from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.ip import is_v6
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
+from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
-from django.conf import settings
-from django.core.cache import cache
-from django.db.models import Count, Q
-from django.db.transaction import atomic
-from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from constants.alert import EventSeverity
+from constants.apm import OtlpKey
+from constants.data_source import (
+    ApplicationsResultTableLabel,
+    DataSourceLabel,
+    DataTypeLabel,
+)
+from constants.result_table import ResultTableField
+from core.drf_resource import Resource, api, resource
 from monitor.models import ApplicationConfig
 from monitor_web.constants import AlgorithmType
 from monitor_web.scene_view.resources.base import PageListResource
@@ -106,26 +128,6 @@ from monitor_web.scene_view.table_format import (
     StringTableFormat,
 )
 from monitor_web.strategies.user_groups import create_default_notice_group
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-from rest_framework import serializers
-
-from api.cmdb.define import Business
-from bkmonitor.iam import ActionEnum
-from bkmonitor.models import UserGroup
-from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.utils.ip import is_v6
-from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from bkmonitor.utils.user import get_global_user, get_request_username
-from constants.alert import EventSeverity
-from constants.apm import OtlpKey
-from constants.data_source import (
-    ApplicationsResultTableLabel,
-    DataSourceLabel,
-    DataTypeLabel,
-)
-from constants.result_table import ResultTableField
-from core.drf_resource import Resource, api, resource
 
 
 class CreateApplicationResource(Resource):
@@ -136,6 +138,20 @@ class CreateApplicationResource(Resource):
             es_number_of_replicas = serializers.IntegerField(label="es副本数量", min_value=0)
             es_shards = serializers.IntegerField(label="es索引分片数量", min_value=1)
             es_slice_size = serializers.IntegerField(label="es索引切分大小", default=500)
+
+        class PluginConfigSerializer(serializers.Serializer):
+            target_node_type = serializers.CharField(label="节点类型", max_length=255)
+            target_nodes = serializers.ListField(
+                label="目标节点",
+                required=False,
+            )
+            target_object_type = serializers.CharField(label="目标类型", max_length=255)
+            data_encoding = serializers.CharField(label="日志字符集", max_length=255)
+            paths = serializers.ListSerializer(
+                label="语言",
+                child=serializers.CharField(max_length=255),
+                required=False,
+            )
 
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.RegexField(label="应用名称", max_length=50, regex=r"^[a-z0-9_-]+$")
@@ -159,17 +175,26 @@ class CreateApplicationResource(Resource):
             default=[LanguageEnum.PYTHON.id],
         )
         datasource_option = DatasourceOptionSerializer(required=True)
+        plugin_config = PluginConfigSerializer(required=False)
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = Application
             fields = "__all__"
 
+        def to_representation(self, instance):
+            data = super(CreateApplicationResource.ResponseSerializer, self).to_representation(instance)
+            application = Application.objects.filter(application_id=instance.application_id).first()
+            data["plugin_config"] = application.plugin_config
+            return data
+
     def perform_request(self, validated_request_data):
         if Application.origin_objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         ).exists():
             raise ValueError(_("应用名称: {}已被创建").format(validated_request_data['app_name']))
+
+        plugin_config = validated_request_data.get("plugin_config")
         app = Application.create_application(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -179,6 +204,7 @@ class CreateApplicationResource(Resource):
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
             datasource_option=validated_request_data["datasource_option"],
+            plugin_config=plugin_config,
         )
         from apm_web.tasks import report_apm_application_event
 
@@ -308,6 +334,7 @@ class ApplicationInfoResource(Resource):
             # 补充默认配置
             if "application_db_config" not in data:
                 data["application_db_config"] = [DEFAULT_DB_CONFIG]
+            data["plugin_config"] = instance.plugin_config
             return data
 
     def perform_request(self, validated_request_data):
@@ -348,6 +375,7 @@ class StartResource(Resource):
     @atomic
     def perform_request(self, validated_request_data):
         Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=True)
+        Application.start_plugin_config(validated_request_data["application_id"])
         return api.apm_api.start_application(validated_request_data)
 
 
@@ -358,6 +386,8 @@ class StopResource(Resource):
     @atomic
     def perform_request(self, validated_request_data):
         Application.objects.filter(application_id=validated_request_data["application_id"]).update(is_enabled=False)
+        Application.stop_plugin_config(validated_request_data["application_id"])
+
         return api.apm_api.stop_application(validated_request_data)
 
 
@@ -401,6 +431,23 @@ class SetupResource(Resource):
             threshold = serializers.IntegerField(label="阀值")
             enabled_slow_sql = serializers.BooleanField(label="是否启用慢语句")
 
+        class PluginConfigSerializer(serializers.Serializer):
+            target_node_type = serializers.CharField(label="节点类型", max_length=255)
+            target_nodes = serializers.ListField(
+                label=_("目标节点"),
+                required=False,
+            )
+            target_object_type = serializers.CharField(label="目标类型", max_length=255)
+            data_encoding = serializers.CharField(label=_("日志字符集"), max_length=255)
+            paths = serializers.ListSerializer(
+                label="语言",
+                child=serializers.CharField(max_length=255),
+                required=False,
+            )
+            bk_biz_id = serializers.IntegerField(label="业务id", required=False)
+            subscription_id = serializers.IntegerField(label="订阅任务id", required=False)
+            bk_data_id = serializers.IntegerField(label="数据id", required=False)
+
         application_id = serializers.IntegerField(label="应用id")
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="应用描述", max_length=255, allow_blank=True, required=False)
@@ -413,6 +460,7 @@ class SetupResource(Resource):
 
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
         is_enabled = serializers.BooleanField(label="启/停", required=False)
+        plugin_config = PluginConfigSerializer(required=False)
 
     class SetupProcessor:
         update_key = []
@@ -548,6 +596,8 @@ class SetupResource(Resource):
 
         from apm_web.tasks import update_application_config
 
+        if application.plugin_id == LOG_TRACE:
+            Application.update_plugin_config(application.application_id, validated_request_data["plugin_config"])
         update_application_config.delay(application.application_id)
 
 
@@ -849,7 +899,6 @@ class ServiceDetailResource(Resource):
         ]
 
     def perform_request(self, data):
-
         if ComponentHandler.is_component(data.get("service_params")):
             return self.get_component_detail(data)
 
@@ -1153,10 +1202,7 @@ class PushUrlResource(Resource):
     def get_proxy_info(self, bk_biz_id):
         proxy_host_info = []
         try:
-            if settings.BK_NODEMAN_VERSION == "2.0":
-                proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
-            else:
-                proxy_hosts = api.node_man.query_hosts(node_type="PROXY", bk_biz_id=bk_biz_id)
+            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
             for host in proxy_hosts:
                 bk_cloud_id = int(host["bk_cloud_id"])
                 ip = host.get("conn_ip") or host.get("inner_ip")
@@ -1766,7 +1812,6 @@ class QueryEndpointStatisticsResource(PageListResource):
         return res
 
     def add_extra_params(self, params):
-
         return {
             "bk_biz_id": params.get("bk_biz_id"),
             "app_name": params.get("app_name"),
@@ -2273,7 +2318,6 @@ class CustomServiceListResource(PageListResource):
         )
 
         for item in data:
-
             if item["match_type"] == CustomServiceMatchType.AUTO:
                 count_mapping = defaultdict(lambda: 0)
                 for i in spans:
@@ -2284,7 +2328,6 @@ class CustomServiceListResource(PageListResource):
                 uri_match_count = len(count_mapping.keys())
                 host_match_count = len(count_mapping.keys())
             else:
-
                 count_mapping = defaultdict(lambda: {"host": 0, "uri": 0})
                 for i in spans:
                     http_url = i.get("attributes", {}).get(SpanAttributes.HTTP_URL)
@@ -2390,7 +2433,6 @@ class CustomServiceMatchListResource(Resource):
         urls_source = serializers.ListSerializer(child=serializers.CharField())
 
     def perform_request(self, validated_data):
-
         urls = validated_data["urls_source"]
         res = set()
         for item in urls:
@@ -2420,7 +2462,6 @@ class CustomServiceDataViewResource(Resource):
         application_id = serializers.IntegerField(label="应用id")
 
     def perform_request(self, validated_request_data):
-
         try:
             app = Application.objects.get(application_id=validated_request_data["application_id"])
         except Application.DoesNotExist:
@@ -2503,7 +2544,13 @@ class DeleteApplicationResource(Resource):
         app = Application.objects.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]).first()
         if not app:
             raise ValueError(_("应用{}不存在").format(data['app_name']))
-
+        Application.delete_plugin_config(app.application_id)
         api.apm_api.delete_application(application_id=app.application_id)
         app.delete()
         return True
+
+
+class GETDataEncodingResource(Resource):
+    def perform_request(self, data):
+        data = EncodingsEnum.get_choices_list_dict()
+        return data

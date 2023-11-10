@@ -3,14 +3,6 @@
 .masking-select-rule-table {
   width: 100%;
 
-  .top-alert {
-    width: 100%;
-
-    .bk-button-text {
-      font-size: 12px;
-    }
-  }
-
   .rule-name-box {
     @include flex-align();
 
@@ -35,8 +27,34 @@
     }
   }
 
-  .search-input {
-    margin: 16px 0;
+  .input-box {
+    margin-bottom: 16px;
+
+    @include flex-justify(space-between);
+
+    .new-rule-btn {
+      padding: 0 12px;
+      margin-left: 0;
+    }
+
+    .right-box {
+      @include flex-center();
+
+      .search-input {
+        width: 240px;
+      }
+
+      .refresh-btn {
+        min-width: auto;
+        width: 32px;
+        padding: 0;
+      }
+
+      .bk-icon {
+        font-size: 18px;
+        top: 0;
+      }
+    }
   }
 
   .bk-page-selection-count {

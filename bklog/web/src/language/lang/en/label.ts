@@ -538,6 +538,8 @@ export default {
   "排序权重": "Sorting weight",
   "事件来源": "Event source",
   "事件内容": "Event content",
+  "保留未定义字段": "Leave undefined fields",
+  "事件内容": "Event content",
   "{n}脱敏规则": "{n} desensitization Rule",
   "日志来源": "Log Source",
   "应用次数": "Application Count",

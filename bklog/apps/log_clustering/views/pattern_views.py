@@ -13,7 +13,7 @@ portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
 LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
 NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF  OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
@@ -26,7 +26,12 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.handlers.pattern import PatternHandler
-from apps.log_clustering.serializers import PatternSearchSerlaizer, SetLabelSerializer
+from apps.log_clustering.serializers import (
+    PatternSearchSerlaizer,
+    SetLabelSerializer,
+    SetOwnerSerializer,
+    SetRemarkSerializer,
+)
 from apps.utils.drf import detail_route
 
 
@@ -128,5 +133,105 @@ class PatternViewSet(APIViewSet):
         """
         params = self.params_valid(SetLabelSerializer)
         return Response(
-            PatternHandler(index_set_id, {}).set_label(signature=params["signature"], label=params["label"])
+            PatternHandler(index_set_id, {}).set_signature_config(
+                signature=params["signature"], configs={"label": params["label"]}
+            )
+        )
+
+    @detail_route(methods=["POST"], url_path="remark")
+    def set_remark(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/remark/ 日志聚类-设置备注
+        @apiName set_remark
+        @apiGroup log_clustering
+        @apiParam {String} signature 数据指纹
+        @apiParam {String} remark 备注内容
+        @apiParamExample {json} 请求参数
+        {
+          "signature": "456",
+          "remark": "备注信息"
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 1,
+                "created_at": "2023-11-03T08:02:44.675115Z",
+                "created_by": "xxx",
+                "updated_at": "2023-11-09T02:44:58.997461Z",
+                "updated_by": "xxx",
+                "is_deleted": false,
+                "deleted_at": null,
+                "deleted_by": null,
+                "model_id": "xxx_xxx_xxx",
+                "signature": "456",
+                "pattern": "",
+                "label": "合并label",
+                "remark": [
+                    {
+                        "remark": "合并label",
+                        "username": "",
+                        "create_time": 0
+                    },
+                    {
+                        "username": "xxx",
+                        "create_time": 1699497898000,
+                        "remark": "备注信息"
+                    }
+                ],
+                "owners": []
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(SetRemarkSerializer)
+        return Response(
+            PatternHandler(index_set_id, {}).set_signature_config(
+                signature=params["signature"], configs={"remark": params["remark"]}
+            )
+        )
+
+    # 设置负责人
+    @detail_route(methods=["POST"], url_path="owner")
+    def set_owner(self, request, index_set_id):
+        """
+        @api {post} /pattern/$index_set_id/owner/ 日志聚类-设置负责人
+        @apiName set_owner
+        @apiGroup log_clustering
+        @apiParam {String} signature 数据指纹
+        @apiParam {String} owner 负责人
+        @apiParamExample {json} 请求参数
+        {
+          "signature": "123",
+          "owners": ["xxx", "xxx"]
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 1,
+                "created_at": "2023-11-03T08:02:44.675115Z",
+                "created_by": "xxx",
+                "updated_at": "2023-11-09T02:44:58.997461Z",
+                "updated_by": "xxx",
+                "is_deleted": false,
+                "deleted_at": null,
+                "deleted_by": null,
+                "model_id": "xxx_xxx_xxx",
+                "signature": "123",
+                "pattern": "",
+                "label": "",
+                "remark": [],
+                "owners": ["xxx", "xxx"]
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(SetOwnerSerializer)
+        return Response(
+            PatternHandler(index_set_id, {}).set_signature_config(
+                signature=params["signature"], configs={"owners": params["owners"]}
+            )
         )

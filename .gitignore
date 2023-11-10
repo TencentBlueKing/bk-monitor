@@ -10,9 +10,9 @@
 sites/
 
 ## Project Part
-.idea/
+.idea
 .tmp/
-.vscode/
+.vscode
 
 ## Python Part
 
