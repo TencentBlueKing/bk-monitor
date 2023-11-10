@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import time
+import random
 from datetime import datetime
 
 from apm.core.deepflow.constants import (
@@ -332,6 +333,10 @@ class EBPFHandler:
         return switcher.get(tap_port_type)
 
     @classmethod
+    def new_span_id(cls):
+        return ''.join(random.choice('0123456789abcdef') for _ in range(16))
+
+    @classmethod
     def l7_flow_log_to_resource_span(cls, item: dict):
 
         span = Span()
@@ -339,8 +344,11 @@ class EBPFHandler:
         span_resource = span.resource
         status = span.status
         span.trace_id = item.get("trace_id")
-        span.span_id = item.get("span_id")
-        span.parent_span_id = item.get("parent_span_id")
+
+        # 将ebpf的span_id作为parent_span_id，都挂到上一层应用span下
+        # 自身的span_id则重新生成
+        span.parent_span_id = item.get("span_id")
+        span.span_id = cls.new_span_id()
 
         if item.get("start_time"):
             span.start_time = cls.str_time_to_unit_time(item.get("start_time"))
