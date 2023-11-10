@@ -348,6 +348,16 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
 
     return <i class={`icon-monitor ${iconClass}`}></i>;
   }
+  get maintainStatusText() {
+    const statusType = this.statusData[this.targetStatusName[0]]?.type;
+    if (statusType === 'string') {
+      return this.statusData[this.targetStatusName[0]]?.value || '--';
+    }
+    if (statusType === 'monitor_status') {
+      return (this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text || '--';
+    }
+    return '--';
+  }
   render() {
     return (
       <div>
@@ -357,13 +367,10 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {this.statusData[this.targetStatusName[0]] && (
             <div class={['status-item', `bg-failed`]}>
               {this.maintainStatusIcon}
-              {/* 当 type 为 string 且 文本为空时 即为：未设置。 */}
-              {!(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text && (
-                <i class='icon-monitor icon-mc-help-fill'></i>
-              )}
-              <span class='text'>
-                {(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text || '--'}
-              </span>
+              {/* 当 type 为 string 且 value 的文本为空时 即为：未设置。 */}
+              {this.statusData[this.targetStatusName[0]]?.type === 'string' &&
+                !this.statusData[this.targetStatusName[0]]?.value && <i class='icon-monitor icon-mc-help-fill'></i>}
+              <span class='text'>{this.maintainStatusText}</span>
             </div>
           )}
 
@@ -421,8 +428,10 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                   >
                     {item?.children?.map?.(child => (
                       <div class='row'>
-                        <div class='label'>{child.name}</div>
-                        <span>&nbsp;:</span>
+                        <div class='label-container'>
+                          <span class='label'>{child.name}</span>
+                          <span>&nbsp;:</span>
+                        </div>
                         <div class='value-container'>
                           {child.type === 'string' && <div class='value'>{child.value}</div>}
                           {child.type === 'list' &&
