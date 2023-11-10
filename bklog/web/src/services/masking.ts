@@ -99,42 +99,42 @@
 const updateDesensitize = {
   url: '/desensitize/rule/:rule_id/',
   method: 'put',
-}
+};
 /**
  * 创建规则
  */
  const createDesensitize = {
   url: '/desensitize/rule/',
   method: 'post',
-}
+};
 /**
  * 创建日志脱敏配置
  */
  const createDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/create/',
   method: 'post',
-}
+};
 /**
  * 创建日志脱敏配置
  */
  const updateDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/update/',
   method: 'put',
-}
+};
 /**
  * 删除日志脱敏配置
  */
  const deleteDesensitizeConfig = {
   url: '/index_set/:index_set_id/desensitize/config/delete/',
   method: 'delete',
-}
+};
 /**
  * 获取索引集脱敏状态
  */
  const getDesensitizeState = {
   url: '/index_set/desensitize/config/state/',
   method: 'post',
-}
+};
 
 export {
   getDesensitize,

@@ -43,30 +43,30 @@ export default class MaskingFieldInput extends tsc<{}> {
   @Prop({ type: String, required: true }) operateType: string;
   @Prop({ required: true }) indexSetId: string | number;
   /** 当前活跃的采样日志下标 */
-  activeTab = '0'
+  activeTab = '0';
   /** 缓存的日志json列表 */
-  catchJsonList = []
+  catchJsonList = [];
   /** 是否钉住 */
-  inputFix = false
+  inputFix = false;
   /** 是否正在改变输入框高度 */
-  isChangingHeight = false
+  isChangingHeight = false;
   /** 输入框最小高度 */
-  collectMinHeight = 160
+  collectMinHeight = 160;
   /** 输入框最大高度 */
-  collectMaxHeight = 600
+  collectMaxHeight = 600;
   /** 当前收藏容器的高度 */
-  currentTreeBoxHeight = null
-  currentScreenY = null
+  currentTreeBoxHeight = null;
+  currentScreenY = null;
   /** 当前收藏容器的高度 */
-  collectHeight = 160
+  collectHeight = 160;
   /** 采样日志列表 */
   jsonValueList = [];
   /** 是否展示无法同步规则tips */
-  isShowCannotCreateRuleTips = false
+  isShowCannotCreateRuleTips = false;
   /** JSON格式错误tips */
-  isJSONStrError = false
+  isJSONStrError = false;
   /** 日志查询loading */
-  inputLoading = false
+  inputLoading = false;
   /** monaco输入框配置 */
   monacoConfig = {
     cursorBlinking: 'blink',
@@ -85,7 +85,7 @@ export default class MaskingFieldInput extends tsc<{}> {
       horizontalScrollbarSize: 4, // 横滚动条
       // useShadows: true, // 失焦阴影动画
     },
-  }
+  };
   /** 是否是第一次添加采样 */
   isAddNewPanel = false;
   /** 当前活跃的采样日志的元素 */

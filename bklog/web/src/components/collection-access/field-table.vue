@@ -298,10 +298,11 @@
                       </div>
                     </bk-popover>
                     <template v-else>
-                      <div v-if="hasDateField"
-                           class="field-date"
-                           v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
-                           @click.stop="setDateFormat(props.row)">
+                      <div
+                        v-if="hasDateField"
+                        class="field-date"
+                        v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
+                        @click.stop="setDateFormat(props.row)">
                         <i class="log-icon icon-date-picker"></i>
                       </div>
                       <div v-else class="field-date" @click.stop="setDateFormat(props.row)">
@@ -723,7 +724,7 @@ export default {
     requestCheckTime() {
       this.$refs.dateForm.validate().then(() => {
         this.checkLoading = true;
-        const { time_format, time_zone, time_value } = this.dialogField;
+        const { time_format, time_zone, time_value: timeValue } = this.dialogField;
         this.$http.request('collect/getCheckTime', {
           params: {
             collector_config_id: this.curCollect.collector_config_id,
@@ -731,7 +732,7 @@ export default {
           data: {
             time_format,
             time_zone,
-            data: time_value,
+            data: timeValue,
           },
         }).then(() => {
           this.timeCheckResult = true;

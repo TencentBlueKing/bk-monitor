@@ -84,46 +84,46 @@ export default class MaskingField extends tsc<IProps> {
   @Ref('syncRuleTable') private readonly syncRuleTableRef: HTMLElement;
 
   /** 日志查询字符串 */
-  configStr = ''
+  configStr = '';
 
   /** 日志查询缓存的字符串 */
-  cacheConfigStr = ''
+  cacheConfigStr = '';
 
   /** 定义搜索字符串 */
-  searchStr = ''
+  searchStr = '';
 
   /** 预览开关，默认为true */
-  previewSwitch = true
+  previewSwitch = true;
 
   /** 表格加载状态，默认为false */
-  tableLoading = false
+  tableLoading = false;
 
   /** 鼠标悬停的字段名 */
-  hoverFieldName = ''
+  hoverFieldName = '';
 
   /** 是否显示规则侧边栏，默认为false */
-  isShowRuleSideslider = false
+  isShowRuleSideslider = false;
 
   /** 重新选择弹窗显示 */
-  isShowResetRuleDialog = false
+  isShowResetRuleDialog = false;
 
   /** 一键同步所有规则弹窗 */
-  isShowAllSyncDialog = false
+  isShowAllSyncDialog = false;
 
   /** 是否向右边距，默认为false */
-  isMarginRight = false
+  isMarginRight = false;
 
   /** 标签气泡实例 */
-  tagPopoverInstance = null
+  tagPopoverInstance = null;
 
   /** 是否显示规则更改对话框 */
-  isShowRuleChangeDialog = false
+  isShowRuleChangeDialog = false;
 
   /** 是否展示无法同步规则tips */
-  isShowCannotCreateRuleTips = false
+  isShowCannotCreateRuleTips = false;
 
   /** JSON格式错误tips */
-  isJSONStrError = false
+  isJSONStrError = false;
 
   /** 是否展示字段分类 */
   isShowFieldClass = true;
@@ -143,10 +143,10 @@ export default class MaskingField extends tsc<IProps> {
       replace_mark: '*',
     },
     disabled: false,
-  }
+  };
 
   /** 当前变更或删除操作的下标 */
-  currentOperateRuleIndex = -1
+  currentOperateRuleIndex = -1;
 
   /** 当前变更或删除操作的字段 */
   currentOperateField: IFieldItem = {
@@ -156,15 +156,15 @@ export default class MaskingField extends tsc<IProps> {
     field_type: '',
     rules: [],
     operatorRules: [],
-  }
+  };
 
   /** 当前操作的规则 */
-  currentRuleState = 'update'
+  currentRuleState = 'update';
 
   /** 当前重新选择的规则 */
   currentSelectRule = {
     rule_name: '',
-  }
+  };
 
   /** 字段名的字符串key */
   fieldTypeList = [];
@@ -214,7 +214,7 @@ export default class MaskingField extends tsc<IProps> {
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
     text_replace: window.mainComponent.$t('替换'),
-  }
+  };
 
   ruleDialogI18nMap = {
     oldRule: window.mainComponent.$t('原规则'),
@@ -222,36 +222,36 @@ export default class MaskingField extends tsc<IProps> {
     match_fields: window.mainComponent.$t('匹配字段'),
     match_pattern: window.mainComponent.$t('匹配正则'),
     masking_rule: window.mainComponent.$t('脱敏算子'),
-  }
+  };
 
   /** json列表 */
-  jsonParseList = []
+  jsonParseList = [];
 
   /** 内置字段 */
-  builtInFields = []
+  builtInFields = [];
 
   emptyType = 'empty';
 
   /** 字段原始数据 */
-  fieldOriginValueList = []
+  fieldOriginValueList = [];
 
   /** 是否是更新脱敏 */
-  isUpdate = false
+  isUpdate = false;
 
   /** 日志查询loading */
-  inputLoading = false
+  inputLoading = false;
 
-  tableList = []
+  tableList = [];
 
-  tableShowList = []
+  tableShowList = [];
 
-  recommendRuleIDMap = {}
+  recommendRuleIDMap = {};
 
   /** 点击脱敏列表的添加规则时 直接回填字段和采样值 */
   addRuleFieldValue = {
     field: '',
     fieldLog: '',
-  }
+  };
 
   /** 原始日志已同步数 */
   get getSyncNum() {

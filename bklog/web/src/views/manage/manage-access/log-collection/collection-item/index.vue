@@ -292,11 +292,12 @@
               @click.stop="operateHandler(props.row, 'edit')">
               {{ $t('编辑') }}
             </bk-button>
-            <span v-bk-tooltips.top="{
-              content: getDisabledTipsMessage(props.row, 'clean'),
-              disabled: !props.row.status || props.row.table_id,
-              delay: 500,
-            }">
+            <span
+              v-bk-tooltips.top="{
+                content: getDisabledTipsMessage(props.row, 'clean'),
+                disabled: !props.row.status || props.row.table_id,
+                delay: 500,
+              }">
               <!-- 清洗 -->
               <bk-button
                 theme="primary"

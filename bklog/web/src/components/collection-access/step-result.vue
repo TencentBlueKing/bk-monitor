@@ -53,10 +53,11 @@
     <bk-exception v-if="applyData" type="building">
       <div class="approval-text">
         <span>{{ $t('容量评估进行中') }}</span>
-        <a :href="applyData.iframe_ticket_url"
-           class="button-text"
-           target="_blank"
-           data-test-id="capacityContaineBox_a_viewApprovalDetails">
+        <a
+          :href="applyData.iframe_ticket_url"
+          class="button-text"
+          target="_blank"
+          data-test-id="capacityContaineBox_a_viewApprovalDetails">
           {{ $t('点击查看审批详情') }}
           <span class="log-icon icon-lianjie"></span>
         </a>

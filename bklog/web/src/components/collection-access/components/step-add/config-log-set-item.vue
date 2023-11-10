@@ -41,9 +41,10 @@
                 data-test-id="sourceLogBox_input_addLogPath"
               ></bk-input>
               <div class="ml9">
-                <i class="bk-icon icon-plus-circle-shape icons"
-                   data-test-id="sourceLogBox_i_newAddLogPath"
-                   @click="addLog"></i>
+                <i
+                  class="bk-icon icon-plus-circle-shape icons"
+                  data-test-id="sourceLogBox_i_newAddLogPath"
+                  @click="addLog"></i>
                 <i
                   :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }] "
                   data-test-id="sourceLogBox_i_deleteAddLogPath"
@@ -279,10 +280,15 @@
           @remove="tagBlurRules(item, index)">
         </bk-tag-input>
         <div class="ml9">
-          <i :class="
-               ['bk-icon icon-plus-circle-shape icons',
-                { disable: eventSettingList.length === selectEventList.length }]"
-             @click="addWinEvent"
+          <i
+            :class="
+              [
+                'bk-icon icon-plus-circle-shape icons',
+                {
+                  disable: eventSettingList.length === selectEventList.length
+                }
+              ]"
+            @click="addWinEvent"
           ></i>
           <i
             :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: eventSettingList.length === 1 }] "
@@ -600,9 +606,9 @@ export default {
       });
     },
     delItem(index) {
-      const { separator_filters } = this.subFormData.params.conditions;
-      if (separator_filters.length > 1) {
-        separator_filters.splice(separator_filters.findIndex((item, ind) => index === ind), 1);
+      const { separator_filters: separatorFilters } = this.subFormData.params.conditions;
+      if (separatorFilters.length > 1) {
+        separatorFilters.splice(separatorFilters.findIndex((item, ind) => index === ind), 1);
       };
     },
     addWinEvent() {

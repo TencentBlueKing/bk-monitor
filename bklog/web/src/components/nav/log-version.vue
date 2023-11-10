@@ -30,11 +30,12 @@
       <div class="log-version" v-bkloading="{ isLoading: loading }">
         <div class="log-version-left">
           <ul class="left-list">
-            <li class="left-list-item"
-                :class="{ 'item-active': index === active }"
-                v-for="(item,index) in logList"
-                :key="index"
-                @click="handleItemClick(index)">
+            <li
+              class="left-list-item"
+              :class="{ 'item-active': index === active }"
+              v-for="(item,index) in logList"
+              :key="index"
+              @click="handleItemClick(index)">
               <span class="item-title">{{item.title}}</span>
               <span class="item-date">{{item.date}}</span>
               <span v-if="index === current" class="item-current">{{$t('当前版本')}}</span>

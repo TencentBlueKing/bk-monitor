@@ -36,7 +36,7 @@ interface IProps {
 export default class FieldInfo extends tsc<IProps> {
   @Prop({ type: Object, default: () => ({}) }) collectorData: object;
 
-  pagination ={
+  pagination = {
     /** 当前页数 */
     current: 1,
     /** 总数 */
@@ -45,17 +45,17 @@ export default class FieldInfo extends tsc<IProps> {
     limit: 10,
   };
 
-  timeField = ''
+  timeField = '';
 
-  tableList = []
+  tableList = [];
 
-  tableShowList = []
+  tableShowList = [];
 
-  recommendRuleIDMap = {}
+  recommendRuleIDMap = {};
 
-  fieldOriginValueList = []
+  fieldOriginValueList = [];
 
-  tableLoading = false
+  tableLoading = false;
 
   get spaceUid() {
     return this.$store.state.spaceUid;
@@ -68,9 +68,9 @@ export default class FieldInfo extends tsc<IProps> {
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
     text_replace: window.mainComponent.$t('替换'),
-  }
+  };
 
-  jsonParseList = []
+  jsonParseList = [];
 
   async created() {
     try {

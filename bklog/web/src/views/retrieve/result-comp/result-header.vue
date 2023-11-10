@@ -86,10 +86,11 @@
         <div slot="content" class="bk-select-dropdown-content auto-refresh-content">
           <div class="bk-options-wrapper">
             <ul class="bk-options bk-options-single">
-              <li v-for="item in refreshTimeList"
-                  :key="item.id"
-                  :class="['bk-option', refreshTimeout === item.id && 'is-selected']"
-                  @click="handleSelectRefreshTimeout(item.id)">
+              <li
+                v-for="item in refreshTimeList"
+                :key="item.id"
+                :class="['bk-option', refreshTimeout === item.id && 'is-selected']"
+                @click="handleSelectRefreshTimeout(item.id)">
                 <div class="bk-option-content">{{item.name}}</div>
               </li>
             </ul>

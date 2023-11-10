@@ -47,13 +47,13 @@ export default class MaskingExtract extends tsc<IProps> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
   @Ref('ruleTable') private readonly ruleTableRef: Popover;
 
-  logOriginal = ''
-  debugRequesting = false
-  isShowSecondConfirmDialog = false
-  isMarginRight = false
-  tablePopoverInstance = null
-  directoryList = [{}]
-  suffixList = [{}]
+  logOriginal = '';
+  debugRequesting = false;
+  isShowSecondConfirmDialog = false;
+  isMarginRight = false;
+  tablePopoverInstance = null;
+  directoryList = [{}];
+  suffixList = [{}];
 
   @Emit('change')
   hiddenSlider() {

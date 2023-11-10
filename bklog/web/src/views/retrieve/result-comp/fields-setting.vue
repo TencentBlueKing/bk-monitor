@@ -118,9 +118,10 @@
               <transition-group>
                 <li class="select-item" v-for="(item, index) in shadowSort" :key="item[0]">
                   <span class="icon log-icon icon-drag-dots"></span>
-                  <span class="field-name"
-                        :style="`width: calc(100% - ${fieldWidth}px);`"
-                        v-bk-overflow-tips>{{ getFiledDisplay(item[0]) }}</span>
+                  <span
+                    class="field-name"
+                    :style="`width: calc(100% - ${fieldWidth}px);`"
+                    v-bk-overflow-tips>{{ getFiledDisplay(item[0]) }}</span>
                   <span :class="`bk-icon status ${filterStatusIcon(item[1])}`"></span>
                   <span class="option text-action" @click="setOrder(item)">{{ filterOption(item[1]) }}</span>
                   <span class="bk-icon icon-close-circle-shape delete" @click="deleteField(item[0], index)"></span>

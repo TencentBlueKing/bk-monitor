@@ -39,11 +39,11 @@ Component.registerHooks(['beforeRouteEnter']);
 export default class FieldMaskingSeparate extends tsc<IProps> {
   @Ref('maskingField') private readonly maskingFieldRef: HTMLElement; // 移动到分组实例
 
-  submitLoading = false
+  submitLoading = false;
 
   curCollect = {
     index_set_id: '',
-  }
+  };
 
   created() {
     this.curCollect = {

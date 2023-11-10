@@ -390,9 +390,10 @@
               <bk-form-item :label="$t('日志归档')">
                 <div class="document-container">
                   <bk-switcher v-model="formData.enable_archive" size="large" theme="primary"></bk-switcher>
-                  <div class="check-document button-text"
-                       v-if="archiveDocUrl"
-                       @click="handleGotoLink('logArchive')">
+                  <div
+                    class="check-document button-text"
+                    v-if="archiveDocUrl"
+                    @click="handleGotoLink('logArchive')">
                     <span class="bk-icon icon-text-file"></span>
                     <a>{{$t('查看说明文档')}}</a>
                   </div>
