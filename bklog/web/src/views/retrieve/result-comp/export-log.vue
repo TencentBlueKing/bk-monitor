@@ -65,7 +65,7 @@
           <div class="header">{{ getExportTitle }}</div>
         </template>
         <div class="filed-select-box">
-          <span v-if="isShowAsyncDownload">{{$t('下载范围选择')}}</span>
+          <span class="middle-title">{{$t('下载范围')}}</span>
           <bk-radio-group class="filed-radio-box" v-model="selectFiledType">
             <bk-radio v-for="[key, val] in Object.entries(radioMap)" :key="key" :value="key">{{val}}</bk-radio>
           </bk-radio-group>
@@ -83,8 +83,16 @@
               :name="option.field_name">
             </bk-option>
           </bk-select>
-          <div v-if="asyncExportUsable && isShowAsyncDownload" class="style-line"></div>
+          <!-- <div v-if="asyncExportUsable && isShowAsyncDownload" class="style-line"></div> -->
         </div>
+        <!-- v-if="isShowMaskingTemplate" -->
+        <div v-if="false" class="desensitize-select-box">
+          <span class="middle-title">{{$t('日志类型')}}</span>
+          <bk-radio-group class="desensitize-radio-box" v-model="desensitizeRadioType">
+            <bk-radio v-for="[key, val] in Object.entries(logTypeMap)" :key="key" :value="key">{{val}}</bk-radio>
+          </bk-radio-group>
+        </div>
+        <div v-if="asyncExportUsable && isShowAsyncDownload" class="style-line"></div>
         <template v-if="!asyncExportUsable">
           <span>{{$t('当前因{n}导致无法进行异步下载， 可直接下载前1万条数据', { n: asyncExportUsableReason })}}</span>
           <div class="cannot-async-btn">
@@ -159,6 +167,7 @@ export default {
       showHistoryExport: false,
       selectFiledList: [], // 手动选择字段列表
       selectFiledType: 'all', // 字段下载类型
+      desensitizeRadioType: 'desensitize', // 原文还是脱敏下载日志类型
       popoverInstance: null,
       exportFirstComparedSize: 10000, // 显示异步下载的临界值
       exportSecondComparedSize: 2000000, // 可异步下载最大值
@@ -167,11 +176,16 @@ export default {
         show: this.$t('当前显示字段'),
         specify: this.$t('指定字段'),
       },
+      logTypeMap: {
+        desensitize: this.$t('脱敏'),
+        // origin: this.$t('原始'),
+      },
     };
   },
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     getAsyncText() { // 异步下载按钮前的文案
       return this.totalCount > this.exportSecondComparedSize
@@ -182,7 +196,7 @@ export default {
       return this.$t('当前数据超过{n}万条', { n: this.totalCount > this.exportSecondComparedSize ? 200 : 1 });
     },
     getDialogTitle() { // 异步下载临界值，dialog标题
-      return this.totalCount < this.exportFirstComparedSize ? this.$t('下载范围选择') : '';
+      return this.totalCount < this.exportFirstComparedSize ? this.$t('日志下载') : '';
     },
     isShowAsyncDownload() { // 是否展示异步下载
       return this.totalCount > this.exportFirstComparedSize;
@@ -245,6 +259,7 @@ export default {
         size: this.totalCount,
         time_range: 'customized',
         export_fields: this.submitSelectFiledList,
+        is_desensitize: this.desensitizeRadioType === 'desensitize',
       }));
       // eslint-disable-next-line max-len
       const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?export_dict=${exportParams}`;
@@ -264,6 +279,7 @@ export default {
       data.size = this.totalCount;
       data.time_range = 'customized';
       data.export_fields = this.submitSelectFiledList;
+      data.is_desensitize = this.desensitizeRadioType === 'desensitize';
 
       this.exportLoading = true;
       this.$http.request('retrieve/exportAsync', {
@@ -358,21 +374,50 @@ export default {
   .filed-select-box {
     text-align: left;
     margin-bottom: 10px;
+    font-size: 12px;
 
     .filed-radio-box {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 8px 0 14px 0;
-    }
+      margin: 8px 0 10px 0;
 
-    .style-line {
-      width: 100%;
-      height: 1px;
-      margin-top: 20px;
-      padding-bottom: 14px;
-      border-top: 1px solid #c4c6cc;
+      .bk-form-radio {
+        margin-right: 24px;
+      }
     }
+  }
+
+  .style-line {
+    width: 100%;
+    height: 1px;
+    margin: 25px 0 35px 0;
+    border-top: 1px solid #c4c6cc;
+  }
+
+  .desensitize-select-box {
+    text-align: left;
+    margin: 18px 0 10px 0;
+    font-size: 12px;
+
+    .desensitize-radio-box {
+      margin-top: 8px;
+
+      .bk-form-radio {
+        margin-right: 24px;
+      }
+    }
+  }
+
+  .middle-title {
+    &::after {
+      content: '*';
+      display: inline-block;
+      transform: translateX(2px) translateY(2px);
+      color: #ea3636;
+    }
+  }
+
+  :deep(.bk-radio-text) {
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
   }
 
   .async-export-dialog {
@@ -416,14 +461,14 @@ export default {
       margin-bottom: 24px;
       padding: 0 22px;
       display: flex;
-      align-items: center;
+      align-items: start;
 
       .export-text {
         margin-left: 8px;
         max-width: 184px;
         text-align: left;
-        font-size: 14px;
-        color: #313238;
+        font-size: 12px;
+        color: #63656e;
         line-height: 18px;
       }
 

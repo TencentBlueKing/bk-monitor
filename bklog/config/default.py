@@ -558,6 +558,8 @@ FEATURE_TOGGLE = {
     "check_collector_custom_config": "",
     # trace
     "trace": os.environ.get("BKAPP_FEATURE_TRACE", "off"),
+    # 日志脱敏
+    "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"
@@ -662,6 +664,12 @@ MENUS = [
                         "id": "clean_templates",
                         "name": _("清洗模板"),
                         "feature": "on",
+                        "icon": "moban",
+                    },
+                    {
+                        "id": "log_desensitize",
+                        "name": _("日志脱敏"),
+                        "feature": FEATURE_TOGGLE["log_desensitize"],
                         "icon": "moban",
                     },
                 ],

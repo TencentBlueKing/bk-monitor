@@ -173,12 +173,12 @@ export default {
     // 选择存储集群
     handleSelectStorageCluster(res) {
       // 因为有最大天数限制，不同集群限制可能不同，所以切换集群时展示默认
-      const { setup_config } = res;
-      this.formData.retention = setup_config?.retention_days_default || '7';
-      this.formData.storage_replies = setup_config?.number_of_replicas_default || 0;
-      this.formData.es_shards = setup_config?.es_shards_default || 0;
-      this.replicasMax = setup_config?.number_of_replicas_max || 0;
-      this.shardsMax = setup_config?.es_shards_max || 1;
+      const { setup_config: setupConfig } = res;
+      this.formData.retention = setupConfig?.retention_days_default || '7';
+      this.formData.storage_replies = setupConfig?.number_of_replicas_default || 0;
+      this.formData.es_shards = setupConfig?.es_shards_default || 0;
+      this.replicasMax = setupConfig?.number_of_replicas_max || 0;
+      this.shardsMax = setupConfig?.es_shards_max || 1;
       this.formData.allocation_min_days = '0';
     },
     updateDaysList() {
