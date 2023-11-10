@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import copy
 import importlib
 import json
 import logging
@@ -101,14 +102,17 @@ def bk_monitor_collect():
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
     time.sleep(2)
+
+    # 派发子任务周期判定
     time_now = arrow.now()
     time_now_minute = 60 * time_now.hour + time_now.minute
     for import_path in feature_toggle_obj.feature_config.get("import_paths", []):
         importlib.reload(importlib.import_module(import_path))
-        for metric in REGISTERED_METRICS.values():
+        EXECUTE_METRICS = copy.deepcopy(REGISTERED_METRICS)
+        for metric in EXECUTE_METRICS.values():
             if time_now_minute % metric["time_filter"]:
                 logger.info(f"[statistics_data] start collecting {import_path}")
-                collect_metrics.delay([import_path], [metric["namespace"]], [metric["data_names"]])
+                collect_metrics.delay([import_path], [metric["namespace"]], [metric["data_name"]])
         # 清理注册表里的内容，下一次运行的时候重新注册
         clear_registered_metrics()
 
