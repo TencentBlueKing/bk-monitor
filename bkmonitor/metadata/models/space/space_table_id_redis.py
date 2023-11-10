@@ -86,12 +86,21 @@ class SpaceTableIDRedis:
         if field_list:
             fields = fields.filter(field_name__in=field_list)
 
-        # 通过指标在反查结果表
-        table_id_fields_qs = models.ResultTableField.objects.filter(
-            tag=models.ResultTableField.FIELD_TAG_METRIC, field_name__in=fields
-        ).values("table_id", "field_name")
+        # 获取指标，进行分片查询, 默认每个分片 10w
+        count = fields.count()
+        chunk_size = getattr(settings, "MAX_FIELD_PARTITION_COUNT", 100000)
+        # 分组
+        chunks = [fields[i : i + chunk_size] for i in range(0, count, chunk_size)]
 
-        table_ids = {data["table_id"] for data in table_id_fields_qs}
+        table_ids = set()
+        # 通过指标在反查结果表
+        for _fields in chunks:
+            table_id_fields_qs = models.ResultTableField.objects.filter(
+                tag=models.ResultTableField.FIELD_TAG_METRIC, field_name__in=list(_fields)
+            ).values("table_id", "field_name")
+            table_ids.union({data["table_id"] for data in table_id_fields_qs})
+
+        # table_ids = {data["table_id"] for data in table_id_fields_qs}
         # 根据 option 过滤是否有开启黑名单，如果开启黑名单，则指标会有过期时间
         white_tables = set(
             models.ResultTableOption.objects.filter(
@@ -154,7 +163,7 @@ class SpaceTableIDRedis:
         if data_label_list:
             data_labels = data_labels.filter(data_label__in=data_label_list)
         # 再通过 data_label 过滤到结果表
-        rt_dl_qs = models.ResultTable.objects.filter(data_label__in=data_labels).values("table_id", "data_label")
+        rt_dl_qs = models.ResultTable.objects.filter(data_label__in=list(data_labels)).values("table_id", "data_label")
         # 组装数据
         rt_dl_map = {}
         for data in rt_dl_qs:
