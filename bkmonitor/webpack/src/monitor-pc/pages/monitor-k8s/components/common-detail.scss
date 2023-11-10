@@ -359,7 +359,9 @@
       align-items: center;
 
       &.common-status-wrap .common-status-name {
+        width: calc(100% - 20px);
         line-height: 12px;
+        white-space: wrap;
       }
     }
   }

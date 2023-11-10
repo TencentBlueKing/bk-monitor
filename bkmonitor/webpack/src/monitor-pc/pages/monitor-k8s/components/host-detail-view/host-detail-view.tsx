@@ -345,6 +345,13 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
         iconClass = 'icon-inform-circle';
         break;
     }
+    // 特殊情况： 当 type 为 string 且 value 的文本为空时 即为：没有配置。
+    if (
+      this.statusData[this.targetStatusName[0]]?.type === 'string' &&
+      !this.statusData[this.targetStatusName[0]]?.value
+    ) {
+      iconClass = 'icon-inform-circle';
+    }
 
     return <i class={`icon-monitor ${iconClass}`}></i>;
   }
@@ -367,9 +374,6 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {this.statusData[this.targetStatusName[0]] && (
             <div class={['status-item', `bg-failed`]}>
               {this.maintainStatusIcon}
-              {/* 当 type 为 string 且 value 的文本为空时 即为：未设置。 */}
-              {this.statusData[this.targetStatusName[0]]?.type === 'string' &&
-                !this.statusData[this.targetStatusName[0]]?.value && <i class='icon-monitor icon-mc-help-fill'></i>}
               <span class='text'>{this.maintainStatusText}</span>
             </div>
           )}
