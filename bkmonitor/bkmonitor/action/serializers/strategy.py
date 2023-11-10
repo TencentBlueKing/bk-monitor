@@ -702,6 +702,7 @@ class UserGroupDetailSlz(UserGroupSlz):
             "channels",
             "mention_list",
             "mention_type",
+            "timezone",
         )
 
     def validate_name(self, value):
