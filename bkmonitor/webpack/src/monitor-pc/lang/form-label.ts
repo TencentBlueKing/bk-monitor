@@ -1798,5 +1798,8 @@ export default {
   指定班次: 'Specify Classes',
   单班时长: 'Classes Duration',
   轮值人员: 'Rotating Personnel',
-  单次值班: 'Single Duty'
+  单次值班: 'Single Duty',
+  时区: 'Time Zone',
+  日常轮班: 'Daily shifts',
+  轮值规则ID: 'The rotation rule ID'
 };

@@ -273,6 +273,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     };
     const data = await listUserGroup(query).catch(() => {
       this.emptyType = '500';
+      return [];
     });
     if (!this.tableInstance) {
       this.tableInstance = new TableStore(data);
@@ -281,6 +282,20 @@ export default class AlarmGroup extends tsc<IGroupList> {
       this.tableInstance.total = data.length;
     }
     this.tableInstance.page = 1;
+    if (!!this.$route.query?.dutyRuleId) {
+      const dutyId = this.$route.query.dutyRuleId;
+      const searchCondition = [
+        {
+          id: 'rule',
+          name: window.i18n.t('轮值规则ID'),
+          values: [{ id: dutyId, name: dutyId }]
+        }
+      ];
+      this.handleSearchCondition(searchCondition);
+      this.$router.replace({
+        query: undefined
+      });
+    }
     this.tableData = this.tableInstance.getTableData();
     this.loading = false;
   }
@@ -414,7 +429,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 id: 'name'
               },
               {
-                name: this.$t('轮值规则'),
+                name: this.$t('轮值规则ID'),
                 id: 'rule'
               }
             ]}
