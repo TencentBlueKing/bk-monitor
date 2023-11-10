@@ -87,6 +87,7 @@ class SpaceTableIDRedis:
             fields = fields.filter(field_name__in=field_list)
 
         # 获取指标，进行分片查询, 默认每个分片 10w
+        # NOTE: 如果不分片，因为数据量太大，会导致查询丢连接，
         count = fields.count()
         chunk_size = getattr(settings, "MAX_FIELD_PARTITION_COUNT", 100000)
         # 分组
@@ -100,7 +101,6 @@ class SpaceTableIDRedis:
             ).values("table_id", "field_name")
             table_ids.union({data["table_id"] for data in table_id_fields_qs})
 
-        # table_ids = {data["table_id"] for data in table_id_fields_qs}
         # 根据 option 过滤是否有开启黑名单，如果开启黑名单，则指标会有过期时间
         white_tables = set(
             models.ResultTableOption.objects.filter(
