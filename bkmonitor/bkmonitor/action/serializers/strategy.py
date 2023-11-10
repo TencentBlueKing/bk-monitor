@@ -12,6 +12,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Dict
 
+import pytz
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -714,6 +715,16 @@ class UserGroupDetailSlz(UserGroupSlz):
         if value and self.initial_data.get("channels") and NoticeChannel.USER not in self.initial_data.get("channels"):
             # 如果通知到人的开关没有打开，不允许轮值
             raise ValidationError(detail=_("当前告警组已启用轮值，必须要开启内部通知渠道"))
+        if value and not self.initial_data.get("duty_rules"):
+            # 如果启动轮值, 必须要关联轮值规则
+            raise ValidationError(detail=_("当前告警组已启用轮值，关联的轮值规则不能为空"))
+        return value
+
+    def validate_timezone(self, value):
+        try:
+            pytz.timezone(value)
+        except pytz.exceptions.UnknownTimeZoneError:
+            raise ValidationError(detail="timezone is invalid")
         return value
 
     def __init__(self, instance=None, data=empty, **kwargs):

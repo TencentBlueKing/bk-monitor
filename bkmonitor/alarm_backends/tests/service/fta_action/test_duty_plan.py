@@ -470,8 +470,8 @@ class TestDutyPreview:
         assert duty_plan[0]["work_times"][-1]["end_time"] == "2023-11-08 08:00"
         assert duty_plan[0]["user_index"] == 0
         assert len(duty_plan[1]["work_times"]) == 7
-        assert duty_plan[0]["work_times"][-1]["start_time"] == "2023-11-15 00:00"
-        assert duty_plan[0]["work_times"][-1]["end_time"] == "2023-11-15 08:00"
+        assert duty_plan[1]["work_times"][-1]["start_time"] == "2023-11-15 00:00"
+        assert duty_plan[1]["work_times"][-1]["end_time"] == "2023-11-15 08:00"
         assert duty_plan[1]["user_index"] == 1
         assert len(duty_plan[2]["work_times"]) == 7
         assert duty_plan[2]["user_index"] == 2
