@@ -8,8 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import time
 import random
+import time
 from datetime import datetime
 
 from apm.core.deepflow.constants import (
@@ -382,18 +382,21 @@ class EBPFHandler:
 
         # service info
         if cls.is_client_side(item.get("tap_side")):
-            cls.put_value_map(span_resource, "service.name", item.get("auto_service"))
-            cls.put_value_map(span_resource, "service.instance.id", item.get("auto_instance"))
+            cls.put_value_map(span_resource, "service.name", item.get("auto_service_0"))
+            cls.put_value_map(span_resource, "service.instance.id", item.get("auto_instance_0"))
         else:
-            cls.put_value_map(span_resource, "service.name", item.get("auto_service"))
-            cls.put_value_map(span_resource, "service.instance.id", item.get("auto_instance"))
+            cls.put_value_map(span_resource, "service.name", item.get("auto_service_1"))
+            cls.put_value_map(span_resource, "service.instance.id", item.get("auto_instance_1"))
 
         if item.get("app_service"):
             cls.put_value_map(span_resource, "service.name", item.get("app_service"))
         if item.get("app_instance"):
             cls.put_value_map(span_resource, "service.instance.id", item.get("app_instance"))
-        cls.put_value_map(span_resource, "process.pid", item.get("process_id"))
-        cls.put_value_map(span_resource, "thread.name", item.get("process_kname"))
+
+        cls.put_value_map(span_resource, "process.pid_0", item.get("process_id_0"))
+        cls.put_value_map(span_resource, "process.pid_1", item.get("process_id_1"))
+        cls.put_value_map(span_resource, "thread.name_0", item.get("process_kname_0"))
+        cls.put_value_map(span_resource, "thread.name_1", item.get("process_kname_1"))
 
         # Flow Info
         cls.put_value_map(span_attrs, "df.flow_info.id", item.get("_id"))
