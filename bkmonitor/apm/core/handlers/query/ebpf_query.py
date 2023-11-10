@@ -23,7 +23,6 @@ from apm.core.handlers.query.base import EsQueryBuilderMixin
 from apm.utils.es_search import EsSearch
 from apm_ebpf.resource import TraceQueryResource
 from constants.apm import OtlpKey
-from core.drf_resource import api
 
 logger = logging.getLogger("apm")
 
@@ -56,13 +55,32 @@ class DeepFlowQuery:
         获取ebpf数据
         """
         sql = (
-            "SELECT client_port, req_tcp_seq, resp_tcp_seq, l7_protocol, l7_protocol_str, version, Enum(type), "
-            "request_type, request_domain, request_resource, request_id, response_status, response_code, "
-            "response_exception, app_service, app_instance, endpoint, trace_id, span_id, parent_span_id, "
-            "Enum(span_kind) AS kind, http_proxy_client, syscall_trace_id_request, syscall_trace_id_response, "
-            "syscall_thread_0, syscall_thread_1, syscall_cap_seq_0, syscall_cap_seq_1, flow_id, signal_source, "
-            "tap, vtap, nat_source, tap_port, tap_port_name, tap_port_type, tap_side, tap_id, vtap_id, "
-            "toString(start_time) AS start_time, toString(end_time) AS end_time FROM l7_flow_log"
+            "SELECT pod_service_0, pod_service_1, pod_group_0, pod_group_1, pod_0, pod_1, service_0, "
+            "service_1, Enum(resource_gl0_type_0), Enum(resource_gl0_type_1), resource_gl0_0, resource_gl0_1, "
+            "Enum(resource_gl1_type_0), Enum(resource_gl1_type_1), resource_gl1_0, resource_gl1_1, "
+            "Enum(resource_gl2_type_0), Enum(resource_gl2_type_1), resource_gl2_0, resource_gl2_1, "
+            "Enum(auto_instance_type_0), Enum(auto_instance_type_1), auto_instance_0, auto_instance_1, "
+            "Enum(auto_service_type_0), Enum(auto_service_type_1), auto_service_0, auto_service_1, gprocess_0, "
+            "gprocess_1, k8s.label_0, k8s.label_1, k8s.annotation_0, k8s.annotation_1, k8s.env_0, k8s.env_1, "
+            "attribute, cloud.tag_0, cloud.tag_1, os.app_0, os.app_1, ip_0, ip_1, Enum(is_ipv4), is_internet_0, "
+            "is_internet_1, Enum(protocol), Enum(tunnel_type), client_port, Enum(server_port), req_tcp_seq, "
+            "resp_tcp_seq, Enum(l7_protocol), l7_protocol_str, version, Enum(type), request_type, request_domain, "
+            "request_resource, request_id, Enum(response_status), response_code, response_exception, "
+            "response_result, app_service, app_instance, endpoint, process_id_0, process_id_1, process_kname_0, "
+            "process_kname_1, netns_id_0, netns_id_1, trace_id, span_id, parent_span_id, Enum(span_kind), "
+            "x_request_id_0, x_request_id_1, tap_id, syscall_trace_id_request, syscall_trace_id_response, "
+            "syscall_thread_0, syscall_thread_1, syscall_cap_seq_0, syscall_cap_seq_1, flow_id, vtap_id, "
+            "toString(start_time) AS start_time, toString(end_time) AS end_time, Enum(signal_source), tap, vtap, "
+            "Enum(nat_source), tap_port, tap_port_name, Enum(tap_port_type), Enum(tap_side), region_id_0, "
+            "region_id_1, az_id_0, az_id_1, host_id_0, host_id_1, chost_id_0, chost_id_1, vpc_id_0, vpc_id_1, "
+            "l2_vpc_id_0, l2_vpc_id_1, subnet_id_0, subnet_id_1, router_id_0, router_id_1, dhcpgw_id_0, "
+            "dhcpgw_id_1, lb_id_0, lb_id_1, natgw_id_0, natgw_id_1, redis_id_0, redis_id_1, rds_id_0, rds_id_1, "
+            "pod_cluster_id_0, pod_cluster_id_1, pod_ns_id_0, pod_ns_id_1, pod_node_id_0, pod_node_id_1,"
+            " pod_service_id_0, pod_service_id_1, pod_group_id_0, pod_group_id_1, pod_id_0, pod_id_1, "
+            "service_id_1, resource_gl0_id_0, resource_gl0_id_1, resource_gl1_id_0, resource_gl1_id_1, "
+            "resource_gl2_id_0, resource_gl2_id_1, auto_instance_id_0, auto_instance_id_1, auto_service_id_0, "
+            "auto_service_id_1, gprocess_id_0, gprocess_id_1, service_id_0, http_proxy_client, "
+            "l7_protocol, signal_source, tap_side, tap_port_type, response_status, is_ipv4  FROM l7_flow_log"
         )
         ebpf_spans = []
         ebpf_param = {"trace_id": trace_id, "bk_biz_id": bk_biz_id, "sql": sql, "db": "flow_log"}
