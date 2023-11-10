@@ -273,6 +273,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     };
     const data = await listUserGroup(query).catch(() => {
       this.emptyType = '500';
+      return [];
     });
     if (!this.tableInstance) {
       this.tableInstance = new TableStore(data);
