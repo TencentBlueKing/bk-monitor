@@ -240,7 +240,11 @@ export function timeRangeMerger(timePeriods: { start_time: string; end_time: str
 
   // 将最后一个时间段加入到合并后的数组中
   mergedPeriods.push(currentPeriod);
+  /* 判断跨行的数据 */
+  // const result = [];
+  // mergedPeriods.forEach(item => {
 
+  // });
   return mergedPeriods;
 }
 

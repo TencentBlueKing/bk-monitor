@@ -27,8 +27,6 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
-import { retrieveUserGroup } from '../../../../monitor-api/modules/model';
-
 import { dutyDataConversion, getCalendarOfNum, IDutyData } from './utils';
 
 import './rotation-preview.scss';
@@ -163,20 +161,13 @@ export default class RotationPreview extends tsc<IProps> {
     if (!v) {
       return;
     }
-    if (isHistory) {
-      this.detailDutyPlans = this.dutyPlans.map(d => ({
-        startTime: d?.start_time || '--',
-        endTime: d?.finished_time || '--',
-        users: (d?.users?.map(u => u.display_name) || []).join('、 ')
-      }));
-    } else {
-      const data = await retrieveUserGroup(this.alarmGroupId);
-      this.detailDutyPlans = data.duty_plans.map(d => ({
-        startTime: d?.start_time || '--',
-        endTime: d?.finished_time || '--',
-        users: (d?.users?.map(u => u.display_name) || []).join('、 ')
-      }));
-    }
+    this.detailDutyPlans = (
+      isHistory ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime()) : this.dutyPlans
+    ).map(d => ({
+      startTime: d?.start_time || '--',
+      endTime: d?.finished_time || '--',
+      users: (d?.users?.map(u => u.display_name) || []).join('、 ')
+    }));
   }
 
   render() {
