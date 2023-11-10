@@ -19,10 +19,10 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
 
-logger = logging.getLogger("ebpf")
+logger = logging.getLogger("apm_ebpf")
 
 
-class Query(Resource):
+class TraceQueryResource(Resource):
     """
     查询eBPF数据
     """

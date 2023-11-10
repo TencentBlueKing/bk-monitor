@@ -21,10 +21,11 @@ from apm import constants
 from apm.core.deepflow.base import EBPFHandler
 from apm.core.handlers.query.base import EsQueryBuilderMixin
 from apm.utils.es_search import EsSearch
+from apm_ebpf.resource import TraceQueryResource
 from constants.apm import OtlpKey
 from core.drf_resource import api
 
-logger = logging.getLogger("deep-flow")
+logger = logging.getLogger("apm")
 
 
 class EbpfQuery(EsQueryBuilderMixin):
@@ -66,7 +67,7 @@ class DeepFlowQuery:
         ebpf_spans = []
         ebpf_param = {"trace_id": trace_id, "bk_biz_id": bk_biz_id, "sql": sql, "db": "flow_log"}
         try:
-            res = api.deepflow.query(ebpf_param)
+            res = TraceQueryResource().request(ebpf_param)
             for item in res:
                 span_data = EBPFHandler.l7_flow_log_to_resource_span(item)
                 ebpf_spans.append(span_data)

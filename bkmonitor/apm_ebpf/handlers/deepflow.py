@@ -17,7 +17,7 @@ from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.kube import BcsKubeClient
 from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
-from apm_web.utils import group_by
+
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkmonitor.utils.cache import CacheType, using_cache
@@ -101,6 +101,8 @@ class DeepflowHandler:
         res = []
 
         deployments = WorkloadHandler.list_deployments(self.bk_biz_id, DeepflowComp.NAMESPACE)
+
+        from apm_web.utils import group_by
         cluster_deploy_mapping = group_by(deployments, operator.attrgetter("cluster_id"))
 
         valid_cluster_ids = []
