@@ -61,10 +61,6 @@
   content: '\e164';
 }
 
-.icon-plus-circle-shape:before {
-  content: '\e163';
-}
-
 .icon-star-shape:before {
   content: '\e165';
 }
@@ -381,16 +377,12 @@
   content: '\e180';
 }
 
-.icon-delete:before {
-  content: '\e146';
+.icon-log-delete:before {
+  content: '\e181';
 }
 
 .icon-masking:before {
   content: '\e183';
-}
-
-.icon-plus-circle-yuan:before {
-  content: '\e1a1';
 }
 
 .icon-fix-line:before {
@@ -403,4 +395,8 @@
 
 .icon-log-loading:before {
   content: '\e186';
+}
+
+.icon-log-remark:before {
+  content: '\e187';
 }
