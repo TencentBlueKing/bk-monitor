@@ -988,7 +988,9 @@ export default {
   :deep(.user-selector-container) {
     /* stylelint-disable-next-line declaration-no-important */
     border: none !important;
-    background: transparent;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    background: transparent !important;
   }
 }
 

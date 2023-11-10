@@ -25,6 +25,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+
 .icon-app-store:before {
   content: '\e162';
 }
