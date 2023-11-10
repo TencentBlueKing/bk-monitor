@@ -9,24 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import fnmatch
-import json
 import logging
 import os
 import typing
-from dataclasses import asdict, dataclass
 from typing import List
 
 from blueapps.conf import settings
-from django.core.cache import cache
 
 from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.deepflow import DeepflowHandler
-from bk_dataview.provisioning import (
-    Dashboard,
-    Datasource,
-    SimpleProvisioning,
-    sync_data_sources,
-)
+from bk_dataview.provisioning import Dashboard, Datasource, SimpleProvisioning
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
@@ -37,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 class ApmEbpfProvisioning(SimpleProvisioning):
     _FOLDER_NAME = "eBPF"
+    # eBPF的仪表盘模版插件Id 需要与apm_ebpf/*.json文件下__inputs.pluginId一致
+    _TEMPLATE_PLUGIN_ID = "deepflowio-deepflow-datasource"
 
     @using_cache(CacheType.GRAFANA)
     def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
@@ -98,6 +92,9 @@ class ApmEbpfProvisioning(SimpleProvisioning):
             d["type"]: {"type": "datasource", "pluginId": d["type"], "value": d.get("uid", "")}
             for d in datasources
         }
+        if cls._TEMPLATE_PLUGIN_ID not in type_mapping:
+            # 此业务无eBPF集群 不创建仪表盘
+            return []
 
         inputs = []
         for input_field in template.get("__inputs", []):
