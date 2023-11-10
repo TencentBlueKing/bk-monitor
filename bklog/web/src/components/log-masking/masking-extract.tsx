@@ -195,7 +195,7 @@ export default class MaskingExtract extends tsc<IProps> {
                     <div class="length-change-item">
                       <Input></Input>
                       <div class="ml9">
-                        <i class="bk-icon icon-plus-circle-yuan icons"
+                        <i class="bk-icon icon-plus-circle-shape icons"
                           onClick={() => this.addDirectory()}></i>
                         <i class={['bk-icon icon-minus-circle-shape icons ml9', { disable: this.directoryList.length === 1 }]}
                           onClick={() => this.delDirectory(index)}></i>
@@ -210,7 +210,7 @@ export default class MaskingExtract extends tsc<IProps> {
                     <div class="length-change-item">
                       <Input></Input>
                       <div class="ml9">
-                        <i class="bk-icon icon-plus-circle-yuan icons"
+                        <i class="bk-icon icon-plus-circle-shape icons"
                           onClick={() => this.addSuffix()}></i>
                         <i class={['bk-icon icon-minus-circle-shape icons ml9', { disable: this.suffixList.length === 1 }]}
                           onClick={() => this.delSuffix(index)}></i>

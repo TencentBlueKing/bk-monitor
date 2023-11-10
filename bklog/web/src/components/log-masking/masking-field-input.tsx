@@ -164,7 +164,7 @@ export default class MaskingFieldInput extends tsc<{}> {
    * @desc: 一键生成规则
    */
   async handleCreateRule() {
-    this.isShowCannotCreateRuleTips = !this.activeJsonValue.jsonStr;
+    this.isShowCannotCreateRuleTips = !this.getJsonParseList.length;
     this.isJSONStrError = this.activeJsonValue.isJsonError;
     this.emitCreateRule();
   }
@@ -205,6 +205,10 @@ export default class MaskingFieldInput extends tsc<{}> {
       item.name = String(index);
       item.label = `${this.$t('采样日志')}${index + 1}`;
     });
+    if (!this.jsonValueList.length) {
+      this.isShowCannotCreateRuleTips = false;
+      this.isJSONStrError = false;
+    }
     this.handleBlurInput();
   }
 

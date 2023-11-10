@@ -507,7 +507,7 @@
                   :class="{ 'extra-error': item.value === '' && isExtraError }"
                   @blur="isExtraError = false"></bk-input>
                 <div class="ml9">
-                  <i :class="['bk-icon icon-plus-circle-yuan icons']"
+                  <i :class="['bk-icon icon-plus-circle-shape icons']"
                      @click="handleAddExtraLabel"></i>
                   <i :class="['bk-icon icon-minus-circle-shape icons ml9',
                               { disable: formData.extra_labels.length === 1 }]"
