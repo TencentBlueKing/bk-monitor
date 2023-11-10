@@ -1152,10 +1152,9 @@ export default class MaskingField extends tsc<IProps> {
 
   handleClickAddRuleIcon(fieldItem: IFieldItem) {
     // 新增规则直接回填采样和字段
-    const fieldLog = this.fieldOriginValueList[fieldItem.field_name]?.find((item:string) => Boolean(String(item))) || '';
     this.addRuleFieldValue = {
       field: fieldItem.field_name,
-      fieldLog,
+      fieldLog: this.fieldOriginValueList[fieldItem.field_name]?.find((item: any) => Boolean(String(item))) ?? '',
     };
     this.currentOperateField = fieldItem;  // 当前添加更多规则的字段
     this.defaultSelectRuleList = fieldItem.rules.map(item => item.rule_id);

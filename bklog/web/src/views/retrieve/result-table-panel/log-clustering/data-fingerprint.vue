@@ -359,11 +359,6 @@ export default {
         year_on_year_count: '101',
         year_on_year_percentage: '101',
       },
-      /** 备注的tips设置 */
-      tippyOptions: {
-        distance: -10,
-        placement: 'top',
-      },
       /** 编辑标签或备注的弹窗 */
       isShowStrInputDialog: false,
       /** 当前备注信息 */
