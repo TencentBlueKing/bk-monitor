@@ -156,7 +156,13 @@ class DesensitizeConfigSerializer(serializers.Serializer):
     """
 
     rule_id = serializers.IntegerField(label=_("脱敏规则ID"), required=False)
-    match_pattern = serializers.CharField(label=_("匹配模式"), required=False, allow_null=True, allow_blank=True, default="")
+    match_pattern = serializers.CharField(
+        label=_("匹配模式"),
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        default=""
+    )
     operator = serializers.ChoiceField(label=_("脱敏算子"), choices=DesensitizeOperator.get_choices(), required=False)
     params = serializers.DictField(label=_("脱敏配置参数"), required=False)
     state = serializers.ChoiceField(
