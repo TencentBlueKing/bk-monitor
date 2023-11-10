@@ -180,6 +180,26 @@ export default class RotationConfig extends tsc<IProps> {
     this.handleDutyChange();
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
+    /* 获取轮值组人员预览 */
+    const tempSet = new Set();
+    const userPreviewList = [];
+    data.forEach(d => {
+      d.duty_plans.forEach(p => {
+        p.users.forEach(u => {
+          if (u.type === 'group') {
+            if (!tempSet.has(u.id)) {
+              tempSet.add(u.id);
+              userPreviewList.push({
+                ...u,
+                name: u.display_name
+              });
+            }
+          }
+        });
+      });
+    });
+    this.userPreviewList = userPreviewList;
+    /* --- */
     this.previewLoading = false;
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
@@ -463,38 +483,42 @@ export default class RotationConfig extends tsc<IProps> {
           dutyList={this.allDutyList}
           onChange={this.handleNoticeConfigChange}
         ></DutyNoticeConfig>
-        <div class='user-preivew'>
-          {this.userGroupData.map(
-            item =>
-              this.userPreviewList.map(u => u.id).includes(item.id) && (
-                <div class='text-msg'>
-                  {`${item.display_name}(${
-                    ['bk_bak_operator', 'operator'].includes(item.id) ? operatorText[item.id] : this.$t('来自配置平台')
-                  })`}
-                  {(() => {
-                    if (!['bk_bak_operator', 'operator'].includes(item.id)) {
-                      if (item.members.length) {
+        {!!this.userPreviewList.length && (
+          <div class='user-preivew'>
+            {this.userGroupData.map(
+              item =>
+                this.userPreviewList.map(u => u.id).includes(item.id) && (
+                  <div class='text-msg'>
+                    {`${item.display_name}(${
+                      ['bk_bak_operator', 'operator'].includes(item.id)
+                        ? operatorText[item.id]
+                        : this.$t('来自配置平台')
+                    })`}
+                    {(() => {
+                      if (!['bk_bak_operator', 'operator'].includes(item.id)) {
+                        if (item.members.length) {
+                          return (
+                            <span>
+                              {'，'}
+                              {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
+                            </span>
+                          );
+                        }
                         return (
                           <span>
                             {'，'}
-                            {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
+                            {this.$t('当前成员')}
+                            {`(${this.$t('空')})`}
                           </span>
                         );
                       }
-                      return (
-                        <span>
-                          {'，'}
-                          {this.$t('当前成员')}
-                          {`(${this.$t('空')})`}
-                        </span>
-                      );
-                    }
-                    return undefined;
-                  })()}
-                </div>
-              )
-          )}
-        </div>
+                      return undefined;
+                    })()}
+                  </div>
+                )
+            )}
+          </div>
+        )}
         <RotationDetail
           id={this.detailData.id}
           show={this.detailData.show}

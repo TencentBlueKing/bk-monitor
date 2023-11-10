@@ -72,6 +72,7 @@ export default class RotationPreview extends tsc<IProps> {
   showDetail = false;
   /* 当前明细/历史标题 */
   detailTitle = '';
+  detailDutyPlans = [];
 
   created() {
     this.dutyData = dutyDataConversion(this.dutyData);
@@ -163,9 +164,18 @@ export default class RotationPreview extends tsc<IProps> {
       return;
     }
     if (isHistory) {
+      this.detailDutyPlans = this.dutyPlans.map(d => ({
+        startTime: d?.start_time || '--',
+        endTime: d?.finished_time || '--',
+        users: (d?.users?.map(u => u.display_name) || []).join('、 ')
+      }));
     } else {
       const data = await retrieveUserGroup(this.alarmGroupId);
-      console.log(data);
+      this.detailDutyPlans = data.duty_plans.map(d => ({
+        startTime: d?.start_time || '--',
+        endTime: d?.finished_time || '--',
+        users: (d?.users?.map(u => u.display_name) || []).join('、 ')
+      }));
     }
   }
 
@@ -331,29 +341,23 @@ export default class RotationPreview extends tsc<IProps> {
           transfer={true}
           extCls={'rotation-preview-side'}
           quickClose={true}
+          title={this.detailTitle}
           before-close={() => this.handleShowDetail(false, '')}
         >
           <div slot='content'>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
+            {this.detailDutyPlans.length ? (
+              this.detailDutyPlans.map((item, index) => (
+                <div
+                  class='content-item'
+                  key={index}
+                >
+                  <span class='item-left'>{`${item.startTime} ～ ${item.endTime}`}</span>
+                  <span class='item-right'>{item.users}</span>
+                </div>
+              ))
+            ) : (
+              <div>{this.$t('暂无数据')}</div>
+            )}
           </div>
         </Sideslider>
         <div style={{ display: 'none' }}>
