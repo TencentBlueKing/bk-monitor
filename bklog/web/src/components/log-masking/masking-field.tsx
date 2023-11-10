@@ -1152,9 +1152,10 @@ export default class MaskingField extends tsc<IProps> {
 
   handleClickAddRuleIcon(fieldItem: IFieldItem) {
     // 新增规则直接回填采样和字段
+    const fieldLog = this.fieldOriginValueList[fieldItem.field_name]?.find((item:string) => Boolean(String(item))) || '';
     this.addRuleFieldValue = {
       field: fieldItem.field_name,
-      fieldLog: this.fieldOriginValueList[fieldItem.field_name]?.find((item:string) => Boolean(String(item))) ?? '',
+      fieldLog,
     };
     this.currentOperateField = fieldItem;  // 当前添加更多规则的字段
     this.defaultSelectRuleList = fieldItem.rules.map(item => item.rule_id);
@@ -1520,8 +1521,7 @@ export default class MaskingField extends tsc<IProps> {
                       {
                         (this.currentRuleState === 'delete' && ruleIndex === 1)
                           ? <div class="delete-item">{this.$t('已删除')}</div>
-                          // eslint-disable-next-line no-unused-vars
-                          : Object.entries(ruleValue).filter(([fKey, fValue]) => !!fValue)
+                          : Object.entries(ruleValue).filter(fItem => !!fItem[1])
                             .map(([matchKey, matchValue]) => (
                               <div class="item">
                                 <span class="key">{this.ruleDialogI18nMap[matchKey]} :</span>

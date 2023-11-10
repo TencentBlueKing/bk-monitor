@@ -143,7 +143,7 @@
             <div :class="['pattern-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
               <cluster-event-popover
                 :context="row.pattern"
-                :tippy-options="tippyOptions"
+                :tippy-options="{ distance: -10, placement: 'top', boundary: scrollContent }"
                 @eventClick="(option) => handleMenuClick(option,row)">
                 <text-highlight
                   style="word-break: break-all; white-space: pre-line;"
@@ -389,6 +389,9 @@ export default {
     /** 获取当前hover操作的数据 */
     getHoverRowValue() {
       return this.fingerList[this.editDialogIndex];
+    },
+    scrollContent() {
+      return document.querySelector('.result-scroll-container');
     },
   },
   watch: {
