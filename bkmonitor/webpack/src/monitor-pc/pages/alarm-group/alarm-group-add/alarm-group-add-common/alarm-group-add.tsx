@@ -46,7 +46,7 @@ import SetMealAddStore from '../../../../../fta-solutions/store/modules/set-meal
 import { getReceiver } from '../../../../../monitor-api/modules/notice_group';
 import { getBkchatGroup } from '../../../../../monitor-api/modules/user_groups';
 import { deepClone, random } from '../../../../../monitor-common/utils/utils';
-import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
+// import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import { createUserGroup, retrieveUserGroup, updateUserGroup } from '../../.././../../monitor-api/modules/model';
 import { IDutyItem } from '../../duty-arranges/duty-arranges';
@@ -589,7 +589,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     const params: any = {
       name,
       desc,
-      timezone: this.formData.timezone,
+      // timezone: this.formData.timezone,
       need_duty: needDuty,
       duty_arranges: needDuty
         ? // ? paramsTransform(this.dutyArranges)
@@ -887,7 +887,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               {this.errorsMsg.name && <div class='error-msg'>{this.errorsMsg.name}</div>}
             </div>
           </bk-form-item>
-          <bk-form-item
+          {/* <bk-form-item
             label={this.$t('时区')}
             required
             property='name'
@@ -898,7 +898,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                 onChange={v => (this.formData.timezone = v)}
               ></TimezoneSelect>
             </div>
-          </bk-form-item>
+          </bk-form-item> */}
           {/* <bk-form-item label={this.$t('开启轮值')}>*/}
           {/*  <div class="input-duty">*/}
           {/*    <bk-switcher v-model={this.formData.needDuty}*/}

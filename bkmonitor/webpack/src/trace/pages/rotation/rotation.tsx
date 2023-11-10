@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 
-import { destroyDutyRule, listDutyRule, partialUpdateDutyRule } from '../../../monitor-api/modules/model';
+import { destroyDutyRule, listDutyRule, switchDutyRule } from '../../../monitor-api/modules/model';
 import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
@@ -381,11 +381,33 @@ export default defineComponent({
         InfoBox({
           title: value ? t('确认启用') : t('确认停用'),
           onConfirm: () => {
-            partialUpdateDutyRule(row.id, {
+            switchDutyRule({
+              ids: [row.id],
               enabled: value
             })
               .then(() => {
                 resolve(value);
+                listDutyRule()
+                  .then(list => {
+                    const labelsSet = new Set();
+                    const filterLabelOptions = [];
+                    allRotationList.value = list.map(item => {
+                      item.labels.forEach(l => {
+                        if (!labelsSet.has(l)) {
+                          labelsSet.add(l);
+                          filterLabelOptions.push({
+                            text: l,
+                            value: l
+                          });
+                        }
+                      });
+                      return {
+                        ...item,
+                        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+                      };
+                    });
+                  })
+                  .catch(() => []);
               })
               .catch(() => {
                 reject();

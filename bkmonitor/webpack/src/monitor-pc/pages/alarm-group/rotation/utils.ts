@@ -359,6 +359,7 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
       resultOverlapTimes.push(group[0]);
     }
   });
+  console.log(resultOverlapTimes);
   return resultOverlapTimes;
 }
 
