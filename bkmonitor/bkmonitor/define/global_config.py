@@ -239,7 +239,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("MAIL_REPORT_FULL_PAGE_WAIT_TIME", slz.IntegerField(label="邮件报表整屏渲染等待时间", default=60)),
         ("KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST", slz.ListField(label=_("容器关联关系丰富业务白名单"), default=[])),
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
-        ("MAX_FIELD_PARTITION_COUNT", slz.IntegerField(label="最大的指标分片查询的大小", default=100000)),
+        ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
     ]
 )
 
