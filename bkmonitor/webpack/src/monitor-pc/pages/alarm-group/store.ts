@@ -104,7 +104,7 @@ export default class TableStore {
       if (searcOthers.length) {
         iss.push(searcOthers.some(name => (item.name as string).indexOf(name) > -1));
       }
-      return iss.some(is => is);
+      return iss.length ? iss.some(is => is) : true;
     });
   }
 }

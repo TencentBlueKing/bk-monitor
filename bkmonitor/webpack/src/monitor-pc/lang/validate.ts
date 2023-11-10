@@ -265,5 +265,6 @@ export default {
   生效起始时间必填: 'Effective start time is required',
   每条轮值规则最少添加一个用户: 'Add at least one user per rotation rule',
   请选择值班规则: 'Please select the duty rule',
-  请输入企业微信群ID: 'Please enter the group ID of enterprise wechat'
+  请输入企业微信群ID: 'Please enter the group ID of enterprise wechat',
+  暂无数据: 'No data available'
 };
