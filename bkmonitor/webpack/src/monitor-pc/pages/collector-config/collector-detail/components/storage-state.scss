@@ -8,19 +8,15 @@
 
   .storage-info {
     .info-form {
+      display: flex;
+      flex-wrap: wrap;
+      width: 900px;
       margin-top: 24px;
-
-      .info-row {
-        display: flex;
-
-        & + .info-row {
-          margin-top: 12px;
-        }
-      }
 
       .info-item {
         display: flex;
         align-items: center;
+        margin-bottom: 12px;
 
         .info-label {
           width: 84px;

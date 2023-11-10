@@ -41,8 +41,8 @@ interface FieldDetailsProps {
 @Component
 export default class FieldDetails extends tsc<FieldDetailsProps> {
   @Prop({ type: Object, required: true }) detailData: DetailData;
+  @Prop({ type: Array, default: () => [] }) fieldData: FieldDetailsProps['fieldData'];
   @Prop({ type: String, default: 'field' }) type: FieldDetailsProps['type'];
-  @Prop({ type: Array, required: true }) fieldData: FieldDetailsProps['fieldData'];
 
   fieldTableData = [];
   metricList = [];

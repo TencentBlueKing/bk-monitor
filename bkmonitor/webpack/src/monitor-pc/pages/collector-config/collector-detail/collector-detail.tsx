@@ -29,6 +29,7 @@ import { random } from '@common/utils';
 import { TabPanel } from 'bk-magic-vue';
 
 import { collectInstanceStatus, frontendCollectConfigDetail } from '../../../../monitor-api/modules/collecting';
+import { storageStatus } from '../../../../monitor-api/modules/datalink';
 import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
@@ -69,8 +70,13 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       data: null,
       updateKey: random(8)
     },
+    [TabEnum.StorageState]: {
+      loading: false,
+      data: null
+    },
     [TabEnum.FieldDetails]: {
-      fieldData: []
+      fieldData: null,
+      type: 'field'
     }
   };
 
@@ -119,8 +125,64 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     });
   }
 
+  getStorageStateData() {
+    this.allData[TabEnum.StorageState].loading = true;
+    storageStatus({ collect_config_id: this.collectId })
+      .then(res => {
+        this.allData[TabEnum.StorageState].data = res;
+      })
+      .catch(() => {
+        this.allData[TabEnum.StorageState].data = {
+          info: [
+            { key: 'index', name: '存储索引名', value: 'trace_agg_scene' },
+            { key: 'cluster_name', name: '存储集群', value: '默认集群', hasEdit: true, type: 'input' },
+            { key: 'expire_time', name: '过期时间', value: 7, hasEdit: true, hasUnderline: true, type: 'number' },
+            { key: 'copy', name: '副本数', value: '1', hasEdit: true, hasUnderline: true, type: 'number' }
+          ],
+          status: [
+            {
+              name: '集群状态',
+              content: {
+                keys: [
+                  { key: 'index', name: '索引' },
+                  { key: 'running_status', name: '运行状态' },
+                  { key: 'copy', name: '主分片' },
+                  { key: 'v_copy', name: '负分片' }
+                ],
+                values: [
+                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
+                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
+                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 }
+                ]
+              }
+            },
+            {
+              name: '索引状态',
+              content: {
+                keys: [
+                  { key: 'index', name: '索引' },
+                  { key: 'running_status', name: '运行状态' },
+                  { key: 'copy', name: '主分片' },
+                  { key: 'v_copy', name: '负分片' }
+                ],
+                values: [
+                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
+                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
+                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 }
+                ]
+              }
+            }
+          ]
+        };
+      })
+      .finally(() => {
+        this.allData[TabEnum.StorageState].loading = false;
+      });
+  }
+
   mounted() {
     this.getDetails();
+    this.getStorageStateData();
   }
 
   getAlarmGroupList() {
@@ -180,6 +242,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
             <StorageState
               class='mt-24'
+              loading={this.allData[TabEnum.StorageState].loading}
+              data={this.allData[TabEnum.StorageState].data}
               collectId={this.collectId}
             />
           </TabPanel>
@@ -187,7 +251,11 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             label={this.$t('字段详情')}
             name={TabEnum.FieldDetails}
           >
-            <FieldDetails detailData={this.detailData} />
+            <FieldDetails
+              detailData={this.detailData}
+              type={this.allData[TabEnum.FieldDetails].type}
+              fieldData={this.allData[TabEnum.FieldDetails].fieldData}
+            />
           </TabPanel>
         </MonitorTab>
       </div>

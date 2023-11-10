@@ -23,87 +23,105 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Divider, Input, Table, TableColumn } from 'bk-magic-vue';
 
 import './storage-state.scss';
 
-enum InfoFieldEnum {
-  StorageIndexName = 'storageIndexName',
-  StorageCluster = 'storageCluster',
-  ExpiredTime = 'expiredTime',
-  CopyNumber = 'copyNumber'
-}
-interface InfoField {
-  label: string;
-  /** 是否需要编辑功能 */
+interface InfoItem {
+  key: string;
+  name: string;
+  value: string;
+  type?: 'number' | 'input';
   hasEdit?: boolean;
-  /** 是否处于编辑态 */
-  isEdit?: boolean;
-  /** 编辑值 */
-  editValue?: string | number;
   /** 是否需要下划线 */
   hasUnderline?: boolean;
 }
 
-type InfoFields = {
-  [key in InfoFieldEnum]: InfoField;
-};
+interface LocalInfoField extends InfoItem {
+  /** 是否处于编辑态 */
+  isEdit?: boolean;
+  /** 编辑值 */
+  editValue?: string | number;
+}
+
+interface StatusContentItem {
+  key: string;
+  name: string;
+}
+
+interface StatusValueItem {
+  [key: string]: string | number;
+}
+
+interface StatusItem {
+  name: string;
+  content: {
+    keys: StatusContentItem[];
+    values: StatusValueItem[];
+  };
+}
+
+interface DataInterface {
+  info: InfoItem[];
+  status: StatusItem[];
+}
 
 interface StorageStateProps {
   collectId: number;
+  data: DataInterface;
+  loading?: boolean;
 }
 
 @Component
 export default class StorageState extends tsc<StorageStateProps, {}> {
   @Prop({ type: Number, required: true }) collectId: number;
+  @Prop({ type: Object, default: null }) data: DataInterface;
+  @Prop({ type: Boolean, default: false }) loading: boolean;
 
-  infoData = {
-    [InfoFieldEnum.StorageIndexName]: 'trace_agg_scene',
-    [InfoFieldEnum.StorageCluster]: '默认集群',
-    [InfoFieldEnum.ExpiredTime]: 7,
-    [InfoFieldEnum.CopyNumber]: 1
+  infoData: LocalInfoField[] = [];
+
+  clusterStatusTable = {
+    columns: [],
+    data: []
   };
 
-  infoFields: InfoFields = {
-    [InfoFieldEnum.StorageIndexName]: {
-      label: this.$tc('存储索引名')
-    },
-    [InfoFieldEnum.StorageCluster]: {
-      label: this.$tc('存储集群'),
-      hasEdit: true,
-      isEdit: false,
-      editValue: ''
-    },
-    [InfoFieldEnum.ExpiredTime]: {
-      label: this.$tc('过期时间'),
-      hasEdit: true,
-      isEdit: false,
-      editValue: 1,
-      hasUnderline: true
-    },
-    [InfoFieldEnum.CopyNumber]: {
-      label: this.$tc('副本数'),
-      hasEdit: true,
-      isEdit: false,
-      editValue: 1,
-      hasUnderline: true
-    }
+  indexStatusTable = {
+    columns: [],
+    data: []
   };
 
-  clusterTableList = [];
-  clusterTableLoading = false;
-
-  indexTableList = [];
-  indexTableLoading = false;
-
-  handleInfoEdit(type: InfoFieldEnum) {
-    this.infoFields[type].isEdit = true;
-    this.infoFields[type].editValue = this.infoData[type];
+  @Watch('data')
+  handleDataChange(val: DataInterface) {
+    this.infoData = val.info.map(item => {
+      if (item.hasEdit) {
+        return {
+          ...item,
+          isEdit: false,
+          editValue: ''
+        };
+      }
+      return item;
+    });
+    this.clusterStatusTable = {
+      columns: val.status[0].content.keys,
+      data: val.status[0].content.values
+    };
+    this.indexStatusTable = {
+      columns: val.status[1].content.keys,
+      data: val.status[1].content.values
+    };
   }
 
-  handleEditConfirm(field: InfoField) {
+  handleInfoEditStatusChange(field: LocalInfoField) {
+    field.isEdit = !field.isEdit;
+    if (field.isEdit) {
+      field.editValue = field.value;
+    }
+  }
+
+  handleEditConfirm(field: LocalInfoField) {
     console.log(field);
   }
 
@@ -111,15 +129,10 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
    * 根据表单字段类型渲染不同的内容
    * @param type 字段类型
    */
-  renderInfoField(type: InfoFieldEnum) {
-    const field = this.infoFields[type];
-
+  renderInfoField(field: LocalInfoField) {
     const renderEditComp = () => {
-      switch (type) {
-        case InfoFieldEnum.StorageCluster:
-          return <Input v-model={this.infoFields[type].editValue} />;
-        case InfoFieldEnum.ExpiredTime:
-        case InfoFieldEnum.CopyNumber:
+      switch (field.type) {
+        case 'number':
           return (
             <Input
               type='number'
@@ -127,13 +140,15 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
               v-model={field.editValue}
             />
           );
+        case 'input':
+          return <Input v-model={field.editValue} />;
       }
     };
 
     return (
       <div class='info-item'>
         <div class='info-label'>
-          <span class={{ label: true, underline: field.hasUnderline }}>{field.label}</span>
+          <span class={{ label: true, underline: field.hasUnderline }}>{field.name}</span>
         </div>
         <div class='info-value'>
           {field.isEdit ? (
@@ -149,18 +164,18 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
               <bk-button
                 class='btn'
                 text
-                onClick={() => (field.isEdit = false)}
+                onClick={() => this.handleInfoEditStatusChange(field)}
               >
                 {this.$t('取消')}
               </bk-button>
             </div>
           ) : (
             <div class='default'>
-              {this.infoData[type]}
+              {field.value}
               {field.hasEdit && (
                 <i
                   class='icon-monitor icon-bianji'
-                  onClick={() => this.handleInfoEdit(type)}
+                  onClick={() => this.handleInfoEditStatusChange(field)}
                 />
               )}
             </div>
@@ -175,15 +190,11 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
       <div class='storage-state-component'>
         <div class='storage-info'>
           <div class='title'>{this.$t('存储信息')}</div>
-          <div class='info-form'>
-            <div class='info-row'>
-              {this.renderInfoField(InfoFieldEnum.StorageIndexName)}
-              {this.renderInfoField(InfoFieldEnum.StorageCluster)}
-            </div>
-            <div class='info-row'>
-              {this.renderInfoField(InfoFieldEnum.ExpiredTime)}
-              {this.renderInfoField(InfoFieldEnum.CopyNumber)}
-            </div>
+          <div
+            class='info-form'
+            v-bkloading={{ isLoading: this.loading }}
+          >
+            {this.infoData.map(field => this.renderInfoField(field))}
           </div>
         </div>
         <Divider class='divider' />
@@ -192,29 +203,21 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
           <div class='table-content'>
             <Table
               class='data-table'
-              data={this.clusterTableList}
+              data={this.clusterStatusTable.data}
               outer-border={false}
               header-border={false}
-              v-bkloading={{ isLoading: this.clusterTableLoading }}
+              max-height={350}
+              v-bkloading={{ isLoading: this.loading }}
             >
-              <TableColumn label={this.$t('索引')} />
-              <TableColumn label={this.$t('运行状态')} />
-              <TableColumn
-                label={this.$t('主分片')}
-                sortable
-              />
-              <TableColumn
-                label={this.$t('副本分片')}
-                sortable
-              />
-              <TableColumn
-                label={this.$t('文档计数')}
-                sortable
-              />
-              <TableColumn
-                label={this.$t('存储大小')}
-                sortable
-              />
+              {this.clusterStatusTable.columns.map(column => {
+                return (
+                  <TableColumn
+                    key={column.key}
+                    label={column.name}
+                    prop={column.key}
+                  />
+                );
+              })}
             </Table>
           </div>
         </div>
@@ -224,29 +227,21 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
           <div class='table-content'>
             <Table
               class='data-table'
-              data={this.indexTableList}
+              data={this.indexStatusTable.data}
               outer-border={false}
               header-border={false}
-              v-bkloading={{ isLoading: this.indexTableLoading }}
+              max-height={350}
+              v-bkloading={{ isLoading: this.loading }}
             >
-              <TableColumn label={this.$t('索引')} />
-              <TableColumn label={this.$t('运行状态')} />
-              <TableColumn
-                label={this.$t('主分片')}
-                sortable
-              />
-              <TableColumn
-                label={this.$t('副本分片')}
-                sortable
-              />
-              <TableColumn
-                label={this.$t('文档计数')}
-                sortable
-              />
-              <TableColumn
-                label={this.$t('存储大小')}
-                sortable
-              />
+              {this.indexStatusTable.columns.map(column => {
+                return (
+                  <TableColumn
+                    key={column.key}
+                    label={column.name}
+                    prop={column.key}
+                  />
+                );
+              })}
             </Table>
           </div>
         </div>
