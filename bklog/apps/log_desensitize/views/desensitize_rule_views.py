@@ -491,4 +491,3 @@ class DesensitizeRuleViesSet(ModelViewSet):
             field_configs=data["field_configs"],
             text_fields=data["text_fields"])
         )
-

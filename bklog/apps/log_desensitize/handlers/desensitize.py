@@ -147,7 +147,7 @@ class DesensitizeHandler(object):
         return log_content
 
     @staticmethod
-    def _match_transform(rule: dict, text: str = "", context: dict = None, is_highlight=False):
+    def _match_transform(rule: dict, text: str = "", context: dict = None, is_highlight: bool = False):
         """
         公共方法 匹配文本并进行算子处理
         """
@@ -221,7 +221,7 @@ class DesensitizeHandler(object):
 
         return result
 
-    def transform(self, log: str, rules: list, is_highlight=False):
+    def transform(self, log: str, rules: list, is_highlight: bool = False):
         substrings = []
         for rule in rules:
             rule_substrings = self.find_substrings_by_rule(log, rule)
@@ -350,7 +350,9 @@ class DesensitizeRuleHandler(object):
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
 
         # 找出接入场景是log的索引集 找出对应的采集项对象
-        index_set_obj_log_ids = set(index_set_objs.filter(scenario_id=Scenario.LOG).values_list("index_set_id", flat=True))
+        index_set_obj_log_ids = set(
+            index_set_objs.filter(scenario_id=Scenario.LOG).values_list("index_set_id", flat=True)
+        )
         collector_config_objs = CollectorConfig.objects.filter(index_set_id__in=index_set_obj_log_ids)
 
         collector_config_mapping = {_obj.index_set_id: model_to_dict(_obj) for _obj in collector_config_objs}
@@ -364,14 +366,16 @@ class DesensitizeRuleHandler(object):
             scenario_mapping[_index_set_id] = dict()
             if scenario_id == ScenarioEnum.LOG.value and _index_set_id in collector_config_mapping:
                 # 采集接入&自定义上报
-                if collector_config_mapping[_index_set_id]["collector_scenario_id"] != CollectorScenarioEnum.CUSTOM.value:
+                _collector_config_id = collector_config_mapping[_index_set_id]["collector_config_id"]
+                _custom_value = CollectorScenarioEnum.CUSTOM.value
+                if collector_config_mapping[_index_set_id]["collector_scenario_id"] != _custom_value:
                     # 采集接入
                     scenario_mapping[_index_set_id]["scenario_id"] = ScenarioEnum.LOG.value
-                    scenario_mapping[_index_set_id]["show_id"] = collector_config_mapping[_index_set_id]["collector_config_id"]
+                    scenario_mapping[_index_set_id]["show_id"] = _collector_config_id
                 else:
                     # 自定义上报
                     scenario_mapping[_index_set_id]["scenario_id"] = ScenarioEnum.LOG_CUSTOM.value
-                    scenario_mapping[_index_set_id]["show_id"] = collector_config_mapping[_index_set_id]["collector_config_id"]
+                    scenario_mapping[_index_set_id]["show_id"] = _collector_config_id
             elif scenario_id == ScenarioEnum.LOG.value:
                 # 索引集
                 scenario_mapping[_index_set_id]["scenario_id"] = ScenarioEnum.INDEX_SET.value
@@ -672,7 +676,9 @@ class DesensitizeRuleHandler(object):
                 for field_name in field_names:
                     if field_name not in result or field_name == text_field:
                         continue
-                    result[text_field] = result[text_field].replace(str(log_content_tmp[field_name]), str(result[field_name]))
+                    result[text_field] = result[text_field].replace(
+                        str(log_content_tmp[field_name]), str(result[field_name])
+                    )
 
             # 处理日志原文字段自身的脱敏逻辑
             result = text_fields_desensitize_handler.transform_dict(_log)

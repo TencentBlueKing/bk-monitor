@@ -42,7 +42,7 @@
               ></bk-input>
               <div class="ml9">
                 <i
-                  class="bk-icon icon-plus-circle-yuan icons"
+                  class="bk-icon icon-plus-circle-shape icons"
                   data-test-id="sourceLogBox_i_newAddLogPath"
                   @click="addLog"></i>
                 <i
@@ -137,7 +137,7 @@
                     </bk-form-item>
                   </div>
                   <div class="right">
-                    <i class="bk-icon icon-plus-circle-yuan icons" @click="addItem"></i>
+                    <i class="bk-icon icon-plus-circle-shape icons" @click="addItem"></i>
                     <i
                       :class="['bk-icon icon-minus-circle-shape icons ml9',
                                { disable: separatorFilters.length === 1 }]"
@@ -282,8 +282,12 @@
         <div class="ml9">
           <i
             :class="
-              ['bk-icon icon-plus-circle-yuan icons',
-               { disable: eventSettingList.length === selectEventList.length }]"
+              [
+                'bk-icon icon-plus-circle-shape icons',
+                {
+                  disable: eventSettingList.length === selectEventList.length
+                }
+              ]"
             @click="addWinEvent"
           ></i>
           <i

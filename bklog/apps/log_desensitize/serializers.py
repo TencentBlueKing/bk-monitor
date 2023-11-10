@@ -48,7 +48,13 @@ class DesensitizeRuleListSerializer(serializers.Serializer):
 class DesensitizeRuleSerializer(serializers.Serializer):
     rule_name = serializers.CharField(label=_("脱敏规则名称"), required=True, max_length=64)
     match_fields = serializers.ListField(label=_("匹配字段名"), child=serializers.CharField(), required=False, default=list)
-    match_pattern = serializers.CharField(label=_("匹配表达式"), required=False, allow_null=True, allow_blank=True, default="")
+    match_pattern = serializers.CharField(
+        label=_("匹配表达式"),
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        default=""
+    )
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
     operator = serializers.ChoiceField(label=_("脱敏算子"), choices=DesensitizeOperator.get_choices(), required=True)
     operator_params = serializers.DictField(label=_("脱敏配置参数"), required=False)

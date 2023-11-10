@@ -27,7 +27,7 @@
       <div class="fields-config-container">
         <div v-show="!isShowAddInput" class="add-fields-config" @click="handleClickAddNew">
           <bk-button class="config-btn" :text="true">
-            <i class="bk-icon icon-plus-circle-yuan"></i>
+            <i class="bk-icon icon-plus-circle-shape"></i>
             <span>{{$t('新建配置')}}</span>
           </bk-button>
         </div>
