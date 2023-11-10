@@ -359,8 +359,52 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
       resultOverlapTimes.push(group[0]);
     }
   });
-  console.log(resultOverlapTimes);
-  return resultOverlapTimes;
+  /* 将跨行的且与用户组重叠的区域再精简 */
+  const timeRangesNumbers = timeRanges.map(item => item.map(item1 => item1.map(item2 => new Date(item2))));
+  const result = [];
+  resultOverlapTimes.forEach(item => {
+    if (item.verticalRange[1] - item.verticalRange[0] > 1) {
+      const lineRange = [item.verticalRange[0], item.verticalRange[1]];
+      let start = item.range.tempRange[0];
+      let end = item.range.tempRange[1];
+      timeRangesNumbers.forEach((t, tIndex) => {
+        if (tIndex < lineRange[1] && tIndex > lineRange[0]) {
+          t.forEach(t1 => {
+            if (t1[0].getTime() > item.range.tempRange[0] && t1[0].getTime() < item.range.tempRange[1]) {
+              end = t1[0].getTime();
+            }
+            if (t1[1].getTime() > item.range.tempRange[0] && t1[1].getTime() < item.range.tempRange[1]) {
+              start = t1[1].getTime();
+            }
+          });
+        }
+      });
+      // if (
+      //   !timeRangesNumbers.some(
+      //     (t, tIndex) =>
+      //       tIndex < lineRange[1] &&
+      //       tIndex > lineRange[0] &&
+      //       t.some(t1 => t1[0].getTime() < start && t1[1].getTime() > end)
+      //   ) &&
+      //   start !== end
+      // ) {
+      // }
+      const temp =
+        end < start
+          ? [end, start]
+          : [start < totalRangeTime[0] ? totalRangeTime[0] : start, end > totalRangeTime[1] ? totalRangeTime[1] : end];
+      result.push({
+        ...item,
+        range: {
+          ...getDateStrAndRange(temp, totalRangeTime),
+          tempRange: temp
+        }
+      });
+    } else {
+      result.push(item);
+    }
+  });
+  return result;
 }
 
 /**
@@ -387,7 +431,15 @@ export function dutyDataConversion(dutyData: IDutyData) {
       const { other } = d;
       const start = timeRange[0].split(' ')[1];
       const end = timeRange[1].split(' ')[1];
-      other.time = `${timeRange[0].split(' ')[0]} ${start}-${end}`;
+      other.time = (() => {
+        if (
+          new Date(timeRange[1].split(' ')[0]).getTime() - new Date(timeRange[0].split(' ')[0]).getTime() >
+          60000 * 24 * 60
+        ) {
+          return `${timeRange[0].split(' ')[0]} ${start}- ${timeRange[1].split(' ')[0]} ${end}`;
+        }
+        return `${timeRange[0].split(' ')[0]} ${start}-${end}`;
+      })();
       allTimeRange.push(d.timeRange);
       return {
         ...d,
