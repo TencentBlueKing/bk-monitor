@@ -19,7 +19,6 @@ class MetricCollector(object):
     """
 
     def __init__(self, collector_import_paths=None):
-        self.last_collect_time = None
         if collector_import_paths and not REGISTERED_METRICS:
             for key in collector_import_paths:
                 importlib.reload(importlib.import_module(key))

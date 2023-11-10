@@ -49,6 +49,16 @@ class RequestProcessor:
     """
 
     @classmethod
+    def get_request_user_info(cls, request) -> Dict[str, Any]:
+        external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+        try:
+            external_user = json.loads(external_user)
+        except Exception:
+            logger.error(f"解析外部用户信息失败({external_user})")
+            external_user = {"username": external_user}
+        return external_user
+
+    @classmethod
     def get_view_set(cls, view_func):
         """获取view_func对应的viewset名称"""
         if hasattr(view_func, "cls"):
@@ -132,7 +142,8 @@ def external(request):
     外部入口
     """
     space_uid = request.GET.get("space_uid", "")
-    external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+    external_user_info = RequestProcessor.get_request_user_info(request)
+    external_user = external_user_info.get("username", "")
     space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
     if space_uid:
         try:
@@ -175,7 +186,8 @@ def dispatch_list_user_spaces(request):
     """
     from apps.log_search.models import Space
 
-    external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+    external_user_info = RequestProcessor.get_request_user_info(request)
+    external_user = external_user_info.get("username", "")
     if not external_user:
         return HttpResponseForbidden("请求缺少HTTP_USER或USER请求头")
     space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
@@ -250,7 +262,8 @@ def dispatch_external_proxy(request):
         view_action = RequestProcessor.get_view_action(view_func=view_func, method=method.lower())
         # 内部定义的action_id, ActionEnum
         action_id = ""
-        external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+        external_user_info = RequestProcessor.get_request_user_info(request)
+        external_user = external_user_info.get("username", "")
         allow_resources_result = {"allowed": False, "resources": []}
         # 判断是否是默认允许的接口, 默认允许的接口不需要进行权限校验
         if not RequestProcessor.is_default_allowed(view_set=view_set, view_action=view_action):
@@ -309,6 +322,8 @@ def dispatch_external_proxy(request):
         setattr(request, "external_user", external_user)
         setattr(fake_request, "session", request.session)
         set_local_param("current_request", fake_request)
+        if external_user_info:
+            set_local_param("time_zone", external_user_info.get("time_zone", settings.TIME_ZONE))
 
         # call view_func
         response = view_func(fake_request, **kwargs)
