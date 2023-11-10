@@ -12,11 +12,15 @@ import glob
 import json
 import logging
 import os.path
+import typing
 from collections import defaultdict
 from dataclasses import dataclass, fields
 from typing import Dict, List, Union
 
 import yaml
+from django.conf import settings
+
+from core.drf_resource import api
 
 from . import client
 from .models import Dashboard as DashboardModel
@@ -46,10 +50,12 @@ class Datasource:
 class Dashboard:
     """面板标准格式"""
 
-    title: str
+    org_id: int
     dashboard: Dict
+    folderId: int
+    inputs: list
+    title: str = ""
     folder: str = ""
-    folderUid: str = ""
     overwrite: bool = True
 
 
@@ -64,6 +70,12 @@ class BaseProvisioning:
 
     def dashboards(self, request, org_name: str, org_id: int) -> List[Dashboard]:
         raise NotImplementedError(".dashboards() must be overridden.")
+
+    @classmethod
+    def _generate_default_dashboards(
+        cls, datasources, org_id, json_name, template, folder_id
+    ) -> typing.List[Dashboard]:
+        raise NotImplementedError("._generate_default_dashboards() must be overridden.")
 
 
 _FILE_CACHE = {}
@@ -114,6 +126,76 @@ class SimpleProvisioning(BaseProvisioning):
                                 if not title:
                                     continue
                                 yield Dashboard(title=title, dashboard=dashboard)
+
+    def upsert_dashboards(self, org_id, org_name, dashboard_mapping):
+        from monitor.models import ApplicationConfig
+
+        dashboard_keys = set(dashboard_mapping.keys())
+        created = set(
+            ApplicationConfig.objects.filter(key__in=dashboard_keys, cc_biz_id=org_name, value="created").values_list(
+                "key", flat=True
+            )
+        )
+        not_created = dashboard_keys - created
+        for i in not_created:
+            # 不存在则进行创建
+            if self.create_default_dashboard(org_id, f"{dashboard_mapping[i]}.json"):
+                ApplicationConfig.objects.get_or_create(cc_biz_id=org_name, key=i, value="created")
+
+    @classmethod
+    def create_default_dashboard(cls, org_id, json_name, folder_id=0, bk_biz_id=None):
+        """
+        创建仪表盘，并且设置为组织默认仪表盘
+        :param org_id: 组织ID
+        :type org_id: int
+        :param json_name: 配置文件名
+        :type json_name: string
+        :param folder_id: 目录 id
+        :param bk_biz_id: 业务 id ==> org_name
+        """
+        datasources = api.grafana.get_all_data_source(org_id=org_id)["data"]
+        if not datasources:
+            org_name = str(bk_biz_id)
+            provisioning = SimpleProvisioning()
+            ds_list = []
+            for ds in provisioning.datasources(None, org_name, org_id):
+                if not isinstance(ds, Datasource):
+                    raise ValueError("{} is not instance {}".format(type(ds), Datasource))
+                ds_list.append(ds)
+            sync_data_sources(org_id, ds_list)
+            datasources = api.grafana.get_all_data_source(org_id=org_id)["data"]
+
+        path = os.path.join(settings.BASE_DIR, f"packages/monitor_web/grafana/dashboards/{json_name}")
+        try:
+            errors = []
+
+            with open(path, encoding="utf-8") as f:
+                dashboard_config = json.loads(f.read())
+
+            dashboards = cls._generate_default_dashboards(datasources, org_id, json_name, dashboard_config, folder_id)
+
+            for dashboard in dashboards:
+                result = api.grafana.import_dashboard(
+                    **{
+                        "org_id": dashboard.org_id,
+                        "dashboard": dashboard.dashboard,
+                        "folderId": dashboard.folderId,
+                        "inputs": dashboard.inputs,
+                        "overwrite": dashboard.overwrite,
+                    }
+                )
+
+                if not result["result"]:
+                    errors.append(f"组织({org_id})创建默认仪表盘({json_name})失败。接口返回：{result}")
+
+            if errors:
+                logger.exception(errors)
+                return False
+
+            return True
+        except Exception as err:  # noqa
+            logger.exception("组织({})创建默认仪表盘{}失败: {}".format(org_id, json_name, err))
+            return False
 
 
 def sync_data_sources(org_id: int, data_sources: List[Datasource]):
@@ -185,7 +267,17 @@ def sync_dashboards(org_id: int, dashboards: List[Dashboard]):
         if db.title in _ORG_DASHBOARD_CACHE[org_id]:
             continue
 
-        client.update_dashboard(org_id, 0, db)
+        client.update_dashboard(
+            org_id,
+            0,
+            {
+                "title": db.title,
+                "dashboard": db.dashboard,
+                "folder": db.folder,
+                "folderUid": db.folderId,
+                "overwrite": db.overwrite,
+            },
+        )
         _ORG_DASHBOARD_CACHE[org_id].add(db.title)
 
 
