@@ -374,6 +374,12 @@ class DutyPlanSlz(DutyBaseInfoSlz):
         return data
 
 
+class DutySwitchSlz(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
+    enabled = serializers.BooleanField(label="是否开启", required=True)
+    ids = serializers.ListField(label="启停的ID", allow_empty=False, required=True)
+
+
 class DutyRuleSlz(serializers.ModelSerializer):
     bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
     name = serializers.CharField(label="轮值规则名称", required=True)
@@ -559,6 +565,7 @@ class UserGroupSlz(serializers.ModelSerializer):
             "update_time",
             "create_user",
             "create_time",
+            "duty_rules",
             "mention_list",
             "mention_type",
             "app",

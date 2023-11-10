@@ -9,11 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from rest_framework import permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from bkmonitor.action import serializers
+from bkmonitor.action.serializers import DutySwitchSlz
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.models import DutyRule, UserGroup
+from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -80,6 +83,31 @@ class DutyRuleViewSet(UserGroupPermissionViewSet):
         if self.request.query_params.get("labels"):
             queryset = queryset.filter(labels__contains=self.request.query_params["labels"])
         return queryset
+
+    @action(detail=False, methods=['post'])
+    def switch(self, request):
+        """
+        启停开关
+        """
+        serializer = DutySwitchSlz(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        request_data = serializer.data
+        enabled = request_data.pop("enabled")
+        # 过滤出来有效的数据
+        rule_ids = list(
+            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).values_list(
+                "id", flat=True
+            )
+        )
+        if rule_ids:
+            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).update(
+                enabled=enabled
+            )
+            if enabled is False:
+                # 关闭掉之后，直接关闭掉对应的计划
+                DutyRuleSnap.objects.filter(duty_rule_id__in=rule_ids).update(enabled=False)
+                DutyPlan.objects.filter(duty_rule_id=rule_ids).update(is_effective=False)
+        return Response({"rule_ids": rule_ids})
 
 
 class BkchatGroupViewSet(ResourceViewSet):
