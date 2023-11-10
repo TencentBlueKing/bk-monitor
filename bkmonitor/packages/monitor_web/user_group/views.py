@@ -106,7 +106,7 @@ class DutyRuleViewSet(UserGroupPermissionViewSet):
             if enabled is False:
                 # 关闭掉之后，直接关闭掉对应的计划
                 DutyRuleSnap.objects.filter(duty_rule_id__in=rule_ids).update(enabled=False)
-                DutyPlan.objects.filter(duty_rule_id=rule_ids).update(is_effective=False)
+                DutyPlan.objects.filter(duty_rule_id__in=rule_ids).update(is_effective=False)
         return Response({"rule_ids": rule_ids})
 
 
