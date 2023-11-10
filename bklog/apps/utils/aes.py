@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import os
+
 from django.conf import settings
 
 """
@@ -123,5 +125,10 @@ def get_default_symmetric_key_config(cipher_type: str) -> SymmetricKeyConfig:
     :param cipher_type:
     :return:
     """
-    # 统一使用 APP_SECRET 作为对称加密密钥，SDK 会截断，取符合预期的 key length
-    return SymmetricKeyConfig(key=settings.SECRET_KEY)
+    # 优先使用 APP_SECRET 作为对称加密密钥，SDK 会截断，取符合预期的 key length
+    BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY", None)
+    if BKPAAS_BK_CRYPTO_KEY:
+        return SymmetricKeyConfig(key=settings.SECRET_KEY)
+    else:
+        # 使用 APP_SECRET 作为对称加密密钥，SDK 会截断，取符合预期的 key length
+        return SymmetricKeyConfig(key=settings.SECRET_KEY)

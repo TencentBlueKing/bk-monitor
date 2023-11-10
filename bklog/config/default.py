@@ -221,7 +221,7 @@ BKCRYPTO = {
 }
 
 # 对称加密类型
-if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "AES") == "SHANGMI":
+if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "CLASSIC") == "SHANGMI":
     BKCRYPTO.update(
         {
             "SYMMETRIC_CIPHER_TYPE": bkcrypto_constants.SymmetricCipherType.SM4.value,
