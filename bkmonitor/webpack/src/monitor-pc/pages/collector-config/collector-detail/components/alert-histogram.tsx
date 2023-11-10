@@ -36,7 +36,7 @@ const classMap = {
 @Component
 export default class AlertHistogram extends tsc<{}> {
   @Prop({
-    type: Object,
+    type: Array,
     default: () => [
       { level: 0 },
       { level: 0 },

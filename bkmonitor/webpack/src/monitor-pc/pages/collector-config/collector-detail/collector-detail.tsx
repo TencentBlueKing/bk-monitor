@@ -34,6 +34,7 @@ import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as collectAuth from '../authority-map';
+import { STATUS_LIST } from '../collector-host-detail/utils';
 
 import { IAlarmGroupList } from './components/alarm-group';
 import AlertTopic from './components/alert-topic';
@@ -68,7 +69,10 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   allData = {
     [TabEnum.TargetDetail]: {
       data: null,
-      updateKey: random(8)
+      updateKey: random(8),
+      pollingCount: 1,
+      needPolling: true,
+      timer: null
     },
     [TabEnum.StorageState]: {
       loading: false,
@@ -97,26 +101,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   handleTabChange(v: TabEnum) {
     this.active = v;
     if (this.active === TabEnum.TargetDetail) {
-      this.getStatusDetails();
+      this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount);
     }
-  }
-
-  /**
-   * @description 获取采集详情tab数据
-   */
-  getStatusDetails() {
-    collectInstanceStatus({
-      // collect_config_id: this.id
-      id: this.collectId
-    })
-      .then(data => {
-        this.allData[TabEnum.TargetDetail].data = data;
-        this.allData[TabEnum.TargetDetail].updateKey = random(8);
-      })
-      .catch(() => {
-        // this.data = mockData;
-        // this.updateKey = random(8);
-      });
   }
 
   getDetails() {
@@ -197,6 +183,47 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     });
   }
 
+  getHosts(count) {
+    return collectInstanceStatus({ id: this.collectId })
+      .then(data => {
+        if (count !== this.allData[TabEnum.TargetDetail].pollingCount) return;
+        this.allData[TabEnum.TargetDetail].data = data;
+        this.allData[TabEnum.TargetDetail].needPolling = data.contents.some(item =>
+          item.child.some(set => STATUS_LIST.includes(set.status))
+        );
+        if (!this.allData[TabEnum.TargetDetail].needPolling) {
+          window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
+        } else if (count === 1) {
+          this.handlePolling();
+        }
+        this.allData[TabEnum.TargetDetail].updateKey = random(8);
+      })
+      .catch(() => {});
+  }
+  handlePolling(v = true) {
+    if (v) {
+      this.allData[TabEnum.TargetDetail].timer = setTimeout(() => {
+        clearTimeout(this.allData[TabEnum.TargetDetail].timer);
+        this.allData[TabEnum.TargetDetail].pollingCount += 1;
+        this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount).finally(() => {
+          if (!this.allData[TabEnum.TargetDetail].needPolling) return;
+          this.handlePolling();
+        });
+      }, 10000);
+    } else {
+      window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
+    }
+  }
+
+  handleRefreshData() {
+    collectInstanceStatus({ id: this.collectId })
+      .then(data => {
+        this.allData[TabEnum.TargetDetail].data = data;
+        this.allData[TabEnum.TargetDetail].updateKey = random(8);
+      })
+      .catch(() => {});
+  }
+
   render() {
     return (
       <div class='collector-detail-page'>
@@ -222,6 +249,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               class='mt-24'
               data={this.allData[TabEnum.TargetDetail].data}
               updateKey={this.allData[TabEnum.TargetDetail].updateKey}
+              onCanPolling={this.handlePolling}
+              onRefresh={this.handleRefreshData}
             ></CollectorStatusDetails>
           </TabPanel>
           <TabPanel

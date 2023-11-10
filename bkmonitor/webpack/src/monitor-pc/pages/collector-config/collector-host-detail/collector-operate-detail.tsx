@@ -31,6 +31,8 @@ import { collectInstanceStatus } from '../../../../monitor-api/modules/collectin
 import { random } from '../../../../monitor-common/utils/index';
 import CollectorStatusDetails from '../collector-detail/collector-status-details';
 
+import { STATUS_LIST } from './utils';
+
 import './collector-operate-detail.scss';
 
 @Component
@@ -40,27 +42,62 @@ export default class CollectorOperateDetail extends tsc<{}> {
   data = null;
   updateKey = random(8);
 
+  loading = false;
+  needPolling = true;
+  pollingCount = 1;
+  timer = null;
+
   created() {
     this.id = this.$route.params.id;
-    collectInstanceStatus({
-      // collect_config_id: this.id
-      id: this.id
-    })
+    this.getHosts(this.pollingCount);
+  }
+
+  getHosts(count) {
+    return collectInstanceStatus({ id: this.id })
+      .then(data => {
+        if (count !== this.pollingCount) return;
+        this.data = data;
+        this.needPolling = data.contents.some(item => item.child.some(set => STATUS_LIST.includes(set.status)));
+        if (!this.needPolling) {
+          window.clearTimeout(this.timer);
+        } else if (count === 1) {
+          this.handlePolling();
+        }
+        this.updateKey = random(8);
+      })
+      .catch(() => {});
+  }
+  handlePolling(v = true) {
+    if (v) {
+      this.timer = setTimeout(() => {
+        clearTimeout(this.timer);
+        this.pollingCount += 1;
+        this.getHosts(this.pollingCount).finally(() => {
+          if (!this.needPolling) return;
+          this.handlePolling();
+        });
+      }, 10000);
+    } else {
+      window.clearTimeout(this.timer);
+    }
+  }
+
+  handleRefreshData() {
+    return collectInstanceStatus({ id: this.id })
       .then(data => {
         this.data = data;
         this.updateKey = random(8);
       })
-      .catch(() => {
-        // this.data = mockData;
-        // this.updateKey = random(8);
-      });
+      .catch(() => {});
   }
+
   render() {
     return (
       <div class='collector-operate-detail-page'>
         <CollectorStatusDetails
           data={this.data}
           updateKey={this.updateKey}
+          onCanPolling={this.handlePolling}
         ></CollectorStatusDetails>
       </div>
     );

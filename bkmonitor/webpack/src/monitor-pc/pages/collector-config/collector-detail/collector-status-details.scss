@@ -130,4 +130,22 @@
       cursor: pointer;
     }
   }
+
+  .side-detail {
+    max-height: calc(100vh - 120px);
+    padding: 10px 30px 10px 16px;
+    margin: 28px 40px 20px 40px;
+    overflow-y: auto;
+    color: #fff;
+    background: #000;
+
+    &-code {
+      word-break: break-all;
+      white-space: pre-wrap;
+
+      a {
+        color: #3a84ff;
+      }
+    }
+  }
 }

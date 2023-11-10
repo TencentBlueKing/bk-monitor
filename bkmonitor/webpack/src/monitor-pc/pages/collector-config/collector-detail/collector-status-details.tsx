@@ -24,11 +24,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Button, Spin, Table, TableColumn } from 'bk-magic-vue';
+import { Button, Sideslider, Spin, Table, TableColumn } from 'bk-magic-vue';
 
+import {
+  batchRetry,
+  batchRevokeTargetNodes,
+  getCollectLogDetail,
+  isTaskReady,
+  retryTargetNodes
+} from '../../../../monitor-api/modules/collecting';
+import { copyText } from '../../../../monitor-common/utils/utils.js';
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
+import { transformJobUrl } from '../../../utils/index';
 import {
   colorMap,
   FILTER_TYPE_LIST,
@@ -54,6 +63,8 @@ enum EColumn {
 interface IProps {
   data: any;
   updateKey: string;
+  onCanPolling: (_v) => void;
+  onRefresh: () => void;
 }
 
 @Component
@@ -61,19 +72,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) data: any;
   @Prop({ type: String, default: '' }) updateKey: boolean;
   @Prop({ type: Boolean, default: true }) isRunning: boolean;
-  /* 当前类型 */
-  filterType = 'ALL';
+
+  @Inject('authority') authority;
+  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
+  @Inject('authorityMap') authorityMap;
+
   /* 所有表格内容 */
   contents: IContentsItem[] = [];
-  /* 头部统计数据 */
-  headerData = {
-    failedNum: 0,
-    pendingNum: 0,
-    successNum: 0
-  };
-  configInfo = {
-    target_object_type: ''
-  };
 
   /* 表格字段 */
   tableColumns = [
@@ -84,7 +89,44 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     { id: EColumn.detail, name: window.i18n.t('详情') },
     { id: EColumn.operate, name: '', width: 200 }
   ];
+  /* 详情侧栏 */
+  side = {
+    show: false,
+    title: '',
+    detail: '',
+    loading: false
+  };
 
+  config = null;
+
+  refresh = false;
+
+  /* 头部状态 */
+  header = {
+    status: 'ALL',
+    batchRetry: false,
+    data: {
+      successNum: 0,
+      failedNum: 0,
+      pendingNum: 0,
+      total: 0
+    }
+  };
+
+  disBatch = false;
+
+  get haveDeploying() {
+    const resArr = [];
+    this.contents.forEach(item => {
+      const res = item.child.some(one => ['DEPLOYING', 'RUNNING', 'PENDING'].includes(one.status));
+      resArr.push(res);
+    });
+    return resArr.some(item => item);
+  }
+
+  /**
+   * @description 更新数据
+   */
   @Watch('updateKey')
   handleUpdate() {
     if (!!this.data) {
@@ -93,6 +135,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         success: {},
         failed: {}
       };
+      this.config = this.data.config_info;
       this.contents = this.data.contents.map(item => {
         const table = [];
         const nums = {
@@ -102,7 +145,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         };
         item.child.forEach(set => {
           // 表格内容
-          if (STATUS_LIST.includes(set.status) || set.status === this.filterType || this.filterType === 'ALL') {
+          if (STATUS_LIST.includes(set.status) || set.status === this.header.status || this.header.status === 'ALL') {
             table.push(set);
           }
           // 数量及状态
@@ -124,11 +167,213 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           isExpan: true
         };
       });
+      const headerData: any = {};
+      headerData.failedNum = Object.keys(sumData.failed).length;
+      headerData.pendingNum = Object.keys(sumData.pending).length;
+      headerData.successNum = Object.keys(sumData.success).length;
+      headerData.total = headerData.successNum + headerData.failedNum + headerData.pendingNum;
+      this.header.data = headerData;
     }
   }
 
+  bkMsg(theme, message) {
+    this.$bkMessage({
+      theme,
+      message,
+      ellipsisLine: 0
+    });
+  }
+
+  /**
+   * @description 表格详情按钮
+   * @param data
+   */
+  handleGetMoreDetail(data) {
+    this.side.show = true;
+    const { instance_name } = data;
+    if (instance_name !== this.side.title) {
+      this.side.title = instance_name;
+      this.side.loading = true;
+      getCollectLogDetail(
+        {
+          instance_id: data.instance_id,
+          task_id: data.task_id,
+          id: this.config.id
+        },
+        { needMessage: false }
+      )
+        .then(data => {
+          this.side.detail = data.log_detail;
+          this.side.loading = false;
+        })
+        .catch(error => {
+          this.bkMsg('error', error.message || this.$t('获取更多数据失败'));
+          this.side.show = false;
+          this.side.loading = false;
+        });
+    }
+  }
+
+  /**
+   * @description 筛选状态
+   * @param id
+   */
   handleFilterChange(id) {
-    this.filterType = id;
+    this.header.status = id;
+  }
+
+  /**
+   * @description 重试
+   * @param data
+   * @param table
+   */
+  async handleRetry(data, table) {
+    this.refresh = false;
+    if (this.side.title === data.instance_name) {
+      this.side.title = '';
+    }
+    this.contents.forEach(content => {
+      if (content.child?.length) {
+        const setData = content.child.find(set => set.instance_id === data.instance_id && set.status === 'FAILED');
+        if (setData) {
+          setData.status = 'PENDING';
+          content.pendingNum += 1;
+          content.failedNum -= 1;
+        }
+      }
+    });
+    this.header.data.pendingNum += 1;
+    this.header.data.failedNum -= 1;
+    this.handlePolling(false);
+    retryTargetNodes({
+      id: this.config.id,
+      instance_id: data.instance_id
+    })
+      .then(async () => {
+        const isReady = await this.taskReadyStatus(this.config.id).catch(() => false);
+        if (isReady) {
+          this.refresh = true;
+          this.handlePolling();
+        }
+      })
+      .catch(() => {
+        data.status = 'FAILED';
+        table.failedNum += 1;
+        table.pendingNum -= 1;
+        this.header.data.failedNum += 1;
+        this.header.data.pendingNum -= 1;
+        this.refresh = true;
+        this.handlePolling();
+      });
+  }
+
+  handlePolling(v = true) {
+    this.$emit('canPolling', v);
+  }
+
+  /**
+   * @description 准备状态
+   * @param id
+   * @returns
+   */
+  async taskReadyStatus(id) {
+    let timer = null;
+    clearTimeout(timer);
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    return new Promise(async resolve => {
+      const isShow = await isTaskReady({ collect_config_id: id }).catch(() => false);
+      if (isShow) {
+        resolve(true);
+        return;
+      }
+      timer = setTimeout(() => {
+        this.taskReadyStatus(id).then(res => {
+          resolve(res);
+        });
+      }, 2000);
+    });
+  }
+
+  /**
+   * @description 批量重试
+   */
+  handleBatchRetry() {
+    const failedList = [];
+    this.refresh = false;
+    this.header.batchRetry = true;
+    this.side.title = '';
+    this.contents.forEach(item => {
+      item.child.forEach(set => {
+        if ('FAILED' === set.status) {
+          set.status = 'PENDING';
+          failedList.push(set);
+        }
+      });
+      item.pendingNum += item.failedNum;
+      item.failedNum = 0;
+    });
+    this.header.data.pendingNum += this.header.data.failedNum;
+    this.header.data.failedNum = 0;
+    this.handlePolling(false);
+    batchRetry({ id: this.config.id })
+      .then(async () => {
+        const isStatusReady = await this.taskReadyStatus(this.config.id);
+        if (isStatusReady) {
+          this.refresh = true;
+          this.header.batchRetry = false;
+          this.handlePolling();
+        }
+      })
+      .catch(() => {
+        failedList.forEach(item => (item.status = 'FAILED'));
+        this.header.data.pendingNum = 0;
+        this.header.batchRetry = false;
+        this.header.data.failedNum = failedList.length;
+        this.refresh = true;
+        this.handlePolling();
+      });
+  }
+
+  /**
+   * @description 批量停止
+   */
+  handleBatchStop() {
+    this.disBatch = true;
+    this.refresh = false;
+    batchRevokeTargetNodes({ id: this.config.id }).finally(() => {
+      this.header.batchRetry = false;
+      this.refresh = true;
+      this.disBatch = false;
+      this.handleRefreshData();
+    });
+  }
+
+  /**
+   * @description 刷新表格数据
+   */
+  handleRefreshData() {
+    this.$emit('refresh');
+  }
+
+  /**
+   * @description 复制目标
+   */
+  handleCopyTargets() {
+    let copyStr = '';
+    this.contents.forEach(ct => {
+      ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
+    });
+    copyText(copyStr, msg => {
+      this.$bkMessage({
+        theme: 'error',
+        message: msg
+      });
+      return;
+    });
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('复制成功')
+    });
   }
 
   render() {
@@ -138,7 +383,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           <div class='header-filter'>
             {FILTER_TYPE_LIST.map(item => (
               <div
-                class={['header-filter-item', { active: item.id === this.filterType }]}
+                class={['header-filter-item', { active: item.id === this.header.status }]}
                 key={item.id}
                 onClick={() => this.handleFilterChange(item.id)}
               >
@@ -171,12 +416,34 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             ))}
           </div>
           <div class='batch-opreate'>
-            <Button class='mr-10'>
+            <Button
+              class='mr-10'
+              v-authority={{ active: !this.authority.MANAGE_AUTH }}
+              disabled={
+                this.header.batchRetry || !(this.header.data.failedNum > 0 && this.header.data.pendingNum === 0)
+              }
+              hover-theme='primary'
+              onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchRetry() : this.handleShowAuthorityDetail())}
+            >
               <span class='icon-monitor icon-zhongzhi1 mr-6'></span>
               <span>{this.$t('批量重试')}</span>
             </Button>
-            <Button class='mr-10'>{this.$t('批量终止')}</Button>
-            <Button>{this.$t('复制目标')}</Button>
+            <Button
+              class='mr-10'
+              v-authority={{ active: !this.authority.MANAGE_AUTH }}
+              icon={this.disBatch ? 'loading' : ''}
+              disabled={!this.haveDeploying || this.disBatch}
+              hover-theme='primary'
+              onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchStop() : this.handleShowAuthorityDetail())}
+            >
+              {this.$t('批量终止')}
+            </Button>
+            <Button
+              hover-theme='primary'
+              onClick={() => this.handleCopyTargets}
+            >
+              {this.$t('复制目标')}
+            </Button>
           </div>
         </div>
         <div class='table-content'>
@@ -206,53 +473,67 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               )}
               <span slot='header'>
                 {(() => {
-                  if (content.successNum && this.filterType !== 'FAILED') {
-                    return (
-                      <span class='num fix-same-code'>
-                        <i18n path='{0}个成功'>
-                          <span style={{ color: '#2dcb56' }}>{content.successNum}</span>
-                        </i18n>
-                        {(content.failedNum && ['ALL', 'FAILED'].includes(this.filterType)) || content.pendingNum
-                          ? ','
-                          : undefined}
-                      </span>
-                    );
-                  }
-                  if (content.failedNum && ['ALL', 'FAILED'].includes(this.filterType)) {
-                    return (
-                      <span class='num fix-same-code'>
-                        <i18n path='{0}个失败'>
-                          <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
-                        </i18n>
-                        {content.pendingNum ? ',' : undefined}
-                      </span>
-                    );
-                  }
-                  if (content.pendingNum) {
-                    return (
-                      <span class='num fix-same-code'>
-                        <i18n path='{0}个执行中'>
-                          <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
-                        </i18n>
-                      </span>
-                    );
-                  }
-                  if (!content.child.length) {
-                    return (
-                      <span class='num'>
-                        {this.configInfo.target_object_type ? (
-                          <i18n path='共{0}台主机'>
-                            <span style='color: #63656e;'>0</span>
+                  if (this.isRunning) {
+                    const temp = [];
+                    if (content.successNum && this.header.status !== 'FAILED') {
+                      temp.push(
+                        <span class='num fix-same-code'>
+                          <i18n path='{0}个成功'>
+                            <span style={{ color: '#2dcb56' }}>{content.successNum}</span>
                           </i18n>
-                        ) : (
-                          <i18n path='共{0}个实例'>
-                            <span style='color: #63656e;'>0</span>
+                          {(content.failedNum && ['ALL', 'FAILED'].includes(this.header.status)) || content.pendingNum
+                            ? ','
+                            : undefined}
+                        </span>
+                      );
+                    }
+                    if (content.failedNum && ['ALL', 'FAILED'].includes(this.header.status)) {
+                      temp.push(
+                        <span class='num fix-same-code'>
+                          <i18n path='{0}个失败'>
+                            <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
                           </i18n>
-                        )}
-                      </span>
-                    );
+                          {content.pendingNum ? ',' : undefined}
+                        </span>
+                      );
+                    }
+                    if (content.pendingNum) {
+                      temp.push(
+                        <span class='num fix-same-code'>
+                          <i18n path='{0}个执行中'>
+                            <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
+                          </i18n>
+                        </span>
+                      );
+                    }
+                    if (!content.child.length) {
+                      return (
+                        <span class='num'>
+                          {this.config?.target_object_type ? (
+                            <i18n path='共{0}台主机'>
+                              <span style='color: #63656e;'>0</span>
+                            </i18n>
+                          ) : (
+                            <i18n path='共{0}个实例'>
+                              <span style='color: #63656e;'>0</span>
+                            </i18n>
+                          )}
+                        </span>
+                      );
+                    }
+                    return temp;
                   }
-                  return undefined;
+                  return (
+                    <span class='num fix-same-code'>
+                      <i18n
+                        path={`共{0}${
+                          this.config?.target_object_type === 'HOST' ? this.$t('台主机') : this.$t('个实例')
+                        }`}
+                      >
+                        {content.successNum + content.failedNum + content.pendingNum}
+                      </i18n>
+                    </span>
+                  );
                 })()}
               </span>
               <div
@@ -321,7 +602,12 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                 <span class='col-detail'>
                                   <span class='col-detail-data'>{row.log || '--'}</span>
                                   {this.isRunning && row.status === 'FAILED' && (
-                                    <span class='col-detail-more fix-same-code'>{this.$t('详情')}</span>
+                                    <span
+                                      class='col-detail-more fix-same-code'
+                                      onClick={() => this.handleGetMoreDetail(row)}
+                                    >
+                                      {this.$t('详情')}
+                                    </span>
                                   )}
                                 </span>
                               );
@@ -329,7 +615,16 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                             case EColumn.operate: {
                               return [
                                 this.isRunning && row.status === 'FAILED' ? (
-                                  <div class='col-retry'>{this.$t('重试')}</div>
+                                  <div
+                                    class='col-retry'
+                                    onClick={() =>
+                                      this.authority.MANAGE_AUTH
+                                        ? this.handleRetry(row, content)
+                                        : this.handleShowAuthorityDetail()
+                                    }
+                                  >
+                                    {this.$t('重试')}
+                                  </div>
                                 ) : undefined,
                                 this.isRunning && ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) ? (
                                   <div class='col-retry fix-same-code'>{this.$t('终止')}</div>
@@ -349,6 +644,27 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             </ExpandWrapper>
           ))}
         </div>
+        <Sideslider
+          class='fix-same-code'
+          is-show={this.side.show}
+          quick-close={true}
+          width={900}
+          title={this.side.title}
+          {...{ on: { 'update:isShow': v => (this.side.show = v) } }}
+        >
+          <div
+            class='side-detail fix-same-code'
+            slot='content'
+            v-bkloading={{ isLoading: this.side.loading }}
+          >
+            <pre
+              class='side-detail-code fix-same-code'
+              domProps={{
+                innerHTML: transformJobUrl(this.side.detail)
+              }}
+            ></pre>
+          </div>
+        </Sideslider>
       </div>
     );
   }
