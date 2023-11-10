@@ -754,7 +754,13 @@ class DutyPlan(Model):
         当前排班是否命中
         """
         # 结束时间没有的话，认为一直有效
-        data_time = data_time or time_tools.datetime2str(datetime.now(tz=pytz.timezone(self.timezone)))
+        try:
+            tz_info = pytz.timezone(self.timezone)
+        except Exception:
+            # 当有异常的时候，默认用中国时区，怕用户乱填
+            tz_info = pytz.timezone("Asia/Shanghai")
+
+        data_time = data_time or time_tools.datetime2str(datetime.now(tz=tz_info))
         finished_time = self.finished_time or "3000-01-01 00:00:00"
 
         if finished_time < self.start_time or not self.start_time <= data_time <= finished_time:

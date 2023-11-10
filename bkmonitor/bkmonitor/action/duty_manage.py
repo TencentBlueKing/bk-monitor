@@ -428,12 +428,12 @@ class DutyRuleManager:
         end_time = "23:59"
         weekday = day = 0
         begin_date = int(start_time[:2])
-        end_date = int(finished_time[:2])
+        end_day = int(finished_time[:2])
         cross_day = False
-        if begin_date == end_date:
+        if begin_date == end_day:
             # 如果开始日期==结束日期，表示最后一天存在跨天的场景，为前一天至截止时间
             cross_day = True
-            end_date -= 1
+            end_day -= 1
 
         #     计算出当前工作日的时间
         if work_type in RotationType.WEEK_MODE:
@@ -443,7 +443,7 @@ class DutyRuleManager:
             day = work_date.day
             _, max_work_day = calendar.monthrange(work_date.year, work_date.month)
 
-        if end_date == 0:
+        if end_day == 0:
             # 如果当前结束时间为0，对应前一天为最后一天
             end_date = max_work_day
 
@@ -451,12 +451,14 @@ class DutyRuleManager:
             # 当前为第一天的时候，起点时间以配置时间为准
             begin_time = start_time[3:].strip()
 
-        if weekday == end_date or day == end_date:
+        is_last_day = False
+        if weekday == end_day or day == end_day:
             # 当前为最后一天的时候，结束时间以配置时间为准
             end_time = finished_time[3:].strip()
+            is_last_day = True
 
         begin_date = end_date = work_date
-        if cross_day:
+        if cross_day and is_last_day:
             # 如果开始时间段 大于 结束时间段表示有跨天
             end_date += timedelta(days=1)
 
