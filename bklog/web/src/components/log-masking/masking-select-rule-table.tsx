@@ -70,13 +70,13 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   }) }) addRuleFieldValue: IAddRuleFieldValue;
   @Ref('orderTips') orderTipsRef: HTMLElement;
 
-  searchStr = ''
+  searchStr = '';
   selectList = [];
   checkValue = 0; // 0 , 1 , 2分别表示未选  半选  全选
 
   syncSelectRuleID = -1;
 
-  pagination ={
+  pagination = {
     /** 当前页数 */
     current: 1,
     /** 总数 */
@@ -90,23 +90,23 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
     text_replace: window.mainComponent.$t('替换'),
-  }
+  };
 
   emptyType = 'empty';
 
-  tableList = []
+  tableList = [];
 
-  tableShowList = []
+  tableShowList = [];
 
-  tableSearchList = []
+  tableSearchList = [];
 
-  tableStrList = []
+  tableStrList = [];
 
-  tableLoading = false
+  tableLoading = false;
 
-  isShowMaskingAddRule = false
+  isShowMaskingAddRule = false;
 
-  isAllowed = false
+  isAllowed = false;
 
   get spaceUid() {
     return this.$store.state.spaceUid;

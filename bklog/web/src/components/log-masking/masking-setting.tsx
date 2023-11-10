@@ -125,7 +125,7 @@ export default class MaskingSetting extends tsc<IProps> {
   emptyType = 'empty';
 
   /** 接入项表格列表 */
-  stopOrStartAccessValue:IEditAccessValue = {
+  stopOrStartAccessValue: IEditAccessValue = {
     accessNum: 0,
     accessInfo: [{
       scenario_id: '',
@@ -137,7 +137,7 @@ export default class MaskingSetting extends tsc<IProps> {
   };
 
   /** 编辑项的接入项表格列表 */
-  editAccessValue:IEditAccessValue = {
+  editAccessValue: IEditAccessValue = {
     accessNum: 0,
     accessInfo: [{
       scenario_id: '',
@@ -146,17 +146,17 @@ export default class MaskingSetting extends tsc<IProps> {
       /** 接入文本 */
       ids: '',
     }],
-  }
+  };
 
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
     text_replace: window.mainComponent.$t('替换'),
-  }
+  };
 
   operatorFilters = [
     { text: window.mainComponent.$t('掩码'), value: 'mask_shield' },
     { text: window.mainComponent.$t('替换'), value: 'text_replace' },
-  ]
+  ];
 
   scenarioRouteMap = {
     log: 'collection-item',
@@ -164,7 +164,7 @@ export default class MaskingSetting extends tsc<IProps> {
     es: 'es-index-set-list',
     index_set: 'log-index-set-list',
     log_custom: 'custom-report',
-  }
+  };
 
   tableSetting = {
     fields: settingFields,
@@ -200,11 +200,11 @@ export default class MaskingSetting extends tsc<IProps> {
     },
   ];
 
-  tableShowList = []
+  tableShowList = [];
 
-  tableSearchList = []
+  tableSearchList = [];
 
-  tableStrList = []
+  tableStrList = [];
 
   /** 分页信息 */
   pagination = {
@@ -228,7 +228,7 @@ export default class MaskingSetting extends tsc<IProps> {
     accessNum: '125',
     isActive: '95',
     operate: '80',
-  }
+  };
 
   cnTableWidth = {
     ruleName: '166',
@@ -237,7 +237,7 @@ export default class MaskingSetting extends tsc<IProps> {
     accessNum: '95',
     isActive: '75',
     operate: '68',
-  }
+  };
 
   get spaceUid() {
     return this.$store.state.spaceUid;

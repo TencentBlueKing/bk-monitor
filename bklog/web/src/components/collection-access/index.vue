@@ -21,8 +21,9 @@
   -->
 
 <template>
-  <section :class="['access-wrapper',itsmTicketIsApplying && 'iframe-container']"
-           v-bkloading="{ isLoading: basicLoading }">
+  <section
+    :class="['access-wrapper',itsmTicketIsApplying && 'iframe-container']"
+    v-bkloading="{ isLoading: basicLoading }">
     <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
     <div class="access-container" v-else-if="!basicLoading && !isCleaning">
       <section class="access-step-wrapper" v-if="isShowStepDom">
@@ -37,8 +38,9 @@
           <div class="step-arrow" :style="{ top: (curStep * 76 - 38) + 'px' }"></div>
         </div>
       </section>
-      <section v-bkloading="{ isLoading: containerLoading, zIndex: 10 }"
-               class="access-step-container" v-if="operateType">
+      <section
+        v-bkloading="{ isLoading: containerLoading, zIndex: 10 }"
+        class="access-step-container" v-if="operateType">
         <template v-if="isItsmAndNotStartOrStop">
           <step-add
             v-if="curStep === 1"

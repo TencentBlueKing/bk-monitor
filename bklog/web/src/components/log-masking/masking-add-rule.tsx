@@ -84,19 +84,19 @@ export default class MaskingAddRule extends tsc<IProps> {
   @Ref('submitForm') private readonly submitFormRef: Form;
 
   /** 用于存储当前展开的折叠项的数组 */
-  activeCollapse = []
+  activeCollapse = [];
   /** 调试的原始日志 */
-  logOriginal = ''
+  logOriginal = '';
   /** 调试返回的日志 */
-  debugLog = ''
+  debugLog = '';
   /** 是否正在进行调试请求的布尔值 */
-  debugRequesting = false
+  debugRequesting = false;
   /** 表示是否显示第二个确认对话框的布尔值 */
-  isShowSecondConfirmDialog = false
+  isShowSecondConfirmDialog = false;
   /** 是否选中匹配字段的复选框的布尔值 */
-  matchFieldCheckValue = true
+  matchFieldCheckValue = true;
   /** 是否选中匹配表达式的复选框的布尔值 */
-  matchExpressionCheckValue = true
+  matchExpressionCheckValue = true;
   /** 提交数据 */
   formData = {
     space_uid: '',
@@ -111,11 +111,11 @@ export default class MaskingAddRule extends tsc<IProps> {
       template_string: '',
     },
     is_public: false,
-  }
+  };
   /** 表单是否正在加载 */
-  formLoading = false
+  formLoading = false;
   /** 基础表单数据 */
-  baseFromData = {}
+  baseFromData = {};
   /** 提交的值 */
   submitVal = null;
   /** 场景路由映射 */
@@ -125,11 +125,11 @@ export default class MaskingAddRule extends tsc<IProps> {
     es: 'es-index-set-list',
     index_set: 'log-index-set-list',
     log_custom: 'custom-report',
-  }
+  };
   /** 缓存的规则名 */
-  cacheRuleName = ''
+  cacheRuleName = '';
   /** 调试失败时候的提示 */
-  debugErrorTipsStr = ''
+  debugErrorTipsStr = '';
 
   inputStyle = {
     'background-color': '#313238',
@@ -137,7 +137,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     'line-height': '24px',
     color: '#C4C6CC',
     borderRadius: '2px',
-  }
+  };
 
   public rules = {
     rule_name: [

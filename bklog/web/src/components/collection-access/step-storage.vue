@@ -463,8 +463,8 @@ export default {
         allocation_min_days: allMinDays,
         view_roles,
         fields,
-        etl_params,
-        assessment_config,
+        etl_params: etlParams,
+        assessment_config: assessmentConfig,
       } = this.formData;
       const isNeedAssessment = this.getNeedAssessmentStatus();
       this.isLoading = true;
@@ -479,16 +479,16 @@ export default {
         allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
         view_roles,
         etl_params: {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
-          separator_regexp: etl_params.separator_regexp,
-          separator: etl_params.separator,
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+          separator_regexp: etlParams.separator_regexp,
+          separator: etlParams.separator,
         },
         fields,
         assessment_config: {
-          log_assessment: `${assessment_config.log_assessment}G`,
-          need_approval: assessment_config.need_approval,
-          approvals: assessment_config.approvals,
+          log_assessment: `${assessmentConfig.log_assessment}G`,
+          need_approval: assessmentConfig.need_approval,
+          approvals: assessmentConfig.approvals,
         },
         need_assessment: isNeedAssessment,
       };
@@ -585,7 +585,7 @@ export default {
         storage_cluster_id,
         retention,
         storage_replies,
-        storage_shards_nums,
+        storage_shards_nums: storageShardsNums,
         allocation_min_days,
         table_id_prefix,
         view_roles,
@@ -629,7 +629,7 @@ export default {
         table_id: table_id ? table_id : collector_config_name_en ? collector_config_name_en : '',
         // eslint-disable-next-line camelcase
         storage_cluster_id: default_exclusive_cluster_id ? default_exclusive_cluster_id : storage_cluster_id,
-        es_shards: storage_shards_nums,
+        es_shards: storageShardsNums,
         table_id_prefix,
         etl_config: this.fieldType,
         etl_params: Object.assign({
