@@ -100,8 +100,7 @@ class SpaceTableIDRedis:
             # 分组
             chunks = [fields[i : i + page_size] for i in range(0, count, page_size)]
 
-            table_ids = set()
-            table_id_field_list = []
+            table_ids, table_id_field_list = set(), []
             # 通过指标在反查结果表
             for _fields in chunks:
                 table_id_fields_qs = models.ResultTableField.objects.filter(
@@ -154,7 +153,7 @@ class SpaceTableIDRedis:
             if is_publish:
                 RedisTools.publish(FIELD_TO_RESULT_TABLE_CHANNEL, list(field_table_ids.keys()))
 
-        logger.info("push redis field_to_result_table, data: %s", json.dumps(field_table_ids))
+        logger.info("push redis field_to_result_table")
 
     def push_data_label_table_ids(
         self,
@@ -190,14 +189,14 @@ class SpaceTableIDRedis:
 
             if is_publish:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
-        logger.info("push redis data_label_to_result_table, data: %s", json.dumps(rt_dl_map))
+        logger.info("push redis data_label_to_result_table")
 
     def push_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = False):
         """推送结果表的详细信息"""
         logger.info("start to push table_id detail data, table_id_list: %s", json.dumps(table_id_list))
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
         if not table_id_detail:
-            logger.info("not found table")
+            logger.info("not found table from influxdb or vm")
             return
 
         table_ids = set(table_id_detail.keys())
@@ -227,7 +226,7 @@ class SpaceTableIDRedis:
             RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
             if is_publish:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
-        logger.info("push redis result_table_detail, data: %s", json.dumps(_table_id_detail))
+        logger.info("push redis result_table_detail")
 
     def _push_bkcc_space_table_ids(
         self,
@@ -243,10 +242,9 @@ class SpaceTableIDRedis:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id: %s data: %s",
+            "push redis space_to_result_table, space_type: %s, space_id: %s",
             space_type,
             space_id,
-            json.dumps(_values),
         )
 
     def _push_bkci_space_table_ids(
@@ -266,10 +264,9 @@ class SpaceTableIDRedis:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id:%s data: %s",
+            "push redis space_to_result_table, space_type: %s, space_id:%s",
             space_type,
             space_id,
-            json.dumps(_values),
         )
 
     def _push_bksaas_space_table_ids(
@@ -287,10 +284,9 @@ class SpaceTableIDRedis:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id:%s data: %s",
+            "push redis space_to_result_table, space_type: %s, space_id: %s",
             space_type,
             space_id,
-            json.dumps(_values),
         )
 
     def _compose_bcs_space_biz_table_ids(
