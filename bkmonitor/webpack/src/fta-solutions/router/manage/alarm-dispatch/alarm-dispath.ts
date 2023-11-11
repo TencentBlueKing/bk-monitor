@@ -41,7 +41,7 @@ export default [
       title: '告警分派',
       navId: 'alarm-dispatch',
       route: {
-        parent: 'manage'
+        parent: 'manager'
       },
       noNavBar: false
     }
@@ -56,7 +56,7 @@ export default [
       title: '配置规则',
       navId: 'alarm-dispatch',
       route: {
-        parent: 'manage'
+        parent: 'manager'
       },
       needBack: true,
       noNavBar: false

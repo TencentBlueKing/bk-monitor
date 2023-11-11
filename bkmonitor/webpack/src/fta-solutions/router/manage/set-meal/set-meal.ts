@@ -41,7 +41,7 @@ export default [
       title: '处理套餐',
       navId: 'set-meal',
       route: {
-        parent: 'manage'
+        parent: 'manager'
       },
       authority: {
         map: setMealAuth,
@@ -59,7 +59,7 @@ export default [
       title: '处理套餐详情',
       navId: 'set-meal',
       route: {
-        parent: 'manage'
+        parent: 'manager'
       },
       authority: {
         map: setMealAuth,

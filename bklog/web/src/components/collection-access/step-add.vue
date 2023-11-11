@@ -734,7 +734,7 @@ export default {
           },
           {
             max: 50,
-            message: this.$t('不能多于50个字符'),
+            message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur',
           },
         ],
@@ -745,7 +745,7 @@ export default {
           },
           {
             max: 50,
-            message: this.$t('不能多于50个字符'),
+            message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur',
           },
           {
