@@ -247,7 +247,7 @@ class SearchHandler(object):
         self.export_fields = export_fields
 
         # 请求用户名
-        self.request_username = get_request_username()
+        self.request_username = get_request_external_username() or get_request_username()
 
         self.is_desensitize = search_dict.get("is_desensitize", True)
 
@@ -1132,9 +1132,10 @@ class SearchHandler(object):
         if sort_list:
             return sort_list
         # 用户已设置排序规则
-        username = get_request_username()
         scope = self.search_dict.get("search_type", "default")
-        config_obj = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=username, scope=scope)
+        config_obj = UserIndexSetFieldsConfig.get_config(
+            index_set_id=index_set_id, username=self.request_username, scope=scope
+        )
         if config_obj:
             sort_list = config_obj.sort_list
             if sort_list:

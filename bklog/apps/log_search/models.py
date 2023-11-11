@@ -1210,11 +1210,11 @@ class UserIndexSetFieldsConfig(models.Model):
         index_set_id: int,
         username: str,
         scope: str = SearchScopeEnum.DEFAULT.value,
-        source_app_code: str = settings.APP_CODE,
     ):
         """
         获取用户索引集配置
         """
+        source_app_code = get_request_app_code()
         try:
             obj = cls.objects.get(
                 index_set_id=index_set_id, username=username, scope=scope, source_app_code=source_app_code
