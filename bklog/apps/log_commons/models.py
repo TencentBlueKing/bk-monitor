@@ -628,6 +628,8 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
                 "resources": record.resources,
                 "status": record.status,
                 "expire_time": record.expire_time,
+                "created_at": record.created_at,
+                "created_by": record.created_by,
                 "approval_sn": record.approval_sn,
                 "approval_url": record.approval_url,
             }
