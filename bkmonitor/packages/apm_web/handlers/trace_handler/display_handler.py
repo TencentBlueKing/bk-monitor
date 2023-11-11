@@ -66,7 +66,7 @@ class DisplayHandler:
             source = span[OtlpKey.RESOURCE].get("df.capture_info.signal_source")
             if source in [EbpfSignalSourceType.SIGNAL_SOURCE_PACKET, EbpfSignalSourceType.SIGNAL_SOURCE_XFLOW]:
                 return SpanSourceCategory.EBPF_NETWORK
-            elif source == EbpfSignalSourceType.SIGNAL_SOURCE_OTEL:
+            elif source == EbpfSignalSourceType.SIGNAL_SOURCE_EBPF:
                 return SpanSourceCategory.EBPF_SYSTEM
 
         return SpanSourceCategory.OPENTELEMETRY
