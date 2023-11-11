@@ -1872,5 +1872,6 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ]
+  ],
+  "__path": "dashboards/DeepFlow-Templates/Application-Redis-Monitoring-Cloud.json"
 }
