@@ -34,7 +34,7 @@ import strategyConfigRoutes from './strategy-config/strategy-config';
 export default [
   {
     path: '/manage',
-    name: 'manage',
+    name: 'manager',
     redirect: '/set-meal',
     meta: {
       title: '管理',

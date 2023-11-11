@@ -202,8 +202,7 @@ export default class AppAdd extends tsc<{}> {
   // }
 
   mounted() {
-    // 20230925 由于该页面没有 插件、语言、环境 列表，相关代码将没有作用。
-    // this.getPluginList();
+    this.getPluginList();
     this.initRouteBackChange();
   }
 
@@ -215,9 +214,9 @@ export default class AppAdd extends tsc<{}> {
     this.pluginDescMd = this.currentPlugin?.description_md ?? '';
   }
 
-  // 20230925 由于该页面没有 插件、语言、环境 列表，相关代码将没有作用。
   /**
    * 获取应用、语言等列表数据
+   * 20231107 现在这里用作 setting-params 的 存储索引名 里显示 业务 名称。
    */
   async getPluginList() {
     this.loading = true;

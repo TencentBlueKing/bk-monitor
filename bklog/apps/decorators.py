@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
 
 """
 自定义装饰器
@@ -29,7 +30,7 @@ from apps.log_audit.models import UserOperationRecord  # noqa
 from bkm_space.utils import space_uid_to_bk_biz_id  # noqa
 
 
-@task
+@task(queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def user_operation_record(operation_record: dict):
     bk_biz_id = operation_record.get("biz_id")
     space_uid = operation_record.get("space_uid")

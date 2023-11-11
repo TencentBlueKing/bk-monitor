@@ -21,7 +21,7 @@ class Command(BaseCommand):
         table_id = options.get("table_id")
         bcs_cluster_id = options.get("bcs_cluster_id")
         if not (bk_data_id or table_id or bcs_cluster_id):
-            raise Exception("参数[bk_data_id或table_id]不能全部为空")
+            raise Exception("参数[bk_data_id或table_id或集群]不能全部为空")
         self.stdout.write(json.dumps(ResultTableAndDataSource(table_id, bk_data_id, bcs_cluster_id).get_detail()))
 
     def add_arguments(self, parser):

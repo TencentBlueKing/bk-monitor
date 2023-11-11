@@ -19,16 +19,27 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import copy
+import importlib
+import json
+import logging
 import time
 
-from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS
-from apps.log_measure.utils.metric import MetricUtils
-from bk_monitor.handler.monitor import BKMonitor
-from bk_monitor.utils.metric import clear_registered_metrics
+import arrow
 from celery.schedules import crontab
 from celery.task import periodic_task, task
-from config.domains import MONITOR_APIGATEWAY_ROOT
 from django.conf import settings
+
+from apps.feature_toggle.models import FeatureToggle
+from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS, LOG_MEASURE_METRIC_TOGGLE
+from apps.log_measure.models import MetricDataHistory
+from apps.log_measure.utils.metric import MetricUtils, build_metric_id
+from bk_monitor.handler.monitor import BKMonitor
+from bk_monitor.utils.collector import MetricCollector
+from bk_monitor.utils.metric import REGISTERED_METRICS, clear_registered_metrics
+from config.domains import MONITOR_APIGATEWAY_ROOT
+
+logger = logging.getLogger("log_measure")
 
 
 @periodic_task(run_every=crontab(minute="*/1"))
@@ -47,7 +58,22 @@ def bk_monitor_report():
         bk_username="admin",
         bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
     )
-    bk_monitor_client.custom_metric().report(collector_import_paths=COLLECTOR_IMPORT_PATHS)
+    custom_metric_instance = bk_monitor_client.custom_metric()
+
+    # 获取运营数据采集模块开关
+    feature_toggle_obj, __ = FeatureToggle.objects.get_or_create(
+        name=LOG_MEASURE_METRIC_TOGGLE,
+        defaults={
+            "status": "on",
+            "is_viewed": False,
+            "feature_config": {"import_paths": COLLECTOR_IMPORT_PATHS},
+            "biz_id_white_list": [],
+        },
+    )
+    import_paths = feature_toggle_obj.feature_config.get("import_paths", [])
+    if feature_toggle_obj.status == "on" and import_paths:
+        custom_metric_instance.report(collector_import_paths=import_paths)
+
     # 此处是为了释放对应util资源 非必须
     MetricUtils.del_instance()
 
@@ -55,32 +81,73 @@ def bk_monitor_report():
     clear_registered_metrics()
 
 
-@periodic_task(run_every=crontab(minute="*/1"))
+@periodic_task(run_every=crontab(minute="*/1"), queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def bk_monitor_collect():
     # todo 由于与菜单修改有相关性 暂时先改成跟原本monitor开关做联动
     if settings.FEATURE_TOGGLE["monitor_report"] == "off":
         return
+    # 获取运营数据上报模块开关
+    feature_toggle_obj, __ = FeatureToggle.objects.get_or_create(
+        name=LOG_MEASURE_METRIC_TOGGLE,
+        defaults={
+            "status": "on",
+            "is_viewed": False,
+            "feature_config": {"import_paths": COLLECTOR_IMPORT_PATHS},
+            "biz_id_white_list": [],
+        },
+    )
+    if not feature_toggle_obj.status == "on":
+        logger.info("[statistics_data] toggle is close, stop collecting")
+        return
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
     time.sleep(2)
-    for import_path in COLLECTOR_IMPORT_PATHS:
-        report_path.delay(import_path)
+
+    # 派发子任务周期判定
+    time_now = arrow.now()
+    time_now_minute = 60 * time_now.hour + time_now.minute
+    for import_path in feature_toggle_obj.feature_config.get("import_paths", []):
+        importlib.reload(importlib.import_module(import_path))
+        EXECUTE_METRICS = copy.deepcopy(REGISTERED_METRICS)
+        for metric in EXECUTE_METRICS.values():
+            if time_now_minute % metric["time_filter"]:
+                logger.info(f"[statistics_data] start collecting {import_path}")
+                collect_metrics.delay([import_path], [metric["namespace"]], [metric["data_name"]])
+        # 清理注册表里的内容，下一次运行的时候重新注册
+        clear_registered_metrics()
 
 
 @task(ignore_result=True)
-def report_path(import_path: str):
-    """执行单个文件里的运营指标上报任务"""
-    bk_monitor_client = BKMonitor(
-        app_id=settings.APP_CODE,
-        app_token=settings.SECRET_KEY,
-        monitor_host=MONITOR_APIGATEWAY_ROOT,
-        report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-        bk_username="admin",
-        bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
+def collect_metrics(collector_import_paths: list, namespaces: list = None, data_names: list = None):
+    """
+    将已通过 register_metric 注册的对应metric收集存入数据库
+    Attributes:
+        collector_import_paths: list 动态引用文件列表
+        namespaces: 允许上报namespace列表
+    """
+    metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(
+        namespaces=namespaces, data_names=data_names
     )
-    bk_monitor_client.custom_metric().collect(collector_import_paths=[import_path])
-    # 此处是为了释放对应util资源 非必须
-    MetricUtils.del_instance()
+    try:
+        for group in metric_groups:
+            metric_id = build_metric_id(
+                data_name=group["data_name"], namespace=group["namespace"], prefix=group["prefix"]
+            )
+            metric_data = [i.__dict__ for i in group["metrics"]]
+            MetricDataHistory.objects.update_or_create(
+                metric_id=metric_id,
+                defaults={
+                    "metric_data": json.dumps(metric_data),
+                    "updated_at": MetricUtils.get_instance().report_ts,
+                },
+            )
+            logger.info(f"save metric_data[{metric_id}] successfully")
 
-    # 清理注册表里的内容，下一次运行的时候重新注册
-    clear_registered_metrics()
+        # 此处是为了释放对应util资源 非必须
+        MetricUtils.del_instance()
+
+        # 清理注册表里的内容，下一次运行的时候重新注册
+        clear_registered_metrics()
+
+    except Exception as e:
+        logger.error(f"Failed to save metric_data, msg: {e}")

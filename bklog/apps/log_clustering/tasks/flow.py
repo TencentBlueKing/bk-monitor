@@ -19,33 +19,35 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from celery.task import task
+from django.conf import settings
+
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.utils.log import logger
-from celery.task import task
 
 
-@task(ignore_result=True)
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def update_filter_rules(index_set_id):
     logger.info(f"update filter rules beginning: index_set_id -> {index_set_id}")
     DataFlowHandler().update_filter_rules(index_set_id=index_set_id)
     logger.info(f"update filter rules success: index_set_id -> {index_set_id}")
 
 
-@task(ignore_result=True)
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def update_clustering_clean(index_set_id):
     logger.info(f"update flow beginning: index_set_id -> {index_set_id}")
     DataFlowHandler().update_flow(index_set_id=index_set_id)
     logger.info(f"update flow success: index_set_id -> {index_set_id}")
 
 
-@task(ignore_result=True)
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def update_predict_clustering_clean(index_set_id):
     logger.info(f"update predict flow beginning: index_set_id -> {index_set_id}")
     DataFlowHandler().update_predict_flow(index_set_id=index_set_id)
     logger.info(f"update predict flow success: index_set_id -> {index_set_id}")
 
 
-@task(ignore_result=True)
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def update_predict_flow_filter_rules(index_set_id):
     logger.info(f"update predict flow filter rules beginning: index_set_id -> {index_set_id}")
     DataFlowHandler().update_predict_flow_filter_rules(index_set_id=index_set_id)
@@ -53,7 +55,7 @@ def update_predict_flow_filter_rules(index_set_id):
 
 
 # 更新预测 flow中的预测节点
-@task(ignore_result=True)
+@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 def update_predict_nodes_and_online_task(index_set_id):
     logger.info(f"update predict flow nodes and online task beginning: index_set_id -> {index_set_id}")
     DataFlowHandler().update_predict_nodes_and_online_tasks(index_set_id=index_set_id)
