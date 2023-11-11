@@ -49,6 +49,36 @@ class RequestProcessor:
     """
 
     @classmethod
+    def get_space_uid(cls, request) -> str:
+        """
+        获取空间ID
+        """
+        try:
+            params = json.loads(request.body)
+        except Exception:
+            return ""
+        # 先从external_proxy参数中获取
+        if params.get("space_uid"):
+            return params.get("space_uid")
+        url: str = params.get("url")
+        # 这里是字符串
+        json_data_str: str = params.get("data", "")
+        parsed = urlsplit(url)
+        match = resolve(parsed.path, urlconf=None)
+        kwargs = match.kwargs
+        # 从URL中获取
+        if "space_uid" in kwargs:
+            return kwargs["space_uid"]
+        # 从请求参数中获取
+        try:
+            json_data = json.loads(json_data_str)
+            if "space_uid" in json_data:
+                return json_data["space_uid"]
+        except Exception:
+            return ""
+        return ""
+
+    @classmethod
     def copy_request_to_fake_request(cls, request, fake_request):
         """
         复制请求内容到fake_request
@@ -68,7 +98,6 @@ class RequestProcessor:
         except Exception:
             logger.error(f"解析外部用户信息失败({external_user})")
             external_user = {"username": external_user}
-        logger.info(f"external_user_info: {external_user}")
         return external_user
 
     @classmethod
@@ -300,7 +329,7 @@ def dispatch_external_proxy(request):
 
     # proxy: url/method/data
     url: str = params.get("url")
-    space_uid: str = params.get("space_uid", "") or request.COOKIES.get("space_uid", "")
+    space_uid: str = RequestProcessor.get_space_uid(request=request)
     method: str = params.get("method", "GET")
     # 这里是字符串
     json_data_str: str = params.get("data", "")
