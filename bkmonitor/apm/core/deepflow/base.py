@@ -26,7 +26,7 @@ from apm.core.deepflow.constants import (
     L7_PROTOCOL_POSTGRE,
     L7_PROTOCOL_REDIS,
 )
-from apm_web.constants import EbpfTapSideType
+from apm_web.constants import EbpfTapSideType, EbpfSignalSourceType
 from constants.apm import SpanKind
 
 
@@ -284,10 +284,10 @@ class EBPFHandler:
     def signal_source_to_string(cls, signal_source: int):
 
         switcher = {
-            0: "Packet",
-            1: "XFlow",
-            3: "eBPF",
-            4: "OTel",
+            0: EbpfSignalSourceType.SIGNAL_SOURCE_PACKET,
+            1: EbpfSignalSourceType.SIGNAL_SOURCE_XFLOW,
+            3: EbpfSignalSourceType.SIGNAL_SOURCE_EBPF,
+            4: EbpfSignalSourceType.SIGNAL_SOURCE_OTEL,
         }
 
         return switcher.get(signal_source)
@@ -344,11 +344,19 @@ class EBPFHandler:
         span_resource = span.resource
         status = span.status
         span.trace_id = item.get("trace_id")
+        signal_source = cls.signal_source_to_string(item.get("signal_source"))
 
         # 将ebpf的span_id作为parent_span_id，都挂到上一层应用span下
         # 自身的span_id则重新生成
-        span.parent_span_id = item.get("span_id")
-        span.span_id = cls.new_span_id()
+        span_id = item.get("span_id")
+        parent_span_id = item.get("parent_span_id")
+        if signal_source == EbpfSignalSourceType.SIGNAL_SOURCE_OTEL:
+            # 如果是OTEL应用层的span，保留父子关系
+            span.parent_span_id = parent_span_id
+            span.span_id = span_id
+        else:
+            span.parent_span_id = span_id
+            span.span_id = cls.new_span_id()
 
         if item.get("start_time"):
             span.start_time = cls.str_time_to_unit_time(item.get("start_time"))
@@ -404,9 +412,7 @@ class EBPFHandler:
         cls.put_value_map(span_attrs, "df.flow_info.flow_id", item.get("flow_id"))
 
         # Capture Info
-        cls.put_value_map(
-            span_resource, "df.capture_info.signal_source", cls.signal_source_to_string(item.get("signal_source"))
-        )
+        cls.put_value_map(span_resource, "df.capture_info.signal_source", signal_source)
         cls.put_value_map(span_resource, "df.capture_info.tap", item.get("tap"))
         cls.put_value_map(span_resource, "df.capture_info.vtap", item.get("vtap"))
         cls.put_value_map(span_resource, "df.capture_info.nat_source", item.get("nat_source"))
