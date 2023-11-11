@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import arrow
 import random
 import time
 from datetime import datetime
@@ -77,8 +78,7 @@ class EBPFHandler:
         """
         字符串时间 --> 时间戳, 单位 us
         """
-        datetime_obj = datetime.strptime(str_time, "%Y-%m-%d %H:%M:%S.%f")
-        return int(datetime_obj.timestamp() * 1000 * 1000)
+        return int(arrow.get(str_time).timestamp() * 1000 * 1000)
 
     @classmethod
     def response_status_to_span_status_message(cls, status: int):
