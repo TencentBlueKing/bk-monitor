@@ -24,7 +24,7 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.log_search.serializers import CreateOrUpdateDesensitizeConfigSerializer
+from apps.log_search.serializers import CreateOrUpdateDesensitizeConfigSerializer, DesensitizeConfigStateSerializer
 from apps.utils.drf import detail_route, list_route
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -685,93 +685,87 @@ class IndexSetViewSet(ModelViewSet):
         @apiGroup 05_AccessIndexSet
         @apiParam {Array[Json]} field_configs 字段脱敏配置信息
         @apiParam {String} field_configs.field_name 字段名
-        @apiParam {Int} field_configs.rule_id 绑定的规则ID
-        @apiParam {String} field_configs.operator 脱敏算子 可选字段 ‘mask_shield, text_replace’
-        @apiParam {Array[Int]} field_configs.exclude_rules 屏蔽的规则ID列表
-        @apiParam {Json} field_configs.params 脱敏算子参数
-        @apiParam {Int} field_configs.params.preserve_head 掩码屏蔽算子参数 保留前几位  默认 0
-        @apiParam {Int} field_configs.params.preserve_tail 掩码屏蔽算子参数 保留后几位  默认 0
-        @apiParam {String} field_configs.params.replace_mark 掩码屏蔽算子参数 替换符号 默认 *
-        @apiParam {String} field_configs.params.template_string 文本替换算子参数 替换模板
+        @apiParam {Array[Json]} field_configs.rules 规则配置列表
+        @apiParam {Int} field_configs.rule_id 脱敏规则ID （传递脱敏规则的情况下不需要在传递脱敏配置）
+        @apiParam {String} field_configs.state 状态 update、delete、normal
+        @apiParam {String} field_configs.rules.operator 脱敏算子 可选字段 ‘mask_shield, text_replace’
+        @apiParam {Json} field_configs.rules.params 脱敏算子参数
+        @apiParam {Int} field_configs.rules.params.preserve_head 掩码屏蔽算子参数 保留前几位  默认 0
+        @apiParam {Int} field_configs.rules.params.preserve_tail 掩码屏蔽算子参数 保留后几位  默认 0
+        @apiParam {String} field_configs.rules.params.replace_mark 掩码屏蔽算子参数 替换符号 默认 *
+        @apiParam {String} field_configs.rules.params.template_string 文本替换算子参数 替换模板
         @apiParam {Array[String]} text_fields 日志原文字段
         @apiParamExample {Json} 请求示例:
         {
-            "field_configs": [
+            "space_uid": "bkcc__2",
+             "field_configs": [
                 {
-                    "field_name": "path",
-                    "operator": "mask_shield",
-                    "exclude_rules": [1,2,3],
-                    "params": {
-                        "preserve_head": 1,
-                        "preserve_tail": 2,
-                        "replace_mark": "*"
-                    },
-                    "rule_id": 111
-                },
-                {
-                    "field_name": "card_num",
-                    "operator": "text_replace",
-                    "params": {
-                        "template_string": "1111111111111111"
-                    }
-                    "exclude_rules": [1, 2, 3],
-                    "rule_id": 111
-                },
-                {
-                    "field_name": "serverIp",
-                    "rule_id": 111,
-                    "exclude_rules": [1, 2, 3]
+                 "field_name": "path",
+                 "rules": [
+                     {
+                         "rule_id": 5,
+                         "match_pattern": ".*",
+                         "operator": "mask_shield",
+                         "params": {
+                                "replace_mark": "*",
+                                "preserve_head": 1,
+                                "preserve_tail": 2
+                            }
+                       },
+                       {
+                           "rule_id": 4,
+                           "match_pattern": ".*",
+                           "operator": "mask_shield",
+                           "params": {
+                                "replace_mark": "*",
+                                "preserve_head": 1,
+                                "preserve_tail": 2
+                            }
+                       }
+                    ]
                 }
-            ],
-            "text_fields": ["log", "data"]
+             ]
+            "text_fields": ["log"]
         }
         @apiSuccessExample {json} 成功返回:
         {
-        "result": true,
-        "data": {
-            "id": 4,
-            "created_at": "2023-07-17T08:20:14.772436Z",
-            "created_by": "admin",
-            "updated_at": "2023-07-17T08:20:14.773482Z",
-            "updated_by": "admin",
-            "is_deleted": false,
-            "deleted_at": null,
-            "deleted_by": null,
-            "index_set_id": 144,
-            "field_configs": [
-                {
-                    "rule_id": 111,
-                    "field_name": "path",
-                    "pattern": "",
-                    "operator": "mask_shield",
-                    "params": {
-                        "preserve_head": 1,
-                        "preserve_tail": 2
-                    },
-                    "exclude_rules": [1,2,3]
-                },
-                {
-                    "rule_id": 111,
-                    "field_name": "card_num",
-                    "pattern": "",
-                    "operator": "text_replace",
-                    "params": {
-                        "template_string": "1111111111111111"
-                    },
-                    "exclude_rules": [1,2,3]
-                },
-                {
-                    "rule_id": 111,
-                    "field_name": "serverIp",
-                    "pattern": "",
-                    "params": {},
-                    "exclude_rules": [1,2,3]
-                }
-            ],
-            "text_fields": ["log","data"]
-        },
-        "code": 0,
-        "message": ""
+            "result": true,
+            "data": {
+                "field_configs": [
+                    {
+                        "field_name": "path",
+                        "rules": [
+                            {
+                                "rule_id": 5,
+                                "match_pattern": ".*",
+                                "operator": "mask_shield",
+                                "params": {
+                                    "preserve_head": 1,
+                                    "preserve_tail": 2,
+                                    "replace_mark": "*"
+                                },
+                                "state": "add"
+                            },
+                            {
+                                "rule_id": 4,
+                                "match_pattern": ".*",
+                                "operator": "mask_shield",
+                                "params": {
+                                    "preserve_head": 1,
+                                    "preserve_tail": 2,
+                                    "replace_mark": "*"
+                                },
+                                "state": "add"
+                            }
+                        ]
+                    }
+                ],
+                "text_fields": [
+                    "log"
+                ]
+            },
+            "code": 0,
+            "message": ""
         }
         """
         data = self.validated_data
@@ -786,8 +780,8 @@ class IndexSetViewSet(ModelViewSet):
         @apiParam {Array[Json]} field_configs 字段脱敏配置信息
         @apiParam {String} field_configs.field_name 字段名
         @apiParam {Int} field_configs.rule_id 绑定的规则ID
+        @apiParam {String} field_configs.state 状态 update、delete、normal
         @apiParam {String} field_configs.operator 脱敏算子 可选字段 ‘mask_shield, text_replace’
-        @apiParam {Array[Int]} field_configs.exclude_rules 屏蔽的规则ID列表
         @apiParam {Json} field_configs.params 脱敏算子参数
         @apiParam {Int} field_configs.params.preserve_head 掩码屏蔽算子参数 保留前几位  默认 0
         @apiParam {Int} field_configs.params.preserve_tail 掩码屏蔽算子参数 保留后几位  默认 0
@@ -796,79 +790,74 @@ class IndexSetViewSet(ModelViewSet):
         @apiParam {Array[String]} text_fields 日志原文字段
         @apiParamExample {Json} 请求示例:
         {
-            "field_configs": [
+            "space_uid": "bkcc__2",
+             "field_configs": [
                 {
-                    "field_name": "path",
-                    "operator": "mask_shield",
-                    "exclude_rules": [1,2,3],
-                    "params": {
-                        "preserve_head": 1,
-                        "preserve_tail": 2,
-                        "replace_mark": "*"
-                    },
-                    "rule_id": 111
-                },
-                {
-                    "field_name": "card_num",
-                    "operator": "text_replace",
-                    "params": {
-                        "template_string": "1111111111111111"
-                    }
-                    "exclude_rules": [1, 2, 3],
-                    "rule_id": 111
-                },
-                {
-                    "field_name": "serverIp",
-                    "rule_id": 111,
-                    "exclude_rules": [1, 2, 3]
+                 "field_name": "path",
+                 "rules": [
+                     {
+                         "rule_id": 5,
+                         "match_pattern": ".*",
+                         "operator": "mask_shield",
+                         "params": {
+                                "replace_mark": "*",
+                                "preserve_head": 1,
+                                "preserve_tail": 2
+                            },
+                         "state": "normal",
+                       },
+                       {
+                           "rule_id": 4,
+                           "match_pattern": ".*",
+                           "operator": "mask_shield",
+                           "params": {
+                                "replace_mark": "*",
+                                "preserve_head": 1,
+                                "preserve_tail": 2
+                            },
+                           "state": "update",
+                       }
+                    ]
                 }
-            ],
-            "text_fields": ["log", "data"]
+             ]
+            "text_fields": ["log"]
         }
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
             "data": {
-                "id": 4,
-                "created_at": "2023-07-17T08:20:14.772436Z",
-                "created_by": "admin",
-                "updated_at": "2023-07-17T08:20:14.773482Z",
-                "updated_by": "admin",
-                "is_deleted": false,
-                "deleted_at": null,
-                "deleted_by": null,
-                "index_set_id": 144,
                 "field_configs": [
                     {
-                        "rule_id": 111,
                         "field_name": "path",
-                        "pattern": "",
-                        "operator": "mask_shield",
-                        "params": {
-                            "preserve_head": 1,
-                            "preserve_tail": 2
-                        },
-                        "exclude_rules": [1,2,3]
-                    },
-                    {
-                        "rule_id": 111,
-                        "field_name": "card_num",
-                        "pattern": "",
-                        "operator": "text_replace",
-                        "params": {
-                            "template_string": "1111111111111111"
-                        },
-                        "exclude_rules": [1,2,3]
-                    },
-                    {
-                        "rule_id": 111,
-                        "field_name": "serverIp",
-                        "pattern": "",
-                        "params": {},
-                        "exclude_rules": [1,2,3]
+                        "rules": [
+                            {
+                                "rule_id": 5,
+                                "match_pattern": ".*",
+                                "operator": "mask_shield",
+                                "params": {
+                                    "preserve_head": 1,
+                                    "preserve_tail": 2,
+                                    "replace_mark": "*"
+                                },
+                                "state": "add"
+                            },
+                            {
+                                "rule_id": 4,
+                                "match_pattern": ".*",
+                                "operator": "mask_shield",
+                                "params": {
+                                    "preserve_head": 1,
+                                    "preserve_tail": 2,
+                                    "replace_mark": "*"
+                                },
+                                "state": "add"
+                            }
+                        ]
                     }
                 ],
-                "text_fields": ["log","data"]
+                "text_fields": [
+                    "log"
+                ]
             },
             "code": 0,
             "message": ""
@@ -887,46 +876,58 @@ class IndexSetViewSet(ModelViewSet):
         {
             "result": true,
             "data": {
-                "id": 4,
-                "created_at": "2023-07-17T08:20:14.772436Z",
+                "id": 18,
+                "created_at": "2023-09-07T01:56:25.035238Z",
                 "created_by": "admin",
-                "updated_at": "2023-07-17T08:20:14.773482Z",
+                "updated_at": "2023-09-07T01:56:25.035238Z",
                 "updated_by": "admin",
-                "is_deleted": false,
-                "deleted_at": null,
-                "deleted_by": null,
-                "index_set_id": 144,
+                "index_set_id": 150,
+                "text_fields": [],
                 "field_configs": [
                     {
-                        "rule_id": 111,
                         "field_name": "path",
-                        "pattern": "",
-                        "operator": "mask_shield",
-                        "params": {
-                            "preserve_head": 1,
-                            "preserve_tail": 2
-                        },
-                        "exclude_rules": [1,2,3]
-                    },
-                    {
-                        "rule_id": 111,
-                        "field_name": "card_num",
-                        "pattern": "",
-                        "operator": "text_replace",
-                        "params": {
-                            "template_string": "1111111111111111"
-                        },
-                        "exclude_rules": [1,2,3]
-                    },
-                    {
-                        "rule_id": 111,
-                        "field_name": "serverIp",
-                        "pattern": "",
-                        "params": {},
-                        "exclude_rules": [1,2,3]
+                        "rules": [
+                            {
+                                "index_set_id": 150,
+                                "field_name": "path",
+                                "rule_id": 5,
+                                "match_pattern": ".*",
+                                "operator": "mask_shield",
+                                "params": {
+                                    "replace_mark": "*",
+                                    "preserve_head": 1,
+                                    "preserve_tail": 2
+                                },
+                                "sort_index": 1,
+                                "state": "normal",
+                                "new_rule": {}
+                            },
+                            {
+                                "index_set_id": 150,
+                                "field_name": "path",
+                                "rule_id": 4,
+                                "match_pattern": ".*",
+                                "operator": "mask_shield",
+                                "params": {
+                                    "replace_mark": "*",
+                                    "preserve_head": 1,
+                                    "preserve_tail": 2
+                                },
+                                "sort_index": 0,
+                                "state": "update",
+                                "new_rule": {
+                                    "operator": "mask_shield",
+                                    "params": {
+                                        "replace_mark": "*",
+                                        "preserve_head": 1,
+                                        "preserve_tail": 4
+                                    },
+                                    "match_pattern": ".*"
+                                }
+                            }
+                        ]
                     }
-                ],
-                "text_fields": ["log","data"]
+                ]
             },
             "code": 0,
             "message": ""
@@ -949,3 +950,41 @@ class IndexSetViewSet(ModelViewSet):
         }
         """
         return Response(IndexSetHandler(int(index_set_id)).desensitize_config_delete())
+
+    @list_route(methods=["POST"], url_path="desensitize/config/state")
+    def desensitize_config_state(self, request, *args, **kwargs):
+        """
+        @api {POST} /index_set/desensitize/config/state/ 索引集脱敏状态
+        @apiName desensitize config state
+        @apiGroup 05_AccessIndexSet
+        @apiParam {Array[Int]} index_set_ids 索引集列表
+        @apiParamExample {Json} 请求示例:
+        {
+            "index_set_ids": [1,2,3,4,5]
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "1": {
+                    "is_desensitize": false
+                },
+                "2": {
+                    "is_desensitize": false
+                },
+                "3": {
+                    "is_desensitize": false
+                },
+                "4": {
+                    "is_desensitize": false
+                },
+                "5": {
+                    "is_desensitize": false
+                }
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(DesensitizeConfigStateSerializer)
+        return Response(IndexSetHandler().get_desensitize_config_state(data["index_set_ids"]))

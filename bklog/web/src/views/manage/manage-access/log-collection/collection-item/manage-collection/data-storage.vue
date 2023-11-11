@@ -67,33 +67,6 @@
         </div>
       </bk-table>
     </section>
-    <section class="partial-content">
-      <div class="main-title">
-        {{ $t('字段信息') }}
-      </div>
-      <bk-table v-bkloading="{ isLoading: tableLoading2 }" :data="fieldsData">
-        <bk-table-column :label="$t('字段名')" prop="field_name"></bk-table-column>
-        <bk-table-column :label="$t('别名')">
-          <template slot-scope="{ row }">
-            {{ row.field_alias || '--' }}
-          </template>
-        </bk-table-column>
-        <bk-table-column :label="$t('数据类型')" prop="field_type"></bk-table-column>
-        <bk-table-column :label="$t('分词')" width="80">
-          <template slot-scope="{ row }">
-            <bk-checkbox disabled :value="row.is_analyzed"></bk-checkbox>
-          </template>
-        </bk-table-column>
-        <bk-table-column :label="$t('时间')" width="80">
-          <template slot-scope="{ row }">
-            <span v-if="row.field_name === timeField" class="log-icon icon-date-picker"></span>
-          </template>
-        </bk-table-column>
-        <div slot="empty">
-          <empty-status empty-type="empty" />
-        </div>
-      </bk-table>
-    </section>
   </div>
 </template>
 
@@ -127,7 +100,6 @@ export default {
   },
   created() {
     this.fetchIndexes();
-    this.fetchFields();
   },
   methods: {
     getFileSize(size) {
@@ -145,21 +117,6 @@ export default {
         console.warn(e);
       } finally {
         this.tableLoading1 = false;
-      }
-    },
-    async fetchFields() {
-      try {
-        const res = await this.$http.request('retrieve/getLogTableHead', {
-          params: {
-            index_set_id: this.collectorData.index_set_id,
-          },
-        });
-        this.timeField = res.data.time_field;
-        this.fieldsData = res.data.fields;
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        this.tableLoading2 = false;
       }
     },
   },

@@ -58,6 +58,10 @@ const LogCleanTempView = {
   name: 'LogCleanTempView',
   template: '<router-view></router-view>',
 };
+const LogDesensitizeView = {
+  name: 'LogDesensitizeView',
+  template: '<router-view></router-view>',
+};
 const DashboardTempView = {
   name: 'DashboardTempView',
   template: '<router-view></router-view>',
@@ -210,6 +214,16 @@ const externalAuth = () => import(
   /* webpackChunkName: 'externalAuth' */
   '@/views/authorization/authorization-list'
 );
+// ---- 脱敏 ---- 脱敏编辑
+const MaskingEdit = () => import(
+  /* webpackChunkName: 'field-masking-separate' */
+  '@/views/manage/field-masking-separate'
+);
+// ---- 脱敏 ---- 业务下的脱敏列表
+const MaskingList = () => import(
+  /* webpackChunkName: 'manage-data-link-conf' */
+  '@/views/manage/log-clean/clean-masking/list'
+);
 
 const routes = [
   {
@@ -361,6 +375,15 @@ const routes = [
             component: AccessSteps,
           },
           {
+            path: 'collection-item/masking/:collectorId',
+            name: 'collectMasking', // 脱敏
+            meta: {
+              needBack: true,
+              backName: 'collection-item',
+            },
+            component: AccessSteps,
+          },
+          {
             path: 'collection-item/start/:collectorId',
             name: 'collectStart',
             meta: {
@@ -417,6 +440,15 @@ const routes = [
                 },
                 component: CreateIndex,
               },
+              {
+                path: 'masking/:indexSetId',
+                name: 'log-index-set-masking',
+                meta: {
+                  needBack: true,
+                  backName: 'log-index-set-list',
+                },
+                component: MaskingEdit,
+              },
             ],
           },
         ],
@@ -459,6 +491,15 @@ const routes = [
             },
             component: CreateIndex,
           },
+          {
+            path: 'masking/:indexSetId',
+            name: 'bkdata-index-set-masking',
+            meta: {
+              needBack: true,
+              backName: 'bkdata-index-set-list',
+            },
+            component: MaskingEdit,
+          },
         ],
       },
       {
@@ -499,6 +540,15 @@ const routes = [
             },
             component: CreateIndex,
           },
+          {
+            path: 'masking/:indexSetId',
+            name: 'es-index-set-masking',
+            meta: {
+              needBack: true,
+              backName: 'es-index-set-list',
+            },
+            component: MaskingEdit,
+          },
         ],
       },
       {
@@ -538,6 +588,15 @@ const routes = [
               backName: 'custom-report-list',
             },
             component: CustomReportDetail,
+          },
+          {
+            path: 'masking/:indexSetId',
+            name: 'custom-report-masking', // 日志接入 - 自定义上报详情
+            meta: {
+              needBack: true,
+              backName: 'custom-report-list',
+            },
+            component: MaskingEdit,
           },
         ],
       },
@@ -650,6 +709,19 @@ const routes = [
               backName: 'log-clean-templates',
             },
             component: cleanTempCreate,
+          },
+        ],
+      },
+      {
+        path: 'log-desensitize',
+        name: 'log-desensitize', // 日志脱敏
+        component: LogDesensitizeView,
+        redirect: '/manage/log-desensitize/list',
+        children: [
+          {
+            path: 'list',
+            name: 'log-desensitize-list',
+            component: MaskingList,
           },
         ],
       },

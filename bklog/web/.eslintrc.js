@@ -54,5 +54,7 @@ module.exports = {
     'no-restricted-properties': 'off',
     'function-paren-newline': 'off',
     'vue/no-lone-template': 'off',
+    'vue/no-confusing-v-for-v-if': 'off',
+    'vue/multi-word-component-names': 'off',
   },
 };

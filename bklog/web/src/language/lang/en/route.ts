@@ -57,5 +57,6 @@ export default {
   "route-编辑自定义上报": "Edit Custom Log",
   "route-新建日志提取任务": "Add Export Task",
   "route-克隆日志提取任务": "Clone Export task",
-  "route-编辑提取链路": "Edit Export Link"
+  "route-编辑提取链路": "Edit Export Link",
+  "route-日志脱敏": "Log Desensitize"
 };

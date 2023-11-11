@@ -48,6 +48,7 @@ import * as docs from './docs';
 import * as favorite from './favorite';
 import * as ipChooser from './ip-chooser';
 import * as authorization from './authorization';
+import * as masking from './masking';
 
 const getMyProjectList = {
   url: '/meta/projects/mine/',
@@ -94,4 +95,5 @@ export default {
   favorite,
   ipChooser,
   authorization,
+  masking,
 };

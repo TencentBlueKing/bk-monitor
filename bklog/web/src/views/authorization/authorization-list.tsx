@@ -60,6 +60,7 @@ enum TableColumnEnum {
   resources = 'resources',
   authorizer = 'authorizer',
   space_name = 'space_name',
+  created_at = 'created_at',
   expire_time = 'expire_time',
   status = 'status',
   resource_id = 'resource_id',
@@ -248,6 +249,12 @@ export default class AuthorizationList extends tsc<{}, {}> {
         props: { filters: [], 'filter-method': this.filterMethod, minWidth: 200 },
       },
       {
+        prop: TableColumnEnum.created_at,
+        name: $i18n.t('创建时间'),
+        hidden: false,
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
+      },
+      {
         prop: TableColumnEnum.expire_time,
         name: $i18n.t('截止时间'),
         hidden: false,
@@ -303,7 +310,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
       const statusPick = this.statusActive === 'all' || item.status === this.statusActive;
       if (!this.searchValue || !statusPick) return statusPick;
       // 关键字匹配
-      const { status, expire_time, ...searchKey } = TableColumnEnum;
+      const { status, expire_time, created_at,  ...searchKey } = TableColumnEnum;
       return Object.keys(searchKey).some((key) => {
         if (!item[key]) return false;
         const val = Array.isArray(item[key]) ? item[key] : [item[key]];
