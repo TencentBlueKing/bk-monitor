@@ -499,5 +499,6 @@ export default {
   '批量粘贴请使用;进行分隔': 'Please use bulk pasting; Separate',
   已提交审批: 'Submitted for approval',
   "不是有效的json文件": "Not a valid json file.",
-  "聚类规则为空，无法导出规则": "The clustering rules are empty and the rules cannot be exported."
+  "聚类规则为空，无法导出规则": "The clustering rules are empty and the rules cannot be exported.",
+  "从下载目标中选择预览目标": "Select preview target from download target"
 }
