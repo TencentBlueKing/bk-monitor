@@ -39,6 +39,7 @@
         <component
           class="tab-content"
           :index-set-data="curIndexSet"
+          :collector-data="curIndexSet"
           :index-set-id="curIndexSet.index_set_id"
           :is="dynamicComponent"
           @update-active-panel="activePanel = $event" />
@@ -51,7 +52,7 @@
 import { mapState } from 'vuex';
 import AuthContainerPage from '@/components/common/auth-container-page';
 import BasicInfo from './basic-info';
-import FieldInfo from './field-info';
+import FieldInfo from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/field-info.tsx';
 import UsageDetails from '@/views/manage/manage-access/components/usage-details';
 import BasicTab from '@/components/basic-tab';
 import * as authorityMap from '../../../../../../common/authority-map';

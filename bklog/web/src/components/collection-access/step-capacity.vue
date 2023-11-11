@@ -227,10 +227,11 @@
     <bk-exception type="building">
       <div class="approval-text">
         <span>{{ applyData.collect_itsm_status_display }}</span>
-        <a :href="applyData.ticket_url"
-           class="button-text"
-           target="_blank"
-           data-test-id="capacityContaineBox_a_viewApprovalDetails">
+        <a
+          :href="applyData.ticket_url"
+          class="button-text"
+          target="_blank"
+          data-test-id="capacityContaineBox_a_viewApprovalDetails">
           {{ $t('点击查看审批详情') }}
           <span class="log-icon icon-lianjie"></span>
         </a>

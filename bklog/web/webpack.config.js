@@ -139,6 +139,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
   config.plugins.forEach((item, index) => {
     if (item instanceof CliMonacoWebpackPlugin) {
       item.options.languages.push('yaml');
+      item.options.languages.push('json');
       item.options.customLanguages = [
         {
           label: 'yaml',

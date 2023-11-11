@@ -63,6 +63,7 @@ INSTALLED_APPS += (
     "monitor_api",
     "monitor_web",
     "apm_web",
+    "apm_ebpf",
     "apm",
     "weixin.core",
     "weixin",
@@ -257,6 +258,7 @@ LOGGING["loggers"].update(
         "monitor_web": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "monitor_api": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "apm": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
+        "apm_ebpf": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "utils": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "core": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "common": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
@@ -453,7 +455,10 @@ GRAPH_WATERMARK = True
 GRAFANA = {
     "HOST": GRAFANA_URL,
     "PROVISIONING_PATH": BASE_DIR + "/packages/monitor_web/grafana/provisioning",  # noqa
-    "PROVISIONING_CLASSES": ["monitor_web.grafana.provisioning.BkMonitorProvisioning"],
+    "PROVISIONING_CLASSES": [
+        "monitor_web.grafana.provisioning.BkMonitorProvisioning",
+        "monitor_web.grafana.provisioning.ApmEbpfProvisioning",
+    ],
     "PERMISSION_CLASSES": ["monitor_web.grafana.permissions.DashboardPermission"],
     "CODE_INJECTIONS": {
         "<head>": """<head>
