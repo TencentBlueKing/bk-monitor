@@ -101,21 +101,47 @@ class RequestProcessor:
 
     @classmethod
     def filter_response_resource(
-        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: Dict[str, Any]
+        cls,
+        external_user: str,
+        response: Response,
+        action_id: str,
+        view_set: str,
+        view_action: str,
+        allow_resources_result: Dict[str, Any],
     ):
         """
         过滤接口返回中的资源
-        暂时只过滤search-list
+        :param external_user: 外部用户
         :param response: 原始响应
         :param action_id: action_id, ActionEnum
+        :param view_set: view_func对应的viewset名称
         :param view_action: view_func对应的action名称
         :param allow_resources_result: 允许访问的资源
         """
         if not allow_resources_result["allowed"]:
             return response
-        # 目前只有log_search下的接口需要过滤资源
-        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
-            return response
+        if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
+            return cls.filter_log_search_response_resource(
+                response=response,
+                action_id=action_id,
+                view_set=view_set,
+                view_action=view_action,
+                allow_resources_result=allow_resources_result,
+            )
+        if action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
+            return cls.filter_log_extract_response_resource(
+                external_user=external_user,
+                response=response,
+                view_set=view_set,
+                view_action=view_action,
+            )
+
+        return response
+
+    @classmethod
+    def filter_log_search_response_resource(
+        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: Dict[str, Any]
+    ):
         allow_resources = allow_resources_result["resources"]
         view_set_class: ViewSetAction = ViewSetAction(action_id=action_id, view_set=view_set, view_action=view_action)
         if view_set_class.is_one_of(
@@ -136,7 +162,24 @@ class RequestProcessor:
                 data["data"] = allowed_data
                 response.data = data
                 return response
+        return response
 
+    @classmethod
+    def filter_log_extract_response_resource(
+        cls, external_user: str, response: Response, view_set: str, view_action: str
+    ):
+        if view_set == "TasksViewSet" and view_action == "list":
+            data = response.data
+            if isinstance(data, dict) and "data" in data:
+                allowed_data = []
+                for task in data["data"]["list"]:
+                    if task["created_by"] != external_user:
+                        continue
+                    allowed_data.append(task)
+                data["data"]["list"] = allowed_data
+                data["data"]["total"] = len(allowed_data)
+                response.data = data
+                return response
         return response
 
     @classmethod
@@ -349,6 +392,7 @@ def dispatch_external_proxy(request):
         # call view_func
         response = view_func(fake_request, **kwargs)
         return RequestProcessor.filter_response_resource(
+            external_user=external_user,
             response=response,
             action_id=action_id,
             view_set=view_set,
