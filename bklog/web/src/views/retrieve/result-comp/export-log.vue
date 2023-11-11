@@ -172,6 +172,7 @@ export default {
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
+      spaceUid: 'spaceUid',
     }),
     getAsyncText() { // 异步下载按钮前的文案
       return this.totalCount > this.exportSecondComparedSize
@@ -247,7 +248,7 @@ export default {
         export_fields: this.submitSelectFiledList,
       }));
       // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?export_dict=${exportParams}`;
+      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?space_uid=${this.spaceUid}&export_dict=${exportParams}`;
       this.selectFiledList = [];
       this.isShowExportDialog = false;
       window.open(targetUrl);
