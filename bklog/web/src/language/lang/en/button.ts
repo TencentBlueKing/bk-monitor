@@ -139,5 +139,6 @@ export default {
   添加授权: 'Add',
   编辑授权: 'Edit',
   "新增字段": "Add new field",
-  "导入": "Import"
+  "导入": "Import",
+  "查看详情": "Details"
 };
