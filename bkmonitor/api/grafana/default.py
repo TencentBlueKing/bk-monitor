@@ -357,6 +357,15 @@ class ImportDashboard(GrafanaApiResource):
         overwrite = serializers.BooleanField(required=False, default=True)
 
 
+class ListFolder(GrafanaApiResource):
+    method = "GET"
+    path = "/api/folders/"
+    with_org_id = True
+
+    class RequestSerializer(serializers.Serializer):
+        org_id = serializers.IntegerField()
+
+
 class DeleteFolder(GrafanaApiResource):
     method = "DELETE"
     path = "/api/folders/{uid}/"

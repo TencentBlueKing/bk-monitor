@@ -84,6 +84,29 @@ class ApmEbpfProvisioning(SimpleProvisioning):
         return res
 
     @classmethod
+    def delete_empty_directory(cls):
+        """删除空的eBPF目录"""
+        orgs = api.grafana.get_all_organization()
+        if not orgs.get("result"):
+            logger.info(f"failed to get organization, result: {orgs}")
+            return
+
+        for org in orgs.get("data", []):
+            folders = api.grafana.list_folder(org_id=org["id"])
+            if not folders.get("result"):
+                logger.warning(f"list folder of org_id: {org['id']} failed, result: {folders}, skipped")
+                continue
+
+            ebpf_folder = next((f for f in folders.get("data", []) if f["title"] == cls._FOLDER_NAME), None)
+            if not ebpf_folder:
+                continue
+
+            dashboards = api.grafana.search_folder_or_dashboard(org_id=org["id"], folderIds=[ebpf_folder["id"]])
+            if dashboards.get("result") and not dashboards.get("data"):
+                api.grafana.delete_folder(org_id=org["id"], uid=ebpf_folder["id"])
+                logger.info(f"delete {cls._FOLDER_NAME} folder of org_id: {org['id']}(org_name: {org['name']})")
+
+    @classmethod
     def _generate_default_dashboards(
         cls, datasources, org_id, json_name, template, folder_id
     ) -> typing.List[Dashboard]:
