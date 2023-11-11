@@ -20,7 +20,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import arrow
-from celery.task import task
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
@@ -32,9 +31,10 @@ from apps.log_measure.events import NOTIFY_EVENT
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.models import LogIndexSet, Space
 from apps.utils.local import set_local_param
+from apps.utils.task import high_priority_task
 
 
-@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+@high_priority_task(ignore_result=True)
 def send(index_set_id):
     clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
     log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)

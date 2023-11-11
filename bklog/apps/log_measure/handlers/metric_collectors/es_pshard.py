@@ -20,7 +20,7 @@ the project delivered to anyone in the future.
 """
 from django.utils.translation import ugettext as _
 
-from apps.log_measure.handlers.metric_collectors.es_stats import get_es_metrics
+from apps.log_measure.utils.es import get_es_metrics
 from bk_monitor.constants import TimeFilterEnum
 from bk_monitor.utils.metric import register_metric
 

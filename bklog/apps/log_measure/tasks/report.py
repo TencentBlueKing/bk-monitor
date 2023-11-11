@@ -63,11 +63,13 @@ def bk_monitor_report():
         defaults={
             "status": "on",
             "is_viewed": False,
-            "feature_config": {"import_paths": COLLECTOR_IMPORT_PATHS},
+            # 初始化值默认为空列表
+            "feature_config": {"import_paths": []},
             "biz_id_white_list": [],
         },
     )
-    import_paths = feature_toggle_obj.feature_config.get("import_paths", [])
+    # 如果为空列表，则默认全部执行
+    import_paths = feature_toggle_obj.feature_config.get("import_paths", []) or COLLECTOR_IMPORT_PATHS
     if feature_toggle_obj.status == "on" and import_paths:
         custom_metric_instance.report(collector_import_paths=import_paths)
 
@@ -78,7 +80,7 @@ def bk_monitor_report():
     clear_registered_metrics()
 
 
-@periodic_task(run_every=crontab(minute="*/1"), queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+@periodic_task(run_every=crontab(minute="*/1"))
 def bk_monitor_collect():
     # todo 由于与菜单修改有相关性 暂时先改成跟原本monitor开关做联动
     if settings.FEATURE_TOGGLE["monitor_report"] == "off":
@@ -89,7 +91,8 @@ def bk_monitor_collect():
         defaults={
             "status": "on",
             "is_viewed": False,
-            "feature_config": {"import_paths": COLLECTOR_IMPORT_PATHS},
+            # 初始化值默认为空列表
+            "feature_config": {"import_paths": []},
             "biz_id_white_list": [],
         },
     )
@@ -99,7 +102,9 @@ def bk_monitor_collect():
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
     time.sleep(2)
-    for import_path in feature_toggle_obj.feature_config.get("import_paths", []):
+    # 如果为空列表，则默认全部执行
+    import_paths = feature_toggle_obj.feature_config.get("import_paths", []) or COLLECTOR_IMPORT_PATHS
+    for import_path in import_paths:
         collect_metrics.delay(collector_import_paths=[import_path])
 
 
@@ -134,4 +139,4 @@ def collect_metrics(collector_import_paths: list = None, namespaces: list = None
         clear_registered_metrics()
 
     except Exception as e:
-        logger.error(f"Failed to save metric_data, msg: {e}")
+        logger.exception(f"Failed to save metric_data, msg: {e}")
