@@ -130,6 +130,9 @@ class SearchHandler(object):
         export_fields=None,
         export_log: bool = False,
     ):
+        # 请求用户名
+        self.request_username = get_request_external_username() or get_request_username()
+
         self.search_dict: dict = search_dict
         self.export_log = export_log
 
@@ -245,9 +248,6 @@ class SearchHandler(object):
 
         # 导出字段
         self.export_fields = export_fields
-
-        # 请求用户名
-        self.request_username = get_request_external_username() or get_request_username()
 
         self.is_desensitize = search_dict.get("is_desensitize", True)
 
