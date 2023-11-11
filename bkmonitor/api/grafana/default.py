@@ -349,6 +349,8 @@ class ImportDashboard(GrafanaApiResource):
 
     class RequestSerializer(serializers.Serializer):
         org_id = serializers.IntegerField()
+        pluginId = serializers.CharField(required=False, default=None)
+        path = serializers.CharField(required=False, default=None)
         dashboard = serializers.DictField()
         folderId = serializers.IntegerField(required=False, default=0)
         inputs = serializers.ListField(required=False, default=[])

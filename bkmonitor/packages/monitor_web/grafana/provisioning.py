@@ -112,14 +112,18 @@ class ApmEbpfProvisioning(SimpleProvisioning):
             else:
                 folder_id = folder_mapping[cls._FOLDER_NAME]["id"]
 
-        return [
-            Dashboard(
-                org_id=org_id,
-                dashboard=template,
-                inputs=inputs,
-                folderId=folder_id,
-            )
-        ]
+        ds = Dashboard(
+            org_id=org_id,
+            dashboard=template,
+            inputs=inputs,
+            folderId=folder_id,
+        )
+        if template.get("__path"):
+            # __path为eBPF模版中自定义字段 如果字段存在则证明为数据源内置仪表盘
+            ds.pluginId = cls._TEMPLATE_PLUGIN_ID
+            ds.path = template["__path"]
+
+        return [ds]
 
 
 class BkMonitorProvisioning(SimpleProvisioning):
