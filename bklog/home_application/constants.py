@@ -49,6 +49,7 @@ REDIS_VARIABLES = [
 
 QUEUES = [
     "default",
+    # "high_priority",
     "celery",
     "pipeline_additional_task",
     "pipeline_additional_task_priority",

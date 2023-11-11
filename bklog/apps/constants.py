@@ -285,7 +285,7 @@ class ViewSetActionEnum(ChoicesEnum):
     定义一个行为, 用于权限校验
     """
 
-    # 检索-SearchViewSet
+    # ======================================= 检索-SearchViewSet =======================================
     SEARCH_VIEWSET_LIST = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="list"
     )
@@ -315,14 +315,32 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_HISTORY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="history"
     )
-    # 聚合-AggsViewSet
+    SEARCH_VIEWSET_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="config"
+    )
+    SEARCH_VIEWSET_CREATE_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="create_config"
+    )
+    SEARCH_VIEWSET_UPDATE_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="update_config"
+    )
+    SEARCH_VIEWSET_RETRIEVE_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="retrieve_config"
+    )
+    SEARCH_VIEWSET_LIST_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="list_config"
+    )
+    SEARCH_VIEWSET_DELETE_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="delete_config"
+    )
+    # ======================================= 聚合-AggsViewSet =======================================
     AGGS_VIEWSET_TERMS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="terms"
     )
     AGGS_VIEWSET_DATE_HISTOGRAM = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="date_histogram"
     )
-    # 收藏-FavoriteViewSet
+    # ======================================= 收藏-FavoriteViewSet =======================================
     FAVORITE_VIEWSET_RETRIEVE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="retrieve"
     )
@@ -353,14 +371,15 @@ class ViewSetActionEnum(ChoicesEnum):
         view_action="inspect",
         default_permission=True,
     )
-    # 收藏组-FavoriteGroupViewSet
+    # ======================================= 收藏组-FavoriteGroupViewSet =======================================
     FAVORITE_GROUP_VIEWSET_LIST = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="list"
     )
     FAVORITE_GROUP_VIEWSET_CREATE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="create"
     )
-    # IP选择器-IpChooserConfigViewSet,IpChooserHostViewSet,IpChooserTemplateViewSet,IpChooserDynamicGroupViewSet,IpChooserConfigViewSet
+    # ======================================= IP选择器 =======================================
+    # IpChooserConfigViewSet,IpChooserHostViewSet,IpChooserTemplateViewSet,IpChooserDynamicGroupViewSet,IpChooserConfigViewSet
     IP_CHOOSER_TOPO_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IpChooserTopoViewSet"
     )
@@ -378,23 +397,25 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="IpChooserConfigViewSet",
         default_permission=True,
     )  # 默认允许
-    # 获取主机展示名称, 默认允许
+    # ======================================= BizsViewSet =======================================
     BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
         view_set="BizsViewSet", view_action="get_display_name", default_permission=True
     )
-    # 日志提取-ExplorerViewSet,TasksViewSet
+    # ======================================= 日志提取-ExplorerViewSet =======================================
     EXPLORER_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="ExplorerViewSet"
     )
 
-    # 日志提取-TaskViewSet
+    # ======================================= 日志提取-TaskViewSet =======================================
     TASKS_VIEWSET = ViewSetAction(action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="TasksViewSet")
-    # META-MetaViewSet
+    #  ======================================= META-MetaViewSet =======================================
     META_VIEWSET = ViewSetAction(view_set="MetaViewSet", default_permission=True)
     LANGUAGE_VIEWSET = ViewSetAction(view_set="LanguageViewSet", default_permission=True)
     MENU_VIEWSET = ViewSetAction(view_set="MenuViewSet", default_permission=True)
+    GET_DOCS_LINK = ViewSetAction(view_set="get_docs_link", default_permission=True)
 
     _choices_keys = (
+        # ======================================= 检索-SearchViewSet =======================================
         SEARCH_VIEWSET_LIST,
         SEARCH_VIEWSET_BIZS,
         SEARCH_VIEWSET_SEARCH,
@@ -404,8 +425,16 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_EXPORT,
         SEARCH_VIEWSET_HISTORY,
         SEARCH_VIEWSET_GET_EXPORT_HISTORY,
+        SEARCH_VIEWSET_CONFIG,
+        SEARCH_VIEWSET_CREATE_CONFIG,
+        SEARCH_VIEWSET_UPDATE_CONFIG,
+        SEARCH_VIEWSET_RETRIEVE_CONFIG,
+        SEARCH_VIEWSET_LIST_CONFIG,
+        SEARCH_VIEWSET_DELETE_CONFIG,
+        # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
+        # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,
         FAVORITE_VIEWSET_LIST_BY_GROUP,
@@ -413,21 +442,26 @@ class ViewSetActionEnum(ChoicesEnum):
         FAVORITE_VIEWSET_GET_SEARCH_FIELDS,
         FAVORITE_VIEWSET_GENERATE_QUERY,
         FAVORITE_VIEWSET_INSPECT,
+        # ======================================= 收藏组-FavoriteGroupViewSet =======================================
         FAVORITE_GROUP_VIEWSET_LIST,
         FAVORITE_GROUP_VIEWSET_CREATE,
+        # ======================================= IP选择器 =======================================
         IP_CHOOSER_TOPO_VIEWSET,
         IP_CHOOSER_HOST_VIEWSET,
         IP_CHOOSER_TEMPLATE_VIEWSET,
         IP_CHOOSER_DYNAMIC_GROUP_VIEWSET,
         IP_CHOOSER_CONFIG_VIEWSET,
-        # TASKS_VIEWSET
+        # ======================================= 日志提取-TasksViewSet =======================================
         TASKS_VIEWSET,
+        # ======================================= 日志提取-ExplorerViewSet =======================================
         EXPLORER_VIEWSET,
-        # META_VIEWSET
+        # ======================================= BizsViewSet =======================================
+        BIZS_VIEWSET_HOST_DISPLAY_NAME,
+        # ======================================= META-MetaViewSet =======================================
         META_VIEWSET,
         LANGUAGE_VIEWSET,
         MENU_VIEWSET,
-        BIZS_VIEWSET_HOST_DISPLAY_NAME,
+        GET_DOCS_LINK,
     )
 
 

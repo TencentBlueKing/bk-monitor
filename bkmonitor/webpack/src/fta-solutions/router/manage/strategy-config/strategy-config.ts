@@ -45,7 +45,7 @@ export default [
       navId: 'strategy-config',
       noNavBar: true,
       route: {
-        parent: 'manage'
+        parent: 'manager'
       },
       authority: {
         map: ruleAuth,

@@ -619,6 +619,7 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
         qs = ExternalPermissionApplyRecord.objects.exclude(status=ITSMStatusChoicesEnum.NO_STATUS.value)
         if space_uid:
             qs = qs.filter(space_uid=space_uid)
+        qs = qs.order_by("-created_at")
         return [
             {
                 "authorized_users": record.authorized_users,
@@ -627,6 +628,8 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
                 "resources": record.resources,
                 "status": record.status,
                 "expire_time": record.expire_time,
+                "created_at": record.created_at,
+                "created_by": record.created_by,
                 "approval_sn": record.approval_sn,
                 "approval_url": record.approval_url,
             }

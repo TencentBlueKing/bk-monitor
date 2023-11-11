@@ -49,11 +49,64 @@ class RequestProcessor:
     """
 
     @classmethod
+    def get_space_uid(cls, request) -> str:
+        """
+        获取空间ID
+        """
+        try:
+            params = json.loads(request.body)
+        except Exception:
+            return ""
+        # 先从external_proxy参数中获取
+        if params.get("space_uid"):
+            return params.get("space_uid")
+        url: str = params.get("url")
+        # 这里是字符串
+        json_data_str: str = params.get("data", "")
+        parsed = urlsplit(url)
+        match = resolve(parsed.path, urlconf=None)
+        kwargs = match.kwargs
+        # 从URL中获取
+        if "space_uid" in kwargs:
+            return kwargs["space_uid"]
+        # 从请求参数中获取
+        try:
+            json_data = json.loads(json_data_str)
+            if "space_uid" in json_data:
+                return json_data["space_uid"]
+        except Exception:
+            return ""
+        return ""
+
+    @classmethod
+    def copy_request_to_fake_request(cls, request, fake_request):
+        """
+        复制请求内容到fake_request
+        """
+        fake_request_meta = getattr(fake_request, "META", {})
+        logger.info(f"request.META: {request.META}")
+        if request.META.get("HTTP_BK_APP_CODE", ""):
+            fake_request_meta["HTTP_BK_APP_CODE"] = request.META["HTTP_BK_APP_CODE"]
+            setattr(fake_request, "META", fake_request_meta)
+        logger.info(f"fake_request.META: {fake_request.META}")
+        return fake_request
+
+    @classmethod
+    def get_request_user_info(cls, request) -> Dict[str, Any]:
+        external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+        try:
+            external_user = json.loads(external_user)
+        except Exception:
+            logger.error(f"解析外部用户信息失败({external_user})")
+            external_user = {"username": external_user}
+        return external_user
+
+    @classmethod
     def get_view_set(cls, view_func):
         """获取view_func对应的viewset名称"""
         if hasattr(view_func, "cls"):
             return view_func.cls.__name__
-        return ""
+        return view_func.__name__
 
     @classmethod
     def get_view_action(cls, view_func, method):
@@ -63,32 +116,62 @@ class RequestProcessor:
         return ""
 
     @classmethod
-    def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data: Dict[str, Any]):
+    def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data_str: str):
         """获取请求中的资源"""
         if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
             if "index_set_id" in kwargs:
                 return int(kwargs.get("index_set_id", ""))
-            if "index_set_id" in json_data:
-                return int(json_data.get("index_set_id", ""))
+            try:
+                json_data = json.loads(json_data_str)
+                if "index_set_id" in json_data:
+                    return int(json_data.get("index_set_id", ""))
+            except Exception:
+                logger.exception(f"解析请求数据({json_data_str})失败")
         return None
 
     @classmethod
     def filter_response_resource(
-        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: Dict[str, Any]
+        cls,
+        external_user: str,
+        response: Response,
+        action_id: str,
+        view_set: str,
+        view_action: str,
+        allow_resources_result: Dict[str, Any],
     ):
         """
         过滤接口返回中的资源
-        暂时只过滤search-list
+        :param external_user: 外部用户
         :param response: 原始响应
         :param action_id: action_id, ActionEnum
+        :param view_set: view_func对应的viewset名称
         :param view_action: view_func对应的action名称
         :param allow_resources_result: 允许访问的资源
         """
         if not allow_resources_result["allowed"]:
             return response
-        # 目前只有log_search下的接口需要过滤资源
-        if action_id != ExternalPermissionActionEnum.LOG_SEARCH.value:
-            return response
+        if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
+            return cls.filter_log_search_response_resource(
+                response=response,
+                action_id=action_id,
+                view_set=view_set,
+                view_action=view_action,
+                allow_resources_result=allow_resources_result,
+            )
+        if action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
+            return cls.filter_log_extract_response_resource(
+                external_user=external_user,
+                response=response,
+                view_set=view_set,
+                view_action=view_action,
+            )
+
+        return response
+
+    @classmethod
+    def filter_log_search_response_resource(
+        cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: Dict[str, Any]
+    ):
         allow_resources = allow_resources_result["resources"]
         view_set_class: ViewSetAction = ViewSetAction(action_id=action_id, view_set=view_set, view_action=view_action)
         if view_set_class.is_one_of(
@@ -109,7 +192,24 @@ class RequestProcessor:
                 data["data"] = allowed_data
                 response.data = data
                 return response
+        return response
 
+    @classmethod
+    def filter_log_extract_response_resource(
+        cls, external_user: str, response: Response, view_set: str, view_action: str
+    ):
+        if view_set == "TasksViewSet" and view_action == "list":
+            data = response.data
+            if isinstance(data, dict) and "data" in data:
+                allowed_data = []
+                for task in data["data"]["list"]:
+                    if task["created_by"] != external_user:
+                        continue
+                    allowed_data.append(task)
+                data["data"]["list"] = allowed_data
+                data["data"]["total"] = len(allowed_data)
+                response.data = data
+                return response
         return response
 
     @classmethod
@@ -132,7 +232,8 @@ def external(request):
     外部入口
     """
     space_uid = request.GET.get("space_uid", "")
-    external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+    external_user_info = RequestProcessor.get_request_user_info(request)
+    external_user = external_user_info.get("username", "")
     space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
     if space_uid:
         try:
@@ -175,7 +276,8 @@ def dispatch_list_user_spaces(request):
     """
     from apps.log_search.models import Space
 
-    external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+    external_user_info = RequestProcessor.get_request_user_info(request)
+    external_user = external_user_info.get("username", "")
     if not external_user:
         return HttpResponseForbidden("请求缺少HTTP_USER或USER请求头")
     space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
@@ -227,21 +329,23 @@ def dispatch_external_proxy(request):
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
     # proxy: url/method/data
-    url = params.get("url")
-    space_uid = params.get("space_uid", "") or request.COOKIES.get("space_uid", "")
-    method = params.get("method", "GET")
-    json_data = params.get("data", {})
+    url: str = params.get("url")
+    space_uid: str = RequestProcessor.get_space_uid(request=request)
+    method: str = params.get("method", "GET")
+    # 这里是字符串
+    json_data_str: str = params.get("data", "")
     authorizer = AuthorizerSettings.get_authorizer(space_uid=space_uid)
     try:
         parsed = urlsplit(url)
         if method.lower() == "get":
             fake_request = RequestFactory().get(url, content_type="application/json")
         elif method.lower() == "post":
-            fake_request = RequestFactory().post(url, data=json_data, content_type="application/json")
+            fake_request = RequestFactory().post(url, data=json_data_str, content_type="application/json")
         else:
             return JsonResponse(
                 {"result": False, "message": "dispatch_plugin_query: only support get and post method."}, status=400
             )
+        fake_request = RequestProcessor.copy_request_to_fake_request(request=request, fake_request=fake_request)
         # resolve view_func
         match = resolve(parsed.path, urlconf=None)
         view_func, kwargs = match.func, match.kwargs
@@ -250,7 +354,8 @@ def dispatch_external_proxy(request):
         view_action = RequestProcessor.get_view_action(view_func=view_func, method=method.lower())
         # 内部定义的action_id, ActionEnum
         action_id = ""
-        external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+        external_user_info = RequestProcessor.get_request_user_info(request)
+        external_user = external_user_info.get("username", "")
         allow_resources_result = {"allowed": False, "resources": []}
         # 判断是否是默认允许的接口, 默认允许的接口不需要进行权限校验
         if not RequestProcessor.is_default_allowed(view_set=view_set, view_action=view_action):
@@ -283,7 +388,9 @@ def dispatch_external_proxy(request):
             )
             if allow_resources_result["allowed"]:
                 allow_resources = allow_resources_result["resources"]
-                resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data)
+                resource = RequestProcessor.get_resource(
+                    action_id=action_id, kwargs=kwargs, json_data_str=json_data_str
+                )
                 if resource and resource not in allow_resources:
                     return JsonResponse(
                         {
@@ -309,10 +416,13 @@ def dispatch_external_proxy(request):
         setattr(request, "external_user", external_user)
         setattr(fake_request, "session", request.session)
         set_local_param("current_request", fake_request)
+        if external_user_info:
+            set_local_param("time_zone", external_user_info.get("time_zone", settings.TIME_ZONE))
 
         # call view_func
         response = view_func(fake_request, **kwargs)
         return RequestProcessor.filter_response_resource(
+            external_user=external_user,
             response=response,
             action_id=action_id,
             view_set=view_set,

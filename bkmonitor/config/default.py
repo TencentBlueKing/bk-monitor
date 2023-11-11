@@ -10,17 +10,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import base64
 import ntpath
 from urllib.parse import urljoin
 
 from bkcrypto import constants
-from bkcrypto.asymmetric.interceptors import BaseAsymmetricInterceptor
-from bkcrypto.symmetric import interceptors
-from bkcrypto.symmetric.ciphers import AESSymmetricCipher, BaseSymmetricCipher
-from bkcrypto.symmetric.ciphers.base import EncryptionMetadata
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
-from bkcrypto.utils import convertors
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
@@ -687,9 +681,7 @@ PING_SERVER_TARGET_NUMBER_LIMIT = 6000
 DISABLE_BIZ_ID = []
 
 # 是否开启聚合网关上报
-METRIC_AGG_GATEWAY_URL = ""
-# TODO: remove me after checking
-HTTP_METRIC_AGG_GATEWAY_URL = os.getenv("HTTP_METRIC_AGG_GATEWAY_URL", "")
+METRIC_AGG_GATEWAY_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_URL", "")
 
 # 网关API域名
 APIGW_BASE_URL = os.getenv("BKAPP_APIGW_BASE_URL", "")
@@ -1107,7 +1099,6 @@ BKHCAT_APP_CODE = os.getenv("BKHCAT_APP_CODE", "")
 BKHCAT_APP_SECRET = os.getenv("BKHCAT_APP_SECRET", "")
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
-BK_NODEMAN_VERSION = "2.0"  # 节点管理版本，默认是2.0，如果还是老的版本，需要在全局配置页面修改为1.3
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
 )

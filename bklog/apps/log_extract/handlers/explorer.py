@@ -250,13 +250,11 @@ class ExplorerHandler(object):
         @param bk_biz_id: 业务ID
         @return: 返回过滤后的topo，过滤后的topo结构与原先一致
         """
-        # 获取biz_id和username
-        request_user = get_request_username()
         # 获取全部的topo树
         total_topo, *_ = self.search_biz_inst_topo(bk_biz_id)
         format_bizs_set = self.format_topo(total_topo)
         # 获取策略
-        auth_info = self.get_auth_info(request_user, bk_biz_id)
+        auth_info = self.get_auth_info(bk_biz_id)
         user_topo_list = []
         # 过滤
         self.get_user_topo(copy.deepcopy(total_topo), user_topo_list, auth_info)
@@ -296,11 +294,10 @@ class ExplorerHandler(object):
             return []
 
         bk_biz_id = scope_list[0]["bk_biz_id"]
-        request_user = get_request_username()
         origin_tree = resource.ResourceQueryHelper.get_topo_tree(bk_biz_id, return_all=True)
 
         # 获取策略
-        auth_info = self.get_auth_info(request_user, bk_biz_id)
+        auth_info = self.get_auth_info(bk_biz_id)
 
         # 过滤用户有权限的节点
         filtered_nodes = self.filter_nodes([origin_tree], auth_info)
@@ -449,16 +446,26 @@ class ExplorerHandler(object):
             total_sets_dict.update({item["bk_inst_id"]: item})
         return topo_bizs_dict, total_sets_dict
 
-    @classmethod
-    def get_auth_info(cls, username, bk_biz_id):
+    def get_auth_info(self, bk_biz_id):
         """
         从策略表中取出策略信息
-        @param username: 当前用户名
         @param bk_biz_id: 业务ID
         @return: user_auth，根据topo和module选择的策略dict
         """
         user_auth = {"auth_topo": {"bizs": [], "sets": [], "modules": []}, "auth_modules": []}
-        kwargs = {"user_list__contains": f",{username},", "bk_biz_id": bk_biz_id}
+        kwargs = {"user_list__contains": f",{self.request_user},", "bk_biz_id": bk_biz_id}
+        # 增加外部用户权限处理
+        logger.info("log_extract, user: {}, external_user: {}".format(self.request_user, self.external_user))
+        if self.external_user:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            allowed_resources_result = ExternalPermission.get_resources(
+                action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value,
+                space_uid=space_uid,
+                authorized_user=self.external_user,
+            )
+            if not allowed_resources_result.get("resources", []):
+                raise exceptions.ExplorerStrategiesFailed
+            kwargs["strategy_id__in"] = allowed_resources_result["resources"]
         auth_modules = []
         auth_topo = []
         strategies = Strategies.objects.filter(**kwargs).values("select_type", "modules")
@@ -496,7 +503,6 @@ class ExplorerHandler(object):
         """
         检索用户是否有这个TOPO的访问权限
         @param topo: 当前topo节点
-        @param username: 当前用户
         @return: Bool
         """
         if topo["bk_obj_id"] == "biz" and topo["bk_inst_id"] in auth_topo["auth_topo"]["bizs"]:
@@ -515,7 +521,6 @@ class ExplorerHandler(object):
         递归判断topo是否有权限
         @param topo: 待检查的topo
         @param user_topo: 检查后的topo
-        @param username: 当前用户
         @param parents: 记录topo的所有路径
         @return: 过滤后的topo
         """
