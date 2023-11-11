@@ -1592,6 +1592,8 @@ class IndexSetFieldsConfigHandler(object):
                 scope=self.scope,
                 source_app_code=self.source_app_code,
             )
+            self.data.created_by = username
+            self.data.save()
 
         # add user_operation_record
         try:
