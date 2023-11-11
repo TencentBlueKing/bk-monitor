@@ -19,12 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import importlib
 import json
 import logging
 import time
 
-import arrow
 from celery.schedules import crontab
 from celery.task import periodic_task, task
 from django.conf import settings
@@ -35,7 +33,7 @@ from apps.log_measure.models import MetricDataHistory
 from apps.log_measure.utils.metric import MetricUtils, build_metric_id
 from bk_monitor.handler.monitor import BKMonitor
 from bk_monitor.utils.collector import MetricCollector
-from bk_monitor.utils.metric import REGISTERED_METRICS, clear_registered_metrics
+from bk_monitor.utils.metric import clear_registered_metrics
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 logger = logging.getLogger("log_measure")
@@ -101,29 +99,19 @@ def bk_monitor_collect():
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
     time.sleep(2)
-    time_now = arrow.now()
-    time_now_minute = 60 * time_now.hour + time_now.minute
     for import_path in feature_toggle_obj.feature_config.get("import_paths", []):
-        importlib.reload(importlib.import_module(import_path))
-        for metric in REGISTERED_METRICS.values():
-            if time_now_minute % metric["time_filter"]:
-                logger.info(f"[statistics_data] start collecting {import_path}")
-                collect_metrics.delay([import_path], [metric["namespace"]], [metric["data_names"]])
-        # 清理注册表里的内容，下一次运行的时候重新注册
-        clear_registered_metrics()
+        collect_metrics.delay(collector_import_paths=[import_path])
 
 
 @task(ignore_result=True)
-def collect_metrics(collector_import_paths: list, namespaces: list = None, data_names: list = None):
+def collect_metrics(collector_import_paths: list = None, namespaces: list = None):
     """
     将已通过 register_metric 注册的对应metric收集存入数据库
     Attributes:
         collector_import_paths: list 动态引用文件列表
         namespaces: 允许上报namespace列表
     """
-    metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(
-        namespaces=namespaces, data_names=data_names
-    )
+    metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(namespaces=namespaces)
     try:
         for group in metric_groups:
             metric_id = build_metric_id(

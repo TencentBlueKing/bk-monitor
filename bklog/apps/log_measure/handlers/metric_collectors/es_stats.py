@@ -939,7 +939,7 @@ def process_pshard_stats_data(metrics, get, version, base_dimensions):
     @param base_dimensions:
     @return:
     """
-    data = get(get_url(version)["pshard_url"])
+    data = get(get_url(version)["pshard_stats_url"])
     if not data:
         return
     pshard_stats_metrics = pshard_stats_for_version(version)
