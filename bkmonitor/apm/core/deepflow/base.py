@@ -525,7 +525,6 @@ class EBPFHandler:
         if not span_resource.get("service.name"):
             cls.put_value_map(span_resource, "service.name", "deepflow")
 
-        if span.elapsed_time:
-            span.elapsed_time = span.end_time - span.start_time
+        span.elapsed_time = span.end_time - span.start_time
 
         return span.span_to_dict()
