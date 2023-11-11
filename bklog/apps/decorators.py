@@ -30,7 +30,7 @@ from apps.log_audit.models import UserOperationRecord  # noqa
 from bkm_space.utils import space_uid_to_bk_biz_id  # noqa
 
 
-@high_priority_task()
+@high_priority_task
 def user_operation_record(operation_record: dict):
     bk_biz_id = operation_record.get("biz_id")
     space_uid = operation_record.get("space_uid")

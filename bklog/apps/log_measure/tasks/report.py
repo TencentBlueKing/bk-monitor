@@ -138,5 +138,5 @@ def collect_metrics(collector_import_paths: list = None, namespaces: list = None
         # 清理注册表里的内容，下一次运行的时候重新注册
         clear_registered_metrics()
 
-    except Exception as e:
-        logger.exception(f"Failed to save metric_data, msg: {e}")
+    except Exception as ex:
+        logger.exception(f"Failed to save metric_data, msg: {ex}")

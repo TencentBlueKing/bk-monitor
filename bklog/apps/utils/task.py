@@ -13,10 +13,10 @@ from django.conf import settings
 
 
 def high_priority_task(*args, **kwargs):
-    """Deprecated decorator, please use :func:`celery.task`."""
+    """高优先级任务"""
     return task(*args, **dict({'queue': settings.BK_LOG_HIGH_PRIORITY_QUEUE}, **kwargs))
 
 
 def high_priority_periodic_task(*args, **options):
-    """Deprecated decorator, please use :setting:`beat_schedule`."""
-    return periodic_task(**dict({'queue': settings.BK_LOG_HIGH_PRIORITY_QUEUE}, **options))
+    """高优先级周期任务"""
+    return periodic_task(*args, **dict({'queue': settings.BK_LOG_HIGH_PRIORITY_QUEUE}, **options))
