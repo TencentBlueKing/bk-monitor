@@ -49,6 +49,18 @@ class RequestProcessor:
     """
 
     @classmethod
+    def copy_request_to_fake_request(cls, request, fake_request):
+        """
+        复制请求内容到fake_request
+        """
+        fake_request_meta = getattr(fake_request, "META", {})
+        if request.META.get("HTTP_BK_APP_CODE", ""):
+            fake_request_meta["HTTP_BK_APP_CODE"] = request.META["HTTP_BK_APP_CODE"]
+            setattr(fake_request, "META", fake_request_meta)
+
+        return fake_request
+
+    @classmethod
     def get_request_user_info(cls, request) -> Dict[str, Any]:
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
         try:
@@ -56,6 +68,7 @@ class RequestProcessor:
         except Exception:
             logger.error(f"解析外部用户信息失败({external_user})")
             external_user = {"username": external_user}
+        logger.info(f"external_user_info: {external_user}")
         return external_user
 
     @classmethod
@@ -63,7 +76,7 @@ class RequestProcessor:
         """获取view_func对应的viewset名称"""
         if hasattr(view_func, "cls"):
             return view_func.cls.__name__
-        return ""
+        return view_func.__name__
 
     @classmethod
     def get_view_action(cls, view_func, method):
@@ -73,13 +86,17 @@ class RequestProcessor:
         return ""
 
     @classmethod
-    def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data: Dict[str, Any]):
+    def get_resource(cls, action_id: str, kwargs: Dict[str, Any], json_data_str: str):
         """获取请求中的资源"""
         if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
             if "index_set_id" in kwargs:
                 return int(kwargs.get("index_set_id", ""))
-            if "index_set_id" in json_data:
-                return int(json_data.get("index_set_id", ""))
+            try:
+                json_data = json.loads(json_data_str)
+                if "index_set_id" in json_data:
+                    return int(json_data.get("index_set_id", ""))
+            except Exception:
+                logger.exception(f"解析请求数据({json_data_str})失败")
         return None
 
     @classmethod
@@ -239,21 +256,23 @@ def dispatch_external_proxy(request):
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
     # proxy: url/method/data
-    url = params.get("url")
-    space_uid = params.get("space_uid", "") or request.COOKIES.get("space_uid", "")
-    method = params.get("method", "GET")
-    json_data = params.get("data", {})
+    url: str = params.get("url")
+    space_uid: str = params.get("space_uid", "") or request.COOKIES.get("space_uid", "")
+    method: str = params.get("method", "GET")
+    # 这里是字符串
+    json_data_str: str = params.get("data", "")
     authorizer = AuthorizerSettings.get_authorizer(space_uid=space_uid)
     try:
         parsed = urlsplit(url)
         if method.lower() == "get":
             fake_request = RequestFactory().get(url, content_type="application/json")
         elif method.lower() == "post":
-            fake_request = RequestFactory().post(url, data=json_data, content_type="application/json")
+            fake_request = RequestFactory().post(url, data=json_data_str, content_type="application/json")
         else:
             return JsonResponse(
                 {"result": False, "message": "dispatch_plugin_query: only support get and post method."}, status=400
             )
+        fake_request = RequestProcessor.copy_request_to_fake_request(request=request, fake_request=fake_request)
         # resolve view_func
         match = resolve(parsed.path, urlconf=None)
         view_func, kwargs = match.func, match.kwargs
@@ -296,7 +315,7 @@ def dispatch_external_proxy(request):
             )
             if allow_resources_result["allowed"]:
                 allow_resources = allow_resources_result["resources"]
-                resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data)
+                resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data_str)
                 if resource and resource not in allow_resources:
                     return JsonResponse(
                         {

@@ -412,6 +412,7 @@ class ViewSetActionEnum(ChoicesEnum):
     META_VIEWSET = ViewSetAction(view_set="MetaViewSet", default_permission=True)
     LANGUAGE_VIEWSET = ViewSetAction(view_set="LanguageViewSet", default_permission=True)
     MENU_VIEWSET = ViewSetAction(view_set="MenuViewSet", default_permission=True)
+    GET_DOCS_LINK = ViewSetAction(view_set="get_docs_link", default_permission=True)
 
     _choices_keys = (
         # ======================================= 检索-SearchViewSet =======================================
@@ -460,6 +461,7 @@ class ViewSetActionEnum(ChoicesEnum):
         META_VIEWSET,
         LANGUAGE_VIEWSET,
         MENU_VIEWSET,
+        GET_DOCS_LINK,
     )
 
 
