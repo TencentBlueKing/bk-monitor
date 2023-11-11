@@ -315,7 +315,9 @@ def dispatch_external_proxy(request):
             )
             if allow_resources_result["allowed"]:
                 allow_resources = allow_resources_result["resources"]
-                resource = RequestProcessor.get_resource(action_id=action_id, kwargs=kwargs, json_data=json_data_str)
+                resource = RequestProcessor.get_resource(
+                    action_id=action_id, kwargs=kwargs, json_data_str=json_data_str
+                )
                 if resource and resource not in allow_resources:
                     return JsonResponse(
                         {
