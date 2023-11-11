@@ -84,10 +84,11 @@ class RequestProcessor:
         复制请求内容到fake_request
         """
         fake_request_meta = getattr(fake_request, "META", {})
+        logger.info(f"request.META: {request.META}")
         if request.META.get("HTTP_BK_APP_CODE", ""):
             fake_request_meta["HTTP_BK_APP_CODE"] = request.META["HTTP_BK_APP_CODE"]
             setattr(fake_request, "META", fake_request_meta)
-
+        logger.info(f"fake_request.META: {fake_request.META}")
         return fake_request
 
     @classmethod
