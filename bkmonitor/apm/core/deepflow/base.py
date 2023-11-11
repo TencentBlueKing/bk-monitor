@@ -82,7 +82,7 @@ class EBPFHandler:
         """
         字符串时间 --> 时间戳, 单位 us
         """
-        return int(arrow.get(str_time).timestamp() * 1000 * 1000)
+        return int(arrow.get(str_time).float_timestamp * 1000 * 1000)
 
     @classmethod
     def response_status_to_span_status_message(cls, status: int):
