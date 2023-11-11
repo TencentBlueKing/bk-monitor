@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
+import logging
 import random
 import time
 from datetime import datetime
@@ -28,6 +30,8 @@ from apm.core.deepflow.constants import (
 )
 from apm_web.constants import EbpfTapSideType, EbpfSignalSourceType
 from constants.apm import SpanKind
+
+logger = logging.getLogger("apm")
 
 
 class Span:
@@ -103,6 +107,22 @@ class EBPFHandler:
         }
 
         return switcher.get(status, 0)
+
+    @classmethod
+    def merge_value_to_attrs_map(cls, attrs: dict, value):
+        if isinstance(value, str):
+            try:
+                tem_value = json.loads(value)
+                if isinstance(tem_value, dict):
+                    attrs.update(tem_value)
+            except Exception as e:
+                logger.info("merge_value_to_attrs_map, value: {}, exception: {}".format(value, e))
+
+    @classmethod
+    def put_bool_value_to_map(cls, attrs: dict, key: str, value):
+        if value:
+            attrs[key] = True
+        attrs[key] = False
 
     @classmethod
     def put_value_map(cls, attrs: dict, key: str, value):
@@ -370,11 +390,10 @@ class EBPFHandler:
             span.kind = cls.tap_side_to_span_kind(item.get("tap_side"))
 
         # attribute
-        if item.get("attribute") and isinstance(item.get("attribute"), dict):
-            span_attrs.update(item.get("attribute"))
+        if item.get("attribute"):
+            cls.merge_value_to_attrs_map(span_attrs, item.get("attribute"))
 
         # Tracing Info
-        cls.put_value_map(span_attrs, "df.span.x_request_id", item.get("x_request_id"))
         cls.put_value_map(span_attrs, "df.span.x_request_id_0", item.get("x_request_id_0"))
         cls.put_value_map(span_attrs, "df.span.x_request_id_1", item.get("x_request_id_1"))
 
@@ -407,9 +426,8 @@ class EBPFHandler:
         cls.put_value_map(span_resource, "thread.name_1", item.get("process_kname_1"))
 
         # Flow Info
-        cls.put_value_map(span_attrs, "df.flow_info.id", item.get("_id"))
-        cls.put_value_map(span_attrs, "df.flow_info.time", item.get("time"))
-        cls.put_value_map(span_attrs, "df.flow_info.flow_id", item.get("flow_id"))
+        cls.put_value_map(span_resource, "df.flow_info.id", item.get("_id"))
+        cls.put_value_map(span_resource, "df.flow_info.flow_id", item.get("flow_id"))
 
         # Capture Info
         cls.put_value_map(span_resource, "df.capture_info.signal_source", signal_source)
@@ -424,34 +442,52 @@ class EBPFHandler:
         cls.put_value_map(span_resource, "df.capture_info.tap_side", cls.tap_side_to_name(item.get("tap_side")))
 
         # Network Layer
-        cls.put_value_map(span_attrs, "df.network.ip", item.get("ip"))
-        cls.put_value_map(span_attrs, "df.network.is_ipv4", item.get("is_ipv4"))
-        cls.put_value_map(span_attrs, "df.network.is_internet", item.get("is_internet"))
+        cls.put_bool_value_to_map(span_resource, "df.network.is_ipv4", item.get("is_ipv4"))
+        cls.put_bool_value_to_map(span_resource, "df.network.is_internet_0", item.get("is_internet_0"))
+        cls.put_bool_value_to_map(span_resource, "df.network.is_internet_1", item.get("is_internet_1"))
+        cls.put_value_map(span_resource, "df.network.protocol", item.get("Enum(protocol)"))
+        cls.put_value_map(span_resource, "df.network.ip_0", item.get("ip_0"))
+        cls.put_value_map(span_resource, "df.network.ip_1", item.get("ip_1"))
 
         # Transport Layer
         cls.put_value_map(span_resource, "df.transport.client_port", item.get("client_port"))
         cls.put_value_map(span_resource, "df.transport.server_port", item.get("server_port"))
-        cls.put_value_map(span_resource, "df.transport.tcp_flags_bit", item.get("tcp_flags_bit"))
-        cls.put_value_map(span_resource, "df.transport.syn_seq", item.get("syn_seq"))
-        cls.put_value_map(span_resource, "df.transport.syn_ack_seq", item.get("syn_ack_seq"))
-        cls.put_value_map(span_resource, "df.transport.last_keepalive_seq", item.get("last_keepalive_seq"))
-        cls.put_value_map(span_resource, "df.transport.last_keepalive_ack", item.get("last_keepalive_ack"))
         cls.put_value_map(span_resource, "df.transport.req_tcp_seq", item.get("req_tcp_seq"))
         cls.put_value_map(span_resource, "df.transport.resp_tcp_seq", item.get("resp_tcp_seq"))
 
         # Application Layer
-        cls.put_value_map(span_resource, "df.application.item_protocol", item.get("item_protocol"))
+        cls.put_value_map(span_resource, "df.application.l7_protocol", item.get("Enum(l7_protocol)"))
         cls.put_value_map(span_resource, "telemetry.sdk.name", "deepflow")
         # version
         cls.put_value_map(span_resource, "telemetry.sdk.version", "v6.3.3.0")
 
         # 应用协议附加字段
-        cls.put_value_map(span_attrs, "net.host.name", item.get("chost_0", item.get("pod_node_0")))
-        cls.put_value_map(span_attrs, "net.peer.name", item.get("chost_1", item.get("pod_node_1")))
-        cls.put_value_map(span_attrs, "net.host.port", item.get("client_port"))
-        cls.put_value_map(span_attrs, "net.peer.port", item.get("server_port"))
-        cls.put_value_map(span_attrs, "net.sock.host.addr", item.get("ip_0"))
-        cls.put_value_map(span_attrs, "net.sock.peer.addr", item.get("ip_1"))
+        if cls.is_server_side(item.get("tap_side")):
+            cls.put_value_map(span_attrs, "net.host.name", item.get("chost_1", item.get("pod_node_1")))
+            cls.put_value_map(span_attrs, "net.peer.name", item.get("chost_0", item.get("pod_node_0")))
+            cls.put_value_map(span_attrs, "net.host.port", item.get("server_port"))
+            cls.put_value_map(span_attrs, "net.peer.port", item.get("client_port"))
+            if item.get("is_ipv4"):
+                cls.put_value_map(span_attrs, "net.sock.host.addr", item.get("ip4_1"))
+            else:
+                cls.put_value_map(span_attrs, "net.sock.host.addr", item.get("ip6_1"))
+            if item.get("is_ipv4"):
+                cls.put_value_map(span_attrs, "net.sock.peer.addr", item.get("ip4_0"))
+            else:
+                cls.put_value_map(span_attrs, "net.sock.peer.addr", item.get("ip6_0"))
+        else:
+            cls.put_value_map(span_attrs, "net.host.name", item.get("chost_0", item.get("pod_node_0")))
+            cls.put_value_map(span_attrs, "net.peer.name", item.get("chost_1", item.get("pod_node_1")))
+            cls.put_value_map(span_attrs, "net.host.port", item.get("client_port"))
+            cls.put_value_map(span_attrs, "net.peer.port", item.get("server_port"))
+            if item.get("is_ipv4"):
+                cls.put_value_map(span_attrs, "net.sock.host.addr", item.get("ip4_0"))
+            else:
+                cls.put_value_map(span_attrs, "net.sock.host.addr", item.get("ip6_0"))
+            if item.get("is_ipv4"):
+                cls.put_value_map(span_attrs, "net.sock.peer.addr", item.get("ip4_1"))
+            else:
+                cls.put_value_map(span_attrs, "net.sock.peer.addr", item.get("ip6_1"))
 
         l7_protocol = item.get("l7_protocol")
         if l7_protocol:
