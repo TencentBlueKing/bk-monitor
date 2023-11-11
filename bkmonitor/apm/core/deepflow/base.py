@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
+import logging
 import random
 import time
 from datetime import datetime
@@ -29,6 +30,8 @@ from apm.core.deepflow.constants import (
 )
 from apm_web.constants import EbpfTapSideType, EbpfSignalSourceType
 from constants.apm import SpanKind
+
+logger = logging.getLogger("apm")
 
 
 class Span:
@@ -107,8 +110,13 @@ class EBPFHandler:
 
     @classmethod
     def merge_value_to_attrs_map(cls, attrs: dict, value):
-        if value.startswith("{"):
-            attrs.update(json.loads(value))
+        if isinstance(value, str):
+            try:
+                tem_value = json.loads(value)
+                if isinstance(tem_value, dict):
+                    attrs.update(tem_value)
+            except Exception as e:
+                logger.info("merge_value_to_attrs_map, value: {}, exception: {}".format(value, e))
 
     @classmethod
     def put_bool_value_to_map(cls, attrs: dict, key: str, value):
