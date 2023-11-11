@@ -3350,5 +3350,6 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ]
+  ],
+  "__path": "dashboards/DeepFlow-Templates/Applicaton-Dubbo-Monitoring-K8S.json"
 }

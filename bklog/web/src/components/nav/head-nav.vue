@@ -48,6 +48,29 @@
       </ul>
     </div>
     <div class="nav-right fr" v-show="usernameRequested">
+      <!-- 全局设置 -->
+      <bk-dropdown-menu
+        align="center"
+        trigger="click"
+        @show="dropdownGlobalShow"
+        @hide="dropdownGlobalHide">
+        <div class="icon-language-container" slot="dropdown-trigger">
+          <span
+            :class="{
+              'setting bk-icon icon-cog-shape': true,
+              active: isShowGlobalDialog || isShowGlobalDropdown
+            }"></span>
+        </div>
+        <ul class="bk-dropdown-list" slot="dropdown-content">
+          <li class="language-btn" v-for="item in globalSettingList" :key="item.id">
+            <a
+              href="javascript:;"
+              @click="handleClickGlobalDialog(item.id)">
+              {{ item.name }}
+            </a>
+          </li>
+        </ul>
+      </bk-dropdown-menu>
       <!-- 语言 -->
       <bk-dropdown-menu
         align="center"
@@ -168,6 +191,7 @@ export default {
       username: '',
       usernameRequested: false,
       isShowLanguageDropdown: false,
+      isShowGlobalDropdown: false,
       isShowHelpDropdown: false,
       isShowLogoutDropdown: false,
       showLogVersion: false,
@@ -182,6 +206,8 @@ export default {
       asIframe: state => state.asIframe,
       iframeQuery: state => state.iframeQuery,
       isExternal: state => state.isExternal,
+      isShowGlobalDialog: state => state.isShowGlobalDialog,
+      globalSettingList: state => state.globalSettingList,
     }),
     ...mapGetters('globals', ['globalsData']),
     envConfig() {
@@ -235,6 +261,7 @@ export default {
       }
     },
     jumpToHome() {
+      this.$store.commit('updateIsShowGlobalDialog', false);
       this.$router.push({
         name: 'retrieve',
         query: {
@@ -246,6 +273,8 @@ export default {
       });
     },
     routerHandler(menu) {
+      // 关闭全局设置弹窗
+      this.$store.commit('updateIsShowGlobalDialog', false);
       if (menu.id === this.activeTopMenu.id) {
         if (menu.id === 'retrieve') {
           this.$router.push({
@@ -376,6 +405,12 @@ export default {
     dropdownLanguageHide() {
       this.isShowLanguageDropdown = false;
     },
+    dropdownGlobalShow() {
+      this.isShowGlobalDropdown = true;
+    },
+    dropdownGlobalHide() {
+      this.isShowGlobalDropdown = false;
+    },
     dropdownHelpShow() {
       this.isShowHelpDropdown = true;
     },
@@ -402,6 +437,11 @@ export default {
     /** 退出登录 */
     handleQuit() {
       location.href = `${window.BK_PLAT_HOST}/console/accounts/logout/`;
+    },
+    handleClickGlobalDialog(id) {
+      // 打开全局设置弹窗
+      this.$store.commit('updateGlobalActiveLabel', id);
+      this.$store.commit('updateIsShowGlobalDialog', true);
     },
   },
 };
@@ -502,6 +542,38 @@ export default {
       color: #768197;
 
       @include clearfix;
+
+      .setting {
+        font-size: 15px;
+        margin-right: 10px;
+        cursor: pointer;
+        position: relative;
+
+        &::before {
+          position: relative;
+          z-index: 999;
+          top: 1px;
+        }
+
+        &.active,
+        &:hover {
+          color: #fff;
+        }
+
+        &.active::after,
+        &:hover::after {
+          content: '';
+          z-index: 99;
+          position: absolute;
+          bottom: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          background: #424e5a;
+        }
+      }
 
       .select-business {
         margin-right: 22px;

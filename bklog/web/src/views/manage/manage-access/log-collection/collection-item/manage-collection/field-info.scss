@@ -1,0 +1,75 @@
+@import '../../../../../../scss/mixins/flex.scss';
+
+.icon-date-picker {
+  font-size: 16px;
+  color: #979ba5;
+}
+
+.icon-check-line {
+  font-size: 16px;
+  color: #2dcb56;
+}
+
+.masking-tag {
+  .masking-popover {
+    color: #63656e;
+
+    > :not(:first-child) {
+      margin-top: 6px;
+    }
+
+    .label-box {
+      @include flex-align(start);
+
+      .label {
+        height: 24px;
+        line-height: 24px;
+        flex-shrink: 0;
+      }
+
+      .rule {
+        line-height: 24px;
+        flex-direction: column;
+
+        @include flex-align(start)
+      ;
+
+        span {
+          height: 24px;
+          line-height: 24px;
+        }}
+    }
+
+    .preview-result {
+      max-width: 400px;
+
+      @include flex-align(center);
+  
+      .old {
+        color: #63656e;
+      }
+  
+      .icon-arrows-right {
+        font-size: 24px;
+        color: #c4c6cc;
+      }
+  
+      .result {
+        min-width: 20px;
+        color: #ff9c01;
+      }
+    }
+  }
+}
+
+.masking-tag-box {
+  height: 20px;
+  line-height: 20px;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  margin-left: 4px;
+  color: #3a84ff;
+  background: #edf4ff;
+  cursor: pointer;
+}

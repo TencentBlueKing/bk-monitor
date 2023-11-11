@@ -797,5 +797,6 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ]
+  ],
+  "__path": "dashboards/DeepFlow-Templates/Network-K8s-Pod.json"
 }

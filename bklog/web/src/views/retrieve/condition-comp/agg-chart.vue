@@ -55,9 +55,10 @@
         </li>
       </template>
       <li class="more-item" v-if="!showAllList && shouldShowMore">
-        <span @click="() => {
-          showAllList = !showAllList
-        }">{{$t('更多')}}</span>
+        <span
+          @click="() => {
+            showAllList = !showAllList
+          }">{{$t('更多')}}</span>
       </li>
     </ul>
   </div>

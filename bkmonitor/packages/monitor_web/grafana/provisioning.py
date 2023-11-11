@@ -9,24 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import fnmatch
-import json
 import logging
 import os
 import typing
-from dataclasses import asdict, dataclass
 from typing import List
 
 from blueapps.conf import settings
-from django.core.cache import cache
 
 from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.deepflow import DeepflowHandler
-from bk_dataview.provisioning import (
-    Dashboard,
-    Datasource,
-    SimpleProvisioning,
-    sync_data_sources,
-)
+from bk_dataview.provisioning import Dashboard, Datasource, SimpleProvisioning
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
@@ -37,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 class ApmEbpfProvisioning(SimpleProvisioning):
     _FOLDER_NAME = "eBPF"
+    # eBPF的仪表盘模版插件Id 需要与apm_ebpf/*.json文件下__inputs.pluginId一致
+    _TEMPLATE_PLUGIN_ID = "deepflowio-deepflow-datasource"
 
     @using_cache(CacheType.GRAFANA)
     def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
@@ -90,6 +84,29 @@ class ApmEbpfProvisioning(SimpleProvisioning):
         return res
 
     @classmethod
+    def delete_empty_directory(cls):
+        """删除空的eBPF目录"""
+        orgs = api.grafana.get_all_organization()
+        if not orgs.get("result"):
+            logger.info(f"failed to get organization, result: {orgs}")
+            return
+
+        for org in orgs.get("data", []):
+            folders = api.grafana.list_folder(org_id=org["id"])
+            if not folders.get("result"):
+                logger.warning(f"list folder of org_id: {org['id']} failed, result: {folders}, skipped")
+                continue
+
+            ebpf_folder = next((f for f in folders.get("data", []) if f["title"] == cls._FOLDER_NAME), None)
+            if not ebpf_folder:
+                continue
+
+            dashboards = api.grafana.search_folder_or_dashboard(org_id=org["id"], folderIds=[ebpf_folder["id"]])
+            if dashboards.get("result") and not dashboards.get("data"):
+                api.grafana.delete_folder(org_id=org["id"], uid=ebpf_folder["id"])
+                logger.info(f"delete {cls._FOLDER_NAME} folder of org_id: {org['id']}(org_name: {org['name']})")
+
+    @classmethod
     def _generate_default_dashboards(
         cls, datasources, org_id, json_name, template, folder_id
     ) -> typing.List[Dashboard]:
@@ -98,6 +115,9 @@ class ApmEbpfProvisioning(SimpleProvisioning):
             d["type"]: {"type": "datasource", "pluginId": d["type"], "value": d.get("uid", "")}
             for d in datasources
         }
+        if cls._TEMPLATE_PLUGIN_ID not in type_mapping:
+            # 此业务无eBPF集群 不创建仪表盘
+            return []
 
         inputs = []
         for input_field in template.get("__inputs", []):
@@ -115,14 +135,18 @@ class ApmEbpfProvisioning(SimpleProvisioning):
             else:
                 folder_id = folder_mapping[cls._FOLDER_NAME]["id"]
 
-        return [
-            Dashboard(
-                org_id=org_id,
-                dashboard=template,
-                inputs=inputs,
-                folderId=folder_id,
-            )
-        ]
+        ds = Dashboard(
+            org_id=org_id,
+            dashboard=template,
+            inputs=inputs,
+            folderId=folder_id,
+        )
+        if template.get("__path"):
+            # __path为eBPF模版中自定义字段 如果字段存在则证明为数据源内置仪表盘
+            ds.pluginId = cls._TEMPLATE_PLUGIN_ID
+            ds.path = template["__path"]
+
+        return [ds]
 
 
 class BkMonitorProvisioning(SimpleProvisioning):

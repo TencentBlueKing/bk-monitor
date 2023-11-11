@@ -12,20 +12,22 @@ specific language governing permissions and limitations under the License.
 import mock
 
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
-from core.drf_resource import api
+from apm_ebpf.resource import TraceQueryResource
 
 
 def test_ebpf_query():
 
-    params = {"trace_id": "f8b5662793fcdc963a628405061995df"}
-    mock.patch("api.deepflow.default.DeepFlowAPIResource.perform_request", return_value={}).start()
-    res = api.deepflow.query(params)
+    sql = "SELECT signal_source, tap_side  FROM l7_flow_log"
+    params = {"trace_id": "f8b5662793fcdc963a628405061995df", "bk_biz_id": 2, "sql": sql, "db": "flow_log"}
+    mock.patch("apm_ebpf.resource.TraceQueryResource.request", return_value={}).start()
+    res = TraceQueryResource().request(params)
 
     assert len(res) == 0
 
 
 def test_ebpf_query_error_param():
-    trace_id = None
-    span_ebpf = DeepFlowQuery.get_ebpf(trace_id)
+    trace_id = "f8b5662793fcdc963a628405061995df"
+    bk_biz_id = None
+    span_ebpf = DeepFlowQuery.get_ebpf(trace_id, bk_biz_id)
 
     len(span_ebpf) == 0
