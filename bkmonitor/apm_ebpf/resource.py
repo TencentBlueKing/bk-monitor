@@ -57,7 +57,8 @@ class TraceQueryResource(Resource):
         response = r.json()
         result = response.get("result", {})
         ebpf_data = []
-        for values in result.get("values", []):
+        result_values = result.get("values") if result.get("values") else []
+        for values in result_values:
             ebpf_data.append(dict(zip(result.get("columns", []), values)))
         return ebpf_data
 
