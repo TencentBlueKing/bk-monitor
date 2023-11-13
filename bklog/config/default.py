@@ -212,6 +212,7 @@ CELERY_IMPORTS = (
 )
 
 # bk crypto sdk配置
+BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
 BKCRYPTO = {
     "SYMMETRIC_CIPHERS": {
         "default": {
