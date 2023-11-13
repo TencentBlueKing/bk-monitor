@@ -785,22 +785,26 @@ class Favorite(OperateRecordModel):
     visible_type = models.CharField(_("可见类型"), max_length=64, choices=FavoriteVisibleType.get_choices())  # 个人 | 公开
     is_enable_display_fields = models.BooleanField(_("是否同时显示字段"), default=False)
     display_fields = models.JSONField(_("显示字段"), blank=True, default=None)
+    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
 
     class Meta:
         verbose_name = _("检索收藏")
         verbose_name_plural = _("34_搜索-检索收藏")
         ordering = ("-updated_at",)
-        unique_together = [("name", "space_uid")]
+        unique_together = [("name", "space_uid", "source_app_code")]
 
     @classmethod
     def get_user_favorite(
         cls, space_uid: str, username: str, order_type: str = FavoriteListOrderType.NAME_ASC.value
     ) -> list:
+        """获取用户所有能看到的收藏"""
+        source_app_code = get_request_app_code()
         favorites = []
         qs = cls.objects.filter(
             Q(space_uid=space_uid, created_by=username, visible_type=FavoriteVisibleType.PRIVATE.value)
             | Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
         )
+        qs = qs.filter(source_app_code=source_app_code)
         if order_type == FavoriteListOrderType.NAME_ASC.value:
             qs = qs.order_by("name")
         elif order_type == FavoriteListOrderType.NAME_DESC.value:
@@ -833,9 +837,10 @@ class Favorite(OperateRecordModel):
     def get_favorite_index_set_ids(cls, username: str, index_set_ids: list = None) -> list:
         if not index_set_ids:
             return []
-        return cls.objects.filter(index_set_id__in=index_set_ids, created_by=username).values_list(
-            "index_set_id", flat=True
-        )
+        source_app_code = get_request_app_code()
+        return cls.objects.filter(
+            index_set_id__in=index_set_ids, created_by=username, source_app_code=source_app_code
+        ).values_list("index_set_id", flat=True)
 
 
 class FavoriteGroup(OperateRecordModel):
@@ -844,35 +849,52 @@ class FavoriteGroup(OperateRecordModel):
     name = models.CharField(_("收藏组名称"), max_length=64)
     group_type = models.CharField(_("收藏组类型"), max_length=64, choices=FavoriteGroupType.get_choices())
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
+    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
 
     class Meta:
         verbose_name = _("检索收藏组")
         verbose_name_plural = _("34_搜索-检索收藏组")
         ordering = ("-updated_at",)
-        unique_together = [("name", "space_uid", "created_by")]
+        unique_together = [("name", "space_uid", "created_by", "source_app_code")]
 
     @classmethod
     def get_or_create_private_group(cls, space_uid: str, username: str) -> "FavoriteGroup":
+        source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
             group_type=FavoriteGroupType.PRIVATE.value,
             space_uid=space_uid,
             created_by=username,
+            source_app_code=source_app_code,
             defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value))},
         )
         return obj
 
     @classmethod
     def get_or_create_ungrouped_group(cls, space_uid: str) -> "FavoriteGroup":
+        source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
             group_type=FavoriteGroupType.UNGROUPED.value,
             space_uid=space_uid,
+            source_app_code=source_app_code,
             defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value))},
         )
         return obj
 
     @classmethod
+    def get_public_group(cls, space_uid: str) -> List["FavoriteGroup"]:
+        source_app_code = get_request_app_code()
+        return list(
+            cls.objects.filter(
+                group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
+            )
+            .order_by("created_at")
+            .all()
+        )
+
+    @classmethod
     def get_user_groups(cls, space_uid: str, username: str) -> dict:
         """获取用户所有能看到的组"""
+        source_app_code = get_request_app_code()
         groups = dict()
         # 个人组，使用get_or_create是为了减少同步
         private_group = cls.get_or_create_private_group(space_uid=space_uid, username=username)
@@ -882,8 +904,7 @@ class FavoriteGroup(OperateRecordModel):
         groups[ungrouped_group.id] = model_to_dict(ungrouped_group)
         # 公共组
         public_groups = cls.objects.filter(
-            group_type=FavoriteGroupType.PUBLIC.value,
-            space_uid=space_uid,
+            group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
         )
         for gi in public_groups:
             groups[gi.id] = model_to_dict(gi)
