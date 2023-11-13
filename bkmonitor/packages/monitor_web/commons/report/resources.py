@@ -36,12 +36,15 @@ class FrontendReportEventResource(Resource):
             return
 
         # 获取上报地址
-        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
-            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
-        elif settings.CUSTOM_REPORT_DEFAULT_PROXY_IP:
-            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
+        if not settings.FRONTEND_REPORT_DATA_HOST:
+            if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
+                host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
+            elif settings.CUSTOM_REPORT_DEFAULT_PROXY_IP:
+                host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
+            else:
+                return
         else:
-            return
+            host = settings.FRONTEND_REPORT_DATA_HOST
 
         url = f"http://{host}:10205/v2/push/"
 
