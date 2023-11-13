@@ -27,6 +27,7 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Input, Option, Select, Switcher, TimePicker } from 'bk-magic-vue';
 
+import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
 import SimpleDayPick from '../duty-arranges/simple-day-pick';
 
 import { IDutyListItem } from './typing';
@@ -91,6 +92,11 @@ export default class DutyNoticeConfig extends tsc<IProps> {
     sendChat: '',
     rules: ''
   };
+
+  get chatTipName() {
+    const name = SetMealAddStore.noticeWayList.find(item => item.type === 'wxwork-bot')?.name || '';
+    return name;
+  }
 
   /**
    * @description 初始化
@@ -242,7 +248,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
           this.$t('企业微信群ID'),
           [
             <Input
-              class='mr-12'
+              class='width-305 mr-12'
               v-model={this.formData.rtxId}
               onChange={() => this.handleChange()}
             ></Input>,
@@ -250,7 +256,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               class='icon-monitor icon-tips'
               v-bk-tooltips={{
                 content: this.$t(
-                  "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔"
+                  "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
+                  { name: this.chatTipName }
                 ),
                 boundary: 'window',
                 placements: ['top']

@@ -566,7 +566,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           };
           way.receivers &&
             Object.assign(obj, {
-              receivers: Array.isArray(way.receivers) ? way.receivers : way.receivers.replace(/\s*/g, '').split(',')
+              receivers: Array.isArray(way.receivers)
+                ? way.receivers
+                : (() => {
+                    const str = way.receivers.replace(/[^\S\n]+/g, '');
+                    if (str.indexOf('\n') >= 0) {
+                      return str.split('\n');
+                    }
+                    return str.split(',');
+                  })()
             });
           return obj;
         })
