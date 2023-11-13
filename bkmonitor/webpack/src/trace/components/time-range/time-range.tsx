@@ -42,7 +42,7 @@ export default defineComponent({
   props: {
     modelValue: {
       type: Array as PropType<TimeRangeType>,
-      default: () => ['now-1h', 'now']
+      default: () => []
     },
     timezone: {
       type: String,
@@ -68,6 +68,7 @@ export default defineComponent({
     };
   },
   render() {
+    console.info(this.modelValue, '----------')
     return (
       <DatePicker
         class='time-range-date-picker'
