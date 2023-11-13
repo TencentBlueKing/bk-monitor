@@ -91,34 +91,43 @@ export default defineComponent({
     const rotationType = ref<RotationTabTypeEnum>(RotationTabTypeEnum.REGULAR);
     const fixedRotationTabRef = ref<InstanceType<typeof FixedRotationTab>>();
     const replaceRotationTabRef = ref<InstanceType<typeof ReplaceRotationTab>>();
-    const rotationTypeData = reactive<RotationTypeData>({
-      regular: [],
-      handoff: {
-        id: undefined,
-        date: {
-          type: RotationSelectTypeEnum.WorkDay,
-          workTimeType: 'time_range',
-          isCustom: false,
-          customTab: 'duration',
-          customWorkDays: [],
-          periodSettings: { unit: 'day', duration: 1 },
-          value: [{ key: random(8, true), workTime: [], workDays: [1, 2, 3, 4, 5] }]
-        },
-        users: {
-          type: 'specified',
-          groupNumber: 1,
-          value: [{ key: random(8, true), value: [] }]
-        }
-      }
-    });
+    const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
       getPreviewData();
+    }
+
+    function handleRotationTabChange(type: RotationTabTypeEnum) {
+      rotationType.value = type;
+      Object.assign(rotationTypeData, createDefaultRotation());
+      previewData.value = [];
     }
     function getGroupList() {
       getReceiver().then(data => {
         defaultUserGroup.value = data;
       });
+    }
+    function createDefaultRotation(): RotationTypeData {
+      return {
+        regular: [],
+        handoff: {
+          id: undefined,
+          date: {
+            type: RotationSelectTypeEnum.WorkDay,
+            workTimeType: 'time_range',
+            isCustom: false,
+            customTab: 'duration',
+            customWorkDays: [],
+            periodSettings: { unit: 'day', duration: 1 },
+            value: [{ key: random(8, true), workTime: [], workDays: [1, 2, 3, 4, 5] }]
+          },
+          users: {
+            type: 'specified',
+            groupNumber: 1,
+            value: [{ key: random(8, true), value: [] }]
+          }
+        }
+      };
     }
 
     // -----------------表单----------------
@@ -225,7 +234,10 @@ export default defineComponent({
      * @description 获取预览数据
      */
     async function getPreviewData(init = false) {
-      if (!validate()) return;
+      if (!validate()) {
+        previewData.value = [];
+        return;
+      }
       const startDate = getCalendar()[0][0];
       const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
       if (init) {
@@ -275,7 +287,9 @@ export default defineComponent({
       fixedRotationTabRef,
       replaceRotationTabRef,
       rotationTypeData,
+      handleRotationTabChange,
       previewData,
+      getPreviewData,
       loading,
       handleRotationTypeDataChange,
       handleSubmit,
@@ -334,13 +348,13 @@ export default defineComponent({
               <div class='tab-list'>
                 <div
                   class={['tab-list-item fixed', this.rotationType === RotationTabTypeEnum.REGULAR && 'active']}
-                  onClick={() => (this.rotationType = RotationTabTypeEnum.REGULAR)}
+                  onClick={() => this.handleRotationTabChange(RotationTabTypeEnum.REGULAR)}
                 >
                   {this.t('固定值班')}
                 </div>
                 <div
                   class={['tab-list-item replace', this.rotationType === RotationTabTypeEnum.HANDOFF && 'active']}
-                  onClick={() => (this.rotationType = RotationTabTypeEnum.HANDOFF)}
+                  onClick={() => this.handleRotationTabChange(RotationTabTypeEnum.HANDOFF)}
                 >
                   {this.t('交替轮值')}
                 </div>
@@ -358,6 +372,7 @@ export default defineComponent({
                     v-show={this.rotationType === RotationTabTypeEnum.HANDOFF}
                     data={this.rotationTypeData.handoff}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.HANDOFF)}
+                    onDrop={this.getPreviewData}
                   />
                 )}
               </div>

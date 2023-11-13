@@ -75,7 +75,7 @@ export default defineComponent({
       default: undefined
     }
   },
-  emits: ['change'],
+  emits: ['change', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
@@ -556,7 +556,13 @@ export default defineComponent({
       const user = localValue.users.value[startIndex];
       localValue.users.value.splice(startIndex, 1);
       localValue.users.value.splice(index, 0, user);
+      handleEmitDrop();
     }
+
+    function handleEmitDrop() {
+      emit('drop');
+    }
+
     function handleEmitData() {
       emit('change', localValue);
     }
@@ -576,6 +582,7 @@ export default defineComponent({
       handleDragstart,
       handleDragover,
       handleDrop,
+      handleEmitDrop,
       handleEmitData
     };
   },
@@ -702,6 +709,7 @@ export default defineComponent({
                       hasDefaultGroup={true}
                       defaultGroup={this.defaultGroup}
                       onSelectEnd={val => this.handMemberSelectChange(0, val)}
+                      onDrop={this.handleEmitDrop}
                     />
                   </FormItem>
                   <FormItem
