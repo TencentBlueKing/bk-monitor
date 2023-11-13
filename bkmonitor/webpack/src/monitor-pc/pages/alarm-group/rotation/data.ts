@@ -60,7 +60,7 @@ export function paramsToDutyNoticeConfig(dutyNotice) {
   };
   const hoursAgo = (() => {
     const days = dutyNotice.personal_notice.hours_ago / 24;
-    if (days >= 7) {
+    if (days % 7 === 0) {
       return {
         timeType: 'week',
         startNum: days / 7

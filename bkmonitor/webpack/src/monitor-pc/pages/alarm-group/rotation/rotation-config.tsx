@@ -146,7 +146,6 @@ export default class RotationConfig extends tsc<IProps> {
   handleWatchrRendreKey() {
     this.setDutyList();
     this.noticeConfig = paramsToDutyNoticeConfig(this.dutyNotice);
-    console.log(paramsToDutyNoticeConfig(this.dutyNotice));
     this.noticeRenderKey = random(8);
   }
 
@@ -160,7 +159,9 @@ export default class RotationConfig extends tsc<IProps> {
       }
     });
     this.dutyList = dutyList;
-    this.getPreviewData();
+    if (this.dutyList.length) {
+      this.getPreviewData();
+    }
   }
 
   async getPreviewData() {
@@ -222,6 +223,11 @@ export default class RotationConfig extends tsc<IProps> {
     const data = await previewUserGroupPlan(params).catch(() => []);
     this.previewLoading = false;
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
+  }
+
+  noticeConfigOfDutyChange() {
+    this.noticeConfig.rotationId = [];
+    this.noticeRenderKey = random(8);
   }
 
   @Emit('dutyChange')
@@ -296,7 +302,7 @@ export default class RotationConfig extends tsc<IProps> {
     if (!this.popInstance) {
       this.popInstance = this.$bkPopover(event.target, {
         content: this.wrapRef,
-        offset: '-31 2',
+        offset: '-31,2',
         trigger: 'click',
         interactive: true,
         theme: 'light common-monitor',
@@ -305,7 +311,10 @@ export default class RotationConfig extends tsc<IProps> {
         boundary: 'window',
         hideOnClick: true,
         onHide: () => {
-          this.getPreviewData();
+          if (this.dutyList.length) {
+            this.noticeConfigOfDutyChange();
+            this.getPreviewData();
+          }
         }
       });
     }
@@ -389,7 +398,10 @@ export default class RotationConfig extends tsc<IProps> {
     this.allDutyList.forEach(d => {
       d.isCheck = ids.has(d.id);
     });
-    this.getPreviewData();
+    this.noticeConfigOfDutyChange();
+    if (this.dutyList.length) {
+      this.getPreviewData();
+    }
   }
 
   handleShowDetail(item) {
@@ -468,6 +480,7 @@ export default class RotationConfig extends tsc<IProps> {
             alarmGroupId={this.alarmGroupId}
             dutyPlans={this.dutyPlans}
             onStartTimeChange={this.handleStartTimeChange}
+            onInitStartTime={v => (this.previewStartTime = v)}
           ></RotationPreview>
         )}
         <div
@@ -482,7 +495,7 @@ export default class RotationConfig extends tsc<IProps> {
           class={{ displaynone: !this.showNotice }}
           value={this.noticeConfig}
           renderKey={this.noticeRenderKey}
-          dutyList={this.allDutyList}
+          dutyList={this.dutyList as any[]}
           onChange={this.handleNoticeConfigChange}
         ></DutyNoticeConfig>
         {!!this.userPreviewList.length && (
