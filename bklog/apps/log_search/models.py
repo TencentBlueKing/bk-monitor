@@ -858,6 +858,7 @@ class FavoriteGroup(OperateRecordModel):
         unique_together = [("name", "space_uid", "created_by", "source_app_code")]
 
     @classmethod
+    @atomic
     def get_or_create_private_group(cls, space_uid: str, username: str) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
@@ -870,6 +871,7 @@ class FavoriteGroup(OperateRecordModel):
         return obj
 
     @classmethod
+    @atomic
     def get_or_create_ungrouped_group(cls, space_uid: str) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
