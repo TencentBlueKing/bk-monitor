@@ -230,7 +230,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               v-model={this.formData.nearDay}
               class='width-148 mr-8'
               type='number'
-              onChange={() => this.handleChange()}
+              min={0}
+              onInput={() => this.handleChange()}
             >
               <div
                 slot='prepend'
@@ -284,7 +285,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               v-model={this.formData.startNum}
               class='mr-8 width-168'
               type='number'
-              onChange={() => this.handleChange()}
+              min={0}
+              onInput={() => this.handleChange()}
             >
               <div
                 slot='append'
