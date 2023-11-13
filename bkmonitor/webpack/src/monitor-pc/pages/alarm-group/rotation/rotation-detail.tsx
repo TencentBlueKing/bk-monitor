@@ -65,10 +65,10 @@ export default class RotationDetail extends tsc<IProps> {
 
   get historyList() {
     return [
-      { label: this.$t('创建人'), value: this.detailData?.createUser || '--' },
-      { label: this.$t('创建时间'), value: this.detailData?.createTime || '--' },
-      { label: this.$t('最近更新人'), value: this.detailData?.updateUser || '--' },
-      { label: this.$t('修改时间'), value: this.detailData?.updateTime || '--' }
+      { label: this.$t('创建人'), value: this.detailData?.create_user || '--' },
+      { label: this.$t('创建时间'), value: this.detailData?.create_time || '--' },
+      { label: this.$t('最近更新人'), value: this.detailData?.update_user || '--' },
+      { label: this.$t('修改时间'), value: this.detailData?.update_time || '--' }
     ];
   }
 

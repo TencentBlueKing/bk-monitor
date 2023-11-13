@@ -136,7 +136,10 @@ export default defineComponent({
      */
     function handleToEdit() {
       router.push({
-        name: 'rotation-edit'
+        name: 'rotation-edit',
+        params: {
+          id: props.id
+        }
       });
     }
     return {
