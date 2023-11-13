@@ -359,6 +359,21 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
       resultOverlapTimes.push(group[0]);
     }
   });
+  /* 继续精简 */
+  const result = [];
+  resultOverlapTimes.forEach((item, index) => {
+    const isInclude = resultOverlapTimes.some((g, gIndex) =>
+      gIndex === index
+        ? false
+        : g.verticalRange[0] <= item.verticalRange[0] &&
+          g.verticalRange[1] >= item.verticalRange[1] &&
+          g.range.tempRange[0] <= item.range.tempRange[0] &&
+          g.range.tempRange[1] >= item.range.tempRange[1]
+    );
+    if (!isInclude) {
+      result.push(item);
+    }
+  });
   /* 将跨行的且与用户组重叠的区域再精简 */
   // const timeRangesNumbers = timeRanges.map(item => item.map(item1 => item1.map(item2 => new Date(item2))));
   // const result = [];
@@ -404,7 +419,7 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
   //     result.push(item);
   //   }
   // });
-  return resultOverlapTimes;
+  return result;
 }
 
 /**

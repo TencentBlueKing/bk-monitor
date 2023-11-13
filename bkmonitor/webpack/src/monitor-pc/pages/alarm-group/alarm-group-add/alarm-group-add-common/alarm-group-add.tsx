@@ -215,7 +215,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     dutyArranges: [],
     dutyNotice: {
       plan_notice: { enabled: false, days: 7, chat_ids: [''], type: 'weekly', date: 1, time: '00:00' },
-      personal_notice: { enabled: false, hours_ago: 168, duty_rules: [0] }
+      personal_notice: { enabled: false, hours_ago: 168, duty_rules: [] }
     },
     rendreKey: random(8)
   };
