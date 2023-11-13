@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,31 +18,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.utils.task import high_priority_task
+from django.utils.translation import ugettext as _
 
-"""
-自定义装饰器
-"""
-from celery.task import task  # noqa
-
-from apps.log_audit.models import UserOperationRecord  # noqa
-from bkm_space.utils import space_uid_to_bk_biz_id  # noqa
+from apps.log_measure.utils.es import get_es_metrics
+from bk_monitor.constants import TimeFilterEnum
+from bk_monitor.utils.metric import register_metric
 
 
-@high_priority_task
-def user_operation_record(operation_record: dict):
-    bk_biz_id = operation_record.get("biz_id")
-    space_uid = operation_record.get("space_uid")
-    if space_uid:
-        bk_biz_id = space_uid_to_bk_biz_id(space_uid)
-    if not bk_biz_id:
-        bk_biz_id = 0
-    UserOperationRecord.objects.create(
-        created_by=operation_record["username"],
-        bk_biz_id=bk_biz_id,
-        record_type=operation_record["record_type"].value,
-        record_sub_type=operation_record.get("record_sub_type", ""),
-        record_object_id=operation_record["record_object_id"],
-        action=operation_record["action"].value,
-        params=operation_record["params"],
-    )
+class EsIndices:
+    @staticmethod
+    @register_metric("es_monitor", description=_("es 索引集信息"), data_name="indices", time_filter=TimeFilterEnum.MINUTE5)
+    def elastic_indices():
+        """
+        elastic indices
+        @return:
+        """
+        return get_es_metrics("indices")
