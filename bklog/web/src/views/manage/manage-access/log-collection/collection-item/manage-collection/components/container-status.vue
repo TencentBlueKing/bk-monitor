@@ -54,8 +54,9 @@
     </div>
     <div class="table-section">
       <div v-for="(renderItem, renderIndex) in renderTitleList" :key="renderIndex" class="table-item">
-        <div :class="`table-title ${renderItem.isShowTable ? '' : 'close-table'}`"
-             @click="handleClickTitle(renderIndex, renderItem.isShowTable)">
+        <div
+          :class="`table-title ${renderItem.isShowTable ? '' : 'close-table'}`"
+          @click="handleClickTitle(renderIndex, renderItem.isShowTable)">
           <span class="bk-icon icon-down-shape"></span>
           <span>{{renderItem.collector_config_name}}</span>
         </div>

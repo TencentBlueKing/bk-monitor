@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-v-html -->
 <!--
   - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
   - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -155,10 +156,11 @@
           @animation-end="closeSlider">
           <div slot="header">{{ detail.title }}</div>
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <div v-html="detail.content"
-               class="p20 detail-content"
-               slot="content"
-               v-bkloading="{ isLoading: detail.loading }"></div>
+          <div
+            v-html="detail.content"
+            class="p20 detail-content"
+            slot="content"
+            v-bkloading="{ isLoading: detail.loading }"></div>
         </bk-sideslider>
       </div>
     </template>
@@ -519,13 +521,13 @@ export default {
       // });
     },
     viewReport(row) {
-      const { cloud_id, host_id, ip } = row;
+      const { cloud_id: cloudId, host_id: hostId, ip } = row;
       this.$http.request('collect/runCheck', {
         data: {
           collector_config_id: this.$route.params.collectorId,
           hosts: [{
-            bk_cloud_id: cloud_id,
-            bk_host_id: host_id,
+            bk_cloud_id: cloudId,
+            bk_host_id: hostId,
             ip,
           }],
         },

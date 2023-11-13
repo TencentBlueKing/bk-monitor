@@ -18,12 +18,16 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.http import urlencode
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.exceptions import ValidationError
 
 from bk_dataview.api import get_or_create_org
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
+from bkm_space.api import SpaceApi
 from bkmonitor.models.external_iam import ExternalPermission
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
 from monitor_web.grafana.utils import patch_home_panels
 
@@ -41,8 +45,14 @@ class RedirectDashboardView(ProxyView):
     def dispatch(self, request, *args, **kwargs):
         org_name = request.GET.get("bizId")
         if not org_name:
-            logger.error("get_org_name from bizId fail, bizId not exists")
-            raise Http404
+            # 兼容 space_uid 模式
+            space_uid = request.GET.get("spaceUid")
+            try:
+                space = SpaceApi.get_space_detail(space_uid)
+                org_name = str(space.bk_biz_id)
+            except (ValidationError, BKAPIError, AttributeError):
+                logger.error(f"get_org_name from request fail. {request.GET}")
+                raise Http404
 
         request.org_name = org_name
         self.org = get_or_create_org(org_name)
@@ -74,8 +84,12 @@ class RedirectDashboardView(ProxyView):
         dashboard_info = dashboards[0]
         uid = dashboard_info["uid"]
         route_path = f"#/grafana/d/{uid}"
-        redirect_url = "/?bizId={bk_biz_id}{route_path}"
-        return redirect(redirect_url.format(bk_biz_id=request.org_name, route_path=route_path))
+        # 透传仪表盘参数
+        params = request.GET.copy()
+        params.pop("spaceUid", None)
+        params["bizId"] = org_name
+        redirect_url = "/?{params}{route_path}"
+        return redirect(redirect_url.format(params=urlencode(params), route_path=route_path))
 
 
 class GrafanaSwitchOrgView(SwitchOrgView):

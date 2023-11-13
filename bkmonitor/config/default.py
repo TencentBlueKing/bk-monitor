@@ -1151,9 +1151,6 @@ OFFICIAL_PLUGINS_MANAGERS = []
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
 
-# 特别的AES加密配置信息
-SPECIFY_AES_KEY = ""
-
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 
@@ -1290,6 +1287,11 @@ BKCRYPTO = {
     },
 }
 
+# 特别的AES加密配置信息(全局配置)
+SPECIFY_AES_KEY = ""
+BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
+
+
 # 前端事件上报
 FRONTEND_REPORT_DATA_ID = 0
 FRONTEND_REPORT_DATA_TOKEN = ""
@@ -1306,3 +1308,6 @@ IS_SUBSCRIPTION_ENABLED = True
 
 # 允许限制空间功能开关， 默认限制
 IS_RESTRICT_DS_BELONG_SPACE = True
+
+# 最大的指标分片查询大小
+MAX_FIELD_PAGE_SIZE = 1000

@@ -2656,5 +2656,6 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ]
+  ],
+  "__path": "dashboards/DeepFlow-Templates/Application-SQL-Monitoring-K8S.json"
 }

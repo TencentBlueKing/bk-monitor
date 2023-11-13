@@ -1563,5 +1563,6 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ]
+  ],
+  "__path": "dashboards/DeepFlow-Templates/Network-Cloud-Host-Map.json"
 }

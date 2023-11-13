@@ -818,7 +818,7 @@ export default {
         name,
         clean_type,
         etl_params,
-        etl_fields,
+        etl_fields: etlFields,
         visible_type,
         visible_bk_biz_id: visibleBkBizList,
       } = data;
@@ -841,7 +841,7 @@ export default {
           separator: '',
           retain_extra_json: false,
         }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
-        fields: etl_fields,
+        fields: etlFields,
         visible_type,
       });
     },
@@ -880,37 +880,37 @@ export default {
     // 字段提取
     fieldCollection(isCollect = false) {
       const {
-        etl_config,
+        etl_config: etlConfig,
         fields,
-        etl_params,
+        etl_params: etlParams,
         visible_type,
       } = this.formData;
       this.isLoading = true;
       this.basicLoading = true;
       let data = {
-        clean_type: etl_config,
+        clean_type: etlConfig,
         etl_params: {
-          retain_original_text: etl_params.retain_original_text,
-          separator_regexp: etl_params.separator_regexp,
-          separator: etl_params.separator,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
+          retain_original_text: etlParams.retain_original_text,
+          separator_regexp: etlParams.separator_regexp,
+          separator: etlParams.separator,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
         },
         etl_fields: fields,
         visible_type,
       };
       /* eslint-disable */
-      if (etl_config !== 'bk_log_text') {
+      if (etlConfig !== 'bk_log_text') {
         const etlParams = {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json : etl_params.retain_extra_json ?? false
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json : etlParams.retain_extra_json ?? false
         }
-        if (etl_config === 'bk_log_delimiter') {
-          etlParams.separator = etl_params.separator
+        if (etlConfig === 'bk_log_delimiter') {
+          etlParams.separator = etlParams.separator
         }
-        if (etl_config === 'bk_log_regexp') {
-          etlParams.separator_regexp = etl_params.separator_regexp
+        if (etlConfig === 'bk_log_regexp') {
+          etlParams.separator_regexp = etlParams.separator_regexp
         }
-        data.etl_params = etlParams
+        data.etlParams = etlParams
         data.etl_fields = this.$refs.fieldTable.getData()
       }
 
@@ -928,9 +928,9 @@ export default {
           storage_replies,
           allocation_min_days,
           view_roles,
-          etl_config,
+          etl_config: etlConfig,
           fields: data.etl_fields,
-          etl_params,
+          etl_params: etlParams,
         }
         requestUrl = 'collect/fieldCollection'
       } else if (isCollect) { // 缓存采集项清洗配置
@@ -1439,7 +1439,7 @@ export default {
         },
       }).then((res) => {
         if (res.data) {
-          const { clean_type, etl_params, etl_fields } = res.data;
+          const { clean_type, etl_params, etl_fields: etlFields } = res.data;
           this.formData.fields.splice(0, this.formData.fields.length);
           /* eslint-disable */
           this.params.etl_config = clean_type
@@ -1457,7 +1457,7 @@ export default {
               separator: '',
               retain_extra_json: false,
             }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
-            fields: etl_fields,
+            fields: etlFields,
           });
         }
       })

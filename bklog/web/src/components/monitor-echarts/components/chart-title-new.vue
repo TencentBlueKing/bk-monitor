@@ -158,7 +158,7 @@ export default class ChartTitle extends Vue {
 
     .menu-list {
       position: absolute;
-      top: 22px;
+      top: 16px;
       right: 36px;
 
       .log-icon {

@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-v-html -->
 <!--
   - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
   - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -196,11 +197,11 @@
           {{$t('刷新')}}
         </bk-button>
       </div>
-      <!-- eslint-disable-next-line vue/no-v-html -->
-      <div v-html="detail.content"
-           class="p20 detail-content"
-           slot="content"
-           v-bkloading="{ isLoading: detail.loading }"></div>
+      <div
+        v-html="detail.content"
+        class="p20 detail-content"
+        slot="content"
+        v-bkloading="{ isLoading: detail.loading }"></div>
     </bk-sideslider>
   </div>
 </template>

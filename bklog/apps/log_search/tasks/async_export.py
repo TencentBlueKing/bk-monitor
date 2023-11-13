@@ -19,40 +19,39 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import datetime
+import json
 import os
 import tarfile
-import json
-import datetime
-import pytz
-import arrow
 
-from django.utils.translation import gettext as _
-from django.utils import translation
+import arrow
+import pytz
 from celery.schedules import crontab
+from celery.task import periodic_task, task
 from django.conf import settings
+from django.utils import timezone, translation
 from django.utils.crypto import get_random_string
-from django.utils import timezone
-from celery.task import task, periodic_task
+from django.utils.translation import gettext as _
 
 from apps.constants import RemoteStorageType
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search.constants import (
-    ASYNC_DIR,
-    FEATURE_ASYNC_EXPORT_COMMON,
-    ASYNC_EXPORT_EMAIL_TEMPLATE,
-    ASYNC_EXPORT_FILE_EXPIRED_DAYS,
-    ASYNC_EXPORT_EXPIRED,
     ASYNC_APP_CODE,
+    ASYNC_DIR,
+    ASYNC_EXPORT_EMAIL_ERR_TEMPLATE,
+    ASYNC_EXPORT_EMAIL_TEMPLATE,
+    ASYNC_EXPORT_EXPIRED,
+    ASYNC_EXPORT_FILE_EXPIRED_DAYS,
+    FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     MAX_RESULT_WINDOW,
-    MsgModel,
-    ASYNC_EXPORT_EMAIL_ERR_TEMPLATE,
     ExportStatus,
+    MsgModel,
 )
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import Scenario, AsyncTask, LogIndexSet
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 from apps.utils.remote_storage import StorageType
@@ -158,7 +157,7 @@ def set_failed_status(async_task: AsyncTask, reason):
     return async_task
 
 
-@task(ignore_result=True)
+@task(ignore_result=True, queue="async_export")
 def set_expired_status(async_task_id):
     async_task = AsyncTask.objects.get(id=async_task_id)
     async_task.export_status = ExportStatus.DOWNLOAD_EXPIRED

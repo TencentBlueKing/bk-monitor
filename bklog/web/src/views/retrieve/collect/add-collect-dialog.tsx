@@ -132,7 +132,7 @@ export default class CollectDialog extends tsc<IProps> {
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
-  }
+  };
   public rules = {
     name: [
       {
