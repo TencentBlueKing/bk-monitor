@@ -13,7 +13,8 @@ import json
 import logging
 import random
 import time
-from datetime import datetime
+
+from django.conf import settings
 
 from apm.core.deepflow.constants import (
     L7_PROTOCOL_DNS,
@@ -82,7 +83,8 @@ class EBPFHandler:
         """
         字符串时间 --> 时间戳, 单位 us
         """
-        return int(arrow.get(str_time).timestamp() * 1000 * 1000)
+        t = arrow.get(str_time).replace(tzinfo=settings.TIME_ZONE)
+        return int(t.float_timestamp * 1000 * 1000)
 
     @classmethod
     def response_status_to_span_status_message(cls, status: int):
@@ -525,7 +527,6 @@ class EBPFHandler:
         if not span_resource.get("service.name"):
             cls.put_value_map(span_resource, "service.name", "deepflow")
 
-        if span.elapsed_time:
-            span.elapsed_time = span.end_time - span.start_time
+        span.elapsed_time = span.end_time - span.start_time
 
         return span.span_to_dict()
