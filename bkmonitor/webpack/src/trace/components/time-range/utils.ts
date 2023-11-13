@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import dayjs, { Dayjs } from 'dayjs';
+import { type Dayjs } from 'dayjs';
 
 export type TimeRangeType = string[];
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
 
-type TimeType = 'from' | 'to';
 
 type TimestampsType = [number, number];
-
+import {DateRange} from '@blueking/date-picker'
+import { type DateValue } from '@blueking/date-picker/dist/utils';
 /** 处理时间范围的对象 */
 export class TimeRange {
   /** 实例化的时间范围对象 */
@@ -44,41 +44,10 @@ export class TimeRange {
 
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
-    this.value = times.map((item, index) => this.transformTimeString(item, !index ? 'from' : 'to'));
+    const dateRange = new DateRange(times as DateValue, 'YYYY-MM-DD HH:mm:ss', window.timezone);
+    this.value = [dateRange.startDate, dateRange.endDate];
   }
 
-  /** 时间转换 */
-  transformTimeString(timeStr: string, type: TimeType): Dayjs {
-    let momentRes: Dayjs = null;
-    /** 相对时间范围 */
-    const match = timeStr?.match?.(CUSTOM_TIME_RANGE_REG);
-    if (!!match) {
-      momentRes = dayjs();
-      const [target, , method, num, dateType, boundary] = match;
-      /** 过去时间 */
-      if (method === '-' && num && dateType) {
-        momentRes = momentRes.subtract(+num, dateType as dayjs.ManipulateType);
-      }
-      /** 未来时间 */
-      if (method === '+' && num && dateType) {
-        momentRes = momentRes.add(+num, dateType as dayjs.ManipulateType);
-      }
-      /** 获取完整时间段 */
-      if (!!boundary) {
-        type === 'from' && momentRes.startOf(boundary.replace('/', '') as dayjs.OpUnitType);
-        type === 'to' && momentRes.endOf(boundary.replace('/', '') as dayjs.OpUnitType);
-      }
-      /** 相对时间格式错误 */
-      if (target !== timeStr) {
-        momentRes = dayjs(null);
-      }
-    } else {
-      /** 绝对时间范围 */
-      const time = intTimestampStr(timeStr);
-      momentRes = dayjs(time);
-    }
-    return momentRes.isValid() ? momentRes : null;
-  }
 
   /** 格式化时间范围 */
   format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
@@ -164,11 +133,11 @@ export const shortcuts = [
     value: ['now-1d/d', 'now-1d/d']
   },
   {
-    text: window.i18n.tc('前天'),
+    text: window.i18n.t('前天'),
     value: ['now-2d/d', 'now-2d/d']
   },
   {
-    text: window.i18n.tc('本周'),
+    text: window.i18n.t('本周'),
     value: ['now/w', 'now/w']
   }
 ];
