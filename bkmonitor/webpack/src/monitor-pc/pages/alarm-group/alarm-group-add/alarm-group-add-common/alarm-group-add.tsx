@@ -215,7 +215,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     dutyArranges: [],
     dutyNotice: {
       plan_notice: { enabled: false, days: 7, chat_ids: [''], type: 'weekly', date: 1, time: '00:00' },
-      personal_notice: { enabled: false, hours_ago: 168, duty_rules: [0] }
+      personal_notice: { enabled: false, hours_ago: 168, duty_rules: [] }
     },
     rendreKey: random(8)
   };
@@ -566,7 +566,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           };
           way.receivers &&
             Object.assign(obj, {
-              receivers: Array.isArray(way.receivers) ? way.receivers : way.receivers.replace(/\s*/g, '').split(',')
+              receivers: Array.isArray(way.receivers)
+                ? way.receivers
+                : (() => {
+                    const str = way.receivers.replace(/[^\S\n]+/g, '');
+                    if (str.indexOf('\n') >= 0) {
+                      return str.split('\n');
+                    }
+                    return str.split(',');
+                  })()
             });
           return obj;
         })

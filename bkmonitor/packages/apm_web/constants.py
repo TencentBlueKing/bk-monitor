@@ -640,6 +640,13 @@ class SpanSourceCategory:
     EBPF = "ebpf"
 
 
+class EbpfSignalSourceType:
+    SIGNAL_SOURCE_PACKET = "Packet"
+    SIGNAL_SOURCE_XFLOW = "XFlow"
+    SIGNAL_SOURCE_EBPF = "eBPF"
+    SIGNAL_SOURCE_OTEL = "OTel"
+
+
 class EbpfTapSideType:
     OTHER_NIC = "Other NIC"
     LOCAL_NIC = "Local NIC"

@@ -160,7 +160,7 @@ DEFAULT_CRONTAB = [
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
     # apm_ebpf 定时检查业务集群是否安装DeepFlow 每分钟触发-每次处理1/10业务
-    ("apm_ebpf.task.finders.ebpf_discover_cron", "* * * * *", "global"),
+    ("apm_ebpf.task.tasks.ebpf_discover_cron", "* * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -256,7 +256,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.sync_space.refresh_redis_data", "*/30 * * * *", "global"),
         ("metadata.task.sync_space.sync_bkcc_space_data_source", "*/10 * * * *", "global"),
         ("metadata.task.sync_space.refresh_not_biz_space_data_source", "*/10 * * * *", "global"),
-        ("metadata.task.sync_space.push_and_publish_space_router_task", "*/30 * * * *", "global"),
+        # ("metadata.task.sync_space.push_and_publish_space_router_task", "* */3 * * *", "global"),
         # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
         ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
         # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次

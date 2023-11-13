@@ -256,9 +256,9 @@ export const routeConfig: IRouteConfigItem[] = [
             name: '轮值',
             icon: 'icon-monitor icon-menu-group menu-icon',
             id: 'rotation',
-            path: '/rotation',
+            path: '/trace/rotation',
             canStore: true,
-            href: '#/rotation'
+            href: '#/trace/rotation'
           },
           {
             name: '指标管理',

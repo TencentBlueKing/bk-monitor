@@ -287,6 +287,7 @@ class GrafanaQueryHandler:
                 "operator": field_config_obj.operator,
                 "params": field_config_obj.params,
                 "match_pattern": field_config_obj.match_pattern,
+                "sort_index": field_config_obj.sort_index,
             }
             for field_config_obj in desensitize_field_config_objs
         ]
@@ -323,6 +324,7 @@ class GrafanaQueryHandler:
             "bk_biz_id": self.bk_biz_id,
             "keyword": query_dict.get("query_string", ""),
             "aggs": aggs,
+            "is_desensitize": False
         }
         search_handler = SearchHandler(query_dict["result_table_id"], search_dict)
         result = search_handler.search(search_type=None)

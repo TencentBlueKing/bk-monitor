@@ -36,6 +36,7 @@ interface IProps {
   alarmGroupId?: string | number;
   dutyPlans?: any[];
   onStartTimeChange?: (v: string) => void;
+  onInitStartTime?: (v: string) => void;
 }
 
 @Component
@@ -72,8 +73,12 @@ export default class RotationPreview extends tsc<IProps> {
   detailTitle = '';
   detailDutyPlans = [];
 
+  startTime = '';
+
   created() {
     this.dutyData = dutyDataConversion(this.dutyData);
+    this.startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
+    this.$emit('initStartTime', this.startTime);
   }
   mounted() {
     this.observer = new ResizeObserver(entries => {
@@ -123,8 +128,8 @@ export default class RotationPreview extends tsc<IProps> {
   }
   @Emit('startTimeChange')
   handleStartTimeChange() {
-    const startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
-    return startTime;
+    this.startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
+    return this.startTime;
   }
   /**
    * @description 上一个周期
