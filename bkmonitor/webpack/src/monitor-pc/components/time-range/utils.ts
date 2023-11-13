@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
 import dayjs from 'dayjs';
 
 import { TimeRangeType } from './time-range';
-
+import {DateRange} from '@blueking/date-picker/vue2'
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
 
@@ -39,47 +38,15 @@ type TimestampsType = [number, number];
 export class TimeRange {
   /** 实例化的时间范围对象 */
   value: dayjs.Dayjs[] = [];
-
+  dateRange: DateRange = null;
   constructor(times: TimeRangeType) {
     this.init(times);
   }
 
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
-    this.value = times.map((item, index) => this.transformTimeString(item, !index ? 'from' : 'to'));
-  }
-
-  /** 时间转换 */
-  transformTimeString(timeStr: string, type: TimeType): dayjs.Dayjs {
-    let momentRes: dayjs.Dayjs = null;
-    /** 相对时间范围 */
-    const match = timeStr?.match?.(CUSTOM_TIME_RANGE_REG);
-    if (!!match) {
-      momentRes = dayjs();
-      const [target, , method, num, dateType, boundary] = match;
-      /** 过去时间 */
-      if (method === '-' && num && dateType) {
-        momentRes = momentRes.subtract(+num, dateType as dayjs.ManipulateType);
-      }
-      /** 未来时间 */
-      if (method === '+' && num && dateType) {
-        momentRes = momentRes.add(+num, dateType as dayjs.ManipulateType);
-      }
-      /** 获取完整时间段 */
-      if (!!boundary) {
-        type === 'from' && momentRes.startOf(boundary.replace('/', '') as dayjs.OpUnitType);
-        type === 'to' && momentRes.endOf(boundary.replace('/', '') as dayjs.OpUnitType);
-      }
-      /** 相对时间格式错误 */
-      if (target !== timeStr) {
-        momentRes = dayjs();
-      }
-    } else {
-      /** 绝对时间范围 */
-      const time = intTimestampStr(timeStr);
-      momentRes = dayjs(time);
-    }
-    return momentRes.isValid() ? momentRes : null;
+    this.dateRange = new DateRange(times, 'YYYY-MM-DD HH:mm:ss', window.timezone);
+    this.value = [this.dateRange.startDate, this.dateRange.endDate];
   }
 
   /** 格式化时间范围 */
