@@ -212,6 +212,7 @@ CELERY_IMPORTS = (
 )
 
 # bk crypto sdk配置
+BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
 BKCRYPTO = {
     "SYMMETRIC_CIPHERS": {
         "default": {
@@ -221,7 +222,7 @@ BKCRYPTO = {
 }
 
 # 对称加密类型
-if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "AES") == "SHANGMI":
+if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "CLASSIC") == "SHANGMI":
     BKCRYPTO.update(
         {
             "SYMMETRIC_CIPHER_TYPE": bkcrypto_constants.SymmetricCipherType.SM4.value,
