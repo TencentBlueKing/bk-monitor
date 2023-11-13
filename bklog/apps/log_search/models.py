@@ -27,7 +27,7 @@ from typing import List, Union
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import models
+from django.db import IntegrityError, models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
@@ -858,28 +858,44 @@ class FavoriteGroup(OperateRecordModel):
         unique_together = [("name", "space_uid", "created_by", "source_app_code")]
 
     @classmethod
-    @atomic
     def get_or_create_private_group(cls, space_uid: str, username: str) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
-        obj, __ = cls.objects.get_or_create(
-            group_type=FavoriteGroupType.PRIVATE.value,
-            space_uid=space_uid,
-            created_by=username,
-            source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
-        )
+        try:
+            obj, __ = cls.objects.get_or_create(
+                group_type=FavoriteGroupType.PRIVATE.value,
+                space_uid=space_uid,
+                created_by=username,
+                source_app_code=source_app_code,
+                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
+            )
+        except IntegrityError:
+            obj = cls.objects.get(
+                group_type=FavoriteGroupType.PRIVATE.value,
+                space_uid=space_uid,
+                created_by=username,
+                source_app_code=source_app_code,
+                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
+            )
+
         return obj
 
     @classmethod
-    @atomic
     def get_or_create_ungrouped_group(cls, space_uid: str) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
-        obj, __ = cls.objects.get_or_create(
-            group_type=FavoriteGroupType.UNGROUPED.value,
-            space_uid=space_uid,
-            source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
-        )
+        try:
+            obj, __ = cls.objects.get_or_create(
+                group_type=FavoriteGroupType.UNGROUPED.value,
+                space_uid=space_uid,
+                source_app_code=source_app_code,
+                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
+            )
+        except IntegrityError:
+            obj = cls.objects.get(
+                group_type=FavoriteGroupType.UNGROUPED.value,
+                space_uid=space_uid,
+                source_app_code=source_app_code,
+                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
+            )
         return obj
 
     @classmethod
