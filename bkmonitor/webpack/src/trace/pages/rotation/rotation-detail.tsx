@@ -202,6 +202,12 @@ export default defineComponent({
                   <span class='detail-text'>{this.detailData?.labels?.join(', ') || '--'}</span>
                 </FormItem>
                 <FormItem
+                  label={this.t('启/停')}
+                  hasColon={true}
+                >
+                  <span class='detail-text'>{this.detailData?.enabled ? this.t('开启') : this.t('停用')}</span>
+                </FormItem>
+                <FormItem
                   label={this.t('轮值类型')}
                   hasColon={true}
                 >
