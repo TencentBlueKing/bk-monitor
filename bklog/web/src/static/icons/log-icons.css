@@ -62,14 +62,6 @@
   content: '\e164';
 }
 
-.icon-plus-circle-shape:before {
-  content: '\e163';
-}
-
-.icon-plus-circle-yuan:before {
-  content: '\e1a1';
-}
-
 .icon-star-shape:before {
   content: '\e165';
 }

@@ -74,6 +74,7 @@ import UsageDetails from '@/views/manage/manage-access/components/usage-details'
 import dragMixin from '@/mixins/drag-mixin';
 import IntroPanel from './components/intro-panel';
 import BasicTab from '@/components/basic-tab';
+import FieldInfo from '../log-collection/collection-item/manage-collection/field-info.tsx';
 import * as authorityMap from '../../../../common/authority-map';
 
 export default {
@@ -86,6 +87,7 @@ export default {
     UsageDetails,
     IntroPanel,
     BasicTab,
+    FieldInfo,
   },
   mixins: [dragMixin],
   data() {
@@ -98,6 +100,7 @@ export default {
       panels: [
         { name: 'basicInfo', label: this.$t('配置信息') },
         { name: 'dataStorage', label: this.$t('数据存储') },
+        { name: 'fieldInfo', label: this.$t('字段信息') },
         { name: 'dataStatus', label: this.$t('数据状态') },
         { name: 'usageDetails', label: this.$t('使用详情') },
       ],
@@ -108,6 +111,7 @@ export default {
       const componentMaP = {
         basicInfo: 'BasicInfo',
         dataStorage: 'DataStorage',
+        fieldInfo: 'FieldInfo',
         dataStatus: 'DataStatus',
         usageDetails: 'UsageDetails',
       };

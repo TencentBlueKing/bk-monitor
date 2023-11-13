@@ -45,7 +45,7 @@ export default class TimeFormatterSwitcher extends tsc<{}> {
         <Switcher
           // v-bk-tooltips={this.$t('开启后将表格内的 UNIX 时间戳格式化为可读时间')}
           show-text
-          off-text={'UTC'}
+          off-text={this.$t('时间')}
           value={this.isFormatDate}
           onChange={this.handleClickSwitcher}
           props={{

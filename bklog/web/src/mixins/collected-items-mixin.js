@@ -74,6 +74,16 @@ export default {
             id: row.collector_config_id,
           }],
         });
+      } else if (operateType === 'masking') {
+        // if (!(row.permission?.[authorityMap.SEARCH_LOG_AUTH])) {
+        //   return this.getOptionApplyData({
+        //     action_ids: [authorityMap.SEARCH_LOG_AUTH],
+        //     resources: [{
+        //       type: 'indices',
+        //       id: row.index_set_id,
+        //     }],
+        //   });
+        // }
       }
       this.leaveCurrentPage(row, operateType);
     },

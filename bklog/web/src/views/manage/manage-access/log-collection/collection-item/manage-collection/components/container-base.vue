@@ -67,9 +67,10 @@
       <div>
         <span>{{$t('配置项')}}</span>
         <div>
-          <div v-for="( configItem, configIndex) in collectorConfigs"
-               :key="configIndex"
-               class="config-box">
+          <div
+            v-for="( configItem, configIndex) in collectorConfigs"
+            :key="configIndex"
+            class="config-box">
             <div class="config-title">{{getFromCharCode(configIndex)}}</div>
             <div class="deploy-sub">
               <!-- 容器环境 -->
@@ -94,9 +95,10 @@
                 <span :class="{ 'label-title': isSelectorHaveValue(configItem.label_selector) }">{{$t('关联标签')}}</span>
                 <div v-if="isSelectorHaveValue(configItem.label_selector)">
                   <template v-for="(labItem, labKey) in configItem.label_selector">
-                    <div class="specify-box"
-                         v-for="(matchItem, matchKey) of labItem"
-                         :key="`${labKey}_${matchKey}`">
+                    <div
+                      class="specify-box"
+                      v-for="(matchItem, matchKey) of labItem"
+                      :key="`${labKey}_${matchKey}`">
                       <div class="specify-container justify-bt" v-bk-overflow-tips>
                         <span>{{matchItem.key}}</span>
                         <div class="operator">{{matchItem.operator}}</div>
@@ -336,7 +338,7 @@ export default {
             container: yamlContainer,
             label_selector: yamlSelector,
             namespaces,
-            collector_type,
+            collector_type: collectorType,
           } = item;
           let container;
           let labelSelector;
@@ -356,7 +358,7 @@ export default {
               match_expressions,
             };
           }
-          const collectorName = this.collectorNameMap[collector_type] || '--';
+          const collectorName = this.collectorNameMap[collectorType] || '--';
           return {
             namespaces,
             data_encoding,
