@@ -27,6 +27,7 @@
 import { RouteConfig } from 'vue-router';
 
 // import * as rotation from '../../pages/rotation/authority-map';
+import * as AlarmGroupAuth from '../../pages/alarm-group/authority-map';
 
 const Rotation = () => import(/* webpackChunkName: 'Rotation' */ '../../pages/rotation/rotation');
 export default [
@@ -42,11 +43,11 @@ export default [
       noNavBar: true,
       route: {
         parent: 'manager'
+      },
+      authority: {
+        map: AlarmGroupAuth,
+        page: [AlarmGroupAuth.VIEW_AUTH]
       }
-      // authority: {
-      //   map: alarmShieldAuth,
-      //   page: alarmShieldAuth.VIEW_AUTH
-      // }
     }
   },
   {
