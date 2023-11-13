@@ -2014,6 +2014,8 @@ msgstr "Microsecond (microsecond)"
 #: apps/log_databus/handlers/collector.py:1866
 #: apps/log_databus/handlers/collector.py:1885
 #: apps/log_search/constants.py:291
+#: apps/log_databus/handlers/collector.py:1424
+#: apps/log_databus/handlers/collector.py:1425
 msgid "主机"
 msgstr "Host"
 
@@ -8697,3 +8699,7 @@ msgstr "Enhanced management capabilities"
 #: apps/log_search/constants.py:1292
 msgid "日志提取任务挪到管理；增加数据存储、使用等状态管理"
 msgstr "Moved the log extraction task to management; added status management such as data storage and usage"
+
+#: config/default.py:644
+msgid "日志脱敏"
+msgstr "Log Desensitize"

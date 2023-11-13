@@ -43,9 +43,10 @@
         :class="`icon icon-handle log-icon icon-inform ${!isActiveMonitorWeb && 'is-disable'}`"
         @click.stop="handleCheckClick('monitorWeb', isActiveMonitorWeb)"></span>
     </span>
-    <span v-bk-tooltips="{ content: 'WebConsole', delay: 500 }"
-          class="handle-card"
-          v-if="isActiveWebConsole && showAllHandle">
+    <span
+      v-bk-tooltips="{ content: 'WebConsole', delay: 500 }"
+      class="handle-card"
+      v-if="isActiveWebConsole && showAllHandle">
       <span
         class="icon icon-handle log-icon icon-teminal"
         @click.stop="handleClick('webConsole')"></span>

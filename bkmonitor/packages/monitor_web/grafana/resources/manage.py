@@ -305,12 +305,11 @@ class QuickImportDashboard(Resource):
             if folder_list:
                 folder_id = folder_list[0]
 
-        from bk_dataview.grafana import settings  # noqa
         from monitor_web.grafana.provisioning import BkMonitorProvisioning
 
         # 寻找对应仪表盘文件
         if not BkMonitorProvisioning.create_default_dashboard(
-            org_id, json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id
+            org_id, str(bk_biz_id), json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id
         ):
             raise ImportError(f"bk_biz_id[{bk_biz_id}], quick import dashboard[{dash_name}] failed")
 

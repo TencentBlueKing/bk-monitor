@@ -62,9 +62,10 @@
           :name="option.name">
         </bk-option>
         <div slot="" class="compared-customize">
-          <div class="customize-option"
-               v-if="fingerOperateData.isShowCustomize"
-               @click="changeCustomizeState(false)">
+          <div
+            class="customize-option"
+            v-if="fingerOperateData.isShowCustomize"
+            @click="changeCustomizeState(false)">
             <span>{{$t('自定义')}}</span>
           </div>
           <div v-else>
