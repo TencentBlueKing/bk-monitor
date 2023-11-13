@@ -72,6 +72,8 @@ export default class RotationPreview extends tsc<IProps> {
   detailTitle = '';
   detailDutyPlans = [];
 
+  startTime = '';
+
   created() {
     this.dutyData = dutyDataConversion(this.dutyData);
   }
@@ -123,8 +125,8 @@ export default class RotationPreview extends tsc<IProps> {
   }
   @Emit('startTimeChange')
   handleStartTimeChange() {
-    const startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
-    return startTime;
+    this.startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
+    return this.startTime;
   }
   /**
    * @description 上一个周期

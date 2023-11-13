@@ -102,6 +102,7 @@ export default class RotationConfig extends tsc<IProps> {
 
   /* 轮值预览下的统计信息 */
   userPreviewList: { name: string; id: string }[] = [];
+  previewStartTime = '';
 
   errMsg = '';
 
@@ -168,7 +169,7 @@ export default class RotationConfig extends tsc<IProps> {
     }
     this.cacheDutyList = JSON.stringify(this.dutyList.map(d => d.id));
     const startTime = getCalendarOfNum()[0];
-    const beginTime = `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
+    const beginTime = this.previewStartTime || `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
     const params = {
       source_type: 'API',
       days: 7,
@@ -208,6 +209,7 @@ export default class RotationConfig extends tsc<IProps> {
    * @param startTime
    */
   async handleStartTimeChange(startTime) {
+    this.previewStartTime = startTime;
     const params = {
       source_type: 'API',
       days: 7,
