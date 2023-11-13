@@ -90,8 +90,6 @@ class RequestProcessor:
             fake_request_meta["HTTP_BK_APP_CODE"] = request_meta["HTTP_X_BK_APP_CODE"]
             setattr(request, "META", request_meta)
             setattr(fake_request, "META", fake_request_meta)
-        logger.info(f"request.META: {request.META}")
-        logger.info(f"fake_request.META: {fake_request.META}")
         return fake_request
 
     @classmethod
