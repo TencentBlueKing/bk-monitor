@@ -61,8 +61,8 @@ QUEUES = [
 ]
 
 # 如果高优先级队列特殊指定，则追加进队列
-if settings.BK_LOG_HIGH_PRIORITY_QUEUE == "high_priority":
-    QUEUES.append("high_priority")
+if settings.BK_LOG_HIGH_PRIORITY_QUEUE not in QUEUES:
+    QUEUES.append(settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 
 ALARM_QUEUE_LEN = 10000
 
