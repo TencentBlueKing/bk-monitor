@@ -23,11 +23,11 @@ import datetime
 import os
 import time
 from collections import defaultdict
-from typing import List, Union
+from typing import Any, Dict, List, Union
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import IntegrityError, models
+from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
@@ -860,42 +860,24 @@ class FavoriteGroup(OperateRecordModel):
     @classmethod
     def get_or_create_private_group(cls, space_uid: str, username: str) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
-        try:
-            obj, __ = cls.objects.get_or_create(
-                group_type=FavoriteGroupType.PRIVATE.value,
-                space_uid=space_uid,
-                created_by=username,
-                source_app_code=source_app_code,
-                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
-            )
-        except IntegrityError:
-            obj = cls.objects.get(
-                group_type=FavoriteGroupType.PRIVATE.value,
-                space_uid=space_uid,
-                created_by=username,
-                source_app_code=source_app_code,
-                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
-            )
-
+        obj, __ = cls.objects.get_or_create(
+            group_type=FavoriteGroupType.PRIVATE.value,
+            space_uid=space_uid,
+            created_by=username,
+            source_app_code=source_app_code,
+            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
+        )
         return obj
 
     @classmethod
     def get_or_create_ungrouped_group(cls, space_uid: str) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
-        try:
-            obj, __ = cls.objects.get_or_create(
-                group_type=FavoriteGroupType.UNGROUPED.value,
-                space_uid=space_uid,
-                source_app_code=source_app_code,
-                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
-            )
-        except IntegrityError:
-            obj = cls.objects.get(
-                group_type=FavoriteGroupType.UNGROUPED.value,
-                space_uid=space_uid,
-                source_app_code=source_app_code,
-                name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
-            )
+        obj, __ = cls.objects.get_or_create(
+            group_type=FavoriteGroupType.UNGROUPED.value,
+            space_uid=space_uid,
+            source_app_code=source_app_code,
+            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
+        )
         return obj
 
     @classmethod
@@ -910,22 +892,27 @@ class FavoriteGroup(OperateRecordModel):
         )
 
     @classmethod
-    def get_user_groups(cls, space_uid: str, username: str) -> dict:
+    def get_user_groups(cls, space_uid: str, username: str) -> List[Dict[str, Any]]:
         """获取用户所有能看到的组"""
+        groups = list()
         source_app_code = get_request_app_code()
-        groups = dict()
         # 个人组，使用get_or_create是为了减少同步
         private_group = cls.get_or_create_private_group(space_uid=space_uid, username=username)
-        groups[private_group.id] = model_to_dict(private_group)
         # 未归类组，使用get_or_create是为了减少同步
         ungrouped_group = cls.get_or_create_ungrouped_group(space_uid=space_uid)
-        groups[ungrouped_group.id] = model_to_dict(ungrouped_group)
         # 公共组
-        public_groups = cls.objects.filter(
-            group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
+        public_groups = (
+            cls.objects.filter(
+                group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
+            )
+            .order_by("created_at")
+            .all()
         )
+        # 组顺序, 先个人, 再公共, 最后未归类
+        groups.append(model_to_dict(private_group))
         for gi in public_groups:
-            groups[gi.id] = model_to_dict(gi)
+            groups.append(model_to_dict(gi))
+        groups.append(model_to_dict(ungrouped_group))
         return groups
 
 

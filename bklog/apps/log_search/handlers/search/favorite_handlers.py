@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 from collections import defaultdict
 from dataclasses import asdict
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from django.db.transaction import atomic
 
@@ -66,8 +66,8 @@ class FavoriteHandler(object):
         if favorite_id:
             try:
                 self.data = Favorite.objects.get(pk=favorite_id)
-                user_groups: dict = FavoriteGroup.get_user_groups(self.data.space_uid, self.username)
-                if self.data.group_id not in user_groups:
+                user_groups: List[Dict[str, Any]] = FavoriteGroup.get_user_groups(self.data.space_uid, self.username)
+                if self.data.group_id not in [i["id"] for i in user_groups]:
                     raise FavoriteNotAllowedAccessException()
             except Favorite.DoesNotExist:
                 raise FavoriteNotExistException()
@@ -262,10 +262,7 @@ class FavoriteGroupHandler(object):
 
     def list(self) -> list:
         """获取所有收藏组"""
-        group_order = self.get_group_order()
-        groups = FavoriteGroup.get_user_groups(space_uid=self.space_uid, username=self.username)
-        # 排序后输出
-        return [groups[i] for i in group_order]
+        return FavoriteGroup.get_user_groups(space_uid=self.space_uid, username=self.username)
 
     @atomic
     def create_or_update(self, name: str) -> dict:
@@ -299,11 +296,3 @@ class FavoriteGroupHandler(object):
         unknown_group_id = FavoriteGroup.get_or_create_ungrouped_group(space_uid=self.data.space_uid)
         Favorite.objects.filter(group_id=self.group_id).update(group_id=unknown_group_id.id)
         self.data.delete()
-
-    def get_group_order(self) -> list:
-        """获取用户组排序"""
-        private_group = FavoriteGroup.get_or_create_private_group(space_uid=self.space_uid, username=self.username)
-        ungrouped_group = FavoriteGroup.get_or_create_ungrouped_group(space_uid=self.space_uid)
-        public_group_list = FavoriteGroup.get_public_group(space_uid=self.space_uid)
-
-        return [private_group.id] + [i.id for i in public_group_list] + [ungrouped_group.id]
