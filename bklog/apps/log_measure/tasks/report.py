@@ -116,7 +116,7 @@ def collect_metrics(collector_import_paths: list = None, namespaces: list = None
         collector_import_paths: list 动态引用文件列表
         namespaces: 允许上报namespace列表
     """
-    metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(namespaces=None)
+    metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(namespaces=namespaces)
     try:
         for group in metric_groups:
             metric_id = build_metric_id(
