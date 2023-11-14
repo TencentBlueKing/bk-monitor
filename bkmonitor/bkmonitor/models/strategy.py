@@ -510,6 +510,31 @@ class UserGroup(AbstractRecordModel):
             notify_config["notice_ways"].append(notice_way_config)
         return notify_config
 
+    @staticmethod
+    def clean_notice_ways(notify_config, notice_way="weixin", replace_way="rtx"):
+        """
+        指定通知方式清理
+        """
+        translated_config = UserGroup.translate_notice_ways(notify_config)
+        old_ways = {n["name"] for n in translated_config["notice_ways"]}
+        if not old_ways:
+            return notify_config
+
+        if notice_way in old_ways:
+            if replace_way:
+                old_ways.add(replace_way)
+            old_ways.remove(notice_way)
+        # 不存在的话为老数据
+        notify_config["notice_ways"] = []
+        for notice_way in old_ways:
+            # 历史数据存在多个相同type的key的情况
+            notice_way_config = {"name": notice_way}
+            if NoticeWay.WX_BOT == notice_way:
+                notice_way_config["receivers"] = notify_config["chatid"].split(",")
+            notify_config["notice_ways"].append(notice_way_config)
+        notify_config["type"] = list(old_ways)
+        return notify_config
+
     @property
     def tz_info(self):
         """

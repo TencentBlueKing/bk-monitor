@@ -46,9 +46,10 @@
                 <tr v-for="(action, index) in authorityDetail.actions" :key="index">
                   <td width="30%">{{ action.name }}</td>
                   <td width="50%">
-                    <p class="resource-type-item"
-                       v-for="(reItem, reIndex) in getResource(action.related_resource_types)"
-                       :key="reIndex">
+                    <p
+                      class="resource-type-item"
+                      v-for="(reItem, reIndex) in getResource(action.related_resource_types)"
+                      :key="reIndex">
                       {{ reItem }}
                     </p>
                   </td>

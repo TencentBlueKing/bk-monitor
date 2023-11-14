@@ -218,7 +218,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
       duty_time: dutyTime,
       duty_users: originData.users.value.filter(item => item.value.length).map(item => item.value),
       group_type: originData.users.type,
-      group_number: originData.users.group_number
+      group_number: originData.users.groupNumber
     }
   ] as T extends 'data' ? ReplaceDataModel : any;
 }
@@ -267,7 +267,7 @@ export function fixedRotationTransform<T extends 'params' | 'data'>(
         const dateRange = item.workDateRange.map(date => moment(date).format('YYYY-MM-DD')).join('--');
         dutyTimeItem = {
           work_type: item.type,
-          work_date_range: [dateRange],
+          work_date_range: dateRange ? [dateRange] : [],
           work_time: item.workTime.map(item => item.join('--')),
           work_time_type: 'time_range'
         };

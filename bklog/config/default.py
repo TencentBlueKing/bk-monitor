@@ -212,6 +212,7 @@ CELERY_IMPORTS = (
 )
 
 # bk crypto sdk配置
+BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
 BKCRYPTO = {
     "SYMMETRIC_CIPHERS": {
         "default": {
@@ -221,7 +222,7 @@ BKCRYPTO = {
 }
 
 # 对称加密类型
-if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "AES") == "SHANGMI":
+if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "CLASSIC") == "SHANGMI":
     BKCRYPTO.update(
         {
             "SYMMETRIC_CIPHER_TYPE": bkcrypto_constants.SymmetricCipherType.SM4.value,
@@ -233,6 +234,9 @@ else:
             "SYMMETRIC_CIPHER_TYPE": bkcrypto_constants.SymmetricCipherType.AES.value,
         }
     )
+
+# celery web worker高优先级队列配置
+BK_LOG_HIGH_PRIORITY_QUEUE = os.getenv("BKAPP_HIGH_PRIORITY_QUEUE", "celery")
 
 # OTLP Service Name
 SERVICE_NAME = APP_CODE
@@ -558,6 +562,8 @@ FEATURE_TOGGLE = {
     "check_collector_custom_config": "",
     # trace
     "trace": os.environ.get("BKAPP_FEATURE_TRACE", "off"),
+    # 日志脱敏
+    "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"
@@ -662,6 +668,12 @@ MENUS = [
                         "id": "clean_templates",
                         "name": _("清洗模板"),
                         "feature": "on",
+                        "icon": "moban",
+                    },
+                    {
+                        "id": "log_desensitize",
+                        "name": _("日志脱敏"),
+                        "feature": FEATURE_TOGGLE["log_desensitize"],
                         "icon": "moban",
                     },
                 ],

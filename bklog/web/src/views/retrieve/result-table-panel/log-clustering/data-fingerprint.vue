@@ -143,7 +143,7 @@
             <div :class="['pattern-content', { 'is-limit': !cacheExpandStr.includes($index) }]">
               <cluster-event-popover
                 :context="row.pattern"
-                :tippy-options="tippyOptions"
+                :tippy-options="{ distance: -10, placement: 'top', boundary: scrollContent }"
                 @eventClick="(option) => handleMenuClick(option,row)">
                 <text-highlight
                   style="word-break: break-all; white-space: pre-line;"
@@ -185,7 +185,7 @@
       </template>
 
       <bk-table-column
-        width="160"
+        width="200"
         align="center"
         :label="$t('责任人')"
         :render-header="$renderHeader">
@@ -359,12 +359,6 @@ export default {
         year_on_year_count: '101',
         year_on_year_percentage: '101',
       },
-      /** 备注的tips设置 */
-      tippyOptions: {
-        distance: -10,
-        boundary: this.scrollContent,
-        placement: 'top',
-      },
       /** 编辑标签或备注的弹窗 */
       isShowStrInputDialog: false,
       /** 当前备注信息 */
@@ -375,9 +369,6 @@ export default {
   },
   inject: ['addFilterCondition'],
   computed: {
-    scrollContent() {
-      return document.querySelector('.result-scroll-container');
-    },
     bkBizId() {
       return this.$store.state.bkBizId;
     },
@@ -393,6 +384,9 @@ export default {
     /** 获取当前hover操作的数据 */
     getHoverRowValue() {
       return this.fingerList[this.editDialogIndex];
+    },
+    scrollContent() {
+      return document.querySelector('.result-scroll-container');
     },
   },
   watch: {
@@ -705,10 +699,12 @@ export default {
     },
     handleHoverRemarkIcon(e, row, index) {
       if (!this.popoverInstance) {
-        this.currentRemarkList = row.remark.map(item => ({
-          ...item,
-          create_time: item.create_time > 0 ? formatDate(item.create_time) : '',
-        }));
+        this.currentRemarkList = row.remark
+          .sort((a, b) => (b.create_time - a.create_time))
+          .map(item => ({
+            ...item,
+            create_time: item.create_time > 0 ? formatDate(item.create_time) : '',
+          }));
         this.popoverInstance = this.$bkPopover(event.target, {
           content: this.$refs.remarkTips,
           allowHTML: true,
@@ -992,6 +988,7 @@ export default {
   :deep(.user-selector-container) {
     /* stylelint-disable-next-line declaration-no-important */
     border: none !important;
+
     /* stylelint-disable-next-line declaration-no-important */
     background: transparent !important;
   }

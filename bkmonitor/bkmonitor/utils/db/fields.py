@@ -24,6 +24,9 @@ from bkmonitor.utils.text import camel_to_underscore
 
 
 def get_key_config(chiper_type: str):
+    if settings.BK_CRYPTO_KEY:
+        return settings.BK_CRYPTO_KEY
+
     if settings.SPECIFY_AES_KEY != "":
         x_key = settings.SPECIFY_AES_KEY
 

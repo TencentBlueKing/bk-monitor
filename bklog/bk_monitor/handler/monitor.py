@@ -1,34 +1,37 @@
 # -*- coding: utf-8 -*-
-import logging
 import json
-from typing import List, Optional
+import logging
 import time
+from typing import List, Optional
+
 import arrow
 from django.utils.translation import ugettext_lazy as _
 
+from apps.log_measure.models import MetricDataHistory
+from apps.log_measure.utils.metric import MetricUtils, get_metric_id_info
 from bk_monitor.api.client import Client
 from bk_monitor.constants import (
-    ErrorEnum,
-    NOT_EXIST_MSG,
-    LABEL,
-    OPTION,
-    SOURCE_LABEL,
     BATCH_SIZE,
-    TIME_SERIES_TYPE,
-    TIME_SERIES_ETL_CONFIG,
     EVENT_ETL_CONFIG,
     EVENT_TYPE,
+    LABEL,
+    NOT_EXIST_MSG,
+    OPTION,
+    SOURCE_LABEL,
+    TIME_SERIES_ETL_CONFIG,
+    TIME_SERIES_TYPE,
+    ErrorEnum,
 )
-from bk_monitor.exceptions import MonitorReportRequestException, MonitorReportResultException
+from bk_monitor.exceptions import (
+    MonitorReportRequestException,
+    MonitorReportResultException,
+)
 from bk_monitor.models import MonitorReportConfig
 from bk_monitor.utils.collector import MetricCollector
 from bk_monitor.utils.data_name_builder import DataNameBuilder
 from bk_monitor.utils.event import EventTrigger
 from bk_monitor.utils.metric import REGISTERED_METRICS, Metric
 from bk_monitor.utils.query import CustomTable, SqlSplice
-
-from apps.log_measure.models import MetricDataHistory
-from apps.log_measure.utils.metric import build_metric_id, MetricUtils, get_metric_id_info
 
 logger = logging.getLogger("bk_monitor")
 
@@ -171,31 +174,6 @@ class CustomReporter(object):
         self._enable_data_id([data_name_obj["name"] for data_name_obj in data_name_list])
         logger.info("enable data_id successful")
 
-    def collect(self, collector_import_paths: list = None, namespaces: list = None):
-        """
-        将已通过 register_metric 注册的对应metric收集存入数据库
-        Attributes:
-            collector_import_paths: list 动态引用文件列表
-            namespaces: 允许上报namespace列表
-        """
-        metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(namespaces=namespaces)
-        try:
-            for group in metric_groups:
-                metric_id = build_metric_id(
-                    data_name=group["data_name"], namespace=group["namespace"], prefix=group["prefix"]
-                )
-                metric_data = [i.__dict__ for i in group["metrics"]]
-                MetricDataHistory.objects.update_or_create(
-                    metric_id=metric_id,
-                    defaults={
-                        "metric_data": json.dumps(metric_data),
-                        "updated_at": MetricUtils.get_instance().report_ts,
-                    },
-                )
-                logger.info(f"save metric_data[{metric_id}] successfully")
-        except Exception as e:
-            logger.error(f"Failed to save metric_data, msg: {e}")
-
     def report(self, collector_import_paths: list = None):
         """
         将collect中塞去数据库的数据上报至监控
@@ -234,7 +212,7 @@ class CustomReporter(object):
         try:
             monitor_report_config = MonitorReportConfig.objects.get(data_name=data_name, is_enable=True)
         except MonitorReportConfig.DoesNotExist:
-            logger.error(_("f{key} data_name初始化异常，请检查"))
+            logger.exception("data_name[%s] init error, please check", data_name)
             return
 
         try:

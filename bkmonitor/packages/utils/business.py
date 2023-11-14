@@ -18,9 +18,9 @@ This module records whether the business is active or not.
 import time
 
 from six.moves import map
-from utils.redis_client import redis_cli
 
 from core.drf_resource import resource
+from utils.redis_client import redis_cli
 
 __all__ = [
     "get_all_business",
@@ -70,7 +70,11 @@ def get_all_business():
     """
     Get all businesses
     """
-    return [data for data in redis_cli.zrange(ACTIVE_BIZ_LAST_VISIT_TIME, 0, -1, withscores=True) if data[0]]
+    return [
+        (int(data[0]), data[1])
+        for data in redis_cli.zrange(ACTIVE_BIZ_LAST_VISIT_TIME, 0, -1, withscores=True)
+        if data[0]
+    ]
 
 
 def get_business_id_list():
@@ -98,7 +102,7 @@ def get_all_activate_business(cmp_func=None):
     """
     if cmp_func:
         all_business = redis_cli.zrange(ACTIVE_BIZ_LAST_VISIT_TIME, 0, -1, withscores=True)
-        return [b[0] for b in all_business if cmp_func(b)]
+        return [int(b[0]) for b in all_business if cmp_func(b)]
     else:
         max_score = int(time.time())
         min_score = max_score - _get_expired_time(DEFAULT_EXPIRED_TIME)

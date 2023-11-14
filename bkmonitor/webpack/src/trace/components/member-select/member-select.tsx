@@ -75,7 +75,7 @@ export default defineComponent({
       default: ''
     }
   },
-  emits: ['update:modelValue', 'change', 'selectEnd'],
+  emits: ['update:modelValue', 'change', 'selectEnd', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
     // ------------------ 用户数据----------------------
@@ -237,6 +237,7 @@ export default defineComponent({
       const tag = tags[startIndex];
       tags.splice(startIndex, 1);
       tags.splice(index, 0, tag);
+      emit('drop');
     }
 
     // --------------输入框--------------

@@ -57,6 +57,8 @@ class Dashboard:
     title: str = ""
     folder: str = ""
     overwrite: bool = True
+    path: str = None
+    pluginId: str = None
 
 
 class BaseProvisioning:
@@ -175,15 +177,18 @@ class SimpleProvisioning(BaseProvisioning):
             dashboards = cls._generate_default_dashboards(datasources, org_id, json_name, dashboard_config, folder_id)
 
             for dashboard in dashboards:
-                result = api.grafana.import_dashboard(
-                    **{
-                        "org_id": dashboard.org_id,
-                        "dashboard": dashboard.dashboard,
-                        "folderId": dashboard.folderId,
-                        "inputs": dashboard.inputs,
-                        "overwrite": dashboard.overwrite,
-                    }
-                )
+                params = {
+                    "org_id": dashboard.org_id,
+                    "dashboard": dashboard.dashboard,
+                    "folderId": dashboard.folderId,
+                    "inputs": dashboard.inputs,
+                    "overwrite": dashboard.overwrite,
+                }
+                if dashboard.path and dashboard.pluginId:
+                    params["path"] = dashboard.path
+                    params["pluginId"] = dashboard.pluginId
+
+                result = api.grafana.import_dashboard(**params)
 
                 if not result["result"]:
                     errors.append(f"组织({org_id})创建默认仪表盘({json_name})失败。接口返回：{result}")
