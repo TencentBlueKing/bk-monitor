@@ -55,6 +55,7 @@ import { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
 import { ChartType } from '../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
 import { IModelData } from '../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
+import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
 import { IFunctionsValue } from '../strategy-config-set-new/monitor-data/function-select';
 import {
   hasExcludeNoticeWayOptions,
@@ -62,7 +63,13 @@ import {
   intervalModeNames
 } from '../strategy-config-set-new/notice-config/notice-config';
 import { levelList, noticeMethod } from '../strategy-config-set-new/type';
-import { dataModeType, IDetectionConfig, IScenarioItem, MetricDetail } from '../strategy-config-set-new/typings';
+import {
+  dataModeType,
+  IDetectionConfig,
+  IScenarioItem,
+  MetricDetail,
+  MetricType
+} from '../strategy-config-set-new/typings';
 
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
@@ -326,6 +333,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     step: 'auto'
   };
   editMode: EditModeType = 'Edit';
+  /* 是否为场景智能检测 */
+  isMultivariateAnomalyDetection = false;
 
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
@@ -399,6 +408,16 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     return SetMealAddStore.noticeWayList;
   }
 
+  /**
+   * @description 是否显示检测算法
+   */
+  get showDetectionConfig() {
+    if (this.isMultivariateAnomalyDetection) {
+      return false;
+    }
+    return this.metricData[0]?.canSetDetEctionRules || this.editMode === 'Source';
+  }
+
   created() {
     this.loading = true;
     const promiseList = [];
@@ -430,7 +449,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.strategyView.rightWidth = this.$el.clientWidth * 0.33;
   }
 
-  // 获取告警组数据
+  /**
+   * 获取告警组数据
+   */
   async getAlarmGroupList() {
     const data = await listUserGroup().catch(() => []);
     this.alarmGroupList = data.map(item => ({
@@ -478,7 +499,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     return data;
   }
 
-  /** 处理详情数据回显数据 */
+  /**
+   * 处理详情数据回显数据
+   */
   handleDisplaybackDetail() {
     /** 基本信息 */
     this.getBaseInfo(this.detailData);
@@ -509,9 +532,27 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       this.customLabelsList = res.custom.map(item => item.id.replace(/\//g, ''));
     });
   }
-  /** 处理查询项数据 */
+
+  /**
+   * @description 处理查询项数据
+   * @param srcData
+   * @returns
+   */
   async handleQueryConfigData(srcData = this.detailData) {
-    const [{ expression, query_configs: queryConfigs, functions = [] }] = srcData.items;
+    const [{ expression, query_configs: queryConfigs, functions = [], algorithms }] = srcData.items;
+    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+      const curMetricData = new MetricDetail({
+        targetType: this.targetDetail?.node_type,
+        objectType: this.targetDetail?.instance_type,
+        sceneConfig: {
+          algorithms,
+          query_configs: queryConfigs
+        }
+      } as any);
+      this.metricData.push(curMetricData);
+      this.isMultivariateAnomalyDetection = true;
+      return;
+    }
     const { metric_type } = srcData;
     const isPromql = queryConfigs?.[0]?.data_source_label === 'prometheus';
     if (isPromql) {
@@ -620,7 +661,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       this.scenarioList = data;
     });
   }
-  // 策略详情数据获取
+  /**
+   * @description 策略详情数据获取
+   * @param id
+   */
   async getStrategyConfigDetail(id) {
     // 策略快照start
     this.strategyId = 0;
@@ -651,7 +695,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
     }
     targetList.length && (targetList[0].instances_count = strategyTarget?.instance_count || 0);
-    this.targetDetail = { ...strategyTarget, detail: strategyTarget.target_detail, target_detail: targetList };
+    this.targetDetail = { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList };
     await this.handleQueryConfigData();
     await this.handleProcessData({
       ...strategyDetail,
@@ -665,7 +709,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.getNoticeConfigData(data);
   }
 
-  /** 处理基本信息数据 */
+  /**
+   * @description 处理基本信息数据
+   * @param data
+   */
   getBaseInfo(data: Record<string, any>) {
     const bizItem = this.bizList.find(item => item.id === data.bk_biz_id);
     this.baseInfo = {
@@ -684,7 +731,12 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     theLastOne.name = this.baseInfo.name;
   }
 
-  /** 查找treeData */
+  /**
+   * @description 查找treeData
+   * @param treeData
+   * @param id
+   * @returns
+   */
   findTreeItem(treeData, id) {
     const fn = data => {
       for (const item of data) {
@@ -698,7 +750,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     const res = fn(treeData);
     return res;
   }
-  // 获取判断条件数据
+  /**
+   * @description 获取判断条件数据
+   * @param data
+   */
   getAnalyzingData(data) {
     const [detect] = data.detects;
     const [item] = data.items;
@@ -724,7 +779,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.timeRanges = time_ranges ? time_ranges : [];
     this.calendars = calendars ? calendars : [];
   }
-  // 获取告警处理数据
+  /**
+   * @description 获取告警处理数据
+   * @param data
+   */
   getActionsData(data) {
     const { actions } = data;
     this.actionsData = actions.map(item => ({
@@ -979,87 +1037,95 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
               )}
               {panelItem(
                 this.$tc('数据查询'),
-                <div class='query-configs-main'>
-                  <div>
-                    {(() => {
-                      if (this.editMode === 'Edit') {
-                        return [
-                          this.metricData.map(metricItem => <MetricListItem metric={metricItem} />),
-                          this.metricData.length > 1 ? (
-                            <MetricListItem
-                              expression={this.expression}
-                              expFunctions={this.expFunctions}
-                            />
-                          ) : undefined
-                        ];
-                      }
-                      return (
-                        <div class='promql-content'>
-                          <div class='edit-wrap'>
-                            <PromqlEditor
-                              class='promql-editor'
-                              readonly={true}
-                              value={this.sourceData.sourceCode}
-                            ></PromqlEditor>
-                          </div>
-                          <div class='step-wrap'>
-                            <Input
-                              class='step-input'
-                              type='number'
-                              min={10}
-                              value={this.sourceData.step}
-                              disabled
-                            >
-                              <div
-                                slot='prepend'
-                                class='step-input-prepend'
+                this.isMultivariateAnomalyDetection ? (
+                  <AiopsMonitorData
+                    metricData={this.metricData}
+                    readonly={true}
+                    defaultCheckedTarget={this.targetDetail || { target_detail: [] }}
+                  ></AiopsMonitorData>
+                ) : (
+                  <div class='query-configs-main'>
+                    <div>
+                      {(() => {
+                        if (this.editMode === 'Edit') {
+                          return [
+                            this.metricData.map(metricItem => <MetricListItem metric={metricItem} />),
+                            this.metricData.length > 1 ? (
+                              <MetricListItem
+                                expression={this.expression}
+                                expFunctions={this.expFunctions}
+                              />
+                            ) : undefined
+                          ];
+                        }
+                        return (
+                          <div class='promql-content'>
+                            <div class='edit-wrap'>
+                              <PromqlEditor
+                                class='promql-editor'
+                                readonly={true}
+                                value={this.sourceData.sourceCode}
+                              ></PromqlEditor>
+                            </div>
+                            <div class='step-wrap'>
+                              <Input
+                                class='step-input'
+                                type='number'
+                                min={10}
+                                value={this.sourceData.step}
+                                disabled
                               >
-                                <span>{'Step'}</span>
-                                <span
-                                  class='icon-monitor icon-hint'
-                                  v-bk-tooltips={{
-                                    content: this.$t('数据步长'),
-                                    placements: ['top']
-                                  }}
-                                ></span>
-                              </div>
-                            </Input>
+                                <div
+                                  slot='prepend'
+                                  class='step-input-prepend'
+                                >
+                                  <span>{'Step'}</span>
+                                  <span
+                                    class='icon-monitor icon-hint'
+                                    v-bk-tooltips={{
+                                      content: this.$t('数据步长'),
+                                      placements: ['top']
+                                    }}
+                                  ></span>
+                                </div>
+                              </Input>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  {this.targetsDesc.message || this.targetsDesc.subMessage ? (
-                    <div class='targets-desc'>
-                      <span onClick={this.handleShowTargetTable}>
-                        <i class='icon-monitor icon-mc-tv'></i>
-                        <span class='targets-desc-text'>
-                          {this.targetsDesc.message}
-                          {this.targetsDesc.subMessage}
+                        );
+                      })()}
+                    </div>
+                    {this.targetsDesc.message || this.targetsDesc.subMessage ? (
+                      <div class='targets-desc'>
+                        <span onClick={this.handleShowTargetTable}>
+                          <i class='icon-monitor icon-mc-tv'></i>
+                          <span class='targets-desc-text'>
+                            {this.targetsDesc.message}
+                            {this.targetsDesc.subMessage}
+                          </span>
                         </span>
-                      </span>
-                    </div>
-                  ) : undefined}
-                  {!!this.metricData
-                    .slice(0, 1)
-                    .find(item => item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') ? (
-                    <div class='event-alert-level'>
-                      <span class='level-label'>{this.$t('告警级别')} : </span>
-                      <span class='level-content'>
-                        <i
-                          class={[
-                            'icon-monitor',
-                            this.currentAlertLevel.icon,
-                            `level-icon-${this.currentAlertLevel.id}`
-                          ]}
-                        ></i>
-                        <span class='level-text'>{this.currentAlertLevel.name}</span>
-                      </span>
-                    </div>
-                  ) : undefined}
-                </div>
+                      </div>
+                    ) : undefined}
+                    {!!this.metricData
+                      .slice(0, 1)
+                      .find(item => item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') ? (
+                      <div class='event-alert-level'>
+                        <span class='level-label'>{this.$t('告警级别')} : </span>
+                        <span class='level-content'>
+                          <i
+                            class={[
+                              'icon-monitor',
+                              this.currentAlertLevel.icon,
+                              `level-icon-${this.currentAlertLevel.id}`
+                            ]}
+                          ></i>
+                          <span class='level-text'>{this.currentAlertLevel.name}</span>
+                        </span>
+                      </div>
+                    ) : undefined}
+                  </div>
+                )
               )}
-              {this.metricData[0]?.canSetDetEctionRules || this.editMode === 'Source'
+              {this.showDetectionConfig
                 ? panelItem(
                     this.$tc('检测算法'),
                     <div class='algorithms-wrap'>

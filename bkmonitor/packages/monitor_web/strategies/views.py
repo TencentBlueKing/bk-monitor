@@ -17,7 +17,6 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 class StrategiesViewSet(ResourceViewSet):
-
     iam_read_actions = ActionEnum.VIEW_RULE
     iam_write_actions = ActionEnum.MANAGE_RULE
 
@@ -132,4 +131,6 @@ class StrategiesViewSet(ResourceViewSet):
         ),
         # 按业务更新指标缓存列表
         ResourceRoute("POST", resource.strategies.update_metric_list_by_biz, endpoint="update_metric_list_by_biz"),
+        # 获取单位详情
+        ResourceRoute("GET", resource.strategies.multivariate_anomaly_scenes, endpoint="multivariate_anomaly_scenes"),
     ]

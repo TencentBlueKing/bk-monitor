@@ -387,9 +387,8 @@ class StrategyModel(Model):
 
     @property
     def target_type(self):
-        from monitor_web.models import DataTargetMapping
-
         from constants.strategy import DataTarget
+        from monitor_web.models import DataTargetMapping
 
         data_target_map = dict(
             [(DataTarget.HOST_TARGET, "HOST"), (DataTarget.SERVICE_TARGET, "SERVICE"), (DataTarget.NONE_TARGET, None)]
@@ -500,6 +499,31 @@ class UserGroup(AbstractRecordModel):
             if NoticeWay.WX_BOT == notice_way:
                 notice_way_config["receivers"] = notify_config["chatid"].split(",")
             notify_config["notice_ways"].append(notice_way_config)
+        return notify_config
+
+    @staticmethod
+    def clean_notice_ways(notify_config, notice_way="weixin", replace_way="rtx"):
+        """
+        指定通知方式清理
+        """
+        translated_config = UserGroup.translate_notice_ways(notify_config)
+        old_ways = {n["name"] for n in translated_config["notice_ways"]}
+        if not old_ways:
+            return notify_config
+
+        if notice_way in old_ways:
+            if replace_way:
+                old_ways.add(replace_way)
+            old_ways.remove(notice_way)
+        # 不存在的话为老数据
+        notify_config["notice_ways"] = []
+        for notice_way in old_ways:
+            # 历史数据存在多个相同type的key的情况
+            notice_way_config = {"name": notice_way}
+            if NoticeWay.WX_BOT == notice_way:
+                notice_way_config["receivers"] = notify_config["chatid"].split(",")
+            notify_config["notice_ways"].append(notice_way_config)
+        notify_config["type"] = list(old_ways)
         return notify_config
 
 
@@ -668,7 +692,6 @@ class DutyPlan(Model):
 
         backup_users = []
         for backup in duty_arrange.backups:
-
             if not self.is_time_match(backup["work_time"], backup["begin_time"], backup["end_time"], data_time):
                 # 工作时间段不匹配，忽略
                 continue

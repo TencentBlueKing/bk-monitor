@@ -1884,6 +1884,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                     needShrinkBtn={false}
                     placement={'right'}
                     selectorPanelType={this.sceneData?.selectorPanel?.type || ''}
+                    sceneId={this.sceneId}
                     // onShowChange={show => !show && (this.infoActive = false)}
                     // onShrink={ () => this.infoActive = !this.infoActive}
                     onTitleChange={this.headerTitleChange}

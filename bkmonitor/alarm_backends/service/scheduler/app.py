@@ -244,6 +244,7 @@ TASK_ROOT_MODULES = [
     "alarm_backends.service.converge",
     "api",
     "apm",
+    "apm_ebpf",
     "metadata",
     "bkmonitor",
 ]
