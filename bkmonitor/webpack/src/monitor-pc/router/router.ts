@@ -32,6 +32,7 @@ import { getUrlParam, random } from '../../monitor-common/utils/utils';
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
+import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
 // #if APP !== 'external'
 import dataRetrievalRoutes from './data-retrieval';
@@ -176,6 +177,10 @@ router.beforeEach(async (to, from, next) => {
 });
 router.afterEach(to => {
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
+  reportLogStore.reportRouteLog({
+    route_id: to.name,
+    nav_id: to.meta.navId
+  });
 });
 
 export default router;

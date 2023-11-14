@@ -254,7 +254,7 @@ export const routeConfig: IRouteConfigItem[] = [
           },
           {
             name: '轮值',
-            icon: 'icon-monitor icon-menu-group menu-icon',
+            icon: 'icon-monitor icon-lunliu menu-icon',
             id: 'rotation',
             path: '/trace/rotation',
             canStore: true,
@@ -521,4 +521,22 @@ export function setLocalStoreRoute(id: string) {
   list.has(id) && list.delete(id);
   list.add(id);
   localStorage.setItem(LOCAL_COMMON_ROUTE_STORE_KEY, JSON.stringify(Array.from(list)));
+}
+/**
+ * @param id 路由id
+ * @returns 路由配置
+ */
+export function getRouteConfigById(id: string) {
+  const flatConfig = routeConfig.flatMap(config => {
+    if (config.children?.length) {
+      return config.children.flatMap(set => {
+        if (set.children?.length) {
+          return set.children;
+        }
+        return set;
+      });
+    }
+    return config;
+  });
+  return flatConfig.find(item => item.id === id);
 }
