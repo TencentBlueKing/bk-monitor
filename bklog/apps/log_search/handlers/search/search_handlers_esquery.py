@@ -490,6 +490,8 @@ class SearchHandler(object):
 
         result = self._multi_search(once_size=once_size)
 
+        # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW
+        # @TODO bkdata暂不支持scroll查询
         if self._can_scroll(result):
             result = self._scroll(result)
 
