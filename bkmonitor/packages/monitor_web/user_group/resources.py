@@ -51,7 +51,7 @@ class DutyPlanUserTranslaterResource(Resource):
         """
         all_members = []
         for duty_plan in duty_plans:
-            all_members.extend([user["id"] for user in duty_plan.users if user["type"] == "user"])
+            all_members.extend([user["id"] for user in duty_plan["users"] if user["type"] == "user"])
         try:
             self.user_list = {
                 user["username"]: user["display_name"]
