@@ -28,6 +28,18 @@ from multiprocessing.pool import ThreadPool
 from urllib import parse
 
 import requests
+from apps.api.exception import DataAPIException
+from apps.api.modules.utils import add_esb_info_before_request
+from apps.exceptions import ApiRequestError, ApiResultError, PermissionError
+from apps.utils.function import ignored
+from apps.utils.local import (
+    activate_request,
+    get_request,
+    get_request_id,
+    get_request_username,
+)
+from apps.utils.log import logger
+from apps.utils.time_handler import timestamp_to_datetime
 from django.conf import settings
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
@@ -41,18 +53,18 @@ from requests import Response
 from requests.exceptions import ReadTimeout
 from retrying import RetryError, Retrying
 
-from apps.api.exception import DataAPIException
-from apps.api.modules.utils import add_esb_info_before_request
-from apps.exceptions import ApiRequestError, ApiResultError, PermissionError
-from apps.utils.function import ignored
-from apps.utils.local import (
-    activate_request,
-    get_request,
-    get_request_api_headers,
-    get_request_id,
-)
-from apps.utils.log import logger
-from apps.utils.time_handler import timestamp_to_datetime
+
+def add_common_info_before_request(params):
+    """
+    统一请求模块必须带上的参数
+    """
+    if "bk_app_code" not in params:
+        params["bk_app_code"] = settings.APP_CODE
+    if "bk_app_secret" not in params:
+        params["bk_app_secret"] = settings.SECRET_KEY
+    if "bk_username" not in params:
+        params["bk_username"] = get_request_username()
+    return params
 
 
 class DataResponse(object):
@@ -291,9 +303,12 @@ class DataAPI(object):
         return message
 
     def _send_request(self, params, timeout, request_id, request_cookies):
+
         # 请求前的参数清洗处理
         if self.before_request is not None:
             params = self.before_request(params)
+
+        params = add_common_info_before_request(params)
 
         # 是否有默认返回，调试阶段可用
         if self.default_return_value is not None:
@@ -474,9 +489,6 @@ class DataAPI(object):
             # params['X_HTTP_METHOD_OVERRIDE'] = self.method_override
 
         session.headers.update({"blueking-language": translation.get_language(), "request-id": get_request_id()})
-
-        # headers 增加api认证数据
-        session.headers.update({"X-Bkapi-Authorization": get_request_api_headers()})
 
         if self.header_keys:
             headers = {key: params.get(key) for key in self.header_keys if key in params}
