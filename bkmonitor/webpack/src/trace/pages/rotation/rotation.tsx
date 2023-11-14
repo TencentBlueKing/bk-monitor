@@ -226,7 +226,7 @@ export default defineComponent({
           id: 'id'
         },
         {
-          name: '告警组名称',
+          name: t('规则名称'),
           id: 'name'
         }
       ],
@@ -692,7 +692,7 @@ export default defineComponent({
               </Button>
               <SearchSelect
                 class='width-350'
-                placeholder={this.t('ID / 告警组名称')}
+                placeholder={`ID / ${this.t('规则名称')}`}
                 modelValue={this.searchData.value}
                 data={this.searchData.data}
                 onUpdate:modelValue={v => this.handleSearch(v)}
