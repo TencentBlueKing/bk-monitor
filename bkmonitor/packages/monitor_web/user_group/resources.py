@@ -7,9 +7,14 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.duty_manage import DutyRuleManager
-from bkmonitor.action.serializers import DutyRuleDetailSlz, PreviewSerializer
+from bkmonitor.action.serializers import (
+    DutyPlanSlz,
+    DutyRuleDetailSlz,
+    PreviewSerializer,
+)
 from bkmonitor.models import DutyRule, DutyRuleSnap
 from bkmonitor.utils import time_tools
+from common.log import logger
 from constants.action import BKCHAT_TRIGGER_TYPE_MAPPING
 from core.drf_resource import Resource, api
 
@@ -34,7 +39,35 @@ class GetBkchatGroupResource(Resource):
         return groups
 
 
-class PreviewUserGroupPlanResource(Resource):
+class DutyPlanUserTranslaterResource(Resource):
+    def __init__(self, context=None):
+        self.all_group_users = defaultdict(dict)
+        self.user_list = {}
+        super(DutyPlanUserTranslaterResource, self).__init__(context)
+
+    def get_all_plan_users(self, duty_plans):
+        """
+        转换用户组的显示名称
+        """
+        all_members = DutyPlanSlz.get_all_members(duty_plans)
+        try:
+            self.user_list = {
+                user["username"]: user["display_name"]
+                for user in api.bk_login.get_all_user(
+                    page_size=500, fields="username,display_name", exact_lookups=",".join(set(all_members))
+                )["results"]
+            }
+        except Exception as error:
+            logger.info("query list users error %s" % str(error))
+
+        self.all_group_users = DutyPlanSlz.get_all_recievers()
+
+    def translate_user_display(self, duty_plan):
+        """对轮值用户进行翻译"""
+        return DutyPlanSlz.translate_user_display(duty_plan["users"], self.all_group_users, self.user_list)
+
+
+class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
     """
     预览某个组的排班情况
     """
@@ -111,13 +144,20 @@ class PreviewUserGroupPlanResource(Resource):
             duty_plans[duty_plan.duty_rule_id].append(
                 {"users": duty_plan.users, "user_index": duty_plan.order, "work_times": duty_plan.work_times}
             )
+        all_duty_plans = []
+        for _, duty_plans in duty_plans.items():
+            all_duty_plans.extend(duty_plans)
+        self.get_all_plan_users(all_duty_plans)
         response_plans = []
         for rule in validated_request_data["duty_rules"]:
-            response_plans.append({"rule_id": rule["id"], "duty_plans": duty_plans.get(rule["id"], [])})
+            rule_duty_plans = duty_plans.get(rule["id"], [])
+            for duty_plan in rule_duty_plans:
+                duty_plan["users"] = self.translate_user_display(rule_duty_plans)
+            response_plans.append({"rule_id": rule["id"], "duty_plans": rule_duty_plans})
         return response_plans
 
 
-class PreviewDutyRulePlanResource(Resource):
+class PreviewDutyRulePlanResource(DutyPlanUserTranslaterResource):
     """
     预览轮值排班计划
     """
@@ -150,4 +190,8 @@ class PreviewDutyRulePlanResource(Resource):
             begin_time=validated_request_data["begin_time"],
             days=validated_request_data["days"],
         )
-        return duty_manager.get_duty_plan()
+        duty_plans = duty_manager.get_duty_plan()
+        self.get_all_plan_users(duty_plans)
+        for duty_plan in duty_plans:
+            duty_plan["users"] = self.translate_user_display(duty_plan)
+        return duty_plans

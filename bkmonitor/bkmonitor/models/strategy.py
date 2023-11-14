@@ -579,6 +579,7 @@ class DutyRule(AbstractRecordModel):
         verbose_name = "轮值规则"
         verbose_name_plural = "轮值规则"
         db_table = "duty_rule"
+        ordering = ["-update_time"]
 
 
 class DutyRuleSnap(Model):

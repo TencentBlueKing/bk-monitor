@@ -399,7 +399,20 @@ class DutyRuleSlz(serializers.ModelSerializer):
 
     class Meta:
         model = DutyRule
-        fields = ("id", "bk_biz_id", "name", "labels", "effective_time", "end_time", "category", "enabled")
+        fields = (
+            "id",
+            "bk_biz_id",
+            "name",
+            "labels",
+            "effective_time",
+            "end_time",
+            "category",
+            "enabled",
+            "create_time",
+            "create_user",
+            "update_time",
+            "update_user",
+        )
 
     def __init__(self, instance=None, data=empty, **kwargs):
         self.rule_group_dict = kwargs.pop("rule_group_dict", {})
