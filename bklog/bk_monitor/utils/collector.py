@@ -7,8 +7,7 @@ import time
 
 import arrow
 
-from apps.log_measure.utils.metric import build_metric_id
-from bk_monitor.utils.metric import REGISTERED_METRICS
+from bk_monitor.utils.metric import REGISTERED_METRICS, build_metric_id
 
 logger = logging.getLogger("bk_monitor")
 
@@ -37,6 +36,7 @@ class MetricCollector(object):
                 metric_groups.append(
                     {
                         "prefix": metric_method["prefix"],
+                        "sub_type": metric_method["sub_type"],
                         "namespace": metric_method["namespace"],
                         "description": metric_method["description"],
                         "metrics": metric_method["method"](),
@@ -44,7 +44,10 @@ class MetricCollector(object):
                     }
                 )
                 metric_id = build_metric_id(
-                    metric_method["namespace"], metric_method["data_name"], metric_method["prefix"]
+                    metric_method["data_name"],
+                    metric_method["namespace"],
+                    metric_method["prefix"],
+                    metric_method["sub_type"],
                 )
                 logger.info(
                     "[statistics_data] collect metric->[{}] took {} ms".format(

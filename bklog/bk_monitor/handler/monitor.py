@@ -186,7 +186,7 @@ class CustomReporter(object):
             stime = time.time()
             try:
                 aggregation_data_name_datas = []
-                data_name, namespace, prefix = get_metric_id_info(metric_id)
+                data_name, namespace, prefix, sub_type = get_metric_id_info(metric_id)
                 metric_id_datas = json.loads(MetricDataHistory.objects.filter(metric_id=metric_id).first().metric_data)
                 for i in metric_id_datas:
                     aggregation_data_name_datas.append(
