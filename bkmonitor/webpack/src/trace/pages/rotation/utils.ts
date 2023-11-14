@@ -172,6 +172,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
         work_days: item.workDays,
         work_time_type: 'time_range'
       }));
+      // .filter(item => item.work_time.length);
       break;
     }
     case RotationSelectTypeEnum.Weekly:
@@ -183,6 +184,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
           work_days: item.workDays,
           work_time: item.workTime.map(val => val.join('--'))
         }));
+        // .filter(item => item.work_days.length);
       } else {
         dutyTime = data.value.map(item => ({
           work_type: data.type,
@@ -190,6 +192,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
           work_days: item.workDays,
           work_time: [item.workTime.length && item.workTime.map(item => item.join(' ')).join('--')]
         }));
+        // .filter(item => item.work_time.length);
       }
       break;
     }
@@ -314,40 +317,42 @@ export function transformDetailTimer(data: any = [], type: RotationTabTypeEnum) 
       pre.push(...cur.duty_time);
       return pre;
     }, []);
-    return res.map(item => {
-      const date = item.work_days;
-      const week = [
-        '',
-        window.i18n.t('一'),
-        window.i18n.t('二'),
-        window.i18n.t('三'),
-        window.i18n.t('四'),
-        window.i18n.t('五'),
-        window.i18n.t('六'),
-        window.i18n.t('日')
-      ];
-      let dateRange = '';
-      switch (item.work_type) {
-        case RotationSelectTypeEnum.Weekly: {
-          dateRange = `${window.i18n.t('每周')}${date.map(item => week[item]).join('、')}`;
-          break;
+    return res
+      .map(item => {
+        const date = item.work_days;
+        const week = [
+          '',
+          window.i18n.t('一'),
+          window.i18n.t('二'),
+          window.i18n.t('三'),
+          window.i18n.t('四'),
+          window.i18n.t('五'),
+          window.i18n.t('六'),
+          window.i18n.t('日')
+        ];
+        let dateRange = '';
+        switch (item.work_type) {
+          case RotationSelectTypeEnum.Weekly: {
+            dateRange = `${window.i18n.t('每周')}${date.map(item => week[item]).join('、')}`;
+            break;
+          }
+          case RotationSelectTypeEnum.Monthly: {
+            dateRange = `${window.i18n.t('每月')}${date.join('、')}`;
+            break;
+          }
+          case RotationSelectTypeEnum.DateRange: {
+            dateRange = `${window.i18n.t('指定时间')}${item.work_date_range.join('、')}`;
+            break;
+          }
         }
-        case RotationSelectTypeEnum.Monthly: {
-          dateRange = `${window.i18n.t('每月')}${date.join('、')}`;
-          break;
-        }
-        case RotationSelectTypeEnum.DateRange: {
-          dateRange = `${window.i18n.t('指定时间')}${item.work_date_range.join('、')}`;
-          break;
-        }
-      }
-      return {
-        /** 工作时间范围 */
-        dateRange,
-        /** 工作时间 */
-        time: item.work_time.map(item => timeRangeTransform(item)).join('、')
-      };
-    });
+        return {
+          /** 工作时间范围 */
+          dateRange,
+          /** 工作时间 */
+          time: item.work_time.map(item => timeRangeTransform(item)).join('、')
+        };
+      })
+      .filter(item => item.dateRange);
   }
 
   return data[0].duty_time.map(item => {

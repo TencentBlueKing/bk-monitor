@@ -192,7 +192,7 @@ export default defineComponent({
           ref='weekSelectRef'
           class={['week-select', this.show && 'active']}
         >
-          <i class={['icon-monitor', 'arrow', 'icon-arrow-left', this.show && 'active']}></i>
+          <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
             trigger='click'
             is-show={this.show}

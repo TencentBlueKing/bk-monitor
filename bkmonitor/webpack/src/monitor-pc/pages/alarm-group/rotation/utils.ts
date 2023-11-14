@@ -359,67 +359,58 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
       resultOverlapTimes.push(group[0]);
     }
   });
-  /* 继续精简 */
-  const result = [];
-  resultOverlapTimes.forEach((item, index) => {
-    const isInclude = resultOverlapTimes.some((g, gIndex) =>
-      gIndex === index
-        ? false
-        : g.verticalRange[0] <= item.verticalRange[0] &&
-          g.verticalRange[1] >= item.verticalRange[1] &&
-          g.range.tempRange[0] <= item.range.tempRange[0] &&
-          g.range.tempRange[1] >= item.range.tempRange[1]
-    );
-    if (!isInclude) {
-      result.push(item);
-    }
-  });
-  /* 将跨行的且与用户组重叠的区域再精简 */
-  // const timeRangesNumbers = timeRanges.map(item => item.map(item1 => item1.map(item2 => new Date(item2))));
-  // const result = [];
-  // resultOverlapTimes.forEach(item => {
-  //   if (item.verticalRange[1] - item.verticalRange[0] > 1) {
-  //     const lineRange = [item.verticalRange[0], item.verticalRange[1]];
-  //     let start = item.range.tempRange[0];
-  //     let end = item.range.tempRange[1];
-  //     timeRangesNumbers.forEach((t, tIndex) => {
-  //       if (tIndex < lineRange[1] && tIndex > lineRange[0]) {
-  //         t.forEach(t1 => {
-  //           if (t1[0].getTime() > item.range.tempRange[0] && t1[0].getTime() < item.range.tempRange[1]) {
-  //             end = t1[0].getTime();
-  //           }
-  //           if (t1[1].getTime() > item.range.tempRange[0] && t1[1].getTime() < item.range.tempRange[1]) {
-  //             start = t1[1].getTime();
-  //           }
-  //         });
-  //       }
-  //     });
-  //     // if (
-  //     //   !timeRangesNumbers.some(
-  //     //     (t, tIndex) =>
-  //     //       tIndex < lineRange[1] &&
-  //     //       tIndex > lineRange[0] &&
-  //     //       t.some(t1 => t1[0].getTime() < start && t1[1].getTime() > end)
-  //     //   ) &&
-  //     //   start !== end
-  //     // ) {
-  //     // }
-  //     const temp =
-  //       end < start
-  //         ? [end, start]
-  //         : [start < totalRangeTime[0] ? totalRangeTime[0] : start, end > totalRangeTime[1] ? totalRangeTime[1] : end];
-  //     result.push({
-  //       ...item,
-  //       range: {
-  //         ...getDateStrAndRange(temp, totalRangeTime),
-  //         tempRange: temp
-  //       }
-  //     });
-  //   } else {
-  //     result.push(item);
-  //   }
+  /* 合并 */
+  // resultOverlapTimes.sort((a, b) => {
+  //   return a.range.tempRange[0] - b.range.tempRange[0];
   // });
-  return result;
+  // interface ItotalTemp {
+  //   tempRange: number[];
+  //   verticalRange: number[];
+  // }
+  // const tempResult: ItotalTemp[] = [];
+  // let totalTemp: ItotalTemp = null;
+  // resultOverlapTimes.length &&
+  //   resultOverlapTimes.reduce((pre, cur, curIndex) => {
+  //     if (!totalTemp) {
+  //       totalTemp = {
+  //         tempRange: pre.range.tempRange,
+  //         verticalRange: pre.verticalRange
+  //       };
+  //     }
+  //     if (cur.range.tempRange[0] <= totalTemp.tempRange[1]) {
+  //       totalTemp.tempRange[1] =
+  //         totalTemp.tempRange[1] > cur.range.tempRange[1] ? totalTemp.tempRange[1] : cur.range.tempRange[1];
+  //       totalTemp.verticalRange[0] =
+  //         totalTemp.verticalRange[0] < cur.verticalRange[0] ? totalTemp.verticalRange[0] : cur.verticalRange[0];
+  //       totalTemp.verticalRange[1] =
+  //         totalTemp.verticalRange[1] > cur.verticalRange[1] ? totalTemp.verticalRange[1] : cur.verticalRange[1];
+  //     } else {
+  //       tempResult.push(totalTemp);
+  //       totalTemp = null;
+  //     }
+  //     /* 最后一个 */
+  //     if (curIndex === resultOverlapTimes.length - 1) {
+  //       if (totalTemp) {
+  //         tempResult.push(totalTemp);
+  //         totalTemp = null;
+  //       } else {
+  //         totalTemp = {
+  //           tempRange: cur.range.tempRange,
+  //           verticalRange: cur.verticalRange
+  //         };
+  //         tempResult.push(totalTemp);
+  //       }
+  //     }
+  //     return cur;
+  //   });
+  // const result = tempResult.map(item => ({
+  //   verticalRange: item.verticalRange,
+  //   range: {
+  //     ...getDateStrAndRange(item.tempRange, totalRangeTime),
+  //     tempRange: item.tempRange
+  //   }
+  // }));
+  return resultOverlapTimes;
 }
 
 /**

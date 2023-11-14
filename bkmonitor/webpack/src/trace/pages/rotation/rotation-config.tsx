@@ -102,6 +102,12 @@ export default defineComponent({
       Object.assign(rotationTypeData, createDefaultRotation());
       previewData.value = [];
     }
+
+    function handleRotationDataReset<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
+      rotationTypeData[type] = val;
+      previewData.value = [];
+    }
+
     function getGroupList() {
       getReceiver().then(data => {
         defaultUserGroup.value = data;
@@ -160,18 +166,39 @@ export default defineComponent({
 
     function validRotationRule() {
       const res = { err: false, msg: '' };
-      const data = rotationTypeData[rotationType.value];
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
-        const hasUsers = (data as FixedDataModel[]).every(item => item.users.length);
-        if (!hasUsers) {
+        const data = rotationTypeData[RotationTabTypeEnum.REGULAR];
+        const hasUsers = data.every(item => item.users.length);
+        if (!hasUsers || !data.length) {
           res.err = true;
           res.msg = t('每条轮值规则最少添加一个用户');
         }
       } else {
-        const hasUsers = (data as ReplaceDataModel).users.value.some(item => item.value.length);
+        const data = rotationTypeData[RotationTabTypeEnum.HANDOFF];
+        const hasUsers = data.users.value.some(item => item.value.length);
         if (!hasUsers) {
           res.err = true;
           res.msg = t('每条轮值规则最少添加一个用户');
+        }
+        const type = data.date.isCustom ? RotationSelectTypeEnum.Custom : data.date.type;
+        switch (type) {
+          case RotationSelectTypeEnum.Daily:
+          case RotationSelectTypeEnum.WorkDay:
+          case RotationSelectTypeEnum.Weekend: {
+            if (!data.date.value.some(item => item.workTime.length)) {
+              res.err = true;
+              res.msg = t('最少选择一个单班时间');
+            }
+          }
+          case RotationSelectTypeEnum.Weekly:
+          case RotationSelectTypeEnum.Monthly: {
+            if (data.date.workTimeType === 'time_range' && !data.date.value.some(item => item.workDays.length)) {
+              res.msg = t('最少选择一个单班时间');
+            }
+            if (data.date.workTimeType === 'datetime_range' && !data.date.value.some(item => item.workTime.length)) {
+              res.msg = t('最少添加一个单班时间');
+            }
+          }
         }
       }
       return res;
@@ -257,7 +284,7 @@ export default defineComponent({
           source_type: 'API',
           config: dutyParams
         };
-        const data = await previewDutyRulePlan(params).catch(() => []);
+        const data = await previewDutyRulePlan(params, { needCancel: true }).catch(() => []);
         previewData.value = setPreviewDataOfServer(data);
       }
     }
@@ -292,6 +319,7 @@ export default defineComponent({
       getPreviewData,
       loading,
       handleRotationTypeDataChange,
+      handleRotationDataReset,
       handleSubmit,
       handleBack,
       handleBackPage
@@ -365,6 +393,7 @@ export default defineComponent({
                     ref='fixedRotationTabRef'
                     data={this.rotationTypeData.regular}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.REGULAR)}
+                    onReset={val => this.handleRotationDataReset(val, RotationTabTypeEnum.REGULAR)}
                   />
                 ) : (
                   <ReplaceRotationTab
@@ -372,6 +401,7 @@ export default defineComponent({
                     v-show={this.rotationType === RotationTabTypeEnum.HANDOFF}
                     data={this.rotationTypeData.handoff}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.HANDOFF)}
+                    onReset={val => this.handleRotationDataReset(val, RotationTabTypeEnum.HANDOFF)}
                     onDrop={this.getPreviewData}
                   />
                 )}

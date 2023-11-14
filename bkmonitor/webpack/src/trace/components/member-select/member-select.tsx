@@ -33,8 +33,10 @@ import { debounce } from 'lodash';
 import './member-select.scss';
 
 interface DateItem {
-  type: 'group' | 'user';
   id: string;
+  type: 'group' | 'user';
+  logo?: string;
+  display_name?: string;
 }
 
 export interface TagItemModel {
@@ -143,8 +145,8 @@ export default defineComponent({
         }
       )
         .then(res => {
-          setUser(res);
-          userSearchMap.set(key, res);
+          setUser(res.results);
+          userSearchMap.set(key, res.results);
         })
         .finally(() => {
           loading.value = false;
@@ -155,7 +157,7 @@ export default defineComponent({
      * @param users 用户列表
      */
     function setUser(users) {
-      userAndGroupList.user = users.results.map(item => {
+      userAndGroupList.user = users.map(item => {
         const obj: TagItemModel = {
           id: item.username,
           type: 'user',
@@ -174,6 +176,14 @@ export default defineComponent({
       () => props.modelValue,
       val => {
         tags.splice(0, tags.length, ...val);
+        setUser(
+          tags
+            .filter(item => item.type === 'user')
+            .map(item => ({
+              ...item,
+              username: item.id
+            }))
+        );
       },
       { immediate: true }
     );
