@@ -564,6 +564,14 @@ class ArchiveConfig(SoftDeleteModel):
         except cls.DoesNotExist:
             raise ArchiveNotFound
 
+    @classmethod
+    def get_index_set_id(cls, archive_config_id) -> int:
+        try:
+            archive_config: cls = cls.objects.get(archive_config_id=archive_config_id)
+            return archive_config.instance_id
+        except cls.DoesNotExist:
+            raise ArchiveNotFound
+
 
 class RestoreConfig(SoftDeleteModel):
     restore_config_id = models.AutoField(_("采集配置ID"), primary_key=True)
@@ -612,6 +620,11 @@ class RestoreConfig(SoftDeleteModel):
     def get_collector_config_id(cls, restore_config_id):
         restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.collector_config_id
+
+    @classmethod
+    def get_index_set_id(cls, restore_config_id):
+        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        return restore.archive.instance_id
 
 
 class CollectorPlugin(CollectorBase):

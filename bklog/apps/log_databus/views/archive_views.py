@@ -27,6 +27,7 @@ from apps.iam.handlers.drf import (
     insert_permission_field,
 )
 from apps.log_databus.constants import ArchiveInstanceType
+from apps.log_databus.exceptions import ArchiveNotFound
 from apps.log_databus.handlers.archive import ArchiveHandler
 from apps.log_databus.models import ArchiveConfig, CollectorConfig, CollectorPlugin
 from apps.log_databus.serializers import (
@@ -51,6 +52,10 @@ class ArchiveViewSet(ModelViewSet):
         if self.action in ["create"]:
             instance_id = self.request.data.get("instance_id")
             instance_type = self.request.data.get("instance_type")
+            if instance_type == ArchiveInstanceType.INDEX_SET.value:
+                return [
+                    InstanceActionForDataPermission("instance_id", [ActionEnum.MANAGE_INDICES], ResourceEnum.INDICES)
+                ]
             # 若创建的是采集插件类型归档。需要使用任一采集项进行鉴权
             if instance_type == ArchiveInstanceType.COLLECTOR_PLUGIN.value:
                 self.request.data["collector_config_id"] = CollectorPlugin.get_collector_config_id(instance_id)
@@ -62,6 +67,19 @@ class ArchiveViewSet(ModelViewSet):
                 )
             ]
         if self.action in ["destroy", "update", "restore", "retrieve"]:
+            archive_config_id = self.kwargs[self.lookup_field]
+            archive_obj = ArchiveConfig.objects.filter(archive_config_id=int(archive_config_id)).first()
+            if not archive_obj:
+                raise ArchiveNotFound
+            if archive_obj.instance_type == ArchiveInstanceType.INDEX_SET.value:
+                return [
+                    InstanceActionForDataPermission(
+                        "archive_config_id",
+                        [ActionEnum.MANAGE_INDICES],
+                        ResourceEnum.INDICES,
+                        get_instance_id=ArchiveConfig.get_index_set_id,
+                    )
+                ]
             return [
                 InstanceActionForDataPermission(
                     "archive_config_id",
