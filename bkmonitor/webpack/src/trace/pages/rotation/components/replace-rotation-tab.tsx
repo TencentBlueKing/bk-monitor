@@ -75,7 +75,7 @@ export default defineComponent({
       default: undefined
     }
   },
-  emits: ['change', 'drop'],
+  emits: ['change', 'drop', 'reset'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
@@ -126,6 +126,7 @@ export default defineComponent({
           localValue.date.type = val;
         }
         localValue.date.value = [createDefaultDate(val)];
+        handleEmitReset();
       }
     });
 
@@ -133,7 +134,7 @@ export default defineComponent({
       () => props.data,
       val => {
         if (val) {
-          Object.assign(localValue, val);
+          Object.assign(localValue, JSON.parse(JSON.stringify(val)));
         }
       },
       {
@@ -194,6 +195,7 @@ export default defineComponent({
       function handleDateTypeChange(type: WorkTimeType) {
         localValue.date.workTimeType = type;
         localValue.date.value = [createDefaultDate(localValue.date.type)];
+        handleEmitReset();
       }
 
       /**
@@ -325,10 +327,11 @@ export default defineComponent({
       function handleTypeChange(type: CustomTabType) {
         localValue.date.customTab = type;
         type === 'duration' && (localValue.date.value = [value[0]]);
+        handleEmitReset();
       }
       function handleDateTypeChange() {
         localValue.date.customWorkDays = [];
-        handleEmitData();
+        handleEmitReset();
       }
 
       return [
@@ -431,7 +434,7 @@ export default defineComponent({
               v-model={localValue.date.periodSettings.duration}
               type='number'
               min={1}
-              onblur={handleEmitData}
+              onChange={handleEmitData}
             />
             <Select
               v-model={localValue.date.periodSettings.unit}
@@ -561,6 +564,10 @@ export default defineComponent({
 
     function handleEmitDrop() {
       emit('drop');
+    }
+
+    function handleEmitReset() {
+      emit('reset', localValue);
     }
 
     function handleEmitData() {

@@ -102,6 +102,12 @@ export default defineComponent({
       Object.assign(rotationTypeData, createDefaultRotation());
       previewData.value = [];
     }
+
+    function handleRotationDataReset<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
+      rotationTypeData[type] = val;
+      previewData.value = [];
+    }
+
     function getGroupList() {
       getReceiver().then(data => {
         defaultUserGroup.value = data;
@@ -257,7 +263,7 @@ export default defineComponent({
           source_type: 'API',
           config: dutyParams
         };
-        const data = await previewDutyRulePlan(params).catch(() => []);
+        const data = await previewDutyRulePlan(params, { needCancel: true }).catch(() => []);
         previewData.value = setPreviewDataOfServer(data);
       }
     }
@@ -292,6 +298,7 @@ export default defineComponent({
       getPreviewData,
       loading,
       handleRotationTypeDataChange,
+      handleRotationDataReset,
       handleSubmit,
       handleBack,
       handleBackPage
@@ -365,6 +372,7 @@ export default defineComponent({
                     ref='fixedRotationTabRef'
                     data={this.rotationTypeData.regular}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.REGULAR)}
+                    onReset={val => this.handleRotationDataReset(val, RotationTabTypeEnum.REGULAR)}
                   />
                 ) : (
                   <ReplaceRotationTab
@@ -372,6 +380,7 @@ export default defineComponent({
                     v-show={this.rotationType === RotationTabTypeEnum.HANDOFF}
                     data={this.rotationTypeData.handoff}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.HANDOFF)}
+                    onReset={val => this.handleRotationDataReset(val, RotationTabTypeEnum.HANDOFF)}
                     onDrop={this.getPreviewData}
                   />
                 )}
