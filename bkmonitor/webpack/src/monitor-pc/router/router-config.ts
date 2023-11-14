@@ -522,3 +522,21 @@ export function setLocalStoreRoute(id: string) {
   list.add(id);
   localStorage.setItem(LOCAL_COMMON_ROUTE_STORE_KEY, JSON.stringify(Array.from(list)));
 }
+/**
+ * @param id 路由id
+ * @returns 路由配置
+ */
+export function getRouteConfigById(id: string) {
+  const flatConfig = routeConfig.flatMap(config => {
+    if (config.children?.length) {
+      return config.children.flatMap(set => {
+        if (set.children?.length) {
+          return set.children;
+        }
+        return set;
+      });
+    }
+    return config;
+  });
+  return flatConfig.find(item => item.id === id);
+}

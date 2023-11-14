@@ -212,7 +212,7 @@ class CustomReporter(object):
         try:
             monitor_report_config = MonitorReportConfig.objects.get(data_name=data_name, is_enable=True)
         except MonitorReportConfig.DoesNotExist:
-            logger.error(_("f{key} data_name初始化异常，请检查"))
+            logger.exception("data_name[%s] init error, please check", data_name)
             return
 
         try:
