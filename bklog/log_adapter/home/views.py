@@ -342,9 +342,14 @@ def dispatch_external_proxy(request):
             fake_request = RequestFactory().get(url, content_type="application/json")
         elif method.lower() == "post":
             fake_request = RequestFactory().post(url, data=json_data_str, content_type="application/json")
+        elif method.lower() == "put":
+            fake_request = RequestFactory().put(url, data=json_data_str, content_type="application/json")
+        elif method.lower() == "delete":
+            fake_request = RequestFactory().delete(url, content_type="application/json")
         else:
             return JsonResponse(
-                {"result": False, "message": "dispatch_plugin_query: only support get and post method."}, status=400
+                {"result": False, "message": f"dispatch_plugin_query, method: {method.lower()} is not allowed"},
+                status=400,
             )
         fake_request = RequestProcessor.copy_request_to_fake_request(request=request, fake_request=fake_request)
         # resolve view_func
