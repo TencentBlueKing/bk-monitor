@@ -510,6 +510,16 @@ class UserGroup(AbstractRecordModel):
             notify_config["notice_ways"].append(notice_way_config)
         return notify_config
 
+    @property
+    def tz_info(self):
+        """
+        用户组时区信息
+        """
+        try:
+            return pytz.timezone(self.timezone)
+        except pytz.exceptions.UnknownTimeZoneError:
+            return pytz.timezone("Asia/Shanghai")
+
 
 class DutyRule(AbstractRecordModel):
     """
@@ -579,6 +589,22 @@ class DutyRuleRelation(models.Model):
         verbose_name = "用户组轮值关系表"
         verbose_name_plural = "用户组轮值关系表"
         db_table = "duty_rule_relation"
+
+
+class DutyPlanSendRecord(models.Model):
+    """
+    用户组轮值排班发送计划
+    """
+
+    user_group_id = models.IntegerField("用户组ID", db_index=True)
+    last_send_time = models.IntegerField("最后发送时间戳", default=0)
+    notice_config = models.JSONField("发送通知配置信息(留作记录)", default=dict)
+
+    class Meta:
+        verbose_name = "用户组排班计划发送表"
+        verbose_name_plural = "用户组排班计划发送表"
+        db_table = "duty_plan_send_record"
+        ordering = ["-id"]
 
 
 class DutyArrange(AbstractRecordModel):
@@ -746,6 +772,10 @@ class DutyPlan(Model):
     # 存UTC时间，根据用户组配置的时区进行调整
     begin_time = models.DateTimeField("当前轮班生效开始时间", null=True)
     end_time = models.DateTimeField("当前轮班生效结束时间", null=True)
+
+    # 最近一次排班计划的起始时间点，记录时间戳, 为0的话表示从来没有发送过
+    last_send_time = models.IntegerField("最近一次发送通知时间", default=0)
+
     # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
     duty_time = models.JSONField(verbose_name="轮班时间安排", default=dict)
 

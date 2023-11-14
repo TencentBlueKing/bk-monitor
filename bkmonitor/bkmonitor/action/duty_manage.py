@@ -10,13 +10,17 @@ specific language governing permissions and limitations under the License.
 """
 import calendar
 import logging
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
 
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
+from bkmonitor.models.strategy import DutyPlanSendRecord
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.send import Sender
+from constants.action import NoticeWay
 from constants.common import DutyGroupType, RotationType, WorkTimeType
 
 logger = logging.getLogger("fta_action.run")
@@ -628,3 +632,219 @@ class GroupDutyRuleManager:
         rule_snap.save(update_fields=["next_plan_time", "next_user_index", "rule_snap"])
 
         logger.info("[manage_duty_plan] finished for user group(%s) snap(%s)", self.user_group.id, snap_id)
+
+    def manage_duty_notice(self):
+        duty_notice = self.user_group.duty_notice
+        plan_notice = duty_notice["plan_notice"]
+        personal_notice = duty_notice["personal_notice"]
+        current_time = datetime.now(tz=self.user_group.tz_info)
+        self.send_plan_notice(plan_notice, current_time)
+        self.send_personal_notice(personal_notice, current_time)
+
+    def send_plan_notice(self, plan_notice, current_time: datetime):
+        """
+        发送排班计划通知
+        """
+        if not plan_notice["enabled"]:
+            # 如果没有开启直接不用判断
+            return
+
+        current_time_str = time_tools.datetime2str(current_time, "%H:%M")
+        compare_date = plan_notice["date"]
+        compare_time = plan_notice["time"]
+
+        if plan_notice["type"] in RotationType.WEEK_MODE:
+            # 如果是按周，则获取今天的日期
+            current_date = current_time.isoweekday()
+        else:
+            _, max_month_day = calendar.monthrange(current_time.year, current_time.month)
+            current_date = current_time.day
+            if max_month_day < compare_date:
+                # 如果一个月的最大一天都小于配置的日期，则以当月最后一天为发送日
+                compare_date = max_month_day
+
+        if compare_time > current_time_str or compare_date != current_date:
+            # 如果不满足条件，直接返回
+            return
+
+        end_datetime = current_time + timedelta(days=plan_notice["days"])
+        # 接下来开始发通知
+        chat_ids = plan_notice["chat_ids"]
+        if not chat_ids:
+            # 如果没有配置机器人，直接返回
+            logger.info(" duty plan notice's field(chat_ids) of group(%s) is empty", self.user_group.id)
+            return
+
+        last_record = DutyPlanSendRecord.objects.filter(user_group_id=self.user_group.id).first()
+        if last_record:
+            last_send_time = datetime.fromtimestamp(last_record.last_send_time, tz=self.user_group.tz_info)
+            if last_send_time.day == current_time.day:
+                # 如果最后一次记录的时间就在今天，表示已经发送过，忽略
+                return
+
+        duty_plan_queryset = DutyPlan.objects.filter(user_group_id=self.user_group.id).filter(
+            Q(start_time__gte=time_tools.datetime2str(current_time))
+            | Q(finished_time__lte=time_tools.datetime2str(end_datetime))
+        )
+        duty_plans = [
+            {
+                "id": duty_plan.id,
+                "users": duty_plan.users,
+                "start_time": duty_plan.start_time,
+                "finished_time": duty_plan.finished_time,
+            }
+            for duty_plan in duty_plan_queryset
+        ]
+
+        if not duty_plans:
+            # 没有生成排班计划。这可能算得上是一个告警了
+            notice_content = ["\\n> 当前告警组没有轮班计划"]
+        else:
+            notice_content = []
+        for duty_plan in duty_plans:
+            duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
+            notice_content.append(f"\\n> {duty_plan['start_time']} -- {duty_plan['finished_time']}  f{duty_users}")
+        sender = Sender(
+            context={
+                "bk_biz_id": self.user_group.bk_biz_id,
+                "group_name": self.user_group.name,
+                "days": plan_notice["days"],
+                "plan_content": "".join(notice_content) + "\\n",
+                "notice_way": NoticeWay.WX_BOT,
+            },
+            content_template_path="duty/plan_content.jinja",
+        )
+
+        result = sender.send_wxwork_content("markdown", content=sender.content, chat_ids=chat_ids)
+        is_succeed = True
+        if result.get("errcode") != 0:
+            is_succeed = False
+
+        if is_succeed:
+            # 凡事有记录的，都会成功
+            DutyPlanSendRecord.objects.create(
+                user_group_id=self.user_group.id,
+                last_send_time=int(end_datetime.timestamp()),
+                notice_config=plan_notice,
+            )
+
+        logger.info(
+            "[send_plan_notice] send duty plan of group(%s) to chat_ids(%s) finished, result(%s), message(%s)",
+            self.user_group.id,
+            chat_ids,
+            is_succeed,
+            result.get("message"),
+        )
+
+    def send_personal_notice(self, personal_notice, current_time: datetime):
+        """
+        发送个人值班通知
+        """
+        if not personal_notice.get("enabled"):
+            # 没有开启通知，直接返回
+            return
+        start_time = current_time + timedelta(hours=personal_notice["hours_ago"])
+        end_time = start_time + timedelta(seconds=60)
+
+        # 获取当前时间内一分钟以后的数据
+        duty_plan_queryset = DutyPlan.objects.filter(user_group_id=self.user_group.id, is_effective=1).filter(
+            Q(start_time__gte=time_tools.datetime2str(start_time), start_time__lte=time_tools.datetime2str(end_time))
+            | Q(
+                last_send_time=0,
+                start_time__gte=time_tools.datetime2str(current_time),
+                start_time__lt=time_tools.datetime2str(start_time),
+            )
+        )
+        if personal_notice.get("duty_rules"):
+            # 指定了轮值规则，则发送对应轮值规则的内容， 没有的话，默认全部
+            duty_plan_queryset = duty_plan_queryset.filter(duty_rule_id__in=personal_notice["duty_rules"])
+        duty_plans = [
+            {
+                "id": duty_plan.id,
+                "users": duty_plan.users,
+                "start_time": duty_plan.start_time,
+                "finished_time": duty_plan.finished_time,
+            }
+            for duty_plan in duty_plan_queryset
+        ]
+        if not duty_plans:
+            # 没有排班计划，直接返回
+            return
+
+        # 更新一下最近范围内的发送时间
+        duty_plan_ids = [d["id"] for d in duty_plans]
+
+        # 这里的id不会很多，所以用in 问题不大
+        DutyPlan.objects.filter(id__in=duty_plan_ids).update(last_send_time=int(end_time.timestamp()))
+
+        user_duty_plans = defaultdict(list)
+        for duty_plan in duty_plans:
+            duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
+            duty_content = f"{duty_plan['start_time']} -- {duty_plan['finished_time']}  f{duty_users}"
+            for user in duty_plan["users"]:
+                if user["type"] == "group":
+                    continue
+                user_duty_plans[user["id"]].append(duty_content)
+        failed_list = []
+        succeed_list = []
+        if len(duty_plans) == 1:
+            # 表示所有人的通知内容都是一样的
+            logger.info("[send_personal_notice] send personal duty email of group(%s) to all users", self.user_group.id)
+            duty_users = list(user_duty_plans.keys())
+            send_content = "\n".join(list(user_duty_plans.values())[0])
+            sender = Sender(
+                context={
+                    "bk_biz_id": self.user_group.bk_biz_id,
+                    "group_name": self.user_group.name,
+                    "start_time": min([d["start_time"] for d in duty_plans]),
+                    "plan_content": send_content,
+                    "notice_way": NoticeWay.MAIL,
+                },
+                title_template_path="duty/mail_title.jinja",
+                content_template_path="duty/personal_content.jinja",
+            )
+            result = sender.send_mail(notice_receivers=duty_users)
+            for receiver in result:
+                if not result[receiver]["result"]:
+                    failed_list.append(result[receiver])
+                else:
+                    succeed_list.append(result[receiver])
+            logger.info(
+                "[send_personal_notice] send personal duty email of group(%s) "
+                "finished:succeed_list(%s), failed_list(%s)",
+                self.user_group.id,
+                succeed_list,
+                failed_list,
+            )
+            return
+
+        logger.info(
+            "[send_personal_notice] send personal duty email of group(%s) separately because users got different plans",
+            self.user_group.id,
+        )
+        for user, duty_plan in user_duty_plans.items():
+            send_content = "\n".join(duty_plan)
+            sender = Sender(
+                context={
+                    "bk_biz_id": self.user_group.bk_biz_id,
+                    "group_name": self.user_group.name,
+                    "start_time": min([d["start_time"] for d in duty_plans]),
+                    "plan_content": send_content,
+                    "notice_way": NoticeWay.MAIL,
+                },
+                title_template_path="duty/mail_title.jinja",
+                content_template_path="duty/personal_content.jinja",
+            )
+            result = sender.send_mail(notice_receivers=[user])
+            for receiver in result:
+                if not result[receiver]["result"]:
+                    failed_list.append(result[receiver])
+                else:
+                    succeed_list.append(result[receiver])
+
+        logger.info(
+            "[send_personal_notice] send personal duty email of group(%s) finished:succeed_list(%s), failed_list(%s)",
+            self.user_group.id,
+            succeed_list,
+            failed_list,
+        )

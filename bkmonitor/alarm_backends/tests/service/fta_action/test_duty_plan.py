@@ -16,6 +16,8 @@ from bkmonitor.models import (
     DutyRuleSnap,
     UserGroup,
 )
+from bkmonitor.models.strategy import DutyPlanSendRecord
+from bkmonitor.utils import time_tools
 from constants.action import NoticeChannel, NoticeWay
 from constants.common import DutyGroupType, RotationType
 
@@ -60,6 +62,18 @@ def rotation_duty_rule():
 def manager_delay_mock(mocker):
     return mocker.patch(
         "alarm_backends.service.fta_action.tasks.action_tasks.manage_group_duty_snap.delay", return_value=True
+    )
+
+
+@pytest.fixture()
+def send_mail_mock(mocker):
+    return mocker.patch("bkmonitor.utils.send.Sender.send_mail", return_value={})
+
+
+@pytest.fixture()
+def send_wxbot_mock(mocker):
+    return mocker.patch(
+        "bkmonitor.utils.send.Sender.send_wxwork_content", return_value={"errcode": 0, "message": "succeed"}
     )
 
 
@@ -211,6 +225,7 @@ def db_setup():
     DutyPlan.objects.all().delete()
     UserGroup.objects.all().delete()
     DutyRuleRelation.objects.all().delete()
+    DutyPlanSendRecord.objects.all().delete()
 
 
 @pytest.fixture()
@@ -258,6 +273,37 @@ def duty_group():
     g_slz = UserGroupDetailSlz(data=user_group_data_new)
     g_slz.is_valid(raise_exception=True)
     yield g_slz.save()
+
+
+@pytest.fixture()
+def duty_plans():
+    yield [
+        DutyPlan(
+            **{
+                "duty_rule_id": 123,
+                "is_effective": 1,
+                "start_time": "2023-11-16 00:00:00",
+                "finished_time": "2023-11-30 00:00:00",
+                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "order": 1,
+                "users": [
+                    {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
+                    {"id": "operator", "display_name": "主机负责人", "logo": "", "type": "group"},
+                ],
+            }
+        ),
+        DutyPlan(
+            **{
+                "duty_rule_id": 123,
+                "is_effective": 1,
+                "start_time": "2023-11-15 00:00:00",
+                "finished_time": "2023-11-30 00:00:00",
+                "duty_time": [{"work_type": "daily", "work_time": "00:00--23:59"}],
+                "order": 2,
+                "users": [{"id": "lisa", "display_name": "xxxxx", "logo": "", "type": "user"}],
+            }
+        ),
+    ]
 
 
 class TestDutyPreview:
@@ -1114,3 +1160,81 @@ class TestDutyPlan:
         dslz.save()
 
         assert DutyArrange.objects.all().count() == 2
+
+    def test_duty_plan_notice(self, db_setup, duty_group, duty_plans, send_wxbot_mock):
+        plan_notice = {
+            "enabled": True,
+            "chat_ids": ["12323321123123123123213211111111"],
+            "days": 7,
+            "type": "weekly",
+            "date": 1,
+            "time": "00:00",
+        }
+        DutyPlan.objects.all().delete()
+        for d in duty_plans:
+            d.user_group_id = duty_group.id
+            d.finished_time = "2023-12-13 00:00:00"
+
+        DutyPlan.objects.bulk_create(duty_plans)
+        manager = GroupDutyRuleManager(duty_group, {})
+        task_time = time_tools.str2datetime("2023-11-13 00:00:00")
+        manager.send_plan_notice(plan_notice, task_time)
+        # 没有发送过，需要发送一把
+        assert send_wxbot_mock.call_count == 1
+        # 会产生一条通知记录
+        assert DutyPlanSendRecord.objects.get(user_group_id=duty_group.id)
+
+    def test_expired_plan_notice(self, db_setup, duty_group, duty_plans, send_wxbot_mock):
+        plan_notice = {
+            "enabled": True,
+            "chat_ids": ["12323321123123123123213211111111"],
+            "days": 7,
+            "type": "weekly",
+            "date": 1,
+            "time": "00:00",
+        }
+        DutyPlan.objects.all().delete()
+        for d in duty_plans:
+            d.user_group_id = duty_group.id
+            d.finished_time = "2023-12-13 00:00:00"
+
+        DutyPlan.objects.bulk_create(duty_plans)
+        manager = GroupDutyRuleManager(duty_group, {})
+        task_time = time_tools.str2datetime("2023-11-13 10:00:00")
+        manager.send_plan_notice(plan_notice, task_time)
+        # 没有发送过，需要发送一把
+        assert send_wxbot_mock.call_count == 1
+        # 会产生一条通知记录
+        assert DutyPlanSendRecord.objects.get(user_group_id=duty_group.id)
+
+    def test_duty_personal_notice(self, db_setup, duty_group, duty_plans, send_mail_mock):
+        DutyPlan.objects.all().delete()
+        for d in duty_plans:
+            d.user_group_id = duty_group.id
+
+        DutyPlan.objects.bulk_create(duty_plans)
+
+        # 发最近3天内的个人通知
+        personal_notice = {"enabled": True, "hours_ago": 3 * 24, "duty_rules": []}
+        manager = GroupDutyRuleManager(duty_group, {})
+        manager.send_personal_notice(personal_notice, time_tools.str2datetime("2023-11-13 00:00:00"))
+        # 有两个有效的通知用户，主备负责人无法获取，所以不会发给任何人
+        # 两个用户发送通知内容不一样，所以需要发送2次
+        assert send_mail_mock.call_count == 2
+
+    def test_duty_personal_notice_last_send_time(self, db_setup, duty_group, duty_plans, send_mail_mock):
+        DutyPlan.objects.all().delete()
+        for d in duty_plans:
+            d.user_group_id = duty_group.id
+            # 随便记录一个发送时间
+            d.last_send_time = 123455677
+
+        DutyPlan.objects.bulk_create(duty_plans)
+
+        # 发最近3天内的个人通知
+        personal_notice = {"enabled": True, "hours_ago": 3 * 24, "duty_rules": []}
+        manager = GroupDutyRuleManager(duty_group, {})
+        manager.send_personal_notice(personal_notice, time_tools.str2datetime("2023-11-13 00:00:00"))
+        # 第二个排班计划，已经发送过值班通知，当前忽略
+        # 第一个排班计划是三天以后生效，可以忽略最后发送值班通知
+        assert send_mail_mock.call_count == 1

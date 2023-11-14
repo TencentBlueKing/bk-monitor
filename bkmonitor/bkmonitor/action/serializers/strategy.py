@@ -358,6 +358,7 @@ class DutyPlanSlz(DutyBaseInfoSlz):
             "work_times",
             "users",
             "order",
+            "last_send_time",
         )
 
     @classmethod

@@ -369,11 +369,21 @@ def generate_duty_plan_task():
         for d in DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=list(duty_rule_ids)), many=True).data
     }
     managers = []
-    for user_group in UserGroup.objects.filter(need_duty=True).only("id", "duty_rules"):
+    for user_group in UserGroup.objects.filter(need_duty=True).only(
+        "id", "bk_biz_id", "duty_rules", "duty_notice", "timezone"
+    ):
         # 获取有轮值关联的用户组进行任务管理
         group_duties = [duty_rule_dict[rule_id] for rule_id in user_group.duty_rules if rule_id in duty_rule_dict]
         duty_manager = GroupDutyRuleManager(user_group, group_duties)
         manage_group_duty_snap.delay(duty_manager)
+        if user_group.duty_notice and any(
+            [
+                user_group.duty_notice.get("plan_notice", {}).get("enabled"),
+                user_group.duty_notice.get("personal_notice", {}).get("enabled"),
+            ]
+        ):
+            # 当有需要进行通知任务的时候，才推送通知任务
+            manage_group_duty_notice.delay(duty_manager)
         managers.append(duty_manager)
     return managers
 
@@ -384,5 +394,18 @@ def manage_group_duty_snap(duty_manager: GroupDutyRuleManager):
     单个任务组的排班计划管理
     """
     # 每天做一次管理检查
+    logger.info("start to manage group(%s)'s duty plan", duty_manager.user_group.id)
     task_time = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
     duty_manager.manage_duty_rule_snap(task_time)
+    logger.info("finished to manage group(%s)'s duty plan", duty_manager.user_group.id)
+
+
+@task(ignore_result=True, queue="celery_action_cron")
+def manage_group_duty_notice(duty_manager: GroupDutyRuleManager):
+    """
+    单个任务组的排班计划管理
+    """
+    # 每天做一次管理检查
+    logger.info("start to manage group(%s)'s duty notice", duty_manager.user_group.id)
+    duty_manager.manage_duty_notice()
+    logger.info("finished to manage group(%s)'s duty notice", duty_manager.user_group.id)
