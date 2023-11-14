@@ -210,9 +210,7 @@ class MetaHandler(APIModel):
 
         if toggle == "debug":
             biz_id = space_uid_to_bk_biz_id(space_uid=space_uid)
-            if (settings.ENVIRONMENT not in ["dev", "stag"] and not is_superuser) and not FeatureToggleObject.switch(
-                module["id"], biz_id
-            ):
+            if not is_superuser and not FeatureToggleObject.switch(module["id"], biz_id):
                 return False
 
         if module["id"] in ["manage_data_link", "extract_link_manage", "manage_data_link_conf"]:
