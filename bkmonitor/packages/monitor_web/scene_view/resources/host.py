@@ -271,8 +271,8 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 ],
             },
             {"name": _("CPU"), "type": "string", "value": str(getattr(host, "bk_cpu", ""))},
-            {"name": _("内存容量"), "type": "string", "value": str(getattr(host, "bk_mem", ""))},
-            {"name": _("磁盘容量"), "type": "string", "value": str(getattr(host, "bk_disk", ""))},
+            {"name": _("内存容量(MB)"), "type": "string", "value": str(getattr(host, "bk_mem", ""))},
+            {"name": _("磁盘容量(GB)"), "type": "string", "value": str(getattr(host, "bk_disk", ""))},
             {
                 "name": _("Docker"),
                 "type": "string",
@@ -297,7 +297,7 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "name": _("所属模块"),
                 "type": "list",
                 "value": [
-                    "-".join(topo.bk_inst_name for topo in reversed(topo_link)) for topo_link in topo_links.values()
+                    " / ".join(topo.bk_inst_name for topo in reversed(topo_link)) for topo_link in topo_links.values()
                 ],
             },
         ]
@@ -347,6 +347,11 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 )
             else:
                 info = self.get_host_info(bk_biz_id=params["bk_biz_id"], bk_host_id=params["bk_host_id"])
+
+        for item in info:
+            if "children" in item:
+                item["children"] = list(filter(lambda c: c["value"], item["children"]))
+                item["count"] = len(item["children"])
 
         # 临时分享处理返回链接数据
         request = get_request(peaceful=True)

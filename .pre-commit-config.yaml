@@ -68,8 +68,8 @@ repos:
       - id: ip
         name: Check ip
         description: Check ip
-        entry: scripts/sensitive_info_check/ip.sh
-        language: script
+        entry: python3 scripts/sensitive_info_check/check_ip.py
+        language: system
         exclude: |
           (?x)(
              ^scripts/sensitive_info_check/|
