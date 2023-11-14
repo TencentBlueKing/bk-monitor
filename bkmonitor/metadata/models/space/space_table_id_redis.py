@@ -54,6 +54,8 @@ class SpaceTableIDRedis:
     def push_space_table_ids(self, space_type: str, space_id: str, is_publish: Optional[bool] = False):
         """推送空间及对应的结果表和过滤条件"""
         logger.info("start to push space table_id data, space_type: %s, space_id: %s", space_type, space_id)
+        # NOTE: 为防止 space_id 传递非字符串，转换一次
+        space_id = str(space_id)
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
             self._push_bkcc_space_table_ids(space_type, space_id)
