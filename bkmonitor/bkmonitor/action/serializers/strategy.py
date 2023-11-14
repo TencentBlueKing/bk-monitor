@@ -460,6 +460,10 @@ class DutyRuleDetailSlz(DutyRuleSlz):
             "enabled",
             "hash",
             "duty_arranges",
+            "create_time",
+            "create_user",
+            "update_time",
+            "update_user",
         )
 
     def save(self, **kwargs):
