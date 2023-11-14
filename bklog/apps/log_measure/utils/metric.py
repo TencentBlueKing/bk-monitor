@@ -140,5 +140,11 @@ class MetricUtils(object):
         cls._instance = None
 
 
-def get_metric_id_info(metric_id: str) -> list:
-    return metric_id.split("##")
+def get_metric_id_info(metric_id: str) -> dict:
+    metric_list = metric_id.split("##")
+    return {
+        "data_name": metric_list[0],
+        "namespace": metric_list[1],
+        "prefix": metric_list[2],
+        "sub_type": metric_list[3] if len(metric_list) == 4 else "",
+    }
