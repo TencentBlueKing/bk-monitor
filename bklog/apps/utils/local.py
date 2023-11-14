@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
 
 """
 记录线程变量
@@ -27,8 +28,9 @@ import sys  # noqa
 import uuid  # noqa
 from threading import local  # noqa
 
-from apps.exceptions import BaseException  # noqa
 from django.conf import settings  # noqa
+
+from apps.exceptions import BaseException  # noqa
 
 _local = local()
 
@@ -64,6 +66,15 @@ def get_request_id():
         return get_request().request_id
     except BaseException:
         return str(uuid.uuid4())
+
+
+def get_request_api_headers():
+    """
+    获取api网关鉴权认证请求头
+    """
+    return json.dumps(
+        {"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.SECRET_KEY, "bk_username": get_request_username()}
+    )
 
 
 def get_request_username(default="admin"):
