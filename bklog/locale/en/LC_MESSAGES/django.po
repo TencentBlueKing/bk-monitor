@@ -8698,11 +8698,11 @@ msgstr "Enhanced management capabilities"
 msgid "日志提取任务挪到管理；增加数据存储、使用等状态管理"
 msgstr "Moved the log extraction task to management; added status management such as data storage and usage"
 
-#: apps/log_search/exceptions.py:437
+#: apps/log_search/exceptions.py:451
 msgid "联合检索获取索引Mapping字段信息失败"
 msgstr "UnionSearch get index set mapping field info field"
 
-#: apps/log_search/exceptions.py:437
+#: apps/log_search/exceptions.py:456
 msgid "联合检索API异常"
 msgstr "UnionSearch API Exception"
 
