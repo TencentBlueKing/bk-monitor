@@ -48,6 +48,7 @@ __all__ = [
     "DutyRule",
     "DutyRuleSnap",
     "DutyRuleRelation",
+    "DutyPlanSendRecord",
     "DutyArrangeSnap",
     "DefaultStrategyBizAccessModel",
 ]
