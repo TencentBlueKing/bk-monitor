@@ -48,6 +48,7 @@ class FrontendReportEventResource(Resource):
 
         url = f"http://{host}:10205/v2/push/"
 
+        params["dimensions"]["app_code"] = settings.APP_CODE
         report_data = {
             "data_id": int(settings.FRONTEND_REPORT_DATA_ID),
             "access_token": settings.FRONTEND_REPORT_DATA_TOKEN,
