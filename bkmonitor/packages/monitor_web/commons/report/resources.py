@@ -43,10 +43,11 @@ class FrontendReportEventResource(Resource):
                 host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
             else:
                 return
+            host = f"{host}:10205"
         else:
             host = settings.FRONTEND_REPORT_DATA_HOST
 
-        url = f"http://{host}:10205/v2/push/"
+        url = f"http://{host}/v2/push/"
 
         params["dimensions"]["app_code"] = settings.APP_CODE
         report_data = {
