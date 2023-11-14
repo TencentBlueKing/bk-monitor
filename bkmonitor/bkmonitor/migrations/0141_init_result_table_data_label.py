@@ -12,9 +12,9 @@ import re
 
 from django.conf import settings
 from django.db import migrations
-from monitor_web.plugin.constant import PluginType
 
 from bkmonitor.data_source import is_build_in_process_data_source
+from monitor_web.plugin.constant import PluginType
 
 
 def init_result_table_data_label(apps, *args, **kwargs):
@@ -74,6 +74,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("bkmonitor", "0140_merge_0139_auto_20230613_1211_0139_auto_20230619_1048"),
         ("metadata", "0171_resulttable_data_label"),
+        ("monitor_web", "0059_auto_20220722_1436"),
     ]
 
     operations = [

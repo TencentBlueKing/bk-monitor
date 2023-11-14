@@ -39,6 +39,7 @@ from metadata.models.bcs import (
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.models.space.utils import get_space_by_table_id
+from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.task.tasks import push_and_publish_space_router
 from metadata.utils.bcs import get_bcs_dataids
@@ -1784,3 +1785,18 @@ class KafkaTailResource(Resource):
                     break
 
         return result.reverse()
+
+
+class QueryResultTableStorageDetailResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        bcs_cluster_id = serializers.CharField(required=False, label="集群ID")
+
+    def perform_request(self, validated_request_data):
+        source = ResultTableAndDataSource(
+            table_id=validated_request_data.get("table_id", None),
+            bk_data_id=validated_request_data.get("bk_data_id", None),
+            bcs_cluster_id=validated_request_data.get("bcs_cluster_id", None),
+        )
+        return source.get_detail()
