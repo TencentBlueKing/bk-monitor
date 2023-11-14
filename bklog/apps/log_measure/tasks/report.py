@@ -30,10 +30,10 @@ from django.conf import settings
 from apps.feature_toggle.models import FeatureToggle
 from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS, LOG_MEASURE_METRIC_TOGGLE
 from apps.log_measure.models import MetricDataHistory
-from apps.log_measure.utils.metric import MetricUtils, build_metric_id
+from apps.log_measure.utils.metric import MetricUtils
 from bk_monitor.handler.monitor import BKMonitor
 from bk_monitor.utils.collector import MetricCollector
-from bk_monitor.utils.metric import clear_registered_metrics
+from bk_monitor.utils.metric import build_metric_id, clear_registered_metrics
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 logger = logging.getLogger("log_measure")
@@ -120,7 +120,10 @@ def collect_metrics(collector_import_paths: list = None, namespaces: list = None
     try:
         for group in metric_groups:
             metric_id = build_metric_id(
-                data_name=group["data_name"], namespace=group["namespace"], prefix=group["prefix"]
+                data_name=group["data_name"],
+                namespace=group["namespace"],
+                prefix=group["prefix"],
+                sub_type=group["sub_type"],
             )
             metric_data = [i.__dict__ for i in group["metrics"]]
             MetricDataHistory.objects.update_or_create(
