@@ -353,6 +353,18 @@ class ViewSetActionEnum(ChoicesEnum):
     FAVORITE_VIEWSET_CREATE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="create"
     )
+    FAVORITE_VIEWSET_UPDATE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="update"
+    )
+    FAVORITE_VIEWSET_BATCH_UPDATE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="batch_update"
+    )
+    FAVORITE_VIEWSET_DESTROY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="destroy"
+    )
+    FAVORITE_VIEWSET_BATCH_DELETE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="batch_delete"
+    )
     FAVORITE_VIEWSET_GET_SEARCH_FIELDS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="FavoriteViewSet",
@@ -377,6 +389,12 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     FAVORITE_GROUP_VIEWSET_CREATE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="create"
+    )
+    FAVORITE_GROUP_VIEWSET_UPDATE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="update"
+    )
+    FAVORITE_GROUP_VIEWSET_DESTROY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="destroy"
     )
     # ======================================= IP选择器 =======================================
     # IpChooserConfigViewSet,IpChooserHostViewSet,IpChooserTemplateViewSet,IpChooserDynamicGroupViewSet,IpChooserConfigViewSet
@@ -439,12 +457,18 @@ class ViewSetActionEnum(ChoicesEnum):
         FAVORITE_VIEWSET_LIST,
         FAVORITE_VIEWSET_LIST_BY_GROUP,
         FAVORITE_VIEWSET_CREATE,
+        FAVORITE_VIEWSET_UPDATE,
+        FAVORITE_VIEWSET_BATCH_UPDATE,
+        FAVORITE_VIEWSET_DESTROY,
+        FAVORITE_VIEWSET_BATCH_DELETE,
         FAVORITE_VIEWSET_GET_SEARCH_FIELDS,
         FAVORITE_VIEWSET_GENERATE_QUERY,
         FAVORITE_VIEWSET_INSPECT,
         # ======================================= 收藏组-FavoriteGroupViewSet =======================================
         FAVORITE_GROUP_VIEWSET_LIST,
         FAVORITE_GROUP_VIEWSET_CREATE,
+        FAVORITE_GROUP_VIEWSET_UPDATE,
+        FAVORITE_GROUP_VIEWSET_DESTROY,
         # ======================================= IP选择器 =======================================
         IP_CHOOSER_TOPO_VIEWSET,
         IP_CHOOSER_HOST_VIEWSET,
