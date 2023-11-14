@@ -25,6 +25,11 @@ import os
 from dataclasses import asdict
 
 import arrow
+from django.conf import settings
+from django.utils.translation import ugettext as _
+from jinja2 import Environment, FileSystemLoader
+from retrying import retry
+
 from apps.api import BkDataAIOPSApi, BkDataDatabusApi, BkDataDataFlowApi, BkDataMetaApi
 from apps.api.base import DataApiRetryClass, check_result_is_true
 from apps.log_clustering.constants import (
@@ -98,13 +103,8 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 )
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.constants import InnerTag
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from jinja2 import Environment, FileSystemLoader
-from retrying import retry
 
 
 class DataFlowHandler(BaseAiopsHandler):
@@ -738,55 +738,6 @@ class DataFlowHandler(BaseAiopsHandler):
         request_dict = self._set_username(add_tspider_storage_request)
         return BkDataDataFlowApi.add_flow_nodes(request_dict)
 
-    def add_log_count_stream_source(self, flow_id, flow, stream_source_table_id, target_bk_biz_id):
-        """
-        add_stream_source
-        @param target_bk_biz_id:
-        @return:
-        """
-        add_stream_source_request = AddFlowNodesCls(
-            flow_id=flow_id,
-            result_table_id=stream_source_table_id,
-        )
-        add_stream_source_request.config["bk_biz_id"] = target_bk_biz_id
-        add_stream_source_request.config["from_result_table_ids"].append(stream_source_table_id)
-        add_stream_source_request.config["result_table_id"] = stream_source_table_id
-        add_stream_source_request.config["name"] = flow["clustering_predict"]["table_name"]
-        add_stream_source_request.node_type = STREAM_SOURCE_NODE_TYPE
-        add_stream_source_request.frontend_info = {"x": 100.0, "y": 360.0}
-        request_dict = self._set_username(add_stream_source_request)
-        return BkDataDataFlowApi.add_flow_nodes(request_dict)
-
-    def add_log_count_reflow(
-        self, log_count_stream_source_node_id, flow, flow_id, target_bk_biz_id, bk_biz_id, index_set_id
-    ):
-        add_log_count_reflow_request = AddFlowNodesCls(
-            flow_id=flow_id, node_type=SPLIT_TYPE, frontend_info={"x": 400.0, "y": 360.0}, result_table_id=""
-        )
-        add_log_count_reflow_request.config["bk_biz_id"] = target_bk_biz_id
-        add_log_count_reflow_request.config["name"] = _("数据分流")
-        add_log_count_reflow_request.config["table_name"] = f"bklog_{index_set_id}_reflow"
-        add_log_count_reflow_request.config["output_name"] = _("数据分流")
-        add_log_count_reflow_request.config["description"] = _("数据分流")
-        add_log_count_reflow_request.config["config"] = [{"bk_biz_id": bk_biz_id, "logic_exp": "true"}]
-        add_log_count_reflow_request.config["from_result_table_ids"] = [flow["clustering_predict"]["result_table_id"]]
-        add_log_count_reflow_request.from_links.append(
-            {
-                "source": {
-                    "node_id": log_count_stream_source_node_id,
-                    "id": "ch_{}".format(log_count_stream_source_node_id),
-                    "arrow": "left",
-                },
-                "target": {
-                    # 这里为为了契合计算平台的一个demo id 实际不起作用
-                    "id": "ch_1536",
-                    "arrow": "Left",
-                },
-            }
-        )
-        request_dict = self._set_username(add_log_count_reflow_request)
-        return BkDataDataFlowApi.add_flow_nodes(request_dict)
-
     def modify_flow(
         self,
         after_treat_flow_id: int,
@@ -1098,7 +1049,6 @@ class DataFlowHandler(BaseAiopsHandler):
             self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=not_cluster_nodes["node_id"])
 
     def deal_update_predict_node(self, predict_node, flow_id, predict_change_args):
-
         if predict_node:
             model_extra_config = predict_node["node_config"]["model_extra_config"]
             predict_args = model_extra_config.get("predict_args", {})
@@ -1535,18 +1485,6 @@ class DataFlowHandler(BaseAiopsHandler):
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
 
-        if clustering_config.collector_config_id:
-            source_rt_name = (
-                clustering_config.collector_config_name_en
-                if clustering_config.collector_config_name_en
-                else clustering_config.source_rt_name
-            )
-            merge_log_table_name = "bklog_{}_{}".format(settings.ENVIRONMENT, source_rt_name)
-            merge_log_result_table_id = "{}_bklog_{}_{}".format(bk_biz_id, settings.ENVIRONMENT, source_rt_name)
-        else:
-            merge_log_table_name = f"bklog_{index_set_id}_cluster_merged"
-            merge_log_result_table_id = f"{bk_biz_id}_bklog_{index_set_id}_cluster_merged"
-
         predict_flow = PredictDataFlowCls(
             table_name_no_id=table_name_no_id,
             result_table_id=result_table_id,
@@ -1556,13 +1494,6 @@ class DataFlowHandler(BaseAiopsHandler):
                 table_name=f"bklog_{index_set_id}_clustering",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_clustering",
                 filter_rule=filter_rule,
-            ),
-            # 不参与聚类
-            non_clustering_stream_source=RealTimeCls(
-                fields=", ".join([f"`{field}`" for field in is_dimension_fields]),
-                table_name=f"bklog_{index_set_id}_not_clustering",
-                result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_not_clustering",
-                filter_rule=not_clustering_rule if not_clustering_rule else NOT_CLUSTERING_FILTER_RULE,
             ),
             # 聚类预测
             clustering_predict=ModelClusterPredictNodeCls(
@@ -1577,63 +1508,48 @@ class DataFlowHandler(BaseAiopsHandler):
             # 签名字段打平
             format_signature=RealTimeCls(
                 fields=", ".join(format_transform_fields),
-                table_name=f"bklog_{index_set_id}_flatten",
-                result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_flatten",
-                filter_rule="",
-            ),
-            # 合并日志
-            merge_log=MergeNodeCls(
-                table_name=merge_log_table_name,
-                result_table_id=merge_log_result_table_id,
-            ),
-            # 签名字段重命名
-            rename_signature=RealTimeCls(
-                fields=", ".join([f"`{field}`" for field in is_dimension_fields]),
                 table_name=f"bklog_{index_set_id}_clustered",
                 result_table_id=f"{bk_biz_id}_bklog_{index_set_id}_clustered",
                 filter_rule="",
             ),
-            queue_cluster=self.conf.get("queue_cluster"),
             bk_biz_id=bk_biz_id,
             is_flink_env=self.conf.get("is_flink_env", False),
         )
-        if not clustering_config.collector_config_id:
-            es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
-            if not es_storage:
-                raise BkdataStorageNotExistException(
-                    BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
-                )
-            predict_flow.es_cluster = clustering_config.es_storage
-            predict_flow.es.expires = es_storage["expires"]
-            predict_flow.es.has_replica = json.dumps(es_storage.get("has_replica", False))
-            predict_flow.es.json_fields = json.dumps(es_storage.get("json_fields", []))
-            predict_flow.es.analyzed_fields = json.dumps(es_storage.get("analyzed_fields", []))
-            doc_values_fields = es_storage.get("doc_values_fields", [])
-            doc_values_fields.extend(
-                [f"{AGGS_FIELD_PREFIX}_{pattern_level}" for pattern_level in PatternEnum.get_dict_choices().keys()]
+        # es输出的配置(计算平台和采集项均输出es存储)
+        es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
+        if not es_storage:
+            raise BkdataStorageNotExistException(
+                BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
             )
-            predict_flow.es.doc_values_fields = json.dumps(doc_values_fields)
+        predict_flow.es_cluster = clustering_config.es_storage
+        predict_flow.es.expires = es_storage["expires"]
+        predict_flow.es.has_replica = json.dumps(es_storage.get("has_replica", False))
+        predict_flow.es.json_fields = json.dumps(es_storage.get("json_fields", []))
+        predict_flow.es.analyzed_fields = json.dumps(es_storage.get("analyzed_fields", []))
+        doc_values_fields = es_storage.get("doc_values_fields", [])
+        doc_values_fields.extend(
+            [f"{AGGS_FIELD_PREFIX}_{pattern_level}" for pattern_level in PatternEnum.get_dict_choices().keys()]
+        )
+        predict_flow.es.doc_values_fields = json.dumps(doc_values_fields)
+
         return predict_flow
 
     def create_predict_flow(self, index_set_id: int):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         all_fields_dict = self.get_fields_dict(clustering_config=clustering_config)
-        bk_biz_id = self.conf.get("bk_biz_id") if clustering_config.collector_config_id else clustering_config.bk_biz_id
         predict_flow_dict = asdict(
             self._init_predict_flow(
                 result_table_id=clustering_config.bkdata_etl_result_table_id,
                 model_id=clustering_config.model_id,
                 model_release_id=self.get_latest_released_id(clustering_config.model_id),
-                bk_biz_id=bk_biz_id,
+                bk_biz_id=clustering_config.bk_biz_id,
                 index_set_id=index_set_id,
                 clustering_config=clustering_config,
                 clustering_fields=all_fields_dict.get(clustering_config.clustering_fields),
             )
         )
         predict_flow = self._render_template(
-            flow_mode=FlowMode.PREDICT_FLOW.value
-            if clustering_config.collector_config_id
-            else FlowMode.PREDICT_FLOW_BKDATA.value,
+            flow_mode=FlowMode.PREDICT_FLOW.value,
             render_obj={"predict": predict_flow_dict},
         )
         flow = json.loads(predict_flow)
@@ -1648,31 +1564,10 @@ class DataFlowHandler(BaseAiopsHandler):
         result = BkDataDataFlowApi.create_flow(request_dict)
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.predict_flow_id = result["flow_id"]
-        # 聚类预测节点的输出 RT
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
-        # 聚类数据链路旁路化改造   计算平台:填充聚类结果表   采集项:暂不填充
-        if not clustering_config.collector_config_id:
-            clustering_config.clustered_rt = predict_flow_dict["rename_signature"]["result_table_id"]
+        #  填充签名字段打平节点-聚类结果表输出RT
+        clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
         clustering_config.save()
-
-        # 添加日志数量聚类 flow数据回流节点
-        if clustering_config.bk_biz_id != self.conf.get("bk_biz_id") and clustering_config.collector_config_id:
-            # 添加数据源节点
-            log_count_stream_source = self.add_log_count_stream_source(
-                flow_id=clustering_config.predict_flow_id,
-                flow=predict_flow_dict,
-                stream_source_table_id=predict_flow_dict["clustering_predict"]["result_table_id"],
-                target_bk_biz_id=self.conf.get("bk_biz_id"),  # 公共业务 id
-            )
-            # 添加数据回流节点
-            self.add_log_count_reflow(
-                log_count_stream_source_node_id=log_count_stream_source["node_id"],
-                flow=predict_flow_dict,
-                flow_id=clustering_config.predict_flow_id,
-                target_bk_biz_id=self.conf.get("bk_biz_id"),  # 公共业务 id
-                bk_biz_id=clustering_config.bk_biz_id,
-                index_set_id=clustering_config.index_set_id,
-            )
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
@@ -1702,23 +1597,19 @@ class DataFlowHandler(BaseAiopsHandler):
         flow_graph = self.get_flow_graph(flow_id=flow_id)
         # 根据画布结构  更新节点
         nodes = flow_graph["nodes"]
-        bk_biz_id = self.conf.get("bk_biz_id") if clustering_config.collector_config_id else clustering_config.bk_biz_id
-
         predict_flow_dict = asdict(
             self._init_predict_flow(
                 result_table_id=clustering_config.bkdata_etl_result_table_id,
                 model_id=clustering_config.model_id,
                 model_release_id=self.get_latest_released_id(clustering_config.model_id),
-                bk_biz_id=bk_biz_id,
+                bk_biz_id=clustering_config.bk_biz_id,
                 index_set_id=clustering_config.index_set_id,
                 clustering_config=clustering_config,
                 clustering_fields=all_fields_dict.get(clustering_config.clustering_fields),
             )
         )
         predict_flow = self._render_template(
-            flow_mode=FlowMode.PREDICT_FLOW.value
-            if clustering_config.collector_config_id
-            else FlowMode.PREDICT_FLOW_BKDATA.value,
+            flow_mode=FlowMode.PREDICT_FLOW.value,
             render_obj={"predict": predict_flow_dict},
         )
         flow = json.loads(predict_flow)
@@ -1779,17 +1670,11 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-
-        bk_biz_id = clustering_config.bk_biz_id
-
-        if bk_biz_id != self.conf.get("bk_biz_id") and clustering_config.collector_config_id:
-            result_table_id = f"{bk_biz_id}_bklog_{clustering_config.index_set_id}_reflow"
-        else:
-            result_table_id = clustering_config.predict_flow["clustering_predict"]["result_table_id"]
+        result_table_id = clustering_config.predict_flow["clustering_predict"]["result_table_id"]
         log_count_aggregation_flow_dict = asdict(
             self._init_log_count_aggregation_flow(
                 result_table_id=result_table_id,
-                bk_biz_id=bk_biz_id,  # 当前业务id
+                bk_biz_id=clustering_config.bk_biz_id,  # 当前业务id
                 index_set_id=clustering_config.index_set_id,
             )
         )
@@ -1800,7 +1685,9 @@ class DataFlowHandler(BaseAiopsHandler):
         flow = json.loads(log_count_aggregation_flow)
         create_log_count_aggregation_flow_request = CreateFlowCls(
             nodes=flow,
-            flow_name="{}_{}_{}_agg_flow".format(settings.ENVIRONMENT, bk_biz_id, clustering_config.index_set_id),
+            flow_name="{}_{}_{}_agg_flow".format(
+                settings.ENVIRONMENT, clustering_config.bk_biz_id, clustering_config.index_set_id
+            ),
             project_id=self.conf.get("project_id"),
         )
         request_dict = self._set_username(create_log_count_aggregation_flow_request)
