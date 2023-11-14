@@ -256,13 +256,15 @@ export function setPreviewDataOfServer(params: IDutyPlans[]) {
   const data = [];
   params.forEach((item, index) => {
     const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
-    timeRangeMerger(item.work_times).forEach(work => {
-      data.push({
-        users,
-        color: randomColor(item.user_index === undefined ? index : item.user_index),
-        timeRange: [work.start_time, work.end_time]
+    if (item.work_times.length) {
+      timeRangeMerger(item.work_times).forEach(work => {
+        data.push({
+          users,
+          color: randomColor(item.user_index === undefined ? index : item.user_index),
+          timeRange: [work.start_time, work.end_time]
+        });
       });
-    });
+    }
   });
   return data;
 }

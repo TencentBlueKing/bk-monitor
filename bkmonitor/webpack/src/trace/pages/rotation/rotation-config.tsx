@@ -169,7 +169,7 @@ export default defineComponent({
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
         const data = rotationTypeData[RotationTabTypeEnum.REGULAR];
         const hasUsers = data.every(item => item.users.length);
-        if (!hasUsers) {
+        if (!hasUsers || !data.length) {
           res.err = true;
           res.msg = t('每条轮值规则最少添加一个用户');
         }
