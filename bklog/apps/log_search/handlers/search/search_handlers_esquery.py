@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import datetime
 import functools
 import hashlib
 import json
@@ -70,6 +71,7 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeFieldType,
     UnionSearchErrorException,
     UnionSearchFieldsFailException,
+    MultiSearchErrorException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslBkDataCreateSearchContextBody,
@@ -88,6 +90,7 @@ from apps.log_search.models import (
     Scenario,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
+    StorageClusterRecord,
 )
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -485,37 +488,8 @@ class SearchHandler(object):
         if self.size > MAX_RESULT_WINDOW:
             once_size = MAX_RESULT_WINDOW
 
-        try:
-            result: dict = BkLogApi.search(
-                {
-                    "indices": self.indices,
-                    "scenario_id": self.scenario_id,
-                    "storage_cluster_id": self.storage_cluster_id,
-                    "start_time": self.start_time,
-                    "end_time": self.end_time,
-                    "query_string": self.query_string,
-                    "filter": self.filter,
-                    "sort_list": self.sort_list,
-                    "start": self.start,
-                    "size": once_size,
-                    "aggs": self.aggs,
-                    "highlight": self.highlight,
-                    "use_time_range": self.use_time_range,
-                    "time_zone": self.time_zone,
-                    "time_range": self.time_range,
-                    "time_field": self.time_field,
-                    "time_field_type": self.time_field_type,
-                    "time_field_unit": self.time_field_unit,
-                    "scroll": self.scroll,
-                    "collapse": self.collapse,
-                    "include_nested_fields": self.include_nested_fields,
-                }
-            )
-        except ApiResultError as e:
-            raise ApiResultError(_("搜索出错，请检查查询语句是否正确"), code=e.code, errors=e.errors)
+        result = self._multi_search(once_size=once_size)
 
-        # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW
-        # @TODO bkdata暂不支持scroll查询
         if self._can_scroll(result):
             result = self._scroll(result)
 
@@ -537,6 +511,150 @@ class SearchHandler(object):
             result.update({"scroll_id": _scroll_id})
 
         return result
+
+    def _multi_search(self, once_size: int):
+        """
+        根据存储集群切换记录多线程请求 BkLogApi.search
+        """
+        start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S")
+        end_time = datetime.datetime.strptime(self.end_time, "%Y-%m-%d %H:%M:%S")
+        storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+            index_set_id=int(self.index_set_id),
+            created_at__range=[start_time, end_time]
+        ).exclude(storage_cluster_id=self.storage_cluster_id)
+
+        params = {
+            "indices": self.indices,
+            "scenario_id": self.scenario_id,
+            "storage_cluster_id": self.storage_cluster_id,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "query_string": self.query_string,
+            "filter": self.filter,
+            "sort_list": self.sort_list,
+            "start": self.start,
+            "size": once_size,
+            "aggs": self.aggs,
+            "highlight": self.highlight,
+            "use_time_range": self.use_time_range,
+            "time_zone": self.time_zone,
+            "time_range": self.time_range,
+            "time_field": self.time_field,
+            "time_field_type": self.time_field_type,
+            "time_field_unit": self.time_field_unit,
+            "scroll": self.scroll,
+            "collapse": self.collapse,
+            "include_nested_fields": self.include_nested_fields,
+        }
+
+        if not storage_cluster_record_objs:
+            try:
+                return BkLogApi.search(params)
+            except ApiResultError as e:
+                raise ApiResultError(_("搜索出错，请检查查询语句是否正确"), code=e.code, errors=e.errors)
+
+        storage_cluster_ids = {self.storage_cluster_id}
+
+        multi_execute_func = MultiExecuteFunc()
+
+        multi_num = 1
+
+        # 查询多个集群数据时 start 每次从0开始
+        params["start"] = 0
+        params["size"] = once_size + self.start
+
+        # 获取当前使用的存储集群数据
+        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=params)
+
+        # 获取历史使用的存储集群数据
+        for storage_cluster_record_obj in storage_cluster_record_objs:
+            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
+                multi_params = copy.deepcopy(params)
+                multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
+                multi_num += 1
+                multi_execute_func.append(
+                    result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=multi_params
+                )
+                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
+
+        multi_result = multi_execute_func.run()
+
+        # 合并多个集群的检索结果
+        merge_result = dict()
+        try:
+            for _key, _result in multi_result.items():
+                if not _result:
+                    continue
+
+                if not merge_result:
+                    merge_result = _result
+                    continue
+
+                # 处理took
+                merge_result["took"] = max(_result.get("took", 0), merge_result.get("took", 0))
+
+                # 处理 _shards
+                if "_shards" not in merge_result:
+                    merge_result["_shards"] = dict()
+                for _k, _v in _result.get("_shards", dict).items():
+                    if _k not in merge_result["_shards"]:
+                        merge_result["_shards"][_k] = 0
+                    merge_result["_shards"][_k] += _v
+
+                # 处理 hits
+                if "hits" not in merge_result:
+                    merge_result["hits"] = {"total": 0, "max_score": None, "hits": []}
+                merge_result["hits"]["total"] += _result.get("hits", {}).get("total", 0)
+                merge_result["hits"]["hits"].extend(_result.get("hits", {}).get("hits", []))
+
+                # 处理 aggregations
+                if "aggregations" not in _result:
+                    continue
+
+                if "aggregations" not in merge_result:
+                    merge_result["aggregations"] = {"group_by_histogram": {"buckets": []}}
+
+                merge_result["aggregations"]["group_by_histogram"]["buckets"].extend(
+                    _result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
+                )
+
+            # 排序分页处理
+            if not merge_result:
+                return merge_result
+
+            # hits 排序处理
+            hits = merge_result.get("hits", {}).get("hits", [])
+            buckets = merge_result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
+            if hits:
+                sorted_hits = sorted(hits, key=functools.cmp_to_key(self._sort_compare))
+                merge_result["hits"]["hits"] = sorted_hits[self.start: (once_size + self.start)]
+
+            # buckets 排序处理
+            if buckets:
+                sorted_buckets = sorted(buckets, key=itemgetter("key"))
+                merge_result["aggregations"]["group_by_histogram"]["buckets"] = sorted_buckets
+        except Exception as e:
+            logger.error(f"[_multi_search] error -> e: {e}")
+            raise MultiSearchErrorException()
+
+        return merge_result
+
+    def _sort_compare(self, x, y):
+        """
+        排序比较函数
+        """
+        for sort_info in self.sort_list:
+            field_name, order = sort_info
+            if field_name not in x.get("_source") or field_name not in y.get("_source"):
+                continue
+            _x_value = x["_source"][field_name]
+            _y_value = y["_source"][field_name]
+            if _x_value != _y_value:
+                if order == "desc":
+                    return (_x_value < _y_value) - (_x_value > _y_value)
+                else:
+                    return (_x_value > _y_value) - (_x_value < _y_value)
+        return 0
 
     def scroll_search(self):
         """
@@ -1391,7 +1509,6 @@ class SearchHandler(object):
             # 联合检索补充索引集信息
             if self.search_dict.get("is_union_search", False):
                 log["__index_set_id__"] = self.index_set_id
-            origin_log = copy.deepcopy(log)
             log = self._add_cmdb_fields(log)
             if self.export_fields:
                 new_origin_log = {}
