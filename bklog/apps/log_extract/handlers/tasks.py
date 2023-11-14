@@ -85,12 +85,11 @@ class TasksHandler(object):
         return Response(serializer.data)
 
     def recreate(self, task_id):
-        request_user = get_request_username()
         try:
             task = Tasks.objects.get(task_id=task_id)
         except Tasks.DoesNotExist:
             raise exceptions.TaskIDDoesNotExist
-        if task.created_by != request_user:
+        if task.created_by != self.request_user:
             raise exceptions.TasksRecreateFailed
 
         return self.create(
@@ -172,7 +171,7 @@ class TasksHandler(object):
             "link_id": link_id,
             "created_by": request_user,
         }
-
+        logger.info(f"create task params: {params}")
         task = Tasks.objects.create(**params)
         params["ip_list"] = ip_list
         for pop_field in [

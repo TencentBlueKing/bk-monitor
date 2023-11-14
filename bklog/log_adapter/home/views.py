@@ -159,13 +159,6 @@ class RequestProcessor:
                 view_action=view_action,
                 allow_resources_result=allow_resources_result,
             )
-        if action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
-            return cls.filter_log_extract_response_resource(
-                external_user=external_user,
-                response=response,
-                view_set=view_set,
-                view_action=view_action,
-            )
 
         return response
 
@@ -191,24 +184,6 @@ class RequestProcessor:
                     fg["favorites"] = [f for f in fg["favorites"] if f["index_set_id"] in allow_resources]
                     allowed_data.append(fg)
                 data["data"] = allowed_data
-                response.data = data
-                return response
-        return response
-
-    @classmethod
-    def filter_log_extract_response_resource(
-        cls, external_user: str, response: Response, view_set: str, view_action: str
-    ):
-        if view_set == "TasksViewSet" and view_action == "list":
-            data = response.data
-            if isinstance(data, dict) and "data" in data:
-                allowed_data = []
-                for task in data["data"]["list"]:
-                    if task["created_by"] != external_user:
-                        continue
-                    allowed_data.append(task)
-                data["data"]["list"] = allowed_data
-                data["data"]["total"] = len(allowed_data)
                 response.data = data
                 return response
         return response
