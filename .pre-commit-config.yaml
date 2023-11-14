@@ -53,7 +53,7 @@ repos:
       # PreCI 检查
       - id: check-pre-ci
         name: check pre ci
-        entry: scripts/pre-commit/preci.sh
+        entry: python3 scripts/pre-commit/preci.py
         language: system
         verbose: true
 
