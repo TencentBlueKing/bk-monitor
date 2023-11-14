@@ -254,7 +254,7 @@ export const routeConfig: IRouteConfigItem[] = [
           },
           {
             name: '轮值',
-            icon: 'icon-monitor icon-menu-group menu-icon',
+            icon: 'icon-monitor icon-lunliu menu-icon',
             id: 'rotation',
             path: '/trace/rotation',
             canStore: true,
