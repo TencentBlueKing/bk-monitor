@@ -172,6 +172,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
         work_days: item.workDays,
         work_time_type: 'time_range'
       }));
+      // .filter(item => item.work_time.length);
       break;
     }
     case RotationSelectTypeEnum.Weekly:
@@ -183,6 +184,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
           work_days: item.workDays,
           work_time: item.workTime.map(val => val.join('--'))
         }));
+        // .filter(item => item.work_days.length);
       } else {
         dutyTime = data.value.map(item => ({
           work_type: data.type,
@@ -190,6 +192,7 @@ export function replaceRotationTransform<T extends 'params' | 'data'>(
           work_days: item.workDays,
           work_time: [item.workTime.length && item.workTime.map(item => item.join(' ')).join('--')]
         }));
+        // .filter(item => item.work_time.length);
       }
       break;
     }
