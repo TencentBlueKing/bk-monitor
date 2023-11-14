@@ -507,11 +507,17 @@ class ExternalPermission(OperateRecordModel):
         ]
 
     @classmethod
-    def get_authorizer_permission(cls, space_uid: str, authorizer: str) -> List[str]:
-        qs = ExternalPermission.objects.filter(
-            space_uid=space_uid, authorized_user=authorizer, expire_time__gt=timezone.now()
-        )
-        return list(qs.values_list("action_id", flat=True).distinct())
+    def get_authorizer_permission(cls, authorizer: str, space_uid: str = "") -> Dict[str, List[str]]:
+        """
+        获取授权人的各个业务ID的权限列表
+        """
+        qs = ExternalPermission.objects.filter(authorized_user=authorizer, expire_time__gt=timezone.now())
+        if space_uid:
+            qs = qs.filter(space_uid=space_uid)
+        space_uid_permission_dict = defaultdict(list)
+        for permission in qs.iterator():
+            space_uid_permission_dict[permission.space_uid].append(permission.action_id)
+        return space_uid_permission_dict
 
     @classmethod
     def is_action_valid(cls, view_set: str, view_action: str, action_id: str):

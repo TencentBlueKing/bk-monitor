@@ -256,10 +256,12 @@ def dispatch_list_user_spaces(request):
     external_user = external_user_info.get("username", "")
     if not external_user:
         return HttpResponseForbidden("请求缺少HTTP_USER或USER请求头")
-    space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
-    if not space_uid_list:
+
+    external_user_permission = ExternalPermission.get_authorizer_permission(authorizer=external_user)
+    if not external_user_permission:
         logger.error(f"外部用户{external_user}无访问权限")
         return HttpResponseForbidden(f"外部用户{external_user}无访问权限")
+    space_uid_list = list(external_user_permission.keys())
     spaces = Space.objects.filter(space_uid__in=space_uid_list).all()
     return JsonResponse(
         {
@@ -278,6 +280,7 @@ def dispatch_list_user_spaces(request):
                     "time_zone": space.properties.get("time_zone", "Asia/Shanghai"),
                     "is_sticky": False,
                     "permission": {ActionEnum.VIEW_BUSINESS.id: True},
+                    "external_permission": external_user_permission.get(space.space_uid, []),
                 }
                 for space in spaces
             ],
@@ -343,7 +346,7 @@ def dispatch_external_proxy(request):
             # transfer request.user 进行外部权限替换
             external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
                 space_uid=space_uid, authorizer=external_user
-            )
+            ).get(space_uid, [])
             # 判断接口是否在管理范围内
             if not external_user_allowed_action_id_list:
                 return JsonResponse(
