@@ -598,7 +598,7 @@ class SearchHandler(object):
                 # 处理 _shards
                 if "_shards" not in merge_result:
                     merge_result["_shards"] = dict()
-                for _k, _v in _result.get("_shards", dict).items():
+                for _k, _v in _result.get("_shards", {}).items():
                     if _k not in merge_result["_shards"]:
                         merge_result["_shards"][_k] = 0
                     merge_result["_shards"][_k] += _v
