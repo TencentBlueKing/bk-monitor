@@ -35,7 +35,7 @@ class ObservationSceneCollector(BaseCollector):
                         plugin_id=scene["id"],
                         plugin_name=scene["name"],
                     ).inc()
-            except Exception as exec:
+            except SystemExit as exec:
                 error_list.append(exec)
                 continue
 
