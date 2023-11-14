@@ -47,6 +47,7 @@ from apps.log_extract.serializers import PollingResultSerializer
 from apps.log_extract.tasks.extract import log_extract_task
 from apps.utils.local import (
     get_local_param,
+    get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
@@ -55,15 +56,19 @@ from apps.utils.time_handler import format_user_time_zone
 
 
 class TasksHandler(object):
+    def __init__(self):
+        self.request_user = get_request_external_username() or get_request_username()
+
     @classmethod
     def list(cls, tasks_views, bk_biz_id, keyword):
+        source_app_code = get_request_app_code()
         request_user = get_request_external_username() or get_request_username()
 
         # 运维人员可以看到完整的任务列表
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
         tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id)
         if not has_biz_manage:
-            tasks = tasks.filter(created_by=request_user)
+            tasks = tasks.filter(created_by=request_user, source_app_code=source_app_code)
         queryset = tasks_views.filter_queryset(tasks)
 
         page = tasks_views.paginate_queryset(queryset)
@@ -165,12 +170,12 @@ class TasksHandler(object):
             "preview_end_time": preview_end_time,
             "link_id": link_id,
         }
-        task = Tasks.objects.create(**params)
         # 当请求为外部用户时，将创建者改为外部用户, 避免外部用户无法查看到他创建的任务
         external_user = get_request_external_username()
         if external_user:
-            task.created_by = external_user
-            task.save()
+            params["created_by"] = external_user
+
+        task = Tasks.objects.create(**params)
         params["ip_list"] = ip_list
         for pop_field in [
             "download_status",
@@ -288,10 +293,9 @@ class TasksHandler(object):
         return tasks_views.update(tasks_views.request, *args, **kwargs)
 
     def get_polling_result(self, task_list):
-        request_user = get_request_username()
         task_list = task_list.split(",")
 
-        records = Tasks.objects.filter(created_by=request_user, task_id__in=task_list)
+        records = Tasks.objects.filter(created_by=self.request_user, task_id__in=task_list)
 
         # 处理pipeline中发生错误而task状态未更新的情况
         self.pipeline_failure_to_task_status(records)
