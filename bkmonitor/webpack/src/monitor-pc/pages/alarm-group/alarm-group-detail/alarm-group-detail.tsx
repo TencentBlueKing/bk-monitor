@@ -272,7 +272,8 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
     const startTime = getCalendarOfNum()[0];
     const beginTime = `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
     const params = {
-      source_type: 'API',
+      source_type: 'DB',
+      id: this.id,
       days: 7,
       begin_time: beginTime,
       config: {
@@ -284,7 +285,8 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
   }
   async handleStartTimeChange(startTime) {
     const params = {
-      source_type: 'API',
+      source_type: 'DB',
+      id: this.id,
       days: 7,
       begin_time: startTime,
       config: {
