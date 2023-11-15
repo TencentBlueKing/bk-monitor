@@ -47,6 +47,7 @@ export default {
       bkBizId: state => state.bkBizId,
       mySpaceList: state => state.mySpaceList,
       isExternal: state => state.isExternal,
+      externalMenu: state => state.externalMenu,
     }),
   },
   watch: {
@@ -200,7 +201,23 @@ export default {
         console.warn(err);
       }
     },
+    /** 外部版根据空间授权权限显示菜单 */
+    updateExternalMenuBySpace(spaceUid) {
+      const list = [];
+      const curSpace = (this.mySpaceList || []).find(item => item.space_uid === spaceUid);
+      (curSpace.external_permission || []).forEach((permission) => {
+        if (permission === 'log_search') {
+          list.push('retrieve');
+        } else if (permission === 'log_extract') {
+          list.push('manage');
+        }
+      });
+      this.$store.commit('updateExternalMenu', list);
+    },
     async setRouter(spaceUid) {
+      if (this.isExternal) {
+        this.updateExternalMenuBySpace(spaceUid);
+      }
       try {
         const res = await this.$store.dispatch('getMenuList', spaceUid);
         const menuList = this.replaceMenuId(res.data || []);
@@ -277,7 +294,20 @@ export default {
       } catch (e) {
         console.warn(e);
       } finally {
-        if (this.$route.name !== 'retrieve' && !this.isFirstLoad) {
+        if (this.isExternal
+          && this.$route.name === 'retrieve'
+          && !this.externalMenu.includes('retrieve')
+        ) {
+          // 当前在检索页 如果该空间没有日志检索授权 则跳转管理页
+          this.$router.push({ name: 'extract-home' });
+        } else if (
+          this.isExternal
+           && ['extract-home', 'extract-create', 'extract-clone'].includes(this.$route.name)
+           && !this.externalMenu.includes('manage')
+        ) {
+          // 当前在管理页 如果该空间没有日志提取授权 则跳转检索页
+          this.$router.push({ name: 'retrieve' });
+        } else if (this.$route.name !== 'retrieve' && !this.isFirstLoad) {
           // 所有页面的子路由在切换业务的时候都统一返回到父级页面
           const { name, meta, params, query } = this.$route;
           const RoutingHop = meta.needBack && !this.isFirstLoad ? meta.backName : name ? name : 'retrieve';

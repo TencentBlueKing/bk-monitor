@@ -103,6 +103,8 @@ const store = new Vuex.Store({
       toggleString: 'off',
       toggleList: [],
     },
+    /** 外部版路由菜单 */
+    externalMenu: [],
   },
   // 公共 getters
   getters: {
@@ -259,6 +261,9 @@ const store = new Vuex.Store({
     },
     updateMaskingToggle(state, val) {
       state.maskingToggle = val;
+    },
+    updateExternalMenu(state, val) {
+      state.externalMenu = val;
     },
   },
   actions: {

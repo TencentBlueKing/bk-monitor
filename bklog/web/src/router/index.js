@@ -28,7 +28,7 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-
+import store from '@/store';
 import http from '@/api';
 import page404 from '@/views/404';
 
@@ -850,7 +850,8 @@ router.beforeEach(async (to, from, next) => {
   await cancelRequest();
   if (JSON.parse(window.IS_EXTERNAL) && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)) {
     // 非外部版路由重定向
-    next({ name: 'retrieve' });
+    const routeName = store.this.state.externalMenu.includes('retrieve') ? 'retrieve' : 'manage';
+    next({ name: routeName });
   } else {
     next();
   }
