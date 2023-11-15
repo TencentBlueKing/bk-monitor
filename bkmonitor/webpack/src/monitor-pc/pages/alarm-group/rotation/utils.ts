@@ -284,7 +284,6 @@ function getOverlapTowByTow(timeRanges: number[][][]) {
  * @returns
  */
 function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
-  console.log(timeRanges);
   const overlapTimes: IOverlapTimesItem[] = [];
   const totalRangeTime = totalRange.map(item => new Date(item).getTime());
   for (let i = 0; i < timeRanges.length; i++) {

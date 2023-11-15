@@ -268,7 +268,12 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
         dutyList.push(item);
       }
     });
-    this.dutyList = dutyList;
+    this.dutyList = list
+      .map(l => {
+        const temp = dutyList.find(d => String(d.id) === String(l));
+        return temp;
+      })
+      .filter(l => !!l);
     const startTime = getCalendarOfNum()[0];
     const beginTime = `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
     const params = {

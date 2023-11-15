@@ -158,7 +158,12 @@ export default class RotationConfig extends tsc<IProps> {
         dutyList.push(item);
       }
     });
-    this.dutyList = dutyList;
+    this.dutyList = this.dutyArranges
+      .map(l => {
+        const temp = dutyList.find(d => String(d.id) === String(l));
+        return temp;
+      })
+      .filter(l => !!l);
     if (this.dutyList.length) {
       this.getPreviewData();
     }
