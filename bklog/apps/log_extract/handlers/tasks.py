@@ -171,7 +171,6 @@ class TasksHandler(object):
             "link_id": link_id,
             "created_by": request_user,
         }
-        logger.info(f"create task params: {params}")
         task = Tasks.objects.create(**params)
         params["ip_list"] = ip_list
         for pop_field in [
@@ -406,6 +405,7 @@ class TasksHandler(object):
     def run_pipeline(
         cls, task, operator, bk_biz_id, ip_list, file_path, filter_type, filter_content, account, os_type, username
     ):
+        logger.info(f"[run_pipeline] [start] task_id: {task.task_id}")
         extract: ExtractLinkBase = task.get_extract()
         data = extract.build_common_data_context(
             task.task_id,
@@ -420,7 +420,10 @@ class TasksHandler(object):
             os_type,
         )
         pipeline = extract.build_pipeline(task, data)
+        logger.info(f"[run_pipeline] [build] task_id: {task.task_id}, data: {data}")
         extract.start_pipeline(task, pipeline)
+        logger.info(f"[run_pipeline] [run] task_id: {task.task_id}, pipeline: {pipeline}")
+        logger.info(f"[run_pipeline] [end] task_id: {task.task_id}")
 
     def download(self, task_id):
         request_user = get_request_username()
