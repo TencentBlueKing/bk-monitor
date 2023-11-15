@@ -372,7 +372,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
         <div class='status-container'>
           {/* 运营状态 */}
           {this.statusData[this.targetStatusName[0]] && (
-            <div class={['status-item', `bg-failed`]}>
+            <div
+              class={['status-item', `bg-failed`]}
+              v-bk-tooltips={{
+                content: this.$t('主机当前状态'),
+                delay: 200,
+                boundary: 'window'
+              }}
+            >
               {this.maintainStatusIcon}
               <span class='text'>{this.maintainStatusText}</span>
             </div>
@@ -384,6 +391,11 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 'status-item',
                 `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`
               ]}
+              v-bk-tooltips={{
+                content: this.$t('tips-采集状态'),
+                delay: 200,
+                boundary: 'window'
+              }}
             >
               <span class={['common-status-wrap', 'status-wrap-flex']}>
                 <span
@@ -405,9 +417,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           v-model={this.activeCollapseName}
           class='detail-collapse-title'
         >
-          {this.labelListData.concat(this.moduleData as IDetailItem[]).map(item => (
+          {this.labelListData.map(item => (
             <div>
-              {this.targetListName.includes(item.name) && <div class='divider'></div>}
               <BkCollapseItem
                 name={item.name}
                 hide-arrow={!item?.children?.length}
@@ -419,13 +430,13 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 >
                   <span class={['item-title', { 'title-middle': ['progress'].includes(item.type) }]}>{item.name}</span>
                   <span class='item-value'>{this.handleTransformVal(item)}</span>
-                  {item?.children?.length && (
+                  {item?.count > 0 && (
                     <div>
                       <span class='item-collapse-data-length'>{item?.children?.length}</span>
                     </div>
                   )}
                 </div>
-                {!!item?.children?.length && (
+                {item?.count > 0 && (
                   <div
                     slot='content'
                     class='detail-collapse-content'
@@ -447,6 +458,17 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                   </div>
                 )}
               </BkCollapseItem>
+            </div>
+          ))}
+
+          {/* 所属模块 */}
+          {(this.moduleData as IDetailItem[]).map(item => (
+            <div key={item.name}>
+              {this.targetListName.includes(item.name) && <div class='divider'></div>}
+              <div class='module-data-panel-item'>
+                <div class={['module-data-item-title']}>{item.name}</div>
+                <div class='module-data-item-value'>{this.handleTransformVal(item)}</div>
+              </div>
             </div>
           ))}
         </BkCollapse>
