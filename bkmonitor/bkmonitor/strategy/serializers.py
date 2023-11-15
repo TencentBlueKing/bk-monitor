@@ -48,12 +48,19 @@ class AdvancedYearRoundSerializer(serializers.Serializer):
     floor_interval = serializers.IntegerField(required=True, allow_null=True, min_value=1)
     ceil = serializers.FloatField(required=True, allow_null=True, min_value=0)
     ceil_interval = serializers.IntegerField(required=True, allow_null=True, min_value=1)
+    # 新增历史数据获取类型: 均值或顺时值
+    fetch_type = serializers.CharField(default="avg")
 
     def validate(self, attrs):
         floor = attrs["floor"]
         floor_interval = attrs["floor_interval"]
         ceil = attrs["ceil"]
         ceil_interval = attrs["ceil_interval"]
+        # 校验历史数据获取类型
+        fetch_type = attrs["fetch_type"]
+        if fetch_type not in ["avg", "last"]:
+            raise InvalidAdvancedYearRoundConfig(config=attrs)
+
         floor_configured = all([floor, floor_interval])
         ceil_configured = all([ceil, ceil_interval])
         if not floor_configured:
@@ -72,20 +79,11 @@ class AdvancedRingRatioSerializer(AdvancedYearRoundSerializer):
     高级环比算法serializer,复用高级同比算法serializer
     """
 
-    # 新增历史数据获取类型: 均值或顺时值
-    fetch_type = serializers.CharField(default="avg")
-
     def validate(self, attrs):
-        fetch_type = attrs["fetch_type"]
-        if fetch_type not in ["avg", "last"]:
-            raise InvalidAdvancedRingRatioConfig(config=attrs)
         try:
-            attrs = super(AdvancedRingRatioSerializer, self).validate(attrs)
+            return super(AdvancedRingRatioSerializer, self).validate(attrs)
         except InvalidAdvancedYearRoundConfig:
             raise InvalidAdvancedRingRatioConfig(config=attrs)
-
-        attrs["fetch_type"] = fetch_type
-        return attrs
 
 
 class RingRatioAmplitudeSerializer(serializers.Serializer):
@@ -202,6 +200,25 @@ class YearRoundAmplitudeSerializer(serializers.Serializer):
 YearRoundRangeSerializer = YearRoundAmplitudeSerializer
 
 
+class MultivariateAnomalyDetectionSerializer(serializers.Serializer):
+    """
+    智能AI多指标异常检测算法
+    目前只有host场景，无需传入指标值，由数据平台算法的智能指标组成
+    """
+
+    class MetricListSerializer(serializers.ListSerializer):
+        class MetricSerializer(serializers.Serializer):
+            metric_id = serializers.CharField(required=True, label=_("指标ID"))
+            name = serializers.CharField(required=True, label=_("指标中文名"))
+            unit = serializers.CharField(required=True, label=_("单位"))
+            metric_name = serializers.CharField(required=True, label=_("指标英文名"))
+
+        child = MetricSerializer()
+
+    scene_id = serializers.CharField(required=True, label="场景")
+    metrics = MetricListSerializer(allow_empty=True, label="指标数据")
+
+
 class QueryConfigSerializer(serializers.Serializer):
     """
     查询配置序列化器基类
@@ -307,6 +324,7 @@ class BkDataTimeSeriesSerializer(QueryConfigSerializer):
     intelligent_detect = serializers.DictField(required=False)
     values = serializers.ListField(required=False)
     time_field = serializers.CharField(label="时间字段", default="dtEventTimeStamp", allow_blank=True, allow_null=True)
+    extend_fields = serializers.DictField(label="拓展字段", required=False)
 
     def validate(self, attrs: Dict) -> Dict:
         if not attrs.get("time_field"):

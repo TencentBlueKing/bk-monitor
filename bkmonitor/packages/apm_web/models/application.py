@@ -8,7 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.conf import settings
+
 from apm_web.constants import (
+    APM_IS_SLOW_ATTR_KEY,
+    DEFAULT_DB_CONFIG,
+    DEFAULT_DB_CONFIG_CUT_KEY,
+    DEFAULT_DB_CONFIG_IS_SLOW_QUERY_THRESHOLD,
+    DEFAULT_DB_CONFIG_PREDICATE_KEY,
     DEFAULT_NO_DATA_PERIOD,
     ApdexConfigEnum,
     CustomServiceMatchType,
@@ -18,8 +25,12 @@ from apm_web.constants import (
     DefaultDimensionConfig,
     DefaultInstanceNameConfig,
     DefaultSamplerConfig,
+    TraceMode,
 )
+from apm_web.meta.plugin.plugin import LOG_TRACE
+from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.metric_handler import RequestCountInstance
+from apm_web.utils import group_by
 from common.log import logger
 from django.db import models
 from django.db.transaction import atomic
@@ -53,6 +64,7 @@ class Application(AbstractRecordModel):
     SAMPLER_CONFIG_KEY = "application_sampler_config"
     INSTANCE_NAME_CONFIG_KEY = "application_instance_name_config"
     DIMENSION_CONFIG_KEY = "application_dimension_config"
+    DB_CONFIG_KEY = "application_db_config"
 
     class ApdexConfig:
         """Apdex配置项"""
@@ -156,6 +168,7 @@ class Application(AbstractRecordModel):
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
     data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32)
+    plugin_config = JsonField("log-trace 插件配置", null=True, blank=True)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
@@ -237,6 +250,13 @@ class Application(AbstractRecordModel):
         return config.config_value
 
     @cached_property
+    def db_config(self):
+        config = self.get_config_by_key(self.DB_CONFIG_KEY)
+        if not config:
+            return []
+        return config.config_value
+
+    @cached_property
     def dimension_config(self):
         config = self.get_config_by_key(self.DIMENSION_CONFIG_KEY)
         if not config:
@@ -296,6 +316,13 @@ class Application(AbstractRecordModel):
         return instance.metric_result_table_id
 
     @classmethod
+    def get_trace_table_id(cls, bk_biz_id, app_name):
+        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not instance:
+            return None
+        return instance.trace_result_table_id
+
+    @classmethod
     def get_application_id_by_app_name(cls, app_name: str):
         request = get_request()
         try:
@@ -306,7 +333,8 @@ class Application(AbstractRecordModel):
     @classmethod
     @atomic
     def create_application(
-        cls, bk_biz_id, app_name, app_alias, description, plugin_id, deployment_ids, language_ids, datasource_option
+            cls, bk_biz_id, app_name, app_alias, description, plugin_id, deployment_ids, language_ids,
+            datasource_option, plugin_config=None
     ):
         application_info = api.apm_api.create_application(
             {
@@ -336,6 +364,7 @@ class Application(AbstractRecordModel):
         application.set_init_apdex_config()
         application.set_init_sampler_config()
         application.set_init_instance_name_config()
+        application.set_init_db_config()
         # todo 暂时不做维度配置
         # obj.set_init_dimensions_config()
         application.authorization()
@@ -343,7 +372,73 @@ class Application(AbstractRecordModel):
         from apm_web.tasks import update_application_config
 
         update_application_config.delay(application.application_id)
-        return application
+        if plugin_id == LOG_TRACE:
+            plugin_config["bk_biz_id"] = bk_biz_id
+            plugin_config["bk_data_id"] = application_info["datasource_info"]["trace_config"]["bk_data_id"]
+            application.set_plugin_config(plugin_config, application.application_id)
+        return Application.objects.get(application_id=application.application_id)
+
+    @classmethod
+    def set_plugin_config(cls, plugin_config, application_id):
+        output_param = cls.get_output_param(application_id)
+        if not output_param.get("host"):
+            return
+        plugin_config = LogTracePluginConfig().release_log_trace_config(plugin_config, output_param)
+        Application.objects.filter(application_id=application_id).update(plugin_config=plugin_config)
+        return plugin_config
+
+    @classmethod
+    def update_plugin_config(cls, application_id, plugin_config):
+        old_application = Application.objects.filter(application_id=application_id).first()
+        if old_application.plugin_config != plugin_config:
+            cls.set_plugin_config(plugin_config, application_id)
+        return plugin_config
+
+    @classmethod
+    def get_output_param(cls, application_id):
+
+        bk_data_token = api.apm_api.detail_application({"application_id": application_id})[
+            "bk_data_token"]
+        # 获取上报地址
+        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
+            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
+        elif settings.CUSTOM_REPORT_DEFAULT_PROXY_IP:
+            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
+        else:
+            return {}
+        return {
+            "bk_data_token": bk_data_token,
+            "host": host
+        }
+
+    @classmethod
+    def stop_plugin_config(cls, application_id):
+        app = Application.objects.filter(application_id=application_id).first()
+        if app.plugin_id == LOG_TRACE:
+            # 停止节点管理采集任务
+            api.node_man.switch_subscription(
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"})
+            return LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "STOP")
+
+    @classmethod
+    def start_plugin_config(cls, application_id):
+        app = Application.objects.filter(application_id=application_id).first()
+        if app.plugin_id == LOG_TRACE:
+            # 开始节点管理采集任务
+            api.node_man.switch_subscription(
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "enable"})
+            return LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "START")
+
+    @classmethod
+    def delete_plugin_config(cls, application_id):
+        app = Application.objects.filter(application_id=application_id).first()
+        if app.plugin_id == LOG_TRACE:
+            # 停止节点管理采集任务
+            api.node_man.switch_subscription(
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"})
+            LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "STOP")
+            # 删除节点管理采集订阅任务
+            return api.node_man.delete_subscription({"subscription_id": app.plugin_config["subscription_id"]})
 
     def set_init_datasource(self, datasource_info, datasource_option):
         self.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
@@ -363,6 +458,12 @@ class Application(AbstractRecordModel):
 
         instance_value = {self.InstanceNameConfig.INSTANCE_NAME_COMPOSITION: default_instance_name}
         ApmMetaConfig.application_config_setup(self.application_id, self.INSTANCE_NAME_CONFIG_KEY, instance_value)
+
+    def set_init_db_config(self):
+
+        db_value = [DEFAULT_DB_CONFIG]
+
+        ApmMetaConfig.application_config_setup(self.application_id, self.DB_CONFIG_KEY, db_value)
 
     def set_init_sampler_config(self):
         sampler_value = {
@@ -481,6 +582,14 @@ class Application(AbstractRecordModel):
         # 组装维度配置
         res["dimension_config"] = self.dimension_config.get("dimensions")
 
+        # 组装db配置
+        db_configs = self.db_config
+        # 首字母大写
+        for item in db_configs:
+            item["db_system"] = str(item.get("db_system", "")).capitalize()
+        res["db_config"] = self.get_db_cut_drop_config(db_configs)
+        res["db_slow_command_config"] = self.get_db_slow_command_config(db_configs)
+
         # 组装自定义服务配置
         query = ApplicationCustomService.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         from apm_web.serializers import CustomServiceSerializer
@@ -488,6 +597,65 @@ class Application(AbstractRecordModel):
         res["custom_service_config"] = CustomServiceSerializer(instance=query, many=True).data
 
         return res
+
+    @staticmethod
+    def get_db_slow_command_config(configs: list):
+        """
+        组装db慢命令配置
+        :param configs: 配置
+        :return:
+        """
+
+        rules = []
+        for config in configs:
+            if config.get("enabled_slow_sql"):
+                rules.append(
+                    {
+                        "match": config.get("db_system", ""),
+                        "threshold": config.get("threshold", DEFAULT_DB_CONFIG_IS_SLOW_QUERY_THRESHOLD),
+                    }
+                )
+        rules.sort(key=lambda rule: rule["match"], reverse=True)
+        return {"destination": APM_IS_SLOW_ATTR_KEY, "rules": rules}
+
+    @staticmethod
+    def get_db_cut_drop_config(configs: list):
+        """
+        组装db配置
+        :param configs: 配置
+        :return:
+        """
+
+        cut_mapping = group_by(configs, lambda i: str(i["length"]))
+        drop_mapping = group_by(configs, lambda i: str(i["trace_mode"]))
+
+        cut = []
+        drop = []
+
+        for k, values in cut_mapping.items():
+            cut_match = [v.get("db_system") for v in values if v.get("db_system")]
+            cut.append(
+                {
+                    "max_length": int(k),
+                    "keys": [DEFAULT_DB_CONFIG_CUT_KEY],
+                    "predicate_key": DEFAULT_DB_CONFIG_PREDICATE_KEY,
+                    "match": cut_match,
+                }
+            )
+
+        for k, values in drop_mapping.items():
+            drop_keys = []
+            if k == TraceMode.NO_PARAMETERS:
+                drop_keys = TraceMode.APM_DROP_KEYS_MAPPING[k]
+            elif k == TraceMode.CLOSED:
+                drop_keys = TraceMode.APM_DROP_KEYS_MAPPING[k]
+            drop_match = [v.get("db_system") for v in values if v.get("db_system")]
+            drop.append({"keys": drop_keys, "predicate_key": DEFAULT_DB_CONFIG_PREDICATE_KEY, "match": drop_match})
+
+        cut.sort(key=lambda item: item["match"], reverse=True)
+        drop.sort(key=lambda item: item["match"], reverse=True)
+
+        return {"cut": cut, "drop": drop}
 
     def get_service_transfer_config(self):
         res = []
@@ -530,6 +698,7 @@ class ApmMetaConfig(models.Model):
 
     class Meta:
         unique_together = [["config_level", "level_key", "config_key"]]
+        app_label = 'apm_web'
 
     @classmethod
     def get_all_application_config_value(cls, application_id):

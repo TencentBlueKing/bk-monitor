@@ -237,68 +237,6 @@ class CreateNewIndexSet(object):
         self.create_new_index_set.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
 
 
-class CreateOnlineTaskNewIndexSetService(BaseService):
-    name = _("创建在线训练任务-新聚类索引集")
-
-    def inputs_format(self):
-        return [
-            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
-        ]
-
-    def _execute(self, data, parent_data):
-        index_set_id = data.get_one_of_inputs("index_set_id")
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        src_index_set = LogIndexSet.objects.get(index_set_id=clustering_config.index_set_id)
-        src_index_set_indexes = src_index_set.indexes
-        new_cls_index_set = IndexSetHandler.create(
-            index_set_name="{}_clustering".format(src_index_set.index_set_name),
-            space_uid=src_index_set.space_uid,
-            storage_cluster_id=src_index_set.storage_cluster_id,
-            scenario_id=src_index_set.scenario_id,
-            view_roles=None,
-            indexes=[
-                {
-                    "bk_biz_id": index["bk_biz_id"],
-                    "result_table_id": clustering_config.predict_flow['rename_signature']['result_table_id'],
-                    "result_table_name": src_index_set.index_set_name,
-                    "time_field": index["time_field"],
-                }
-                for index in src_index_set_indexes
-            ],
-            username=src_index_set.created_by,
-        )
-        clustering_config.new_cls_index_set_id = new_cls_index_set.index_set_id
-        clustering_config.save()
-
-        # 创建聚类索引集
-        new_cls_index_set.created_by = src_index_set.created_by
-        activate_request(generate_request(new_cls_index_set.updated_by))
-        new_cls_index_set.save()
-        log_index_set = LogIndexSet.objects.filter(index_set_id=new_cls_index_set.index_set_id).first()
-        LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
-        return True
-
-
-class CreateOnlineTaskNewIndexSetComponent(Component):
-    name = "CreateOnlineTaskNewIndexSet"
-    code = "create_online_task_new_index_set"
-    bound_service = CreateOnlineTaskNewIndexSetService
-
-
-class CreateOnlineTaskNewIndexSet(object):
-    def __init__(self, index_set_id: int, collector_config_id: int = None):
-        self.create_online_task_new_index_set = ServiceActivity(
-            component_code="create_online_task_new_index_set",
-            name=f"create_online_task_new_index_set:{index_set_id}_{collector_config_id}",
-        )
-        self.create_online_task_new_index_set.component.inputs.collector_config_id = Var(
-            type=Var.SPLICE, value="${collector_config_id}"
-        )
-        self.create_online_task_new_index_set.component.inputs.index_set_id = Var(
-            type=Var.SPLICE, value="${index_set_id}"
-        )
-
-
 class CreatePredictFlowService(BaseService):
     name = _("创建预测flow")
     __need_schedule__ = True
@@ -368,6 +306,9 @@ class CreateLogCountAggregationFlowService(BaseService):
         flow = DataFlowHandler().create_log_count_aggregation_flow(index_set_id=index_set_id)
 
         DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="continue")
+        # 添加索引集表标签
+        log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        LogIndexSet.set_tag(log_index_set.index_set_id, InnerTag.CLUSTERING.value)
         return True
 
     def _schedule(self, data, parent_data, callback_data=None):

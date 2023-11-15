@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-from apm_web.constants import SpanSourceCategory, TraceWaterFallDisplayKey
+from apm_web.constants import SpanSourceCategory, TraceWaterFallDisplayKey, EbpfSignalSourceType
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from constants.apm import OtlpKey
@@ -64,8 +64,9 @@ class DisplayHandler:
         # EBPF or OT
         if CategoryEbpfFilter.is_match(span):
             source = span[OtlpKey.RESOURCE].get("df.capture_info.signal_source")
-            if source == "Packet":
+            if source in [EbpfSignalSourceType.SIGNAL_SOURCE_PACKET, EbpfSignalSourceType.SIGNAL_SOURCE_XFLOW]:
                 return SpanSourceCategory.EBPF_NETWORK
-            return SpanSourceCategory.EBPF_SYSTEM
+            elif source == EbpfSignalSourceType.SIGNAL_SOURCE_EBPF:
+                return SpanSourceCategory.EBPF_SYSTEM
 
         return SpanSourceCategory.OPENTELEMETRY

@@ -271,6 +271,17 @@ STRATEGY_CHECKPOINT_KEY = register_key_with_config(
     }
 )
 
+ACCESS_RUN_TIMESTAMP_KEY = register_key_with_config(
+    {
+        "label": "[access]access任务运行时间",
+        "key_type": "string",
+        "key_tpl": "access.run.strategy_group_{strategy_group_key}",
+        "ttl": CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
+
 ACCESS_DUPLICATE_KEY = register_key_with_config(
     {
         "label": "[access]数据拉取去重",
@@ -906,6 +917,16 @@ APM_TOPO_DISCOVER_LOCK = register_key_with_config(
         "label": "[apm]TOPO自动发现周期锁",
         "key_type": "string",
         "key_tpl": "apm.tasks.topo.discover.{app_id}",
+        "ttl": CONST_MINUTES * 10,
+        "backend": "service",
+    }
+)
+
+APM_EBPF_DISCOVER_LOCK = register_key_with_config(
+    {
+        "label": "[apm_ebpf]自动发现周期锁",
+        "key_type": "string",
+        "key_tpl": "apm_ebpf.tasks.discover.{bk_biz_id}",
         "ttl": CONST_MINUTES * 10,
         "backend": "service",
     }

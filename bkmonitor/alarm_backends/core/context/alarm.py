@@ -29,7 +29,7 @@ from bkmonitor.utils.time_tools import (
     utc2_str,
     utc2localtime,
 )
-from constants.action import ActionPluginType, ActionSignal, ConvergeType, NoticeWay
+from constants.action import ActionPluginType, ActionSignal, ConvergeType
 from constants.alert import (
     EVENT_STATUS_DICT,
     TARGET_DIMENSIONS,
@@ -272,9 +272,9 @@ class Alarm(BaseContextObject):
 
         # 无法出图的数据源
         if (
-                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT) in item.data_source_types
-                or (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT) in item.data_source_types
-                or (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT) in item.data_source_types
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT) in item.data_source_types
+            or (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT) in item.data_source_types
+            or (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT) in item.data_source_types
         ):
             return
 
@@ -800,63 +800,5 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def link_layouts(self):
-        if self.parent.notice_way != NoticeWay.WX_BOT or self.parent.example_action.signal not in [
-            ActionSignal.ABNORMAL, ActionSignal.NO_DATA]:
-            # 如果不是企业微信机器人，直接返回空
-            # 如果不是异常告警，采用原来的模式发送通知
-            return []
-        if self.parent.converge_type == ConvergeType.CONVERGE and self.collect_count >= 1:
-            # 如果是业务汇总，则不需要操作按钮
-            return []
-
-        if not self.detail_url:
-            # 外部渠道不需要链接的，，则不需要操作按钮
-            return []
-
-        urls = [
-            {"url": self.quick_ack_url, "name": _("告警确认")},
-            {"url": self.detail_url, "button_style": {"type": "default", "fill": "follow"},
-             "name": _("查看详情")},
-        ]
-        if self.quick_shield_url:
-            urls.insert(1, {"url": self.quick_shield_url,
-                            "name": _("告警屏蔽")})
-        layouts = [
-            {
-                "type": "flex_layout",
-                "components": [
-                    {
-                        "type": "button",
-                        "text": urls[0]["name"],
-                        "button_style": {"type": "colorful", "color": "yellow", "fill": "follow"},
-                        "interaction": {"type": 2002, "data": {"url": urls[0]["url"]}},
-                    },
-                    {
-                        "type": "button",
-                        "text": urls[1]["name"],
-                        "button_style": urls[1].get("button_style") or {"type": "colorful",
-                                                                        "color": "yellow",
-                                                                        "fill": "follow"},
-                        "interaction": {"type": 2002, "data": {"url": urls[1]["url"]}},
-                    },
-                ],
-                "style": {"vertical_line": ""},
-                "num_inline": 2,
-                "weight": [1, 1],
-            }
-        ]
-        if len(urls) == 3:
-            layouts.append(
-                {
-                    "type": "column_layout",
-                    "components": [
-                        {
-                            "type": "button",
-                            "text": urls[2]["name"],
-                            "button_style": {"type": "default", "fill": "follow"},
-                            "interaction": {"type": 2002, "data": {"url": urls[2]["url"]}},
-                        }
-                    ],
-                }
-            )
-        return layouts
+        # 模块链接，先回退
+        return []

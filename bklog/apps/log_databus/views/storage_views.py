@@ -19,8 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from rest_framework import serializers
+from rest_framework.response import Response
+
 from apps.api import BkLogApi
-from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -42,8 +44,6 @@ from apps.log_databus.serializers import (
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.string_util import is_positive_or_negative_integer
-from rest_framework import serializers
-from rest_framework.response import Response
 
 
 class StorageViewSet(APIViewSet):
@@ -668,8 +668,6 @@ class StorageViewSet(APIViewSet):
         bk_biz_id = request.GET.get("bk_biz_id")
         if not bk_biz_id or not is_positive_or_negative_integer(bk_biz_id):
             raise StorageCreateException()
-        if int(bk_biz_id) < 0:
-            bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id)
         return Response(StorageHandler.batch_connectivity_detect(data["cluster_list"], bk_biz_id))
 
     @detail_route(methods=["GET"], url_path="cluster_nodes")

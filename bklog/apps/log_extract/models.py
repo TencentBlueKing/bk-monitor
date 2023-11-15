@@ -26,7 +26,6 @@ from typing import List
 
 from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType
 from apps.models import (
-    EncryptionField,
     JsonField,
     MultiStrSplitByCommaFieldText,
     OperateRecordModel,
@@ -34,6 +33,7 @@ from apps.models import (
     SoftDeleteModel,
 )
 from apps.utils.log import logger
+from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
@@ -194,8 +194,9 @@ class ExtractLink(OperateRecordModel):
     link_type = models.CharField(_("链路类型"), max_length=20, default=ExtractLinkType.COMMON.value)
     operator = models.CharField(_("执行人"), max_length=255)
     op_bk_biz_id = models.IntegerField(_("执行bk_biz_id"))
-    qcloud_secret_id = EncryptionField(_("腾讯云SecretId"), default="", null=True, blank=True, help_text=_("内网链路不需要填写"))
-    qcloud_secret_key = EncryptionField(_("腾讯云SecretKey"), default="", null=True, blank=True, help_text=_("内网链路不需要填写"))
+    qcloud_secret_id = SymmetricTextField(_("腾讯云SecretId"), default="", null=True, blank=True, help_text=_("内网链路不需要填写"))
+    qcloud_secret_key = SymmetricTextField(_("腾讯云SecretKey"), default="",
+                                           null=True, blank=True, help_text=_("内网链路不需要填写"))
     qcloud_cos_bucket = models.CharField(
         _("腾讯云Cos桶名称"), max_length=255, default="", blank=True, help_text=_("内网链路不需要填写")
     )

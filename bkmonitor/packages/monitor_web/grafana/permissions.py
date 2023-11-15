@@ -45,12 +45,12 @@ class DashboardPermission(BasePermission):
         return uids
 
     @classmethod
-    def get_dashboard_role(cls, request, org_name: str) -> GrafanaRole:
+    def get_user_role(cls, request, org_name: str) -> GrafanaRole:
         """
         获取仪表盘角色
         """
         role = GrafanaRole.Anonymous
-        if request.user.is_superuser and not getattr(request, "external_user", None):
+        if request.user.is_superuser:
             return GrafanaRole.Admin
 
         bk_biz_id = int(org_name)
@@ -70,17 +70,16 @@ class DashboardPermission(BasePermission):
         return role
 
     @classmethod
-    def has_permission(cls, request, view, org_name: str) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
-        """
-        仪表盘权限校验
-        """
-        role = cls.get_dashboard_role(request, org_name)
+    def get_user_permission(cls, request, org_name: str) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
+        role = cls.get_user_role(request, org_name)
 
         # 如果用户拥有编辑以上权限, 则不需要再同步仪表盘权限
         if role >= GrafanaRole.Editor:
             return True, role, {}
 
         p = Permission(username=request.user.username)
+        if getattr(request, "skip_check", False):
+            p.skip_check = True
         if p.skip_check:
             return True, GrafanaRole.Admin, {}
 
@@ -94,7 +93,9 @@ class DashboardPermission(BasePermission):
         )
         if role < GrafanaRole.Editor and edit_policy and p.iam_client._eval_expr(make_expression(edit_policy), obj_set):
             role = GrafanaRole.Editor
-        elif role < GrafanaRole.Viewer and view_policy and p.iam_client._eval_expr(make_expression(view_policy), obj_set):
+        elif (
+            role < GrafanaRole.Viewer and view_policy and p.iam_client._eval_expr(make_expression(view_policy), obj_set)
+        ):
             role = GrafanaRole.Viewer
 
         # 如果用户拥有编辑以上权限, 则不需要再同步仪表盘权限
@@ -111,29 +112,40 @@ class DashboardPermission(BasePermission):
         for uid in edit_uids:
             dashboard_permissions[uid] = GrafanaPermission.Edit
 
+        return True, role, dashboard_permissions
+
+    @classmethod
+    def has_permission(cls, request, view, org_name: str) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
+        """
+        仪表盘权限校验
+        """
+        # 内部用户权限处理
+        _, role, dashboard_permissions = cls.get_user_permission(request, org_name)
+
+        logger.info(f"user_permission: {role}, {dashboard_permissions}")
+
         # 外部用户权限处理
         if getattr(request, "external_user", None):
             external_dashboard_permissions = {}
             external_permissions = ExternalPermission.objects.filter(
                 authorized_user=request.external_user,
                 bk_biz_id=int(org_name),
-                action_id=["view_grafana", "manage_grafana"],
+                action_id__in=["view_grafana", "manage_grafana"],
                 expire_time__gt=timezone.now(),
             )
 
             for permission in external_permissions:
                 for record in permission.resources:
-                    uid = record["uid"]
                     if permission.action_id == "view_grafana" and (
-                        role >= GrafanaRole.Viewer or uid in dashboard_permissions
+                        role >= GrafanaRole.Viewer or record in dashboard_permissions
                     ):
-                        external_dashboard_permissions[record["uid"]] = GrafanaPermission.View
+                        external_dashboard_permissions[record] = GrafanaPermission.View
                     elif permission.action_id == "manage_grafana" and (
-                        role >= GrafanaRole.Editor or uid in dashboard_permissions
+                        role >= GrafanaRole.Editor or record in dashboard_permissions
                     ):
-                        external_dashboard_permissions[record["uid"]] = GrafanaPermission.Edit
+                        external_dashboard_permissions[record] = GrafanaPermission.Edit
 
-            role = GrafanaRole.Anonymous
+            role = GrafanaRole.Viewer
             dashboard_permissions = external_dashboard_permissions
 
         return True, role, dashboard_permissions

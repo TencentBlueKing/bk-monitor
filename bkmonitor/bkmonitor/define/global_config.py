@@ -239,6 +239,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("MAIL_REPORT_FULL_PAGE_WAIT_TIME", slz.IntegerField(label="邮件报表整屏渲染等待时间", default=60)),
         ("KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST", slz.ListField(label=_("容器关联关系丰富业务白名单"), default=[])),
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
+        ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
     ]
 )
 
@@ -291,7 +292,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
         ("PING_SERVER_TARGET_NUMBER_LIMIT", slz.IntegerField(label=_("单台机器Ping采集目标数量限制"), default=6000)),
-        ("BK_NODEMAN_VERSION", slz.CharField(label=_("节点管理版本号"), default="2.0")),
         (
             "MAX_AVAILABLE_DURATION_LIMIT",
             slz.IntegerField(label=_("拨测任务最大超时限制(ms)"), default=60000, min_value=1000),
@@ -362,7 +362,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("DISABLE_BIZ_ID", slz.ListField(label=_("业务黑名单"), default=[])),
         ("BCS_GRAY_CLUSTER_ID_LIST", slz.ListField(label=_("BCS集群灰度ID名单"), default=[])),
         ("BCS_API_DATA_SOURCE", slz.ChoiceField(label=_("BCS集群元数据获取方式"), default="db", choices=("db", "api"))),
-        ("METRIC_AGG_GATEWAY_URL", slz.CharField(label=_("指标聚合网关上报地址"), default="")),
         ("ENABLE_BCS_GRAY_CLUSTER", slz.BooleanField(label=_("是否启用BCS集群灰度模式"), default=False)),
         ("NOTICE_TITLE", slz.CharField(label=_("告警通知标题"), default="蓝鲸监控")),
         ("DEFAULT_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True)),

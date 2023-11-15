@@ -915,3 +915,61 @@ export const calculateTableColsWidth = (field, list) => {
 
   return field.width;
 };
+
+/**
+ * @desc: 扁平化对象
+ * @param {Object} currentObject  递归的对象
+ * @param {String} returnType 返回的值 对象key数组 对象value数组 重新扁平化的对象
+ * @param {String} previousKeyName 递归的初始名字
+ * @returns {Array | Object}
+ */
+export const getFlatObjValues = (currentObject, previousKeyName = '') => {
+  const newFlatObj = {
+    newKeyStrList: [],
+    newValueList: [],
+    newObject: {},
+  };
+  flatObjTypeFiledKeys(currentObject, newFlatObj, previousKeyName);
+  return newFlatObj;
+};
+
+/**
+   * @desc: 扁平化对象的key
+   * @param {Object} currentObject 对象
+   * @param {Object} newFlatObj 手机对象扁平化key的列表
+   * @param {String} previousKeyName 递归的初始名字
+   */
+export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKeyName = '') => {
+  for (const key in currentObject) {
+    const value = currentObject[key];
+    if (value === null) {
+      newFlatObj.newKeyStrList.push(key);
+      newFlatObj.newValueList.push('');
+      newFlatObj.newObject[key] = '';
+      continue;
+    }
+    if (value.constructor !== Object) {
+      if (previousKeyName === null || previousKeyName === '') {
+        newFlatObj.newKeyStrList.push(key);
+        newFlatObj.newValueList.push(value);
+        newFlatObj.newObject[key] = value;
+      } else {
+        if (key === null || key === '') {
+          newFlatObj.newKeyStrList.push(previousKeyName);
+          newFlatObj.newValueList.push(value);
+          newFlatObj.newObject[previousKeyName] = value;
+        } else {
+          newFlatObj.newKeyStrList.push(`${previousKeyName}.${key}`);
+          newFlatObj.newValueList.push(value);
+          newFlatObj.newObject[`${previousKeyName}.${key}`] = value;
+        }
+      }
+    } else {
+      if (previousKeyName === null || previousKeyName === '') {
+        flatObjTypeFiledKeys(value, newFlatObj, key);
+      } else {
+        flatObjTypeFiledKeys(value, newFlatObj, `${previousKeyName}.${key}`);
+      }
+    }
+  }
+};
