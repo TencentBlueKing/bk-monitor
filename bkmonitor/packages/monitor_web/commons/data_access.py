@@ -444,7 +444,9 @@ class PluginDataAccessor(DataAccessor):
         # 背景：
         # 1. 新增插件/导入插件，没有黑白名单配置信息，因此自动发现的配置(enable_field_blacklist)为False
         # 2. 当前基于自动发现判断是否开启单指标单表，因此针对新增/导入，做一层dataid的判断：当dataid不存在，则默认 单指标单表（白名单）
-        is_split_measurement = False
+
+        # 开启自动发现，一定是单指标单表
+        is_split_measurement = self.enable_field_blacklist
 
         if not self.data_id:
             # 新增插件均为单指标单表
@@ -452,7 +454,7 @@ class PluginDataAccessor(DataAccessor):
             self.create_dataid()
             # todo 当后续流程失败时，通过`ModifyDataIdResource`将 dataname 重名即可。
 
-        if not (self.enable_field_blacklist or is_split_measurement):
+        if not is_split_measurement:
             # 没开自动发现，且非新增插件
             try:
                 result_table_info = api.metadata.get_result_table(table_id=f"{self.db_name}.__default__")
