@@ -155,7 +155,7 @@ class ArchiveHandler:
             self.archive.save()
             if self.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
                 # 索引集归档需要查询当前索引集所关联的所有table_id
-                index_set_data_objs = LogIndexSetData.objects.filter(index_set_id=int(params["instance_id"]))
+                index_set_data_objs = LogIndexSetData.objects.filter(index_set_id=self.archive.instance_id)
                 if not index_set_data_objs:
                     raise ArchiveIndexSetInfoNotFound
                 table_ids = list()
@@ -166,14 +166,14 @@ class ArchiveHandler:
 
                 multi_execute_func = MultiExecuteFunc()
                 for table_id in table_ids:
-                    params = {
+                    multi_params = {
                         "table_id": table_id,
                         "snapshot_days": self.archive.snapshot_days
                     }
                     multi_execute_func.append(
                         result_key=f"modify_result_table_snapshot_{table_id}",
                         func=TransferApi.modify_result_table_snapshot,
-                        params=params
+                        params=multi_params
                     )
 
                 multi_execute_func.run()
@@ -204,7 +204,7 @@ class ArchiveHandler:
 
             multi_execute_func = MultiExecuteFunc()
             for table_id in table_ids:
-                params = {
+                multi_params = {
                     "table_id": table_id,
                     "target_snapshot_repository_name": create_obj.target_snapshot_repository_name,
                     "snapshot_days": create_obj.snapshot_days
@@ -212,7 +212,7 @@ class ArchiveHandler:
                 multi_execute_func.append(
                     result_key=f"create_result_table_snapshot_{table_id}",
                     func=TransferApi.create_result_table_snapshot,
-                    params=params
+                    params=multi_params
                 )
 
             multi_execute_func.run()
