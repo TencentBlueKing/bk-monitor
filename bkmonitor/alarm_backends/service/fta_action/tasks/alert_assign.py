@@ -16,18 +16,23 @@ from typing import List
 from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.context import ActionContext
 from alarm_backends.service.fta_action import AlertAssignee
+from constants.action import ActionNoticeType, AssignMode
+
 from bkmonitor.action.alert_assign import (
     AlertAssignMatchManager,
     AssignRuleMatch,
     UpgradeRuleMatch,
 )
 from bkmonitor.documents import AlertDocument
-from constants.action import ActionNoticeType, AssignMode
 
 logger = logging.getLogger("fta_action.run")
 
 
 class BackendAssignMatchManager(AlertAssignMatchManager):
+    """
+    后台告警分派管理
+    """
+
     def __init__(
         self,
         alert: AlertDocument,
@@ -123,16 +128,21 @@ class AlertAssigneeManager:
         return manager
 
     def get_notify_info(self):
+        """
+        获取通知渠道和通知人员信息
+        """
         notify_configs = defaultdict(list)
-
-        if self.notice_appointees_object:
-            self.notice_appointees_object.get_notice_receivers(notify_configs=notify_configs, append_appointee=False)
-
-        if self.origin_notice_users_object:
+        if self.is_matched:
+            # 如果适配到了，直接发送给分派的负责人
+            if self.notice_appointees_object:
+                self.notice_appointees_object.get_notice_receivers(
+                    notify_configs=notify_configs, append_appointee=False
+                )
+            elif self.notice_appointees_object:
+                self.notice_appointees_object.add_appointee_to_notify_group(notify_configs)
+        elif self.origin_notice_users_object:
+            # 有默认通知的话，就加上默认通知人媛
             self.origin_notice_users_object.get_notice_receivers(notify_configs=notify_configs)
-        elif self.notice_appointees_object:
-            self.notice_appointees_object.add_appointee_to_notify_group(notify_configs)
-
         return notify_configs
 
     def get_upgrade_notify_info(self):
@@ -141,12 +151,13 @@ class AlertAssigneeManager:
         :return:
         """
         notify_configs = defaultdict(list)
-        if self.notice_supervisor_object:
+
+        if self.is_matched and self.notice_supervisor_object:
             # 如果存在适配规则的通知升级情况
             self.notice_supervisor_object.get_notice_receivers(notify_configs=notify_configs, append_appointee=False)
 
-        if self.origin_notice_supervisor_object:
-            # 如果存在原始通知的升级情况
+        if self.is_matched is False and self.origin_notice_supervisor_object:
+            # 如果当前不满足分派条件，则判断是否有原始通知的升级情况
             self.origin_notice_supervisor_object.get_notice_receivers(
                 notify_configs=notify_configs, append_appointee=False
             )
@@ -154,8 +165,14 @@ class AlertAssigneeManager:
         return notify_configs
 
     def get_assignees(self, by_group=False):
-        # 获取对应的通知人员 包含指派的通知人员 和 设置的通知人员
+        """
+        获取对应的通知人员 包含指派的通知人员 和 设置的通知人员
+        """
         appointees = self.get_notice_appointees(by_group)
+        if self.is_matched:
+            # 如果当前已经有分派适配，则只返回指派的人员
+            return appointees
+
         notice_receivers = self.get_origin_notice_receivers(by_group)
         if by_group:
             appointees.update(notice_receivers)
@@ -170,18 +187,24 @@ class AlertAssigneeManager:
         return {}
 
     def get_appointees(self, action_id=None):
+        """
         # 获取分派的负责人
+        """
         if action_id and action_id in self.itsm_actions:
             # 根据对应的动作配置找到负责人
             return AlertAssignee(self.alert, self.itsm_actions[action_id]).get_assignee_by_user_groups()
+
         return self.get_notice_appointees()
 
     def get_supervisors(self, by_group=False):
         """
         获取当前运行的升级人员
         """
-        notice_supervisors = self.get_origin_notice_supervisors(by_group)
+        notice_supervisors = []
         assigned_supervisors = None
+        if not self.is_matched:
+            # 如果没有适配到规则，用默认通知的关注人信息
+            notice_supervisors = self.get_origin_notice_supervisors(by_group)
 
         if self.notice_supervisor_object:
             assigned_supervisors = self.notice_supervisor_object.get_assignee_by_user_groups(by_group)
@@ -192,6 +215,9 @@ class AlertAssigneeManager:
         return notice_supervisors
 
     def get_notice_appointees(self, by_group=False):
+        """
+        获取分派的人员信息
+        """
         # 获取通知分派的人员
         if self.notice_appointees_object:
             return self.notice_appointees_object.get_assignee_by_user_groups(by_group)
@@ -206,10 +232,16 @@ class AlertAssigneeManager:
             return AlertAssignee(self.alert, self.match_manager.matched_rule_info["notice_appointees"])
 
     def get_notice_supervisors_object(self):
+        """
+        获取分派适配规则的关注人员对象
+        """
         if self.match_manager and self.match_manager.matched_rule_info["notice_upgrade_user_groups"]:
             return AlertAssignee(self.alert, self.match_manager.matched_rule_info["notice_upgrade_user_groups"])
 
     def get_origin_notice_receivers(self, by_group=False):
+        """
+        获取默认通知的所有接受人员
+        """
         if self.origin_notice_users_object is None:
             return {} if by_group else []
         return self.origin_notice_users_object.get_assignee_by_user_groups(by_group)
@@ -223,6 +255,9 @@ class AlertAssigneeManager:
         return self.origin_notice_users_object.get_notice_receivers(append_appointee=True)
 
     def get_origin_supervisor_object(self):
+        """
+        获取媛升级告警关注人员
+        """
         if self.notice_type != ActionNoticeType.UPGRADE or AssignMode.ONLY_NOTICE not in self.assign_mode:
             # 没有设置通知的情况下，默认为空
             return None
@@ -253,6 +288,9 @@ class AlertAssigneeManager:
         return AlertAssignee(self.alert, user_groups=user_groups)
 
     def get_origin_notice_supervisors(self, by_group=False):
+        """
+        获取默认通知的关注热源
+        """
         empty_supervisors = {} if by_group else []
         if not self.origin_notice_supervisor_object:
             # 没有设置通知的情况下，默认为空
