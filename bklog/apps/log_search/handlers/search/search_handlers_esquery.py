@@ -519,10 +519,9 @@ class SearchHandler(object):
         根据存储集群切换记录多线程请求 BkLogApi.search
         """
         start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S")
-        end_time = datetime.datetime.strptime(self.end_time, "%Y-%m-%d %H:%M:%S")
         storage_cluster_record_objs = StorageClusterRecord.objects.filter(
             index_set_id=int(self.index_set_id),
-            created_at__range=[start_time, end_time]
+            created_at__gt=start_time
         ).exclude(storage_cluster_id=self.storage_cluster_id)
 
         params = {
