@@ -525,15 +525,20 @@ class PreviewSerializer(serializers.Serializer):
     config = serializers.DictField(required=False, label="配置信息", default=None)
 
     def to_internal_value(self, data):
+        """
+        参数转换
+        """
         self.initial_data = data
         internal_data = super(PreviewSerializer, self).to_internal_value(data)
         # 数据返回增加对应的存储记录
-        if internal_data["source_type"] == self.SourceType.DB:
-            internal_data["instance"] = self.get_instance(internal_data)
+        internal_data["instance"] = self.get_instance(internal_data) if internal_data.get("id") else None
         # 如果是预览的话，可以随便设置一个名字
         return internal_data
 
     def validate_config(self, value):
+        """
+        对应的配置信息校验和丰富
+        """
         if isinstance(value, dict):
             value["name"] = "[demo] for preview"
         if self.initial_data.get(
@@ -543,12 +548,21 @@ class PreviewSerializer(serializers.Serializer):
             raise ValidationError(detail='params config is required when resource type is API')
         return value
 
+    def validate_source_type(self, value):
+        if value == self.SourceType.DB and not self.initial_data.get("id"):
+            raise ValidationError(detail='field(id) is required when preview config is from DB')
+        return value
+
     def get_instance(self, internal_data):
+        """
+        获取预览的DB对象
+        """
         instance_model = DutyRule
         if internal_data["resource_type"] == "user_group":
             instance_model = UserGroup
         if internal_data["source_type"] == self.SourceType.DB and not internal_data.get("id"):
             raise CustomException("field(id) is required where source-type is db or default")
+
         try:
             instance = instance_model.objects.get(id=internal_data["id"], bk_biz_id=internal_data["bk_biz_id"])
         except (DutyRule.DoesNotExist, UserGroup.DoesNotExist):

@@ -83,7 +83,8 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         preview_slz.is_valid(raise_exception=True)
         request_data = preview_slz.validated_data
         user_group = request_data.pop("instance", None)
-        if user_group:
+        if request_data["source_type"] == PreviewSerializer.SourceType.DB:
+            # 如果从DB获取配置，通过DB获取信息
             duty_rules = user_group.duty_rules
         else:
             duty_rules = request_data["config"]["duty_rules"]
@@ -95,6 +96,9 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         return request_data
 
     def perform_request(self, validated_request_data):
+        """
+        预览逻辑实现
+        """
         # 告警组的预览生成，需要包含已有的未有的
         if not validated_request_data.get("begin_time"):
             # 如果没有带begin_time， 直接用当前时间
@@ -172,7 +176,7 @@ class PreviewDutyRulePlanResource(DutyPlanUserTranslaterResource):
         preview_slz.is_valid(raise_exception=True)
         preview_data = preview_slz.validated_data
         duty_rule = preview_data.pop("instance", None)
-        if duty_rule:
+        if preview_data["source_type"] == PreviewSerializer.SourceType.DB:
             # 如果预览内置对应的规则，直接返回DB数据
             validated_data = DutyRuleDetailSlz(instance=duty_rule).data
         else:

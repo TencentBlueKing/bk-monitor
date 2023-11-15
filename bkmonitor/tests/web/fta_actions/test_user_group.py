@@ -1009,7 +1009,7 @@ class TestDutyRuleResource(BaseTestCase):
         duty_id = data["id"]
         preview_data = {"source_type": "DB", "bk_biz_id": 2}
         r = PreviewDutyRulePlanResource()
-        with self.assertRaises(CustomException):
+        with self.assertRaises(ValidationError):
             r.request(preview_data)
         preview_data = {"source_type": "DB", "id": duty_id, "bk_biz_id": 2}
         data = r.request(preview_data)
