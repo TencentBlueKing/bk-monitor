@@ -47,6 +47,8 @@ class MetricCollector(object):
                     metric_method["prefix"],
                     metric_method["sub_type"],
                 )
+                # 释放metric_id对应执行锁
+                cache.delete(metric_id)
                 logger.info(
                     "[statistics_data] collect metric->[{}] took {} ms".format(
                         metric_id, int((time.time() - begin_time) * 1000)
@@ -73,13 +75,13 @@ class MetricCollector(object):
             if not cls.is_allow_execute(metric):
                 continue
             metric_methods.append(metric)
-            return metric_methods
+        return metric_methods
 
     @classmethod
     def is_allow_execute(cls, metric):
         COLLECT_METRIC_ID_KEY = build_metric_id(**metric)
         key = cache.get(COLLECT_METRIC_ID_KEY)
-        # 执行锁未创建或已过期则允许执行
+        # 执行锁未被占用则允许执行
         if key is None:
             cache.set(
                 COLLECT_METRIC_ID_KEY,
