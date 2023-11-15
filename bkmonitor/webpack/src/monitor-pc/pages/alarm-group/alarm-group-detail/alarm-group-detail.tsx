@@ -275,10 +275,10 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       source_type: 'DB',
       id: this.id,
       days: 7,
-      begin_time: beginTime,
-      config: {
-        duty_rules: list
-      }
+      begin_time: beginTime
+      // config: {
+      //   duty_rules: list
+      // }
     };
     const data = await previewUserGroupPlan(params).catch(() => []);
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
@@ -288,10 +288,10 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
       source_type: 'DB',
       id: this.id,
       days: 7,
-      begin_time: startTime,
-      config: {
-        duty_rules: this.dutyList.map(d => d.id)
-      }
+      begin_time: startTime
+      // config: {
+      //   duty_rules: this.dutyList.map(d => d.id)
+      // }
     };
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
