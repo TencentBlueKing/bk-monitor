@@ -16,6 +16,7 @@ from django.utils.datetime_safe import datetime
 
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import WorkloadType
+from apm_ebpf.handlers.relation import RelationHandler
 from apm_ebpf.models.workload import DeepflowWorkload
 
 
@@ -28,7 +29,6 @@ class _BaseContent:
 
 @dataclass
 class _DeploymentSpecPort:
-
     name: str
     containerPort: int
     protocol: str
@@ -61,7 +61,6 @@ class ServiceContent(_BaseContent):
 
 
 class WorkloadContent:
-
     _normal_predicate = {
         WorkloadType.DEPLOYMENT.value: lambda i: any(
             True for j in i.conditions if j.type == "Available" and j.status == "True"
@@ -126,35 +125,38 @@ class WorkloadContent:
 
 
 class WorkloadHandler:
-    def __init__(self, bk_biz_id, cluster_id):
-        self.bk_biz_id = bk_biz_id
-        self.cluster_id = cluster_id
-
-    def upsert(self, namespace, content: _BaseContent):
-        params = {
-            "bk_biz_id": self.bk_biz_id,
-            "cluster_id": self.cluster_id,
-            "namespace": namespace,
-            "name": content.name,
-            "type": content.workload_type,
-        }
-        record = DeepflowWorkload.objects.filter(**params).first()
-        if record:
-            record.content = asdict(content)
-            record.is_normal = content.is_normal
-            record.last_check_time = datetime.now()
-            record.save()
-        else:
-            DeepflowWorkload.objects.create(
-                bk_biz_id=self.bk_biz_id,
-                cluster_id=self.cluster_id,
-                namespace=namespace,
-                name=content.name,
-                content=asdict(content),
-                type=content.workload_type,
-                is_normal=content.is_normal,
-                last_check_time=datetime.now(),
-            )
+    @classmethod
+    def upsert(cls, cluster_id, namespace, content: _BaseContent):
+        """
+        创建/更新集群workload
+        """
+        # 在此集群关联的所有业务中都建立workload信息
+        bk_biz_ids = RelationHandler.list_biz_ids(cluster_id)
+        for bk_biz_id in bk_biz_ids:
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "cluster_id": cluster_id,
+                "namespace": namespace,
+                "name": content.name,
+                "type": content.workload_type,
+            }
+            record = DeepflowWorkload.objects.filter(**params).first()
+            if record:
+                record.content = asdict(content)
+                record.is_normal = content.is_normal
+                record.last_check_time = datetime.now()
+                record.save()
+            else:
+                DeepflowWorkload.objects.create(
+                    bk_biz_id=bk_biz_id,
+                    cluster_id=cluster_id,
+                    namespace=namespace,
+                    name=content.name,
+                    content=asdict(content),
+                    type=content.workload_type,
+                    is_normal=content.is_normal,
+                    last_check_time=datetime.now(),
+                )
 
     @classmethod
     def list_deployments(cls, bk_biz_id, namespace):
