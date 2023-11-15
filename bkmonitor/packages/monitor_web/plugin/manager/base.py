@@ -410,7 +410,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             PluginDataAccessor(current_version, self.operator).access()
             self.update_plugin_metric_cache(current_version)
         except Exception as err:
-            logger.exception("[plugin] data_access error, msg is %s" % err)
+            logger.exception("[plugin] data_access error, msg is %s" % str(err))
             current_version.stage = "unregister"
             current_version.save()
             raise err
