@@ -21,17 +21,6 @@ from celery.task import task
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
-from monitor_web.commons.cc.utils import CmdbUtil
-from monitor_web.constants import (
-    AIOPS_ACCESS_MAX_RETRIES,
-    AIOPS_ACCESS_RETRY_INTERVAL,
-    MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
-    MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
-)
-from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
-from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
-from monitor_web.models.plugin import CollectorPluginMeta
-from utils import business
 
 from bkm_space.api import SpaceApi
 from bkmonitor.dataflow.constant import (
@@ -48,7 +37,8 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     StrategyIntelligentModelDetectTask,
 )
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
-from bkmonitor.strategy.new_strategy import QueryConfig
+from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
+from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.local import local
 from bkmonitor.utils.sql import sql_format_params
@@ -58,6 +48,17 @@ from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
+from monitor_web.commons.cc.utils import CmdbUtil
+from monitor_web.constants import (
+    AIOPS_ACCESS_MAX_RETRIES,
+    AIOPS_ACCESS_RETRY_INTERVAL,
+    MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
+    MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
+)
+from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
+from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
+from monitor_web.models.plugin import CollectorPluginMeta
+from utils import business
 
 logger = logging.getLogger("monitor_web")
 
@@ -270,9 +271,8 @@ def append_metric_list_cache(result_table_id_list):
     """
     追加或更新新增的采集插件标列表
     """
-    from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
-
     from bkmonitor.models.metric_list_cache import MetricListCache
+    from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
 
     def update_or_create_metric_list_cache(metric_list):
         for metric in metric_list:
@@ -376,12 +376,11 @@ def append_event_metric_list_cache(bk_event_group_id):
     :param bk_event_group_id:
     :return:
     """
+    from bkmonitor.models.metric_list_cache import MetricListCache
     from monitor_web.strategies.metric_list_cache import (
         BkMonitorLogCacheManager,
         CustomEventCacheManager,
     )
-
-    from bkmonitor.models.metric_list_cache import MetricListCache
 
     set_local_username(settings.COMMON_USERNAME)
     event_group_id = int(bk_event_group_id)
@@ -413,9 +412,8 @@ def update_task_running_status(task_id):
 
 @task(ignore_result=True)
 def append_custom_ts_metric_list_cache(time_series_group_id):
-    from monitor_web.strategies.metric_list_cache import CustomMetricCacheManager
-
     from bkmonitor.models.metric_list_cache import MetricListCache
+    from monitor_web.strategies.metric_list_cache import CustomMetricCacheManager
 
     try:
         params = {
@@ -771,9 +769,8 @@ def update_report_receivers():
     """
     更新订阅报表接收组人员
     """
-    from monitor_web.report.resources import ReportCreateOrUpdateResource
-
     from bkmonitor.models import ReportItems
+    from monitor_web.report.resources import ReportCreateOrUpdateResource
 
     report_items = ReportItems.objects.all()
     for report_item in report_items:
@@ -830,6 +827,48 @@ def update_statistics_data():
         collect_metric.apply_async(args=(collector(),))
 
 
+def get_multivariate_anomaly_strategy(bk_biz_id, scene_id):
+    """
+    获取多指标异常策略
+    """
+    from bkmonitor.models import AlgorithmModel, StrategyModel
+
+    strategy_objs = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+    strategy_ids = [s.id for s in strategy_objs]
+    return AlgorithmModel.objects.filter(
+        strategy_id__in=strategy_ids,
+        type=AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection,
+        config__contains={"scene_id": scene_id},
+    )
+
+
+def parse_scene_metrics(plan_args):
+    """
+    解析host场景的指标数据
+    """
+    from monitor_web.aiops.host_monitor.resources import query_metric_info
+
+    metric_list_str = plan_args["$metric_list"] if "$metric_list" in plan_args else ""
+    # 格式化metric label
+    metric_list = metric_list_str.replace("__", ".").split(",")
+    metrics_info = query_metric_info(metric_list)
+    # 转化数据格式
+    return [
+        {
+            "metric_id": get_metric_id(
+                data_source_label=metric.data_source_label,
+                data_type_label=metric.data_type_label,
+                result_table_id=metric.result_table_id,
+                metric_field=metric.metric_field,
+            ),
+            "name": metric.metric_field_name,
+            "unit": metric.unit,
+            "metric_name": metric.bkmonitor_metric_fullname,
+        }
+        for metric in metrics_info
+    ]
+
+
 @task(ignore_result=True)
 def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_access_scenes):
     """
@@ -839,9 +878,8 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
     @return:
     """
 
-    from monitor_web.aiops.ai_setting.utils import AiSetting
-
     from bkmonitor.data_source.handler import DataQueryHandler
+    from monitor_web.aiops.ai_setting.utils import AiSetting
 
     # 查询该业务是否配置有ai设置
     ai_setting = AiSetting(bk_biz_id=bk_biz_id)
@@ -849,9 +887,7 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
     multivariate_anomaly_detection = ai_setting.multivariate_anomaly_detection
     # 查询该业务下的每个场景是否开启多指标异常检测
     for scene in need_access_scenes:
-
         scene_config = getattr(multivariate_anomaly_detection, scene)
-
         if not scene_config.is_enabled:
             continue
 
@@ -864,6 +900,19 @@ def access_aiops_multivariate_anomaly_detection_by_bk_biz_id(bk_biz_id, need_acc
 
         intelligent_detect["status"] = AccessStatus.RUNNING
         ai_setting.save(multivariate_anomaly_detection=multivariate_anomaly_detection.to_dict())
+
+        # 刷新策略中的算法指标配置
+        algorithm_objs = get_multivariate_anomaly_strategy(bk_biz_id, scene)
+        metrics_config = parse_scene_metrics(scene_config.plan_args)
+        # 批了更新config
+        for obj in algorithm_objs:
+            obj_config = obj.config
+            obj_config["metrics"] = metrics_config
+            # 验证数据格式是否正确，避免格式没有同步
+            serializer = MultivariateAnomalyDetectionSerializer(data=obj_config)
+            serializer.is_valid(raise_exception=True)
+            obj.config = serializer.validated_data
+            obj.save()
 
         # 获取对应场景的参数开始构建flow
         scene_params = scene_params_dataclass()

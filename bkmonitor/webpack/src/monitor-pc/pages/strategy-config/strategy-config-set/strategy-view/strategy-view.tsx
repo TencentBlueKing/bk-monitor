@@ -54,7 +54,8 @@ import {
   IDetectionConfig,
   ISourceData,
   IWhereItem,
-  MetricDetail
+  MetricDetail,
+  MetricType
 } from '../../strategy-config-set-new/typings/index';
 
 import StrategyChart from './strategy-chart/strategy-chart';
@@ -88,6 +89,7 @@ interface IStrateViewProps {
   descriptionType?: string;
   editMode?: EditModeType;
   sourceData?: ISourceData;
+  isMultivariateAnomalyDetection?: boolean;
   /** 策略目标 */
   strategyTarget?: any[];
 }
@@ -155,6 +157,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   @Prop({ default: '', type: String }) private readonly descriptionType: string;
   @Prop({ default: '', type: String }) private readonly editMode: EditModeType;
   @Prop({ default: () => ({ sourceCode: '', step: 'auto' }), type: Object }) private readonly sourceData: ISourceData;
+  /* 是否为场景智能检测数据 */
+  @Prop({ default: false, type: Boolean }) isMultivariateAnomalyDetection: boolean;
 
   @Ref('tool') toolRef!: StrategyViewTool;
 
@@ -306,6 +310,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const metric = this.metricData.filter(item => !item.isNullMetric)[0];
     const dataTypeLabel = metric?.curRealMetric?.data_type_label || metric?.data_type_label;
     return dataTypeLabel === 'time_series' || (this.editMode === 'Source' && !!this.sourceData.sourceCode);
+  }
+
+  get showViewContent() {
+    if (this.isMultivariateAnomalyDetection) {
+      return false;
+    }
+    return this.metricQueryData.length > 0;
   }
 
   deactivated() {
@@ -907,7 +918,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   render() {
     return (
       <div class='strategy-view'>
-        {this.metricQueryData.length > 0 || this.metricQueryData ? (
+        {this.showViewContent ? (
           [
             <strategy-view-tool
               ref='tool'
@@ -980,7 +991,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       dimensionData={this.dimensionData as any}
                       value={this.dimensions}
                       key={this.dimensionsPanelKey}
-                      onchange={this.handleDimensionsChange}
+                      onChange={this.handleDimensionsChange}
                     ></ViewDimensions>
                   ) : undefined
                 ]
@@ -1070,18 +1081,28 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         ) : (
           <div class='description-info'>
             <div class='title'>{this.$t('使用说明')}</div>
-            {allDescription.map(item => (
-              <div class={['description-item', { active: item.type === this.descriptionType }]}>
+            {(this.isMultivariateAnomalyDetection
+              ? allDescription.filter(item => item.type === MetricType.MultivariateAnomalyDetection)
+              : allDescription
+            ).map(item => (
+              <div
+                class={[
+                  'description-item',
+                  { active: item.type === this.descriptionType && !this.isMultivariateAnomalyDetection }
+                ]}
+              >
                 <div class='description-title'>{`${item.title}:`}</div>
                 <pre class='description-text'>
                   {item.description}
-                  <a
-                    class='info-url'
-                    target='blank'
-                    href={`${window.bk_docs_site_url}markdown/${metricUrlMap[item.type]}`}
-                  >
-                    {this.$t('相关文档查看')}
-                  </a>
+                  {!!metricUrlMap[item.type] && (
+                    <a
+                      class='info-url'
+                      target='blank'
+                      href={`${window.bk_docs_site_url}markdown/${metricUrlMap[item.type]}`}
+                    >
+                      {this.$t('相关文档查看')}
+                    </a>
+                  )}
                 </pre>
               </div>
             ))}
