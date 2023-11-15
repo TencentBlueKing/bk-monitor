@@ -17,7 +17,6 @@ from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.kube import BcsKubeClient
 from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
-
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkmonitor.utils.cache import CacheType, using_cache
@@ -70,29 +69,27 @@ class DeepflowHandler:
     def __init__(self, bk_biz_id):
         self.bk_biz_id = bk_biz_id
 
-    def check_installed(self):
+    @classmethod
+    def check_installed(cls, cluster_id):
         """
-        遍历所有集群检查是否安装了ebpf
+        检查集群是否安装了ebpf
         """
 
-        for cluster in self._clusters:
-            cluster_id = cluster['clusterID']
-            k8s_client = BcsKubeClient(cluster_id)
+        k8s_client = BcsKubeClient(cluster_id)
 
-            handler = WorkloadHandler(self.bk_biz_id, cluster_id)
-            # 获取Deployment
-            deployments = k8s_client.api.list_namespaced_deployment(namespace=DeepflowComp.NAMESPACE)
-            for deployment in deployments.items:
-                content = WorkloadContent.deployment_to(deployment)
-                if content.name in self._required_deployments:
-                    handler.upsert(DeepflowComp.NAMESPACE, content)
+        # 获取Deployment
+        deployments = k8s_client.api.list_namespaced_deployment(namespace=DeepflowComp.NAMESPACE)
+        for deployment in deployments.items:
+            content = WorkloadContent.deployment_to(deployment)
+            if content.name in cls._required_deployments:
+                WorkloadHandler.upsert(cluster_id, DeepflowComp.NAMESPACE, content)
 
-            # 获取Service
-            services = k8s_client.core_api.list_namespaced_service(namespace=DeepflowComp.NAMESPACE)
-            for service in services.items:
-                content = WorkloadContent.service_to(service)
-                if content.name in self._required_services:
-                    handler.upsert(DeepflowComp.NAMESPACE, content)
+        # 获取Service
+        services = k8s_client.core_api.list_namespaced_service(namespace=DeepflowComp.NAMESPACE)
+        for service in services.items:
+            content = WorkloadContent.service_to(service)
+            if content.name in cls._required_services:
+                WorkloadHandler.upsert(cluster_id, DeepflowComp.NAMESPACE, content)
 
     def list_datasources(self):
         """
@@ -103,6 +100,7 @@ class DeepflowHandler:
         deployments = WorkloadHandler.list_deployments(self.bk_biz_id, DeepflowComp.NAMESPACE)
 
         from apm_web.utils import group_by
+
         cluster_deploy_mapping = group_by(deployments, operator.attrgetter("cluster_id"))
 
         valid_cluster_ids = []
