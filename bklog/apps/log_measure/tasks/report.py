@@ -113,8 +113,8 @@ def bk_monitor_collect():
     # 如果为空列表，则默认全部执行
     import_paths = feature_toggle_obj.feature_config.get("import_paths", []) or COLLECTOR_IMPORT_PATHS
     MetricCollector(collector_import_paths=import_paths)
-    EXECUTE_METRICS = copy.deepcopy(REGISTERED_METRICS)
-    for metric_id, metric in EXECUTE_METRICS.items():
+    execute_metrics = copy.deepcopy(REGISTERED_METRICS)
+    for metric_id, metric in execute_metrics.items():
         if not time_now_minute % metric["time_filter"]:
             logger.info(f"[statistics_data] start collecting {metric_id}")
             collect_metrics.delay(import_paths, [metric["namespace"]], [metric["data_name"]])

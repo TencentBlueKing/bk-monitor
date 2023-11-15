@@ -29,6 +29,12 @@ class MetricCollector(object):
         metric_methods = self.metric_filter(namespaces=namespaces, data_names=data_names)
         metric_groups = []
         for metric_method in metric_methods:
+            metric_id = build_metric_id(
+                metric_method["data_name"],
+                metric_method["namespace"],
+                metric_method["prefix"],
+                metric_method["sub_type"],
+            )
             try:
                 begin_time = time.time()
                 metric_groups.append(
@@ -41,23 +47,16 @@ class MetricCollector(object):
                         "data_name": metric_method["data_name"],
                     }
                 )
-                metric_id = build_metric_id(
-                    metric_method["data_name"],
-                    metric_method["namespace"],
-                    metric_method["prefix"],
-                    metric_method["sub_type"],
-                )
-                # 释放metric_id对应执行锁
-                cache.delete(metric_id)
                 logger.info(
                     "[statistics_data] collect metric->[{}] took {} ms".format(
                         metric_id, int((time.time() - begin_time) * 1000)
                     ),
                 )
             except Exception as e:  # pylint: disable=broad-except
-                logger.exception(
-                    "[statistics_data] collect metric->[{}] failed: {}".format(metric_method["namespace"], e)
-                )
+                logger.exception("[statistics_data] collect metric->[{}] failed: {}".format(metric_id, e))
+            finally:
+                # 释放metric_id对应执行锁
+                cache.delete(metric_id)
 
         return metric_groups
 
@@ -79,13 +78,13 @@ class MetricCollector(object):
 
     @classmethod
     def is_allow_execute(cls, metric):
-        COLLECT_METRIC_ID_KEY = build_metric_id(**metric)
-        key = cache.get(COLLECT_METRIC_ID_KEY)
+        metric_id = build_metric_id(**metric)
+        key = cache.get(metric_id)
         # 执行锁未被占用则允许执行
         if key is None:
             cache.set(
-                COLLECT_METRIC_ID_KEY,
-                "1",
+                metric_id,
+                True,
                 timeout=metric["time_filter"] * 60,
             )
             return True
