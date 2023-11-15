@@ -62,7 +62,9 @@ def mysetting(request):
         "LOGIN_SERVICE_URL": ConfFixture.LOGIN_URL,
         # 'LOGOUT_URL': settings.LOGOUT_URL,
         "BK_PAAS_HOST": "%s/app/list/" % settings.BK_PAAS_HOST,
-        "BK_PLAT_HOST": settings.BK_PAAS_HOST,
+        "BK_PLAT_HOST": settings.BK_PAAS_HOST
+        if not bool(request.headers.get("Is-External", "false"))
+        else settings.EXTERNAL_PAAS_HOST,
         "BK_CC_HOST": settings.BK_CC_HOST,
         # 数据平台跳转URL
         "BKDATA_URL": settings.BKDATA_URL,

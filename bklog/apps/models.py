@@ -197,7 +197,7 @@ class OperateRecordModelManager(models.Manager):
         return OperateRecordQuerySet(self.model, using=self._db)
 
     def create(self, *args, **kwargs):
-        if kwargs.get("created_by"):
+        if not kwargs.get("created_by"):
             # 如果已经传入了创建者，则不再进行修改
             kwargs.update({"created_by": get_request_username()})
         kwargs.update({"created_at": timezone.now()})

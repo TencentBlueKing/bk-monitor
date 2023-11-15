@@ -406,24 +406,21 @@ class TasksHandler(object):
     def run_pipeline(
         cls, task, operator, bk_biz_id, ip_list, file_path, filter_type, filter_content, account, os_type, username
     ):
-        try:
-            extract: ExtractLinkBase = task.get_extract()
-            data = extract.build_common_data_context(
-                task.task_id,
-                bk_biz_id,
-                ip_list,
-                file_path,
-                filter_type,
-                filter_content,
-                operator,
-                account,
-                username,
-                os_type,
-            )
-            pipeline = extract.build_pipeline(task, data)
-            extract.start_pipeline(task, pipeline)
-        except Exception as e:
-            logger.error(f"failed to run_pipeline: {e}")
+        extract: ExtractLinkBase = task.get_extract()
+        data = extract.build_common_data_context(
+            task.task_id,
+            bk_biz_id,
+            ip_list,
+            file_path,
+            filter_type,
+            filter_content,
+            operator,
+            account,
+            username,
+            os_type,
+        )
+        pipeline = extract.build_pipeline(task, data)
+        extract.start_pipeline(task, pipeline)
 
     def download(self, task_id):
         request_user = get_request_username()

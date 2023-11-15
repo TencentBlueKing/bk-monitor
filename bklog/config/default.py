@@ -1017,6 +1017,8 @@ RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "off") == "on"
 ITSM_EXTERNAL_PERMISSION_SERVICE_ID = int(os.getenv("BKAPP_ITSM_EXTERNAL_PERMISSION_SERVICE_ID", 0))
 # ITSM回调地址
 BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
+# 外部版PAAS地址
+EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
 
 # ==============================================================================
 # Templates
