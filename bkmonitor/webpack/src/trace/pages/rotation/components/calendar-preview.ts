@@ -30,6 +30,19 @@ export interface ICalendarDataUser {
   timeRange: string[];
   users: { id: string; name: string }[];
 }
+interface ICalendarDataDataItem {
+  // 日历表一行的数据
+  users: { id: string; name: string }[]; // 用户组
+  color: string; // 颜色
+  range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
+  isStartBorder?: boolean;
+  row?: number; // 第几行
+  timeRange: string[]; // 时间间隔
+  other: {
+    time: string;
+    users: string;
+  }; // 其他信息
+}
 export interface ICalendarData {
   users: ICalendarDataUser[];
   data: {
@@ -41,17 +54,8 @@ export interface ICalendarData {
       isOtherMonth: boolean;
       isCurDay: boolean;
     }[];
-    data: {
-      // 日历表一行的数据
-      users: { id: string; name: string }[]; // 用户组
-      color: string; // 颜色
-      range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
-      isStartBorder?: boolean;
-      other: {
-        time: string;
-        users: string;
-      }; // 其他信息
-    }[];
+    maxRow?: number;
+    data: ICalendarDataDataItem[];
   }[];
 }
 export function getCalendar() {
@@ -145,6 +149,55 @@ export function getDateStrAndRange(timeRange: number[], totalRange: number[]) {
   };
 }
 /**
+ * @description 如有重叠区域需要展示多行
+ * @param data
+ * @returns
+ */
+function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
+  const result: (ICalendarDataDataItem & { timeRangeNum: number[] })[] = [];
+  // data.sort((a, b) => new Date(a.timeRange[0]).getTime() - new Date(b.timeRange[0]).getTime());
+  const tempData: (ICalendarDataDataItem & { timeRangeNum: number[] })[] = data.map(item => ({
+    ...item,
+    timeRangeNum: item.timeRange.map(t => new Date(t).getTime())
+  }));
+  tempData.sort((a, b) => a.timeRangeNum[0] - b.timeRangeNum[0]);
+  let maxRow = 0;
+  tempData.forEach(item => {
+    if (result.length) {
+      for (let i = 0; i <= maxRow; i++) {
+        const preItem = (JSON.parse(JSON.stringify(result)) as (ICalendarDataDataItem & { timeRangeNum: number[] })[])
+          .sort((a, b) => b.timeRangeNum[1] - a.timeRangeNum[1])
+          .filter(r => r.row === i)[0];
+        /* 最后一夜重叠则新增maxrow */
+        if (preItem.timeRangeNum[1] <= item.timeRangeNum[0]) {
+          result.push({
+            ...item,
+            row: i
+          });
+          break;
+        }
+        if (i === maxRow) {
+          maxRow += 1;
+          result.push({
+            ...item,
+            row: maxRow
+          });
+          break;
+        }
+      }
+    } else {
+      result.push({
+        ...item,
+        row: 0
+      });
+    }
+  });
+  return {
+    maxRow,
+    result
+  };
+}
+/**
  * @description 将用户组可视化
  * @param data
  */
@@ -183,9 +236,11 @@ export function calendarDataConversion(data: ICalendarData) {
         });
       }
     });
+    const rowData = setRowYOfOverlap(temp);
     return {
       ...row,
-      data: temp
+      maxRow: rowData.maxRow,
+      data: rowData.result
     };
   });
   return calendarData;
