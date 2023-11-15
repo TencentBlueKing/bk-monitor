@@ -268,6 +268,12 @@ export default {
       }
     },
     pollingTaskStatus() {
+      if (this.$route.name !== 'extract-home') {
+        clearTimeout(this.timeoutID);
+        this.timeoutID = null;
+        return;
+      }
+
       this.timeoutID = setTimeout(async () => {
         if (!this.pollingList.length) {
           return;

@@ -174,8 +174,6 @@ import { menuArr } from './complete-menu';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import { jsonp } from '@/common/jsonp';
 
-const EXTERNAL_MENU = ['retrieve', 'manage']; // 外部版包含的菜单模块
-
 export default {
   name: 'HeaderNav',
   components: {
@@ -233,7 +231,7 @@ export default {
     },
     menuList() {
       return this.topMenu.filter((menu) => {
-        return menu.feature === 'on' && (this.isExternal ? EXTERNAL_MENU.includes(menu.id) : true);
+        return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
       });
     },
   },

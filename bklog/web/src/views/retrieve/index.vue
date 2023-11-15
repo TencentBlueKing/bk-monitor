@@ -410,6 +410,7 @@ export default {
       currentMenu: state => state.currentMenu,
       storedIndexID: state => state.indexId, // 路由切换时缓存当前选择的索引
       isExternal: state => state.isExternal,
+      externalMenu: state => state.externalMenu,
     }),
     ...mapGetters(['asIframe', 'iframeQuery']),
     ...mapGetters({
@@ -458,7 +459,10 @@ export default {
         this.indexSetList.splice(0);
         this.totalFields.splice(0);
         this.retrieveParams.bk_biz_id = this.bkBizId;
-        this.fetchPageData();
+        // 外部版 无检索权限跳转后不更新页面数据
+        if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
+          this.fetchPageData();
+        }
         this.resetFavoriteValue();
         this.$refs.searchCompRef?.clearAllCondition();
       },
