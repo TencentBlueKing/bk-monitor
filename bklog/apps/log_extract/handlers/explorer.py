@@ -455,7 +455,6 @@ class ExplorerHandler(object):
         user_auth = {"auth_topo": {"bizs": [], "sets": [], "modules": []}, "auth_modules": []}
         kwargs = {"user_list__contains": f",{self.request_user},", "bk_biz_id": bk_biz_id}
         # 增加外部用户权限处理
-        logger.info("log_extract, user: {}, external_user: {}".format(self.request_user, self.external_user))
         if self.external_user:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             allowed_resources_result = ExternalPermission.get_resources(

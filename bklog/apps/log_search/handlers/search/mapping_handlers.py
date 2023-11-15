@@ -236,7 +236,7 @@ class MappingHandlers(object):
         # search_context情况，默认只显示log字段
         # if scope in CONTEXT_SCOPE:
         #     return self._get_context_fields(final_fields_list)
-        username = get_request_username()
+        username = get_request_external_username() or get_request_username()
         user_index_set_config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=self.index_set_id, username=username, scope=scope
         )
@@ -789,7 +789,7 @@ class MappingHandlers(object):
         @param scope: 请求来源
         @return:
         """
-        username = get_request_username()
+        username = get_request_external_username() or get_request_username()
         index_config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=index_set_id, username=username, scope=scope
         )

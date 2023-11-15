@@ -86,7 +86,7 @@ def get_request_external_username():
 
     username = ""
     with ignored(Exception):
-        username = get_request().external_user.username
+        username = get_request().external_user
     return username
 
 

@@ -83,12 +83,13 @@ class RequestProcessor:
         """
         复制请求内容到fake_request
         """
+        request_meta = getattr(request, "META", {})
         fake_request_meta = getattr(fake_request, "META", {})
-        logger.info(f"request.META: {request.META}")
-        if request.META.get("HTTP_BK_APP_CODE", ""):
-            fake_request_meta["HTTP_BK_APP_CODE"] = request.META["HTTP_BK_APP_CODE"]
+        if request_meta.get("HTTP_X_BK_APP_CODE", ""):
+            request_meta["HTTP_BK_APP_CODE"] = request_meta["HTTP_X_BK_APP_CODE"]
+            fake_request_meta["HTTP_BK_APP_CODE"] = request_meta["HTTP_X_BK_APP_CODE"]
+            setattr(request, "META", request_meta)
             setattr(fake_request, "META", fake_request_meta)
-        logger.info(f"fake_request.META: {fake_request.META}")
         return fake_request
 
     @classmethod
@@ -158,13 +159,6 @@ class RequestProcessor:
                 view_action=view_action,
                 allow_resources_result=allow_resources_result,
             )
-        if action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
-            return cls.filter_log_extract_response_resource(
-                external_user=external_user,
-                response=response,
-                view_set=view_set,
-                view_action=view_action,
-            )
 
         return response
 
@@ -190,24 +184,6 @@ class RequestProcessor:
                     fg["favorites"] = [f for f in fg["favorites"] if f["index_set_id"] in allow_resources]
                     allowed_data.append(fg)
                 data["data"] = allowed_data
-                response.data = data
-                return response
-        return response
-
-    @classmethod
-    def filter_log_extract_response_resource(
-        cls, external_user: str, response: Response, view_set: str, view_action: str
-    ):
-        if view_set == "TasksViewSet" and view_action == "list":
-            data = response.data
-            if isinstance(data, dict) and "data" in data:
-                allowed_data = []
-                for task in data["data"]["list"]:
-                    if task["created_by"] != external_user:
-                        continue
-                    allowed_data.append(task)
-                data["data"]["list"] = allowed_data
-                data["data"]["total"] = len(allowed_data)
                 response.data = data
                 return response
         return response
@@ -280,10 +256,12 @@ def dispatch_list_user_spaces(request):
     external_user = external_user_info.get("username", "")
     if not external_user:
         return HttpResponseForbidden("请求缺少HTTP_USER或USER请求头")
-    space_uid_list = ExternalPermission.get_authorized_user_space_list(authorized_user=external_user)
-    if not space_uid_list:
+
+    external_user_permission = ExternalPermission.get_authorizer_permission(authorizer=external_user)
+    if not external_user_permission:
         logger.error(f"外部用户{external_user}无访问权限")
         return HttpResponseForbidden(f"外部用户{external_user}无访问权限")
+    space_uid_list = list(external_user_permission.keys())
     spaces = Space.objects.filter(space_uid__in=space_uid_list).all()
     return JsonResponse(
         {
@@ -302,6 +280,7 @@ def dispatch_list_user_spaces(request):
                     "time_zone": space.properties.get("time_zone", "Asia/Shanghai"),
                     "is_sticky": False,
                     "permission": {ActionEnum.VIEW_BUSINESS.id: True},
+                    "external_permission": external_user_permission.get(space.space_uid, []),
                 }
                 for space in spaces
             ],
@@ -341,9 +320,14 @@ def dispatch_external_proxy(request):
             fake_request = RequestFactory().get(url, content_type="application/json")
         elif method.lower() == "post":
             fake_request = RequestFactory().post(url, data=json_data_str, content_type="application/json")
+        elif method.lower() == "put":
+            fake_request = RequestFactory().put(url, data=json_data_str, content_type="application/json")
+        elif method.lower() == "delete":
+            fake_request = RequestFactory().delete(url, content_type="application/json")
         else:
             return JsonResponse(
-                {"result": False, "message": "dispatch_plugin_query: only support get and post method."}, status=400
+                {"result": False, "message": f"dispatch_plugin_query, method: {method.lower()} is not allowed"},
+                status=400,
             )
         fake_request = RequestProcessor.copy_request_to_fake_request(request=request, fake_request=fake_request)
         # resolve view_func
@@ -362,7 +346,7 @@ def dispatch_external_proxy(request):
             # transfer request.user 进行外部权限替换
             external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
                 space_uid=space_uid, authorizer=external_user
-            )
+            ).get(space_uid, [])
             # 判断接口是否在管理范围内
             if not external_user_allowed_action_id_list:
                 return JsonResponse(

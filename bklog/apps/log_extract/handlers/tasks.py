@@ -47,6 +47,7 @@ from apps.log_extract.serializers import PollingResultSerializer
 from apps.log_extract.tasks.extract import log_extract_task
 from apps.utils.local import (
     get_local_param,
+    get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
@@ -55,15 +56,19 @@ from apps.utils.time_handler import format_user_time_zone
 
 
 class TasksHandler(object):
+    def __init__(self):
+        self.request_user = get_request_external_username() or get_request_username()
+
     @classmethod
     def list(cls, tasks_views, bk_biz_id, keyword):
+        source_app_code = get_request_app_code()
         request_user = get_request_external_username() or get_request_username()
 
         # 运维人员可以看到完整的任务列表
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
         tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id)
         if not has_biz_manage:
-            tasks = tasks.filter(created_by=request_user)
+            tasks = tasks.filter(created_by=request_user, source_app_code=source_app_code)
         queryset = tasks_views.filter_queryset(tasks)
 
         page = tasks_views.paginate_queryset(queryset)
@@ -80,12 +85,11 @@ class TasksHandler(object):
         return Response(serializer.data)
 
     def recreate(self, task_id):
-        request_user = get_request_username()
         try:
             task = Tasks.objects.get(task_id=task_id)
         except Tasks.DoesNotExist:
             raise exceptions.TaskIDDoesNotExist
-        if task.created_by != request_user:
+        if task.created_by != self.request_user:
             raise exceptions.TasksRecreateFailed
 
         return self.create(
@@ -112,6 +116,7 @@ class TasksHandler(object):
         preview_end_time,
         link_id,
     ):
+        request_user = get_request_external_username() or get_request_username()
         # K8S部署情况下禁止使用内网链路, 所以已有的内网链路不能创建任务
         extract_link: ExtractLink = ExtractLink.objects.filter(link_id=link_id).first()
         if extract_link and extract_link.link_type == ExtractLinkType.COMMON.value and settings.IS_K8S_DEPLOY_MODE:
@@ -164,13 +169,10 @@ class TasksHandler(object):
             "preview_start_time": preview_start_time,
             "preview_end_time": preview_end_time,
             "link_id": link_id,
+            "created_by": request_user,
         }
+        logger.info(f"create task params: {params}")
         task = Tasks.objects.create(**params)
-        # 当请求为外部用户时，将创建者改为外部用户, 避免外部用户无法查看到他创建的任务
-        external_user = get_request_external_username()
-        if external_user:
-            task.created_by = external_user
-            task.save()
         params["ip_list"] = ip_list
         for pop_field in [
             "download_status",
@@ -184,6 +186,7 @@ class TasksHandler(object):
             "preview_start_time",
             "preview_end_time",
             "link_id",
+            "created_by",
         ]:
             params.pop(pop_field)
 
@@ -206,7 +209,7 @@ class TasksHandler(object):
         # add user_operation_record
         operation_record = {
             # 外部请求时，记录真实的外部用户请求, 用于统计
-            "username": external_user or get_request_username(),
+            "username": request_user,
             "biz_id": bk_biz_id,
             "record_type": UserOperationTypeEnum.LOG_EXTRACT_TASKS,
             "record_object_id": task.task_id,
@@ -288,10 +291,9 @@ class TasksHandler(object):
         return tasks_views.update(tasks_views.request, *args, **kwargs)
 
     def get_polling_result(self, task_list):
-        request_user = get_request_username()
         task_list = task_list.split(",")
 
-        records = Tasks.objects.filter(created_by=request_user, task_id__in=task_list)
+        records = Tasks.objects.filter(created_by=self.request_user, task_id__in=task_list)
 
         # 处理pipeline中发生错误而task状态未更新的情况
         self.pipeline_failure_to_task_status(records)
@@ -404,21 +406,24 @@ class TasksHandler(object):
     def run_pipeline(
         cls, task, operator, bk_biz_id, ip_list, file_path, filter_type, filter_content, account, os_type, username
     ):
-        extract: ExtractLinkBase = task.get_extract()
-        data = extract.build_common_data_context(
-            task.task_id,
-            bk_biz_id,
-            ip_list,
-            file_path,
-            filter_type,
-            filter_content,
-            operator,
-            account,
-            username,
-            os_type,
-        )
-        pipeline = extract.build_pipeline(task, data)
-        extract.start_pipeline(task, pipeline)
+        try:
+            extract: ExtractLinkBase = task.get_extract()
+            data = extract.build_common_data_context(
+                task.task_id,
+                bk_biz_id,
+                ip_list,
+                file_path,
+                filter_type,
+                filter_content,
+                operator,
+                account,
+                username,
+                os_type,
+            )
+            pipeline = extract.build_pipeline(task, data)
+            extract.start_pipeline(task, pipeline)
+        except Exception as e:
+            logger.error(f"failed to run_pipeline: {e}")
 
     def download(self, task_id):
         request_user = get_request_username()
