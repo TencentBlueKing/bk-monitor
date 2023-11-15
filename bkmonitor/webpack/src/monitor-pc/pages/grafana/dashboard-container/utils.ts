@@ -33,6 +33,7 @@ export interface ITreeMenuItem {
   uid: string;
   isFolder?: boolean;
   isStarred?: boolean;
+  editable?: boolean;
   children?: ITreeMenuItem[];
 }
 export interface ITreeOptions {
@@ -58,11 +59,14 @@ export class TreeMenuItem {
   uid = ''; /** 仪表盘、目录的id */
   isFolder = false;
   isStarred = false;
+  editable = true;
   constructor(data: ITreeMenuItem, options?: ITreeOptions) {
     const { children = [] } = data;
     Object.entries(data).forEach(item => {
       const [key, value] = item;
-      this[key] = value;
+      if (key === 'editable') {
+        this.editable = value ?? true;
+      } else this[key] = value;
     });
     this.editValue = this.title;
     this.options = options;

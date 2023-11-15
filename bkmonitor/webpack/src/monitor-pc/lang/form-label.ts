@@ -767,6 +767,8 @@ export default {
 
   // APM
 
+  应用名: 'App Name',
+  应用别名: 'App Alias',
   英文名称: 'English Name',
   基础信息: 'Basic Information',
   Apdex设置: 'Apdex Setting',
@@ -1761,5 +1763,13 @@ export default {
   基于策略屏蔽: 'Policy-based blocking',
   基于维度屏蔽: 'Dimension-based blocking',
   基于告警事件屏蔽: 'Event-based blocking',
-  群提醒人: 'Group Reminder'
+  群提醒人: 'Group Reminder',
+  存储方式: 'Storage method',
+  启用慢语句: 'Enable low statements',
+  语句长度: 'Statement length',
+  慢语句阈值: 'Slow statement threshold',
+  '共{count}个指标': 'A total of {count} metrics',
+  场景智能检测: 'Scene intelligent detection',
+  过滤告警级别: 'Filter alarm severity',
+  已选择更低告警级别: 'A lower alarm severity is selected'
 };

@@ -1,88 +1,167 @@
 .select-system-wrap {
   position: relative;
   padding-top: 5px;
+
   .empty-page {
     padding-top: 200px;
   }
+
   .select-btn-row {
     margin-top: 32px;
+
     & > * {
       margin-right: 8px;
     }
+
     & .btn {
       min-width: 88px;
     }
   }
+
   .card-item-search {
     position: absolute;
-    right: 0;
     top: 0;
-    width: 400px;
+    right: 0;
     z-index: 1;
+    width: 400px;
   }
+
   .app-add-row {
     display: flex;
     align-items: center;
     margin-bottom: 16px;
+
     .app-add-row-content {
       .app-add-row-other {
         display: flex;
         align-items: center;
         margin-top: 18px;
+
         .other-input {
           width: 270px;
           margin-left: 8px;
         }
       }
     }
+
     &:last-child {
       align-items: start;
     }
+
     .app-add-row-title {
+      height: 20px;
       margin-right: 8px;
       line-height: 20px;
-      height: 20px;
       color: #313238;
     }
+
     .row-content-list {
-      margin-left: -16px;
       margin-top: -16px;
+      margin-left: -16px;
     }
+
     .app-add-card-item {
-      margin-left: 16px;
       margin-top: 16px;
+      margin-left: 16px;
     }
   }
+
   .app-add-row-child {
     // .child-row-content {
     //   min-height: 120px;
     // }
     .child-title {
-      font-size: 12px;
-      line-height: 20px;
       height: 20px;
       margin-bottom: 4px;
+      font-size: 12px;
+      line-height: 20px;
     }
+
     &:not(:last-child) {
       .child-row-content {
         margin-bottom: 24px;
       }
     }
   }
+
   .app-add-desc {
     margin-bottom: 12px;
   }
+
   .app-add-question {
     margin-bottom: 12px;
     font-size: 16px;
     color: #313238;
   }
+
   .app-add-form {
-    padding: 24px 32px;
     min-height: calc(100vh - 440px);
+    padding: 24px 32px;
     background-color: #fff;
+
     .bk-form-content {
       width: 480px;
+    }
+
+    .app-add-plugin-radio {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      margin-right: 12px;
+      cursor: pointer;
+      background-color: #f5f7fa;
+      border: 1px solid #f5f7fa;
+      border-radius: 2px;
+      transition: all .3s;
+
+      &.selected {
+        background-color: #e1ecff;
+        border: 1px solid #3a84ff;
+      }
+
+      img {
+        width: 24px;
+        height: 24px;
+      }
+
+      span {
+        margin-left: 12px;
+        color: #313238;
+      }
+    }
+
+    .log-path-icon {
+      position: absolute;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      font-size: 18px !important;
+      color: #c4c6cc;
+      cursor: pointer;
+
+      &-plus {
+        right: -30px;
+      }
+
+      &-minus {
+        right: -60px;
+      }
+
+      &.disabled {
+        cursor: not-allowed;
+      }
+    }
+
+    .log-path-hint {
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .btn-target-collect {
+      font-size: 12px;
+
+      .bk-icon {
+        font-size: 18px;
+      }
     }
   }
 }

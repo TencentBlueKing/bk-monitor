@@ -107,15 +107,11 @@ export default class FavList extends tsc<IProps, IEvents> {
                   >
                     <i
                       v-bk-tooltips={{
-                        disabled: !this.authority.VIEW_AUTH,
                         content: this.$t('取消收藏'),
                         extCls: 'garfana-link-tips'
                       }}
                       class='icon-monitor icon-mc-collect'
-                      v-authority={{ active: !this.authority.VIEW_AUTH }}
-                      onClick={() =>
-                        this.authority.VIEW_AUTH ? this.handleUnstarred(child) : this.handleShowAuthorityDetail()
-                      }
+                      onClick={() => this.handleUnstarred(child)}
                     ></i>
                     <span
                       class='fav-item-name'

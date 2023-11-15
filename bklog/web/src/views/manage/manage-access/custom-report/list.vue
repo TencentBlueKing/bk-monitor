@@ -69,9 +69,16 @@
           </bk-table-column>
           <bk-table-column :label="$t('名称')" :render-header="$renderHeader" prop="collector_config_name">
             <template slot-scope="props">
-              <span class="collector-config-name" @click="operateHandler(props.row, 'view')">
-                {{ props.row.collector_config_name || '--' }}
-              </span>
+              <div class="custom-name-box">
+                <span class="collector-config-name" @click="operateHandler(props.row, 'view')">
+                  {{ props.row.collector_config_name || '--' }}
+                </span>
+                <span
+                  v-if="props.row.is_desensitize"
+                  class="bk-icon log-icon icon-masking"
+                  v-bk-tooltips.top="$t('已脱敏')">
+                </span>
+              </div>
             </template>
           </bk-table-column>
           <bk-table-column :label="$t('监控对象')" :render-header="$renderHeader" prop="category_name">
@@ -137,7 +144,6 @@
                 @click="operateHandler(props.row, 'edit')">
                 {{ $t('编辑') }}</bk-button>
               <bk-button
-                class="king-button"
                 theme="primary"
                 text
                 :disabled="!props.row.table_id"
@@ -145,14 +151,20 @@
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
                 }"
                 @click="operateHandler(props.row, 'clean')">
-                {{ $t('清洗') }}</bk-button>
-              <bk-dropdown-menu ref="dropdown" align="right">
+                {{ $t('清洗') }}
+              </bk-button>
+              <bk-popover
+                class="dot-menu"
+                placement="bottom-start"
+                theme="dot-menu light"
+                offset="15"
+                :arrow="false"
+                :distance="0">
                 <i
                   class="bk-icon icon-more"
-                  style="font-size: 14px; font-weight: bold; display: inline-block;"
-                  slot="dropdown-trigger">
+                  style="margin-left: 5px; font-size: 14px; font-weight: bold;">
                 </i>
-                <ul class="bk-dropdown-list" slot="dropdown-content">
+                <ul class="collection-operation-list" slot="content">
                   <!-- 查看详情 -->
                   <li>
                     <a
@@ -162,6 +174,16 @@
                       }"
                       @click="operateHandler(props.row, 'view')">
                       {{ $t('详情') }}
+                    </a>
+                  </li>
+                  <li v-if="isShowMaskingTemplate">
+                    <a
+                      href="javascript:;"
+                      v-cursor="{
+                        active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH])
+                      }"
+                      @click="operateHandler(props.row, 'masking')">
+                      {{ $t('日志脱敏') }}
                     </a>
                   </li>
                   <li v-if="props.row.is_active">
@@ -216,7 +238,7 @@
                     </a>
                   </li>
                 </ul>
-              </bk-dropdown-menu>
+              </bk-popover>
             </div>
           </bk-table-column>
           <div slot="empty">
@@ -265,6 +287,7 @@ export default {
       spaceUid: 'spaceUid',
       bkBizId: 'bkBizId',
       authGlobalInfo: 'globals/authContainerInfo',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     authorityMap() {
       return authorityMap;
@@ -309,11 +332,18 @@ export default {
         search: 'retrieve',
         clean: 'clean-edit',
         view: 'custom-report-detail',
+        masking: 'custom-report-masking',
       };
 
       if (operateType === 'search') {
         if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
         params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+      }
+
+      if (operateType === 'masking') {
+        if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
+        params.indexSetId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+        editName = row.collector_config_name;
       }
 
       if (['clean', 'edit', 'view'].includes(operateType)) {
@@ -372,6 +402,8 @@ export default {
     requestData() {
       this.isRequest = true;
       this.emptyType = this.inputKeyWords ? 'search-empty' : 'empty';
+      const ids = this.$route.query.ids; // 根据id来检索
+      const collectorIdList = ids ? decodeURIComponent(ids) : [];
       this.$http.request('collect/getCollectList', {
         query: {
           bk_biz_id: this.bkBizId,
@@ -379,11 +411,19 @@ export default {
           page: this.pagination.current,
           pagesize: this.pagination.limit,
           collector_scenario_id: 'custom',
+          collector_id_list: collectorIdList,
         },
-      }).then((res) => {
+      }).then(async (res) => {
         const { data } = res;
         if (data && data.list) {
-          this.collectList.splice(0, this.collectList.length, ...data.list);
+          const resList = data.list;
+          const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+          const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
+          const newCollectList = resList.map(item => ({
+            ...item,
+            is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+          }));
+          this.collectList.splice(0, this.collectList.length, ...newCollectList);
           this.pagination.count = data.total;
         }
       })
@@ -392,6 +432,12 @@ export default {
         })
         .finally(() => {
           this.isRequest = false;
+          // 如果有ids 重置路由
+          if (ids) this.$router.replace({
+            query: {
+              spaceUid: this.$route.query.spaceUid,
+            },
+          });
         });
     },
     handleSearchChange(val) {
@@ -412,6 +458,15 @@ export default {
         this.pagination.current = 1;
         this.requestData();
         return;
+      }
+    },
+    async getDesensitizeStatus(indexIdList = []) {
+      try {
+        return await this.$http.request('masking/getDesensitizeState', {
+          data: { index_set_ids: indexIdList },
+        });
+      } catch (error) {
+        return [];
       }
     },
   },
@@ -463,10 +518,6 @@ export default {
 
           .king-button {
             margin-right: 14px;
-
-            &:last-child {
-              margin-right: 0;
-            }
           }
         }
 
@@ -478,6 +529,72 @@ export default {
 
       .collector-config-name {
         @include cursor;
+      }
+
+      .icon-masking {
+        margin-left: 8px;
+        color: #ff9c01;
+      }
+    }
+
+    .custom-name-box {
+      display: flex;
+      align-items: center;
+
+      .icon-masking {
+        flex-shrink: 0;
+      }
+    }
+
+  }
+
+  .dot-menu {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .dot-menu-theme {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+
+    &::before {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #fff !important;
+    }
+  }
+
+  .collection-operation-list {
+    margin: 0;
+    min-width: 50px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    li {
+      padding: 4px 16px;
+      font-size: 12px;
+      line-height: 26px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #eaf3ff;
+        color: #3a84ff;
+      }
+    }
+
+    a {
+      display: inline-block;
+      width: 100%;
+      height: 100%;
+      color: #63656e;
+    }
+
+    .text-disabled {
+      color: #c4c6cc;
+
+      &:hover {
+        cursor: not-allowed;
       }
     }
   }

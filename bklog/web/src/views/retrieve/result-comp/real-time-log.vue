@@ -37,9 +37,10 @@
       <log-filter :is-screen-full="isScreenFull" @handle-filter="handleFilter" />
       <!-- 暂停、复制、全屏 -->
       <div class="dialog-bar controls">
-        <div v-bk-tooltips.top="{ content: isPolling ? $t('暂停') : $t('启动'), delay: 300 }"
-             class="control-icon"
-             @click="togglePolling">
+        <div
+          v-bk-tooltips.top="{ content: isPolling ? $t('暂停') : $t('启动'), delay: 300 }"
+          class="control-icon"
+          @click="togglePolling">
           <span class="icon log-icon icon-stop-log" v-if="isPolling"></span>
           <span class="icon log-icon icon-play-log" v-else></span>
         </div>

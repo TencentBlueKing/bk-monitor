@@ -14,6 +14,7 @@ import os
 
 from django.conf import settings
 from django.template import Context
+from django.utils.safestring import mark_safe
 
 from bkmonitor.dataflow.utils.multivariate_anomaly.host.constant import (
     AGG_METRICS_SQL_EXPR,
@@ -99,7 +100,15 @@ def build_agg_trans_sql(metrics, result_table_id, from_rt_id):
     :return: 聚合清洗sql
     """
     metric_alias_list = [build_metric_alias(metric, result_table_id) for metric in metrics]
-    return AGG_TRANS_METRICS_SQL_EXPR.render(Context({"metrics": metric_alias_list, "output_table_name": from_rt_id}))
+    return AGG_TRANS_METRICS_SQL_EXPR.render(
+        Context(
+            {
+                "metrics": metric_alias_list,
+                "metrics_strs": mark_safe(",".join(map(lambda x: "'{}'".format(x), metric_alias_list))),
+                "output_table_name": from_rt_id,
+            }
+        )
+    )
 
 
 def build_merge_sql(from_rt_id):

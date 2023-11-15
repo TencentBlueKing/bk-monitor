@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Union
 import arrow
 from django.conf import settings
 from django.utils import timezone
+from django.utils.functional import cached_property
 from opentelemetry import trace
 
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -48,7 +49,10 @@ class UnifyQuery:
         self.bk_biz_id = bk_biz_id
         self.data_sources = data_sources
         self.expression = expression
-        self.space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+
+    @cached_property
+    def space_uid(self):
+        return bk_biz_id_to_space_uid(self.bk_biz_id)
 
     @property
     def metrics(self) -> List[Dict]:

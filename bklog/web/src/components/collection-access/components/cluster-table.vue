@@ -23,8 +23,9 @@
 <template>
   <div class="cluster-container">
     <div class="cluster-title">
-      <div :class="['cluster-title-container' ,!isShowTable && 'is-active']"
-           @click="isShowTable = !isShowTable">
+      <div
+        :class="['cluster-title-container' ,!isShowTable && 'is-active']"
+        @click="isShowTable = !isShowTable">
         <span class="bk-icon icon-angle-up-fill"></span>
         <p>{{ tableShowType ? $t("共享集群") : $t('业务独享集群')}}</p>
       </div>
