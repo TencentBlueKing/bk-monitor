@@ -8,7 +8,7 @@ from bk_monitor.constants import TimeFilterEnum
 REGISTERED_METRICS = {}
 
 
-def build_metric_id(data_name, namespace, prefix: str, sub_type="") -> str:
+def build_metric_id(data_name, namespace, prefix: str, sub_type="", **kwargs) -> str:
     metric_id = f"{data_name}##{namespace}##{prefix}"
     if sub_type:
         metric_id = f"{metric_id}##{sub_type}"

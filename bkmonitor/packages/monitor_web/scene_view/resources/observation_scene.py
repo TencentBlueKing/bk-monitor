@@ -225,7 +225,7 @@ class GetObservationSceneList(Resource):
                     QueryConfigModel.objects.filter(
                         reduce(lambda x, y: x | y, (Q(config__result_table_id=table_id) for table_id in table_ids))
                     )
-                    .values("strategy_id")
+                    .values_list("strategy_id", flat=True)
                     .distinct()
                 )
                 strategy_count = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=list(strategy_ids)).count()
@@ -264,7 +264,7 @@ class GetObservationSceneList(Resource):
             group_info = CustomEventGroup.objects.get(name=event_group_name)
             strategy_ids = (
                 QueryConfigModel.objects.filter(config__result_table_id=group_info.table_id)
-                .values("strategy_id")
+                .values_list("strategy_id", flat=True)
                 .distinct()
             )
             strategy_count = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=list(strategy_ids)).count()

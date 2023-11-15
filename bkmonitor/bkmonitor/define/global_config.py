@@ -18,6 +18,7 @@ from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
     [
+        ("UNIFY_QUERY_ROUTING_RULES", slz.ListField(label=_("统一查询路由规则"), default=[])),
         (
             "ALARM_BACKEND_CLUSTER_ROUTING_RULES",
             slz.ListField(

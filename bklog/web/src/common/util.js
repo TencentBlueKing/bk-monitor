@@ -804,9 +804,16 @@ export const Debounce = (delay = 200) => (target, key, descriptor) => {
  * @param {String} key
  * @param {String} fieldType
  * @param {Boolean} isFormatDate
+ * @param {String} emptyCharacter
  * @return {String|Number}
  */
-export const parseTableRowData = (row, key, fieldType, isFormatDate = store.state.isFormatDate) => {
+export const parseTableRowData = (
+  row,
+  key,
+  fieldType,
+  isFormatDate = store.state.isFormatDate,
+  emptyCharacter = '--',
+) => {
   const keyArr = key.split('.');
   let data;
 
@@ -838,11 +845,11 @@ export const parseTableRowData = (row, key, fieldType, isFormatDate = store.stat
     }
   } catch (e) {
     console.warn('List data analyses error：', e);
-    data = '--';
+    data = emptyCharacter;
   }
 
   if (isFormatDate && fieldType === 'date') {
-    return formatDate(Number(data)) || data || '--';
+    return formatDate(Number(data)) || data || emptyCharacter;
   }
 
   if (Array.isArray(data)) {
@@ -853,7 +860,7 @@ export const parseTableRowData = (row, key, fieldType, isFormatDate = store.stat
     return JSON.stringify(data);
   }
 
-  return (data || data === 0) ? data : '--';
+  return (data || data === 0) ? data : emptyCharacter;
 };
 
 /**
