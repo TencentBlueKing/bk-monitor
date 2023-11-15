@@ -10,25 +10,14 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
+from django.conf.urls import include, url
 
-from .alert import AccessAlertProcess
-from .data import AccessDataProcess, AccessRealTimeDataProcess
-from .incident import AccessIncidentProcess
+from core.drf_resource.routers import ResourceRouter
+from monitor_web.incident import views
 
+router = ResourceRouter()
+router.register_module(views)
 
-class AccessType(object):
-    Data = "data"
-    RealTimeData = "real_time_data"
-    Alert = "alert"
-    Event = "event"
-    Incident = "incident"
-
-
-ACCESS_TYPE_TO_CLASS = {
-    AccessType.Data: AccessDataProcess,
-    AccessType.RealTimeData: AccessRealTimeDataProcess,
-    AccessType.Alert: AccessAlertProcess,
-    AccessType.Event: AccessCustomEventGlobalProcess,  # no use
-    AccessType.Incident: AccessIncidentProcess,
-}
+urlpatterns = [
+    url(r"^", include(router.urls)),
+]
