@@ -147,8 +147,8 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 {"users": duty_plan.users, "user_index": duty_plan.order, "work_times": duty_plan.work_times}
             )
         all_duty_plans = []
-        for _, duty_plans in duty_plans.items():
-            all_duty_plans.extend(duty_plans)
+        for _, plans in duty_plans.items():
+            all_duty_plans.extend(plans)
         self.get_all_plan_users(all_duty_plans)
         response_plans = []
         for rule in validated_request_data["duty_rules"]:
