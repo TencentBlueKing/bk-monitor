@@ -66,9 +66,10 @@ class TasksHandler(object):
 
         # 运维人员可以看到完整的任务列表
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
-        tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id)
+        # source_app_code隔离
+        tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id, source_app_code=source_app_code)
         if not has_biz_manage:
-            tasks = tasks.filter(created_by=request_user, source_app_code=source_app_code)
+            tasks = tasks.filter(created_by=request_user)
         queryset = tasks_views.filter_queryset(tasks)
 
         page = tasks_views.paginate_queryset(queryset)
@@ -405,7 +406,6 @@ class TasksHandler(object):
     def run_pipeline(
         cls, task, operator, bk_biz_id, ip_list, file_path, filter_type, filter_content, account, os_type, username
     ):
-        logger.info(f"[run_pipeline] [start] task_id: {task.task_id}")
         extract: ExtractLinkBase = task.get_extract()
         data = extract.build_common_data_context(
             task.task_id,
@@ -420,10 +420,7 @@ class TasksHandler(object):
             os_type,
         )
         pipeline = extract.build_pipeline(task, data)
-        logger.info(f"[run_pipeline] [build] task_id: {task.task_id}, data: {data}")
         extract.start_pipeline(task, pipeline)
-        logger.info(f"[run_pipeline] [run] task_id: {task.task_id}, pipeline: {pipeline}")
-        logger.info(f"[run_pipeline] [end] task_id: {task.task_id}")
 
     def download(self, task_id):
         request_user = get_request_username()
