@@ -230,7 +230,8 @@ export default {
 
       const { startTimeStamp, endTimeStamp } = this.getRealTimeRange();
       // 请求间隔时间
-      this.requestInterval = this.isStart ? this.requestInterval
+      this.requestInterval = this.isStart
+        ? this.requestInterval
         : this.handleRequestSplit(startTimeStamp, endTimeStamp);
       if (!this.isStart) {
         this.isEmptyChart = false;
@@ -258,8 +259,12 @@ export default {
         this.pollingEndTime = this.pollingStartTime;
         this.pollingStartTime = this.pollingStartTime - this.requestInterval;
 
-        if (this.pollingStartTime < Date.parse(this.retrieveParams.start_time)) {
-          this.pollingStartTime = Date.parse(this.retrieveParams.start_time);
+        // if (this.pollingStartTime < Date.parse(this.retrieveParams.start_time)) {
+        //   this.pollingStartTime = Date.parse(this.retrieveParams.start_time);
+        // }
+        // TODO
+        if (this.pollingStartTime < this.retrieveParams.start_time) {
+          this.pollingStartTime = this.retrieveParams.start_time;
         }
       }
 
@@ -268,11 +273,13 @@ export default {
           params: { index_set_id: this.$route.params.indexId },
           data: {
             ...this.retrieveParams,
-            time_range: 'customized',
             interval: this.interval,
             // 每次轮循的起始时间
-            start_time: formatDate(this.pollingStartTime),
-            end_time: formatDate(this.pollingEndTime),
+            start_time: formatDate(this.pollingStartTime * 1000, false),
+            end_time: formatDate(this.pollingEndTime * 1000, false),
+            // // TODO
+            // start_time: this.pollingStartTime,
+            // end_time: this.pollingEndTime,
           },
         });
         const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
@@ -281,7 +288,9 @@ export default {
           return ([item.doc_count, item.key]);
         });
 
-        if (this.pollingStartTime <= Date.parse(this.retrieveParams.start_time)) {
+        // if (this.pollingStartTime <= Date.parse(this.retrieveParams.start_time)) {
+        // TODO
+        if (this.pollingStartTime <= this.retrieveParams.start_time) {
         // 轮询结束
           this.finishPolling = true;
         }

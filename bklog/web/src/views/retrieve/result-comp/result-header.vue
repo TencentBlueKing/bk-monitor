@@ -61,7 +61,12 @@
     <!-- <div class="result-text"></div> -->
     <!-- 检索日期 -->
     <div class="result-right">
-      <time-range :value="datePickerValue" @change="handleTimeRangeChange" />
+      <time-range
+        :value="datePickerValue"
+        :timezone="timezone"
+        @change="handleTimeRangeChange"
+        @timezoneChange="handleTimezoneChange"
+      />
       <!-- 自动刷新 -->
       <bk-popover
         ref="autoRefreshPopper"
@@ -144,6 +149,7 @@ import BizMenuSelect from '@/components/biz-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import StepBox from '@/components/step-box';
 import { debounce } from 'throttle-debounce';
+import { updateTimezone } from '../../../language/dayjs';
 
 export default {
   components: {
@@ -158,10 +164,6 @@ export default {
     },
     retrieveParams: {
       type: Object,
-      required: true,
-    },
-    timeRange: {
-      type: String,
       required: true,
     },
     datePickerValue: {
@@ -240,6 +242,7 @@ export default {
       isFirstCloseCollect: false,
       showSettingMenuList: [],
       showCollectIntroGuide: false,
+      timezone: window.timezone,
     };
   },
   computed: {
@@ -299,6 +302,7 @@ export default {
     window.bus.$on('changeTimeByChart', this.handleChangeTimeByChart);
   },
   beforeDestroy() {
+    updateTimezone();
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.bus.$off('changeTimeByChart', this.handleChangeTimeByChart);
   },
@@ -313,6 +317,11 @@ export default {
     handleTimeRangeChange(val) {
       this.$emit('update:datePickerValue', val);
       this.setRefreshTime(0);
+      this.$emit('datePickerChange');
+    },
+    handleTimezoneChange(timezone) {
+      updateTimezone(timezone);
+      this.timezone = timezone;
       this.$emit('datePickerChange');
     },
     handleChangeTimeByChart(val) {

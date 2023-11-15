@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 export default {
@@ -64,27 +64,27 @@ export default {
       }
     },
     handleRequestSplit(startTime, endTime) {
-      const duration = (endTime - startTime) / (3600 * 1000);
+      const duration = (endTime - startTime) / (3600);
       if (duration < 6) { // 小于6小时 一次性请求
         return 0;
       } if (duration < 48) { // 小于24小时 6小时间隔
-        return 21600000;
+        return 21600;
       }  // 大于1天 按0.5天请求
-      return 86400000 / 2;
+      return 86400 / 2;
     },
     // 获取实际查询开始和结束时间
     getRealTimeRange() {
-      if (!this.pickerTimeRange.length) {
-        return {
-          startTimeStamp: new Date(this.retrieveParams.start_time.replace(/-/g, '/')).getTime(),
-          endTimeStamp: new Date(this.retrieveParams.end_time.replace(/-/g, '/')).getTime(),
-        };
-      };
+      // if (!this.pickerTimeRange.length) {
+      //   return {
+      //     startTimeStamp: new Date(this.retrieveParams.start_time.replace(/-/g, '/')).getTime(),
+      //     endTimeStamp: new Date(this.retrieveParams.end_time.replace(/-/g, '/')).getTime(),
+      //   };
+      // };
 
       const tempList = handleTransformToTimestamp(this.datePickerValue);
       return {
-        startTimeStamp: tempList[0] * 1000,
-        endTimeStamp: tempList[1] * 1000,
+        startTimeStamp: tempList[0],
+        endTimeStamp: tempList[1],
       };
     },
     // 获取轮询时间间隔
@@ -110,7 +110,7 @@ export default {
     // 时间向下取整
     getIntegerTime(tiem) {
       if (this.interval === '1d') { // 如果周期是 天 则特殊处理
-        const step = moment(tiem).format('YYYY-MM-DD');
+        const step = dayjs.tz(tiem).format('YYYY-MM-DD');
         return Date.parse(`${step} 00:00:00`);
       }
 
