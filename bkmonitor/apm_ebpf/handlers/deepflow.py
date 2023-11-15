@@ -12,6 +12,7 @@ import operator
 from dataclasses import dataclass
 
 import requests
+from kubernetes.client import ApiException
 
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
@@ -78,18 +79,24 @@ class DeepflowHandler:
         k8s_client = BcsKubeClient(cluster_id)
 
         # 获取Deployment
-        deployments = k8s_client.api.list_namespaced_deployment(namespace=DeepflowComp.NAMESPACE)
-        for deployment in deployments.items:
-            content = WorkloadContent.deployment_to(deployment)
-            if content.name in cls._required_deployments:
-                WorkloadHandler.upsert(cluster_id, DeepflowComp.NAMESPACE, content)
+        try:
+            deployments = k8s_client.api.list_namespaced_deployment(namespace=DeepflowComp.NAMESPACE)
+            for deployment in deployments.items:
+                content = WorkloadContent.deployment_to(deployment)
+                if content.name in cls._required_deployments:
+                    WorkloadHandler.upsert(cluster_id, DeepflowComp.NAMESPACE, content)
+        except ApiException as e:
+            logger.error(f"failed to get deployment of cluster_id: {cluster_id}, error: {e}")
 
         # 获取Service
-        services = k8s_client.core_api.list_namespaced_service(namespace=DeepflowComp.NAMESPACE)
-        for service in services.items:
-            content = WorkloadContent.service_to(service)
-            if content.name in cls._required_services:
-                WorkloadHandler.upsert(cluster_id, DeepflowComp.NAMESPACE, content)
+        try:
+            services = k8s_client.core_api.list_namespaced_service(namespace=DeepflowComp.NAMESPACE)
+            for service in services.items:
+                content = WorkloadContent.service_to(service)
+                if content.name in cls._required_services:
+                    WorkloadHandler.upsert(cluster_id, DeepflowComp.NAMESPACE, content)
+        except ApiException as e:
+            logger.error(f"failed to get services of cluster_id: {cluster_id}, error: {e}")
 
     def list_datasources(self):
         """
@@ -106,9 +113,9 @@ class DeepflowHandler:
         valid_cluster_ids = []
         # Step1: 过滤出有效的Deployment
         for cluster_id, items in cluster_deploy_mapping.items():
-            cluster_deploys = [i for i in deployments if i.name in self._required_deployments]
+            cluster_deploys = [i for i in items if i.name in self._required_deployments]
 
-            if len(deployments) != len(self._required_deployments):
+            if len(cluster_deploys) != len(self._required_deployments):
                 diff = set(self._required_deployments) - set(cluster_deploys)
                 logger.warning(
                     f"there is no complete deployment in cluster: {cluster_id} of bk_biz_id: {self.bk_biz_id}"
