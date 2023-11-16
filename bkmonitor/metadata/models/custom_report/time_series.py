@@ -484,6 +484,7 @@ class TimeSeriesGroup(CustomGroupBase):
         if not metrics:
             return [self.to_json()]
         results = []
+        is_auto_discovery = self.is_auto_discovery()
         for metric in metrics:
             results.append(
                 {
@@ -499,7 +500,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     "last_modify_user": self.last_modify_user,
                     "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "metric_info_list": [metric],
-                    "is_auto_discovery": self.is_auto_discovery(),
+                    "is_auto_discovery": is_auto_discovery,
                     "data_label": self.data_label,
                 }
             )
