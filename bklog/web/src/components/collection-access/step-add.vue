@@ -992,9 +992,8 @@ export default {
         this.isYaml = cloneCollect.yaml_config_enabled;
         // yaml模式可能会有多种容器环境 选择第一项配置里的环境作为展示
         if (cloneCollect.configs[0]) { // 如果采集项不为空 则回显
-          this.currentEnvironment = cloneCollect.configs[0]?.collector_type;
-          const configsLength = cloneCollect.configs.length;
-          this.publicLetterIndex = configsLength ? configsLength - 1 : 0;
+          this.currentEnvironment = cloneCollect.configs[0].collector_type;
+          this.publicLetterIndex = cloneCollect.configs.length - 1;
         } else { // 为空 重新赋值 标准输出
           this.currentEnvironment = 'std_log_config';
           this.publicLetterIndex = 0;
