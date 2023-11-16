@@ -15,6 +15,7 @@ from typing import Optional
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import ugettext as _
+
 from metadata import config
 from metadata.models.common import Label
 from metadata.models.data_source import DataSourceOption, DataSourceResultTable
@@ -31,7 +32,6 @@ logger = logging.getLogger("metadata")
 
 
 class CustomGroupBase(models.Model):
-
     # model差异动态配置
     GROUP_ID_FIELD = None
     GROUP_NAME_FIELD = None
@@ -172,7 +172,6 @@ class CustomGroupBase(models.Model):
         return table_id, custom_group
 
     @classmethod
-    @atomic(config.DATABASE_CONNECTION_NAME)
     def create_custom_group(
         cls,
         bk_data_id,
@@ -284,7 +283,6 @@ class CustomGroupBase(models.Model):
 
         return custom_group
 
-    @atomic(config.DATABASE_CONNECTION_NAME)
     def modify_custom_group(
         self,
         operator,
@@ -402,7 +400,6 @@ class CustomGroupBase(models.Model):
 
         # 只在需要刷新 consul 的时候才进行刷新操作
         if self.NEED_REFRESH_CONSUL:
-
             from metadata.models import DataSource
 
             DataSource.objects.get(bk_data_id=self.bk_data_id).refresh_consul_config()

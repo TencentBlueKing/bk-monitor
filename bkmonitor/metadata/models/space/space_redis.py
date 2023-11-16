@@ -135,7 +135,6 @@ class SpaceRedis:
         redis_key = self.space_detail_key.format(space_type_id=space_type, space_id=space_id)
         if field_value:
             RedisTools.hmset_to_redis(redis_key, field_value)
-            logger.info("push redis data, space: %s, data: %s", redis_key, json.dumps(field_value))
 
     def _push_biz_resource_for_bcs_type(self, space_type_id: str, space_id: str, table_id: Optional[str] = None):
         """推送容器关联的业务"""
@@ -301,7 +300,6 @@ class SpaceRedis:
         # 推送数据到redis
         if field_value:
             RedisTools.hmset_to_redis(redis_key, field_value)
-            logger.info("push redis data, space: %s, data: %s", redis_key, json.dumps(field_value))
 
     def compose_biz_data(
         self,
@@ -373,7 +371,6 @@ class SpaceRedis:
         # 推送数据到redis
         if field_value:
             RedisTools.hmset_to_redis(redis_key, field_value)
-            logger.info("push redis data, space: %s, data: %s", redis_key, json.dumps(field_value))
 
     def get_data(
         self,
@@ -667,4 +664,4 @@ def push_and_publish_all_space(
     if is_publish:
         # 发布空间信息，以便依赖服务及时获取变动内容
         RedisTools.publish(SPACE_REDIS_KEY, redis_space_id_list)
-        logger.info("publish space: %s", json.dumps(redis_space_id_list))
+        logger.info("all space publish redis")

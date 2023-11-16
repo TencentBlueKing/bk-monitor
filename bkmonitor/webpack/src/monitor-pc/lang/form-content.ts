@@ -97,5 +97,9 @@ export default {
   区间: 'Range',
   蓝鲸信息流: 'Bkchat',
   '查看{0}条数据': 'View data in {0} bar',
-  查看指定数据: 'View specified data'
+  查看指定数据: 'View specified data',
+  '已选择{0}个静态主机': '{0} static hosts selected',
+  '已动态选择{0}个节点': '{0} nodes have been dynamically selected',
+  '已选择{0}个服务模板': '{0} service templates selected',
+  '已选择{0}个集群模板': '{0} cluster templates selected'
 };

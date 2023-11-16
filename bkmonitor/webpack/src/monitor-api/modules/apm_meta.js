@@ -40,6 +40,7 @@ export const deleteCustomSerivice = request('POST', 'apm/meta/application/delete
 export const customServiceMatchList = request('POST', 'apm/meta/application/custom_service_match_list/');
 export const customServiceDataView = request('POST', 'apm/meta/application/{pk}/custom_service_data_view_config/');
 export const customServiceDataSource = request('POST', 'apm/meta/application/custom_service_url_list/');
+export const getDataEncoding = request('GET', 'apm/meta/application/data_encoding/');
 
 export default {
   listMetaEsClusterInfo,
@@ -81,5 +82,6 @@ export default {
   deleteCustomSerivice,
   customServiceMatchList,
   customServiceDataView,
-  customServiceDataSource
+  customServiceDataSource,
+  getDataEncoding
 };

@@ -77,9 +77,16 @@ const checkRegexp = {
   url: '/clustering_config/check_regexp/',
   method: 'post',
 };
-// 标签编辑
-const editLabel = {
-  url: '/pattern/:index_set_id/label/ ',
+
+// 设置备注
+const setRemark = {
+  url: '/pattern/:index_set_id/remark/ ',
+  method: 'post',
+};
+
+// 设置负责人
+const setOwner = {
+  url: '/pattern/:index_set_id/owner/',
   method: 'post',
 };
 
@@ -95,5 +102,6 @@ export {
   getNewClsStrategy,
   updateNewClsStrategy,
   checkRegexp,
-  editLabel,
+  setRemark,
+  setOwner,
 };

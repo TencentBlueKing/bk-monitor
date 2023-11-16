@@ -147,8 +147,17 @@ def refresh_datasource():
     # 更新datasource的外部依赖 及 配置信息
     # NOTE: 过滤有结果表的数据源并且状态是启动
     # 过滤到有结果表的数据源
-    data_ids_with_rt = models.DataSourceResultTable.objects.values_list("bk_data_id", flat=True).distinct()
-    for datasource in models.DataSource.objects.filter(is_enable=True, bk_data_id__in=data_ids_with_rt).order_by(
+    ds_rt_map = {
+        ds_rt["table_id"]: ds_rt["bk_data_id"]
+        for ds_rt in models.DataSourceResultTable.objects.values("bk_data_id", "table_id")
+    }
+    # 过滤启用的结果表
+    enabled_rts = models.ResultTable.objects.filter(
+        table_id__in=ds_rt_map.keys(), is_deleted=False, is_enable=True
+    ).values_list("table_id", flat=True)
+    # 过滤到对应的数据源 ID
+    ds_with_rt = {data_id for rt, data_id in ds_rt_map.items() if rt in enabled_rts}
+    for datasource in models.DataSource.objects.filter(is_enable=True, bk_data_id__in=ds_with_rt).order_by(
         "-last_modify_time"
     ):
         try:
@@ -284,7 +293,7 @@ def refresh_unify_query_additional_config():
 @share_lock(identify="metadata_clean_datasource_from_consul")
 def clean_datasource_from_consul():
     """比较数据库和consul中不一致的数据源，然后删除数据
-    
+
     1. 没有使用的 transfer 集群，递归删除
         - NOTE: 这里的 transfer 集群通过使用的 data id 路径分割获取
     2. 在使用的 transfer 集群，如果 data id 不存在，则删除
@@ -299,6 +308,7 @@ def clean_datasource_from_consul():
         transfer_id_and_data_ids.setdefault(d["transfer_cluster_id"], set()).add(str(d["bk_data_id"]))
 
     from metadata import config
+
     hash_consul = consul_tools.HashConsul()
     # 比对 transfer 集群，不存在的 transfer 集群直接删除
     transfer_key_tmpl = f"{config.CONSUL_PATH}/v1/"
@@ -353,5 +363,5 @@ def clean_datasource_from_consul():
         #     except Exception as e:
         #         logger.error("delete consul key error, key: %s, error: %s", deleted_key, e)
         #         continue
-    
+
     logger.info("delete datasource from consul successfully")

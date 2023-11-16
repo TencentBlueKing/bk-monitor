@@ -37,6 +37,7 @@ from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -117,13 +118,13 @@ def fields_config(name: str, is_active: bool = False):
 
 class SearchHandler(object):
     def __init__(
-            self,
-            index_set_id: int,
-            search_dict: dict,
-            pre_check_enable=True,
-            can_highlight=True,
-            export_fields=None,
-            export_log: bool = False,
+        self,
+        index_set_id: int,
+        search_dict: dict,
+        pre_check_enable=True,
+        can_highlight=True,
+        export_fields=None,
+        export_log: bool = False,
     ):
         self.search_dict: dict = search_dict
         self.export_log = export_log
@@ -227,7 +228,7 @@ class SearchHandler(object):
         self.serverIp: str = search_dict.get("serverIp")  # pylint: disable=invalid-name
         self.ip: str = search_dict.get("ip", "undefined")
         self.path: str = search_dict.get("path", "")
-        self.container_id: str = search_dict.get("container_id", None)
+        self.container_id: str = search_dict.get("container_id", None) or search_dict.get("__ext.container_id", None)
         self.logfile: str = search_dict.get("logfile", None)
         self._iteration_idx: str = search_dict.get("_iteration_idx", None)
         self.iterationIdx: str = search_dict.get("iterationIdx", None)  # pylint: disable=invalid-name
@@ -244,8 +245,7 @@ class SearchHandler(object):
         # 请求用户名
         self.request_username = get_request_username()
 
-        # 透传脱敏配置
-        self.desensitize_config_list = self.search_dict.get("desensitize_configs", [])
+        self.is_desensitize = search_dict.get("is_desensitize", True)
 
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
@@ -254,8 +254,12 @@ class SearchHandler(object):
         # 脱敏配置原文字段
         self.text_fields = desensitize_config_obj.text_fields if desensitize_config_obj else []
 
-        field_configs = [
-            {
+        self.field_configs = list()
+
+        self.text_fields_field_configs = list()
+
+        for field_config_obj in desensitize_field_config_objs:
+            _config = {
                 "field_name": field_config_obj.field_name or "",
                 "rule_id": field_config_obj.rule_id or 0,
                 "operator": field_config_obj.operator,
@@ -263,13 +267,15 @@ class SearchHandler(object):
                 "match_pattern": field_config_obj.match_pattern,
                 "sort_index": field_config_obj.sort_index,
             }
-            for field_config_obj in desensitize_field_config_objs
-        ]
-        if field_configs:
-            self.desensitize_config_list.extend(field_configs)
+            if field_config_obj.field_name not in self.text_fields:
+                self.field_configs.append(_config)
+            else:
+                self.text_fields_field_configs.append(_config)
 
         # 初始化脱敏工厂对象
-        self.desensitize_handler = DesensitizeHandler(self.desensitize_config_list)
+        self.desensitize_handler = DesensitizeHandler(self.field_configs)
+
+        self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
     def fields(self, scope="default"):
         mapping_handlers = MappingHandlers(
@@ -412,7 +418,7 @@ class SearchHandler(object):
         if not self._enable_bcs_manage():
             return False, {"reason": _("未配置BCS WEB CONSOLE")}
         if ("cluster" in field_result_list and "container_id" in field_result_list) or (
-                "__ext.container_id" in field_result_list and "__ext.io_tencent_bcs_cluster" in field_result_list
+            "__ext.container_id" in field_result_list and "__ext.io_tencent_bcs_cluster" in field_result_list
         ):
             return True
         reason = _("cluster, container_id 或 __ext.container_id, __ext.io_tencent_bcs_cluster 不能同时为空")
@@ -504,6 +510,9 @@ class SearchHandler(object):
         _scroll_id = result.get("_scroll_id")
 
         result = self._deal_query_result(result)
+        # 脱敏配置日志原文检索 提前返回
+        if self.search_dict.get("original_search"):
+            return result
         field_dict = self._analyze_field_length(result.get("list"))
         result.update({"fields": field_dict})
 
@@ -581,10 +590,10 @@ class SearchHandler(object):
 
     def _can_scroll(self, result) -> bool:
         return (
-                self.scenario_id != Scenario.BKDATA
-                and self.is_scroll
-                and result["hits"]["total"] > MAX_RESULT_WINDOW
-                and self.size > MAX_RESULT_WINDOW
+            self.scenario_id != Scenario.BKDATA
+            and self.is_scroll
+            and result["hits"]["total"] > MAX_RESULT_WINDOW
+            and self.size > MAX_RESULT_WINDOW
         )
 
     def _scroll(self, search_result):
@@ -769,10 +778,10 @@ class SearchHandler(object):
         bcs_cluster_info = BcsCcApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
         project_id = bcs_cluster_info["project_id"]
         url = (
-                settings.BCS_WEB_CONSOLE_DOMAIN + "backend/web_console/projects/{project_id}/clusters/{cluster_id}/"
-                                                  "?container_id={container_id} ".format(
-            project_id=project_id, cluster_id=cluster_id.upper(), container_id=container_id
-        )
+            settings.BCS_WEB_CONSOLE_DOMAIN + "backend/web_console/projects/{project_id}/clusters/{cluster_id}/"
+            "?container_id={container_id} ".format(
+                project_id=project_id, cluster_id=cluster_id.upper(), container_id=container_id
+            )
         )
         return url
 
@@ -1232,7 +1241,7 @@ class SearchHandler(object):
             fields: list = fields_from_es
             fields_list: list = [x["field"] for x in fields]
             if ("gseindex" in fields_list and "_iteration_idx" in fields_list) or (
-                    "gseIndex" in fields_list and "iterationIndex" in fields_list
+                "gseIndex" in fields_list and "iterationIndex" in fields_list
             ):
                 default_sort_tag: bool = True
                 return default_sort_tag
@@ -1243,7 +1252,7 @@ class SearchHandler(object):
         fields: list = fields_from_cache_dict.get("data", list())
         fields_list: list = [x["field"] for x in fields]
         if ("gseindex" in fields_list and "_iteration_idx" in fields_list) or (
-                "gseIndex" in fields_list and "iterationIndex" in fields_list
+            "gseIndex" in fields_list and "iterationIndex" in fields_list
         ):
             default_sort_tag: bool = True
             return default_sort_tag
@@ -1352,7 +1361,7 @@ class SearchHandler(object):
         for hit in result_dict["hits"]["hits"]:
             log = hit["_source"]
             # 脱敏处理
-            if self.desensitize_config_list:
+            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
             if self.export_fields:
@@ -1374,7 +1383,7 @@ class SearchHandler(object):
             if "highlight" not in hit:
                 log_list.append(log)
                 continue
-            if not self.desensitize_config_list:
+            if not (self.field_configs or self.text_fields_field_configs) or not self.is_desensitize:
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
 
@@ -1431,13 +1440,15 @@ class SearchHandler(object):
         if not log:
             return log
 
+        # 展开object对象
+        log = expand_nested_data(log)
         # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
         log_content_tmp = copy.deepcopy(log)
 
         # 字段脱敏处理
         log = self.desensitize_handler.transform_dict(log)
 
-        # 处理原文字段
+        # 原文字段应用其他字段的脱敏结果
         if not self.text_fields:
             return log
 
@@ -1446,12 +1457,17 @@ class SearchHandler(object):
             if text_field not in log.keys():
                 continue
 
-            for _config in self.desensitize_config_list:
+            for _config in self.field_configs:
                 field_name = _config["field_name"]
-                if field_name not in log.keys():
+                if field_name not in log.keys() or field_name == text_field:
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 
+        # 处理原文字段自身绑定的脱敏逻辑
+        if self.text_fields:
+            log = self.text_fields_desensitize_handler.transform_dict(log)
+        # 折叠object对象
+        log = merge_nested_data(log)
         return log
 
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
@@ -1503,11 +1519,11 @@ class SearchHandler(object):
             self.field.update({_key: {"max_length": len(_key)}})
 
     def _analyze_context_result(
-            self,
-            log_list: List[Dict[str, Any]],
-            mark_gseindex: int = None,
-            mark_gseIndex: int = None
-            # pylint: disable=invalid-name
+        self,
+        log_list: List[Dict[str, Any]],
+        mark_gseindex: int = None,
+        mark_gseIndex: int = None
+        # pylint: disable=invalid-name
     ) -> Dict[str, Any]:
         log_list_reversed: list = log_list
         if self.start < 0:
@@ -1531,24 +1547,24 @@ class SearchHandler(object):
                         _count_start = index
 
                 if (
-                        (
-                                self.gseindex == str(gseindex)
-                                and self.bk_host_id == bk_host_id
-                                and self.path == path
-                                and self._iteration_idx == str(_iteration_idx)
-                        )
-                        or (
+                    (
+                        self.gseindex == str(gseindex)
+                        and self.bk_host_id == bk_host_id
+                        and self.path == path
+                        and self._iteration_idx == str(_iteration_idx)
+                    )
+                    or (
                         self.gseindex == str(gseindex)
                         and self.ip == ip
                         and self.path == path
                         and self._iteration_idx == str(_iteration_idx)
-                )
-                        or (
+                    )
+                    or (
                         self.gseindex == str(gseindex)
                         and self.container_id == container_id
                         and self.logfile == logfile
                         and self._iteration_idx == str(_iteration_idx)
-                )
+                    )
                 ):
                     _index = index
                     break
@@ -1565,15 +1581,15 @@ class SearchHandler(object):
                     if str(gseIndex) == mark_gseIndex:
                         _count_start = index
                 if (
-                        self.gseIndex == str(gseIndex)
-                        and self.bk_host_id == bk_host_id
-                        and self.path == path
-                        and self.iterationIndex == str(iterationIndex)
+                    self.gseIndex == str(gseIndex)
+                    and self.bk_host_id == bk_host_id
+                    and self.path == path
+                    and self.iterationIndex == str(iterationIndex)
                 ) or (
-                        self.gseIndex == str(gseIndex)
-                        and self.serverIp == serverIp
-                        and self.path == path
-                        and self.iterationIndex == str(iterationIndex)
+                    self.gseIndex == str(gseIndex)
+                    and self.serverIp == serverIp
+                    and self.path == path
+                    and self.iterationIndex == str(iterationIndex)
                 ):
                     _index = index
                     break

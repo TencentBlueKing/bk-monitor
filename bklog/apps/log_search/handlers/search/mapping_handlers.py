@@ -24,8 +24,14 @@ import re
 from collections import defaultdict
 from typing import Any, Dict, List
 
+from django.conf import settings
+from django.db.transaction import atomic
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext as _
+
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
@@ -38,7 +44,6 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     SearchScopeEnum,
 )
-from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
@@ -55,10 +60,6 @@ from apps.log_search.models import (
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.local import get_local_param, get_request_username
 from apps.utils.time_handler import generate_time_range
-from django.conf import settings
-from django.db.transaction import atomic
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
 INNER_PRODUCE_FIELDS = [
@@ -837,6 +838,10 @@ class MappingHandlers(object):
             realtime_search_usable = True
             if "bk_host_id" in fields_list:
                 judge.add("bk_host_id")
+            if "container_id" in fields_list and "container_id" not in judge:
+                judge.add("container_id")
+            if "__ext.container_id" in fields_list and "__ext.container_id" not in judge:
+                judge.add("__ext.container_id")
             return {
                 "context_search_usable": context_search_usable,
                 "realtime_search_usable": realtime_search_usable,

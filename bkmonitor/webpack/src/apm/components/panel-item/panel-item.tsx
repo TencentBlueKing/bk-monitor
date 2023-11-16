@@ -43,7 +43,10 @@ export default class PanelItem extends tsc<IPanelItemProps> {
     return (
       <div class='panel-item'>
         <div class='item-header'>
-          <span class='title'>{this.title}</span>
+          <div class='title'>
+            <span>{this.title}</span>
+            {this.$slots.titleExtend}
+          </div>
           {this.$slots.headerTool}
         </div>
         <div

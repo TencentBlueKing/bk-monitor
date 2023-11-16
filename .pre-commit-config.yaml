@@ -37,7 +37,7 @@ repos:
       # 执行 preci 流水线
       - id: check-pre-ci-pipeline
         name: check pre ci pipeline
-        entry: python scripts/pre-commit/pre-push.py
+        entry: python3 scripts/pre-commit/pre-push.py
         language: system
         stages: [ push ]
         verbose: true
@@ -53,7 +53,7 @@ repos:
       # PreCI 检查
       - id: check-pre-ci
         name: check pre ci
-        entry: scripts/pre-commit/preci.sh
+        entry: python3 scripts/pre-commit/preci.py
         language: system
         verbose: true
 
@@ -68,8 +68,8 @@ repos:
       - id: ip
         name: Check ip
         description: Check ip
-        entry: scripts/sensitive_info_check/ip.sh
-        language: script
+        entry: python3 scripts/sensitive_info_check/check_ip.py
+        language: system
         exclude: |
           (?x)(
              ^scripts/sensitive_info_check/|

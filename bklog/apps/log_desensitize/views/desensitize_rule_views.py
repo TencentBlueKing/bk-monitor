@@ -20,12 +20,23 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from apps.generic import ModelViewSet
+from apps.iam import ActionEnum
+from apps.iam.handlers.drf import BusinessActionPermission, IAMPermission
+from apps.log_desensitize.exceptions import DesensitizeRuleNotExistException
 from apps.log_desensitize.handlers.desensitize import DesensitizeRuleHandler
 from apps.log_desensitize.models import DesensitizeRule
 
 from rest_framework.response import Response
 
-from apps.log_desensitize.serializers import DesensitizeRuleSerializer, DesensitizeRuleListSerializer
+from apps.log_desensitize.serializers import (
+    DesensitizeRuleSerializer,
+    DesensitizeRuleListSerializer,
+    DesensitizeRuleRegexDebugSerializer,
+    DesensitizeRuleMatchSerializer,
+    DesensitizeRulePreviewSerializer,
+    DesensitizeRuleDebugSerializer
+)
+from apps.utils.drf import list_route, detail_route
 
 
 class DesensitizeRuleViesSet(ModelViewSet):
@@ -36,13 +47,56 @@ class DesensitizeRuleViesSet(ModelViewSet):
     model = DesensitizeRule
 
     def get_permissions(self):
+        """
+        业务规则查看鉴权逻辑：拥有 空间访问 权限的用户
+        全局规则查看鉴权逻辑：所有用户可见
+        """
+        if self.action in ["retrieve", "list"]:
+            if self.action == "list":
+                is_public = self.request.query_params.get("is_public")
+                space_uid = self.request.query_params.get("space_uid")
+                is_public = True if str(is_public).lower() == "true" else False
+            else:
+                rule_id = self.kwargs[self.lookup_field]
+                rule_obj = DesensitizeRule.objects.filter(id=int(rule_id)).first()
+                if not rule_obj:
+                    raise DesensitizeRuleNotExistException(
+                        DesensitizeRuleNotExistException.MESSAGE.format(id=rule_id)
+                    )
+                is_public = rule_obj.is_public
+                space_uid = rule_obj.space_uid
+            if is_public:
+                return []
+            else:
+                return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS], space_uid)]
+        elif self.action in ["create", "update", "destroy", "start", "stop"]:
+            if self.action == "create":
+                is_public = self.request.data.get("is_public")
+                space_uid = self.request.data.get("space_uid")
+            else:
+                rule_id = self.kwargs[self.lookup_field]
+                rule_obj = DesensitizeRule.objects.filter(id=int(rule_id)).first()
+                if not rule_obj:
+                    raise DesensitizeRuleNotExistException(
+                        DesensitizeRuleNotExistException.MESSAGE.format(id=rule_id)
+                    )
+                is_public = rule_obj.is_public
+                space_uid = rule_obj.space_uid
+
+            if is_public:
+                return [IAMPermission([ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE])]
+            else:
+                return [BusinessActionPermission([ActionEnum.MANAGE_DESENSITIZE_RULE], space_uid)]
+
         return []
 
     def list(self, request, *args, **kwargs):
         """
-        @api {GET} /api/v1/desensitize/rule/?space_uid=$space_uid&is_public=$is_public 脱敏规则列表
+        @api {GET} /api/v1/desensitize/rule/?space_uid=$space_uid&rule_type=$rule_type 脱敏规则列表
         @apiName desensitize_rule list
         @apiGroup DesensitizeRule
+        @apiParam {String} space_uid 空间唯一标识
+        @apiParam {String} rule_type 规则类型  (public, 只返回全局的)、(space, 只返回业务的)、(all, 全局的+当前业务的)
         @apiSuccess {String} rule_name 脱敏规则名称
         @apiSuccess {Array} match_fields 匹配的字段名列表
         @apiSuccess {String} match_pattern 匹配表达式
@@ -106,7 +160,7 @@ class DesensitizeRuleViesSet(ModelViewSet):
         }
         """
         data = self.params_valid(DesensitizeRuleListSerializer)
-        return Response(DesensitizeRuleHandler().list(is_public=data["is_public"], space_uid=data["space_uid"]))
+        return Response(DesensitizeRuleHandler().list(space_uid=data["space_uid"], rule_type=data["rule_type"]))
 
     def create(self, request, *args, **kwargs):
         """
@@ -239,3 +293,201 @@ class DesensitizeRuleViesSet(ModelViewSet):
         }
         """
         return Response(DesensitizeRuleHandler(rule_id=int(id)).destroy())
+
+    @list_route(methods=["POST"], url_path="regex/debug")
+    def regex_debug(self, request, *args, **kwargs):
+        """
+        @api {POST} /api/v1/desensitize/rule/regex/debug/ 正则调试
+        @apiName desensitize_rule regex_debug
+        @apiGroup DesensitizeRule
+        @apiParamExample {json} 请求样例:
+        {
+            "log_sample": "xxx",
+            "match_pattern": "xxx"
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "log": "XXX"
+            },
+            "result": true
+        }
+        """
+        data = self.params_valid(DesensitizeRuleRegexDebugSerializer)
+        return Response(DesensitizeRuleHandler().regex_debug(data["log_sample"], data["match_pattern"]))
+
+    @list_route(methods=["POST"], url_path="debug")
+    def rule_debug(self, request, *args, **kwargs):
+        """
+        @api {POST} /api/v1/desensitize/rule/debug/ 规则调试
+        @apiName desensitize_rule rule_debug
+        @apiGroup DesensitizeRule
+        @apiParamExample {json} 请求样例:
+        {
+            "log_sample": "12343456",
+            "match_pattern": "\\d+"
+            "operator": "mask_shield",
+            "params": {
+                "preserve_head": 1,
+                "preserve_tail": 2,
+                "replace_mark": "*"
+            }
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": "1<mark>*****</mark>56",
+            "result": true
+        }
+        """
+        data = self.params_valid(DesensitizeRuleDebugSerializer)
+        return Response(DesensitizeRuleHandler().rule_debug(data))
+
+    @detail_route(methods=["POST"], url_path="start")
+    def start(self, request, id=None, *args, **kwargs):
+        """
+        @api {POST} /api/v1/desensitize/rule/{$rule_id}/start/ 规则启用
+        @apiName desensitize_rule start
+        @apiGroup DesensitizeRule
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": "",
+            "result": true
+        }
+        """
+        return Response(DesensitizeRuleHandler(rule_id=int(id)).start())
+
+    @detail_route(methods=["POST"], url_path="stop")
+    def stop(self, request, id=None, *args, **kwargs):
+        """
+        @api {POST} /api/v1/desensitize/rule/{$rule_id}/stop/ 规则停用
+        @apiName desensitize_rule stop
+        @apiGroup DesensitizeRule
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": "",
+            "result": true
+        }
+        """
+        return Response(DesensitizeRuleHandler(rule_id=int(id)).stop())
+
+    @list_route(methods=["POST"], url_path="match")
+    def match_rule(self, request, *args, **kwargs):
+        """
+        @api {POST} /api/v1/desensitize/rule/match/
+        @apiName desensitize match rule
+        @apiGroup DesensitizeRule
+        @apiParam {String} space_uid 空间唯一标识
+        @apiParam {Json} logs 日志原文
+        @fields {Array}  fields 脱敏字段
+        @apiParamExample {Json} 请求示例:
+        {
+             "space_uid": "bkcc__2",
+             "logs": [
+                {"gseIndex": 0, "path": "/var/log/messages/*.log", "requestMethod": "GET"},
+                {"gseIndex": 0, "path": "/var/log/messages/*.log", "requestMethod": "GET"},
+             ]
+             "fields": ["gseIndex", "path", "requestMethod"]
+        }
+        """
+        data = self.params_valid(DesensitizeRuleMatchSerializer)
+        return Response(DesensitizeRuleHandler().match_rule(
+            space_uid=data["space_uid"],
+            logs=data["logs"],
+            fields=data["fields"])
+        )
+
+    @list_route(methods=["POST"], url_path="preview")
+    def preview(self, request, *args, **kwargs):
+        """
+        @api {POST} /api/v1/desensitize/config/preview/ 脱敏预览
+        @apiName desensitize_config preview
+        @apiGroup DesensitizeRule
+        @apiParam {Array[Json]} field_configs 字段脱敏配置信息
+        @apiParam {String} field_configs.field_name 字段名
+        @apiParam {Array[Json]} field_configs.rules 规则配置列表
+        @apiParam {Int} field_configs.rules.rule_id 脱敏规则ID
+        @apiParam {String} field_configs.rules.operator 脱敏算子 可选字段 ‘mask_shield, text_replace’
+        @apiParam {Json} field_configs.rules.params 脱敏算子参数
+        @apiParam {Int} field_configs.rules.params.preserve_head 掩码屏蔽算子参数 保留前几位  默认 0
+        @apiParam {Int} field_configs.rules.params.preserve_tail 掩码屏蔽算子参数 保留后几位  默认 0
+        @apiParam {String} field_configs.rules.params.replace_mark 掩码屏蔽算子参数 替换符号 默认 *
+        @apiParam {String} field_configs.rules.params.template_string 文本替换算子参数 替换模板
+        @apiParam {Array[String]} text_fields 日志原文字段
+        @apiParam {Array[Json]} logs 日志原文
+        @apiParamExample {Json} 请求示例:
+        {
+             "logs": [
+                {"gseIndex": 0, "path": "/var/log/messages/*.log", "requestMethod": "GET"},
+                {"gseIndex": 0, "path": "/var/log/messages/*.log", "requestMethod": "GET"},
+                {"gseIndex": 0, "path": "/var/log/messages/*.log", "requestMethod": "GET"},
+             ],
+             "field_configs": [
+                    {
+                        "field_name": "path",
+                        "rules" [
+                            {
+                                "rule_id": 1,
+                                "operator": "mask_shield",
+                                "params": {
+                                    "preserve_head": 1,
+                                    "preserve_tail": 2,
+                                    "replace_mark": "*"
+                            },
+                            {
+                                "rule_id": 2
+                            }
+                        ]
+                    },
+                    {
+                        "field_name": "requestMethod",
+                        "rules" [
+                            {
+                                "operator": "text_replace",
+                                 "params": {
+                                      "template_string": "敏感信息无权查看敏感信息无法查看敏感信息无法查看"
+                                  }
+                             },
+                             {
+                                 "rule_id": 2
+                             }
+                        ]
+                    }
+                ],
+                "text_fields": [
+                    "log"
+                ]
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "path": [
+                    "****************"，
+                    "****************"，
+                    "****************"
+                 ],
+                 "requestMethod": [
+                    "敏感信息无权查看敏感信息无法查看敏感信息无法查看"，
+                    "敏感信息无权查看敏感信息无法查看敏感信息无法查看"，
+                    "敏感信息无权查看敏感信息无法查看敏感信息无法查看"
+                 ]
+
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(DesensitizeRulePreviewSerializer)
+        return Response(DesensitizeRuleHandler().preview(
+            logs=data["logs"],
+            field_configs=data["field_configs"],
+            text_fields=data["text_fields"])
+        )

@@ -22,8 +22,12 @@ the project delivered to anyone in the future.
 import copy
 from collections import defaultdict
 
+from django.conf import settings
+from django.utils.translation import ugettext as _
+
 from apps.api import BKLoginApi, CmsiApi, TransferApi
 from apps.feature_toggle.handlers import toggle
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.iam import ActionEnum, Permission
 from apps.log_search import exceptions
 from apps.log_search.constants import (
@@ -37,8 +41,7 @@ from apps.utils import APIModel
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
 from bkm_space.define import SpaceTypeEnum
-from django.conf import settings
-from django.utils.translation import ugettext as _
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class MetaHandler(APIModel):
@@ -129,7 +132,7 @@ class MetaHandler(APIModel):
     @classmethod
     def get_menus(cls, space_uid, is_superuser):
         modules = copy.deepcopy(settings.MENUS)
-        cls.get_present_menus(modules, is_superuser)
+        cls.get_present_menus(modules, is_superuser, space_uid)
         return modules
 
     @classmethod
@@ -182,14 +185,14 @@ class MetaHandler(APIModel):
         return {"bk_biz_name": space_uid, "maintainer": []}
 
     @classmethod
-    def get_present_menus(cls, child_modules, is_superuser):
+    def get_present_menus(cls, child_modules, is_superuser, space_uid):
         if not isinstance(child_modules, list):
             raise exceptions.SettingMenuException
 
         for child_module in child_modules[:]:
             if "feature" not in child_module:
                 raise exceptions.SettingMenuException
-            if not cls.check_menu_feature(child_module, is_superuser):
+            if not cls.check_menu_feature(child_module, is_superuser, space_uid):
                 child_modules.remove(child_module)
                 continue
             if "scenes" in child_module and not toggle.feature_switch(child_module["scenes"]):
@@ -197,16 +200,17 @@ class MetaHandler(APIModel):
                 continue
             child_module["project_manage"] = True
             if "children" in child_module:
-                cls.get_present_menus(child_module["children"], is_superuser)
+                cls.get_present_menus(child_module["children"], is_superuser, space_uid)
 
     @classmethod
-    def check_menu_feature(cls, module, is_superuser):
+    def check_menu_feature(cls, module, is_superuser, space_uid):
         toggle = module["feature"]
         if toggle == "off":
             return False
 
         if toggle == "debug":
-            if settings.ENVIRONMENT not in ["dev", "stag"] and not is_superuser:
+            biz_id = space_uid_to_bk_biz_id(space_uid=space_uid)
+            if not is_superuser and not FeatureToggleObject.switch(module["id"], biz_id):
                 return False
 
         if module["id"] in ["manage_data_link", "extract_link_manage", "manage_data_link_conf"]:

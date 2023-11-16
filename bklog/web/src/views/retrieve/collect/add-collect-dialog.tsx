@@ -132,7 +132,7 @@ export default class CollectDialog extends tsc<IProps> {
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
-  }
+  };
   public rules = {
     name: [
       {
@@ -156,7 +156,7 @@ export default class CollectDialog extends tsc<IProps> {
       },
       {
         max: 30,
-        message: window.mainComponent.$t('不能多于30个字符'),
+        message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
         trigger: 'blur',
       },
     ],
@@ -181,7 +181,7 @@ export default class CollectDialog extends tsc<IProps> {
       },
       {
         max: 30,
-        message: window.mainComponent.$t('不能多于30个字符'),
+        message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
         trigger: 'blur',
       },
     ],

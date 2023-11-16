@@ -8,10 +8,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+from blueapps.account.decorators import login_exempt
 from django.conf.urls import include, url
+from django.http import HttpResponse
 
 app_name = "monitor_adapter"
+
+
+@login_exempt
+def ping(request):
+    return HttpResponse("pong")
+
 
 urlpatterns = [
     url(r"^", include("monitor_adapter.home.urls")),
@@ -19,4 +26,5 @@ urlpatterns = [
     url(r"^grafana/", include("monitor_adapter.grafana.urls")),
     url(r"^", include("healthz.urls")),
     url(r"^rest/v1/", include("healthz.urls")),
+    url(r"^ping$", ping),
 ]

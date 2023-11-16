@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { MetricType } from '../../strategy-config-set-new/typings';
+
 export const allDescription = [
   {
     type: 'common',
@@ -53,5 +56,14 @@ export const allDescription = [
     description: `${window.i18n.tc('关联告警在需要判断多个告警事件关联产生才生效时就可以使用。')}\n${window.i18n.tc(
       '支持告警事件和策略'
     )}、${window.i18n.tc('支持')}&& ||\n`
+  },
+  {
+    type: MetricType.MultivariateAnomalyDetection,
+    title: window.i18n.tc('场景智能检测'),
+    description: `${window.i18n.tc(
+      '针对 综合拨测、APM、主机、K8s 等场景，提供该场景定制化的异常发现和告警功能'
+    )}。\n${window.i18n.tc(
+      '以 主机 场景为例，将会对指定的主机下的 CPU使用率、网卡入流量、物理内存空闲 等多个关键指标进行智能异常检测，如果检出多个指标异常，将以发生异常的主机为单位生成告警'
+    )}。\n`
   }
 ];
