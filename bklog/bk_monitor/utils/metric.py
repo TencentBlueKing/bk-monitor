@@ -8,11 +8,18 @@ from bk_monitor.constants import TimeFilterEnum
 REGISTERED_METRICS = {}
 
 
+def build_metric_id(data_name, namespace, prefix: str, sub_type="", **kwargs) -> str:
+    metric_id = f"{data_name}##{namespace}##{prefix}"
+    if sub_type:
+        metric_id = f"{metric_id}##{sub_type}"
+    return metric_id
+
+
 def clear_registered_metrics():
     REGISTERED_METRICS.clear()
 
 
-def register_metric(namespace, data_name, prefix="", description="", time_filter=TimeFilterEnum.MINUTE1):
+def register_metric(namespace, data_name, sub_type="", prefix="", description="", time_filter=TimeFilterEnum.MINUTE1):
     """
     注册对应metric
     """
@@ -22,13 +29,14 @@ def register_metric(namespace, data_name, prefix="", description="", time_filter
             result = func(*args, **kwargs)
             return result
 
-        metric_id = f"{data_name}##{namespace}##{prefix}"
+        metric_id = build_metric_id(data_name, namespace, prefix, sub_type)
         if metric_id not in REGISTERED_METRICS:
             REGISTERED_METRICS[metric_id] = {
                 "namespace": namespace,
                 "data_name": data_name,
                 "description": description,
                 "prefix": prefix,
+                "sub_type": sub_type,
                 "method": wraps(func)(_wrapped_view),
                 "time_filter": time_filter,
             }

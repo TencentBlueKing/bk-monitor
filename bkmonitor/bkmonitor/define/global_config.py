@@ -18,6 +18,7 @@ from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
     [
+        ("UNIFY_QUERY_ROUTING_RULES", slz.ListField(label=_("统一查询路由规则"), default=[])),
         (
             "ALARM_BACKEND_CLUSTER_ROUTING_RULES",
             slz.ListField(
@@ -29,6 +30,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("FRONTEND_REPORT_DATA_ID", slz.IntegerField(label=_("前端上报数据ID"), default=0)),
         ("FRONTEND_REPORT_DATA_TOKEN", slz.CharField(label=_("前端上报数据Token"), default="")),
+        ("FRONTEND_REPORT_DATA_HOST", slz.CharField(label=_("前端上报地址"), default="")),
         ("QOS_DROP_ALARM_THREADHOLD", slz.IntegerField(label=_("流控丢弃阈值"), default=3)),
         ("QOS_DROP_ACTION_THRESHOLD", slz.IntegerField(label=_("处理动作流控丢弃阈值"), default=100)),
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label=_("处理动作流控窗口大小(秒)"), default=60)),

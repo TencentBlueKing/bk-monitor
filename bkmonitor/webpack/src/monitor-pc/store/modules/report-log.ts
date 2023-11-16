@@ -23,27 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ITableItemMap } from './table';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
-interface Children {
-  name: string;
-  type: string;
-  value: string | string[];
+import { frontendReportEvent } from '../../../monitor-api/modules/commons';
+import debounceDecorator from '../../../monitor-common/utils/debounce-decorator';
+import { getRouteConfigById } from '../../router/router-config';
+import store from '../store';
+
+let oldRouteId = '';
+@Module({ name: 'report-log', dynamic: true, namespaced: true, store })
+class ReportLogStore extends VuexModule {
+  @Action
+  @debounceDecorator(1000)
+  reportRouteLog(params: Record<string, any>) {
+    if (oldRouteId === params.route_id) return;
+    oldRouteId = params.route_id;
+    const space = window.space_list?.find(item => +item.bk_biz_id === +window.cc_biz_id);
+    const routeConfig = getRouteConfigById(params.nav_id);
+    frontendReportEvent(
+      {
+        event_name: '用户运营数据',
+        event_content: '基于前端路由的运营数据上报',
+        target: 'bk_monitor',
+        timestamp: Date.now(),
+        dimensions: {
+          space_id: space?.space_uid || window.cc_biz_id,
+          space_name: space?.space_name || window.cc_biz_id,
+          user_name: window.user_name || window.username,
+          nav_name: routeConfig?.name,
+          ...params
+        }
+      },
+      {
+        needMessage: false,
+        needTraceId: false
+      }
+    ).catch(() => false);
+  }
 }
-
-export type CommonDetailType = 'link' | 'number' | 'list' | 'status' | 'string' | 'tag' | 'time' | 'kv' | 'progress';
-
-export interface IDetailItem {
-  name: string;
-  value: IDetailValItem<CommonDetailType>;
-  type: CommonDetailType;
-  isExpand?: boolean; // 是否展开显示
-  isOverflow?: boolean; // 是否已溢出
-  need_copy?: boolean; // 是否需要复制文本按钮
-  count?: number; // 如果为 0 ，则不需要渲染展开数据
-  children?: Children[];
-}
-
-export type IDetailItemMap = Pick<ITableItemMap, CommonDetailType>;
-
-export type IDetailValItem<T extends CommonDetailType> = Pick<IDetailItemMap, T>[T];
+export default getModule(ReportLogStore);

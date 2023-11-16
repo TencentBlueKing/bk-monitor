@@ -33,7 +33,7 @@ workon bkmonitorv3-monitor
 
 ./bin/manage.sh strategy_check -s [strategy_id]\
 --from=1653056040 --until=1653056280 \
---filter=bk_target_ip:10.0.0.1,time:1653056040
+--filter=bk_target_ip:127.0.0.1,time:1653056040
 
 
 # -s 参数： 策略id
@@ -145,11 +145,31 @@ class Command(BaseCommand):
         parser.add_argument("--from", type=int)
         parser.add_argument("--until", type=int)
         parser.add_argument("--max", type=int, default=10)
+        parser.add_argument("--profile", type=bool, default=False)
         parser.add_argument(
             "--filter",
         )
 
     def handle(self, strategy_id, *args, **options):
+        try:
+            from pyinstrument import Profiler
+
+            profile = options.pop("profile", False)
+        except ImportError:
+            profile = False
+
+        if not profile:
+            return self._handle(strategy_id, *args, **options)
+
+        profiler = Profiler()
+        profiler.start()
+
+        self._handle(strategy_id, *args, **options)
+
+        profiler.stop()
+        profiler.print()
+
+    def _handle(self, strategy_id, *args, **options):
         # 不传时间参数默认最近3分钟
         from_timestamp = options.get("from") or int(time.time()) - 360
         until_timestamp = options.get("until") or int(time.time()) - 60

@@ -331,7 +331,7 @@ class GetReleaseModelInfo(DataAccessAPIResource):  # noqa
     获取模型详情信息
     """
 
-    action = "/v3/model/releases/{model_release_id}"
+    action = "/v3/model/releases/{model_release_id}/"
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):
