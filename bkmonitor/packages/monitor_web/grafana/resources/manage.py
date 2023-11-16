@@ -116,7 +116,7 @@ class GetDirectoryTree(Resource):
                 record.pop("folderUrl", None)
                 folders[folder_id]["dashboards"].append(record)
 
-        return [folder for folder_id, folder in folders.items() if folder["dashboards"]]
+        return [folder for folder_id, folder in folders.items()]
 
 
 class CreateDashboardOrFolder(Resource):

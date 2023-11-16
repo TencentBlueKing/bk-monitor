@@ -26,6 +26,11 @@ for _setting in dir(_module):
     if _setting == _setting.upper():
         locals()[_setting] = getattr(_module, _setting)
 
+# 覆盖默认配置
+RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_VHOST, RABBITMQ_USER, RABBITMQ_PASS, _ = get_rabbitmq_settings(
+    app_code=APP_CODE, backend=True
+)
+
 MIGRATE_MONITOR_API = False
 
 INSTALLED_APPS += (
@@ -38,6 +43,7 @@ INSTALLED_APPS += (
     "monitor_api",
     "monitor_web",
     "apm_web",
+    "apm_ebpf",
     "apm",
     "fta_web",
     "kernel_api",
@@ -80,6 +86,7 @@ def get_logger_config(log_path, logger_level, log_file_prefix):
             "metadata": LOGGER_DEFAULT,
             "kubernetes": LOGGER_DEFAULT,
             "apm": LOGGER_DEFAULT,
+            "apm_ebpf": LOGGER_DEFAULT,
             "calendars": LOGGER_DEFAULT,
             "sql_parse": LOGGER_DEFAULT,
             "file-only": {"level": LOGGER_LEVEL, "propagate": False, "handlers": ["file"]},

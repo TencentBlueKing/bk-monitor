@@ -46,7 +46,7 @@ class DaemonTaskHandler:
     DAEMON_TASK_NAME = "daemon:apm:pre_calculate"
 
     @classmethod
-    def execute(cls, app_id):
+    def execute(cls, app_id, queue=None):
         # 0. 添加到灰度名单 待未来去除
         PrecalculateGrayRelease.add(app_id)
         # 1. 刷新配置到consul
@@ -54,5 +54,8 @@ class DaemonTaskHandler:
         logger.info(f"push app_id: {app_id} data_id: {data_id} to consul success")
         # 2. 触发任务
         params = {"kind": cls.DAEMON_TASK_NAME, "payload": {"data_id": str(data_id)}, "options": {}}
+        if queue:
+            params["options"]["queue"] = queue
+
         api.bmw.create_task(params)
         logger.info(f"trigger worker create param: {params} successfully")

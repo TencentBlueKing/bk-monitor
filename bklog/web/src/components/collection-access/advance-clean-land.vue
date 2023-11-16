@@ -76,7 +76,7 @@ export default {
       });
     },
     handleRefresh() {
-      const { collector_config_id, bkdata_data_id } = this.curCollect;
+      const { collector_config_id, bkdata_data_id: bkdataDataId } = this.curCollect;
       this.loading = true;
       this.$http.request('clean/refreshClean', {
         params: {
@@ -84,7 +84,7 @@ export default {
         },
         query: {
           bk_biz_id: this.bkBizId,
-          bk_data_id: bkdata_data_id,
+          bk_data_id: bkdataDataId,
         },
       }).then((res) => {
         this.isInit = true;

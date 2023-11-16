@@ -36,7 +36,7 @@ class StatisticViewSet(APIViewSet):
         data_name = request.GET.get("data_name")
         data_names = self.get_list_obj(data_name)
         data = MetricCollector(collector_import_paths=COLLECTOR_IMPORT_PATHS).collect(
-            namespaces=namespaces, time_filter_enable=False, data_names=data_names
+            namespaces=namespaces, data_names=data_names
         )
         metric_datas = [j.__dict__ for i in data for j in i["metrics"]]
         MetricUtils.del_instance()

@@ -72,6 +72,7 @@ import { ChartType } from './detection-rules/components/intelligent-detect/intel
 import { IModelData } from './detection-rules/components/time-series-forecast/time-series-forecast';
 import DetectionRules from './detection-rules/detection-rules';
 import JudgingCondition, { DEFAULT_TIME_RANGES, IJudgingData } from './judging-condition/judging-condition';
+import AiopsMonitorData from './monitor-data/aiops-monitor-data';
 import { IFunctionsValue } from './monitor-data/function-select';
 import MonitorData from './monitor-data/monitor-data';
 import MonitorDataEmpty from './monitor-data/monitor-data-empty';
@@ -156,6 +157,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @Ref('alarmHandlingList') alarmHandlingListRef: AlarmHandlingList;
   @Ref('noticeConfigPanel') noticeConfigPanelRef: GroupPanel;
   @Ref() contentRef: HTMLElement;
+  @Ref('aiopsMonitorData') aiopsMonitorDataRef: AiopsMonitorData;
 
   /** 导航面包屑 */
   routeList = [
@@ -369,6 +371,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   /* 当前说明类型 */
   descriptionType = '';
+  /* 是否为场景智能检测 */
+  isMultivariateAnomalyDetection = false;
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
@@ -443,6 +447,24 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   get selectMetricData() {
     return this.metricData.filter(item => !!item.metric_id);
   }
+
+  /* 提交按钮禁用状态 */
+  get submitBtnDisabled() {
+    if (this.isMultivariateAnomalyDetection) {
+      return false;
+    }
+    return this.monitorDataEditMode === 'Edit'
+      ? this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading
+      : !this.sourceData.sourceCode;
+  }
+  /* 提交按钮禁用提示状态 */
+  get submitBtnTipDisabled() {
+    if (this.isMultivariateAnomalyDetection) {
+      return false;
+    }
+    return !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading);
+  }
+
   /** 策略监控目标 */
   get strategyTarget() {
     return this.handleGetTargetParams();
@@ -505,6 +527,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // this.addDefaultAlarmHandling();
   }
   deactivated() {
+    this.isMultivariateAnomalyDetection = false;
     this.clearErrorMsg();
     (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
@@ -905,6 +928,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     await Promise.all(promiseList).catch(err => {
       console.log(err);
     });
+    /* 是否包含场景id 如果包含则自动填充场景智能检测数据 */
+    if (this.$route.query?.scene_id) {
+      this.handleShowMetric({ type: MetricType.MultivariateAnomalyDetection });
+    }
     this.loading = false;
   }
   /**
@@ -1005,7 +1032,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     await this.handleProcessData({
       ...strategyDetail,
-      targetDetail: { ...strategyTarget, detail: strategyTarget.target_detail, target_detail: targetList }
+      targetDetail: { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList }
     });
   }
 
@@ -1074,7 +1101,19 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     };
     this.defaultCheckedTarget = targetDetail || { target_detail: [] };
     this.target = targetDetail?.target_detail || [];
-    if (queryConfigs?.length) {
+    /* 是否为场景智能检测 */
+    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+      const curMetricData = new MetricDetail({
+        targetType: targetDetail?.node_type,
+        objectType: targetDetail?.instance_type,
+        sceneConfig: {
+          algorithms,
+          query_configs: queryConfigs
+        }
+      } as any);
+      this.metricData.push(curMetricData);
+      this.isMultivariateAnomalyDetection = true;
+    } else if (queryConfigs?.length) {
       const isPrometheus = queryConfigs[0]?.data_source_label === PROMETHEUS;
       this.monitorDataEditMode = 'Edit';
       if (isPrometheus) {
@@ -1275,6 +1314,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (item.type === 'alert' && !this.metricData.length) {
       this.handleAddNullMetric(item);
       this.expression = LETTERS[0];
+    } else if (item.type === MetricType.MultivariateAnomalyDetection) {
+      this.isMultivariateAnomalyDetection = true;
+      // const nullMetric = new MetricDetail();
+      // this.metricData.push(nullMetric);
     }
     this.handleAddNullMetric(item);
     this.handleResetMetricAlias();
@@ -1566,6 +1609,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           return Promise.reject();
         })
       ); // 通知设置校验
+    if (this.isMultivariateAnomalyDetection) {
+      this.aiopsMonitorDataRef && promiseList.push(this.aiopsMonitorDataRef.validate());
+    }
     const otherValidate = await Promise.all(promiseList)
       .then(() => true)
       .catch(() => false);
@@ -1579,6 +1625,52 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const validate = await this.handleValidateStrategyConfig();
     if (validate) {
       const { noDataConfig } = this.analyzingConditions;
+      const itemsParams = [];
+      /* 无数据配置 */
+      const noDataConfigParams = {
+        // 监控项名称
+        continuous: noDataConfig.continuous, // 无数据判断周期
+        is_enabled: noDataConfig.isEnabled, // 是否启用无数据告警
+        agg_dimension:
+          this.monitorDataEditMode === 'Source' ? this.judgingConditionEl.promqlDimensions : noDataConfig.dimensions, // 无数据检测维度
+        level: noDataConfig.level // 无数据告警级别
+      };
+      if (this.isMultivariateAnomalyDetection) {
+        const curMetricData = this.metricData[0] as IMetricDetail;
+        itemsParams.push({
+          name: curMetricData.sceneConfig.scene_name,
+          no_data_config: noDataConfigParams,
+          target: this.handleGetTargetParams(), // 监控目标
+          expression: 'a',
+          functions: [],
+          origin_sql: '',
+          query_configs: curMetricData.sceneConfig.query_configs,
+          algorithms: curMetricData.sceneConfig.algorithms
+        });
+      } else {
+        itemsParams.push({
+          name: this.handleMetricName(), // 监控项名称
+          no_data_config: {
+            // 监控项名称
+            continuous: noDataConfig.continuous, // 无数据判断周期
+            is_enabled: noDataConfig.isEnabled, // 是否启用无数据告警
+            agg_dimension:
+              this.monitorDataEditMode === 'Source'
+                ? this.judgingConditionEl.promqlDimensions
+                : noDataConfig.dimensions, // 无数据检测维度
+            level: noDataConfig.level // 无数据告警级别
+          },
+          target: this.handleGetTargetParams(), // 监控目标
+          expression: this.expression?.toLocaleLowerCase?.() || 'a', // 表达式
+          functions: this.localExpFunctions, // 表达式函数
+          origin_sql: this.sourceData.sourceCode, // source
+          // 指标信息
+          query_configs:
+            this.monitorDataEditMode === 'Source' ? this.handlePromsqlQueryConfig() : this.handleQueryConfig(),
+          // 检测算法
+          algorithms: this.getAlgorithmList(this.metricData[0])
+        });
+      }
       // 当 input 手动清空时 priority 为 空串，不符合后端的类型，这里做一次调整或转换。
       if (this.baseConfig.priority === '') this.baseConfig.priority = null;
       if (this.baseConfig.priority) {
@@ -1587,30 +1679,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       const params = {
         type: this.strategyType,
         ...this.baseConfig,
-        items: [
-          {
-            name: this.handleMetricName(), // 监控项名称
-            no_data_config: {
-              // 监控项名称
-              continuous: noDataConfig.continuous, // 无数据判断周期
-              is_enabled: noDataConfig.isEnabled, // 是否启用无数据告警
-              agg_dimension:
-                this.monitorDataEditMode === 'Source'
-                  ? this.judgingConditionEl.promqlDimensions
-                  : noDataConfig.dimensions, // 无数据检测维度
-              level: noDataConfig.level // 无数据告警级别
-            },
-            target: this.handleGetTargetParams(), // 监控目标
-            expression: this.expression?.toLocaleLowerCase?.() || 'a', // 表达式
-            functions: this.localExpFunctions, // 表达式函数
-            origin_sql: this.sourceData.sourceCode, // source
-            // 指标信息
-            query_configs:
-              this.monitorDataEditMode === 'Source' ? this.handlePromsqlQueryConfig() : this.handleQueryConfig(),
-            // 检测算法
-            algorithms: this.getAlgorithmList(this.metricData[0])
-          }
-        ],
+        items: itemsParams,
         // 检测配置列表
         detects: this.getLevelDetects(),
         // 告警处理数据
@@ -1922,6 +1991,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       sourceCodeCache: ''
     };
     this.monitorDataEditMode = 'Edit';
+    this.isMultivariateAnomalyDetection = false;
   }
   // 切换监控数据模式
   handleModeChange(v: dataModeType) {
@@ -2282,6 +2352,82 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   handleRuleClick(index: number) {
     if (index !== -1) this.activeModelIndex = index;
   }
+
+  /* 场景智能检测数据 */
+  handleSceneConfigChange(sceneConfig) {
+    if (this.metricData.length) {
+      this.metricData = [
+        new MetricDetail({
+          ...this.metricData[0],
+          sceneConfig
+        })
+      ];
+    } else {
+      this.metricData = [
+        new MetricDetail({
+          sceneConfig
+        } as any)
+      ];
+    }
+  }
+
+  metricDataContent() {
+    /* 是否为场景智能检测 */
+    if (this.isMultivariateAnomalyDetection) {
+      return (
+        <AiopsMonitorData
+          ref='aiopsMonitorData'
+          defaultCheckedTarget={this.defaultCheckedTarget}
+          metricData={this.metricData as any}
+          onChange={this.handleSceneConfigChange}
+          onTargetTypeChange={this.handleTargetTypeChange}
+          onTargetChange={this.handleTargetChange}
+        ></AiopsMonitorData>
+      );
+    }
+    return (
+      <MonitorData
+        readonly={this.isDetailMode}
+        dataMode={this.dataMode}
+        metricData={this.metricData}
+        source={this.sourceData.sourceCode}
+        expression={this.expression}
+        expFunctions={this.localExpFunctions}
+        defaultCheckedTarget={this.defaultCheckedTarget}
+        hasAIntelligentDetect={this.hasAIntelligentDetect}
+        loading={this.monitorDataLoading}
+        editMode={this.monitorDataEditMode}
+        promqlError={this.sourceData.promqlError}
+        dataTypeLabel={this.metricSelector.dataTypeLabel}
+        sourceStep={this.sourceData.step}
+        hasAiOpsDetect={this.hasAiOpsDetect}
+        errMsg={this.errMsg}
+        onMethodChange={this.handleDetectionRulesUnit}
+        onFunctionChange={this.handleDetectionRulesUnit}
+        onModeChange={this.handleModeChange}
+        onExpressionChange={this.handleExpressionChange}
+        onExpressionBlur={this.handleExpressionBlur}
+        onExpFunctionsChange={this.handleExpFunctionsChange}
+        onSourceChange={this.handleSourceChange}
+        onTargetChange={this.handleTargetChange}
+        onDelete={this.handleDeleteMetric}
+        onAddMetric={this.handleShowMetricContinue}
+        onAddNullMetric={this.handleAddNullMetric}
+        onTargetTypeChange={this.handleTargetTypeChange}
+        onPromqlEnter={hasError => this.handlePromqlError(hasError, 'enter')}
+        onPromqlBlur={hasError => this.handlePromqlError(hasError, 'blur')}
+        onPromqlFocus={() => {
+          this.sourceData.promqlError = false;
+          this.sourceData.errorMsg = '';
+        }}
+        onclearErr={() => (this.metricDataErrorMsg = '')}
+        onEditModeChange={this.handleEditModeChange}
+        onShowExpress={this.handleShowExpress}
+        onSouceStepChange={this.handleSourceStepChange}
+      />
+    );
+  }
+
   render() {
     return (
       <div class='strategy-config-set'>
@@ -2365,55 +2511,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   {this.$t('清除')}
                 </bk-button>
               )}
-              {!this.metricData.length ? (
-                !this.loading && (
-                  <MonitorDataEmpty
-                    on-add-metric={this.handleShowMetric}
-                    onHoverType={this.handleEmptyHoverType}
-                  />
-                )
-              ) : (
-                <MonitorData
-                  readonly={this.isDetailMode}
-                  dataMode={this.dataMode}
-                  metricData={this.metricData}
-                  source={this.sourceData.sourceCode}
-                  expression={this.expression}
-                  expFunctions={this.localExpFunctions}
-                  defaultCheckedTarget={this.defaultCheckedTarget}
-                  hasAIntelligentDetect={this.hasAIntelligentDetect}
-                  loading={this.monitorDataLoading}
-                  editMode={this.monitorDataEditMode}
-                  promqlError={this.sourceData.promqlError}
-                  dataTypeLabel={this.metricSelector.dataTypeLabel}
-                  sourceStep={this.sourceData.step}
-                  hasAiOpsDetect={this.hasAiOpsDetect}
-                  errMsg={this.errMsg}
-                  showRealtimeStrategy={this.showRealtimeStrategy}
-                  onMethodChange={this.handleDetectionRulesUnit}
-                  onFunctionChange={this.handleDetectionRulesUnit}
-                  onModeChange={this.handleModeChange}
-                  onExpressionChange={this.handleExpressionChange}
-                  onExpressionBlur={this.handleExpressionBlur}
-                  onExpFunctionsChange={this.handleExpFunctionsChange}
-                  onSourceChange={this.handleSourceChange}
-                  onTargetChange={this.handleTargetChange}
-                  onDelete={this.handleDeleteMetric}
-                  onAddMetric={this.handleShowMetricContinue}
-                  onAddNullMetric={this.handleAddNullMetric}
-                  onTargetTypeChange={this.handleTargetTypeChange}
-                  onPromqlEnter={hasError => this.handlePromqlError(hasError, 'enter')}
-                  onPromqlBlur={hasError => this.handlePromqlError(hasError, 'blur')}
-                  onPromqlFocus={() => {
-                    this.sourceData.promqlError = false;
-                    this.sourceData.errorMsg = '';
-                  }}
-                  onclearErr={() => (this.metricDataErrorMsg = '')}
-                  onEditModeChange={this.handleEditModeChange}
-                  onShowExpress={this.handleShowExpress}
-                  onSouceStepChange={this.handleSourceStepChange}
-                />
-              )}
+              {!this.metricData.length
+                ? !this.loading && (
+                    <MonitorDataEmpty
+                      on-add-metric={this.handleShowMetric}
+                      onHoverType={this.handleEmptyHoverType}
+                    />
+                  )
+                : this.metricDataContent()}
             </GroupPanel>
             {this?.metricData?.filter(item => !!item.metric_id)?.[0]?.canSetDetEctionRules ||
             this.monitorDataEditMode === 'Source' ? (
@@ -2521,16 +2626,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               <div class='set-footer mt20 mb20'>
                 <div
                   v-bk-tooltips={{
-                    disabled: !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading),
+                    disabled: this.submitBtnTipDisabled,
                     content: this.$t('未选择监控数据')
                   }}
                 >
                   <bk-button
-                    disabled={
-                      this.monitorDataEditMode === 'Edit'
-                        ? this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading
-                        : !this.sourceData.sourceCode
-                    }
+                    disabled={this.submitBtnDisabled}
                     theme='primary'
                     class='save-btn'
                     on-click={this.handleSubmitStrategyConfig}
@@ -2574,6 +2675,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 aiopsModelMdList={this.aiopsModelMdList}
                 activeModelMd={this.activeModelIndex}
                 descriptionType={this.descriptionType}
+                isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
                 strategyTarget={this.strategyTarget}
               />
             </div>

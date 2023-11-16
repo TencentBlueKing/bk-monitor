@@ -344,12 +344,14 @@ class PluginDataAccessor(DataAccessor):
         if plugin_type == PluginType.SNMP:
             add_fields_names.append(("bk_target_device_ip", _("远程采集目标IP")))
         config_json = plugin_version.config.config_json
+        self.dms_field = []
 
         # 维度注入参数名称，更新至group的添加参数信息中
         for param in config_json:
             if param["mode"] == ParamMode.DMS_INSERT:
                 for dms_key in param["default"].keys():
                     add_fields_names.append((dms_key, dms_key))
+                    self.dms_field.append((dms_key, dms_key))
 
         for name, description in add_fields_names:
             add_fields.append(
@@ -380,14 +382,13 @@ class PluginDataAccessor(DataAccessor):
             label=plugin_version.plugin.label,
         )
 
-    @staticmethod
-    def merge_dimensions(tag_list: list):
+    def merge_dimensions(self, tag_list: list):
         """
         拼接维度：将默认的维度和用户编辑的维度拼接
         :return:
         """
         tag_list_field_name = [tag["field_name"] for tag in tag_list]
-        for dimension_name, description in PLUGIN_REVERSED_DIMENSION:
+        for dimension_name, description in PLUGIN_REVERSED_DIMENSION + self.dms_field:
             if dimension_name in tag_list_field_name:
                 continue
             tag_list.append(
@@ -441,13 +442,21 @@ class PluginDataAccessor(DataAccessor):
         接入数据链路
         :return: 创建的 data id
         """
+        # 背景：
+        # 1. 新增插件/导入插件，没有黑白名单配置信息，因此自动发现的配置(enable_field_blacklist)为False
+        # 2. 当前基于自动发现判断是否开启单指标单表，因此针对新增/导入，做一层dataid的判断：当dataid不存在，则默认 单指标单表（白名单）
+
+        # 开启自动发现，一定是单指标单表
+        is_split_measurement = self.enable_field_blacklist
+
         if not self.data_id:
-            self.create_dataid()
-        is_split_measurement = False
-        # 开启自动发现，一定会开启单指标单表模式
-        if self.enable_field_blacklist:
+            # 新增插件均为单指标单表
             is_split_measurement = True
-        else:
+            self.create_dataid()
+            # todo 当后续流程失败时，通过`ModifyDataIdResource`将 dataname 重名即可。
+
+        if not is_split_measurement:
+            # 没开自动发现，且非新增插件
             try:
                 result_table_info = api.metadata.get_result_table(table_id=f"{self.db_name}.__default__")
                 # 对于白名单模式，如果resulttableoption 的 is_split_measurement 为 True，则说明开启过单指标单表

@@ -345,8 +345,25 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
         iconClass = 'icon-inform-circle';
         break;
     }
+    // 特殊情况： 当 type 为 string 且 value 的文本为空时 即为：没有配置。
+    if (
+      this.statusData[this.targetStatusName[0]]?.type === 'string' &&
+      !this.statusData[this.targetStatusName[0]]?.value
+    ) {
+      iconClass = 'icon-inform-circle';
+    }
 
     return <i class={`icon-monitor ${iconClass}`}></i>;
+  }
+  get maintainStatusText() {
+    const statusType = this.statusData[this.targetStatusName[0]]?.type;
+    if (statusType === 'string') {
+      return this.statusData[this.targetStatusName[0]]?.value || '--';
+    }
+    if (statusType === 'monitor_status') {
+      return (this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text || '--';
+    }
+    return '--';
   }
   render() {
     return (
@@ -355,15 +372,16 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
         <div class='status-container'>
           {/* 运营状态 */}
           {this.statusData[this.targetStatusName[0]] && (
-            <div class={['status-item', `bg-failed`]}>
+            <div
+              class={['status-item', `bg-failed`]}
+              v-bk-tooltips={{
+                content: this.$t('主机当前状态'),
+                delay: 200,
+                boundary: 'window'
+              }}
+            >
               {this.maintainStatusIcon}
-              {/* 当 type 为 string 且 文本为空时 即为：未设置。 */}
-              {!(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text && (
-                <i class='icon-monitor icon-mc-help-fill'></i>
-              )}
-              <span class='text'>
-                {(this.statusData[this.targetStatusName[0]]?.value as IStatusDataSubValue)?.text || '--'}
-              </span>
+              <span class='text'>{this.maintainStatusText}</span>
             </div>
           )}
 
@@ -373,6 +391,11 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 'status-item',
                 `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`
               ]}
+              v-bk-tooltips={{
+                content: this.$t('tips-采集状态'),
+                delay: 200,
+                boundary: 'window'
+              }}
             >
               <span class={['common-status-wrap', 'status-wrap-flex']}>
                 <span
@@ -394,9 +417,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           v-model={this.activeCollapseName}
           class='detail-collapse-title'
         >
-          {this.labelListData.concat(this.moduleData as IDetailItem[]).map(item => (
+          {this.labelListData.map(item => (
             <div>
-              {this.targetListName.includes(item.name) && <div class='divider'></div>}
               <BkCollapseItem
                 name={item.name}
                 hide-arrow={!item?.children?.length}
@@ -408,21 +430,23 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 >
                   <span class={['item-title', { 'title-middle': ['progress'].includes(item.type) }]}>{item.name}</span>
                   <span class='item-value'>{this.handleTransformVal(item)}</span>
-                  {item?.children?.length && (
+                  {item?.count > 0 && (
                     <div>
                       <span class='item-collapse-data-length'>{item?.children?.length}</span>
                     </div>
                   )}
                 </div>
-                {!!item?.children?.length && (
+                {item?.count > 0 && (
                   <div
                     slot='content'
                     class='detail-collapse-content'
                   >
                     {item?.children?.map?.(child => (
                       <div class='row'>
-                        <div class='label'>{child.name}</div>
-                        <span>&nbsp;:</span>
+                        <div class='label-container'>
+                          <span class='label'>{child.name}</span>
+                          <span>&nbsp;:</span>
+                        </div>
                         <div class='value-container'>
                           {child.type === 'string' && <div class='value'>{child.value}</div>}
                           {child.type === 'list' &&
@@ -434,6 +458,17 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                   </div>
                 )}
               </BkCollapseItem>
+            </div>
+          ))}
+
+          {/* 所属模块 */}
+          {(this.moduleData as IDetailItem[]).map(item => (
+            <div key={item.name}>
+              {this.targetListName.includes(item.name) && <div class='divider'></div>}
+              <div class='module-data-panel-item'>
+                <div class={['module-data-item-title']}>{item.name}</div>
+                <div class='module-data-item-value'>{this.handleTransformVal(item)}</div>
+              </div>
             </div>
           ))}
         </BkCollapse>

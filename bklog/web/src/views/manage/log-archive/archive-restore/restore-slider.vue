@@ -193,7 +193,7 @@ export default {
           const {
             index_set_name,
             archive_config_id,
-            expired_time,
+            expired_time: expiredTime,
             notice_user,
             start_time,
             end_time,
@@ -201,13 +201,13 @@ export default {
           Object.assign(this.formData, {
             index_set_name,
             archive_config_id,
-            expired_time,
+            expired_time: expiredTime,
             notice_user,
             start_time,
             end_time,
             // eslint-disable-next-line camelcase
             datePickerValue: [start_time, end_time],
-            datePickerExpired: expired_time,
+            datePickerExpired: expiredTime,
           });
         } else {
           const { userMeta } = this.$store.state;

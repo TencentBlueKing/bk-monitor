@@ -359,7 +359,9 @@
       align-items: center;
 
       &.common-status-wrap .common-status-name {
+        width: calc(100% - 20px);
         line-height: 12px;
+        white-space: wrap;
       }
     }
   }
@@ -395,28 +397,47 @@
       &:nth-child(n+2) {
         margin-top: 8px;
       }
-      
-      .label {
-        min-width: 80px;
-        margin-right: 2px;
-        font-size: 12px;
-        color: #63656e;
-        word-wrap: break-word;
-      }
 
+      .label-container {
+        display: flex;
+        flex-wrap: nowrap;
+
+        .label {
+          max-width: 80px;
+          margin-right: 2px;
+          font-size: 12px;
+          color: #63656e;
+          word-wrap: break-word;
+        }
+      }
+      
       .value-container {
         width: calc(100% - 80px - 2px);
 
         .value {
           width: 100%;
-          overflow: hidden;
           font-size: 12px;
           color: #313238;
           text-align: right;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          word-wrap: break-word;
         }
       }
+    }
+  }
+
+  .module-data-panel-item {
+    padding: 0 8px 0 16px;
+    margin-bottom: 10px;
+
+    .module-data-item-title {
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .module-data-item-value {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #313238;
     }
   }
 

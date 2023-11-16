@@ -522,6 +522,7 @@ SKIP_PLUGIN_DEBUG = False
 
 # 统一查询模块配置
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
+UNIFY_QUERY_ROUTING_RULES = []
 
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
@@ -1151,9 +1152,6 @@ OFFICIAL_PLUGINS_MANAGERS = []
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
 
-# 特别的AES加密配置信息
-SPECIFY_AES_KEY = ""
-
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 
@@ -1290,9 +1288,15 @@ BKCRYPTO = {
     },
 }
 
+# 特别的AES加密配置信息(全局配置)
+SPECIFY_AES_KEY = ""
+BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
+
+
 # 前端事件上报
 FRONTEND_REPORT_DATA_ID = 0
 FRONTEND_REPORT_DATA_TOKEN = ""
+FRONTEND_REPORT_DATA_HOST = ""
 
 KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = []
 
@@ -1306,3 +1310,6 @@ IS_SUBSCRIPTION_ENABLED = True
 
 # 允许限制空间功能开关， 默认限制
 IS_RESTRICT_DS_BELONG_SPACE = True
+
+# 最大的指标分片查询大小
+MAX_FIELD_PAGE_SIZE = 1000

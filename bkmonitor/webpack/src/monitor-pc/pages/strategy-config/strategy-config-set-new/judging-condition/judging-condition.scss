@@ -85,24 +85,24 @@
 
     .right-desc {
       display: flex;
+      align-items: center;
       margin-top: 4px;
       font-size: 12px;
       color: #979ba5;
-      align-items: center;
 
       .desc-detail,
       %desc-detail {
         display: flex;
+        align-items: center;
         height: 20px;
         color: #3a84ff;
         cursor: pointer;
-        align-items: center;
 
         i {
           display: flex;
+          align-items: center;
           height: 20px;
           font-size: 20px;
-          align-items: center;
         }
       }
 
@@ -124,8 +124,14 @@
 
   .judging-nodata {
     display: flex;
-    align-items: center;
     flex-wrap: wrap;
+    align-items: center;
+
+    .small-select {
+      /* stylelint-disable-next-line declaration-no-important */
+      min-width: 72px !important;
+      max-width: 200px;
+    }
   }
 
   .judging-dismension {
@@ -169,6 +175,7 @@
 
     .calendar-title {
       display: inline-flex;
+      align-items: center;
       height: 20px;
       margin-right: -16px;
       margin-bottom: -2px;
@@ -178,7 +185,6 @@
       white-space: nowrap;
       cursor: pointer;
       border-bottom: 1px dashed #979ba5;
-      align-items: center;
     }
   }
 }
