@@ -66,9 +66,10 @@ class TasksHandler(object):
 
         # 运维人员可以看到完整的任务列表
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
-        tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id)
+        # source_app_code隔离
+        tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id, source_app_code=source_app_code)
         if not has_biz_manage:
-            tasks = tasks.filter(created_by=request_user, source_app_code=source_app_code)
+            tasks = tasks.filter(created_by=request_user)
         queryset = tasks_views.filter_queryset(tasks)
 
         page = tasks_views.paginate_queryset(queryset)
@@ -171,7 +172,6 @@ class TasksHandler(object):
             "link_id": link_id,
             "created_by": request_user,
         }
-        logger.info(f"create task params: {params}")
         task = Tasks.objects.create(**params)
         params["ip_list"] = ip_list
         for pop_field in [
@@ -406,24 +406,21 @@ class TasksHandler(object):
     def run_pipeline(
         cls, task, operator, bk_biz_id, ip_list, file_path, filter_type, filter_content, account, os_type, username
     ):
-        try:
-            extract: ExtractLinkBase = task.get_extract()
-            data = extract.build_common_data_context(
-                task.task_id,
-                bk_biz_id,
-                ip_list,
-                file_path,
-                filter_type,
-                filter_content,
-                operator,
-                account,
-                username,
-                os_type,
-            )
-            pipeline = extract.build_pipeline(task, data)
-            extract.start_pipeline(task, pipeline)
-        except Exception as e:
-            logger.error(f"failed to run_pipeline: {e}")
+        extract: ExtractLinkBase = task.get_extract()
+        data = extract.build_common_data_context(
+            task.task_id,
+            bk_biz_id,
+            ip_list,
+            file_path,
+            filter_type,
+            filter_content,
+            operator,
+            account,
+            username,
+            os_type,
+        )
+        pipeline = extract.build_pipeline(task, data)
+        extract.start_pipeline(task, pipeline)
 
     def download(self, task_id):
         request_user = get_request_username()

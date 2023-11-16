@@ -221,7 +221,6 @@ def external(request):
             logger.error(f"外部用户{external_user}无访问权限")
             return HttpResponseForbidden(f"外部用户{external_user}无访问权限")
         space_uid = space_uid_list[0]
-
     request.space_uid = space_uid
     if request.space_uid and external_user:
         qs = ExternalPermission.objects.filter(
