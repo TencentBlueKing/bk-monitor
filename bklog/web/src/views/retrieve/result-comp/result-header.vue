@@ -260,6 +260,9 @@ export default {
     ...mapGetters({
       isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
+    ...mapGetters({
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+    }),
     refreshTimeText() {
       if (!this.refreshTimeout) return 'off';
       return this.refreshTimeList.find(item => item.id === this.refreshTimeout).name;

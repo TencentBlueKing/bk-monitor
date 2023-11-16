@@ -140,7 +140,10 @@ export default {
   编辑授权: 'Edit',
   "新增字段": "Add new field",
   "导入": "Import",
+<<<<<<< HEAD
   "查看详情": "Details",
+=======
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
   "添加规则": "Add Rule",
   "已变更": "Changed",
   "同步脱敏": "Sync Desensitization",

@@ -294,6 +294,8 @@ class ExternalPermissionViewSet(APIViewSet):
         """
         data = self.params_valid(DestroyExternalPermissionSLZ)
         return Response(ExternalPermission.destroy(validated_request_data=data))
+
+
 class FrontendEventViewSet(APIViewSet):
     @action(detail=False, methods=["POST"], url_path="report")
     def report(self, request):

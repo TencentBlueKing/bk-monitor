@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 <<<<<<< HEAD
+<<<<<<< HEAD
 import re
 from collections import defaultdict
 
@@ -1138,19 +1139,27 @@ def get_es_metrics(metric_type):
     return metrics
 <<<<<<<< HEAD:bklog/apps/log_measure/handlers/metric_collectors/es_stats.py
 =======
+=======
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
 from django.utils.translation import ugettext as _
 
 from apps.log_measure.utils.es import get_es_metrics
 from bk_monitor.constants import TimeFilterEnum
 from bk_monitor.utils.metric import register_metric
+<<<<<<< HEAD
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
+=======
 >>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
 
 
 class EsStats:
     @staticmethod
 <<<<<<< HEAD
+<<<<<<< HEAD
     @register_metric("es_monitor", description=_("es 监控状态信息"), data_name="stats", time_filter=TimeFilterEnum.MINUTE5)
 =======
+=======
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
     @register_metric(
         "es_monitor",
         sub_type="es_stats",
@@ -1158,6 +1167,9 @@ class EsStats:
         data_name="es_monitor",
         time_filter=TimeFilterEnum.MINUTE5,
     )
+<<<<<<< HEAD
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
+=======
 >>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
     def elastic_stats():
         """
@@ -1166,9 +1178,13 @@ class EsStats:
         """
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         return get_es_metrics("stats")
 ========
 >>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093:bklog/apps/log_measure/utils/es.py
+=======
+        return get_es_metrics("es_stats")
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
 =======
         return get_es_metrics("es_stats")
 >>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093

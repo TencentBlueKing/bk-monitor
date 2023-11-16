@@ -29,6 +29,8 @@ logger = logging.getLogger("apm")
 
 logger = logging.getLogger("apm")
 
+logger = logging.getLogger("apm")
+
 
 class EbpfQuery(EsQueryBuilderMixin):
     DEFAULT_SORT_FIELD = "end_time"
