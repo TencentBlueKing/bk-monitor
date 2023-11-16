@@ -245,7 +245,7 @@ class AlertAssigneeManager:
 
     def get_origin_supervisor_object(self):
         """
-        获取媛升级告警关注人员
+        获取原升级告警关注人员
         """
         if self.notice_type != ActionNoticeType.UPGRADE or AssignMode.ONLY_NOTICE not in self.assign_mode:
             # 没有设置通知的情况下，默认为空
