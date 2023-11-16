@@ -16,14 +16,13 @@ from typing import List
 from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.context import ActionContext
 from alarm_backends.service.fta_action import AlertAssignee
-from constants.action import ActionNoticeType, AssignMode
-
 from bkmonitor.action.alert_assign import (
     AlertAssignMatchManager,
     AssignRuleMatch,
     UpgradeRuleMatch,
 )
 from bkmonitor.documents import AlertDocument
+from constants.action import ActionNoticeType, AssignMode
 
 logger = logging.getLogger("fta_action.run")
 
@@ -135,13 +134,9 @@ class AlertAssigneeManager:
         if self.is_matched:
             # 如果适配到了，直接发送给分派的负责人
             if self.notice_appointees_object:
-                self.notice_appointees_object.get_notice_receivers(
-                    notify_configs=notify_configs, append_appointee=False
-                )
-            elif self.notice_appointees_object:
-                self.notice_appointees_object.add_appointee_to_notify_group(notify_configs)
+                self.notice_appointees_object.get_notice_receivers(notify_configs=notify_configs)
         elif self.origin_notice_users_object:
-            # 有默认通知的话，就加上默认通知人媛
+            # 有默认通知的话，就加上默认通知人员
             self.origin_notice_users_object.get_notice_receivers(notify_configs=notify_configs)
         return notify_configs
 
@@ -168,17 +163,11 @@ class AlertAssigneeManager:
         """
         获取对应的通知人员 包含指派的通知人员 和 设置的通知人员
         """
-        appointees = self.get_notice_appointees(by_group)
         if self.is_matched:
             # 如果当前已经有分派适配，则只返回指派的人员
-            return appointees
-
-        notice_receivers = self.get_origin_notice_receivers(by_group)
-        if by_group:
-            appointees.update(notice_receivers)
-            return appointees
+            return self.get_notice_appointees(by_group)
         else:
-            return set(appointees + notice_receivers)
+            return self.get_origin_notice_receivers(by_group)
 
     @property
     def itsm_actions(self):
