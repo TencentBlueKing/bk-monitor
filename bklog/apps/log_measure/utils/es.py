@@ -21,7 +21,6 @@ the project delivered to anyone in the future.
 import re
 from collections import defaultdict
 
-from django.utils.translation import ugettext as _
 from six import iteritems, itervalues
 
 from apps.api import BkLogApi
@@ -938,15 +937,7 @@ def process_pshard_stats_data(metrics, get, version, base_dimensions):
     @param base_dimensions:
     @return:
     """
-<<<<<<< HEAD
-<<<<<<<< HEAD:bklog/apps/log_measure/handlers/metric_collectors/es_stats.py
-    data = get(get_url(version)["pshard_url"])
-========
     data = get(get_url(version)["pshard_stats_url"])
->>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093:bklog/apps/log_measure/utils/es.py
-=======
-    data = get(get_url(version)["pshard_stats_url"])
->>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
     if not data:
         return
     pshard_stats_metrics = pshard_stats_for_version(version)
@@ -1106,21 +1097,9 @@ def process_cat_allocation_data(metrics, get, version, base_dimensions):
 
 
 ES_COLLECT_METHOD_MAP = {
-<<<<<<< HEAD
-<<<<<<<< HEAD:bklog/apps/log_measure/handlers/metric_collectors/es_stats.py
-    "stats": [process_stats_data],
-    "pshard_stats": [process_pshard_stats_data],
-    "indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
-========
     "es_stats": [process_stats_data],
     "es_pshard": [process_pshard_stats_data],
     "es_indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
->>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093:bklog/apps/log_measure/utils/es.py
-=======
-    "es_stats": [process_stats_data],
-    "es_pshard": [process_pshard_stats_data],
-    "es_indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
->>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
 }
 
 
@@ -1145,21 +1124,3 @@ def get_es_metrics(metric_type):
             logger.exception(f"[{metric_type}] failed get es info {e}")
 
     return metrics
-<<<<<<< HEAD
-<<<<<<<< HEAD:bklog/apps/log_measure/handlers/metric_collectors/es_stats.py
-
-
-class EsStats:
-    @staticmethod
-    @register_metric("es_monitor", description=_("es 监控状态信息"), data_name="stats", time_filter=TimeFilterEnum.MINUTE5)
-    def elastic_stats():
-        """
-        elastic_stats
-        @return:
-        """
-
-        return get_es_metrics("stats")
-========
->>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093:bklog/apps/log_measure/utils/es.py
-=======
->>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
