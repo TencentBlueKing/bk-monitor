@@ -32,10 +32,12 @@
         :date-picker-value="datePickerValue"
         :index-set-item="indexSetItem"
         :is-show-collect="isShowCollect"
+        :timezone="timezone"
         @shouldRetrieve="retrieveLog"
         @open="openRetrieveCondition"
         @update:datePickerValue="handleDateChange"
         @datePickerChange="retrieveWhenDateChange"
+        @timezoneChange="handleTimezoneChange"
         @settingMenuClick="handleSettingMenuClick"
         @closeRetrieveCondition="closeRetrieveCondition"
         @updateCollectCondition="updateCollectCondition" />
@@ -168,7 +170,6 @@
               :config-data="clusteringData"
               :apm-relation="apmRelationData"
               :clean-config="cleanConfig"
-              :picker-time-range="pickerTimeRange"
               :date-picker-value="datePickerValue"
               :index-set-item="indexSetItem"
               :operator-config="operatorConfig"
@@ -254,6 +255,8 @@ import axios from 'axios';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone } from '../../components/monitor-echarts/utils';
 import CancelToken from 'axios/lib/cancel/CancelToken';
+import { updateTimezone } from '../../language/dayjs';
+import { formatDate } from '../../common/util';
 
 export default {
   name: 'Retrieve',
@@ -370,7 +373,6 @@ export default {
       isAsIframe: false,
       localIframeQuery: {},
       isFirstLoad: true,
-      pickerTimeRange: ['now-15m', 'now'],
       operatorConfig: {}, // 当前table item操作的值
       authPageInfo: null,
       isShowAddNewCollectDialog: false, // 是否展示新建收藏弹窗
@@ -404,6 +406,7 @@ export default {
       isSetDefaultTableColumn: false,
       /** 是否还需要分页 */
       finishPolling: false,
+      timezone: window.timezone,
     };
   },
   computed: {
@@ -491,6 +494,7 @@ export default {
     window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   beforeDestroy() {
+    updateTimezone();
     window.bus.$off('retrieveWhenChartChange', this.retrieveWhenChartChange);
   },
   methods: {
@@ -722,7 +726,6 @@ export default {
     // 检索参数：日期改变
     handleDateChange(val) {
       this.datePickerValue = val;
-      this.pickerTimeRange = val.every(item => item?.includes?.('now')) ? val : [];
       this.formatTimeRange();
     },
     /**
@@ -737,6 +740,7 @@ export default {
         start_time: tempList[0],
         end_time: tempList[1],
       });
+      console.log(this.retrieveParams.start_time, this.retrieveParams.end_time);
     },
     updateSearchParam({ keyword, addition, host }) {
       this.retrieveParams.addition = addition;
@@ -749,6 +753,10 @@ export default {
     retrieveWhenDateChange() {
       this.shouldUpdateFields = true;
       this.retrieveLog();
+    },
+    handleTimezoneChange(timezone) {
+      this.timezone = timezone;
+      updateTimezone(timezone);
     },
     handleSettingMenuClick(val) {
       this.clickSettingChoice = val;
@@ -948,19 +956,15 @@ export default {
           'start_time',
           'end_time',
           // 'time_range',
-          // 'pickerTimeRange',
           'activeTableTab', // 表格活跃的lab
           'clusterRouteParams', // 日志聚类参数
+          'timezone',
         ];
         for (const field of shouldCoverParamFields) {
           const param = this.$route.query[field]; // 指定查询参数
           if (this.isInitPage) {
             if (param) {
               switch (field) {
-                case 'pickerTimeRange':
-                  queryParams.pickerTimeRange = decodeURIComponent(param).split(',');
-                  queryParamsStr.pickerTimeRange = param;
-                  break;
                 case 'activeTableTab':
                 case 'clusterRouteParams':
                   queryParamsStr[field] = param;
@@ -995,7 +999,7 @@ export default {
                 }
                   break;
                 default:
-                  queryParams[field] = ['keyword', 'start_time', 'end_time', 'activeTableTab'].includes(field)
+                  queryParams[field] = ['keyword', 'start_time', 'end_time', 'timezone', 'activeTableTab'].includes(field)
                     ? decodeURIComponent(param)
                     : decodeURIComponent(param) ? JSON.parse(decodeURIComponent(param)) : param;
                   queryParamsStr[field] = param;
@@ -1039,6 +1043,9 @@ export default {
                   queryParamsStr[field] = (field === 'activeTableTab' ? this[field] : JSON.stringify(this[field]));
                 }
                 break;
+              case 'timezone':
+                queryParamsStr[field] = this.timezone;
+                break;
               default:
                 break;
             }
@@ -1052,7 +1059,7 @@ export default {
         bizId: this.$store.state.bkBizId,
         ...queryParamsStr,
         // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
-        pickerTimeRange: queryParamsStr?.pickerTimeRange,
+        // pickerTimeRange: queryParamsStr?.pickerTimeRange,
       };
       this.$router.push({
         name: 'retrieve',
@@ -1076,11 +1083,10 @@ export default {
           if (queryParams.start_time && queryParams.end_time) {
             this.handleDateChange([queryParams.start_time, queryParams.end_time]);
           }
-          if (queryParams.pickerTimeRange?.length) {
-            this.pickerTimeRange = queryParams.pickerTimeRange;
-            this.datePickerValue = queryParams.pickerTimeRange;
-            this.formatTimeRange();
-          };
+          if (queryParams.timezone) {
+            this.timezone = queryParams.timezone;
+            updateTimezone(queryParams.timezone);
+          }
           // 回填数据指纹的数据
           Object.entries(clusteringParams).forEach(([key, val]) => {
             this[key] = val;
@@ -1307,8 +1313,8 @@ export default {
             size: pageSize,
             interval: this.interval,
             // 每次轮循的起始时间
-            // start_time: formatDate(startTimeStamp),
-            // end_time: formatDate(endTimeStamp),
+            start_time: formatDate(startTimeStamp * 1000, false),
+            end_time: formatDate(endTimeStamp * 1000, false),
           },
         }).then((res) => {
           return readBlobRespToJson(res.data);

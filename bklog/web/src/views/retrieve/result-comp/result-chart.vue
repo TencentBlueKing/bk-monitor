@@ -102,10 +102,6 @@ export default {
       type: Object,
       required: true,
     },
-    pickerTimeRange: {
-      type: Array,
-      default: () => [],
-    },
     datePickerValue: {
       type: Array,
       default: () => [],

@@ -52,7 +52,7 @@ export default {
         this.interval = this.chartInterval;
         return;
       }
-      const duration = (endTime - startTime) / (3600 * 1000);
+      const duration = (endTime - startTime) / (3600);
       if (duration < 1) { // 小于1小时 1min
         this.interval = '1m';
       } else if (duration < 6) { // 小于6小时 5min
@@ -101,21 +101,21 @@ export default {
       // 根据时间范围获取和横坐标分片
       const rangeArr = [];
       const range = (this.intervalMap[this.interval]) * 1000;
-      for (let index = endTime; index >= startTime; index = index - range) {
+      for (let index = endTime * 1000; index >= startTime * 1000; index = index - range) {
         rangeArr.push([0, index]);
       }
 
       return rangeArr;
     },
     // 时间向下取整
-    getIntegerTime(tiem) {
+    getIntegerTime(time) {
       if (this.interval === '1d') { // 如果周期是 天 则特殊处理
-        const step = dayjs.tz(tiem).format('YYYY-MM-DD');
-        return Date.parse(`${step} 00:00:00`);
+        const step = dayjs.tz(time * 1000).format('YYYY-MM-DD');
+        return Date.parse(`${step} 00:00:00`) / 1000;
       }
 
-      const step = (this.intervalMap[this.interval]) * 1000;
-      return Math.floor(tiem / step) * step;
+      const step = (this.intervalMap[this.interval]);
+      return Math.floor(time / step) * step;
     },
   },
 };

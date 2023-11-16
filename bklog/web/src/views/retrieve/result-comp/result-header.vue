@@ -149,7 +149,6 @@ import BizMenuSelect from '@/components/biz-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import StepBox from '@/components/step-box';
 import { debounce } from 'throttle-debounce';
-import { updateTimezone } from '../../../language/dayjs';
 
 export default {
   components: {
@@ -184,6 +183,10 @@ export default {
     },
     isShowCollect: {
       type: Boolean,
+      required: true,
+    },
+    timezone: {
+      type: String,
       required: true,
     },
   },
@@ -242,7 +245,6 @@ export default {
       isFirstCloseCollect: false,
       showSettingMenuList: [],
       showCollectIntroGuide: false,
-      timezone: window.timezone,
     };
   },
   computed: {
@@ -302,7 +304,6 @@ export default {
     window.bus.$on('changeTimeByChart', this.handleChangeTimeByChart);
   },
   beforeDestroy() {
-    updateTimezone();
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.bus.$off('changeTimeByChart', this.handleChangeTimeByChart);
   },
@@ -320,8 +321,7 @@ export default {
       this.$emit('datePickerChange');
     },
     handleTimezoneChange(timezone) {
-      updateTimezone(timezone);
-      this.timezone = timezone;
+      this.$emit('timezoneChange', timezone);
       this.$emit('datePickerChange');
     },
     handleChangeTimeByChart(val) {
