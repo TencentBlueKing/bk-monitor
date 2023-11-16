@@ -50,9 +50,10 @@ DATE_RE = re.compile("[0-9]{6,8}$")
 
 
 class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
-    def __init__(self):
+    def __init__(self, storage_cluster_id: int = None):
         super(QueryClientLog, self).__init__()
         self._client: Elasticsearch
+        self.storage_cluster_id = storage_cluster_id
 
     def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
         # query前没有必要检查ping
@@ -157,7 +158,11 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         return new_index_list[-1]
 
     def _get_connection(self, index: str, check_ping: bool = True):
-        self.host, self.port, self.username, self.password, self.version, self.schema = self._connect_info(index=index)
+        if not self.storage_cluster_id:
+            _connect_info: tuple = self._connect_info(index=index)
+        else:
+            _connect_info: tuple = self._connect_info_by_storage_cluster_id(storage_cluster_id=self.storage_cluster_id)
+        self.host, self.port, self.username, self.password, self.version, self.schema = _connect_info
         self._active: bool = False
 
         if not self.host or not self.port:
@@ -212,6 +217,34 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             raise EsClientMetaInfoException(
                 EsClientMetaInfoException.MESSAGE.format(message=transfer_api_response.get("message"))
             )
+
+    @staticmethod
+    @cache_five_minute("_connect_info_{storage_cluster_id}", need_md5=True)
+    def _connect_info_by_storage_cluster_id(storage_cluster_id: int) -> tuple:
+        transfer_api_response: list = TransferApi.get_cluster_info({"cluster_id": storage_cluster_id})
+        if len(transfer_api_response) == 1:
+            data_list: list = transfer_api_response
+            cluster_config_dict: dict = data_list[0].get("cluster_config")
+            domain_name: str = cluster_config_dict.get("domain_name", "")
+            port: int = cluster_config_dict.get("port", -1)
+            version: str = cluster_config_dict.get("version", "")
+            auth_info_dict: dict = data_list[0].get("auth_info")
+            username: str = auth_info_dict.get("username", "")
+            password: str = auth_info_dict.get("password", "")
+            # 添加协议字段 由于是后添加的 所以放置在这个地方
+            schema: str = cluster_config_dict.get("schema") or DEFAULT_SCHEMA
+
+            _es_password = password
+            _es_host = domain_name
+            _es_port = port
+            _es_user = username
+            _es_version = version
+            _es_schema = schema
+
+            return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
+
+        else:
+            raise EsClientMetaInfoException(EsClientMetaInfoException.MESSAGE.format(message="meta_api_response error"))
 
     @classmethod
     def indices(cls, bk_biz_id, result_table_id=None, with_storage=False):

@@ -459,7 +459,7 @@ class UnionSearchErrorException(BaseSearchException):
 
 class MultiSearchErrorException(BaseSearchException):
     ERROR_CODE = "439"
-    MESSAGE = _("多线程检索结果处理异常")
+    MESSAGE = _("跨集群检索结果处理异常")
 
 
 # =================================================

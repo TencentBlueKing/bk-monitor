@@ -521,7 +521,7 @@ class SearchHandler(object):
         start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S")
         storage_cluster_record_objs = StorageClusterRecord.objects.filter(
             index_set_id=int(self.index_set_id),
-            created_at__gt=start_time
+            created_at__gt=(start_time - datetime.timedelta(hours=1))
         ).exclude(storage_cluster_id=self.storage_cluster_id)
 
         params = {
@@ -630,9 +630,17 @@ class SearchHandler(object):
                 sorted_hits = sorted(hits, key=functools.cmp_to_key(self._sort_compare))
                 merge_result["hits"]["hits"] = sorted_hits[self.start: (once_size + self.start)]
 
-            # buckets 排序处理
+            # buckets 排序合并处理
             if buckets:
-                sorted_buckets = sorted(buckets, key=itemgetter("key"))
+                # 合并
+                buckets_info = dict()
+                for bucket in buckets:
+                    _key = bucket["key"]
+                    if _key not in buckets_info:
+                        buckets_info[_key] = bucket
+                        continue
+                    buckets_info[_key]["doc_count"] += bucket["doc_count"]
+                sorted_buckets = sorted(list(buckets_info.values()), key=itemgetter("key"))
                 merge_result["aggregations"]["group_by_histogram"]["buckets"] = sorted_buckets
         except Exception as e:
             logger.error(f"[_multi_search] error -> e: {e}")
