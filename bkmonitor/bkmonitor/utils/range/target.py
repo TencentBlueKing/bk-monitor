@@ -103,27 +103,29 @@ class TargetCondition:
                     target_keys.add(str(service_instance_id))
                 elif field.split("_", 1)[1] == "topo_node":
                     target_keys = set()
+                    topo_nodes = []
                     if "bk_topo_node" in data:
                         topo_nodes = data["bk_topo_node"]
                     elif "bk_obj_id" in data and "bk_inst_id" in data:
                         topo_nodes = [f'{data["bk_obj_id"]}|{data["bk_inst_id"]}']
+
                     # 这里topo_node是基于主机信息full出来的，如果数据中不存在topo信息，则表示主机信息无效
                     # 可能原因：
                     #   1. 机器在cmdb已移除，但依然上报数据，此时该机器数据无效
                     #   2. 策略配置的数据字段不足以获取topo信息，但监控目标又是基于topo信息的匹配
                     # 此时数据均以无效处理
-                    else:
-                        break
                     if not topo_nodes:
-                        continue
+                        break
                     target_keys.update(topo_nodes)
                 if method == "eq":
                     is_match = values & target_keys
                 else:
                     is_match = not (values & target_keys)
 
+                # 有一个条件不满足，则跳过
                 if not is_match:
                     break
             else:
+                # 所有条件都满足，则返回True
                 return True
         return False
