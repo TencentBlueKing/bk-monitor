@@ -19,10 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import copy
 import json
 import logging
 import time
 
+import arrow
 from celery.schedules import crontab
 from celery.task import periodic_task, task
 from django.conf import settings
@@ -30,10 +32,14 @@ from django.conf import settings
 from apps.feature_toggle.models import FeatureToggle
 from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS, LOG_MEASURE_METRIC_TOGGLE
 from apps.log_measure.models import MetricDataHistory
-from apps.log_measure.utils.metric import MetricUtils, build_metric_id
+from apps.log_measure.utils.metric import MetricUtils
 from bk_monitor.handler.monitor import BKMonitor
 from bk_monitor.utils.collector import MetricCollector
-from bk_monitor.utils.metric import clear_registered_metrics
+from bk_monitor.utils.metric import (
+    REGISTERED_METRICS,
+    build_metric_id,
+    clear_registered_metrics,
+)
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 logger = logging.getLogger("log_measure")
@@ -102,25 +108,38 @@ def bk_monitor_collect():
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
     time.sleep(2)
+    time_now = arrow.now()
+    time_now_minute = 60 * time_now.hour + time_now.minute
     # 如果为空列表，则默认全部执行
     import_paths = feature_toggle_obj.feature_config.get("import_paths", []) or COLLECTOR_IMPORT_PATHS
-    for import_path in import_paths:
-        collect_metrics.delay(collector_import_paths=[import_path])
+    MetricCollector(collector_import_paths=import_paths)
+    execute_metrics = copy.deepcopy(REGISTERED_METRICS)
+    for metric_id, metric in execute_metrics.items():
+        if not time_now_minute % metric["time_filter"]:
+            logger.info(f"[statistics_data] start collecting {metric_id}")
+            collect_metrics.delay(import_paths, [metric["namespace"]], [metric["data_name"]])
+    # 清理注册表里的内容，下一次运行的时候重新注册
+    clear_registered_metrics()
 
 
 @task(ignore_result=True)
-def collect_metrics(collector_import_paths: list = None, namespaces: list = None):
+def collect_metrics(collector_import_paths: list, namespaces: list = None, data_names: list = None):
     """
     将已通过 register_metric 注册的对应metric收集存入数据库
     Attributes:
         collector_import_paths: list 动态引用文件列表
         namespaces: 允许上报namespace列表
     """
-    metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(namespaces=namespaces)
+    metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(
+        namespaces=namespaces, data_names=data_names
+    )
     try:
         for group in metric_groups:
             metric_id = build_metric_id(
-                data_name=group["data_name"], namespace=group["namespace"], prefix=group["prefix"]
+                data_name=group["data_name"],
+                namespace=group["namespace"],
+                prefix=group["prefix"],
+                sub_type=group["sub_type"],
             )
             metric_data = [i.__dict__ for i in group["metrics"]]
             MetricDataHistory.objects.update_or_create(

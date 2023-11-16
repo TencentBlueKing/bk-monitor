@@ -164,7 +164,17 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
   const freeTimes = [];
   const totalRangeTime = totalRange.map(item => new Date(item).getTime());
   const allRangeTime: number[][] = JSON.parse(
-    JSON.stringify(timeRanges.map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()]))
+    JSON.stringify(
+      timeRanges.map(item => {
+        let start = new Date(item[0]).getTime();
+        const end = new Date(item[1]).getTime();
+        if (start < totalRangeTime[0]) {
+          // eslint-disable-next-line prefer-destructuring
+          start = totalRangeTime[0];
+        }
+        return [start, end];
+      })
+    )
   );
   allRangeTime.sort((a, b) => (a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]));
 

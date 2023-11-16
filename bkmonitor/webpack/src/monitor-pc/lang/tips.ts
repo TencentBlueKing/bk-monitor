@@ -187,5 +187,7 @@ export default {
   '数值越大，优先级越高，完全相同的一条数据检测到异常时以优先级高的策略为主。':
     'The larger the value, the higher the priority. When an abnormality is detected in the same piece of data, the strategy with the higher priority will be used.',
   排在前面的规则优先级高: 'The rule that comes first has a high priority',
-  '时间段冲突，优先执行节假日排班': 'Time conflict, priority for the implementation of the holiday schedule'
+  '时间段冲突，优先执行节假日排班': 'Time conflict, priority for the implementation of the holiday schedule',
+  主机当前状态: 'Host current status',
+  采集状态: 'Collection status'
 };
