@@ -28,7 +28,11 @@ import { Route } from 'vue-router';
 import { random } from '@common/utils';
 import { TabPanel } from 'bk-magic-vue';
 
-import { collectInstanceStatus, frontendCollectConfigDetail } from '../../../../monitor-api/modules/collecting';
+import {
+  collectConfigList,
+  collectInstanceStatus,
+  frontendCollectConfigDetail
+} from '../../../../monitor-api/modules/collecting';
 import { storageStatus } from '../../../../monitor-api/modules/datalink';
 import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
@@ -66,6 +70,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     target_info: {}
   };
 
+  loading = false;
+
   allData = {
     [TabEnum.TargetDetail]: {
       data: null,
@@ -81,11 +87,16 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     [TabEnum.FieldDetails]: {
       fieldData: null,
       type: 'field'
+    },
+    [TabEnum.Configuration]: {
+      renderKey: random(8)
     }
   };
 
   // 告警组
   alarmGroupList: IAlarmGroupList[] = [];
+  /* 从采集列表获取当前采集数据 */
+  collectConfigData = null;
 
   public beforeRouteEnter(to: Route, from: Route, next: Function) {
     const { params } = to;
@@ -95,7 +106,11 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   }
 
   created() {
+    this.collectId = Number(this.$route.params.id);
+    this.getCollectConfigListItem();
     this.getAlarmGroupList();
+    this.getDetails();
+    this.getStorageStateData();
   }
 
   handleTabChange(v: TabEnum) {
@@ -105,10 +120,41 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     }
   }
 
-  getDetails() {
-    frontendCollectConfigDetail({ id: this.collectId }).then(res => {
-      this.detailData = res;
+  /**
+   * @description 从采集列表接口获取采集数据
+   */
+  getCollectConfigListItem() {
+    const params = {
+      bk_biz_id: 2,
+      refresh_status: false,
+      order: '-create_time',
+      search: {
+        fuzzy: this.collectId
+      },
+      page: 1,
+      limit: 10
+    };
+    collectConfigList(params).then(data => {
+      if (data.config_list?.length) {
+        // eslint-disable-next-line prefer-destructuring
+        this.collectConfigData = data.config_list[0];
+      }
     });
+  }
+
+  /**
+   * @description 获取配置信息
+   */
+  getDetails() {
+    this.loading = true;
+    frontendCollectConfigDetail({ id: this.collectId })
+      .then(res => {
+        this.detailData = res;
+        this.allData[TabEnum.Configuration].renderKey = random(8);
+      })
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   getStorageStateData() {
@@ -166,11 +212,6 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       });
   }
 
-  mounted() {
-    this.getDetails();
-    this.getStorageStateData();
-  }
-
   getAlarmGroupList() {
     return listUserGroup({ exclude_detail_info: 1 }).then(data => {
       this.alarmGroupList = data.map(item => ({
@@ -215,6 +256,9 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     }
   }
 
+  /**
+   * @description 刷新采集详情状态
+   */
   handleRefreshData() {
     collectInstanceStatus({ id: this.collectId })
       .then(data => {
@@ -226,7 +270,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
 
   render() {
     return (
-      <div class='collector-detail-page'>
+      <div
+        class='collector-detail-page'
+        v-bkloading={{
+          isLoading: this.loading
+        }}
+      >
         <MonitorTab
           active={this.active}
           on-tab-change={this.handleTabChange}
@@ -237,8 +286,11 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           >
             {!!this.collectId && (
               <CollectorConfiguration
+                key={this.allData[TabEnum.Configuration].renderKey}
                 id={this.collectId}
                 show={this.active === TabEnum.Configuration}
+                detailData={this.detailData}
+                collectConfigData={this.collectConfigData}
               ></CollectorConfiguration>
             )}
           </TabPanel>

@@ -25,9 +25,10 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Input, Table, TableColumn } from 'bk-magic-vue';
+import { Button, Input, Table, TableColumn } from 'bk-magic-vue';
 
-import { frontendCollectConfigDetail, renameCollectConfig } from '../../../../monitor-api/modules/collecting';
+import { renameCollectConfig } from '../../../../monitor-api/modules/collecting';
+import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 
 import './collector-configuration.scss';
@@ -44,12 +45,16 @@ enum ETargetColumn {
 interface IProps {
   id: string | number;
   show: boolean;
+  collectConfigData?: any;
+  detailData?: any;
 }
 
 @Component
 export default class CollectorConfiguration extends tsc<IProps> {
   @Prop({ type: [String, Number], default: '' }) id: number | string;
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Object, default: () => null }) collectConfigData: any;
+  @Prop({ type: Object, default: () => null }) detailData: any;
 
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -90,7 +95,15 @@ export default class CollectorConfiguration extends tsc<IProps> {
     copyName: ''
   };
   name = '';
-  loading = false;
+
+  get historyList() {
+    return [
+      { label: this.$t('创建人'), value: this.basicInfo?.create_user || '--' },
+      { label: this.$t('创建时间'), value: this.basicInfo?.create_time || '--' },
+      { label: this.$t('最近更新人'), value: this.basicInfo?.update_user || '--' },
+      { label: this.$t('修改时间'), value: this.basicInfo?.update_time || '--' }
+    ];
+  }
 
   @Watch('show', { immediate: true })
   handleShow(v: boolean) {
@@ -103,53 +116,47 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @description 获取详情数据
    */
   getDetailData() {
-    this.loading = true;
-    frontendCollectConfigDetail({ id: this.id })
-      .then(data => {
-        this.basicInfo = { ...data.basic_info, id: this.id };
-        if (data.extend_info.log) {
-          this.basicInfo = { ...this.basicInfo, ...data.extend_info.log };
-          !this.basicInfo.filter_patterns && (this.basicInfo.filter_patterns = []);
-          this.basicInfoMap = {
-            ...this.basicInfoMap,
-            log_path: this.$t('日志路径'),
-            filter_patterns: this.$t('排除规则'),
-            rules: this.$t('关键字规则'),
-            charset: this.$t('日志字符集')
-          };
-        }
-        if (data.extend_info.process) {
-          const { process } = data.extend_info;
-          this.basicInfoMap = {
-            ...this.basicInfoMap,
-            match: this.$t('进程匹配'),
-            process_name: this.$t('进程名'),
-            port_detect: this.$t('端口探测')
-          };
-          const {
-            match_type: matchType,
-            process_name: processName,
-            port_detect: portDetect,
-            match_pattern: matchPattern,
-            exclude_pattern: excludePattern,
-            pid_path: pidPath
-          } = process;
-          this.basicInfo = {
-            ...this.basicInfo,
-            match: matchType,
-            match_pattern: matchPattern,
-            exclude_pattern: excludePattern,
-            pid_path: pidPath,
-            process_name: processName || '--',
-            port_detect: `${portDetect}`
-          };
-        }
-        this.runtimeParams = data.runtime_params;
-        this.targetInfo = data.target_info;
-      })
-      .finally(() => {
-        this.loading = false;
-      });
+    const data = this.detailData;
+    this.basicInfo = { ...data.basic_info, id: this.id };
+    if (data.extend_info.log) {
+      this.basicInfo = { ...this.basicInfo, ...data.extend_info.log };
+      !this.basicInfo.filter_patterns && (this.basicInfo.filter_patterns = []);
+      this.basicInfoMap = {
+        ...this.basicInfoMap,
+        log_path: this.$t('日志路径'),
+        filter_patterns: this.$t('排除规则'),
+        rules: this.$t('关键字规则'),
+        charset: this.$t('日志字符集')
+      };
+    }
+    if (data.extend_info.process) {
+      const { process } = data.extend_info;
+      this.basicInfoMap = {
+        ...this.basicInfoMap,
+        match: this.$t('进程匹配'),
+        process_name: this.$t('进程名'),
+        port_detect: this.$t('端口探测')
+      };
+      const {
+        match_type: matchType,
+        process_name: processName,
+        port_detect: portDetect,
+        match_pattern: matchPattern,
+        exclude_pattern: excludePattern,
+        pid_path: pidPath
+      } = process;
+      this.basicInfo = {
+        ...this.basicInfo,
+        match: matchType,
+        match_pattern: matchPattern,
+        exclude_pattern: excludePattern,
+        pid_path: pidPath,
+        process_name: processName || '--',
+        port_detect: `${portDetect}`
+      };
+    }
+    this.runtimeParams = data.runtime_params;
+    this.targetInfo = data.target_info;
   }
 
   /**
@@ -236,6 +243,16 @@ export default class CollectorConfiguration extends tsc<IProps> {
     return item ? `${item.text}(${item.type_name})` : '--';
   }
 
+  handleToEdit() {
+    this.$router.push({
+      name: 'collect-config-edit',
+      params: {
+        id: this.id,
+        pluginId: this.collectConfigData.plugin_id
+      }
+    });
+  }
+
   render() {
     function formItem(label, content) {
       return (
@@ -252,12 +269,23 @@ export default class CollectorConfiguration extends tsc<IProps> {
       return value;
     }
     return (
-      <div
-        class='collector-configuration-component'
-        v-bkloading={{
-          isLoading: this.loading
-        }}
-      >
+      <div class='collector-configuration-component'>
+        <div class='header-right-link'>
+          <Button
+            theme='primary'
+            v-authority={{ active: !this.authority.MANAGE_AUTH && this.collectConfigData?.status !== 'STOPPED' }}
+            class='width-88 mr-8'
+            outline
+            onClick={() =>
+              this.authority.MANAGE_AUTH || this.collectConfigData?.status === 'STOPPED'
+                ? this.collectConfigData?.status !== 'STOPPED' && this.handleToEdit()
+                : this.handleShowAuthorityDetail()
+            }
+          >
+            {this.$t('编辑')}
+          </Button>
+          <HistoryDialog list={this.historyList}></HistoryDialog>
+        </div>
         <div class='detail-wrap-item'>
           <div class='wrap-item-title'>{this.$t('基本信息')}</div>
           <div class='wrap-item-content'>
