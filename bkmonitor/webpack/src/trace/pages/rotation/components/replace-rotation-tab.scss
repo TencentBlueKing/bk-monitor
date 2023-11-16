@@ -92,6 +92,18 @@
           width: 64px;
           height: 26px;
           line-height: 26px;
+          background: #fff;
+          border: 1px solid #c4c6cc;
+        }
+
+        .duration {
+          border-right: none;
+          border-radius: 2px 0 0 2px;
+        }
+
+        .classes {
+          border-left: none;
+          border-radius: 0 2px 2px 0;
         }
       }
 

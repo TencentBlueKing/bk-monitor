@@ -42,7 +42,7 @@ interface DateItem {
 export interface TagItemModel {
   id: string;
   logo?: string;
-  display_name: string;
+  display_name?: string;
   username: string;
   type: 'group' | 'user';
 }
@@ -170,23 +170,30 @@ export default defineComponent({
       });
     }
 
+    /** 编辑态下把用户添加到映射表 */
+    function setUserMap(tags: DateItem[]) {
+      tags.forEach(tag => {
+        const item: TagItemModel = {
+          ...tag,
+          username: tag.id
+        };
+        if (item.type === 'user' && !userAndGroupMap.has(item.username)) {
+          userAndGroupMap.set(item.username, item);
+        }
+      });
+    }
+
     // ----------------标签---------------------
     const tags = reactive<DateItem[]>([]);
     watch(
       () => props.modelValue,
       val => {
         tags.splice(0, tags.length, ...val);
-        setUser(
-          tags
-            .filter(item => item.type === 'user')
-            .map(item => ({
-              ...item,
-              username: item.id
-            }))
-        );
+        setUserMap(tags);
       },
       { immediate: true }
     );
+
     /** 点击容器，把输入框显示在最后 */
     function handleWrapClick() {
       !popoverShow.value && debounceGetUserList(inputValue.value);
@@ -236,13 +243,16 @@ export default defineComponent({
     }
     /** 标签拖拽 */
     function handleDragstart(e: DragEvent, index: number) {
+      if (props.showType === 'avatar') return;
       e.dataTransfer.setData('index', String(index));
       resetInputPosition(-1);
     }
     function handleDragover(e: DragEvent) {
+      if (props.showType === 'avatar') return;
       e.preventDefault();
     }
     function handleDrop(e: DragEvent, index: number) {
+      if (props.showType === 'avatar') return;
       const startIndex = Number(e.dataTransfer.getData('index'));
       const tag = tags[startIndex];
       tags.splice(startIndex, 1);
@@ -354,6 +364,7 @@ export default defineComponent({
      */
     function handleSelect(e: Event, item: TagItemModel) {
       e.stopPropagation();
+      inputValue.value = '';
       const index = tags.findIndex(tag => tag.id === item.id);
       if (index === -1) {
         // 新增
