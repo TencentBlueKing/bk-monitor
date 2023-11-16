@@ -13,8 +13,8 @@ def get_language_from_headers(request):
     """
     Get the language code from the request headers.
     """
-    language_code = request.headers.get('HTTP_X_BK_LANGUAGE_CODE', '')
-    logger.info("get_language_from_headers: {}".format(request.headers))
+    language_code = request.META.get('HTTP_X_BK_LANGUAGE_CODE', '')
+    logger.info("get_language_from_headers: {}".format(request.META))
     return language_code
 
 
