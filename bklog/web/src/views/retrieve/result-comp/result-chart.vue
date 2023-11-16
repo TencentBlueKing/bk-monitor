@@ -255,10 +255,6 @@ export default {
         this.pollingEndTime = this.pollingStartTime;
         this.pollingStartTime = this.pollingStartTime - this.requestInterval;
 
-        // if (this.pollingStartTime < Date.parse(this.retrieveParams.start_time)) {
-        //   this.pollingStartTime = Date.parse(this.retrieveParams.start_time);
-        // }
-        // TODO
         if (this.pollingStartTime < this.retrieveParams.start_time) {
           this.pollingStartTime = this.retrieveParams.start_time;
         }
@@ -284,8 +280,6 @@ export default {
           return ([item.doc_count, item.key]);
         });
 
-        // if (this.pollingStartTime <= Date.parse(this.retrieveParams.start_time)) {
-        // TODO
         if (this.pollingStartTime <= this.retrieveParams.start_time) {
         // 轮询结束
           this.finishPolling = true;

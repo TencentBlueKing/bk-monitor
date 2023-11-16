@@ -391,8 +391,6 @@ export default {
     handleChangeGroup(val) {
       this.clickSec.selected = val.key;
       this.clickSec.data = val.dataList;
-
-      // TODO
       this.dataListPaged = [];
       this.dataListShadow = [];
       this.renderTableList = [];

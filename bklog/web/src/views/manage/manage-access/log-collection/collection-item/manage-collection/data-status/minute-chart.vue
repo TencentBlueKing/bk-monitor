@@ -60,10 +60,6 @@ export default {
     TimeRange,
   },
   data() {
-    // const currentTime = Date.now();
-    // const startTime = formatDate(currentTime - 15 * 60 * 1000);
-    // const endTime = formatDate(currentTime);
-    // TODO
     const currentTime = Math.floor(new Date().getTime() / 1000);
     const startTime = (currentTime - 15 * 60);
     const endTime = currentTime;
