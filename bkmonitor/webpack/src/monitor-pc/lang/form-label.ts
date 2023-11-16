@@ -1801,5 +1801,9 @@ export default {
   单次值班: 'Single Duty',
   时区: 'Time Zone',
   日常轮班: 'Daily shifts',
-  轮值规则ID: 'The rotation rule ID'
+  轮值规则ID: 'The rotation rule ID',
+  '共{count}个指标': 'A total of {count} metrics',
+  场景智能检测: 'Scene intelligent detection',
+  过滤告警级别: 'Filter alarm severity',
+  已选择更低告警级别: 'A lower alarm severity is selected'
 };

@@ -68,6 +68,8 @@ export default defineComponent({
 
     const previewData = ref([]);
 
+    const previewLoading = ref(false);
+
     watch(
       () => props.show,
       (v: boolean) => {
@@ -107,7 +109,8 @@ export default defineComponent({
     /**
      * @description 获取轮值预览
      */
-    async function getPreviewData() {
+    function getPreviewData() {
+      previewLoading.value = true;
       const startDate = getCalendar()[0][0];
       const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
       const params = {
@@ -116,8 +119,14 @@ export default defineComponent({
         begin_time: beginTime,
         days: 42
       };
-      const data = await previewDutyRulePlan(params).catch(() => []);
-      previewData.value = setPreviewDataOfServer(data);
+      previewDutyRulePlan(params)
+        .then(data => {
+          previewData.value = setPreviewDataOfServer(data);
+        })
+        .finally(() => {
+          previewLoading.value = false;
+        });
+      // previewData.value = setPreviewDataOfServer(data);
     }
 
     function renderUserLogo(user) {
@@ -152,6 +161,7 @@ export default defineComponent({
       historyList,
       previewData,
       authority,
+      previewLoading,
       renderUserLogo,
       handleClosed,
       t,
@@ -303,10 +313,12 @@ export default defineComponent({
                   label={this.t('轮值预览')}
                   hasColon={true}
                 >
-                  <RotationCalendarPreview
-                    class='width-806'
-                    value={this.previewData}
-                  ></RotationCalendarPreview>
+                  <Loading loading={this.previewLoading}>
+                    <RotationCalendarPreview
+                      class='width-806'
+                      value={this.previewData}
+                    ></RotationCalendarPreview>
+                  </Loading>
                 </FormItem>
               </div>
             </Loading>

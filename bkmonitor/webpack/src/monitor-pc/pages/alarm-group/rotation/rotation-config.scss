@@ -139,6 +139,10 @@
   .header-wrap {
     padding: 0 10px;
     margin-top: 4px;
+
+    .bk-form-input.only-bottom-border {
+      border-color: transparent transparent #eaebf0;;
+    }
   }
 
   .content-wrap {

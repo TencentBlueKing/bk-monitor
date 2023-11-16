@@ -204,7 +204,7 @@ export default {
             if (field === 'bk_host_id') {
               if (row[field]) dialogNewParams[field] = row[field];
             } else {
-              dialogNewParams[field] = this.tableRowDeepView(row, field, '');
+              dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
             }
           });
         } else {

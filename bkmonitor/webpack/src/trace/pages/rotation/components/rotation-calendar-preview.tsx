@@ -109,6 +109,9 @@ export default defineComponent({
           {this.curCalendarData.data.map((item, index) => (
             <div
               class='week-row'
+              style={{
+                height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`
+              }}
               key={index}
             >
               {item.dates.map(date => (
@@ -145,6 +148,7 @@ export default defineComponent({
                         <div
                           class='user-item'
                           style={{
+                            top: `${48 + data.row * 22}px`,
                             width: `${
                               (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                             }px`,

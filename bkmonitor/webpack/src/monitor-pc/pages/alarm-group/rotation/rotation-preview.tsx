@@ -175,6 +175,24 @@ export default class RotationPreview extends tsc<IProps> {
     }));
   }
 
+  getOverlapStyleTop(verticalRange: number[]) {
+    const heights = this.dutyData.data.map(item => 64 + item.maxRow * 22);
+    let top = 0;
+    let height = 0;
+    heights.forEach((h, index) => {
+      if (index <= verticalRange[0]) {
+        top += h;
+      }
+      if (index > verticalRange[0] && index < verticalRange[1]) {
+        height += h;
+      }
+    });
+    return {
+      top: `${top - 21}px`,
+      height: `${height + 42}px`
+    };
+  }
+
   render() {
     return (
       <div class='alarm-group-rotation-preview-component'>
@@ -227,6 +245,9 @@ export default class RotationPreview extends tsc<IProps> {
               {this.dutyData.data.map((item, index) => (
                 <div
                   class='left-content-item'
+                  style={{
+                    height: `${64 + item.maxRow * 22}px`
+                  }}
                   key={index}
                 >
                   {item.name}
@@ -262,6 +283,9 @@ export default class RotationPreview extends tsc<IProps> {
               {this.dutyData.data.map((row, rowIndex) => (
                 <div
                   class='row-content'
+                  style={{
+                    height: `${64 + row.maxRow * 22}px`
+                  }}
                   key={rowIndex}
                 >
                   {this.dutyData.dates.map((_col, colIndex) => (
@@ -277,6 +301,7 @@ export default class RotationPreview extends tsc<IProps> {
                         class='user-item'
                         key={dutyIndex}
                         style={{
+                          top: `${21 + duty.row * 22}px`,
                           width: `${
                             (duty?.isStartBorder ? -1 : 0) + this.containerWidth * (duty.range[1] - duty.range[0])
                           }px`,
@@ -315,8 +340,9 @@ export default class RotationPreview extends tsc<IProps> {
                   key={`overlap_${index}`}
                   class='overlap-col'
                   style={{
-                    top: `${(item.verticalRange[0] + 1) * 64 - 21}px`,
-                    height: `${(item.verticalRange[1] - item.verticalRange[0] + 1) * 64 - 86}px`,
+                    ...this.getOverlapStyleTop(item.verticalRange),
+                    // top: `${(item.verticalRange[0] + 1) * 64 - 21}px`,
+                    // height: `${(item.verticalRange[1] - item.verticalRange[0] + 1) * 64 - 86}px`,
                     width: `${this.containerWidth * (item.range.range[1] - item.range.range[0])}px`,
                     left: `${this.containerWidth * item.range.range[0]}px`
                   }}

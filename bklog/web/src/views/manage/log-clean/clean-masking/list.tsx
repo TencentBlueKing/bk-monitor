@@ -21,12 +21,40 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import MaskingSetting from '../../../../components/log-masking/masking-setting';
 import './list.scss';
 
+Component.registerHooks(['beforeRouteEnter']);
 @Component
 export default class MaskingList extends tsc<{}> {
+  get isShowMaskingTemplate() {
+    return this.$store.getters.isShowMaskingTemplate;
+  }
+  /** 监听是否展示脱敏部分 */
+  @Watch('isShowMaskingTemplate')
+  watchMaskingAuthority(val) {
+    // 切换业务时 路由name没变化 由store里的值来判断当前业务是否由权限
+    this.goToCollection(!val);
+  }
+  /** 进入路由前判断是否是灰度业务 */
+  beforeRouteEnter(from, to, next) {
+    next((vm) => {
+      vm.goToCollection(!vm.$store.getters.isShowMaskingTemplate);
+    });
+  }
+  /**
+   * @desc: 路由跳转到采集项列表
+   * @param {Boolean} isRouteChange 是否跳转
+   */
+  goToCollection(isRouteChange: boolean) {
+    if (isRouteChange) {
+      this.$router.push({
+        name: 'log-collection',
+      });
+    }
+  }
+
   render() {
     return (
       <div class="masking-list-container">

@@ -27,7 +27,13 @@ from bk_monitor.utils.metric import register_metric
 
 class EsStats:
     @staticmethod
-    @register_metric("es_stats", description=_("es 监控状态信息"), data_name="es_monitor", time_filter=TimeFilterEnum.MINUTE5)
+    @register_metric(
+        "es_monitor",
+        sub_type="es_stats",
+        description=_("es 监控状态信息"),
+        data_name="es_monitor",
+        time_filter=TimeFilterEnum.MINUTE5,
+    )
     def elastic_stats():
         """
         elastic_stats
