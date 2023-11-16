@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
-from bkm_ipchooser import constants, mock_data
+from bkm_ipchooser import constants, exceptions, mock_data
 from bkm_ipchooser.serializers import base
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
 
 
 class TreesRequestSer(base.ScopeSelectorBaseSer):
@@ -17,6 +20,20 @@ class TreesRequestSer(base.ScopeSelectorBaseSer):
 class TreesResponseSer(serializers.Serializer):
     class Meta:
         swagger_schema_fields = {"example": mock_data.API_TOPO_TREES_RESPONSE}
+
+
+class QueryBusinessRequestSer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(help_text="业务 ID", required=True)
+
+    def validate(self, attrs):
+        space_info = SpaceApi.get_space_detail(bk_biz_id=attrs["bk_biz_id"])
+        if space_info.space_type_id != SpaceTypeEnum.BKCC_SET.value:
+            raise exceptions.SerValidationError(_("参数校验失败：请输入正确的业务集 bk_biz_id"))
+        return attrs
+
+
+class QueryBusinessResponseSer(serializers.Serializer):
+    """查询业务集下业务返回"""
 
 
 class QueryPathRequestSer(base.ScopeSelectorBaseSer):

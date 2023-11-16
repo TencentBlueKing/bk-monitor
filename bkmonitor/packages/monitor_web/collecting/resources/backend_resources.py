@@ -23,31 +23,6 @@ from django.core.paginator import Paginator
 from django.db import connections, transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from monitor_web.collecting.constant import (
-    COLLECT_TYPE_CHOICES,
-    COMPLEX_OPETATION_TYPE,
-    CollectStatus,
-    OperationResult,
-    OperationType,
-    Status,
-    TaskStatus,
-)
-from monitor_web.collecting.lock import CacheLock, lock
-from monitor_web.collecting.utils import fetch_sub_statistics_nodeman_2_1
-from monitor_web.commons.cc.utils import foreach_topo_tree, topo_tree_tools
-from monitor_web.commons.data_access import ResultTable
-from monitor_web.models import (
-    CollectConfigMeta,
-    CollectorPluginMeta,
-    DeploymentConfigVersion,
-    PluginVersionHistory,
-)
-from monitor_web.models.custom_report import CustomEventGroup
-from monitor_web.plugin.constant import PluginType
-from monitor_web.plugin.manager import PluginManagerFactory
-from monitor_web.tasks import append_metric_list_cache
-from utils import business
-from utils.query_data import TSDataBase
 
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source import BkMonitorLogDataSource
@@ -79,6 +54,31 @@ from core.errors.collecting import (
 )
 from core.errors.plugin import PluginIDNotExist
 from core.unit import load_unit
+from monitor_web.collecting.constant import (
+    COLLECT_TYPE_CHOICES,
+    COMPLEX_OPETATION_TYPE,
+    CollectStatus,
+    OperationResult,
+    OperationType,
+    Status,
+    TaskStatus,
+)
+from monitor_web.collecting.lock import CacheLock, lock
+from monitor_web.collecting.utils import fetch_sub_statistics_nodeman_2_1
+from monitor_web.commons.cc.utils import foreach_topo_tree, topo_tree_tools
+from monitor_web.commons.data_access import ResultTable
+from monitor_web.models import (
+    CollectConfigMeta,
+    CollectorPluginMeta,
+    DeploymentConfigVersion,
+    PluginVersionHistory,
+)
+from monitor_web.models.custom_report import CustomEventGroup
+from monitor_web.plugin.constant import PluginType
+from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.tasks import append_metric_list_cache
+from utils import business
+from utils.query_data import TSDataBase
 
 # 最低版本依赖
 PLUGIN_VERSION = {PluginType.PROCESS: {"bkmonitorbeat": "0.33.0" if settings.PLATFORM == "ieod" else "2.10.0"}}
@@ -391,39 +391,25 @@ class CollectConfigListResource(Resource):
 
             global_plugins = CollectorPluginMeta.objects.filter(bk_biz_id=0).values("plugin_type", "plugin_id")
 
-            # bk_biz_id可以为空，为空则按用户拥有的业务查询
-            if bk_biz_id:
-                space = bk_biz_id_space_dict.get(bk_biz_id)
-                data_sources = api.metadata.query_data_source_by_space_uid(
-                    space_uid_list=[space.space_uid], is_platform_data_id=True
-                )
-                data_names = [ds["data_name"] for ds in data_sources]
-                plugin_ids = []
-                for plugin in global_plugins:
-                    data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
-                    if data_name in data_names:
-                        plugin_ids.append(plugin['plugin_id'])
+            # bk_biz_id 不可以为空
+            if not bk_biz_id:
+                raise CollectConfigParamsError(msg="biz id cannot be empty")
 
-                filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
-            else:
-                plugin_ids = []
-                user_biz_ids = [biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
-                space_uid_set = set()
-                for biz_id in user_biz_ids:
-                    space = bk_biz_id_space_dict.get(biz_id)
-                    if space:
-                        space_uid_set.add(space.space_uid)
+            space = bk_biz_id_space_dict.get(bk_biz_id)
+            data_sources = api.metadata.query_data_source_by_space_uid(
+                space_uid_list=[space.space_uid], is_platform_data_id=True
+            )
+            data_names = [ds["data_name"] for ds in data_sources]
+            plugin_ids = []
+            for plugin in global_plugins:
+                data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
+                if data_name in data_names:
+                    plugin_ids.append(plugin['plugin_id'])
 
-                data_sources = api.metadata.query_data_source_by_space_uid(
-                    space_uid_list=list(space_uid_set), is_platform_data_id=True
-                )
-                data_names = [ds["data_name"] for ds in data_sources]
-                for plugin in global_plugins:
-                    data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
-                    if data_name in data_names:
-                        plugin_ids.append(plugin['plugin_id'])
-                # 用户拥有业务下创建的插件以及业务下的采集
-                filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id__in=user_biz_ids)
+            # 根据业务 ID 反查业务集的bk_biz_id
+            # bk_biz_ids = api.xxx.search_biz_associated_biz_set(bk_biz_id=x)
+            bk_biz_ids = [bk_biz_id]
+            filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id__in=bk_biz_ids)
 
             config_list = config_list.filter(filter_condition)
 
@@ -2626,7 +2612,6 @@ class ListLegacySubscription(Resource):
     """
 
     def perform_request(self, validated_request_data):
-
         # 把已经删除的采集配置也包括在内
         meta_configs = CollectConfigMeta.origin_objects.all()
 

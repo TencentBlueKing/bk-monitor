@@ -38,6 +38,19 @@ def batch_request(
         "cmdb": lambda origin_params, _start, _limit: origin_params.update(
             {"page": {"start": _start, "limit": _limit}}
         ),
+        # cmdb 新接口使用新的分页查询规则。要求page中带上enable_count来决定是查总数还是查内容。只能查一样……
+        # 同时该规则仅对新增的接口生效，原存量接口还是用的老规则……(囧
+        "cmdb_v2": lambda origin_params, _start, _limit: origin_params.update(
+            {
+                "page": {
+                    "start": _start,
+                    # 取 count 的时候， start 和 limit 还必须都为 0 (囧^2
+                    "limit": _limit if "enable_count" in origin_params.get("page", {}) else 0,
+                    # 仅第一次调用需要设置为True, 用于获取 count
+                    "enable_count": "enable_count" not in origin_params.get("page", {}),
+                }
+            }
+        ),
         "nodeman": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "pagesize": _limit}),
         "metadata": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "page_size": _limit}),
         "bcs_cc": lambda origin_params, _start, _limit: origin_params.update({"offset": _start, "limit": _limit}),
@@ -45,7 +58,7 @@ def batch_request(
 
     data = []
     # 标识使用偏移量的系统
-    use_offset_app_list = ["cmdb", "bcs_cc"]
+    use_offset_app_list = ["cmdb", "bcs_cc", "cmdb_v2"]
     start = 0 if app in use_offset_app_list else 1
 
     # 请求第一次获取总数

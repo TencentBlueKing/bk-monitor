@@ -60,6 +60,16 @@ INIT_DATA = [
         "allow_bind": True,
         "dimension_fields": [],
     },
+    {
+        "creator": SYSTEM_USERNAME,
+        "updater": SYSTEM_USERNAME,
+        "type_id": SpaceTypes.BKCC_SET.value,
+        "type_name": "业务集",
+        "description": "蓝鲸业务集",
+        "allow_merge": False,
+        "allow_bind": False,
+        "dimension_fields": [],
+    },
 ]
 
 

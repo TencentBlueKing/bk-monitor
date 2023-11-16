@@ -119,6 +119,20 @@ class IpChooserTopoViewSet(CommonViewSet):
         )
 
     @swagger_auto_schema(
+        operation_summary=_("获取业务集下的业务拓扑树"),
+        tags=IP_CHOOSER_VIEW_TAGS,
+        request_body=topo_sers.QueryBusinessRequestSer(),
+        responses={status.HTTP_200_OK: topo_sers.QueryBusinessResponseSer()},
+    )
+    @list_route(methods=["POST"], serializer_class=topo_sers.QueryBusinessRequestSer)
+    def query_business(self, request, *args, **kwargs):
+        return Response(
+            topo_handler.TopoHandler.query_business(
+                bk_biz_id=self.validated_data["bk_biz_id"],
+            )
+        )
+
+    @swagger_auto_schema(
         operation_summary=_("查询多个节点拓扑路径"),
         tags=IP_CHOOSER_VIEW_TAGS,
         request_body=topo_sers.QueryPathRequestSer(),

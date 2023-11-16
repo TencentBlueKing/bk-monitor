@@ -13,6 +13,7 @@ class SpaceTypeEnum(Enum):
     BCS = "bcs"  # BCS
     BKCI = "bkci"  # 蓝盾
     BKSAAS = "bksaas"  # 蓝鲸应用
+    BKCC_SET = "bkcc_set"  # 业务集
 
 
 class SpaceFunction(Enum):

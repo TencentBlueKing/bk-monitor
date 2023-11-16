@@ -23,6 +23,17 @@ class BusinessListOptionViewSet(ResourceViewSet):
     ]
 
 
+class ListBusinessOfBizSetViewSet(ResourceViewSet):
+    """
+    展示业务集下的业务
+    """
+
+    permission_classes = ()
+    resource_routes = [
+        ResourceRoute("GET", resource.commons.list_business_of_biz_set),
+    ]
+
+
 class FetchBusinessInfoViewSet(ResourceViewSet):
     """
     拉取业务的详细信息(业务名字, 运维, 权限申请url(权限中心), Demo业务链接)
