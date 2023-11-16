@@ -112,4 +112,3 @@ TIME_WAIT_QUERY_SUBSCRIPTION_EXCEPTION = 10
 
 INDEX_SCENARIO = {"bkdata": "log_bkbase", "es": "log_third_es"}
 LOG_MEASURE_METRIC_TOGGLE = "log_measure_metric_toggle"
-LOG_MEASURE_THREAD_NUM = 5

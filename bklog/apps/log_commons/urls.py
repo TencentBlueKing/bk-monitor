@@ -23,9 +23,11 @@ from apps.log_commons import views
 from django.conf.urls import include, url
 from rest_framework import routers
 
-router = routers.DefaultRouter(trailing_slash=True)
+from apps.log_commons.views import FrontendEventViewSet
 
+router = routers.DefaultRouter(trailing_slash=True)
 router.register(r"external_permission", views.ExternalPermissionViewSet, basename="external_permission")
+router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_event")
 
 urlpatterns = [
     # 获取文档链接地址

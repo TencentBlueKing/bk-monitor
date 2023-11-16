@@ -7,8 +7,7 @@ import time
 
 from django.core.cache import cache
 
-from apps.log_measure.utils.metric import build_metric_id
-from bk_monitor.utils.metric import REGISTERED_METRICS
+from bk_monitor.utils.metric import REGISTERED_METRICS, build_metric_id
 
 logger = logging.getLogger("bk_monitor")
 
@@ -30,11 +29,18 @@ class MetricCollector(object):
         metric_methods = self.metric_filter(namespaces=namespaces, data_names=data_names)
         metric_groups = []
         for metric_method in metric_methods:
+            metric_id = build_metric_id(
+                metric_method["data_name"],
+                metric_method["namespace"],
+                metric_method["prefix"],
+                metric_method["sub_type"],
+            )
             try:
                 begin_time = time.time()
                 metric_groups.append(
                     {
                         "prefix": metric_method["prefix"],
+                        "sub_type": metric_method["sub_type"],
                         "namespace": metric_method["namespace"],
                         "description": metric_method["description"],
                         "metrics": metric_method["method"](),
@@ -50,9 +56,10 @@ class MetricCollector(object):
                     ),
                 )
             except Exception as e:  # pylint: disable=broad-except
-                logger.exception(
-                    "[statistics_data] collect metric->[{}] failed: {}".format(metric_method["namespace"], e)
-                )
+                logger.exception("[statistics_data] collect metric->[{}] failed: {}".format(metric_id, e))
+            finally:
+                # 释放metric_id对应执行锁
+                cache.delete(metric_id)
 
         return metric_groups
 
@@ -65,7 +72,8 @@ class MetricCollector(object):
 
             if namespaces and metric["namespace"] not in namespaces:
                 continue
-            # 根据上一次采集时间判定是否允许执行，避免队列堆积时重复采集
+
+            # 根据执行锁是否过期判定是否采集，避免队列堆积时同时执行子任务
             if not cls.is_allow_execute(metric):
                 continue
             metric_methods.append(metric)
@@ -73,20 +81,15 @@ class MetricCollector(object):
 
     @classmethod
     def is_allow_execute(cls, metric):
-        now_collect_time = int(time.time())
-        COLLECT_METRIC_TIMESTAMP_KEY = "##".join([metric["namespace"], metric["data_name"]])
-        last_collect_time = cache.get(COLLECT_METRIC_TIMESTAMP_KEY)
-        # 未执行过则直接设置为当前采集时间戳
-        if last_collect_time is None:
+        metric_id = build_metric_id(**metric)
+        key = cache.get(metric_id)
+        # 执行锁未被占用则允许执行
+        if key is None:
             cache.set(
-                COLLECT_METRIC_TIMESTAMP_KEY,
-                now_collect_time,
+                metric_id,
+                True,
+                timeout=metric["time_filter"] * 60,
             )
             return True
-        # 未满足周期下一次执行时间，跳过当前轮次
-        elif last_collect_time + metric["time_filter"] * 60 > now_collect_time:
-            return False
-        # 满足下一次执行时间，更新采集时间戳
-        else:
-            cache.set(COLLECT_METRIC_TIMESTAMP_KEY, now_collect_time)
-            return True
+        # 否则跳过当前轮次
+        return False

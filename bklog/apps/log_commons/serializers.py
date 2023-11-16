@@ -59,3 +59,10 @@ class DestroyExternalPermissionSLZ(serializers.Serializer):
     resources = serializers.ListField(required=True, label="资源列表")
     authorized_users = serializers.ListField(required=True, label="被授权人")
     view_type = serializers.CharField(required=False, label="视角类型", default=ViewTypeEnum.USER.value)
+class FrontendEventSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+    dimensions = serializers.DictField(label="维度信息", required=False, default={})
+    event_name = serializers.CharField(label="事件名称", required=True)
+    event_content = serializers.CharField(label="事件内容", allow_blank=True, default="")
+    target = serializers.CharField(label="事件目标", required=True)
+    timestamp = serializers.IntegerField(label="事件时间戳(ms)", required=False)

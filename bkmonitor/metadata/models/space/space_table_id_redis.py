@@ -54,6 +54,8 @@ class SpaceTableIDRedis:
     def push_space_table_ids(self, space_type: str, space_id: str, is_publish: Optional[bool] = False):
         """推送空间及对应的结果表和过滤条件"""
         logger.info("start to push space table_id data, space_type: %s, space_id: %s", space_type, space_id)
+        # NOTE: 为防止 space_id 传递非字符串，转换一次
+        space_id = str(space_id)
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
             self._push_bkcc_space_table_ids(space_type, space_id)
@@ -124,26 +126,20 @@ class SpaceTableIDRedis:
         # 剩余的结果表，需要判断是否时序的，然后根据过期时间过滤数据
         table_id_set = table_ids - white_tables
         ts_info = self._filter_ts_info(table_id_set)
-        # 获取非时序的结果表
-        not_ts_table_ids = table_ids - set(ts_info.get("table_id_ts_group_id", {}).keys())
+        # 获取时序的结果表
+        ts_table_ids = set(ts_info.get("table_id_ts_group_id", {}).keys())
         # 组装指标和结果表的关系
         field_table_ids = {}
         for data in table_id_field_list:
             table_id = data["table_id"]
-            if table_id not in not_ts_table_ids:
-                continue
-            field_table_ids.setdefault(data["field_name"], []).append(table_id)
-        # 如果时序的数据存在，则进行处理
-        if ts_info:
-            for table_id in ts_info["table_id_ts_group_id"]:
+            field_name = data["field_name"]
+            if table_id in ts_table_ids:
                 group_id = ts_info["table_id_ts_group_id"][table_id]
                 fields = ts_info["group_id_field_map"].get(group_id)
-                # 如果指标为空，也直接跳过
-                if not fields:
-                    logger.warning("table_id: %s not found field or expired", table_id)
+                # NOTE: 指标可能已经过期，所以有指标为空的场景
+                if not fields or (fields and field_name not in fields):
                     continue
-                for field in fields:
-                    field_table_ids.setdefault(field, []).append(table_id)
+            field_table_ids.setdefault(field_name, []).append(table_id)
 
         # 推送数据到 redis，需要 json 序列化处理
         if field_table_ids:
@@ -153,7 +149,8 @@ class SpaceTableIDRedis:
             if is_publish:
                 RedisTools.publish(FIELD_TO_RESULT_TABLE_CHANNEL, list(field_table_ids.keys()))
 
-        logger.info("push redis field_to_result_table")
+        # TODO: 推送的数据详情先添加上，待稳定后删除
+        logger.info("push redis field_to_result_table, data: %s", json.dumps(field_table_ids))
 
     def push_data_label_table_ids(
         self,

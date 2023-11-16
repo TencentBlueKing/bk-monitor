@@ -22,8 +22,7 @@ the project delivered to anyone in the future.
 from typing import Any, Dict
 
 from celery.schedules import crontab
-from celery.task import periodic_task, task
-from django.conf import settings
+from celery.task import periodic_task
 
 from apps.api import CCApi
 from apps.api.modules.bkdata_access import BkDataAccessApi
@@ -47,9 +46,10 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
 from apps.utils.function import ignored
 from apps.utils.log import logger
+from apps.utils.task import high_priority_task
 
 
-@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+@high_priority_task(ignore_result=True)
 def async_create_bkdata_data_id(collector_config_id: int, platform_username: str = None):
     create_bkdata_data_id(CollectorConfig.objects.get(collector_config_id=collector_config_id), platform_username)
 
@@ -180,7 +180,7 @@ def review_clean():
             )
 
 
-@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+@high_priority_task(ignore_result=True)
 def sync_clean(bk_biz_id: int):
     try:
         collector_configs = CollectorConfig.objects.filter(bk_biz_id=bk_biz_id, bkdata_data_id__isnull=False)

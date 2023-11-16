@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
 
 HEALTHZ_METRICS_IMPORT_PATHS = [
     "home_application.handlers.healthz_metrics.service_module",
@@ -59,6 +60,10 @@ QUEUES = [
     "pipeline_priority",
     "async_export",
 ]
+
+# 如果高优先级队列特殊指定，则追加进队列
+if settings.BK_LOG_HIGH_PRIORITY_QUEUE not in QUEUES:
+    QUEUES.append(settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 
 ALARM_QUEUE_LEN = 10000
 

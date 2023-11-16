@@ -27,7 +27,7 @@ from urllib.parse import urlencode
 
 import pytz
 from celery.schedules import crontab
-from celery.task import periodic_task, task
+from celery.task import periodic_task
 from django.conf import settings
 from django.utils import timezone, translation
 from django.utils.translation import ugettext_lazy as _
@@ -57,6 +57,7 @@ from apps.log_search.serializers import SearchAttrSerializer
 from apps.utils.drf import custom_params_valid
 from apps.utils.local import set_local_param
 from apps.utils.log import logger
+from apps.utils.task import high_priority_task
 from bkm_space import api
 
 
@@ -334,7 +335,7 @@ def send_mail(params: dict, receivers: list, log_prefix: str):
     logger.info(f"{log_prefix} Successfully sent mail params: {send_params}")
 
 
-@task(queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+@high_priority_task()
 def send(
     config: ClusteringSubscription, time_config: dict, space_name: str, language: str, log_prefix: str, time_zone: str
 ):

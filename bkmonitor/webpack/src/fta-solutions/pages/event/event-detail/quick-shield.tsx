@@ -85,7 +85,13 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   public customTime: any = ['', ''];
   public options = {
     disabledDate(date) {
-      return date.getTime() < Date.now() - 8.64e7 || date.getTime() > Date.now() + 8.64e7 * 181; // 限制用户只能选择半年以内的日期
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      // 用户手动修改的时间不在可选时间内，回撤修改操作
+      if (Array.isArray(date)) {
+        return date.some(item => item.getTime() < today.getTime() || item.getTime() > today.getTime() + 8.64e7 * 181);
+      }
+      return date.getTime() < today.getTime() || date.getTime() > today.getTime() + 8.64e7 * 181; // 限制用户只能选择半年以内的日期
     }
   };
   public levelMap = ['', i18n.t('致命'), i18n.t('提醒'), i18n.t('预警')];

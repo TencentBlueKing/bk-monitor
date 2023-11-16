@@ -200,6 +200,25 @@ class YearRoundAmplitudeSerializer(serializers.Serializer):
 YearRoundRangeSerializer = YearRoundAmplitudeSerializer
 
 
+class MultivariateAnomalyDetectionSerializer(serializers.Serializer):
+    """
+    智能AI多指标异常检测算法
+    目前只有host场景，无需传入指标值，由数据平台算法的智能指标组成
+    """
+
+    class MetricListSerializer(serializers.ListSerializer):
+        class MetricSerializer(serializers.Serializer):
+            metric_id = serializers.CharField(required=True, label=_("指标ID"))
+            name = serializers.CharField(required=True, label=_("指标中文名"))
+            unit = serializers.CharField(required=True, label=_("单位"))
+            metric_name = serializers.CharField(required=True, label=_("指标英文名"))
+
+        child = MetricSerializer()
+
+    scene_id = serializers.CharField(required=True, label="场景")
+    metrics = MetricListSerializer(allow_empty=True, label="指标数据")
+
+
 class QueryConfigSerializer(serializers.Serializer):
     """
     查询配置序列化器基类
@@ -305,6 +324,7 @@ class BkDataTimeSeriesSerializer(QueryConfigSerializer):
     intelligent_detect = serializers.DictField(required=False)
     values = serializers.ListField(required=False)
     time_field = serializers.CharField(label="时间字段", default="dtEventTimeStamp", allow_blank=True, allow_null=True)
+    extend_fields = serializers.DictField(label="拓展字段", required=False)
 
     def validate(self, attrs: Dict) -> Dict:
         if not attrs.get("time_field"):

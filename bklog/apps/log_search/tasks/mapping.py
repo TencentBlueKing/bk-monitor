@@ -21,12 +21,12 @@ the project delivered to anyone in the future.
 """
 from celery.schedules import crontab
 from celery.task import periodic_task, task
-from django.conf import settings
 
 from apps.exceptions import ApiResultError
 from apps.log_search.constants import BkDataErrorCode
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
+from apps.utils.task import high_priority_task
 
 
 @periodic_task(run_every=crontab(minute="*/10"))
@@ -70,6 +70,6 @@ def sync_single_index_set_mapping_snapshot_periodic(index_set_id=None):  # pylin
     sync_mapping_snapshot_subtask(index_set_id)
 
 
-@task(ignore_result=True, queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+@high_priority_task(ignore_result=True)
 def sync_single_index_set_mapping_snapshot(index_set_id=None):  # pylint: disable=function-name-too-long
     sync_mapping_snapshot_subtask(index_set_id)

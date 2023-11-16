@@ -164,6 +164,14 @@ export default {
   '找到 {count} 条结果 , 耗时  {time} ms': 'Found {count} results, cost {time} ms',
   '{0}台主机Agent异常': '{0} agents abnormal',
   '已勾选{count}个': '{count} checked',
+  "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔":
+    "How to get the session ID:<br/>1. Right click on group chat list to add group robots: {name}<br/>2. Manually @{name} and enter the keyword'The session ID'<br/>3. The group that will be obtained Paste the ID into the input box, separated by commas",
+  '监控的数据主体、查询方式': 'Data subject and query method to be monitored',
+  已选择更低级告警级别: 'A lower alarm level is selected',
+  '针对 综合拨测、APM、主机、K8s 等场景，提供该场景定制化的异常发现和告警功能':
+    'For scenarios such as comprehensive dialing, APM, host, and K8s, it provides customized exception discovery and alarm functions',
+  '以 主机 场景为例，将会对指定的主机下的 CPU使用率、网卡入流量、物理内存空闲 等多个关键指标进行智能异常检测，如果检出多个指标异常，将以发生异常的主机为单位生成告警':
+    'Taking the host scenario as an example, intelligent anomaly detection is performed on key indicators such as CPU Usage, NIC Traffic, and Physical Memory Idle under the specified host(s). If multiple metric anomalies are detected, an alarm is generated on a per-host basis for the host where the exception occurred',
   '该数据是internal类型，没有对应的观测场景。':
     'The data is of internal type, and there is no corresponding observation scenario.',
   '你当前暂无 {0} 业务权限': 'You currently do not have {0} business authority',
