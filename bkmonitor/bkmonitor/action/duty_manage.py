@@ -635,11 +635,13 @@ class GroupDutyRuleManager:
 
     def manage_duty_notice(self):
         duty_notice = self.user_group.duty_notice
-        plan_notice = duty_notice["plan_notice"]
-        personal_notice = duty_notice["personal_notice"]
+        plan_notice = duty_notice.get("plan_notice", {})
+        personal_notice = duty_notice.get("personal_notice")
         current_time = datetime.now(tz=self.user_group.tz_info)
-        self.send_plan_notice(plan_notice, current_time)
-        self.send_personal_notice(personal_notice, current_time)
+        if plan_notice:
+            self.send_plan_notice(plan_notice, current_time)
+        if personal_notice:
+            self.send_personal_notice(personal_notice, current_time)
 
     def send_plan_notice(self, plan_notice, current_time: datetime):
         """
@@ -682,9 +684,17 @@ class GroupDutyRuleManager:
                 # 如果最后一次记录的时间就在今天，表示已经发送过，忽略
                 return
 
+        # 过滤的范围：开始时间处于两个时间范围之内的
+        # 开始时间小于当前时间，但是结束时间大于当前时间的
         duty_plan_queryset = DutyPlan.objects.filter(user_group_id=self.user_group.id).filter(
-            Q(start_time__gte=time_tools.datetime2str(current_time))
-            | Q(finished_time__lte=time_tools.datetime2str(end_datetime))
+            Q(
+                start_time__gte=time_tools.datetime2str(current_time),
+                start_time__lte=time_tools.datetime2str(end_datetime),
+            )
+            | Q(
+                start_time__lte=time_tools.datetime2str(current_time),
+                finished_time__gte=time_tools.datetime2str(current_time),
+            )
         )
         duty_plans = [
             {
@@ -703,7 +713,7 @@ class GroupDutyRuleManager:
             notice_content = []
         for duty_plan in duty_plans:
             duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
-            notice_content.append(f"\\n> {duty_plan['start_time']} -- {duty_plan['finished_time']}  f{duty_users}")
+            notice_content.append(f"\\n> {duty_plan['start_time']} -- {duty_plan['finished_time']}  {duty_users}")
         sender = Sender(
             context={
                 "bk_biz_id": self.user_group.bk_biz_id,
@@ -724,7 +734,7 @@ class GroupDutyRuleManager:
             # 凡事有记录的，都会成功
             DutyPlanSendRecord.objects.create(
                 user_group_id=self.user_group.id,
-                last_send_time=int(end_datetime.timestamp()),
+                last_send_time=int(current_time.timestamp()),
                 notice_config=plan_notice,
             )
 
@@ -780,7 +790,7 @@ class GroupDutyRuleManager:
         user_duty_plans = defaultdict(list)
         for duty_plan in duty_plans:
             duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
-            duty_content = f"{duty_plan['start_time']} -- {duty_plan['finished_time']}  f{duty_users}"
+            duty_content = f"{duty_plan['start_time']} -- {duty_plan['finished_time']}  {duty_users}"
             for user in duty_plan["users"]:
                 if user["type"] == "group":
                     continue
