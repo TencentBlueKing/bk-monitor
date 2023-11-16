@@ -158,7 +158,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         return new_index_list[-1]
 
     def _get_connection(self, index: str, check_ping: bool = True):
-        if not self.storage_cluster_id:
+        if not self.storage_cluster_id or self.storage_cluster_id == -1:
             _connect_info: tuple = self._connect_info(index=index)
         else:
             _connect_info: tuple = self._connect_info_by_storage_cluster_id(storage_cluster_id=self.storage_cluster_id)
