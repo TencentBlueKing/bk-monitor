@@ -151,7 +151,7 @@ class AlertAssigneeManager:
             # 如果存在适配规则的通知升级情况
             self.notice_supervisor_object.get_notice_receivers(notify_configs=notify_configs, append_appointee=False)
 
-        if self.is_matched is False and self.origin_notice_supervisor_object:
+        if not self.is_matched and self.origin_notice_supervisor_object:
             # 如果当前不满足分派条件，则判断是否有原始通知的升级情况
             self.origin_notice_supervisor_object.get_notice_receivers(
                 notify_configs=notify_configs, append_appointee=False
@@ -189,19 +189,13 @@ class AlertAssigneeManager:
         """
         获取当前运行的升级人员
         """
-        notice_supervisors = []
-        assigned_supervisors = None
         if not self.is_matched:
             # 如果没有适配到规则，用默认通知的关注人信息
-            notice_supervisors = self.get_origin_notice_supervisors(by_group)
+            return self.get_origin_notice_supervisors(by_group)
 
         if self.notice_supervisor_object:
-            assigned_supervisors = self.notice_supervisor_object.get_assignee_by_user_groups(by_group)
-        if assigned_supervisors and by_group:
-            notice_supervisors.update(assigned_supervisors)
-        elif assigned_supervisors and not by_group:
-            notice_supervisors.extend(assigned_supervisors)
-        return notice_supervisors
+            return self.notice_supervisor_object.get_assignee_by_user_groups(by_group)
+        return None
 
     def get_notice_appointees(self, by_group=False):
         """
