@@ -81,7 +81,7 @@ class UpgradeChecker(BaseChecker):
             )
             try:
                 assign_manager = BackendAssignMatchManager(alert_doc, assign_mode=assign_mode)
-            except BaseException as error:
+            except BaseException as error:  # noqa
                 exc = error
                 logger.exception("[alert assign] alert(%s) assign failed, error info %s", alert_doc.id, str(error))
             matched_rules = assign_manager.get_matched_rules()
