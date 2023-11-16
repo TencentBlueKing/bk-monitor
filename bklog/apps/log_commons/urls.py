@@ -30,7 +30,6 @@ router.register(r"external_permission", views.ExternalPermissionViewSet, basenam
 router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_event")
 
 urlpatterns = [
-    url(r"", include(router.urls)),
     # 获取文档链接地址
     url(r"^get_docs_link/$", views.get_docs_link),
     # 获取外部系统权限
