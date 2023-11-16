@@ -188,11 +188,11 @@ INSPECT_KEYWORD_RESULT = {
 ENHANCE_KEYWORD_TEST_CASES = [
     {
         "keyword": """number >=83063 or title: "The Right Way" AND log: and """,
-        "expect": """number: >= 83063 OR title: "The Right Way" AND log: "and" """,
+        "expect": """number: [ 83063 TO * } OR title: "The Right Way" AND log: "and" """,
     },
     {
         "keyword": """number < 83063 and title: "The Right Way" AND log: OR """,
-        "expect": """number: < 83063 AND title: "The Right Way" AND log: "OR" """,
+        "expect": """number: { * TO 83063 } AND title: "The Right Way" AND log: "OR" """,
     },
 ]
 

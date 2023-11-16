@@ -28,6 +28,7 @@ from apps.constants import (
 from apps.exceptions import UnknownLuceneOperatorException
 from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_search.constants import DEFAULT_BK_CLOUD_ID, OperatorEnum
+from apps.utils import ChoicesEnum
 from apps.utils.log import logger
 
 
@@ -695,13 +696,30 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
         return ''.join(split_strings)
 
 
+class OperatorEnhanceEnum(ChoicesEnum):
+    """
+    增强运算符枚举
+    """
+
+    LE = "<="
+    LT = "<"
+    GE = ">="
+    GT = ">"
+
+
 class OperatorEnhanceLucene(EnhanceLuceneBase):
     """
-    兼容用户忘记运算符之前输入:的情况
-    例如: A > 3 => A : > 3
+    兼容用户增强运算符
+    例如: A > 3 => A: { 3 TO * }
     """
 
     RE = r'(?<=[a-zA-Z0-9_])\s*(>=|<=|>|<|=|!=)\s*([\d.]+)'
+    ENHANCE_OPERATORS = [
+        OperatorEnhanceEnum.LT.value,
+        OperatorEnhanceEnum.LE.value,
+        OperatorEnhanceEnum.GT.value,
+        OperatorEnhanceEnum.GE.value,
+    ]
 
     def __init__(self, query_string: str):
         super().__init__(query_string)
@@ -714,7 +732,21 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     def transform(self) -> str:
         if not self.match():
             return self.query_string
-        return re.sub(self.RE, r': \1 \2', self.query_string)
+
+        def replace_operator(match):
+            operator = match.group(1)
+            value = match.group(2)
+            if operator not in self.ENHANCE_OPERATORS:
+                return match.group(0)
+            right = "]" if operator == OperatorEnhanceEnum.LE.value else "}"
+            left = "[" if operator == OperatorEnhanceEnum.GE.value else "{"
+
+            if operator in [OperatorEnhanceEnum.GT.value, OperatorEnhanceEnum.GE.value]:
+                return f': {left} {value} TO * {right}'
+            else:
+                return f': {left} * TO {value} {right}'
+
+        return re.sub(self.RE, replace_operator, self.query_string)
 
 
 class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
