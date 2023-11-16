@@ -1014,7 +1014,7 @@ CONTAINER_COLLECTOR_CONFIG_DIR = os.getenv("BKAPP_CONTAINER_COLLECTOR_CONFIG_DIR
 CONTAINER_COLLECTOR_CR_LABEL_BKENV: str = os.getenv("BKAPP_CONTAINER_COLLECTOR_CR_LABEL_BKENV", "")
 
 # 是否开启RETAIN_EXTRA_JSON
-RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "off") == "on"
+RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "on") == "on"
 
 # ==============================================================================
 # Templates
