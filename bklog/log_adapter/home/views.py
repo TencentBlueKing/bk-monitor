@@ -49,17 +49,6 @@ class RequestProcessor:
     """
 
     @classmethod
-    def set_language_code(cls, request, fake_request=None):
-        """
-        设置请求的语言
-        """
-        request_meta = getattr(request, "META", {})
-        if request_meta.get("HTTP_X_BK_LANGUAGE_CODE", ""):
-            setattr(request, "LANGUAGE_CODE", request_meta["HTTP_X_BK_LANGUAGE_CODE"])
-            if fake_request:
-                setattr(fake_request, "LANGUAGE_CODE", request_meta["HTTP_X_BK_LANGUAGE_CODE"])
-
-    @classmethod
     def get_space_uid(cls, request) -> str:
         """
         获取空间ID
@@ -218,7 +207,6 @@ def external(request):
     """
     外部入口
     """
-    RequestProcessor.set_language_code(request=request)
     space_uid = request.GET.get("space_uid", "")
     external_user_info = RequestProcessor.get_request_user_info(request)
     external_user = external_user_info.get("username", "")
@@ -263,7 +251,6 @@ def dispatch_list_user_spaces(request):
     """
     from apps.log_search.models import Space
 
-    RequestProcessor.set_language_code(request=request)
     external_user_info = RequestProcessor.get_request_user_info(request)
     external_user = external_user_info.get("username", "")
     if not external_user:
@@ -395,7 +382,6 @@ def dispatch_external_proxy(request):
                         },
                         status=403,
                     )
-        RequestProcessor.set_language_code(request=request, fake_request=fake_request)
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
         user = auth.authenticate(username=authorizer)

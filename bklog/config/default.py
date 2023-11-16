@@ -126,7 +126,9 @@ MIDDLEWARE = (
     # exception middleware
     "blueapps.core.exceptions.middleware.AppExceptionMiddleware",
     # 自定义中间件
-    "django.middleware.locale.LocaleMiddleware",
+    # "django.middleware.locale.LocaleMiddleware",
+    # 自定义国际化中间件, 替换django.middleware.locale.LocaleMiddleware
+    "apps.middleware.custom_locale.CustomLocaleMiddleware",
     "apps.middlewares.CommonMid",
     "apps.middleware.user_middleware.UserLocalMiddleware",
     "apps.middleware.user_middleware.BkLogMetricsAfterMiddleware",
