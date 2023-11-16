@@ -27,6 +27,8 @@ import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 import moment from 'moment';
 
+import { LANGUAGE_COOKIE_KEY } from '../../../../monitor-common/utils/index';
+import { docCookies } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import CollectionDialog from '../../../../monitor-pc/pages/data-retrieval/components/collection-view-dialog';
 import { PanelToolsType } from '../../../../monitor-pc/pages/monitor-k8s/typings';
@@ -36,6 +38,8 @@ import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 
 import './chart-collect.scss';
+
+const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
 export interface ICheckPanel {
   id: string | number;
@@ -211,7 +215,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       <div class='chart-colllect-component'>
         <transition name='collection-fade'>
           {this.checkList.length && !this.isCollectSingle ? (
-            <div class='view-collection'>
+            <div class={['view-collection', { en: isEn }]}>
               <div style='flex-grow: 1'>
                 <span>{window.i18n.t('已勾选{count}个', { count: this.checkList.length })}</span>
                 <span
