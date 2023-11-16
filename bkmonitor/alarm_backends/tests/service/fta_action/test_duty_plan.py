@@ -816,6 +816,58 @@ class TestDutyPreview:
             {'start_time': '2023-08-03 00:00', 'end_time': '2023-08-03 23:59'},
         ]
 
+    def test_multi_rotation_duty_rule(self, rotation_duty_rule):
+        """
+        主备份人模式
+        """
+        duty_arranges = [
+            {
+                "duty_time": [
+                    {
+                        "work_type": "daily",
+                        "work_days": [],
+                        "work_time_type": "time_range",
+                        "work_time": ["00:00--23:59"],
+                        "period_settings": {},
+                    }
+                ],
+                "duty_users": [
+                    [
+                        {"id": "admin1", "type": "user"},
+                        {"id": "admin2", "type": "user"},
+                        {"id": "admin3", "type": "user"},
+                        {"id": "admin4", "type": "user"},
+                    ],
+                ],
+                "group_type": "auto",
+                "group_number": 1,
+            },
+            {  # 一个人做垫底
+                "duty_time": [
+                    {
+                        "work_type": "daily",
+                        "work_days": [],
+                        "work_time_type": "time_range",
+                        "work_time": ["00:00--23:59"],
+                        "period_settings": {},
+                    }
+                ],
+                "duty_users": [[{"id": "admin", "type": "user"}]],
+            },
+        ]
+        rotation_duty_rule["duty_arranges"] = duty_arranges
+        m = DutyRuleManager(rotation_duty_rule, days=4)
+        duty_plan = m.get_duty_plan()
+        # 如果是5天计划，实际上需要设置轮值到交接时间点，所以会生成6天
+        print(duty_plan)
+        assert len(duty_plan) == 8
+        assert duty_plan[0]["users"] == [{"id": "admin1", "type": "user"}]
+
+        assert duty_plan[-1]["users"] == [{"id": "admin", "type": "user"}]
+        assert duty_plan[-1]["work_times"] == [
+            {'start_time': '2023-07-28 00:00', 'end_time': '2023-07-28 23:59'},
+        ]
+
     def test_even_auto_group_rotation_duty_rule(self, rotation_duty_rule):
         """
         自定义测试场景

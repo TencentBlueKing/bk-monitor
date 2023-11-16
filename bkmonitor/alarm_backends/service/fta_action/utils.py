@@ -444,7 +444,7 @@ class AlertAssignee:
             "timezone", "id", "duty_rules"
         )
         group_duty_plans = defaultdict(dict)
-        for duty_plan in DutyPlan.objects.filter(user_group_id__in=self.user_groups, is_effective=1).order_by("id"):
+        for duty_plan in DutyPlan.objects.filter(user_group_id__in=self.user_groups, is_effective=1).order_by("order"):
             rule_id = duty_plan.duty_rule_id
             if rule_id not in group_duty_plans[duty_plan.user_group_id]:
                 group_duty_plans[duty_plan.user_group_id][rule_id] = []

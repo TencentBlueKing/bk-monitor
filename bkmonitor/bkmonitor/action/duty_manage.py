@@ -274,7 +274,12 @@ class DutyRuleManager:
 
             if work_time:
                 duty_plans.append(
-                    {"users": duty_arrange["duty_users"][0], "user_index": index, "work_times": work_time}
+                    {
+                        "users": duty_arrange["duty_users"][0],
+                        "order": index,
+                        "user_index": index,
+                        "work_times": work_time,
+                    }
                 )
         return duty_plans
 
@@ -286,13 +291,20 @@ class DutyRuleManager:
         if not self.duty_arranges:
             return []
         # 轮值情况下只有一个
-        duty_arrange = self.duty_arranges[0]
+        for order, duty_arrange in enumerate(self.duty_arranges):
+            self.get_one_arrange_duty_plan(duty_arrange, order, duty_plans)
+        return duty_plans
 
+    def get_one_arrange_duty_plan(self, duty_arrange, order, duty_plans: list):
+        """
+        获取单个安排的计划
+        """
         duty_users = duty_arrange["duty_users"]
         duty_times = duty_arrange["duty_time"]
         group_user_number = 1
         period_interval = 1
-        if duty_arrange["group_type"] == DutyGroupType.AUTO:
+        group_type = duty_arrange.get("group_type", DutyGroupType.SPECIFIED)
+        if group_type == DutyGroupType.AUTO:
             # 如果人员信息为自动
             group_user_number = duty_arrange["group_number"]
             duty_users = duty_users[0]
@@ -342,7 +354,7 @@ class DutyRuleManager:
             # 根据设置的用户数量进行轮转
             current_user_index = self.last_user_index
             users, self.last_user_index = self.get_group_duty_users(
-                duty_users, self.last_user_index, group_user_number, duty_arrange["group_type"]
+                duty_users, self.last_user_index, group_user_number, group_type
             )
             duty_work_time = []
             for one_period_dates in current_duty_dates:
@@ -358,7 +370,9 @@ class DutyRuleManager:
 
                     duty_work_time.extend(self.get_time_range_work_time(day["date"], day["work_time_list"]))
 
-            duty_plans.append({"users": users, "user_index": current_user_index, "work_times": duty_work_time})
+            duty_plans.append(
+                {"users": users, "user_index": current_user_index, "order": order, "work_times": duty_work_time}
+            )
         return duty_plans
 
     @staticmethod
@@ -619,7 +633,8 @@ class GroupDutyRuleManager:
                     users=duty_plan["users"],
                     work_times=duty_plan["work_times"],
                     is_effective=1,
-                    order=duty_plan.get("user_index", 0),
+                    order=duty_plan.get("order", 0),
+                    user_index=duty_plan.get("user_index", 0),
                 )
             )
 

@@ -784,6 +784,7 @@ class DutyPlan(Model):
     duty_rule_id = models.IntegerField("关联的告警信息", null=True, db_index=True)
     duty_arrange_id = models.IntegerField("轮值组ID", null=True, db_index=True)
     order = models.IntegerField("轮班组的顺序")
+    user_index = models.IntegerField("轮班用户的分组", default=0)
 
     is_active = models.BooleanField("是否生效状态（已废弃）", default=False)
 
