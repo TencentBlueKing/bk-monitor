@@ -21,11 +21,17 @@ the project delivered to anyone in the future.
 """
 
 from django.conf.urls import url
+from django.urls import include
+from rest_framework import routers
 
 from apps.log_commons import views
+from apps.log_commons.views import FrontendEventViewSet
 
+router = routers.DefaultRouter(trailing_slash=True)
+router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_event")
 
 urlpatterns = [
+    url(r"", include(router.urls)),
     # 获取文档链接地址
     url(r"^get_docs_link/$", views.get_docs_link),
 ]
