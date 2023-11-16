@@ -33,6 +33,7 @@ import {
   collectInstanceStatus,
   frontendCollectConfigDetail
 } from '../../../../monitor-api/modules/collecting';
+// import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
 import { storageStatus } from '../../../../monitor-api/modules/datalink';
 import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
