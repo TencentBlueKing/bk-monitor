@@ -20,7 +20,7 @@ the project delivered to anyone in the future.
 """
 from django.utils.translation import ugettext as _
 
-from apps.log_measure.handlers.metric_collectors.es_stats import get_es_metrics
+from apps.log_measure.utils.es import get_es_metrics
 from bk_monitor.constants import TimeFilterEnum
 from bk_monitor.utils.metric import register_metric
 
@@ -28,11 +28,15 @@ from bk_monitor.utils.metric import register_metric
 class EsPShard:
     @staticmethod
     @register_metric(
-        "es_monitor", description=_("es 索引集信息"), data_name="pshard_stats", time_filter=TimeFilterEnum.MINUTE5
+        "es_monitor",
+        sub_type="es_pshard",
+        description=_("es 索引集信息"),
+        data_name="es_monitor",
+        time_filter=TimeFilterEnum.MINUTE5,
     )
     def elastic_pshard_stats():
         """
         elastic indices
         @return:
         """
-        return get_es_metrics("pshard_stats")
+        return get_es_metrics("es_pshard")

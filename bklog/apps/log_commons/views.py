@@ -19,6 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import time
+
+import requests
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.http import JsonResponse
@@ -45,6 +48,12 @@ from apps.log_commons.serializers import (
     ListMaintainersSLZ,
 )
 from apps.utils.drf import list_route
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from apps.generic import APIViewSet
+from apps.log_commons.exceptions import BaseCommonsException
+from apps.log_commons.serializers import FrontendEventSerializer
 
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = "日志平台"
@@ -285,3 +294,32 @@ class ExternalPermissionViewSet(APIViewSet):
         """
         data = self.params_valid(DestroyExternalPermissionSLZ)
         return Response(ExternalPermission.destroy(validated_request_data=data))
+class FrontendEventViewSet(APIViewSet):
+    @action(detail=False, methods=["POST"], url_path="report")
+    def report(self, request):
+        params = self.params_valid(FrontendEventSerializer)
+        if not settings.FRONTEND_REPORT_DATA_ID or not settings.FRONTEND_REPORT_DATA_TOKEN:
+            return Response("report config does not set")
+
+        host = settings.FRONTEND_REPORT_DATA_URL or settings.BKMONITOR_CUSTOM_PROXY_IP
+        if not host:
+            return Response("report config does not set")
+
+        url = f"{host}/v2/push/"
+
+        params["dimensions"]["app_code"] = settings.APP_CODE
+        report_data = {
+            "data_id": int(settings.FRONTEND_REPORT_DATA_ID),
+            "access_token": settings.FRONTEND_REPORT_DATA_TOKEN,
+            "data": [
+                {
+                    "dimension": params["dimensions"],
+                    "event_name": params["event_name"],
+                    "event": {"content": params["event_content"]},
+                    "target": params["target"],
+                    "timestamp": params.get("timestamp", int(time.time() * 1000)),
+                }
+            ],
+        }
+        r = requests.post(url, json=report_data, timeout=3)
+        return Response(r.json())

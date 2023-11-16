@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+<<<<<<< HEAD
 import re
 from collections import defaultdict
 
@@ -28,8 +29,7 @@ from apps.api import BkLogApi
 from apps.log_measure.constants import RESULT_TABLE_ID_RE
 from apps.log_measure.utils.metric import MetricUtils
 from apps.utils.log import logger
-from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import Metric, register_metric
+from bk_monitor.utils.metric import Metric
 
 VERSION_LEN = 3
 
@@ -939,7 +939,11 @@ def process_pshard_stats_data(metrics, get, version, base_dimensions):
     @param base_dimensions:
     @return:
     """
+<<<<<<<< HEAD:bklog/apps/log_measure/handlers/metric_collectors/es_stats.py
     data = get(get_url(version)["pshard_url"])
+========
+    data = get(get_url(version)["pshard_stats_url"])
+>>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093:bklog/apps/log_measure/utils/es.py
     if not data:
         return
     pshard_stats_metrics = pshard_stats_for_version(version)
@@ -1099,9 +1103,15 @@ def process_cat_allocation_data(metrics, get, version, base_dimensions):
 
 
 ES_COLLECT_METHOD_MAP = {
+<<<<<<<< HEAD:bklog/apps/log_measure/handlers/metric_collectors/es_stats.py
     "stats": [process_stats_data],
     "pshard_stats": [process_pshard_stats_data],
     "indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
+========
+    "es_stats": [process_stats_data],
+    "es_pshard": [process_pshard_stats_data],
+    "es_indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
+>>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093:bklog/apps/log_measure/utils/es.py
 }
 
 
@@ -1126,15 +1136,39 @@ def get_es_metrics(metric_type):
             logger.exception(f"[{metric_type}] failed get es info {e}")
 
     return metrics
+<<<<<<<< HEAD:bklog/apps/log_measure/handlers/metric_collectors/es_stats.py
+=======
+from django.utils.translation import ugettext as _
+
+from apps.log_measure.utils.es import get_es_metrics
+from bk_monitor.constants import TimeFilterEnum
+from bk_monitor.utils.metric import register_metric
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
 
 
 class EsStats:
     @staticmethod
+<<<<<<< HEAD
     @register_metric("es_monitor", description=_("es 监控状态信息"), data_name="stats", time_filter=TimeFilterEnum.MINUTE5)
+=======
+    @register_metric(
+        "es_monitor",
+        sub_type="es_stats",
+        description=_("es 监控状态信息"),
+        data_name="es_monitor",
+        time_filter=TimeFilterEnum.MINUTE5,
+    )
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093
     def elastic_stats():
         """
         elastic_stats
         @return:
         """
 
+<<<<<<< HEAD
         return get_es_metrics("stats")
+========
+>>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093:bklog/apps/log_measure/utils/es.py
+=======
+        return get_es_metrics("es_stats")
+>>>>>>> 68d710faaee98d2c267ed572abc9fc3d9498b093

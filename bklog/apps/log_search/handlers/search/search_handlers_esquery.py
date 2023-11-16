@@ -1389,7 +1389,7 @@ class SearchHandler(object):
             if "highlight" not in hit:
                 log_list.append(log)
                 continue
-            if not self.field_configs and self.is_desensitize:
+            if not (self.field_configs or self.text_fields_field_configs) or not self.is_desensitize:
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
 

@@ -214,6 +214,7 @@ CELERY_IMPORTS = (
 )
 
 # bk crypto sdk配置
+BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
 BKCRYPTO = {
     "SYMMETRIC_CIPHERS": {
         "default": {
@@ -223,7 +224,7 @@ BKCRYPTO = {
 }
 
 # 对称加密类型
-if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "AES") == "SHANGMI":
+if os.getenv("BKPAAS_BK_CRYPTO_TYPE", "CLASSIC") == "SHANGMI":
     BKCRYPTO.update(
         {
             "SYMMETRIC_CIPHER_TYPE": bkcrypto_constants.SymmetricCipherType.SM4.value,
@@ -237,7 +238,7 @@ else:
     )
 
 # celery web worker高优先级队列配置
-BK_LOG_HIGH_PRIORITY_QUEUE = os.getenv("BK_LOG_HIGH_PRIORITY_QUEUE", "default")
+BK_LOG_HIGH_PRIORITY_QUEUE = os.getenv("BKAPP_HIGH_PRIORITY_QUEUE", "celery")
 
 # OTLP Service Name
 SERVICE_NAME = APP_CODE
@@ -874,6 +875,11 @@ BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
 BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
 TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
 
+# 前端上报
+FRONTEND_REPORT_DATA_ID = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_ID")
+FRONTEND_REPORT_DATA_TOKEN = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_TOKEN")
+FRONTEND_REPORT_DATA_URL = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_URL")
+
 # ===============================================================================
 # EsQuery
 # ===============================================================================
@@ -1014,13 +1020,7 @@ CONTAINER_COLLECTOR_CONFIG_DIR = os.getenv("BKAPP_CONTAINER_COLLECTOR_CONFIG_DIR
 CONTAINER_COLLECTOR_CR_LABEL_BKENV: str = os.getenv("BKAPP_CONTAINER_COLLECTOR_CR_LABEL_BKENV", "")
 
 # 是否开启RETAIN_EXTRA_JSON
-RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "off") == "on"
-# 外部版授权ITSM服务ID
-ITSM_EXTERNAL_PERMISSION_SERVICE_ID = int(os.getenv("BKAPP_ITSM_EXTERNAL_PERMISSION_SERVICE_ID", 0))
-# ITSM回调地址
-BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
-# 外部版PAAS地址
-EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
+RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "on") == "on"
 
 # ==============================================================================
 # Templates

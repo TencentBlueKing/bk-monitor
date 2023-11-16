@@ -17,16 +17,16 @@ from typing import Dict, List
 import arrow
 from django.conf import settings
 from django.utils.functional import cached_property
+
+from bkmonitor.dataflow.constant import get_aiops_env_bkdata_biz_id
+from bkmonitor.dataflow.node.base import Node
+from core.drf_resource import api
 from monitor_web.aiops.ai_setting.constant import (
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD,
 )
 from monitor_web.aiops.metric_recommend.constant import (
     METRIC_RECOMMAND_SCENE_SERVICE_TEMPLATE,
 )
-
-from bkmonitor.dataflow.constant import get_aiops_env_bkdata_biz_id
-from bkmonitor.dataflow.node.base import Node
-from core.drf_resource import api
 
 logger = logging.getLogger("bkmonitor.dataflow")
 
@@ -221,7 +221,9 @@ class MultivariateAnomalySceneServiceNode(SceneServiceNode):
             }
         )
 
-        config["dedicated_config"]["input_mapping"]["model_input_1"]["mapping"] = mapping
+        for input in config["dedicated_config"]["input_mapping"].values():
+            input["mapping"] = mapping
+
         return config
 
 
@@ -251,7 +253,6 @@ class SimilarMetricClusteringServiceNode(SceneServiceNode):
 
     @property
     def config(self):
-
         from monitor_web.aiops.metric_recommend.constant import (
             METRIC_RECOMMAND_INPUT_MAPPINGS,
         )

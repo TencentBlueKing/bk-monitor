@@ -20,7 +20,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-import importlib
 import json
 import logging
 import time
@@ -33,10 +32,14 @@ from django.conf import settings
 from apps.feature_toggle.models import FeatureToggle
 from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS, LOG_MEASURE_METRIC_TOGGLE
 from apps.log_measure.models import MetricDataHistory
-from apps.log_measure.utils.metric import MetricUtils, build_metric_id
+from apps.log_measure.utils.metric import MetricUtils
 from bk_monitor.handler.monitor import BKMonitor
 from bk_monitor.utils.collector import MetricCollector
-from bk_monitor.utils.metric import REGISTERED_METRICS, clear_registered_metrics
+from bk_monitor.utils.metric import (
+    REGISTERED_METRICS,
+    build_metric_id,
+    clear_registered_metrics,
+)
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 logger = logging.getLogger("log_measure")
@@ -66,11 +69,13 @@ def bk_monitor_report():
         defaults={
             "status": "on",
             "is_viewed": False,
-            "feature_config": {"import_paths": COLLECTOR_IMPORT_PATHS},
+            # 初始化值默认为空列表
+            "feature_config": {"import_paths": []},
             "biz_id_white_list": [],
         },
     )
-    import_paths = feature_toggle_obj.feature_config.get("import_paths", [])
+    # 如果为空列表，则默认全部执行
+    import_paths = feature_toggle_obj.feature_config.get("import_paths", []) or COLLECTOR_IMPORT_PATHS
     if feature_toggle_obj.status == "on" and import_paths:
         custom_metric_instance.report(collector_import_paths=import_paths)
 
@@ -92,7 +97,8 @@ def bk_monitor_collect():
         defaults={
             "status": "on",
             "is_viewed": False,
-            "feature_config": {"import_paths": COLLECTOR_IMPORT_PATHS},
+            # 初始化值默认为空列表
+            "feature_config": {"import_paths": []},
             "biz_id_white_list": [],
         },
     )
@@ -102,19 +108,18 @@ def bk_monitor_collect():
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
     time.sleep(2)
-
-    # 派发子任务周期判定
     time_now = arrow.now()
     time_now_minute = 60 * time_now.hour + time_now.minute
-    for import_path in feature_toggle_obj.feature_config.get("import_paths", []):
-        importlib.reload(importlib.import_module(import_path))
-        EXECUTE_METRICS = copy.deepcopy(REGISTERED_METRICS)
-        for metric in EXECUTE_METRICS.values():
-            if time_now_minute % metric["time_filter"]:
-                logger.info(f"[statistics_data] start collecting {import_path}")
-                collect_metrics.delay([import_path], [metric["namespace"]], [metric["data_name"]])
-        # 清理注册表里的内容，下一次运行的时候重新注册
-        clear_registered_metrics()
+    # 如果为空列表，则默认全部执行
+    import_paths = feature_toggle_obj.feature_config.get("import_paths", []) or COLLECTOR_IMPORT_PATHS
+    MetricCollector(collector_import_paths=import_paths)
+    execute_metrics = copy.deepcopy(REGISTERED_METRICS)
+    for metric_id, metric in execute_metrics.items():
+        if not time_now_minute % metric["time_filter"]:
+            logger.info(f"[statistics_data] start collecting {metric_id}")
+            collect_metrics.delay(import_paths, [metric["namespace"]], [metric["data_name"]])
+    # 清理注册表里的内容，下一次运行的时候重新注册
+    clear_registered_metrics()
 
 
 @task(ignore_result=True)
@@ -131,7 +136,10 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
     try:
         for group in metric_groups:
             metric_id = build_metric_id(
-                data_name=group["data_name"], namespace=group["namespace"], prefix=group["prefix"]
+                data_name=group["data_name"],
+                namespace=group["namespace"],
+                prefix=group["prefix"],
+                sub_type=group["sub_type"],
             )
             metric_data = [i.__dict__ for i in group["metrics"]]
             MetricDataHistory.objects.update_or_create(
@@ -149,5 +157,5 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
         # 清理注册表里的内容，下一次运行的时候重新注册
         clear_registered_metrics()
 
-    except Exception as e:
-        logger.error(f"Failed to save metric_data, msg: {e}")
+    except Exception as ex:
+        logger.exception(f"Failed to save metric_data, msg: {ex}")

@@ -20,17 +20,23 @@ the project delivered to anyone in the future.
 """
 from django.utils.translation import ugettext as _
 
-from apps.log_measure.handlers.metric_collectors.es_stats import get_es_metrics
+from apps.log_measure.utils.es import get_es_metrics
 from bk_monitor.constants import TimeFilterEnum
 from bk_monitor.utils.metric import register_metric
 
 
 class EsIndices:
     @staticmethod
-    @register_metric("es_monitor", description=_("es 索引集信息"), data_name="indices", time_filter=TimeFilterEnum.MINUTE5)
+    @register_metric(
+        "es_monitor",
+        sub_type="es_indices",
+        description=_("es 索引集信息"),
+        data_name="es_monitor",
+        time_filter=TimeFilterEnum.MINUTE5,
+    )
     def elastic_indices():
         """
         elastic indices
         @return:
         """
-        return get_es_metrics("indices")
+        return get_es_metrics("es_indices")
