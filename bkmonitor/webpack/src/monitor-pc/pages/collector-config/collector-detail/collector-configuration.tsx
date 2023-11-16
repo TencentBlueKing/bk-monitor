@@ -103,48 +103,53 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @description 获取详情数据
    */
   getDetailData() {
-    frontendCollectConfigDetail({ id: this.id }).then(data => {
-      this.basicInfo = { ...data.basic_info, id: this.id };
-      if (data.extend_info.log) {
-        this.basicInfo = { ...this.basicInfo, ...data.extend_info.log };
-        !this.basicInfo.filter_patterns && (this.basicInfo.filter_patterns = []);
-        this.basicInfoMap = {
-          ...this.basicInfoMap,
-          log_path: this.$t('日志路径'),
-          filter_patterns: this.$t('排除规则'),
-          rules: this.$t('关键字规则'),
-          charset: this.$t('日志字符集')
-        };
-      }
-      if (data.extend_info.process) {
-        const { process } = data.extend_info;
-        this.basicInfoMap = {
-          ...this.basicInfoMap,
-          match: this.$t('进程匹配'),
-          process_name: this.$t('进程名'),
-          port_detect: this.$t('端口探测')
-        };
-        const {
-          match_type: matchType,
-          process_name: processName,
-          port_detect: portDetect,
-          match_pattern: matchPattern,
-          exclude_pattern: excludePattern,
-          pid_path: pidPath
-        } = process;
-        this.basicInfo = {
-          ...this.basicInfo,
-          match: matchType,
-          match_pattern: matchPattern,
-          exclude_pattern: excludePattern,
-          pid_path: pidPath,
-          process_name: processName || '--',
-          port_detect: `${portDetect}`
-        };
-      }
-      this.runtimeParams = data.runtime_params;
-      this.targetInfo = data.target_info;
-    });
+    this.loading = true;
+    frontendCollectConfigDetail({ id: this.id })
+      .then(data => {
+        this.basicInfo = { ...data.basic_info, id: this.id };
+        if (data.extend_info.log) {
+          this.basicInfo = { ...this.basicInfo, ...data.extend_info.log };
+          !this.basicInfo.filter_patterns && (this.basicInfo.filter_patterns = []);
+          this.basicInfoMap = {
+            ...this.basicInfoMap,
+            log_path: this.$t('日志路径'),
+            filter_patterns: this.$t('排除规则'),
+            rules: this.$t('关键字规则'),
+            charset: this.$t('日志字符集')
+          };
+        }
+        if (data.extend_info.process) {
+          const { process } = data.extend_info;
+          this.basicInfoMap = {
+            ...this.basicInfoMap,
+            match: this.$t('进程匹配'),
+            process_name: this.$t('进程名'),
+            port_detect: this.$t('端口探测')
+          };
+          const {
+            match_type: matchType,
+            process_name: processName,
+            port_detect: portDetect,
+            match_pattern: matchPattern,
+            exclude_pattern: excludePattern,
+            pid_path: pidPath
+          } = process;
+          this.basicInfo = {
+            ...this.basicInfo,
+            match: matchType,
+            match_pattern: matchPattern,
+            exclude_pattern: excludePattern,
+            pid_path: pidPath,
+            process_name: processName || '--',
+            port_detect: `${portDetect}`
+          };
+        }
+        this.runtimeParams = data.runtime_params;
+        this.targetInfo = data.target_info;
+      })
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   /**
@@ -247,7 +252,12 @@ export default class CollectorConfiguration extends tsc<IProps> {
       return value;
     }
     return (
-      <div class='collector-configuration-component'>
+      <div
+        class='collector-configuration-component'
+        v-bkloading={{
+          isLoading: this.loading
+        }}
+      >
         <div class='detail-wrap-item'>
           <div class='wrap-item-title'>{this.$t('基本信息')}</div>
           <div class='wrap-item-content'>

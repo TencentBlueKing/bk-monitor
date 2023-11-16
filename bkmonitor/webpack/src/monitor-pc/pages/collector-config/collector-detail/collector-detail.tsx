@@ -54,7 +54,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;
 
-  active = TabEnum.StorageState;
+  active = TabEnum.Configuration;
   collectId = 0;
 
   detailData: DetailData = {
@@ -235,10 +235,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             label={this.$t('配置信息')}
             name={TabEnum.Configuration}
           >
-            <CollectorConfiguration
-              id={this.collectId}
-              show={this.active === TabEnum.Configuration}
-            ></CollectorConfiguration>
+            {!!this.collectId && (
+              <CollectorConfiguration
+                id={this.collectId}
+                show={this.active === TabEnum.Configuration}
+              ></CollectorConfiguration>
+            )}
           </TabPanel>
           <TabPanel
             label={this.$t('采集详情')}
