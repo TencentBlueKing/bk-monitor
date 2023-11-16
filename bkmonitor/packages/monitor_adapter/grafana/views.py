@@ -85,8 +85,7 @@ class RedirectDashboardView(ProxyView):
         uid = dashboard_info["uid"]
         route_path = f"#/grafana/d/{uid}"
         # 透传仪表盘参数
-        params = request.GET.copy()
-        params.pop("spaceUid", None)
+        params = {k: v for k, v in request.GET.items() if k.startswith("var-")}
         params["bizId"] = org_name
         redirect_url = "/?{params}{route_path}"
         return redirect(redirect_url.format(params=urlencode(params), route_path=route_path))
