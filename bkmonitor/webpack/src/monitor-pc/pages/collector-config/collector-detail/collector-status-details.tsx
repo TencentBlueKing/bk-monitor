@@ -144,9 +144,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           successNum: 0
         };
         item.child.forEach(set => {
+          const alertHistogram = set.alert_histogram.map(a => ({ level: a[1] }));
           // 表格内容
           if (STATUS_LIST.includes(set.status) || set.status === this.header.status || this.header.status === 'ALL') {
-            table.push(set);
+            table.push({
+              ...set,
+              alertHistogram
+            });
           }
           // 数量及状态
           if (set.status === 'SUCCESS') {
@@ -561,7 +565,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                               return <span>{row.instance_name}</span>;
                             }
                             case EColumn.alert: {
-                              return <AlertHistogram></AlertHistogram>;
+                              return <AlertHistogram value={row.alertHistogram}></AlertHistogram>;
                             }
                             case EColumn.status: {
                               return (

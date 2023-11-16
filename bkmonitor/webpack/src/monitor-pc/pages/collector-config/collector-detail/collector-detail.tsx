@@ -30,11 +30,10 @@ import { TabPanel } from 'bk-magic-vue';
 
 import {
   collectConfigList,
-  collectInstanceStatus,
+  // collectInstanceStatus,
   frontendCollectConfigDetail
 } from '../../../../monitor-api/modules/collecting';
-// import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
-import { storageStatus } from '../../../../monitor-api/modules/datalink';
+import { collectingTargetStatus, storageStatus } from '../../../../monitor-api/modules/datalink';
 import { listUserGroup } from '../../../../monitor-api/modules/model';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
@@ -46,7 +45,7 @@ import AlertTopic from './components/alert-topic';
 import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
-import { DetailData, TabEnum } from './typings/detail';
+import { DetailData, TabEnum, TCollectorAlertStage } from './typings/detail';
 import CollectorConfiguration from './collector-configuration';
 import CollectorStatusDetails from './collector-status-details';
 
@@ -79,7 +78,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       updateKey: random(8),
       pollingCount: 1,
       needPolling: true,
-      timer: null
+      timer: null,
+      topicKey: random(8)
     },
     [TabEnum.StorageState]: {
       loading: false,
@@ -226,7 +226,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   }
 
   getHosts(count) {
-    return collectInstanceStatus({ id: this.collectId })
+    return collectingTargetStatus({ collect_config_id: this.collectId })
       .then(data => {
         if (count !== this.allData[TabEnum.TargetDetail].pollingCount) return;
         this.allData[TabEnum.TargetDetail].data = data;
@@ -261,7 +261,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
    * @description 刷新采集详情状态
    */
   handleRefreshData() {
-    collectInstanceStatus({ id: this.collectId })
+    collectingTargetStatus({ collect_config_id: this.collectId })
       .then(data => {
         this.allData[TabEnum.TargetDetail].data = data;
         this.allData[TabEnum.TargetDetail].updateKey = random(8);
@@ -288,7 +288,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             {!!this.collectId && (
               <CollectorConfiguration
                 key={this.allData[TabEnum.Configuration].renderKey}
-                id={this.collectId}
+                id={this.collectId as any}
                 show={this.active === TabEnum.Configuration}
                 detailData={this.detailData}
                 collectConfigData={this.collectConfigData}
@@ -299,7 +299,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             label={this.$t('采集详情')}
             name={TabEnum.TargetDetail}
           >
-            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
+            <AlertTopic
+              key={this.allData[TabEnum.TargetDetail].topicKey}
+              stage={TCollectorAlertStage.collecting}
+              id={this.collectId as any}
+              alarmGroupList={this.alarmGroupList}
+            ></AlertTopic>
             <CollectorStatusDetails
               class='mt-24'
               data={this.allData[TabEnum.TargetDetail].data}
