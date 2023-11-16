@@ -32,6 +32,7 @@ import TableColumn from '@/views/retrieve/result-comp/table-column';
 import ExpandView from '@/views/retrieve/result-table-panel/original-log/expand-view.vue';
 import EmptyView from '@/views/retrieve/result-table-panel/original-log/empty-view';
 import TimeFormatterSwitcher from '@/views/retrieve/result-table-panel/original-log/time-formatter-switcher';
+import OriginalLightHeight from '@/views/retrieve/result-comp/original-light-height.tsx';
 
 export default {
   components: {
@@ -44,6 +45,7 @@ export default {
     RegisterColumn,
     EmptyView,
     TimeFormatterSwitcher,
+    OriginalLightHeight,
   },
   mixins: [tableRowDeepViewMixin],
   props: {
@@ -173,6 +175,18 @@ export default {
       }
 
       return markList;
+    },
+    /** 给原始日志的key加上高亮标签 */
+    addBlackMarkToKeys(obj) {
+      const newObj = {};
+      for (const key in obj) { // 递归处理嵌套的对象 并且不为数组
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          newObj[`<black-mark>${key}</black-mark>`] = this.addBlackMarkToKeys(obj[key]);
+        } else {
+          newObj[`<black-mark>${key}</black-mark>`] = obj[key];
+        }
+      }
+      return newObj;
     },
     formatterStr(content) {
       // 匹配高亮标签
