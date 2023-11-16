@@ -272,7 +272,7 @@ class AlertAssigneeManager:
 
     def get_origin_notice_supervisors(self, by_group=False):
         """
-        获取默认通知的关注热源
+        获取默认通知的关注人员
         """
         empty_supervisors = {} if by_group else []
         if not self.origin_notice_supervisor_object:
