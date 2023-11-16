@@ -649,6 +649,7 @@ class GroupDutyRuleManager:
         """
         if not plan_notice["enabled"]:
             # 如果没有开启直接不用判断
+            logger.info("[send_plan_notice] duty plan notice  of group(%s) is disabled", self.user_group.id)
             return
 
         current_time_str = time_tools.datetime2str(current_time, "%H:%M")
@@ -667,6 +668,9 @@ class GroupDutyRuleManager:
 
         if compare_time > current_time_str or compare_date != current_date:
             # 如果不满足条件，直接返回
+            logger.info(
+                "[send_plan_notice] finished duty plan notice  of group(%s), time is not matched", self.user_group.id
+            )
             return
 
         end_datetime = current_time + timedelta(days=plan_notice["days"])
@@ -674,7 +678,10 @@ class GroupDutyRuleManager:
         chat_ids = plan_notice["chat_ids"]
         if not chat_ids:
             # 如果没有配置机器人，直接返回
-            logger.info(" duty plan notice's field(chat_ids) of group(%s) is empty", self.user_group.id)
+            logger.info(
+                "[send_plan_notice] ignore notice because duty plan notice's field(chat_ids) of group(%s) is empty",
+                self.user_group.id,
+            )
             return
 
         last_record = DutyPlanSendRecord.objects.filter(user_group_id=self.user_group.id).first()
@@ -752,6 +759,7 @@ class GroupDutyRuleManager:
         """
         if not personal_notice.get("enabled"):
             # 没有开启通知，直接返回
+            logger.info("[send_personal_notice] duty personal notice of group(%s) is disabled", self.user_group.id)
             return
         start_time = current_time + timedelta(hours=personal_notice["hours_ago"])
         end_time = start_time + timedelta(seconds=60)
@@ -779,6 +787,10 @@ class GroupDutyRuleManager:
         ]
         if not duty_plans:
             # 没有排班计划，直接返回
+            logger.info(
+                "[send_personal_notice] ignore duty personal notice of group(%s)  because of empty duty plan",
+                self.user_group.id,
+            )
             return
 
         # 更新一下最近范围内的发送时间
