@@ -38,7 +38,7 @@ from apps.log_commons.models import (
     ExternalPermissionApplyRecord,
 )
 from apps.utils.db import get_toggle_data
-from apps.utils.local import set_local_param
+from apps.utils.local import get_request_language_code, set_local_param
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 
@@ -53,11 +53,15 @@ class RequestProcessor:
         """
         设置请求的语言
         """
+        language_code = get_request_language_code()
+        logger.info("current_language_code: {}, COOKIES: {}".format(language_code, request.COOKIES))
         language_code = request.COOKIES.get("blueking_language", "")
         if language_code:
             setattr(request, "LANGUAGE_CODE", language_code)
             if fake_request:
                 setattr(fake_request, "LANGUAGE_CODE", language_code)
+        language_code = get_request_language_code()
+        logger.info("set_language_code: {}".format(language_code))
 
     @classmethod
     def get_space_uid(cls, request) -> str:
