@@ -141,33 +141,29 @@ export default defineComponent({
      * @param val 点击的日期
      */
     function handleDateClick(val: number) {
+      const dateIndex = localValue.value.findIndex(item => item === val);
+      // 删除日期
+      if (dateIndex !== -1) {
+        localValue.value.splice(dateIndex, 1);
+        if (val === startDate.value) {
+          // 删除起始日
+          const max = localValue.value.find(item => item > val);
+          startDate.value = max ? max : localValue.value[0];
+        }
+        return;
+      }
+
       if (!temporarySelect.start) {
         temporarySelect.start = val;
         return;
       }
       temporarySelect.end = val;
-      if (temporarySelect.start === temporarySelect.end) {
-        // 单个日期有新增和删除情况
-        const list = localValue.value.filter(val => val !== temporarySelect.start);
-        // 新增
-        if (list.length === localValue.value.length) {
-          localValue.value = [...localValue.value, temporarySelect.start];
-        } else if (temporarySelect.start === startDate.value) {
-          // 删除起始日
-          localValue.value = [...list];
-          const max = localValue.value.find(val => val > temporarySelect.start);
-          startDate.value = max ? max : localValue.value[0];
-        } else {
-          // 删除普通日期
-          localValue.value = [...list];
-        }
-      } else {
-        const min = Math.min(temporarySelect.start, temporarySelect.end);
-        const max = temporarySelect.start + temporarySelect.end - min;
-        // 范围选择只有新增
-        const arr = new Array(max - min + 1).fill(0).map((item, ind) => ind + min);
-        localValue.value = Array.from(new Set([...localValue.value, ...arr]));
-      }
+
+      // 新增日期
+      const min = Math.min(temporarySelect.start, temporarySelect.end);
+      const max = temporarySelect.start + temporarySelect.end - min;
+      const arr = new Array(max - min + 1).fill(0).map((item, ind) => ind + min);
+      localValue.value = Array.from(new Set([...localValue.value, ...arr]));
       temporarySelect.start = undefined;
       temporarySelect.end = undefined;
     }
@@ -246,7 +242,7 @@ export default defineComponent({
           class='calendar-select-wrapper'
           onClick={this.handleShowSelect}
         >
-          <i class={['icon-monitor', 'arrow', 'icon-arrow-left', this.show && 'active']}></i>
+          <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
             trigger='click'
             is-show={this.show}
@@ -259,7 +255,10 @@ export default defineComponent({
           >
             {{
               content: () => (
-                <div class='calendar-list'>
+                <div
+                  class='calendar-list'
+                  onMouseleave={() => (this.hoverVal = 0)}
+                >
                   {this.calendarList.map(item => (
                     <div
                       class={[

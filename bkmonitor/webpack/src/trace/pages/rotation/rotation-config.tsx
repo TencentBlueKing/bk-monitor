@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, DatePicker, Input, Switcher, TagInput } from 'bkui-vue';
 import { random } from 'lodash';
+import moment from 'moment';
 
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
@@ -65,7 +66,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: '',
+        startTime: moment().format('YYYY-MM-DD 00:00:00'),
         endTime: ''
       }
     });
@@ -416,9 +417,9 @@ export default defineComponent({
           >
             <DatePicker
               modelValue={this.formData.effective.startTime}
-              clearable
               type='datetime'
               placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
+              clearable={false}
               onChange={val => this.handleEffectiveChange(val, 'startTime')}
             ></DatePicker>
             <span class='split-line'>-</span>

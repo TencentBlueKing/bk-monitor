@@ -375,13 +375,13 @@ export default defineComponent({
         >
           <div class='tab-list'>
             <div
-              class={['tab-list-item', localValue.date.customTab === 'duration' && 'active']}
+              class={['tab-list-item', 'duration', localValue.date.customTab === 'duration' && 'active']}
               onClick={() => handleTypeChange('duration')}
             >
               {t('指定时长')}
             </div>
             <div
-              class={['tab-list-item', localValue.date.customTab === 'classes' && 'active']}
+              class={['tab-list-item', 'classes', localValue.date.customTab === 'classes' && 'active']}
               onClick={() => handleTypeChange('classes')}
             >
               {t('指定班次')}
@@ -555,6 +555,7 @@ export default defineComponent({
       e.preventDefault();
     }
     function handleDrop(e: DragEvent, index: number) {
+      console.log(e, index);
       const startIndex = Number(e.dataTransfer.getData('index'));
       const user = localValue.users.value[startIndex];
       localValue.users.value.splice(startIndex, 1);
