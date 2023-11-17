@@ -95,3 +95,42 @@
     }
   }
 }
+
+.alert-topic-component-pop-alert {
+  .tippy-tooltip {
+    padding: 0;
+  }
+
+  .alert-topic-component-alert-name {
+    max-width: 400px;
+    max-height: 160px;
+    padding: 0 12px 12px 20px;
+    overflow-y: auto;
+
+    .item-name {
+      position: relative;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #313238;
+
+      &::before {
+        position: absolute;
+        top: 4px;
+        left: -4px;
+        width: 4px;
+        height: 12px;
+        content: '';
+        background: #3a84ff;
+      }
+    }
+
+    .item-description {
+      margin-top: 4px;
+      font-size: 12px;
+      line-height: 16px;
+      color: #63656e;
+    }
+  }
+}

@@ -33,30 +33,21 @@ const classMap = {
   1: 'red'
 };
 
+interface IProps {
+  value: {
+    level: number;
+  }[];
+}
+
 @Component
-export default class AlertHistogram extends tsc<{}> {
+export default class AlertHistogram extends tsc<IProps> {
   @Prop({
     type: Array,
-    default: () => [
-      { level: 0 },
-      { level: 0 },
-      { level: 0 },
-      { level: 0 },
-      { level: 0 },
-      { level: 0 },
-      { level: 0 },
-      { level: 0 },
-      { level: 0 },
-      { level: 1 },
-      { level: 1 },
-      { level: 1 },
-      { level: 0 },
-      { level: 1 },
-      { level: 0 },
-      { level: 1 }
-    ]
+    default: () => []
   })
-  value: any[];
+  value: {
+    level: number;
+  }[];
 
   render() {
     return (

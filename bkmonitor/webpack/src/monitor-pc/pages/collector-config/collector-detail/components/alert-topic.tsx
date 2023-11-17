@@ -23,8 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Popover } from 'bk-magic-vue';
+
+import { alertStatus } from '../../../../../monitor-api/modules/datalink';
+import { TCollectorAlertStage } from '../typings/detail';
 
 import AlarmGroup, { IAlarmGroupList } from './alarm-group';
 import AlertHistogram from './alert-histogram';
@@ -33,19 +37,46 @@ import './alert-topic.scss';
 
 interface IProps {
   alarmGroupList?: IAlarmGroupList[];
+  stage: TCollectorAlertStage;
 }
 
 @Component
 export default class AlertTopic extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) alarmGroupList: IAlarmGroupList[];
+  @Prop({ type: String, default: '' }) stage: TCollectorAlertStage;
+  @Prop({ type: [String, Number], default: '' }) id: number | string;
+
+  strategies = [];
+  userGroupList = [];
+  alertHistogram = [];
+  hasAlert = 0;
+
+  @Watch('id', { immediate: true })
+  handleWatch() {
+    if (!!this.stage && !!this.id) {
+      alertStatus({
+        collect_config_id: this.id,
+        stage: this.stage
+      }).then(data => {
+        this.strategies = data.alert_config?.strategies || [];
+        this.userGroupList = data.alert_config?.user_group_list?.map(item => item.id) || [];
+        this.alertHistogram = data.alert_histogram.map(item => ({ level: item[1] }));
+        this.hasAlert = data.has_alert;
+      });
+    }
+  }
 
   render() {
     return (
       <div class='alert-topic-component'>
         <span class='left-wrap'>
           <span class='cur-alert'>
-            <span class='icon-monitor icon-mc-check-fill'></span>
-            <span class='ml-8'>{this.$t('当前暂无告警')}</span>
+            {this.hasAlert
+              ? undefined
+              : [
+                  <span class='icon-monitor icon-mc-check-fill'></span>,
+                  <span class='ml-8'>{this.$t('当前暂无告警')}</span>
+                ]}
           </span>
           <span class='split-line'></span>
           <span class='alert-histogram'>
@@ -53,13 +84,29 @@ export default class AlertTopic extends tsc<IProps> {
               <span>{this.$t('总告警')}</span>
               <span class='sub-msg'>({this.$t('近1小时')})</span>
             </span>
-            <AlertHistogram></AlertHistogram>
+            <AlertHistogram value={this.alertHistogram}></AlertHistogram>
           </span>
         </span>
         <span class='right-wrap'>
           <span class='receive-msg'>
             <span class='icon-monitor icon-mc-alarm-create mr-6'></span>
-            <span class='dash-text'>{this.$t('可接收告警')}</span>
+            <Popover
+              theme='light'
+              ext-cls='alert-topic-component-pop-alert'
+            >
+              <span class='dash-text'>{this.$t('可接收告警')}</span>
+              <div
+                slot='content'
+                class='alert-topic-component-alert-name'
+              >
+                {this.strategies.map(item => (
+                  <div class='alert-name-item'>
+                    <div class='item-name'>{item.name}</div>
+                    <div class='item-description'>{item.description}</div>
+                  </div>
+                ))}
+              </div>
+            </Popover>
           </span>
           <span class='split-line'></span>
           <span class='group-wrap'>
@@ -67,7 +114,11 @@ export default class AlertTopic extends tsc<IProps> {
               <span class='icon-monitor icon-mc-add-strategy mr-6'></span>
               <span>{this.$t('告警组')}: </span>
             </span>
-            <AlarmGroup list={this.alarmGroupList}></AlarmGroup>
+            <AlarmGroup
+              value={this.userGroupList}
+              list={this.alarmGroupList}
+              readonly
+            ></AlarmGroup>
           </span>
         </span>
       </div>

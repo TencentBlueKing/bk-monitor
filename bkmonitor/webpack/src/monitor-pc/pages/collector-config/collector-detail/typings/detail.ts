@@ -39,3 +39,9 @@ export interface DetailData {
   subscription_id: number;
   target_info: Object;
 }
+
+export enum TCollectorAlertStage {
+  collecting = 'collecting',
+  transfer = 'transfer',
+  storage = 'storage'
+}
