@@ -292,15 +292,16 @@ class DutyRuleManager:
             return []
         # 轮值情况下只有一个
         for order, duty_arrange in enumerate(self.duty_arranges):
-            self.get_one_arrange_duty_plan(duty_arrange, order, duty_plans)
+            self.get_one_handoff_duty_plan(duty_arrange, order, duty_plans)
         return duty_plans
 
-    def get_one_arrange_duty_plan(self, duty_arrange, order, duty_plans: list):
+    def get_one_handoff_duty_plan(self, duty_arrange, order, duty_plans: list):
         """
         获取单个安排的计划
         """
         duty_users = duty_arrange["duty_users"]
         duty_times = duty_arrange["duty_time"]
+        last_user_index = duty_arrange.get("last_user_index") or self.last_user_index
         group_user_number = 1
         period_interval = 1
         group_type = duty_arrange.get("group_type", DutyGroupType.SPECIFIED)
@@ -352,9 +353,9 @@ class DutyRuleManager:
             current_duty_dates = duty_date_times[date_index : date_index + period_interval]
             date_index = date_index + period_interval
             # 根据设置的用户数量进行轮转
-            current_user_index = self.last_user_index
-            users, self.last_user_index = self.get_group_duty_users(
-                duty_users, self.last_user_index, group_user_number, group_type
+            current_user_index = last_user_index
+            users, last_user_index = self.get_group_duty_users(
+                duty_users, last_user_index, group_user_number, group_type
             )
             duty_work_time = []
             for one_period_dates in current_duty_dates:
@@ -373,6 +374,7 @@ class DutyRuleManager:
             duty_plans.append(
                 {"users": users, "user_index": current_user_index, "order": order, "work_times": duty_work_time}
             )
+        duty_arrange["last_user_index"] = last_user_index
         return duty_plans
 
     @staticmethod
@@ -718,7 +720,7 @@ class GroupDutyRuleManager:
             )
             | Q(
                 Q(start_time__lte=time_tools.datetime2str(current_time))
-                & Q(finished_time__gte=time_tools.datetime2str(current_time) | Q(finished_time__in=["", None])),
+                & Q(Q(finished_time__gte=time_tools.datetime2str(current_time)) | Q(finished_time__in=["", None])),
             )
         )
         duty_plans = [
@@ -727,6 +729,7 @@ class GroupDutyRuleManager:
                 "users": duty_plan.users,
                 "start_time": duty_plan.start_time,
                 "finished_time": duty_plan.finished_time,
+                "work_times": duty_plan.work_times,
             }
             for duty_plan in duty_plan_queryset
         ]
@@ -804,6 +807,7 @@ class GroupDutyRuleManager:
                 "users": duty_plan.users,
                 "start_time": duty_plan.start_time,
                 "finished_time": duty_plan.finished_time,
+                "work_times": duty_plan.work_times,
             }
             for duty_plan in duty_plan_queryset
         ]

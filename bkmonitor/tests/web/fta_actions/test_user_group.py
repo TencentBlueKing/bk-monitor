@@ -1027,3 +1027,60 @@ class TestDutyRuleResource(BaseTestCase):
         r = PreviewUserGroupPlanResource()
         data = r.request(user_group_view)
         print(data)
+
+    def test_multi_db_duty_preview(self):
+        duty_rule = {
+            "name": "duty rule",
+            "bk_biz_id": 2,
+            "effective_time": "2023-07-25 11:00:00",
+            "end_time": "",
+            "labels": ["mysql", "redis", "business"],
+            "enabled": True,
+            "category": "handoff",
+            "duty_arranges": [
+                {
+                    "duty_time": [
+                        {
+                            "work_type": "daily",
+                            "work_days": [],
+                            "work_time_type": "time_range",
+                            "work_time": ["00:00--23:59"],
+                            "period_settings": {},
+                        }
+                    ],
+                    "duty_users": [
+                        [
+                            {"id": "admin1", "type": "user"},
+                            {"id": "admin2", "type": "user"},
+                            {"id": "admin3", "type": "user"},
+                            {"id": "admin4", "type": "user"},
+                        ]
+                    ],
+                    "group_type": "auto",
+                    "group_number": 1,
+                },
+                {
+                    "duty_time": [
+                        {
+                            "work_type": "daily",
+                            "work_days": [],
+                            "work_time_type": "time_range",
+                            "work_time": ["00:00--23:59"],
+                            "period_settings": {},
+                        }
+                    ],
+                    "duty_users": [[{"id": "admin", "type": "user"}]],
+                },
+            ],
+        }
+        r = SaveDutyRuleResource()
+        data = r.request(duty_rule)
+        self.assertIsNotNone(data.get("id"))
+        duty_id = data["id"]
+        r = PreviewDutyRulePlanResource()
+        preview_data = {"source_type": "DB", "id": duty_id, "bk_biz_id": 2}
+        data = r.request(preview_data)
+        print(data)
+        self.assertEqual(len(data), 60)
+        # 每天轮一次产生了30天的排班
+        self.assertEqual(len(data[0]["work_times"]), 1)
