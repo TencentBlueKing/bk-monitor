@@ -10,7 +10,8 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@antv/g6": "^4.7.0",
+    "@antv/g6": "^4.8.23",
+    "@antv/vis-predict-engine": "^0.1.1",
     "@blueking/ip-selector": "0.0.1-beta.125",
     "bkui-vue": "0.0.2-beta.24",
     "d3-array": "^3.1.1",

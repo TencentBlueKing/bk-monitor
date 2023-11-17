@@ -24,39 +24,19 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import FailureMenu from '../failure-menu/failure-menu';
-import FailureTopo from '../failure-topo/failure-topo';
-
-import './failure-content.scss';
+import './topo-tools.scss';
 
 export default defineComponent({
-  setup() {
-    const { t } = useI18n();
-    const tabList = [
-      {
-        name: 'DealWith',
-        label: t('故障处理')
-      },
-      {
-        name: 'Circulation',
-        label: t('故障流转')
-      }
-    ];
-    return {
-      tabList
-    };
+  name: 'TopoTools',
+  props: {
+    content: {
+      type: String,
+      default: ''
+    }
   },
+  setup() {},
   render() {
-    return (
-      <div class='failure-content'>
-        <FailureMenu
-          tabList={this.tabList}
-          active='DealWith'
-        ></FailureMenu>
-        <FailureTopo />
-      </div>
-    );
+    return <div class='topo-tools'>{this.$t('故障拓扑')}</div>;
   }
 });
