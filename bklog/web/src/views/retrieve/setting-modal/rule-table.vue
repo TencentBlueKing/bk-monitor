@@ -27,12 +27,29 @@
       <div class="table-operate">
         <bk-button
           size="small"
+          class="add-box"
+          :class="globalEditable ? 'btn-hover' : ''"
+          :disabled="!globalEditable"
+          @click="isShowAddRule = true">
+          <i class="bk-icon icon-plus push"></i>
+          {{$t('添加')}}
+        </bk-button>
+        <bk-button
+          size="small"
           style="min-width: 48px"
           data-test-id="LogCluster_button_addNewRules"
           :class="globalEditable ? 'btn-hover' : ''"
           :disabled="!globalEditable"
-          @click="isShowAddRule = true">
-          {{$t('添加')}}
+          @click="handleFastAddRule">
+          {{$t('导入')}}
+        </bk-button>
+        <bk-button
+          size="small"
+          style="min-width: 48px"
+          :class="globalEditable ? 'btn-hover' : ''"
+          :disabled="!globalEditable"
+          @click="() => handleExportRule()">
+          {{$t('导出')}}
         </bk-button>
         <bk-button
           size="small"
@@ -283,6 +300,8 @@ export default {
         handle: '.icon-drag-dots',
         'ghost-class': 'sortable-ghost-class',
       },
+      /** 快速导入的dom */
+      inputDocument: null,
     };
   },
   watch: {
@@ -301,8 +320,13 @@ export default {
       this.$emit('debugRequestChange', val);
     },
   },
+  mounted() {
+    this.initInputType();
+  },
   beforeDestroy() {
     this.$emit('debugRequestChange', false);
+    this.inputDocument.removeEventListener('change', this.inputFileEvent);
+    this.inputDocument = null;
   },
   methods: {
     reductionRule() {
@@ -532,6 +556,81 @@ export default {
         this.tableLoading = false;
       }, 500);
     },
+    /** 导出规则 */
+    handleExportRule(filename = '') {
+      if (!this.rulesList.length) {
+        this.$bkMessage({
+          theme: 'error',
+          message: this.$t('聚类规则为空，无法导出规则'),
+        });
+        return;
+      }
+      const eleLink = document.createElement('a');
+
+      const date = new Date();
+      const Y = `${date.getFullYear()}`;
+      const M = `${date.getMonth() + 1 < 10 ? `0${date.getMonth() + 1}` : date.getMonth() + 1}`;
+      const D = `${date.getDate()}`;
+      const h = `${date.getHours()}`;
+      const m = `${date.getMinutes()}`;
+      const s = date.getSeconds();
+      const time = `${Y}${M}${D}${h}${m}${s}`;
+      eleLink.download = filename || `bk_log_search_download_${time}.json`;
+      eleLink.style.display = 'none';
+      const jsonStr = this.rulesList.reduce((pre, cur, index) => {
+        const entriesArr = Object.entries(cur);
+        pre[index] = {
+          placeholder: entriesArr[0][0],
+          rule: entriesArr[0][1],
+        };
+        return pre;
+      }, {});
+      // 字符内容转变成blob地址
+      const blob = new Blob([JSON.stringify(jsonStr, null, 4)]);
+      eleLink.href = URL.createObjectURL(blob);
+      // 触发点击
+      document.body.appendChild(eleLink);
+      eleLink.click();
+      document.body.removeChild(eleLink);
+    },
+    /** 快速添加规则 */
+    handleFastAddRule() {
+      this.inputDocument.click();// 本地文件回填
+    },
+    initInputType() {
+      const inputDocument = document.createElement('input');
+      inputDocument.type = 'file';
+      inputDocument.style.display = 'none';
+      inputDocument.addEventListener('change', this.inputFileEvent);
+      this.inputDocument = inputDocument;
+    },
+    inputFileEvent() {
+      // 检查文件是否选择:
+      if (!this.inputDocument.value) return;
+      const file = this.inputDocument.files[0];
+      // 读取文件:
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          this.rulesList = Object.values(JSON.parse(e.target.result))
+            .map((item, index) => {
+              if (!item.placeholder || !String(item.rule)) throw new Error('无效的json');
+              return {
+                [item.placeholder]: String([item.rule]),
+                _isHighlight_: false,
+                __Index__: index,
+              };
+            });
+        } catch (err) {
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('不是有效的json文件'),
+          });
+        }
+      };
+      // 以Text的形式读取文件:
+      reader.readAsText(file);
+    },
   },
 };
 </script>
@@ -540,6 +639,14 @@ export default {
 
   .container-item {
     margin-bottom: 40px;
+
+    .add-box {
+      min-width: 48px;
+      .bk-icon {
+        width: 10px;
+        left: -3px;
+      }
+    }
 
     &.table-container {
       position: relative;

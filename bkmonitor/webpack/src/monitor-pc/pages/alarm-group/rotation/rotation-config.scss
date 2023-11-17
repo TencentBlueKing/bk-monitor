@@ -11,6 +11,12 @@
     display: none;
   }
 
+  .err-msg {
+    font-size: 12px;
+    line-height: 30px;
+    color: #ff5656;
+  }
+
   .add-wrap {
     display: flex;
     align-items: center;
@@ -108,6 +114,12 @@
       }
     }
   }
+
+  .user-preivew {
+    margin-top: 8px;
+    line-height: 16px;
+    color: rgba(0,0,0,.40);
+  }
 }
 
 @mixin text-ellipsis {
@@ -127,6 +139,10 @@
   .header-wrap {
     padding: 0 10px;
     margin-top: 4px;
+
+    .bk-form-input.only-bottom-border {
+      border-color: transparent transparent #eaebf0;;
+    }
   }
 
   .content-wrap {

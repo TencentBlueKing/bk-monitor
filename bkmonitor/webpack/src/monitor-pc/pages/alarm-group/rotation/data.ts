@@ -48,7 +48,7 @@ export function dutyNoticeConfigToParams(data) {
     personal_notice: {
       enabled: data.needNotice,
       hours_ago: hoursAgo,
-      duty_rules: [data.rotationId]
+      duty_rules: data.rotationId
     }
   };
 }
@@ -60,7 +60,7 @@ export function paramsToDutyNoticeConfig(dutyNotice) {
   };
   const hoursAgo = (() => {
     const days = dutyNotice.personal_notice.hours_ago / 24;
-    if (days >= 7) {
+    if (days % 7 === 0) {
       return {
         timeType: 'week',
         startNum: days / 7
@@ -82,6 +82,6 @@ export function paramsToDutyNoticeConfig(dutyNotice) {
     needNotice: dutyNotice.personal_notice.enabled,
     startNum: hoursAgo.startNum,
     timeType: hoursAgo.timeType,
-    rotationId: dutyNotice.personal_notice.duty_rules[0]
+    rotationId: dutyNotice.personal_notice.duty_rules
   };
 }

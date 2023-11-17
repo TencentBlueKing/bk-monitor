@@ -27,7 +27,9 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Sideslider } from 'bk-magic-vue';
 
-import { mockRequest } from '../../../../trace/pages/rotation/mockData';
+import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
+import { previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
+import { getCalendar, setPreviewDataOfServer } from '../../../../trace/pages/rotation/components/calendar-preview';
 import {
   RotationSelectTextMap,
   RotationSelectTypeEnum,
@@ -42,11 +44,13 @@ import './rotation-detail.scss';
 
 interface IProps {
   show: boolean;
+  id: number | string;
   onShowChange?: (v: boolean) => void;
 }
 
 @Component
 export default class RotationDetail extends tsc<IProps> {
+  @Prop({ type: [Number, String], default: '' }) id: number | string;
   @Prop({ type: Boolean, default: false }) show: boolean;
 
   detailData = null;
@@ -55,14 +59,16 @@ export default class RotationDetail extends tsc<IProps> {
   users = [];
   timeList = [];
 
+  previewData = [];
+
   loading = false;
 
   get historyList() {
     return [
-      { label: this.$t('创建人'), value: this.detailData?.createUser || '--' },
-      { label: this.$t('创建时间'), value: this.detailData?.createTime || '--' },
-      { label: this.$t('最近更新人'), value: this.detailData?.updateUser || '--' },
-      { label: this.$t('修改时间'), value: this.detailData?.updateTime || '--' }
+      { label: this.$t('创建人'), value: this.detailData?.create_user || '--' },
+      { label: this.$t('创建时间'), value: this.detailData?.create_time || '--' },
+      { label: this.$t('最近更新人'), value: this.detailData?.update_user || '--' },
+      { label: this.$t('修改时间'), value: this.detailData?.update_time || '--' }
     ];
   }
 
@@ -70,6 +76,7 @@ export default class RotationDetail extends tsc<IProps> {
   handleShow(v: boolean) {
     if (v) {
       this.getData();
+      this.getPreviewData();
     }
   }
 
@@ -80,7 +87,7 @@ export default class RotationDetail extends tsc<IProps> {
 
   getData() {
     this.loading = true;
-    mockRequest('replace')
+    retrieveDutyRule(this.id)
       .then((res: any) => {
         this.detailData = res;
         this.type = res.category;
@@ -91,6 +98,19 @@ export default class RotationDetail extends tsc<IProps> {
       .finally(() => {
         this.loading = false;
       });
+  }
+
+  async getPreviewData() {
+    const startDate = getCalendar()[0][0];
+    const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
+    const params = {
+      source_type: 'DB',
+      id: this.id,
+      begin_time: beginTime,
+      days: 42
+    };
+    const data = await previewDutyRulePlan(params).catch(() => []);
+    this.previewData = setPreviewDataOfServer(data);
   }
 
   handleToEdit() {
@@ -218,7 +238,7 @@ export default class RotationDetail extends tsc<IProps> {
               this.detailData?.end_time || this.$t('永久')
             }`}</span>
           )}
-          {formItem(this.$t('轮值预览'), <RotationCalendarPreview></RotationCalendarPreview>)}
+          {formItem(this.$t('轮值预览'), <RotationCalendarPreview value={this.previewData}></RotationCalendarPreview>)}
         </div>
       </Sideslider>
     );

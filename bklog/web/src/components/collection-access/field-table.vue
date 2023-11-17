@@ -83,8 +83,8 @@
         <bk-table
           class="field-table"
           size="small"
+          row-key="field_index"
           :empty-text="$t('暂无内容')"
-          :row-key="extractMethod === 'bk_log_delimiter' ? 'field_index' : 'field_name'"
           :data="deletedVisible ? hideDeletedTable : tableList">
           <template>
             <!-- <bk-table-column -->
@@ -109,7 +109,7 @@
                 </div>
                 <bk-form-item v-else :class="{ 'is-required is-error': props.row.fieldErr }">
                   <bk-input
-                    :disabled="props.row.is_delete || extractMethod !== 'bk_log_delimiter' || isSetDisabled"
+                    :disabled="getFieldEditDisabled(props.row)"
                     v-model.trim="props.row.field_name"
                     @blur="checkFieldNameItem(props.row)"></bk-input>
                   <template v-if="props.row.fieldErr">
@@ -298,10 +298,11 @@
                       </div>
                     </bk-popover>
                     <template v-else>
-                      <div v-if="hasDateField"
-                           class="field-date"
-                           v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
-                           @click.stop="setDateFormat(props.row)">
+                      <div
+                        v-if="hasDateField"
+                        class="field-date"
+                        v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
+                        @click.stop="setDateFormat(props.row)">
                         <i class="log-icon icon-date-picker"></i>
                       </div>
                       <div v-else class="field-date" @click.stop="setDateFormat(props.row)">
@@ -320,7 +321,7 @@
               align="center"
               width="60"
               prop="plugin_version"
-              v-if="!isPreviewMode && extractMethod !== 'bk_log_regexp'">
+              v-if="getOperatorDisabled">
               <template slot-scope="props">
                 <span
                   class="table-link"
@@ -598,6 +599,10 @@ export default {
     retainExtraJsonIsOpen() {
       return this.globalsData?.retain_extra_json ?? false;
     },
+    getOperatorDisabled() {
+      if (this.selectEtlConfig === 'bk_log_json') return true;
+      return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
+    },
   },
   watch: {
     fields: {
@@ -719,7 +724,7 @@ export default {
     requestCheckTime() {
       this.$refs.dateForm.validate().then(() => {
         this.checkLoading = true;
-        const { time_format, time_zone, time_value } = this.dialogField;
+        const { time_format, time_zone, time_value: timeValue } = this.dialogField;
         this.$http.request('collect/getCheckTime', {
           params: {
             collector_config_id: this.curCollect.collector_config_id,
@@ -727,7 +732,7 @@ export default {
           data: {
             time_format,
             time_zone,
-            data: time_value,
+            data: timeValue,
           },
         }).then(() => {
           this.timeCheckResult = true;
@@ -887,7 +892,7 @@ export default {
           result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾')
         } else if (this.extractMethod !== 'bk_log_json' && this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())) {
           result = this.extractMethod === 'bk_log_regexp' ? this.$t('字段名与系统字段重复，必须修改正则表达式') : this.$t('字段名与系统内置字段重复')
-        } else if (this.extractMethod === 'bk_log_delimiter') {
+        } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
           result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
         } else {
           result = ''
@@ -1033,6 +1038,11 @@ export default {
     filedNameIsConflict(fieldIndex, fieldName) {
       const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
       return otherFieldNameList.some(item => item.field_name === fieldName);
+    },
+    /** 当前字段是否禁用 */
+    getFieldEditDisabled(row) {
+      if (this.selectEtlConfig === 'bk_log_json') return false;
+      return row?.is_delete || this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
     },
   },
 };

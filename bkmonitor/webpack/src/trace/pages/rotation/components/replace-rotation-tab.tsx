@@ -29,7 +29,6 @@ import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
 
 import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
-import draggableIcon from '../../../static/img/draggable.svg';
 import { RotationSelectTypeEnum } from '../typings/common';
 import { randomColor } from '../utils';
 
@@ -47,7 +46,6 @@ export interface ReplaceRotationDateModel {
   key: number;
   workDays?: number[];
   workTime: string[][];
-  periodSettings?: { unit: 'hour' | 'day'; duration: number };
 }
 export interface ReplaceRotationUsersModel {
   type: 'specified' | 'auto';
@@ -59,10 +57,11 @@ export interface ReplaceDataModel {
   id?: number;
   date: {
     type: RotationSelectTypeEnum;
-    workTimeType?: WorkTimeType;
+    workTimeType: WorkTimeType;
     isCustom: boolean;
-    customTab?: CustomTabType;
-    customWorkDays?: number[];
+    customTab: CustomTabType;
+    customWorkDays: number[];
+    periodSettings: { unit: 'hour' | 'day'; duration: number };
     value: ReplaceRotationDateModel[];
   };
   users: ReplaceRotationUsersModel;
@@ -76,7 +75,7 @@ export default defineComponent({
       default: undefined
     }
   },
-  emits: ['change'],
+  emits: ['change', 'drop', 'reset'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
@@ -98,7 +97,11 @@ export default defineComponent({
         isCustom: false,
         customTab: 'duration',
         customWorkDays: [],
-        value: [createDefaultDate()]
+        periodSettings: {
+          unit: 'day',
+          duration: 1
+        },
+        value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)]
       },
       users: {
         type: 'specified',
@@ -122,7 +125,8 @@ export default defineComponent({
           localValue.date.isCustom = false;
           localValue.date.type = val;
         }
-        localValue.date.value = [createDefaultDate()];
+        localValue.date.value = [createDefaultDate(val)];
+        handleEmitReset();
       }
     });
 
@@ -130,7 +134,7 @@ export default defineComponent({
       () => props.data,
       val => {
         if (val) {
-          Object.assign(localValue, val);
+          Object.assign(localValue, JSON.parse(JSON.stringify(val)));
         }
       },
       {
@@ -138,12 +142,29 @@ export default defineComponent({
       }
     );
 
-    function createDefaultDate(): ReplaceRotationDateModel {
+    function createDefaultDate(type: RotationSelectTypeEnum): ReplaceRotationDateModel {
+      let days = [];
+      switch (type) {
+        case RotationSelectTypeEnum.WorkDay:
+          days = [1, 2, 3, 4, 5];
+          break;
+        case RotationSelectTypeEnum.Weekend:
+          days = [6, 7];
+          break;
+        case RotationSelectTypeEnum.Daily:
+          days = [1, 2, 3, 4, 5, 6, 7];
+          break;
+        case RotationSelectTypeEnum.Monthly:
+        case RotationSelectTypeEnum.Weekly:
+        case RotationSelectTypeEnum.Custom:
+          days = [];
+          break;
+      }
+
       return {
         key: random(8, true),
         workTime: [],
-        workDays: [],
-        periodSettings: { unit: 'hour', duration: 1 }
+        workDays: days
       };
     }
 
@@ -152,7 +173,7 @@ export default defineComponent({
      */
     function handleClassesItemChange(type: 'add' | 'del', ind = 1) {
       if (type === 'add') {
-        localValue.date.value.push(createDefaultDate());
+        localValue.date.value.push(createDefaultDate(localValue.date.type));
       } else {
         localValue.date.value.splice(ind, 1);
         handleEmitData();
@@ -173,7 +194,8 @@ export default defineComponent({
        */
       function handleDateTypeChange(type: WorkTimeType) {
         localValue.date.workTimeType = type;
-        localValue.date.value = [createDefaultDate()];
+        localValue.date.value = [createDefaultDate(localValue.date.type)];
+        handleEmitReset();
       }
 
       /**
@@ -217,6 +239,7 @@ export default defineComponent({
         } else {
           item.workTime[1] = val;
         }
+        if (item.workTime[0] && item.workTime[1]) handleEmitData();
       }
       /**
        * 渲染起止时间类型的单班时间项
@@ -304,10 +327,11 @@ export default defineComponent({
       function handleTypeChange(type: CustomTabType) {
         localValue.date.customTab = type;
         type === 'duration' && (localValue.date.value = [value[0]]);
+        handleEmitReset();
       }
       function handleDateTypeChange() {
         localValue.date.customWorkDays = [];
-        handleEmitData();
+        handleEmitReset();
       }
 
       return [
@@ -351,13 +375,13 @@ export default defineComponent({
         >
           <div class='tab-list'>
             <div
-              class={['tab-list-item', localValue.date.customTab === 'duration' && 'active']}
+              class={['tab-list-item', 'duration', localValue.date.customTab === 'duration' && 'active']}
               onClick={() => handleTypeChange('duration')}
             >
               {t('指定时长')}
             </div>
             <div
-              class={['tab-list-item', localValue.date.customTab === 'classes' && 'active']}
+              class={['tab-list-item', 'classes', localValue.date.customTab === 'classes' && 'active']}
               onClick={() => handleTypeChange('classes')}
             >
               {t('指定班次')}
@@ -407,20 +431,20 @@ export default defineComponent({
             class='classes-duration-form-item'
           >
             <Input
-              v-model={value[0].periodSettings.duration}
+              v-model={localValue.date.periodSettings.duration}
               type='number'
               min={1}
-              onblur={handleEmitData}
+              onChange={handleEmitData}
             />
             <Select
-              v-model={value[0].periodSettings.unit}
+              v-model={localValue.date.periodSettings.unit}
               clearable={false}
               onChange={handleEmitData}
             >
-              <Select.Option
+              {/* <Select.Option
                 label={t('小时')}
                 value='hour'
-              />
+              /> */}
               <Select.Option
                 label={t('天')}
                 value='day'
@@ -521,6 +545,7 @@ export default defineComponent({
     }
     function handMemberSelectChange(ind: number, val: ReplaceRotationUsersModel['value'][0]['value']) {
       localValue.users.value[ind].value = val;
+      handleEmitData();
     }
 
     function handleDragstart(e: DragEvent, index: number) {
@@ -530,11 +555,22 @@ export default defineComponent({
       e.preventDefault();
     }
     function handleDrop(e: DragEvent, index: number) {
+      console.log(e, index);
       const startIndex = Number(e.dataTransfer.getData('index'));
       const user = localValue.users.value[startIndex];
       localValue.users.value.splice(startIndex, 1);
       localValue.users.value.splice(index, 0, user);
+      handleEmitDrop();
     }
+
+    function handleEmitDrop() {
+      emit('drop');
+    }
+
+    function handleEmitReset() {
+      emit('reset', localValue);
+    }
+
     function handleEmitData() {
       emit('change', localValue);
     }
@@ -554,6 +590,7 @@ export default defineComponent({
       handleDragstart,
       handleDragover,
       handleDrop,
+      handleEmitDrop,
       handleEmitData
     };
   },
@@ -631,7 +668,7 @@ export default defineComponent({
                           v-model={item.value}
                           hasDefaultGroup={true}
                           defaultGroup={this.defaultGroup}
-                          onChange={val => this.handMemberSelectChange(ind, val)}
+                          onSelectEnd={val => this.handMemberSelectChange(ind, val)}
                         >
                           {{
                             prefix: () => (
@@ -639,13 +676,7 @@ export default defineComponent({
                                 class='member-select-prefix'
                                 style={{ 'border-left-color': randomColor(ind) }}
                               >
-                                <div class='draggable-icon-wrap'>
-                                  <img
-                                    class='icon'
-                                    draggable={false}
-                                    src={draggableIcon}
-                                  />
-                                </div>
+                                <span class='icon-monitor icon-mc-tuozhuai'></span>
                               </div>
                             )
                           }}
@@ -685,7 +716,8 @@ export default defineComponent({
                       v-model={this.localValue.users.value[0].value}
                       hasDefaultGroup={true}
                       defaultGroup={this.defaultGroup}
-                      onChange={val => this.handMemberSelectChange(0, val)}
+                      onSelectEnd={val => this.handMemberSelectChange(0, val)}
+                      onDrop={this.handleEmitDrop}
                     />
                   </FormItem>
                   <FormItem

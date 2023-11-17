@@ -38,6 +38,12 @@
     overflow-x: hidden;
     overflow-y: auto;
 
+    .enabled-switch {
+      display: flex;
+      align-items: center;
+      min-height: 32px;
+    }
+
     .rotation-type-wrapper {
       width: 1200px;
 

@@ -23,18 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Checkbox, Input } from 'bk-magic-vue';
 
-import { Debounce } from '../../../../monitor-common/utils';
-import { rotationListData } from '../../../../trace/pages/rotation/mock';
+import { listDutyRule } from '../../../../monitor-api/modules/model';
+import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
+import { Debounce, random } from '../../../../monitor-common/utils';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 
-import DutyNoticeConfig from './duty-notice-config';
+import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
+import DutyNoticeConfig, { initData as noticeData } from './duty-notice-config';
 import RotationDetail from './rotation-detail';
 import RotationPreview from './rotation-preview';
 import { IDutyItem, IDutyListItem } from './typing';
+import { getCalendarOfNum, setPreviewDataOfServer } from './utils';
 
 import './rotation-config.scss';
 
@@ -44,15 +47,29 @@ const operatorText = {
 };
 
 interface IProps {
-  value?: any;
+  dutyArranges?: (number | string)[];
+  dutyNotice?: any;
   defaultGroupList?: IGroupListItem[];
-  onChange?: (v: any) => void;
+  rendreKey?: string;
+  alarmGroupId?: string | number;
+  dutyPlans?: any[];
+  onNoticeChange?: (_v) => void;
+  onDutyChange?: (v: number[]) => void;
 }
 
 @Component
 export default class RotationConfig extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) defaultGroupList: IGroupListItem[];
+  /* 轮值规则 */
+  @Prop({ default: () => [], type: Array }) dutyArranges: (number | string)[];
+  /* 值班通知设置数据 */
+  @Prop({ default: () => [], type: Object }) dutyNotice: any;
+  @Prop({ default: '', type: String }) rendreKey: string;
+  @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
+  /* 轮值历史 */
+  @Prop({ default: () => [], type: Array }) dutyPlans: any[];
   @Ref('wrap') wrapRef: HTMLDivElement;
+  @Ref('noticeConfig') noticeConfigRef: DutyNoticeConfig;
 
   /* 添加规则弹层实例 */
   popInstance = null;
@@ -60,20 +77,34 @@ export default class RotationConfig extends tsc<IProps> {
   search = '';
   /* 所有值班规则 */
   allDutyList: IDutyListItem[] = [];
-
   dutyList: IDutyItem[] = [];
+  /* 轮值规则按钮的loading */
+  dutyLoading = false;
+  cacheDutyList = '[]';
+  /* 预览数据 */
+  previewData = [];
+  /* 预览loading */
+  previewLoading = false;
+  /* 排序退拽相关 */
   draggedIndex = -1;
   droppedIndex = -1;
   needDrag = false;
-
+  /* 是否展开值班通知设置 */
   showNotice = false;
-
+  /* 轮值详情侧栏数据 */
   detailData = {
+    id: '',
     show: false
   };
 
+  noticeConfig = noticeData();
+  noticeRenderKey = random(8);
+
   /* 轮值预览下的统计信息 */
   userPreviewList: { name: string; id: string }[] = [];
+  previewStartTime = '';
+
+  errMsg = '';
 
   /* 用于统计信息 */
   get userGroupData(): {
@@ -97,18 +128,131 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   async init() {
-    const list = (await rotationListData().catch(() => [])) as any;
-    this.allDutyList = list.map(item => ({
-      ...item,
-      isCheck: false,
-      show: true,
-      typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
-    }));
+    if (!this.allDutyList.length) {
+      this.dutyLoading = true;
+      const list = (await listDutyRule().catch(() => [])) as any;
+      this.allDutyList = list.map(item => ({
+        ...item,
+        isCheck: false,
+        show: true,
+        typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
+      }));
+      this.setDutyList();
+      this.dutyLoading = false;
+    }
   }
 
-  @Emit('change')
-  handleChange() {
-    //
+  @Watch('rendreKey', { immediate: true })
+  handleWatchrRendreKey() {
+    this.setDutyList();
+    this.noticeConfig = paramsToDutyNoticeConfig(this.dutyNotice);
+    this.noticeRenderKey = random(8);
+  }
+
+  setDutyList() {
+    const dutyList = [];
+    const sets = new Set(this.dutyArranges);
+    this.allDutyList.forEach(item => {
+      if (sets.has(item.id)) {
+        item.isCheck = true;
+        dutyList.push(item);
+      }
+    });
+    this.dutyList = this.dutyArranges
+      .map(l => {
+        const temp = dutyList.find(d => String(d.id) === String(l));
+        return temp;
+      })
+      .filter(l => !!l);
+    if (this.dutyList.length) {
+      this.getPreviewData();
+    }
+  }
+
+  async getPreviewData() {
+    if (this.cacheDutyList === JSON.stringify(this.dutyList.map(d => d.id))) {
+      return;
+    }
+    this.cacheDutyList = JSON.stringify(this.dutyList.map(d => d.id));
+    const startTime = getCalendarOfNum()[0];
+    const beginTime = this.previewStartTime || `${startTime.year}-${startTime.month}-${startTime.day} 00:00:00`;
+    const params = {
+      source_type: 'API',
+      days: 7,
+      begin_time: beginTime,
+      config: {
+        duty_rules: this.dutyList.map(d => d.id)
+      }
+    };
+    this.handleDutyChange();
+    this.previewLoading = true;
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    /* 获取轮值组人员预览 */
+    const tempSet = new Set();
+    const userPreviewList = [];
+    data.forEach(d => {
+      d.duty_plans.forEach(p => {
+        p.users.forEach(u => {
+          if (u.type === 'group') {
+            if (!tempSet.has(u.id)) {
+              tempSet.add(u.id);
+              userPreviewList.push({
+                ...u,
+                name: u.display_name
+              });
+            }
+          }
+        });
+      });
+    });
+    this.userPreviewList = userPreviewList;
+    /* --- */
+    this.previewLoading = false;
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
+  }
+  /**
+   * @description 周期切换
+   * @param startTime
+   */
+  async handleStartTimeChange(startTime) {
+    this.previewStartTime = startTime;
+    const params = {
+      source_type: 'API',
+      days: 7,
+      begin_time: startTime,
+      config: {
+        duty_rules: this.dutyList.map(d => d.id)
+      }
+    };
+    this.previewLoading = true;
+    const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewLoading = false;
+    this.previewData = setPreviewDataOfServer(data, this.dutyList);
+  }
+
+  noticeConfigOfDutyChange() {
+    this.noticeConfig.rotationId = [];
+    this.noticeRenderKey = random(8);
+  }
+
+  @Emit('dutyChange')
+  handleDutyChange() {
+    this.errMsg = '';
+    return this.dutyList.map(item => item.id);
+  }
+  @Emit('noticeChange')
+  handleNoticeChange() {
+    return dutyNoticeConfigToParams(this.noticeConfig);
+  }
+
+  validate() {
+    return new Promise(async (resolve, _reject) => {
+      if (!this.dutyList.length) {
+        this.errMsg = this.$t('请选择值班规则') as string;
+      }
+      const noticeValidate = await this.noticeConfigRef.validate();
+      resolve(!this.errMsg && noticeValidate);
+    });
   }
 
   /**
@@ -142,6 +286,7 @@ export default class RotationConfig extends tsc<IProps> {
     this.draggedIndex = -1;
     this.droppedIndex = -1;
     this.needDrag = false;
+    this.getPreviewData();
   }
   /**
    * @description 判断是否可拖拽
@@ -162,14 +307,20 @@ export default class RotationConfig extends tsc<IProps> {
     if (!this.popInstance) {
       this.popInstance = this.$bkPopover(event.target, {
         content: this.wrapRef,
-        offset: '-31 2',
+        offset: '-31,2',
         trigger: 'click',
         interactive: true,
         theme: 'light common-monitor',
         arrow: false,
         placement: 'bottom-start',
         boundary: 'window',
-        hideOnClick: true
+        hideOnClick: true,
+        onHide: () => {
+          if (this.dutyList.length) {
+            this.noticeConfigOfDutyChange();
+            this.getPreviewData();
+          }
+        }
       });
     }
     this.popInstance?.show?.();
@@ -252,11 +403,20 @@ export default class RotationConfig extends tsc<IProps> {
     this.allDutyList.forEach(d => {
       d.isCheck = ids.has(d.id);
     });
+    this.noticeConfigOfDutyChange();
+    if (this.dutyList.length) {
+      this.getPreviewData();
+    }
   }
 
   handleShowDetail(item) {
-    console.log(item);
+    this.detailData.id = item.id;
     this.detailData.show = true;
+  }
+
+  handleNoticeConfigChange(value) {
+    this.noticeConfig = value;
+    this.handleNoticeChange();
   }
 
   render() {
@@ -266,7 +426,8 @@ export default class RotationConfig extends tsc<IProps> {
           <Button
             outline
             theme='primary'
-            onClick={this.handleAddRotation}
+            loading={this.dutyLoading}
+            onClick={e => !this.dutyLoading && this.handleAddRotation(e)}
           >
             <span class='icon-monitor icon-plus-line'></span>
             <span>{this.$t('值班规则')}</span>
@@ -315,7 +476,18 @@ export default class RotationConfig extends tsc<IProps> {
             ))}
           </transition-group>
         </div>
-        <RotationPreview class='mt-12'></RotationPreview>
+        {!!this.errMsg && <div class='err-msg'>{this.errMsg}</div>}
+        {!!this.dutyList.length && (
+          <RotationPreview
+            class='mt-12'
+            v-bkloading={{ isLoading: this.previewLoading }}
+            value={this.previewData}
+            alarmGroupId={this.alarmGroupId}
+            dutyPlans={this.dutyPlans}
+            onStartTimeChange={this.handleStartTimeChange}
+            onInitStartTime={v => (this.previewStartTime = v)}
+          ></RotationPreview>
+        )}
         <div
           class='expan-btn mb-6'
           onClick={this.handleExpanNotice}
@@ -323,40 +495,52 @@ export default class RotationConfig extends tsc<IProps> {
           <span class={['icon-monitor icon-double-up', { expand: !this.showNotice }]}></span>
           <span class='expan-btn-text'>{this.$t('值班通知设置')}</span>
         </div>
-        <DutyNoticeConfig class={{ displaynone: !this.showNotice }}></DutyNoticeConfig>
-        <div class='user-preivew'>
-          {this.userGroupData.map(
-            item =>
-              this.userPreviewList.map(u => u.id).includes(item.id) && (
-                <div class='text-msg'>
-                  {`${item.display_name}(${
-                    ['bk_bak_operator', 'operator'].includes(item.id) ? operatorText[item.id] : this.$t('来自配置平台')
-                  })`}
-                  {(() => {
-                    if (!['bk_bak_operator', 'operator'].includes(item.id)) {
-                      if (item.members.length) {
+        <DutyNoticeConfig
+          ref='noticeConfig'
+          class={{ displaynone: !this.showNotice }}
+          value={this.noticeConfig}
+          renderKey={this.noticeRenderKey}
+          dutyList={this.dutyList as any[]}
+          onChange={this.handleNoticeConfigChange}
+        ></DutyNoticeConfig>
+        {!!this.userPreviewList.length && (
+          <div class='user-preivew'>
+            {this.userGroupData.map(
+              item =>
+                this.userPreviewList.map(u => u.id).includes(item.id) && (
+                  <div class='text-msg'>
+                    {`${item.display_name}(${
+                      ['bk_bak_operator', 'operator'].includes(item.id)
+                        ? operatorText[item.id]
+                        : this.$t('来自配置平台')
+                    })`}
+                    {(() => {
+                      if (!['bk_bak_operator', 'operator'].includes(item.id)) {
+                        if (item.members.length) {
+                          return (
+                            <span>
+                              {'，'}
+                              {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
+                            </span>
+                          );
+                        }
                         return (
                           <span>
                             {'，'}
-                            {this.$t('当前成员')} {item.members.map(m => `${m.id}(${m.display_name})`).join('; ')}
+                            {this.$t('当前成员')}
+                            {`(${this.$t('空')})`}
                           </span>
                         );
                       }
-                      return (
-                        <span>
-                          {'，'}
-                          {this.$t('当前成员')}
-                          {`(${this.$t('空')})`}
-                        </span>
-                      );
-                    }
-                    return undefined;
-                  })()}
-                </div>
-              )
-          )}
-        </div>
+                      return undefined;
+                    })()}
+                  </div>
+                )
+            )}
+          </div>
+        )}
         <RotationDetail
+          id={this.detailData.id}
           show={this.detailData.show}
           onShowChange={v => (this.detailData.show = v)}
         ></RotationDetail>

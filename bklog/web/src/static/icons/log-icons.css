@@ -25,6 +25,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+
 .icon-app-store:before {
   content: '\e162';
 }
@@ -59,14 +60,6 @@
 
 .icon-email-shape:before {
   content: '\e164';
-}
-
-.icon-plus-circle-shape:before {
-  content: '\e163';
-}
-
-.icon-plus-circle-yuan:before {
-  content: '\e1a1';
 }
 
 .icon-star-shape:before {
@@ -383,4 +376,28 @@
 
 .icon-position:before {
   content: '\e180';
+}
+
+.icon-log-delete:before {
+  content: '\e181';
+}
+
+.icon-masking:before {
+  content: '\e183';
+}
+
+.icon-fix-line:before {
+  content: '\e184';
+}
+
+.icon-fix-shape:before {
+  content: '\e185';
+}
+
+.icon-log-loading:before {
+  content: '\e186';
+}
+
+.icon-log-remark:before {
+  content: '\e187';
 }

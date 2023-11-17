@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive, ref, shallowRef } from 'vue';
+import { defineComponent, provide, reactive, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, InfoBox, Loading, Message, Pagination, Popover, SearchSelect, Switcher, Table, Tag } from 'bkui-vue';
 
+import { destroyDutyRule, listDutyRule, switchDutyRule } from '../../../monitor-api/modules/model';
 import { useAppStore } from '../../store/modules/app';
+import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
+import { IAuthority } from '../../typings/authority';
 
-import { rotationListData } from './mock';
+import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
 
 import './rotation.scss';
@@ -101,6 +104,12 @@ export default defineComponent({
     const { t } = useI18n();
     const router = useRouter();
     const appStore = useAppStore();
+    const authorityStore = useAuthorityStore();
+    const authority = reactive<IAuthority>({
+      map: authMap,
+      auth: {},
+      showDetail: authorityStore.getAuthorityDetail
+    });
     const tableData = reactive({
       loading: false,
       data: [],
@@ -217,25 +226,30 @@ export default defineComponent({
           id: 'id'
         },
         {
-          name: '告警组名称',
+          name: t('规则名称'),
           id: 'name'
         }
       ],
       value: []
     });
     const detailData = reactive({
-      show: false
+      show: false,
+      id: ''
     });
     /* 轮值列表全量数据 */
     const allRotationList = shallowRef([]);
     const loading = ref(false);
+
+    provide('authority', authority);
+
     /**
      * @description 跳转到新增页
      */
     init();
     async function init() {
       loading.value = true;
-      const list = (await rotationListData().catch(() => [])) as any;
+      authority.auth = await getAuthorityMap(authMap);
+      const list = await listDutyRule().catch(() => []);
       const labelsSet = new Set();
       const filterLabelOptions = [];
       allRotationList.value = list.map(item => {
@@ -362,13 +376,42 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    function handleEnableBeforeChange(value) {
+    function handleEnableBeforeChange(value, row) {
       return new Promise((resolve, reject) => {
         InfoBox({
-          title: '确认停用',
+          title: value ? t('确认启用') : t('确认停用'),
           onConfirm: () => {
-            console.log(value);
-            resolve(value);
+            switchDutyRule({
+              ids: [row.id],
+              enabled: value
+            })
+              .then(() => {
+                resolve(value);
+                listDutyRule()
+                  .then(list => {
+                    const labelsSet = new Set();
+                    const filterLabelOptions = [];
+                    allRotationList.value = list.map(item => {
+                      item.labels.forEach(l => {
+                        if (!labelsSet.has(l)) {
+                          labelsSet.add(l);
+                          filterLabelOptions.push({
+                            text: l,
+                            value: l
+                          });
+                        }
+                      });
+                      return {
+                        ...item,
+                        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
+                      };
+                    });
+                  })
+                  .catch(() => []);
+              })
+              .catch(() => {
+                reject();
+              });
           },
           onClosed: () => {
             reject();
@@ -430,7 +473,8 @@ export default defineComponent({
       setFilterList();
     }
 
-    function handleShowDetail() {
+    function handleShowDetail(row) {
+      detailData.id = row.id;
       detailData.show = true;
     }
 
@@ -457,14 +501,23 @@ export default defineComponent({
           if (delIndex >= 0) {
             loading.value = true;
             setTimeout(() => {
-              allRotationList.value.splice(delIndex, 1);
-              tableData.pagination.current = 1;
-              setFilterList();
-              loading.value = false;
-              Message({
-                theme: 'success',
-                message: t('删除成功')
-              });
+              destroyDutyRule(row.id)
+                .then(() => {
+                  allRotationList.value.splice(delIndex, 1);
+                  tableData.pagination.current = 1;
+                  setFilterList();
+                  loading.value = false;
+                  Message({
+                    theme: 'success',
+                    message: t('删除成功')
+                  });
+                })
+                .catch(() => {
+                  Message({
+                    theme: 'danger',
+                    message: t('删除失败')
+                  });
+                });
             }, 2000);
           }
         },
@@ -486,7 +539,7 @@ export default defineComponent({
             <Button
               text
               theme='primary'
-              onClick={() => handleShowDetail()}
+              onClick={() => handleShowDetail(row)}
             >
               {row.name}
             </Button>
@@ -536,7 +589,7 @@ export default defineComponent({
               size='small'
               theme='primary'
               value={row.enabled}
-              beforeChange={handleEnableBeforeChange}
+              beforeChange={v => handleEnableBeforeChange(v, row)}
               onChange={v => (row.enabled = v)}
             ></Switcher>
           );
@@ -557,7 +610,10 @@ export default defineComponent({
                       theme='primary'
                       class='mr-8'
                       disabled={!row.edit_allowed}
-                      onClick={() => handleEdit(row)}
+                      onClick={() =>
+                        authority.auth.MANAGE_AUTH ? handleEdit(row) : authority.showDetail([authority.map.MANAGE_AUTH])
+                      }
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('编辑')}
                     </Button>
@@ -577,7 +633,12 @@ export default defineComponent({
                       text
                       theme='primary'
                       disabled={!row.delete_allowed}
-                      onClick={() => handleDelete(row)}
+                      onClick={() =>
+                        authority.auth.MANAGE_AUTH
+                          ? handleDelete(row)
+                          : authority.showDetail([authority.map.MANAGE_AUTH])
+                      }
+                      v-authority={{ active: !authority.auth.MANAGE_AUTH }}
                     >
                       {t('删除')}
                     </Button>
@@ -627,11 +688,11 @@ export default defineComponent({
                 onClick={this.handleAdd}
               >
                 <span class='icon-monitor icon-plus-line mr-6'></span>
-                <span>{this.$t('新建')}</span>
+                <span>{this.t('新建')}</span>
               </Button>
               <SearchSelect
                 class='width-350'
-                placeholder={this.t('ID/告警组名称')}
+                placeholder={`ID / ${this.t('规则名称')}`}
                 modelValue={this.searchData.value}
                 data={this.searchData.data}
                 onUpdate:modelValue={v => this.handleSearch(v)}
@@ -676,6 +737,7 @@ export default defineComponent({
 
         <RotationDetail
           show={this.detailData.show}
+          id={this.detailData.id}
           onShowChange={v => (this.detailData.show = v)}
         ></RotationDetail>
       </div>

@@ -21,6 +21,9 @@ the project delivered to anyone in the future.
 """
 from typing import List
 
+from celery.schedules import crontab
+from celery.task import periodic_task
+
 from apps.log_clustering.constants import (
     CONTENT_PATTERN_INDEX,
     ORIGIN_LOG_INDEX,
@@ -36,8 +39,7 @@ from apps.log_clustering.models import (
     AiopsSignatureAndPattern,
     ClusteringConfig,
 )
-from celery.schedules import crontab
-from celery.task import periodic_task, task
+from apps.utils.task import high_priority_task
 
 
 @periodic_task(run_every=crontab(minute="*/10"))
@@ -53,7 +55,7 @@ def sync_pattern():
             sync.delay(model_output_rt=clustering_config.model_output_rt)
 
 
-@task(ignore_result=True)
+@high_priority_task(ignore_result=True)
 def sync(model_id=None, model_output_rt=None):
     if model_id:
         try:

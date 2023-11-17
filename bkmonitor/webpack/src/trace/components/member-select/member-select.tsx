@@ -23,37 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  computed,
-  defineComponent,
-  nextTick,
-  onMounted,
-  onUnmounted,
-  PropType,
-  reactive,
-  ref,
-  TransitionGroup,
-  watch
-} from 'vue';
+import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, TransitionGroup, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { listUsersUser } from '@api/modules/model';
 import { getReceiver } from '@api/modules/notice_group';
 import { Loading, Popover } from 'bkui-vue';
 import { debounce } from 'lodash';
 
-import draggableIcon from '../../static/img/draggable.svg';
-
 import './member-select.scss';
 
 interface DateItem {
-  type: 'group' | 'user';
   id: string;
+  type: 'group' | 'user';
+  logo?: string;
+  display_name?: string;
 }
 
 export interface TagItemModel {
   id: string;
   logo?: string;
-  display_name: string;
+  display_name?: string;
   username: string;
   type: 'group' | 'user';
 }
@@ -88,7 +77,7 @@ export default defineComponent({
       default: ''
     }
   },
-  emits: ['update:modelValue', 'change'],
+  emits: ['update:modelValue', 'change', 'selectEnd', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
     // ------------------ 用户数据----------------------
@@ -156,8 +145,8 @@ export default defineComponent({
         }
       )
         .then(res => {
-          setUser(res);
-          userSearchMap.set(key, res);
+          setUser(res.results);
+          userSearchMap.set(key, res.results);
         })
         .finally(() => {
           loading.value = false;
@@ -168,7 +157,7 @@ export default defineComponent({
      * @param users 用户列表
      */
     function setUser(users) {
-      userAndGroupList.user = users.results.map(item => {
+      userAndGroupList.user = users.map(item => {
         const obj: TagItemModel = {
           id: item.username,
           type: 'user',
@@ -180,19 +169,18 @@ export default defineComponent({
         return obj;
       });
     }
-    function handleWrapMouseenter() {
-      document.addEventListener('click', handleDocClick);
-    }
-    function handleWrapMouseleave() {
-      if (inputIndex.value > -1) return;
-      document.removeEventListener('click', handleDocClick);
-    }
-    /** 用于清除弹窗和输入框 */
-    function handleDocClick(e: Event) {
-      if (!memberSelectRef.value.contains(e.target as Node) && !popoverWrapRef.value.contains(e.target as Node)) {
-        resetInputPosition(-1);
-        document.removeEventListener('click', handleDocClick);
-      }
+
+    /** 编辑态下把用户添加到映射表 */
+    function setUserMap(tags: DateItem[]) {
+      tags.forEach(tag => {
+        const item: TagItemModel = {
+          ...tag,
+          username: tag.id
+        };
+        if (item.type === 'user' && !userAndGroupMap.has(item.username)) {
+          userAndGroupMap.set(item.username, item);
+        }
+      });
     }
 
     // ----------------标签---------------------
@@ -201,9 +189,11 @@ export default defineComponent({
       () => props.modelValue,
       val => {
         tags.splice(0, tags.length, ...val);
+        setUserMap(tags);
       },
       { immediate: true }
     );
+
     /** 点击容器，把输入框显示在最后 */
     function handleWrapClick() {
       !popoverShow.value && debounceGetUserList(inputValue.value);
@@ -243,13 +233,7 @@ export default defineComponent({
         return [renderUserLogo(tag), <span class='user-name'>{tag?.username}</span>];
       }
       return [
-        <div class='draggable-icon-wrap'>
-          <img
-            class='icon'
-            draggable={false}
-            src={draggableIcon}
-          />
-        </div>,
+        <span class='icon-monitor icon-mc-tuozhuai'></span>,
         <span class='user-name'>{tag?.username}</span>,
         <span
           class='icon-monitor icon-mc-close'
@@ -259,17 +243,21 @@ export default defineComponent({
     }
     /** 标签拖拽 */
     function handleDragstart(e: DragEvent, index: number) {
+      if (props.showType === 'avatar') return;
       e.dataTransfer.setData('index', String(index));
       resetInputPosition(-1);
     }
     function handleDragover(e: DragEvent) {
+      if (props.showType === 'avatar') return;
       e.preventDefault();
     }
     function handleDrop(e: DragEvent, index: number) {
+      if (props.showType === 'avatar') return;
       const startIndex = Number(e.dataTransfer.getData('index'));
       const tag = tags[startIndex];
       tags.splice(startIndex, 1);
       tags.splice(index, 0, tag);
+      emit('drop');
     }
 
     // --------------输入框--------------
@@ -328,12 +316,13 @@ export default defineComponent({
     function renderInputContent() {
       return (
         <Popover
-          trigger='manual'
+          trigger='click'
           theme='light'
           extCls='member-select-popover component'
           arrow={false}
           placement='bottom-start'
           is-show={popoverShow.value}
+          onAfterHidden={handleAfterHidden}
         >
           {{
             content: () => renderPopoverContent(),
@@ -364,12 +353,18 @@ export default defineComponent({
       }
       return inputValue.value ? userAndGroupList.user : userAndGroupList.group;
     });
+    function handleAfterHidden({ isShow }) {
+      popoverShow.value = isShow;
+      resetInputPosition(-1);
+      emitSelectEnd();
+    }
     /**
      * 选择事件
      * @param item 选择项
      */
     function handleSelect(e: Event, item: TagItemModel) {
       e.stopPropagation();
+      inputValue.value = '';
       const index = tags.findIndex(tag => tag.id === item.id);
       if (index === -1) {
         // 新增
@@ -420,13 +415,14 @@ export default defineComponent({
       emit('update:modelValue', tags);
     }
 
+    /** 用户选择操作结束后触发 */
+    function emitSelectEnd() {
+      emit('selectEnd', tags);
+    }
+
     onMounted(() => {
       !props.hasDefaultGroup && getReceiverGroup();
       debounceGetUserList();
-    });
-
-    onUnmounted(() => {
-      document.removeEventListener('click', handleDocClick);
     });
 
     return {
@@ -436,8 +432,6 @@ export default defineComponent({
       memberSelectRef,
       tags,
       handleWrapClick,
-      handleWrapMouseenter,
-      handleWrapMouseleave,
       handleTagClick,
       renderTagItemContent,
       handleDragstart,
@@ -463,8 +457,6 @@ export default defineComponent({
         ref='memberSelectRef'
         class='member-select-component'
         onClick={this.handleWrapClick}
-        onMouseenter={this.handleWrapMouseenter}
-        onMouseleave={this.handleWrapMouseleave}
       >
         <div class='prefix'>{this.$slots.prefix?.()}</div>
         <div class={['member-select-wrapper', `${this.showType}-type`]}>

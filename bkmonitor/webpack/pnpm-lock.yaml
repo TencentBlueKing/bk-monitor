@@ -143,6 +143,7 @@ importers:
 
   src/fta-solutions:
     specifiers:
+      '@blueking/bk-weweb': 0.0.22
       '@typescript-eslint/eslint-plugin': ^5.20.0
       '@typescript-eslint/parser': ^5.20.0
       async-validator: ^3.5.2
@@ -178,6 +179,7 @@ importers:
       vuex: ^3.1.2
       vuex-module-decorators: ^1.2.0
     dependencies:
+      '@blueking/bk-weweb': 0.0.22
       async-validator: 3.5.2
       bk-magic-vue: 2.5.8-beta.7_vue@2.7.14
       deepmerge: 4.3.1
@@ -597,7 +599,7 @@ importers:
       '@types/throttle-debounce': ^5.0.0
       '@typescript-eslint/eslint-plugin': ^5.20.0
       '@typescript-eslint/parser': ^5.20.0
-      bkui-vue: 0.0.2-beta.24
+      bkui-vue: 0.0.2-beta.84
       d3-array: ^3.1.1
       d3-dispatch: ^3.0.1
       d3-ease: ^3.0.1
@@ -643,7 +645,7 @@ importers:
     dependencies:
       '@antv/g6': 4.8.22
       '@blueking/ip-selector': 0.0.1-beta.125
-      bkui-vue: 0.0.2-beta.24_vue@3.2.33
+      bkui-vue: 0.0.2-beta.84_vue@3.2.33
       d3-array: 3.2.4
       d3-dispatch: 3.0.1
       d3-ease: 3.0.1
@@ -4792,8 +4794,9 @@ packages:
       tinycolor2: 1.6.0
       vue: 2.7.14
 
-  /bkui-vue/0.0.2-beta.24_vue@3.2.33:
-    resolution: {integrity: sha512-d0BKtfTlTZHl2glyhKSms/ybWTcJ3SA/HTeI1ZL+bydxZCNzlwp/3FhlfzegoZ6rLyDS2LyKX9TPhGwKGxkpwg==}
+  /bkui-vue/0.0.2-beta.84_vue@3.2.33:
+    resolution: {integrity: sha512-ZpydDhguj+JeHsmGaC6NN5LzjqFZ+xujefIrNgbCrVUDTRCDgCbHv9ERrWo5BYJcK/afWIis5ia/kf/gas3ZUg==}
+    engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
       vue: ^3.2.0

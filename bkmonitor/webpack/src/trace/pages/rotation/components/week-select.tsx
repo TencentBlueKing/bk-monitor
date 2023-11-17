@@ -96,13 +96,13 @@ export default defineComponent({
     /** 选择器下拉列表 */
     const weekList = computed<WeekListItemModel[]>(() => {
       const list = [
-        { id: 1, label: '周一' },
-        { id: 2, label: '周二' },
-        { id: 3, label: '周三' },
-        { id: 4, label: '周四' },
-        { id: 5, label: '周五' },
-        { id: 6, label: '周六' },
-        { id: 7, label: '周日' }
+        { id: 1, label: t('周一') },
+        { id: 2, label: t('周二') },
+        { id: 3, label: t('周三') },
+        { id: 4, label: t('周四') },
+        { id: 5, label: t('周五') },
+        { id: 6, label: t('周六') },
+        { id: 7, label: t('周日') }
       ];
       return list.map(item => {
         const isStart = item.id === localValue[0];
@@ -192,12 +192,12 @@ export default defineComponent({
           ref='weekSelectRef'
           class={['week-select', this.show && 'active']}
         >
-          <i class={['icon-monitor', 'arrow', 'icon-arrow-left', this.show && 'active']}></i>
+          <i class={['icon-monitor', 'arrow', 'icon-arrow-down', this.show && 'active']}></i>
           <Popover
             trigger='click'
             is-show={this.show}
             theme='light'
-            extCls='week-select-popover'
+            extCls='week-select-popover component'
             arrow={false}
             placement='bottom'
             onAfterHidden={this.handleAfterHidden}
@@ -214,7 +214,7 @@ export default defineComponent({
                       onMouseleave={() => (this.hoverWeek = '')}
                     >
                       <div class='week-item-content'>
-                        <span class='name'>{this.t(item.name)}</span>
+                        <span class='name'>{item.name}</span>
                         {item.isStart && <div class='start-tag'>{this.t('起始日')}</div>}
                       </div>
                       {item.Selected && !item.hasSetStart && (
@@ -234,7 +234,7 @@ export default defineComponent({
               ),
               default: () => (
                 <div class={{ 'week-select-text': true, placeholder: !this.localText }}>
-                  {this.localText || this.t('请选择')}
+                  {this.localText || this.t('选择')}
                 </div>
               )
             }}

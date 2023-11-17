@@ -23,12 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { randomColor } from '../utils';
+
+export interface ICalendarDataUser {
+  color: string;
+  timeRange: string[];
+  users: { id: string; name: string }[];
+}
+interface ICalendarDataDataItem {
+  // 日历表一行的数据
+  users: { id: string; name: string }[]; // 用户组
+  color: string; // 颜色
+  range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
+  isStartBorder?: boolean;
+  row?: number; // 第几行
+  timeRange: string[]; // 时间间隔
+  other: {
+    time: string;
+    users: string;
+  }; // 其他信息
+}
 export interface ICalendarData {
-  users: {
-    color: string;
-    timeRange: string[];
-    users: { id: string; name: string }[];
-  }[];
+  users: ICalendarDataUser[];
   data: {
     dates: {
       // 日历表一行的数据
@@ -38,17 +54,8 @@ export interface ICalendarData {
       isOtherMonth: boolean;
       isCurDay: boolean;
     }[];
-    data: {
-      // 日历表一行的数据
-      users: { id: string; name: string }[]; // 用户组
-      color: string; // 颜色
-      range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
-      isStartBorder?: boolean;
-      other: {
-        time: string;
-        users: string;
-      }; // 其他信息
-    }[];
+    maxRow?: number;
+    data: ICalendarDataDataItem[];
   }[];
 }
 export function getCalendar() {
@@ -142,6 +149,55 @@ export function getDateStrAndRange(timeRange: number[], totalRange: number[]) {
   };
 }
 /**
+ * @description 如有重叠区域需要展示多行
+ * @param data
+ * @returns
+ */
+function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
+  const result: (ICalendarDataDataItem & { timeRangeNum: number[] })[] = [];
+  // data.sort((a, b) => new Date(a.timeRange[0]).getTime() - new Date(b.timeRange[0]).getTime());
+  const tempData: (ICalendarDataDataItem & { timeRangeNum: number[] })[] = data.map(item => ({
+    ...item,
+    timeRangeNum: item.timeRange.map(t => new Date(t).getTime())
+  }));
+  tempData.sort((a, b) => a.timeRangeNum[0] - b.timeRangeNum[0]);
+  let maxRow = 0;
+  tempData.forEach(item => {
+    if (result.length) {
+      for (let i = 0; i <= maxRow; i++) {
+        const preItem = (JSON.parse(JSON.stringify(result)) as (ICalendarDataDataItem & { timeRangeNum: number[] })[])
+          .sort((a, b) => b.timeRangeNum[1] - a.timeRangeNum[1])
+          .filter(r => r.row === i)[0];
+        /* 最后一夜重叠则新增maxrow */
+        if (preItem.timeRangeNum[1] <= item.timeRangeNum[0]) {
+          result.push({
+            ...item,
+            row: i
+          });
+          break;
+        }
+        if (i === maxRow) {
+          maxRow += 1;
+          result.push({
+            ...item,
+            row: maxRow
+          });
+          break;
+        }
+      }
+    } else {
+      result.push({
+        ...item,
+        row: 0
+      });
+    }
+  });
+  return {
+    maxRow,
+    result
+  };
+}
+/**
  * @description 将用户组可视化
  * @param data
  */
@@ -175,15 +231,95 @@ export function calendarDataConversion(data: ICalendarData) {
           isStartBorder: rangeStr.isStartBorder,
           other: {
             time: rangeStr.timeStr,
-            users: u.users.map(user => user.name).join(', ')
+            users: u.users.map(user => `${user.id}(${user.name})`).join(', ')
           }
         });
       }
     });
+    const rowData = setRowYOfOverlap(temp);
     return {
       ...row,
-      data: temp
+      maxRow: rowData.maxRow,
+      data: rowData.result
     };
   });
   return calendarData;
+}
+
+interface IDutyPlans {
+  user_index?: number;
+  users: {
+    id: string;
+    display_name: string;
+    type: string;
+  }[];
+  work_times: {
+    start_time: string;
+    end_time: string;
+  }[];
+}
+
+export interface IDutyPreviewParams {
+  rule_id: number | string;
+  duty_plans: IDutyPlans[];
+}
+
+/**
+ * @description 将时间段相交的区域进行合并处理
+ * @param times
+ */
+export function timeRangeMerger(timePeriods: { start_time: string; end_time: string }[]) {
+  // 先对时间段按照开始时间进行排序
+  timePeriods.sort((a, b) => {
+    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+  });
+
+  const mergedPeriods = [];
+  let currentPeriod = timePeriods[0];
+
+  for (let i = 1; i < timePeriods.length; i++) {
+    const nextPeriod = timePeriods[i];
+
+    const currentEndTime = new Date(currentPeriod.end_time);
+    const nextStartTime = new Date(nextPeriod.start_time);
+
+    if (nextStartTime.getTime() <= currentEndTime.getTime()) {
+      // 时间段相交，更新当前时间段的结束时间
+      currentPeriod.end_time = nextPeriod.end_time;
+    } else {
+      // 时间段不相交，将当前时间段加入到合并后的数组中，并更新当前时间段为下一个时间段
+      mergedPeriods.push(currentPeriod);
+      currentPeriod = nextPeriod;
+    }
+  }
+
+  // 将最后一个时间段加入到合并后的数组中
+  mergedPeriods.push(currentPeriod);
+  /* 判断跨行的数据 */
+  // const result = [];
+  // mergedPeriods.forEach(item => {
+
+  // });
+  return mergedPeriods;
+}
+
+/**
+ * @description 根据后台接口数据转换为预览数据
+ * @param params
+ */
+export function setPreviewDataOfServer(params: IDutyPlans[]) {
+  const data = [];
+  params.forEach((item, index) => {
+    const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
+    if (item.work_times.length) {
+      timeRangeMerger(item.work_times).forEach(work => {
+        data.push({
+          users,
+          color: randomColor(item.user_index === undefined ? index : item.user_index),
+          timeRange: [work.start_time, work.end_time]
+        });
+      });
+    }
+  });
+  return data;
 }

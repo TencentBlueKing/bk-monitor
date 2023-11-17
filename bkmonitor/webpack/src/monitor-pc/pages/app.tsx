@@ -329,7 +329,7 @@ export default class App extends tsc<{}> {
    */
   async handleMenuItemClick(item) {
     let hasRouteChange = this.$route.path !== item.path;
-    const isMicroApp = ['alarm-shield'].includes(item.id);
+    const isMicroApp = ['alarm-shield', 'rotation'].includes(item.id);
     // 屏蔽是微应用 需特殊处理
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;

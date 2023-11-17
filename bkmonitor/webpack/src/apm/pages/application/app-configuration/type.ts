@@ -25,6 +25,7 @@
  */
 /* eslint-disable camelcase */
 
+import { INodeType, TargetObjectType } from '../../../../monitor-pc/components/monitor-ip-selector/typing';
 import { IPanelModel } from '../../../../monitor-ui/chart-plugins/typings';
 
 export interface IApdexConfig {
@@ -102,6 +103,25 @@ export interface IAppInfo {
   no_data_period: number;
   application_sampler_config: IApplicationSamplerConfig;
   application_instance_name_config: IApplicationInstanceNameConfig;
+  application_db_config: {
+    db_system: string;
+    trace_mode: 'origin' | 'no_parameters' | 'closed';
+    length: number;
+    threshold: number;
+    enabled_slow_sql: boolean;
+  }[];
+  application_db_system: string[];
+  plugin_id: string;
+  plugin_config?: {
+    target_node_type: INodeType;
+    target_object_type: TargetObjectType;
+    target_nodes: any[];
+    data_encoding: string;
+    paths: string[];
+    bk_biz_id?: number | string;
+    bk_data_id?: number | string;
+    subscription_id?: number | string;
+  };
 }
 
 export interface ClusterOption {

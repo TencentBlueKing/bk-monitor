@@ -39,10 +39,11 @@
           <div class="help-md" v-html="item.help_md"></div>
           <template v-if="item.button_list.length">
             <div v-for="(sItem, sIndex) of item.button_list" :key="sIndex">
-              <a class="help-a-link"
-                 v-if="sItem.type === 'blank'"
-                 target="_blank"
-                 :href="sItem.url">
+              <a
+                class="help-a-link"
+                v-if="sItem.type === 'blank'"
+                target="_blank"
+                :href="sItem.url">
                 {{$t('跳转至')}}{{item.name}}
                 <span class="log-icon icon-tiaozhuan"></span>
               </a>

@@ -75,7 +75,8 @@ class BusinessActionPermission(IAMPermission):
     关联业务的动作权限检查
     """
 
-    def __init__(self, actions: List[ActionMeta]):
+    def __init__(self, actions: List[ActionMeta], space_uid=None):
+        self.space_uid = space_uid
         super(BusinessActionPermission, self).__init__(actions)
 
     @classmethod
@@ -84,7 +85,10 @@ class BusinessActionPermission(IAMPermission):
         return bk_biz_id
 
     def has_permission(self, request, view):
-        bk_biz_id = self.fetch_biz_id_by_request(request)
+        if self.space_uid:
+            bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
+        else:
+            bk_biz_id = self.fetch_biz_id_by_request(request)
         if not bk_biz_id:
             return True
         self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]

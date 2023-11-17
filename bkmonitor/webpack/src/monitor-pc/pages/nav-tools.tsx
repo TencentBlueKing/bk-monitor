@@ -46,8 +46,8 @@ import SpaceManage from './space-manage/space-manage';
 import GlobalSearchModal from './global-search-modal-new';
 import SettingModal from './setting-modal';
 
-import './nav-tools.scss';
 // #endif
+import './nav-tools.scss';
 
 export const HANDLE_SHOW_SETTING = 'HANDLE_SHOW_SETTING';
 export const HANDLE_HIDDEN_SETTING = 'HANDLE_HIDDEN_SETTING';
@@ -399,7 +399,12 @@ class NavTools extends DocumentLinkMixin {
           </bk-popover>
           // #endif
         }
-        <div class='header-user is-left'>
+        <div
+          class={{
+            'header-user is-left': true,
+            'is-external': process.env.APP === 'external'
+          }}
+        >
           <bk-popover
             ref='popoveruser'
             theme='light common-monitor'

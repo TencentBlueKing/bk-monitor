@@ -261,5 +261,11 @@ export default {
   模糊检索使用通配符: 'Fuzzy search using wild-card',
   规则名不能为空: 'Rule name cannot be empty',
   匹配规则重复了: 'The matching rule is duplicated',
-  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000'
+  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000',
+  生效起始时间必填: 'Effective start time is required',
+  每条轮值规则最少添加一个用户: 'Add at least one user per rotation rule',
+  请选择值班规则: 'Please select the duty rule',
+  请输入企业微信群ID: 'Please enter the group ID of enterprise wechat',
+  暂无数据: 'No data available',
+  最少添加一个单班时间: 'Add at least one shift time'
 };

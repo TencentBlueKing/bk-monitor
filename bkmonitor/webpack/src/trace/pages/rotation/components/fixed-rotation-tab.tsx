@@ -55,7 +55,7 @@ export default defineComponent({
       default: () => []
     }
   },
-  emits: ['change'],
+  emits: ['change', 'reset'],
   setup(props, { emit }) {
     // --------公共------------
     const { t } = useI18n();
@@ -98,7 +98,7 @@ export default defineComponent({
       } else {
         item.workDateRange = [];
       }
-      handleEmitData();
+      handleEmitReset();
     };
     function handleAddItem() {
       localValue.push(createDefaultData());
@@ -113,6 +113,9 @@ export default defineComponent({
     }
     function handleEmitData() {
       emit('change', localValue);
+    }
+    function handleEmitReset() {
+      emit('reset', localValue);
     }
 
     return {
@@ -220,7 +223,7 @@ export default defineComponent({
                 v-model={item.users}
                 hasDefaultGroup={true}
                 defaultGroup={this.defaultGroup}
-                onChange={val => this.handleUserChange(val, item)}
+                onSelectEnd={val => this.handleUserChange(val, item)}
               />
             </td>
             {this.localValue.length > 1 && (

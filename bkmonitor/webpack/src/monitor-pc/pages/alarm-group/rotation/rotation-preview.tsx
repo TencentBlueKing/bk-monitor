@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
@@ -33,190 +33,52 @@ import './rotation-preview.scss';
 
 interface IProps {
   value?: any;
+  alarmGroupId?: string | number;
+  dutyPlans?: any[];
+  onStartTimeChange?: (v: string) => void;
+  onInitStartTime?: (v: string) => void;
 }
-
-const mockData1 = [
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-8 12:00', '2023-10-9 12:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-10 08:00', '2023-10-10 18:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 08:00', '2023-10-13 13:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-11 08:00', '2023-10-11 13:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 15:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  }
-];
-const mockData2 = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FFB848',
-    range: [0, 0],
-    timeRange: ['2023-10-7 00:00', '2023-10-7 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-11 00:00', '2023-10-11 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 00:00', '2023-10-13 02:00'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxsdx', name: 'xxvcxx' },
-      { id: 'xxassdx', name: 'xxasxcdfxx' }
-    ],
-    color: '#3A84FF',
-    range: [0, 0],
-    timeRange: ['2023-10-13 19:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf), asdfv(xasdfqw)'
-    }
-  }
-];
-const mockData3 = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    range: [0, 0],
-    timeRange: ['2023-10-13 00:00', '2023-10-13 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    range: [0, 0],
-    timeRange: ['2023-10-11 00:00', '2023-10-11 23:59'],
-    other: {
-      time: '',
-      users: 'xxaxa(zxasdfa), zxqwerqw(zxicvasdf)'
-    }
-  }
-];
 
 @Component
 export default class RotationPreview extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) value: any[];
+  @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
+  /* 轮值历史 */
+  @Prop({ default: () => [], type: Array }) dutyPlans: any[];
+
   @Ref('previewContent') previewContentRef: HTMLDivElement;
   @Ref('userTip') userTipRef: HTMLDivElement;
+  /* 是否展示未排班 */
   showNoData = true;
+  /* 是否展开 */
   isExpan = true;
   // 预览数据
   dutyData: IDutyData = {
     dates: getCalendarOfNum(),
-    data: [
-      { id: '1', name: '周末排班', data: mockData1 },
-      { id: '2', name: '业务A排班', data: mockData2 },
-      { id: '3', name: '国庆排班', data: mockData3 }
-    ],
+    data: [],
     freeTimes: [],
     overlapTimes: []
   };
-
+  /* 用户组tip */
   popoverInstance = null;
   popover = {
     users: '',
     time: ''
   };
-
+  /* 容器宽度 */
   containerWidth = 1000;
-
   observer = null;
-
   showDetail = false;
+  /* 当前明细/历史标题 */
+  detailTitle = '';
+  detailDutyPlans = [];
+
+  startTime = '';
 
   created() {
     this.dutyData = dutyDataConversion(this.dutyData);
+    this.startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
+    this.$emit('initStartTime', this.startTime);
   }
   mounted() {
     this.observer = new ResizeObserver(entries => {
@@ -226,6 +88,14 @@ export default class RotationPreview extends tsc<IProps> {
       });
     });
     this.observer.observe(this.previewContentRef);
+  }
+
+  @Watch('value', { immediate: true })
+  handleWatchValue(value) {
+    this.dutyData = dutyDataConversion({
+      ...this.dutyData,
+      data: value
+    });
   }
   /**
    * @description 展开预览
@@ -256,6 +126,11 @@ export default class RotationPreview extends tsc<IProps> {
     });
     this.popoverInstance?.show(100);
   }
+  @Emit('startTimeChange')
+  handleStartTimeChange() {
+    this.startTime = `${this.dutyData.dates[0].year}-${this.dutyData.dates[0].month}-${this.dutyData.dates[0].day} 00:00:00`;
+    return this.startTime;
+  }
   /**
    * @description 上一个周期
    */
@@ -267,6 +142,7 @@ export default class RotationPreview extends tsc<IProps> {
       ...this.dutyData,
       dates: getCalendarOfNum(7, preDay)
     });
+    this.handleStartTimeChange();
   }
   /**
    * @description 下一个周期
@@ -278,14 +154,43 @@ export default class RotationPreview extends tsc<IProps> {
       ...this.dutyData,
       dates: getCalendarOfNum(7, preDay)
     });
+    this.handleStartTimeChange();
   }
   /**
    * @description 显示排班明细和轮值历史
    * @param v
    */
-  handleShowDetail(v: boolean) {
-    console.log(v);
+  async handleShowDetail(v: boolean, title, isHistory = false) {
     this.showDetail = v;
+    this.detailTitle = title;
+    if (!v) {
+      return;
+    }
+    this.detailDutyPlans = (
+      isHistory ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime()) : this.dutyPlans
+    ).map(d => ({
+      startTime: d?.start_time || '--',
+      endTime: d?.finished_time || '--',
+      users: (d?.users?.map(u => u.display_name) || []).join('、 ')
+    }));
+  }
+
+  getOverlapStyleTop(verticalRange: number[]) {
+    const heights = this.dutyData.data.map(item => 64 + item.maxRow * 22);
+    let top = 0;
+    let height = 0;
+    heights.forEach((h, index) => {
+      if (index <= verticalRange[0]) {
+        top += h;
+      }
+      if (index > verticalRange[0] && index < verticalRange[1]) {
+        height += h;
+      }
+    });
+    return {
+      top: `${top - 21}px`,
+      height: `${height + 42}px`
+    };
   }
 
   render() {
@@ -310,26 +215,28 @@ export default class RotationPreview extends tsc<IProps> {
             ></Switcher>
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
-          <span
-            class='text-btn mr-24 ml-auto'
-            onClick={(e: Event) => {
-              e.stopPropagation();
-              this.handleShowDetail(true);
-            }}
-          >
-            <span class='icon-monitor icon-mc-detail mr-6'></span>
-            <span>{this.$t('排班明细')}</span>
-          </span>
-          <span
-            class='text-btn'
-            onClick={(e: Event) => {
-              e.stopPropagation();
-              this.handleShowDetail(true);
-            }}
-          >
-            <span class='icon-monitor icon-lishijilu mr-6'></span>
-            <span>{this.$t('轮值历史')}</span>
-          </span>
+          {!!this.alarmGroupId && [
+            <span
+              class='text-btn mr-24 ml-auto'
+              onClick={(e: Event) => {
+                e.stopPropagation();
+                this.handleShowDetail(true, this.$t('排班明细'));
+              }}
+            >
+              <span class='icon-monitor icon-mc-detail mr-6'></span>
+              <span>{this.$t('排班明细')}</span>
+            </span>,
+            <span
+              class='text-btn'
+              onClick={(e: Event) => {
+                e.stopPropagation();
+                this.handleShowDetail(true, this.$t('轮值历史'), true);
+              }}
+            >
+              <span class='icon-monitor icon-lishijilu mr-6'></span>
+              <span>{this.$t('轮值历史')}</span>
+            </span>
+          ]}
         </div>
         <div class={['preview-content', { expan: this.isExpan }]}>
           <div class='preview-content-left'>
@@ -338,6 +245,9 @@ export default class RotationPreview extends tsc<IProps> {
               {this.dutyData.data.map((item, index) => (
                 <div
                   class='left-content-item'
+                  style={{
+                    height: `${64 + item.maxRow * 22}px`
+                  }}
                   key={index}
                 >
                   {item.name}
@@ -373,6 +283,9 @@ export default class RotationPreview extends tsc<IProps> {
               {this.dutyData.data.map((row, rowIndex) => (
                 <div
                   class='row-content'
+                  style={{
+                    height: `${64 + row.maxRow * 22}px`
+                  }}
                   key={rowIndex}
                 >
                   {this.dutyData.dates.map((_col, colIndex) => (
@@ -388,6 +301,7 @@ export default class RotationPreview extends tsc<IProps> {
                         class='user-item'
                         key={dutyIndex}
                         style={{
+                          top: `${21 + duty.row * 22}px`,
                           width: `${
                             (duty?.isStartBorder ? -1 : 0) + this.containerWidth * (duty.range[1] - duty.range[0])
                           }px`,
@@ -403,7 +317,7 @@ export default class RotationPreview extends tsc<IProps> {
                           class='user-content'
                           style={{ color: duty.color }}
                         >
-                          <span>{duty.users.map(u => u.id).join(',')}</span>
+                          <span>{duty.users.map(u => u.name || u.id).join(',')}</span>
                         </div>
                       </div>
                     ))}
@@ -426,8 +340,9 @@ export default class RotationPreview extends tsc<IProps> {
                   key={`overlap_${index}`}
                   class='overlap-col'
                   style={{
-                    top: `${(item.verticalRange[0] + 1) * 64 - 21}px`,
-                    height: `${(item.verticalRange[1] - item.verticalRange[0] + 1) * 64 - 86}px`,
+                    ...this.getOverlapStyleTop(item.verticalRange),
+                    // top: `${(item.verticalRange[0] + 1) * 64 - 21}px`,
+                    // height: `${(item.verticalRange[1] - item.verticalRange[0] + 1) * 64 - 86}px`,
                     width: `${this.containerWidth * (item.range.range[1] - item.range.range[0])}px`,
                     left: `${this.containerWidth * item.range.range[0]}px`
                   }}
@@ -448,29 +363,23 @@ export default class RotationPreview extends tsc<IProps> {
           transfer={true}
           extCls={'rotation-preview-side'}
           quickClose={true}
-          before-close={() => this.handleShowDetail(false)}
+          title={this.detailTitle}
+          before-close={() => this.handleShowDetail(false, '')}
         >
           <div slot='content'>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七</span>
-            </div>
-            <div class='content-item'>
-              <span class='item-left'>2022-04-30 22:35 ～ 2023-4-30 23:59</span>
-              <span class='item-right'>张三、李四、王武、王六、白七、小小、巴拉巴拉、小王、小李、小白、小黄</span>
-            </div>
+            {this.detailDutyPlans.length ? (
+              this.detailDutyPlans.map((item, index) => (
+                <div
+                  class='content-item'
+                  key={index}
+                >
+                  <span class='item-left'>{`${item.startTime} ～ ${item.endTime}`}</span>
+                  <span class='item-right'>{item.users}</span>
+                </div>
+              ))
+            ) : (
+              <div>{this.$t('暂无数据')}</div>
+            )}
           </div>
         </Sideslider>
         <div style={{ display: 'none' }}>

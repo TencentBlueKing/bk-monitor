@@ -51,6 +51,7 @@
 import AuthContainerPage from '@/components/common/auth-container-page';
 import BasicInfo from './basic-info';
 import CollectionStatus from './collection-status';
+import FieldInfo from './field-info.tsx';
 import DataStorage from './data-storage';
 import DataStatus from './data-status';
 import UsageDetails from '@/views/manage/manage-access/components/usage-details';
@@ -67,6 +68,7 @@ export default {
     DataStatus,
     UsageDetails,
     BasicTab,
+    FieldInfo,
   },
   data() {
     return {
@@ -77,6 +79,7 @@ export default {
       panels: [
         { name: 'basicInfo', label: this.$t('配置信息') },
         { name: 'collectionStatus', label: this.$t('采集状态') },
+        { name: 'fieldInfo', label: this.$t('字段信息') },
         { name: 'dataStorage', label: this.$t('数据存储') },
         { name: 'dataStatus', label: this.$t('数据状态') },
         { name: 'usageDetails', label: this.$t('使用详情') },
@@ -88,6 +91,7 @@ export default {
       const componentMaP = {
         basicInfo: 'BasicInfo',
         collectionStatus: 'CollectionStatus',
+        fieldInfo: 'FieldInfo',
         dataStorage: 'DataStorage',
         dataStatus: 'DataStatus',
         usageDetails: 'UsageDetails',

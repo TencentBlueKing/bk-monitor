@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+import { timeRangeMerger } from '../../../../trace/pages/rotation/components/calendar-preview';
+import { randomColor } from '../duty-arranges/color';
+
+import { IDutyItem } from './typing';
+
 interface IOverlapTimesItem {
   verticalRange: number[];
   range: {
@@ -31,6 +36,19 @@ interface IOverlapTimesItem {
     tempRange: number[];
     range: number[];
   };
+}
+
+interface IDutyDataRangeItem {
+  users: { id: string; name: string }[]; // 用户组
+  color: string; // 颜色
+  range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
+  timeRange: string[];
+  isStartBorder?: boolean; // 起点是否覆盖了边框
+  row?: number;
+  other: {
+    time: string;
+    users: string;
+  }; // 其他信息
 }
 
 export interface IDutyData {
@@ -42,17 +60,8 @@ export interface IDutyData {
   data: {
     id: string;
     name: string;
-    data: {
-      users: { id: string; name: string }[]; // 用户组
-      color: string; // 颜色
-      range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
-      timeRange: string[];
-      isStartBorder?: boolean; // 起点是否覆盖了边框
-      other: {
-        time: string;
-        users: string;
-      }; // 其他信息
-    }[];
+    maxRow?: number;
+    data: IDutyDataRangeItem[];
   }[];
   freeTimes: {
     range: number[];
@@ -155,7 +164,17 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
   const freeTimes = [];
   const totalRangeTime = totalRange.map(item => new Date(item).getTime());
   const allRangeTime: number[][] = JSON.parse(
-    JSON.stringify(timeRanges.map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()]))
+    JSON.stringify(
+      timeRanges.map(item => {
+        let start = new Date(item[0]).getTime();
+        const end = new Date(item[1]).getTime();
+        if (start < totalRangeTime[0]) {
+          // eslint-disable-next-line prefer-destructuring
+          start = totalRangeTime[0];
+        }
+        return [start, end];
+      })
+    )
   );
   allRangeTime.sort((a, b) => (a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]));
 
@@ -208,7 +227,9 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
     }
     return cur;
   }, false as any);
-  return freeTimes.filter(t => t[0] < totalRangeTime[1]).map(t => getDateStrAndRange(t, totalRangeTime));
+  return freeTimes
+    .filter(t => t[0] < totalRangeTime[1] && t[1] - t[0] !== 60000)
+    .map(t => getDateStrAndRange(t, totalRangeTime));
 }
 
 /**
@@ -253,19 +274,17 @@ function mergeOverlaps(overlaps: number[][]) {
  * @description 获取多条时间段的重合区域 需要进行两两重合并且将重合区域进行合并精简
  * @param timeRnages
  */
-function getOverlapTowByTow(timeRnages: number[][]) {
+function getOverlapTowByTow(timeRanges: number[][][]) {
   const overlaps = [];
-  for (let i = 0; i < timeRnages.length; i++) {
-    for (let j = i + 1; j < timeRnages.length; j++) {
-      const timeRange1 = timeRnages[i];
-      const timeRange2 = timeRnages[j];
+  timeRanges[0].forEach(timeRange1 => {
+    timeRanges[1].forEach(timeRange2 => {
       const start = Math.max(timeRange1[0], timeRange2[0]);
       const end = Math.min(timeRange1[1], timeRange2[1]);
       if (start <= end) {
         overlaps.push([start, end]);
       }
-    }
-  }
+    });
+  });
   return mergeOverlaps(overlaps);
 }
 /**
@@ -286,7 +305,7 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
       const nextTimeRanges = JSON.parse(
         JSON.stringify(timeRanges[j].map(item => [new Date(item[0]).getTime(), new Date(item[1]).getTime()]))
       ) as number[][];
-      const ranges = getOverlapTowByTow([...curTimeRanges, ...nextTimeRanges]);
+      const ranges = getOverlapTowByTow([curTimeRanges, nextTimeRanges]);
       ranges.forEach(range => {
         let tempRange = range;
         if (tempRange[1] > totalRangeTime[0] && tempRange[0] < totalRangeTime[1]) {
@@ -295,13 +314,15 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
           } else if (tempRange[1] > totalRangeTime[1]) {
             tempRange = [tempRange[0], totalRangeTime[1]];
           }
-          overlapTimes.push({
-            verticalRange: [i, j],
-            range: {
-              ...getDateStrAndRange(tempRange, totalRangeTime),
-              tempRange
-            }
-          });
+          if (tempRange[0] !== tempRange[1]) {
+            overlapTimes.push({
+              verticalRange: [i, j],
+              range: {
+                ...getDateStrAndRange(tempRange, totalRangeTime),
+                tempRange
+              }
+            });
+          }
         }
       });
     }
@@ -350,7 +371,102 @@ function getOverlapTimeRanges(timeRanges: string[][][], totalRange: string[]) {
       resultOverlapTimes.push(group[0]);
     }
   });
+  /* 合并 */
+  // resultOverlapTimes.sort((a, b) => {
+  //   return a.range.tempRange[0] - b.range.tempRange[0];
+  // });
+  // interface ItotalTemp {
+  //   tempRange: number[];
+  //   verticalRange: number[];
+  // }
+  // const tempResult: ItotalTemp[] = [];
+  // let totalTemp: ItotalTemp = null;
+  // resultOverlapTimes.length &&
+  //   resultOverlapTimes.reduce((pre, cur, curIndex) => {
+  //     if (!totalTemp) {
+  //       totalTemp = {
+  //         tempRange: pre.range.tempRange,
+  //         verticalRange: pre.verticalRange
+  //       };
+  //     }
+  //     if (cur.range.tempRange[0] <= totalTemp.tempRange[1]) {
+  //       totalTemp.tempRange[1] =
+  //         totalTemp.tempRange[1] > cur.range.tempRange[1] ? totalTemp.tempRange[1] : cur.range.tempRange[1];
+  //       totalTemp.verticalRange[0] =
+  //         totalTemp.verticalRange[0] < cur.verticalRange[0] ? totalTemp.verticalRange[0] : cur.verticalRange[0];
+  //       totalTemp.verticalRange[1] =
+  //         totalTemp.verticalRange[1] > cur.verticalRange[1] ? totalTemp.verticalRange[1] : cur.verticalRange[1];
+  //     } else {
+  //       tempResult.push(totalTemp);
+  //       totalTemp = null;
+  //     }
+  //     /* 最后一个 */
+  //     if (curIndex === resultOverlapTimes.length - 1) {
+  //       if (totalTemp) {
+  //         tempResult.push(totalTemp);
+  //         totalTemp = null;
+  //       } else {
+  //         totalTemp = {
+  //           tempRange: cur.range.tempRange,
+  //           verticalRange: cur.verticalRange
+  //         };
+  //         tempResult.push(totalTemp);
+  //       }
+  //     }
+  //     return cur;
+  //   });
+  // const result = tempResult.map(item => ({
+  //   verticalRange: item.verticalRange,
+  //   range: {
+  //     ...getDateStrAndRange(item.tempRange, totalRangeTime),
+  //     tempRange: item.tempRange
+  //   }
+  // }));
   return resultOverlapTimes;
+}
+
+function setRowYOfOverlap(data: IDutyDataRangeItem[]) {
+  const result: (IDutyDataRangeItem & { timeRangeNum: number[] })[] = [];
+  const tempData: (IDutyDataRangeItem & { timeRangeNum: number[] })[] = data.map(item => ({
+    ...item,
+    timeRangeNum: item.timeRange.map(t => new Date(t).getTime())
+  }));
+  tempData.sort((a, b) => a.timeRangeNum[0] - b.timeRangeNum[0]);
+  let maxRow = 0;
+  tempData.forEach(item => {
+    if (result.length) {
+      for (let i = 0; i <= maxRow; i++) {
+        const preItem = (JSON.parse(JSON.stringify(result)) as (IDutyDataRangeItem & { timeRangeNum: number[] })[])
+          .sort((a, b) => b.timeRangeNum[1] - a.timeRangeNum[1])
+          .filter(r => r.row === i)[0];
+        /* 最后一夜重叠则新增maxrow */
+        if (preItem.timeRangeNum[1] <= item.timeRangeNum[0]) {
+          result.push({
+            ...item,
+            row: i
+          });
+          break;
+        }
+        if (i === maxRow) {
+          maxRow += 1;
+          result.push({
+            ...item,
+            row: maxRow
+          });
+          break;
+        }
+      }
+    } else {
+      result.push({
+        ...item,
+        row: 0
+      });
+    }
+  });
+  return {
+    maxRow,
+    result
+  };
 }
 
 /**
@@ -377,7 +493,15 @@ export function dutyDataConversion(dutyData: IDutyData) {
       const { other } = d;
       const start = timeRange[0].split(' ')[1];
       const end = timeRange[1].split(' ')[1];
-      other.time = `${timeRange[0].split(' ')[0]} ${start}-${end}`;
+      other.time = (() => {
+        if (
+          new Date(timeRange[1].split(' ')[0]).getTime() - new Date(timeRange[0].split(' ')[0]).getTime() >
+          60000 * 24 * 60
+        ) {
+          return `${timeRange[0].split(' ')[0]} ${start}- ${timeRange[1].split(' ')[0]} ${end}`;
+        }
+        return `${timeRange[0].split(' ')[0]} ${start}-${end}`;
+      })();
       allTimeRange.push(d.timeRange);
       return {
         ...d,
@@ -386,9 +510,11 @@ export function dutyDataConversion(dutyData: IDutyData) {
         other
       };
     });
+    const obj = setRowYOfOverlap(data);
     return {
       ...item,
-      data
+      maxRow: obj.maxRow,
+      data: obj.result
     };
   });
   /* 计算空闲时间 */
@@ -396,4 +522,55 @@ export function dutyDataConversion(dutyData: IDutyData) {
   /* 计算重叠区域 */
   dutyDataTemp.overlapTimes = getOverlapTimeRanges(allTimeRanges, totalTimeRange);
   return dutyDataTemp;
+}
+
+interface IDutyPlans {
+  users: {
+    id: string;
+    display_name: string;
+    type: string;
+  }[];
+  user_index?: number;
+  work_times: {
+    start_time: string;
+    end_time: string;
+  }[];
+}
+
+export interface IDutyPreviewParams {
+  rule_id: number | string;
+  duty_plans: IDutyPlans[];
+}
+
+/**
+ * @description 将接口的预览数据转为组件数据
+ * @param params
+ * @param ids
+ */
+export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: IDutyItem[]) {
+  const data = dutyList.map(item => ({
+    id: item.id,
+    name: item.name,
+    data: []
+  }));
+  params.forEach(item => {
+    const id = item.rule_id;
+    const dataItem = data.find(d => d.id === id);
+    item.duty_plans.forEach((plans, pIndex) => {
+      const users = plans.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
+      const userStr = users.map(u => `${u.id}(${u.name})`).join(', ');
+      timeRangeMerger(plans.work_times).forEach(w => {
+        dataItem.data.push({
+          users,
+          color: randomColor(plans.user_index === undefined ? pIndex : plans.user_index),
+          timeRange: [w.start_time, w.end_time],
+          other: {
+            time: '',
+            users: userStr
+          }
+        });
+      });
+    });
+  });
+  return data;
 }

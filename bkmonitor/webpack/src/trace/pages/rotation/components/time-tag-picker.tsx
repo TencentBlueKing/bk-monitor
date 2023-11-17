@@ -59,7 +59,6 @@ export default defineComponent({
       () => props.modelValue,
       val => {
         localValue.splice(0, localValue.length, ...val);
-        sourceValue.value = [...val];
       },
       {
         immediate: true
@@ -103,6 +102,7 @@ export default defineComponent({
       currentTime.index = ind ?? -1;
       currentTime.value = time ? [...time] : [];
       currentTime.show = !currentTime.show;
+      sourceValue.value = JSON.parse(JSON.stringify(localValue));
     }
 
     /**
@@ -111,7 +111,7 @@ export default defineComponent({
      * @returns 格式化后的名称
      */
     function tagNameFormat(time: string[]) {
-      const isBefore = moment(time[0], 'hh:mm').isSameOrBefore(moment(time[1], 'hh:mm'));
+      const isBefore = moment(time[0], 'hh:mm').isBefore(moment(time[1], 'hh:mm'));
       return isBefore ? time.join(' - ') : `${time[0]} - ${t('次日')}${time[1]}`;
     }
 
@@ -120,6 +120,7 @@ export default defineComponent({
      * @param ind 索引
      */
     function handleTagClose(ind: number) {
+      sourceValue.value = JSON.parse(JSON.stringify(localValue));
       localValue.splice(ind, 1);
       handleEmitData();
     }
@@ -183,10 +184,10 @@ export default defineComponent({
           class='time-picker'
           v-model={this.currentTime.value}
           type='timerange'
-          format='hh:mm'
+          format='HH:mm'
           open={this.currentTime.show}
-          append-to-body
-          allow-cross-day
+          appendToBody
+          allowCrossDay
           ext-popover-cls='time-picker-popover'
         >
           {{
@@ -207,7 +208,7 @@ export default defineComponent({
                       {this.tagNameFormat(item)}
                     </Tag>
                   ))}
-                  {!this.localValue.length && <span class='placeholder'>{this.t('请选择')}</span>}
+                  {!this.localValue.length && <span class='placeholder'>{this.t('选择')}</span>}
                 </div>
               </div>
             )

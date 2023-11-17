@@ -27,7 +27,10 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Input, Option, Select, Switcher, TimePicker } from 'bk-magic-vue';
 
+import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
 import SimpleDayPick from '../duty-arranges/simple-day-pick';
+
+import { IDutyListItem } from './typing';
 
 import './duty-notice-config.scss';
 
@@ -50,38 +53,90 @@ const weekList = [
   { label: window.i18n.t('周日'), value: 7 }
 ];
 
-const initData = () => ({
-  isSend: true,
+/**
+ * @description 默认表单数据
+ * @returns
+ */
+export const initData = () => ({
+  isSend: false,
   sendType: 'week',
   week: 1,
   month: 1,
   sendTime: '00:00',
   nearDay: 7,
   rtxId: '',
-  needNotice: true,
+  needNotice: false,
   startNum: 1,
   timeType: 'week',
-  rotationId: 0
+  rotationId: []
 });
 
+interface IProps {
+  renderKey?: string;
+  value?: any;
+  dutyList?: IDutyListItem[];
+  onChange?: (_v) => void;
+}
+
 @Component
-export default class DutyNoticeConfig extends tsc<{}> {
+export default class DutyNoticeConfig extends tsc<IProps> {
   @Prop({ default: '', type: String }) renderKey: string;
   @Prop({ default: () => initData(), type: Object }) value;
+  @Prop({ default: () => [], type: Array }) dutyList: IDutyListItem[];
 
   formData = initData();
 
+  errrMsg = {
+    sendTime: '',
+    sendContent: '',
+    sendChat: '',
+    rules: ''
+  };
+
+  get chatTipName() {
+    const name = SetMealAddStore.noticeWayList.find(item => item.type === 'wxwork-bot')?.name || '';
+    return name;
+  }
+
+  /**
+   * @description 初始化
+   */
   created() {
     this.formData = { ...this.value };
   }
 
+  /**
+   * @description 更新数据
+   */
   @Watch('renderKey')
   handleWatch() {
     this.formData = { ...this.value };
   }
   @Emit('change')
   handleChange() {
+    Object.keys(this.errrMsg).forEach(key => {
+      this.errrMsg[key] = '';
+    });
     return this.formData;
+  }
+
+  validate() {
+    return new Promise((resolve, _reject) => {
+      if (this.formData.isSend) {
+        if (!this.formData.rtxId) {
+          this.errrMsg.sendChat = this.$t('请输入企业微信群ID') as string;
+        }
+        if (!this.formData.sendTime) {
+          this.errrMsg.sendTime = this.$t('请输入发送时间') as string;
+        }
+      }
+      if (this.formData.needNotice) {
+        if (!this.formData.rotationId.length) {
+          this.errrMsg.rules = this.$t('请输入轮值规则') as string;
+        }
+      }
+      resolve(!Object.keys(this.errrMsg).some(key => !!this.errrMsg[key]));
+    });
   }
 
   render() {
@@ -93,11 +148,14 @@ export default class DutyNoticeConfig extends tsc<{}> {
         </div>
       );
     }
-    function formItem(label: string | any, content: any, cls?: string) {
+    function formItem(label: string | any, content: any, cls?: string, err?) {
       return (
         <div class={['form-item', cls]}>
           <span class='form-item-label'>{label}</span>
-          <span class='form-item-content'>{content}</span>
+          <div>
+            <span class='form-item-content'>{content}</span>
+            {!!err && <div class='err-msg'>{err}</div>}
+          </div>
         </div>
       );
     }
@@ -162,7 +220,8 @@ export default class DutyNoticeConfig extends tsc<{}> {
               onChange={() => this.handleChange()}
             ></TimePicker>
           ],
-          'mt-16'
+          'mt-16',
+          this.errrMsg.sendTime
         )}
         {formItem(
           this.$t('发送内容'),
@@ -171,7 +230,8 @@ export default class DutyNoticeConfig extends tsc<{}> {
               v-model={this.formData.nearDay}
               class='width-148 mr-8'
               type='number'
-              onChange={() => this.handleChange()}
+              min={0}
+              onInput={() => this.handleChange()}
             >
               <div
                 slot='prepend'
@@ -182,13 +242,14 @@ export default class DutyNoticeConfig extends tsc<{}> {
             </Input>,
             <span class='content-text'>{this.$t('天的排班结果')}</span>
           ],
-          'mt-16'
+          'mt-16',
+          this.errrMsg.sendContent
         )}
         {formItem(
           this.$t('企业微信群ID'),
           [
             <Input
-              class='mr-12'
+              class='width-305 mr-12'
               v-model={this.formData.rtxId}
               onChange={() => this.handleChange()}
             ></Input>,
@@ -196,14 +257,16 @@ export default class DutyNoticeConfig extends tsc<{}> {
               class='icon-monitor icon-tips'
               v-bk-tooltips={{
                 content: this.$t(
-                  "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔"
+                  "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔",
+                  { name: this.chatTipName }
                 ),
                 boundary: 'window',
                 placements: ['top']
               }}
             ></span>
           ],
-          'mt-16'
+          'mt-16',
+          this.errrMsg.sendChat
         )}
         {formItemBig(
           this.$t('个人轮值通知'),
@@ -222,7 +285,8 @@ export default class DutyNoticeConfig extends tsc<{}> {
               v-model={this.formData.startNum}
               class='mr-8 width-168'
               type='number'
-              onChange={() => this.handleChange()}
+              min={0}
+              onInput={() => this.handleChange()}
             >
               <div
                 slot='append'
@@ -252,10 +316,31 @@ export default class DutyNoticeConfig extends tsc<{}> {
           <Select
             class='width-305'
             v-model={this.formData.rotationId}
+            multiple
             clearable={false}
+            searchable
             onChange={() => this.handleChange()}
-          ></Select>,
-          'mt-16'
+          >
+            {this.dutyList.map(item => (
+              <Option
+                id={item.id}
+                key={item.id}
+                name={item.name}
+              >
+                <span>{item.name}</span>
+                <span
+                  style={{
+                    'margin-left': '8px',
+                    color: '#c4c6cc'
+                  }}
+                >
+                  {item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')}
+                </span>
+              </Option>
+            ))}
+          </Select>,
+          'mt-16',
+          this.errrMsg.rules
         )}
       </div>
     );

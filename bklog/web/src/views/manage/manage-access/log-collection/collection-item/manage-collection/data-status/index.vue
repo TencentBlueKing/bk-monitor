@@ -31,7 +31,7 @@
         <daily-chart />
       </div>
     </section>
-    <section class="partial-content">
+    <section v-if="!isMasking" class="partial-content">
       <div class="main-title">
         {{ $t('数据采样') }}
         <div class="refresh-button" @click="fetchDataSampling">
@@ -55,16 +55,43 @@ export default {
     MinuteChart,
     DailyChart,
   },
+  props: {
+    collectorData: {
+      type: Object,
+      require: true,
+    },
+  },
   data() {
     return {
       dataSamplingLoading: true,
       dataSamplingList: [],
+      isMasking: false,
     };
   },
-  created() {
-    this.fetchDataSampling();
+  async created() {
+    try {
+      this.dataSamplingLoading = true;
+      this.isMasking = await this.getMaskingConfig(); // 获取脱敏配置信息
+      if (!this.isMasking) this.fetchDataSampling(); // 未脱敏才能查看是否采样
+    } catch (error) {
+      this.dataSamplingLoading = false;
+    }
   },
   methods: {
+    /**
+   * @desc: 判断当前是采集项是否有脱敏
+   * @returns {Array}
+   */
+    async getMaskingConfig() {
+      try {
+        await this.$http.request('masking/getMaskingConfig', {
+          params: { index_set_id: this.collectorData?.index_set_id },
+        }, { catchIsShowMessage: false });
+        return true;
+      } catch (err) {
+        return false;
+      }
+    },
     // 数据采样
     async fetchDataSampling() {
       try {

@@ -207,8 +207,9 @@
               </div>
             </div>
           </div>
-          <div class="content-style"
-               v-else-if="collectorData.collector_scenario_id === 'wineventlog' && isHaveEventValue">
+          <div
+            class="content-style"
+            v-else-if="collectorData.collector_scenario_id === 'wineventlog' && isHaveEventValue">
             <span>{{ $t('过滤内容') }}</span>
             <div class="win-log">
               <div>

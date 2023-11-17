@@ -36,7 +36,7 @@
       transition: transform .2s;
 
       &.active {
-        transform: rotateZ(-90deg);
+        transform: rotateZ(90deg);
       }
     }
 
@@ -53,7 +53,7 @@
   }
 }
 
-.bk-popover.week-select-popover {
+.bk-popover.week-select-popover.component {
   padding: 4px 0;
   background: #fff;
   border: 1px solid #dcdee5;

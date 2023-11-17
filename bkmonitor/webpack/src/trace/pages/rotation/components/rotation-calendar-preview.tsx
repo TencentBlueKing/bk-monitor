@@ -23,75 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, ref } from 'vue';
+import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Popover } from 'bkui-vue';
 
-import { calendarDataConversion, getCalendar, ICalendarData } from './calendar-preview';
+import { calendarDataConversion, getCalendar, ICalendarData, ICalendarDataUser } from './calendar-preview';
 
 import './rotation-calendar-preview.scss';
 
-const mockdata = [
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    timeRange: ['2023-10-4 00:00', '2023-10-4 23:59']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#3A84FF',
-    timeRange: ['2023-10-5 00:00', '2023-10-5 23:59']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#FF5656',
-    timeRange: ['2023-10-6 00:00', '2023-10-6 23:59']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#3A84FF',
-    timeRange: ['2023-10-7 00:00', '2023-10-8 12:00']
-  },
-  {
-    users: [
-      { id: 'xxx', name: 'xxxx' },
-      { id: 'xxasdx', name: 'xxasdfxx' }
-    ],
-    color: '#3A84FF',
-    timeRange: ['2023-10-18 00:00', '2023-10-18 12:00']
-  },
-  {
-    users: [],
-    color: '#FF5656',
-    timeRange: ['2023-10-9 00:00', '2023-10-9 23:59']
-  },
-  {
-    users: [],
-    color: '#FF5656',
-    timeRange: ['2023-10-26 12:00', '2023-10-27 12:59']
-  }
-];
-
 export default defineComponent({
   name: 'RotationCalendarPreview',
-  setup() {
+  props: {
+    value: {
+      type: Array as PropType<ICalendarDataUser[]>,
+      default: () => []
+    }
+  },
+  setup(props) {
     const { t } = useI18n();
     const contentRef = ref(null);
     /* 当前日历表， 集合了所有日期与用户组的信息 */
     const curCalendarData = ref<ICalendarData>({
-      users: mockdata,
+      users: [],
       data: getCalendar().map(item => ({
         dates: item,
         data: []
@@ -107,7 +60,6 @@ export default defineComponent({
         containerWidth.value = width;
       });
     });
-    init();
     /**
      * @description 初始化
      */
@@ -117,6 +69,17 @@ export default defineComponent({
     onMounted(() => {
       observer.observe(contentRef.value);
     });
+
+    watch(
+      () => props.value,
+      v => {
+        curCalendarData.value.users = v;
+        init();
+      },
+      {
+        immediate: true
+      }
+    );
 
     return {
       curCalendarData,
@@ -146,6 +109,9 @@ export default defineComponent({
           {this.curCalendarData.data.map((item, index) => (
             <div
               class='week-row'
+              style={{
+                height: `${120 + (item.maxRow >= 2 ? item.maxRow - 2 : 0) * 22}px`
+              }}
               key={index}
             >
               {item.dates.map(date => (
@@ -182,6 +148,7 @@ export default defineComponent({
                         <div
                           class='user-item'
                           style={{
+                            top: `${48 + data.row * 22}px`,
                             width: `${
                               (data?.isStartBorder ? -1 : 0) + this.containerWidth * (data.range[1] - data.range[0])
                             }px`,
@@ -196,7 +163,7 @@ export default defineComponent({
                             class='user-content'
                             style={{ color: data.color }}
                           >
-                            <span>{data.users.map(u => u.id).join(',')}</span>
+                            <span>{data.users.map(u => u.name).join(',')}</span>
                           </div>
                         </div>
                       ) : (

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, PropType } from 'vue';
 
 import './form-item.scss';
 
@@ -35,7 +35,7 @@ export default defineComponent({
       default: ''
     },
     label: {
-      type: String,
+      type: String as PropType<any>,
       default: ''
     },
     labelWidth: {
@@ -56,7 +56,7 @@ export default defineComponent({
       <div class='rotation-config-form-item'>
         <div
           class={['form-item-label', { require: !!props.require }]}
-          style={{ width: `${props.labelWidth}px` }}
+          style={{ minWidth: `${props.labelWidth}px` }}
         >
           {props.label}
           {props.hasColon ? ' : ' : undefined}

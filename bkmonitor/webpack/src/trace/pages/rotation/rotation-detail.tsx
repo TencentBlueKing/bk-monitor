@@ -23,17 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref, watch } from 'vue';
+import { defineComponent, inject, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Button, Loading, Sideslider } from 'bkui-vue';
 
+import { retrieveDutyRule } from '../../../monitor-api/modules/model';
+import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
+import { IAuthority } from '../../typings/authority';
 
+import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationSelectTextMap, RotationSelectTypeEnum, RotationTabTypeEnum } from './typings/common';
-import { mockRequest } from './mockData';
 import { randomColor, transformDetailTimer, transformDetailUsers } from './utils';
 
 import './rotation-detail.scss';
@@ -57,15 +60,22 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const router = useRouter();
+    const authority = inject<IAuthority>('authority');
+
     const loading = ref(false);
 
     const historyList = ref([]);
+
+    const previewData = ref([]);
+
+    const previewLoading = ref(false);
 
     watch(
       () => props.show,
       (v: boolean) => {
         if (v) {
           getData();
+          getPreviewData();
         }
       }
     );
@@ -78,8 +88,8 @@ export default defineComponent({
 
     function getData() {
       loading.value = true;
-      mockRequest(RotationTabTypeEnum.HANDOFF)
-        .then((res: any) => {
+      retrieveDutyRule(props.id)
+        .then(res => {
           detailData.value = res;
           type.value = res.category;
           rotationType.value = res.duty_arranges?.[0]?.duty_time?.[0].work_type || RotationSelectTypeEnum.Weekly;
@@ -96,19 +106,49 @@ export default defineComponent({
           loading.value = false;
         });
     }
+    /**
+     * @description 获取轮值预览
+     */
+    function getPreviewData() {
+      previewLoading.value = true;
+      const startDate = getCalendar()[0][0];
+      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
+      const params = {
+        source_type: 'DB',
+        id: props.id,
+        begin_time: beginTime,
+        days: 42
+      };
+      previewDutyRulePlan(params)
+        .then(data => {
+          previewData.value = setPreviewDataOfServer(data);
+        })
+        .finally(() => {
+          previewLoading.value = false;
+        });
+      // previewData.value = setPreviewDataOfServer(data);
+    }
 
     function renderUserLogo(user) {
       if (user.logo) return <img src={user.logo}></img>;
       if (user.type === 'group') return <span class='icon-monitor icon-mc-user-group no-img'></span>;
       return <span class='icon-monitor icon-mc-user-one no-img'></span>;
     }
-
+    /**
+     * @description 关闭侧栏
+     */
     function handleClosed() {
       props.onShowChange(false);
     }
+    /**
+     * @description 跳转到编辑页
+     */
     function handleToEdit() {
       router.push({
-        name: 'rotation-edit'
+        name: 'rotation-edit',
+        params: {
+          id: props.id
+        }
       });
     }
     return {
@@ -119,6 +159,9 @@ export default defineComponent({
       users,
       timeList,
       historyList,
+      previewData,
+      authority,
+      previewLoading,
       renderUserLogo,
       handleClosed,
       t,
@@ -143,7 +186,12 @@ export default defineComponent({
                   class='mr-8'
                   theme='primary'
                   outline
-                  onClick={() => this.handleToEdit()}
+                  onClick={() =>
+                    this.authority.auth.MANAGE_AUTH
+                      ? this.handleToEdit()
+                      : this.authority.showDetail([this.authority.map.MANAGE_AUTH])
+                  }
+                  v-authority={{ active: !this.authority.auth.MANAGE_AUTH }}
                 >
                   {this.t('编辑')}
                 </Button>
@@ -165,6 +213,12 @@ export default defineComponent({
                   hasColon={true}
                 >
                   <span class='detail-text'>{this.detailData?.labels?.join(', ') || '--'}</span>
+                </FormItem>
+                <FormItem
+                  label={this.t('启/停')}
+                  hasColon={true}
+                >
+                  <span class='detail-text'>{this.detailData?.enabled ? this.t('开启') : this.t('停用')}</span>
                 </FormItem>
                 <FormItem
                   label={this.t('轮值类型')}
@@ -259,7 +313,12 @@ export default defineComponent({
                   label={this.t('轮值预览')}
                   hasColon={true}
                 >
-                  <RotationCalendarPreview class='width-806'></RotationCalendarPreview>
+                  <Loading loading={this.previewLoading}>
+                    <RotationCalendarPreview
+                      class='width-806'
+                      value={this.previewData}
+                    ></RotationCalendarPreview>
+                  </Loading>
                 </FormItem>
               </div>
             </Loading>

@@ -206,6 +206,7 @@
           .user-item {
             position: absolute;
             top: 21px;
+            z-index: 2;
 
             .user-header {
               width: 100%;

@@ -32,6 +32,14 @@
     }
   }
 
+  .mt-16 {
+    margin-top: 10px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
   .alarm-details {
     display: flex;
     flex-direction: column;
@@ -144,6 +152,12 @@
         .alarm-group-rotation-preview-component {
           width: 793px;
           min-width: 793px;
+        }
+
+        .duty-notice {
+          .notice-label {
+            margin: 0 8px 0 24px;
+          }
         }
       }
     }

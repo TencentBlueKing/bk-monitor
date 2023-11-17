@@ -212,12 +212,12 @@ import { TimeRangeType } from '../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import { MANAGE_AUTH as GRAFANA_MANAGE_AUTH, VIEW_AUTH as GRAFANA_VIEW_AUTH } from '../grafana/authority-map';
+import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
 
 import QueryCriteriaItem from './query-criteria-item.vue';
 import { downCsvFile, transformSrcData, transformTableDataToCsvStr } from './utils';
 
-const authorityMap = { GRAFANA_VIEW_AUTH, GRAFANA_MANAGE_AUTH };
+const authorityMap = { GRAFANA_MANAGE_AUTH };
 @Component({
   name: 'view-detail',
   components: {
