@@ -116,6 +116,58 @@ def duty_rule_data():
 
 
 @pytest.fixture()
+def multi_duty_rule_data():
+    """
+    多个duty_arrange的排班
+    """
+    duty_arranges = [
+        {
+            "duty_time": [
+                {
+                    "work_type": "daily",
+                    "work_days": [],
+                    "work_time_type": "time_range",
+                    "work_time": ["00:00--23:59"],
+                    "period_settings": {},
+                }
+            ],
+            "duty_users": [
+                [
+                    {"id": "admin1", "type": "user"},
+                    {"id": "admin2", "type": "user"},
+                    {"id": "admin3", "type": "user"},
+                    {"id": "admin4", "type": "user"},
+                ],
+            ],
+            "group_type": "auto",
+            "group_number": 1,
+        },
+        {  # 一个人做垫底
+            "duty_time": [
+                {
+                    "work_type": "daily",
+                    "work_days": [],
+                    "work_time_type": "time_range",
+                    "work_time": ["00:00--23:59"],
+                    "period_settings": {},
+                }
+            ],
+            "duty_users": [[{"id": "admin", "type": "user"}]],
+        },
+    ]
+    yield {
+        "name": "duty rule111",
+        "bk_biz_id": 2,
+        "effective_time": "2023-11-01 00:00:00",
+        "end_time": "",
+        "labels": ["mysql", "redis", "business"],
+        "enabled": True,
+        "category": "handoff",
+        "duty_arranges": duty_arranges,
+    }
+
+
+@pytest.fixture()
 def weekly_duty_rule_data():
     yield {
         "name": "weekly duty rule111",
@@ -1203,6 +1255,42 @@ class TestDutyPlan:
         manage_group_duty_snap(managers[0])
         assert DutyRuleSnap.objects.filter(user_group_id=user_group.id).count() == 2
         assert DutyPlan.objects.filter(user_group_id=user_group.id).count() > 15
+
+    def test_generate_multi_duty_plan_task(
+        self, db_setup, multi_duty_rule_data, user_group_data, manager_delay_mock, weekly_duty_rule_data
+    ):
+        """
+        测试一个没有进行过排班的分组
+        """
+        # 方案 第一组，四个人值班每人一天轮流来
+        # 第二组，admin作为语音备份人员
+        dslz = DutyRuleDetailSlz(data=multi_duty_rule_data)
+        dslz.is_valid(raise_exception=True)
+        dslz.save()
+
+        user_group_data["duty_rules"] = [dslz.instance.id]
+        user_group = UserGroup.objects.create(**user_group_data)
+        DutyRuleRelation.objects.create(duty_rule_id=dslz.instance.id, user_group_id=user_group.id)
+
+        managers = generate_duty_plan_task()
+
+        # 启动了一次管理任务
+        assert manager_delay_mock.call_count == 1
+        assert len(managers) == 1
+        assert managers[0].duty_rules
+
+        # 进行一次任务的执行
+        manage_group_duty_snap(managers[0])
+
+        assert DutyRuleSnap.objects.filter(user_group_id=user_group.id).count() == 1
+
+        # 一天一天来，最近30天，相当于两个排班组
+        assert DutyPlan.objects.filter(user_group_id=user_group.id, is_effective=1).count() == 60
+
+        snap = DutyRuleSnap.objects.get(user_group_id=user_group.id)
+        assert snap.next_plan_time[:10] == (datetime.datetime.today() + datetime.timedelta(days=30)).strftime(
+            "%Y-%m-%d"
+        )
 
     def test_create_duty_rule(self, db_setup, duty_group, duty_rule_data):
         """测试多次创建规则"""

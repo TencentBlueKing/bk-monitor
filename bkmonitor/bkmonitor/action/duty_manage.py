@@ -649,6 +649,9 @@ class GroupDutyRuleManager:
         logger.info("[manage_duty_plan] finished for user group(%s) snap(%s)", self.user_group.id, snap_id)
 
     def manage_duty_notice(self):
+        """
+        排班通知管理
+        """
         duty_notice = self.user_group.duty_notice
         plan_notice = duty_notice.get("plan_notice", {})
         personal_notice = duty_notice.get("personal_notice")
@@ -714,8 +717,8 @@ class GroupDutyRuleManager:
                 start_time__lte=time_tools.datetime2str(end_datetime),
             )
             | Q(
-                start_time__lte=time_tools.datetime2str(current_time),
-                finished_time__gte=time_tools.datetime2str(current_time),
+                Q(start_time__lte=time_tools.datetime2str(current_time))
+                & Q(finished_time__gte=time_tools.datetime2str(current_time) | Q(finished_time__in=["", None])),
             )
         )
         duty_plans = [
@@ -730,12 +733,16 @@ class GroupDutyRuleManager:
 
         if not duty_plans:
             # 没有生成排班计划。这可能算得上是一个告警了
-            notice_content = ["\\n> 当前告警组没有轮班计划"]
+            notice_content = ["\\n> No Data"]
         else:
             notice_content = []
         for duty_plan in duty_plans:
             duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
-            notice_content.append(f"\\n> {duty_plan['start_time']} -- {duty_plan['finished_time']}  {duty_users}")
+            duty_contents = []
+            for work_time in duty_plan["work_times"]:
+                duty_contents.append(f"\\n> {work_time['start_time']} -- {work_time['end_time']}  {duty_users}")
+            if duty_contents:
+                notice_content.extend(duty_contents)
         sender = Sender(
             context={
                 "bk_biz_id": self.user_group.bk_biz_id,
@@ -817,11 +824,13 @@ class GroupDutyRuleManager:
         user_duty_plans = defaultdict(list)
         for duty_plan in duty_plans:
             duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
-            duty_content = f"{duty_plan['start_time']} -- {duty_plan['finished_time']}  {duty_users}"
+            duty_contents = []
+            for work_time in duty_plan["work_times"]:
+                duty_contents.append(f"{work_time['start_time']} -- {work_time['end_time']}  {duty_users}")
             for user in duty_plan["users"]:
                 if user["type"] == "group":
                     continue
-                user_duty_plans[user["id"]].append(duty_content)
+                user_duty_plans[user["id"]].extend(duty_contents)
         failed_list = []
         succeed_list = []
         if len(duty_plans) == 1:
