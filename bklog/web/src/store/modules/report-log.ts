@@ -27,7 +27,7 @@ import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import { getRouteConfigById } from '../../router';
 import store from '@/store';
-import $http from '../../api'
+import $http from '../../api';
 
 let oldRouteId = '';
 @Module({ name: 'report-log', dynamic: true, namespaced: true, store })
