@@ -95,6 +95,7 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
   @Watch('data')
   handleDataChange(val: DataInterface) {
     this.infoData = val.info.map(item => {
+      // todo 当前版本没有编辑功能，后续版本可能会加上，需要后台返回编辑状态
       if (item.hasEdit) {
         return {
           ...item,

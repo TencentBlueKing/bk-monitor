@@ -35,14 +35,14 @@ import './field-details.scss';
 interface FieldDetailsProps {
   type: 'metric' | 'field';
   detailData: DetailData;
-  fieldData: [];
+  fieldData: any[];
 }
 
 @Component
 export default class FieldDetails extends tsc<FieldDetailsProps> {
   @Prop({ type: Object, required: true }) detailData: DetailData;
   @Prop({ type: Array, default: () => [] }) fieldData: FieldDetailsProps['fieldData'];
-  @Prop({ type: String, default: 'field' }) type: FieldDetailsProps['type'];
+  @Prop({ type: String, default: 'metric' }) type: FieldDetailsProps['type'];
 
   fieldTableData = [];
   metricList = [];

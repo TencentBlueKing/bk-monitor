@@ -160,7 +160,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   }
 
   chartResize() {
-    return this.baseChart.resize();
+    return this.baseChart?.resize();
   }
 
   @Emit('timeRangeChange')

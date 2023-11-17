@@ -85,9 +85,9 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     }
   }
 
-  @Watch('collectId')
-  handleCollectIdChange() {
-    this.init();
+  @Watch('collectId', { immediate: true })
+  handleCollectIdChange(val) {
+    val && this.init();
   }
 
   handleTimeRange(val, type: 'minute' | 'day') {
@@ -108,30 +108,11 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
       interval_option: type,
       start_time: startTime * 1000,
       end_time: endTime * 1000
-    }).catch(() => ({ datapoints: [] }));
-    res.datapoints = [
-      [1698218100000, 18],
-      [1698218160000, 100],
-      [1698218220000, 100],
-      [1698218280000, 100],
-      [1698218340000, 100],
-      [1698218400000, 108],
-      [1698218460000, 100],
-      [1698218520000, 100],
-      [1698218580000, 100],
-      [1698218640000, 99],
-      [1698218700000, 108],
-      [1698218760000, 100],
-      [1698218820000, 100],
-      [1698218880000, 100],
-      [1698218940000, 101],
-      [1698219000000, 79]
-    ];
-
+    }).catch(() => [{ datapoints: [] }]);
     if (type === 'minute') {
-      this.minuteChartConfig.data = res.datapoints;
+      this.minuteChartConfig.data = res[0].datapoints;
     } else {
-      this.dayChartConfig.data = res.datapoints;
+      this.dayChartConfig.data = res[0].datapoints;
     }
   }
 
@@ -195,11 +176,13 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
           </div>
         </div>
         <Divider class='divider'></Divider>
-
         <div class='table-container'>
           <div class='title'>
             <div class='panel-title'>{this.$t('数据采样')}</div>
-            <div class='refresh-btn'>
+            <div
+              class='refresh-btn'
+              onClick={this.getTableData}
+            >
               <i class='icon-monitor icon-zhongzhi1'></i>
             </div>
           </div>
@@ -217,10 +200,14 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                 label={this.$t('序列')}
                 width='90'
               />
-              <TableColumn label={this.$t('原始数据')} />
+              <TableColumn
+                label={this.$t('原始数据')}
+                prop='message'
+              />
               <TableColumn
                 label={this.$t('采集时间')}
                 width='250'
+                prop='time'
               />
               <TableColumn
                 label={this.$t('操作')}

@@ -85,8 +85,8 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       data: null
     },
     [TabEnum.FieldDetails]: {
-      fieldData: null,
-      type: 'field'
+      fieldData: [],
+      type: 'metric'
     },
     [TabEnum.Configuration]: {
       renderKey: random(8)
