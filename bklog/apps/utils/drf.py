@@ -19,11 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import datetime
 import json
 
+import pytz
 import six
-from apps.utils.local import get_request_username
-from apps.utils.time_handler import strftime_local
+from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import ugettext as _
@@ -35,6 +36,9 @@ from rest_framework.renderers import BaseRenderer
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer, ValidationError
 from rest_framework.utils import model_meta
+
+from apps.utils.local import get_local_param, get_request_username
+from apps.utils.time_handler import strftime_local
 
 
 def format_serializer_errors(errors, fields, params, prefix="  "):
@@ -123,6 +127,21 @@ class CustomSerializer(serializers.Serializer):
         self.serializer_field_mapping[serializers.DateTimeField] = CustomDateTimeField
         self.serializer_field_mapping[models.DateTimeField] = CustomDateTimeField
         super().__init__(instance=instance, data=data, **kwargs)
+
+
+class DateTimeFieldWithEpoch(serializers.DateTimeField):
+    """
+    接受10位时间戳的 DateTimeField
+    """
+
+    def to_internal_value(self, value):
+        try:
+            value = datetime.datetime.fromtimestamp(
+                value, pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+            ).strftime(self.format)
+        except Exception:  # pylint: disable=broad-except
+            pass
+        return super().to_internal_value(value)
 
 
 class GeneralSerializer(ModelSerializer):
