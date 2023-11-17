@@ -13,6 +13,78 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-mc-lunliu:before {
+  content: "\e784";
+}
+
+.icon-mc-statistical:before {
+  content: "\e783";
+}
+
+.icon-mc-fault-list:before {
+  content: "\e77a";
+}
+
+.icon-mc-enterprise-wechat:before {
+  content: "\e77b";
+}
+
+.icon-mc-expired:before {
+  content: "\e77c";
+}
+
+.icon-mc-cancel-feedback:before {
+  content: "\e77d";
+}
+
+.icon-mc-restoration-ratio:before {
+  content: "\e77e";
+}
+
+.icon-mc-fault:before {
+  content: "\e77f";
+}
+
+.icon-mc-solved:before {
+  content: "\e780";
+}
+
+.icon-gaojing1:before {
+  content: "\e781";
+}
+
+.icon-fankuixingenyin:before {
+  content: "\e782";
+}
+
+.icon-ziyuantuopu:before {
+  content: "\e775";
+}
+
+.icon-AlertSort:before {
+  content: "\e776";
+}
+
+.icon-Pod:before {
+  content: "\e777";
+}
+
+.icon-A-ZSort:before {
+  content: "\e778";
+}
+
+.icon-guanchazhong:before {
+  content: "\e779";
+}
+
+.icon-beizhu:before {
+  content: "\e774";
+}
+
+.icon-tiaoyonglian:before {
+  content: "\e773";
+}
+
 .icon-minimap:before {
   content: "\e772";
 }
