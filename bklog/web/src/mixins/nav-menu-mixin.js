@@ -164,11 +164,6 @@ export default {
      * @param  {String} spaceUid - 当前项目id
      */
     async spaceChange(spaceUid = '') {
-      // if (this.initloadPage) {
-      //   console.log(this.initloadPage);
-      //   console.log('更新spaceuid', spaceUid, this.$store.state.userMeta);
-      //   this.initloadPage = false;
-      // }
       this.$store.commit('updateSpace', spaceUid);
       if (spaceUid) {
         const space = this.mySpaceList.find(item => item.space_uid === spaceUid);
