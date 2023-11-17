@@ -22,13 +22,14 @@ the project delivered to anyone in the future.
 import json
 import sys
 
+from django.conf import settings
+from django.utils import translation
+
 from apps.log_esquery.permission import EsquerySearchPermissions
 from apps.utils import build_auth_args
 from apps.utils.local import get_request
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.utils import translation
 
 
 def get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id):
@@ -102,12 +103,6 @@ if (
 ):
 
     def add_esb_info_before_request(params):
-        params["bk_app_code"] = settings.APP_CODE
-        params["bk_app_secret"] = settings.SECRET_KEY
-
-        params["X-Bk-App-Code"] = settings.APP_CODE
-        params["X-Bk-App-Secret"] = settings.SECRET_KEY
-
         if "bk_username" not in params:
             params["bk_username"] = "admin"
 
@@ -137,8 +132,6 @@ else:
         @param {Boolean} [params.no_request] 是否需要带上 request 标识
         """
         # 规范后的参数
-        params["bk_app_code"] = settings.APP_CODE
-        params["bk_app_secret"] = settings.SECRET_KEY
         params["appenv"] = settings.RUN_VER
 
         if "no_request" in params and params["no_request"]:
@@ -165,12 +158,6 @@ else:
 
         # 兼容旧接口
         params["uin"] = params["bk_username"]
-        params["app_code"] = settings.APP_CODE
-        params["app_secret"] = settings.SECRET_KEY
-
-        params["X-Bk-App-Code"] = settings.APP_CODE
-        params["X-Bk-App-Secret"] = settings.SECRET_KEY
-
         return params
 
     def add_esb_info_before_request_for_bkdata_token(params):  # pylint: disable=function-name-too-long

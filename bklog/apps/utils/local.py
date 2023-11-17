@@ -27,8 +27,9 @@ import sys  # noqa
 import uuid  # noqa
 from threading import local  # noqa
 
-from apps.exceptions import BaseException  # noqa
 from django.conf import settings  # noqa
+
+from apps.exceptions import BaseException  # noqa
 
 _local = local()
 
