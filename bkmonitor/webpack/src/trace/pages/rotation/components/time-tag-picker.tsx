@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, onUnmounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Tag, TimePicker } from 'bkui-vue';
+import { Message, Tag, TimePicker } from 'bkui-vue';
 import moment from 'moment';
 
 import { getEventPaths } from '../../../../monitor-pc/utils';
@@ -134,6 +134,21 @@ export default defineComponent({
         currentTime.show = false;
         return;
       }
+
+      if (
+        validTimeOverlap(
+          currentTime.value,
+          localValue.filter((item, index) => index !== currentTime.index)
+        )
+      ) {
+        currentTime.show = false;
+        Message({
+          theme: 'warning',
+          message: t('时间段重叠了')
+        });
+        return;
+      }
+
       // 新增时间
       if (currentTime.index === -1) {
         localValue.push([...currentTime.value]);
@@ -143,6 +158,31 @@ export default defineComponent({
       }
       currentTime.show = false;
       handleEmitData();
+    }
+
+    function validTimeOverlap(val, list) {
+      return list.some(item => {
+        const [start, end] = item;
+        const [startTime, endTime] = val;
+        const isBefore = moment(start, 'hh:mm').isBefore(moment(end, 'hh:mm'));
+        const targetTimeStamp = {
+          start: moment(start, 'hh:mm').valueOf(),
+          end: moment(end, 'hh:mm')
+            .add(isBefore ? 0 : 1, 'day')
+            .valueOf()
+        };
+        const currentIsBefore = moment(startTime, 'hh:mm').isBefore(moment(endTime, 'hh:mm'));
+        const currentTimeStamp = {
+          start: moment(startTime, 'hh:mm').valueOf(),
+          end: moment(endTime, 'hh:mm')
+            .add(currentIsBefore ? 0 : 1, 'day')
+            .valueOf()
+        };
+        return (
+          moment(currentTimeStamp.start).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
+          moment(currentTimeStamp.end).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]')
+        );
+      });
     }
 
     /**
