@@ -11,6 +11,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import ntpath
+import os
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -258,6 +259,7 @@ DATABASES = {}
 
 # auto clean DB connection
 DATABASE_CONNECTION_AUTO_CLEAN_INTERVAL = 600
+CONN_MAX_AGE = os.getenv("CONN_MAX_AGE", 0)
 
 # 是否开启网络设备忽略
 USE_ETH_FILTER = True
