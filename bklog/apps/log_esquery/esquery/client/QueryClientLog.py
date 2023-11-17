@@ -186,65 +186,57 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         if not check_ping or self._client.ping():
             self._active = True
 
-    @staticmethod
     @cache_five_minute("_connect_info_{index}", need_md5=True)
-    def _connect_info(index: str = "") -> tuple:
+    def _connect_info(self, index: str = "") -> tuple:
         transfer_api_response: dict = TransferApi.get_result_table_storage(
             {"result_table_list": index, "storage_type": "elasticsearch"}
         )
-        # if transfer_api_response.get("code") == "0":
-        if len(transfer_api_response) == 1:
-            data: dict = transfer_api_response.get(index)
-            cluster_config: dict = data.get("cluster_config")
-            domain_name: str = cluster_config.get("domain_name")
-            port: int = cluster_config.get("port")
-            version: str = cluster_config.get("version")
-            auth_info_dict: dict = data.get("auth_info")
-            username: str = auth_info_dict.get("username")
-            password: str = auth_info_dict.get("password")
-            # 添加协议字段 由于是后添加的 所以放置在这个地方
-            schema: str = cluster_config.get("schema") or DEFAULT_SCHEMA
 
-            _es_password = password
-            _es_host = domain_name
-            _es_port = port
-            _es_user = username
-            _es_version = version
-            _es_schema = schema
-
-            return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
-        else:
+        if not transfer_api_response:
             raise EsClientMetaInfoException(
                 EsClientMetaInfoException.MESSAGE.format(message=transfer_api_response.get("message"))
             )
 
-    @staticmethod
+        data: dict = transfer_api_response.get(index)
+        return self._get_cluster_config(
+            cluster_config=data.get("cluster_config"),
+            auth_info=data.get("auth_info")
+        )
+
     @cache_five_minute("_connect_info_{storage_cluster_id}", need_md5=True)
-    def _connect_info_by_storage_cluster_id(storage_cluster_id: int) -> tuple:
+    def _connect_info_by_storage_cluster_id(self, storage_cluster_id: int) -> tuple:
         transfer_api_response: list = TransferApi.get_cluster_info({"cluster_id": storage_cluster_id})
-        if len(transfer_api_response) == 1:
-            data_list: list = transfer_api_response
-            cluster_config_dict: dict = data_list[0].get("cluster_config")
-            domain_name: str = cluster_config_dict.get("domain_name", "")
-            port: int = cluster_config_dict.get("port", -1)
-            version: str = cluster_config_dict.get("version", "")
-            auth_info_dict: dict = data_list[0].get("auth_info")
-            username: str = auth_info_dict.get("username", "")
-            password: str = auth_info_dict.get("password", "")
-            # 添加协议字段 由于是后添加的 所以放置在这个地方
-            schema: str = cluster_config_dict.get("schema") or DEFAULT_SCHEMA
 
-            _es_password = password
-            _es_host = domain_name
-            _es_port = port
-            _es_user = username
-            _es_version = version
-            _es_schema = schema
-
-            return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
-
-        else:
+        if not transfer_api_response:
             raise EsClientMetaInfoException(EsClientMetaInfoException.MESSAGE.format(message="meta_api_response error"))
+
+        cluster_config: dict = transfer_api_response[0].get("cluster_config")
+        return self._get_cluster_config(
+            cluster_config=cluster_config,
+            auth_info=transfer_api_response[0].get("auth_info")
+        )
+
+    @staticmethod
+    def _get_cluster_config(cluster_config: dict, auth_info: dict):
+        """
+        提取存储集群配置信息
+        """
+        domain_name: str = cluster_config.get("domain_name")
+        port: int = cluster_config.get("port")
+        version: str = cluster_config.get("version")
+        username: str = auth_info.get("username")
+        password: str = auth_info.get("password")
+        # 添加协议字段 由于是后添加的 所以放置在这个地方
+        schema: str = cluster_config.get("schema") or DEFAULT_SCHEMA
+
+        _es_password = password
+        _es_host = domain_name
+        _es_port = port
+        _es_user = username
+        _es_version = version
+        _es_schema = schema
+
+        return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
 
     @classmethod
     def indices(cls, bk_biz_id, result_table_id=None, with_storage=False):
