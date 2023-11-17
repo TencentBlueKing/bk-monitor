@@ -211,19 +211,24 @@ export default {
       originFieldList: [], // 所有字段列表 ['name', 'age']
       fieldList: [], // 显示字段列表，['name', 'age']
       valueList: [], // 字段可能的值 ['"arman"', '"xxx yyy"'] [18, 22]
-      operatorSelectList: [{
-        operator: '>',
-        label: this.$t('大于'),
-      }, {
-        operator: '<',
-        label: this.$t('小于'),
-      }, {
-        operator: '>=',
-        label: this.$t('大于或等于'),
-      }, {
-        operator: '<=',
-        label: this.$t('小于或等于'),
-      }],
+      operatorSelectList: [
+        {
+          operator: '>',
+          label: this.$t('大于'),
+        },
+        {
+          operator: '<',
+          label: this.$t('小于'),
+        },
+        {
+          operator: '>=',
+          label: this.$t('大于或等于'),
+        },
+        {
+          operator: '<=',
+          label: this.$t('小于或等于'),
+        },
+      ],
     };
   },
   computed: {
@@ -450,7 +455,7 @@ export default {
           if (item.includes(inputField)) {
             if (item === inputField) { // 完全匹配字段同时和 : :* 选项
               this.showColon = true;
-              this.showOperator = this.isNumTypeField(inputField);
+              this.showOperator = this.isNumTypeField(inputField.trim());
             }
             return true;
           }
@@ -461,11 +466,11 @@ export default {
       // 字段输入完毕【name 】
       if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
         this.showWhichDropdown('Colon');
-        this.showOperator = this.isNumTypeField(lastFragment);
+        this.showOperator = this.isNumTypeField(lastFragment.trim());
         return;
       }
       // 准备输入值【name:】
-      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|=|>|<)\s*$/.exec(lastFragment)?.groups.field;
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups.field;
       if (confirmField) {
         const valueMap = this.dropdownData[confirmField];
         if (valueMap) {
@@ -478,7 +483,7 @@ export default {
         return;
       }
       // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
-      const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
+      const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
       if (valueResult) {
         const confirmField = valueResult.groups.field;
         const valueMap = this.dropdownData[confirmField];
@@ -493,7 +498,7 @@ export default {
         return;
       }
       // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-      if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
+      if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
         this.showWhichDropdown('Continue');
         return;
       }
@@ -568,7 +573,7 @@ export default {
      */
     handleClickValue(value) {
       // 当前输入值可能的情况 【name:"a】【age:】
-      this.$emit('change', this.value.replace(/(:|>=|<=|=|>|<)\s*[\S]*$/, (matchOperator) => {
+      this.$emit('change', this.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (matchOperator) => {
         return `${matchOperator} ${value} `;
       }));
       this.showWhichDropdown('Continue');
