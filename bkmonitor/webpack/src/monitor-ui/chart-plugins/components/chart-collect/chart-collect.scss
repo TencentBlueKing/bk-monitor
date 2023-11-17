@@ -1,6 +1,10 @@
 @import '../../../../monitor-pc/theme/index.scss';
 
 .chart-colllect-component {
+  .mr24 {
+    margin-right: 24px;
+  }
+
   .view-collection {
     position: fixed;
     bottom: 50px;

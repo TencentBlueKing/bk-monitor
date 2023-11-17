@@ -27,19 +27,18 @@ import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 import moment from 'moment';
 
-import { LANGUAGE_COOKIE_KEY } from '../../../../monitor-common/utils/index';
-import { docCookies } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import CollectionDialog from '../../../../monitor-pc/pages/data-retrieval/components/collection-view-dialog';
 import { PanelToolsType } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import ViewDetail from '../../../../monitor-pc/pages/view-detail/index';
+import { isEnFn } from '../../../../monitor-pc/utils';
 import { IPanelModel, IViewOptions, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 
 import './chart-collect.scss';
 
-const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+const isEn = isEnFn();
 
 export interface ICheckPanel {
   id: string | number;
@@ -237,7 +236,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
                   {window.i18n.t('route-数据探索')}
                 </span>
                 <span
-                  class='view-collection-btn mr5'
+                  class={['view-collection-btn', isEn ? 'mr24' : 'mr5']}
                   onClick={this.handleViewDetail}
                 >
                   {window.i18n.t('对比')}
