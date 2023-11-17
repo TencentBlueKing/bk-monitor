@@ -56,6 +56,7 @@ import HeaderSettingModal from './header-setting-modal';
 
 import './app.scss';
 
+const microRouteNameList = ['alarm-shield', 'rotation'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
@@ -329,14 +330,15 @@ export default class App extends tsc<{}> {
    */
   async handleMenuItemClick(item) {
     let hasRouteChange = this.$route.path !== item.path;
-    const isMicroApp = ['alarm-shield', 'rotation'].includes(item.id);
+    const isMicroApp = microRouteNameList.includes(item.id);
+    const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
     // 屏蔽是微应用 需特殊处理
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;
     }
     if (hasRouteChange && !!item.href) {
       await this.$nextTick();
-      if (isMicroApp || !(this.$router as any).history.pending) {
+      if (isMicroApp || !(this.$router as any).history.pending || isPeddingMicroApp) {
         const route = item.usePath ? { path: item.path } : { name: item.id };
         !item.noCache &&
           this.setUserStoreMenu({

@@ -332,7 +332,7 @@ export default defineComponent({
         <NavBar
           routeList={this.navList}
           needBack={true}
-          callbackRouterBack={this.handleBack}
+          callbackRouterBack={this.handleBackPage}
         ></NavBar>
         <div class='rotation-config-page-content'>
           <FormItem
