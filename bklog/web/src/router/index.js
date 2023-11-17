@@ -28,7 +28,7 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-// import reportLogStore from '@/store/modules/report-log';
+import reportLogStore from '@/store/modules/report-log';
 import http from '@/api';
 import page404 from '@/views/404';
 
@@ -956,11 +956,30 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to) => {
-  console.log(to.name);
-  // reportLogStore.reportRouteLog({
-  //   route_id: to.name,
-  //   nav_id: to.meta.navId,
-  // });
+  reportLogStore.reportRouteLog({
+    route_id: to.name,
+    nav_id: to.meta.navId,
+  });
 });
+
+/**
+ * @param id 路由id
+ * @returns 路由配置
+ */
+export function getRouteConfigById(id) {
+  const flatConfig = routes.flatMap((config) => {
+    if (config.children?.length) {
+      return config.children.flatMap((set) => {
+        if (set.children?.length) {
+          return set.children;
+        }
+        return set;
+      });
+    }
+    return config;
+  });
+
+  return flatConfig.find(item => item.meta?.navId === id);
+}
 
 export default router;

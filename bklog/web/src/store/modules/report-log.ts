@@ -25,41 +25,52 @@
  */
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
-// import { frontendReportEvent } from '../../../monitor-api/modules/commons';
-// import debounceDecorator from '../../../monitor-common/utils/debounce-decorator';
-// import { getRouteConfigById } from '../../router/router-config';
+import { getRouteConfigById } from '../../router';
 import store from '@/store';
+import $http from '../../api'
 
 let oldRouteId = '';
 @Module({ name: 'report-log', dynamic: true, namespaced: true, store })
 class ReportLogStore extends VuexModule {
   @Action
-  // @debounceDecorator(1000)
   reportRouteLog(params: Record<string, any>) {
-    if (oldRouteId === params.route_id) return;
+    const { 
+      isAppFirstLoad,
+      bkBizId,
+      spaceUid,
+      mySpaceList: spaceList
+    } = store.state;
+
+    if (!bkBizId && !spaceUid) return;
+
+    if (!isAppFirstLoad && oldRouteId === params.route_id) return;
+
     oldRouteId = params.route_id;
-    const space = window.space_list?.find(item => +item.bk_biz_id === +window.cc_biz_id);
-    // const routeConfig = getRouteConfigById(params.nav_id);
-    const routeConfig = { name: '1' };
-    // frontendReportEvent(
-    //   {
-    //     event_name: '用户运营数据',
-    //     event_content: '基于前端路由的运营数据上报',
-    //     target: 'bk_monitor',
-    //     timestamp: Date.now(),
-    //     dimensions: {
-    //       space_id: space?.space_uid || window.cc_biz_id,
-    //       space_name: space?.space_name || window.cc_biz_id,
-    //       user_name: window.user_name || window.username,
-    //       nav_name: routeConfig?.name,
-    //       ...params
-    //     }
-    //   },
-    //   {
-    //     needMessage: false,
-    //     needTraceId: false
-    //   }
-    // ).catch(() => false);
+
+    const username = store.state.userMeta?.username;
+    const space = spaceList?.find(item => +item.space_uid === +spaceUid);
+    const routeConfig = getRouteConfigById(params.nav_id);
+
+    $http.request('report/frontendEventReport', 
+      {
+        data: {
+          event_name: '用户运营数据',
+          event_content: '基于前端路由的运营数据上报',
+          target: 'bk_log',
+          timestamp: Date.now(),
+          dimensions: {
+            space_id: space?.space_uid || bkBizId,
+            space_name: space?.space_name || bkBizId,
+            user_name: username,
+            nav_name: routeConfig?.name,
+            ...params
+          }
+        },
+      },
+      {
+        catchIsShowMessage: false
+      }
+    ).catch(() => false);
   }
 }
 export default getModule(ReportLogStore);
