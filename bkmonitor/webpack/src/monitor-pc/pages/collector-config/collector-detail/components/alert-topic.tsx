@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { Popover } from 'bk-magic-vue';
 
 import { alertStatus } from '../../../../../monitor-api/modules/datalink';
 import { TCollectorAlertStage } from '../typings/detail';
@@ -58,7 +59,7 @@ export default class AlertTopic extends tsc<IProps> {
         stage: this.stage
       }).then(data => {
         this.strategies = data.alert_config?.strategies || [];
-        this.userGroupList = data.alert_config?.user_group_list || [];
+        this.userGroupList = data.alert_config?.user_group_list?.map(item => item.id) || [];
         this.alertHistogram = data.alert_histogram.map(item => ({ level: item[1] }));
         this.hasAlert = data.has_alert;
       });
@@ -89,7 +90,23 @@ export default class AlertTopic extends tsc<IProps> {
         <span class='right-wrap'>
           <span class='receive-msg'>
             <span class='icon-monitor icon-mc-alarm-create mr-6'></span>
-            <span class='dash-text'>{this.$t('可接收告警')}</span>
+            <Popover
+              theme='light'
+              ext-cls='alert-topic-component-pop-alert'
+            >
+              <span class='dash-text'>{this.$t('可接收告警')}</span>
+              <div
+                slot='content'
+                class='alert-topic-component-alert-name'
+              >
+                {this.strategies.map(item => (
+                  <div class='alert-name-item'>
+                    <div class='item-name'>{item.name}</div>
+                    <div class='item-description'>{item.description}</div>
+                  </div>
+                ))}
+              </div>
+            </Popover>
           </span>
           <span class='split-line'></span>
           <span class='group-wrap'>
@@ -98,6 +115,7 @@ export default class AlertTopic extends tsc<IProps> {
               <span>{this.$t('告警组')}: </span>
             </span>
             <AlarmGroup
+              value={this.userGroupList}
               list={this.alarmGroupList}
               readonly
             ></AlarmGroup>
