@@ -1036,11 +1036,12 @@ export default {
       // 进入检索详情页
       const queryObj = {
         ...this.$route.query,
+        ...queryParamsStr,
         spaceUid: this.$store.state.spaceUid,
         bizId: this.$store.state.bkBizId,
-        ...queryParamsStr,
         // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
         pickerTimeRange: queryParamsStr?.pickerTimeRange,
+        keyword: queryParamsStr?.keyword,
       };
       this.$router.push({
         name: 'retrieve',

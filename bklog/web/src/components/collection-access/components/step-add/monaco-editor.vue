@@ -39,8 +39,8 @@
 
       <div
         v-if="placeholder"
-        :style="`font-size:${fontSize}px;`"
-        :class="['monaco-placeholder', { 'light-monaco-placeholder': theme === 'vs' }]">
+        :style="placeholderStyle"
+        :class="['monaco-placeholder', { 'light-monaco-placeholder': theme !== 'vs-dark' }]">
         {{placeholder}}
       </div>
 
@@ -54,7 +54,7 @@
       <div
         v-if="problemList.length && isShowProblemDrag"
         ref="problemsRef"
-        :class="['problems', { 'light-problems': theme === 'vs' }]"
+        :class="['problems', { 'light-problems': theme !== 'vs-dark' }]"
         :style="`height: ${problemHeight}px; max-height: ${height - 50}px; font-size: ${fontSize}px;`">
         <div class="problems-drag" @mousedown="handleMouseDown"></div>
         <template v-for="(item, index) of problemList">
@@ -159,6 +159,15 @@ export default {
       type: Object,
       default: () => ({}),
     },
+    placeholderStyle: {
+      type: Object,
+      default: () => ({
+        fontSize: '12px',
+      }),
+    },
+    initMonacoBeforeFun: {
+      type: Function,
+    },
   },
   data() {
     return {
@@ -222,7 +231,12 @@ export default {
     this.initHeight = this.height;
     this.renderWidth = this.width;
     this.renderHeight = this.height;
-    this.initMonaco(monaco);
+    let initMonaco = monaco;
+    // 初始化编辑器前的回调函数
+    if (this.initMonacoBeforeFun) {
+      initMonaco = this.initMonacoBeforeFun(initMonaco);
+    }
+    this.initMonaco(initMonaco);
     this.$nextTick().then(() => {
       this.editor.layout();
     });
@@ -257,7 +271,7 @@ export default {
       this.editor = monaco.editor.create(this.$refs.editorRefs, options);
       this.$emit('editorDidMount', this.editor);
       this.editor.onContextMenu(event => this.$emit('contextMenu', event));
-      this.editor.onDidBlurEditorWidget(() => this.$emit('blur'));
+      this.editor.onDidBlurEditorWidget(() => this.$emit('blur', this.editor.getValue()));
       this.editor.onDidBlurEditorText(() => this.$emit('blurText'));
       this.editor.onDidChangeConfiguration(event => this.$emit('configuration', event));
       this.editor.onDidChangeCursorPosition((event) => {
