@@ -519,7 +519,7 @@ class SearchHandler(object):
         """
         根据存储集群切换记录多线程请求 BkLogApi.search
         """
-        tz_info = pytz.timezone(get_local_param("time_zone"))
+        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
         start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_info)
         storage_cluster_record_objs = StorageClusterRecord.objects.filter(
             index_set_id=int(self.index_set_id),
