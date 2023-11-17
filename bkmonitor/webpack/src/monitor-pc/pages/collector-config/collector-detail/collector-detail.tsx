@@ -300,7 +300,6 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.TargetDetail}
           >
             <AlertTopic
-              key={this.allData[TabEnum.TargetDetail].topicKey}
               stage={TCollectorAlertStage.collecting}
               id={this.collectId as any}
               alarmGroupList={this.alarmGroupList}
@@ -317,7 +316,11 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}
           >
-            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
+            <AlertTopic
+              stage={TCollectorAlertStage.transfer}
+              id={this.collectId as any}
+              alarmGroupList={this.alarmGroupList}
+            ></AlertTopic>
             <LinkStatus
               class='mt-24'
               show={this.active === TabEnum.DataLink}
@@ -328,7 +331,11 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
           >
-            <AlertTopic alarmGroupList={this.alarmGroupList}></AlertTopic>
+            <AlertTopic
+              stage={TCollectorAlertStage.storage}
+              id={this.collectId as any}
+              alarmGroupList={this.alarmGroupList}
+            ></AlertTopic>
             <StorageState
               class='mt-24'
               loading={this.allData[TabEnum.StorageState].loading}

@@ -24,11 +24,20 @@
  * IN THE SOFTWARE.
  */
 
+export enum EStatus {
+  ALL = 'ALL',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  RUNNING = 'RUNNING',
+  WARNING = 'WARNING',
+  STOPPED = 'STOPPED'
+}
+
 export const FILTER_TYPE_LIST = [
-  { id: 'ALL', name: window.i18n.t('全部') },
-  { id: 'SUCCESS', color: ['#3fc06d29', '#3FC06D'], name: window.i18n.t('正常') },
-  { id: 'FAILED', color: ['#ea363629', '#EA3636'], name: window.i18n.t('异常') },
-  { id: 'RUNNING', name: window.i18n.t('执行中') }
+  { id: EStatus.ALL, name: window.i18n.t('全部') },
+  { id: EStatus.SUCCESS, color: ['#3fc06d29', '#3FC06D'], name: window.i18n.t('正常') },
+  { id: EStatus.FAILED, color: ['#ea363629', '#EA3636'], name: window.i18n.t('异常') },
+  { id: EStatus.RUNNING, name: window.i18n.t('执行中') }
 ];
 
 export const colorMap = {
