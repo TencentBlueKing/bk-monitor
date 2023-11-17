@@ -36,7 +36,7 @@
       transition: transform .2s;
 
       &.active {
-        transform: rotateZ(90deg);
+        transform: rotateZ(-180deg);
       }
     }
 
