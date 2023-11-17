@@ -19,6 +19,16 @@ class SourceApp:
 ALL_DAY = "00:00--23:59"
 
 
+class DutyCategory:
+    """
+    轮值规则模式
+    """
+
+    REGULAR = "regular"
+    HANDOFF = "handoff"
+    DutyCategory_DISPLAY_DICT = {REGULAR: _lazy("常规"), HANDOFF: _lazy("交替")}
+
+
 class RotationType:
     DAILY = "daily"
     WEEKLY = "weekly"

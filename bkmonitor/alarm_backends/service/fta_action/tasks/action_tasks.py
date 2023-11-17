@@ -374,6 +374,9 @@ def generate_duty_plan_task():
     ):
         # 获取有轮值关联的用户组进行任务管理
         group_duties = [duty_rule_dict[rule_id] for rule_id in user_group.duty_rules if rule_id in duty_rule_dict]
+        if not group_duties:
+            logger.info("[generate_duty_plan_task] empty duty group(%s), turn to next one", user_group.id)
+            continue
         duty_manager = GroupDutyRuleManager(user_group, group_duties)
         manage_group_duty_snap.delay(duty_manager)
         if user_group.duty_notice and any(
