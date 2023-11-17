@@ -48,11 +48,26 @@ from apps.utils.function import ignored
 from apps.utils.local import (
     activate_request,
     get_request,
-    get_request_api_headers,
     get_request_id,
+    get_request_username,
 )
 from apps.utils.log import logger
 from apps.utils.time_handler import timestamp_to_datetime
+
+API_AUTH_KEYS = ["bk_app_code", "bk_app_secret", "bk_username", "bk_token", "access_token", "bk_ticket"]
+
+
+def get_request_api_headers(params):
+    """
+    获取api网关鉴权认证请求头
+    """
+    api_headers = {
+        "bk_app_code": settings.APP_CODE,
+        "bk_app_secret": settings.SECRET_KEY,
+        "bk_username": get_request_username(),
+    }
+    api_headers.update(params)
+    return json.dumps(api_headers)
 
 
 class DataResponse(object):
@@ -476,7 +491,12 @@ class DataAPI(object):
         session.headers.update({"blueking-language": translation.get_language(), "request-id": get_request_id()})
 
         # headers 增加api认证数据
-        session.headers.update({"X-Bkapi-Authorization": get_request_api_headers()})
+        api_auth_params = {}
+        for key in API_AUTH_KEYS:
+            value = params.pop(key, None)
+            if value:
+                api_auth_params[key] = value
+        session.headers.update({"X-Bkapi-Authorization": get_request_api_headers(api_auth_params)})
 
         if self.header_keys:
             headers = {key: params.get(key) for key in self.header_keys if key in params}
