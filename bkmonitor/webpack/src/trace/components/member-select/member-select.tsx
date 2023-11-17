@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { listUsersUser } from '@api/modules/model';
 import { getReceiver } from '@api/modules/notice_group';
 import { Loading, Popover } from 'bkui-vue';
-import { debounce } from 'lodash';
+import { debounce, random } from 'lodash';
 
 import './member-select.scss';
 
@@ -241,18 +241,21 @@ export default defineComponent({
         ></span>
       ];
     }
+
+    /** 唯一拖拽id */
+    const dragUid = random(8, true);
     /** 标签拖拽 */
     function handleDragstart(e: DragEvent, index: number) {
-      if (props.showType === 'avatar') return;
       e.dataTransfer.setData('index', String(index));
+      e.dataTransfer.setData('uid', String(dragUid));
       resetInputPosition(-1);
     }
     function handleDragover(e: DragEvent) {
-      if (props.showType === 'avatar') return;
       e.preventDefault();
     }
     function handleDrop(e: DragEvent, index: number) {
-      if (props.showType === 'avatar') return;
+      const uid = Number(e.dataTransfer.getData('uid'));
+      if (uid !== dragUid) return;
       const startIndex = Number(e.dataTransfer.getData('index'));
       const tag = tags[startIndex];
       tags.splice(startIndex, 1);

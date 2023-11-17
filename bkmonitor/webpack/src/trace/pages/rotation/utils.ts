@@ -27,7 +27,8 @@ import { random } from 'lodash';
 import moment from 'moment';
 
 import { FixedDataModel } from './components/fixed-rotation-tab';
-import { ReplaceDataModel } from './components/replace-rotation-tab';
+import { ItemDataModel } from './components/replace-rotation-tab';
+import { ReplaceItemDataModel } from './components/replace-rotation-table-item';
 import { RotationSelectTextMap, RotationSelectTypeEnum, RotationTabTypeEnum, WeekNameList } from './typings/common';
 
 /**
@@ -73,9 +74,7 @@ export const randomColor = (index: number) => {
 
 export function timeRangeTransform(val: string) {
   const [start, end] = val.split('--');
-  return moment(start, 'hh:mm').isSameOrBefore(moment(end, 'hh:mm'))
-    ? val
-    : `${start} - ${window.i18n.t('次日')}${end}`;
+  return moment(start, 'hh:mm').isBefore(moment(end, 'hh:mm')) ? val : `${start} - ${window.i18n.t('次日')}${end}`;
 }
 
 /**
@@ -84,146 +83,156 @@ export function timeRangeTransform(val: string) {
  * @param type params 实际数据转接口数据 data: 接口数据转实际数据
  * @returns 转化后的数据
  */
-export function replaceRotationTransform<T extends 'params' | 'data'>(
-  originData: T extends 'data' ? any : ReplaceDataModel,
-  type: T
-): T extends 'data' ? ReplaceDataModel : any {
+export function replaceRotationTransform(originData, type) {
   if (type === 'data') {
-    const data = originData[0];
-    const date = data.duty_time.reduce(
-      (pre: ReplaceDataModel['date'], cur, ind) => {
-        if (ind === 0) {
-          pre.isCustom = cur.is_custom || false;
-          pre.type = cur.work_type;
-          pre.workTimeType = cur.work_time_type || 'time_range';
-          pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
-          pre.customWorkDays = cur.work_days;
-          pre.periodSettings = cur.period_settings || {
-            unit: 'day',
-            duration: 1
-          };
-        }
-        const time = cur.work_time.map(item => item.split('--'));
-        switch (cur.work_type) {
-          case RotationSelectTypeEnum.Daily:
-          case RotationSelectTypeEnum.WorkDay:
-          case RotationSelectTypeEnum.Weekend: {
-            pre.value.push({ key: random(8, true), workTime: time, workDays: cur.work_days });
-            break;
+    let id;
+    let userGroupType;
+    const res = originData.map(data => {
+      id = data.id;
+      userGroupType = data.group_type;
+      const date = data.duty_time.reduce(
+        (pre: ReplaceItemDataModel['date'], cur, ind) => {
+          if (ind === 0) {
+            pre.isCustom = cur.is_custom || false;
+            pre.type = cur.work_type;
+            pre.workTimeType = cur.work_time_type || 'time_range';
+            pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
+            pre.customWorkDays = cur.work_days;
+            pre.periodSettings = cur.period_settings || {
+              unit: 'day',
+              duration: 1
+            };
           }
-          case RotationSelectTypeEnum.Weekly:
-          case RotationSelectTypeEnum.Monthly: {
-            if (pre.workTimeType === 'time_range') {
+          const time = cur.work_time.map(item => item.split('--'));
+          switch (cur.work_type) {
+            case RotationSelectTypeEnum.Daily:
+            case RotationSelectTypeEnum.WorkDay:
+            case RotationSelectTypeEnum.Weekend: {
+              pre.value.push({ key: random(8, true), workTime: time, workDays: cur.work_days });
+              break;
+            }
+            case RotationSelectTypeEnum.Weekly:
+            case RotationSelectTypeEnum.Monthly: {
+              if (pre.workTimeType === 'time_range') {
+                pre.value.push({
+                  key: random(8, true),
+                  workDays: cur.work_days,
+                  workTime: time
+                });
+              } else {
+                pre.value.push({
+                  key: random(8, true),
+                  workTime: cur.work_time.map(item => item.split('--').map(item => item.split(' ')))[0] || []
+                });
+              }
+              break;
+            }
+            case RotationSelectTypeEnum.Custom: {
               pre.value.push({
                 key: random(8, true),
-                workDays: cur.work_days,
                 workTime: time
               });
-            } else {
-              pre.value.push({
-                key: random(8, true),
-                workTime: cur.work_time.map(item => item.split('--').map(item => item.split(' ')))[0] || []
-              });
             }
-            break;
           }
-          case RotationSelectTypeEnum.Custom: {
-            pre.value.push({
-              key: random(8, true),
-              workTime: time
-            });
-          }
+          return pre;
+        },
+        {
+          type: RotationSelectTypeEnum.WorkDay,
+          workTimeType: 'time_range',
+          isCustom: false,
+          customTab: 'duration',
+          value: []
         }
-        return pre;
-      },
-      {
-        type: RotationSelectTypeEnum.WorkDay,
-        workTimeType: 'time_range',
-        isCustom: false,
-        customTab: 'duration',
-        value: []
-      }
-    );
-    const obj: ReplaceDataModel = {
-      id: data.id,
-      date,
-      users: {
-        type: data.group_type,
-        groupNumber: data.group_number,
-        value: data.duty_users.map(item => ({
-          key: random(8, true),
-          value: item
-        }))
-      }
+      );
+      const obj: ReplaceItemDataModel = {
+        id: data.id,
+        date,
+        users: {
+          type: data.group_type,
+          groupNumber: data.group_number,
+          value: data.duty_users.map(item => ({
+            key: random(8, true),
+            value: item
+          }))
+        }
+      };
+      return obj;
+    });
+    return {
+      id,
+      userGroupType,
+      data: res
     };
-    return obj;
   }
 
-  const data: ReplaceDataModel['date'] = originData.date;
-  const rotationType: RotationSelectTypeEnum = data.isCustom ? RotationSelectTypeEnum.Custom : data.type;
-  let dutyTime = [];
-  switch (rotationType) {
-    case RotationSelectTypeEnum.Daily:
-    case RotationSelectTypeEnum.Weekend:
-    case RotationSelectTypeEnum.WorkDay: {
-      dutyTime = data.value.map(item => ({
-        work_type: data.type,
-        work_time: item.workTime.map(val => val.join('--')),
-        work_days: item.workDays,
-        work_time_type: 'time_range'
-      }));
-      // .filter(item => item.work_time.length);
-      break;
-    }
-    case RotationSelectTypeEnum.Weekly:
-    case RotationSelectTypeEnum.Monthly: {
-      if (data.workTimeType === 'time_range') {
-        dutyTime = data.value.map(item => ({
-          work_type: data.type,
-          work_time_type: data.workTimeType,
-          work_days: item.workDays,
-          work_time: item.workTime.map(val => val.join('--'))
-        }));
-        // .filter(item => item.work_days.length);
-      } else {
-        dutyTime = data.value.map(item => ({
-          work_type: data.type,
-          work_time_type: data.workTimeType,
-          work_days: item.workDays,
-          work_time: [item.workTime.length && item.workTime.map(item => item.join(' ')).join('--')]
-        }));
-        // .filter(item => item.work_time.length);
+  return originData.data.map((item: ItemDataModel) => {
+    const data = item.date;
+    const rotationType: RotationSelectTypeEnum = data.isCustom ? RotationSelectTypeEnum.Custom : data.type;
+    let dutyTime = [];
+    switch (rotationType) {
+      case RotationSelectTypeEnum.Daily:
+      case RotationSelectTypeEnum.Weekend:
+      case RotationSelectTypeEnum.WorkDay: {
+        dutyTime = data.value
+          .map(item => ({
+            work_type: data.type,
+            work_time: item.workTime.map(val => val.join('--')),
+            work_days: item.workDays,
+            work_time_type: 'time_range'
+          }))
+          .filter(item => item.work_time.length);
+        break;
       }
-      break;
+      case RotationSelectTypeEnum.Weekly:
+      case RotationSelectTypeEnum.Monthly: {
+        if (data.workTimeType === 'time_range') {
+          dutyTime = data.value
+            .map(item => ({
+              work_type: data.type,
+              work_time_type: data.workTimeType,
+              work_days: item.workDays,
+              work_time: item.workTime.map(val => val.join('--'))
+            }))
+            .filter(item => item.work_days.length);
+        } else {
+          dutyTime = data.value
+            .map(item => ({
+              work_type: data.type,
+              work_time_type: data.workTimeType,
+              work_days: item.workDays,
+              work_time: [item.workTime.length && item.workTime.map(item => item.join(' ')).join('--')]
+            }))
+            .filter(item => item.work_time.length);
+        }
+        break;
+      }
+      case RotationSelectTypeEnum.Custom: {
+        dutyTime = data.value.map(item => {
+          const { unit, duration } = data.periodSettings;
+          return {
+            is_custom: true,
+            work_type: data.type,
+            work_days: data.customWorkDays,
+            work_time: item.workTime.map(val => val.join('--')),
+            work_time_type: 'time_range',
+            period_settings: {
+              window_unit: unit,
+              duration
+            }
+          };
+        });
+        break;
+      }
     }
-    case RotationSelectTypeEnum.Custom: {
-      dutyTime = data.value.map(item => {
-        const { unit, duration } = data.periodSettings;
-        return {
-          is_custom: true,
-          work_type: data.type,
-          work_days: data.customWorkDays,
-          work_time: item.workTime.map(val => val.join('--')),
-          work_time_type: 'time_range',
-          period_settings: {
-            window_unit: unit,
-            duration
-          }
-        };
-      });
-      break;
-    }
-  }
 
-  return [
-    {
-      id: originData.id,
+    return {
+      id: item.id,
       duty_time: dutyTime,
-      duty_users: originData.users.value.filter(item => item.value.length).map(item => item.value),
-      group_type: originData.users.type,
-      group_number: originData.users.groupNumber
-    }
-  ] as T extends 'data' ? ReplaceDataModel : any;
+      duty_users: item.users.value.filter(item => item.value.length).map(item => item.value),
+      group_type: item.users.type,
+      group_number: item.users.groupNumber
+    };
+  });
 }
 
 /**
@@ -303,7 +312,11 @@ export function transformDetailUsers(data: any = [], type: RotationTabTypeEnum) 
     });
     return Array.from(res.values());
   }
-  return data[0]?.duty_users || [];
+
+  return data.reduce((pre, cur) => {
+    pre.push(...cur.duty_users);
+    return pre;
+  }, []);
 }
 /**
  * 轮值详情-轮值时间展示
@@ -355,7 +368,11 @@ export function transformDetailTimer(data: any = [], type: RotationTabTypeEnum) 
       .filter(item => item.dateRange);
   }
 
-  return data[0].duty_time.map(item => {
+  const timeList = data.reduce((pre, cur) => {
+    pre.push(...cur.duty_time);
+    return pre;
+  }, []);
+  return timeList.map(item => {
     let dateRange = '';
     const week = [
       '',

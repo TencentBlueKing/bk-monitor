@@ -12,7 +12,7 @@
   "dependencies": {
     "@antv/g6": "^4.7.0",
     "@blueking/ip-selector": "0.0.1-beta.125",
-    "bkui-vue": "0.0.2-beta.84",
+    "bkui-vue": "0.0.2-beta.88",
     "d3-array": "^3.1.1",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",
