@@ -71,8 +71,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   sideslider = {
     isShow: false,
-    data: '',
-    title: ''
+    data: ''
   };
 
   @Watch('show')
@@ -106,8 +105,8 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     const res = await transferCountSeries({
       collect_config_id: this.collectId,
       interval_option: type,
-      start_time: startTime * 1000,
-      end_time: endTime * 1000
+      start_time: startTime,
+      end_time: endTime
     }).catch(() => [{ datapoints: [] }]);
     if (type === 'minute') {
       this.minuteChartConfig.data = res[0].datapoints;
@@ -141,6 +140,11 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
       message: this.$t('复制成功'),
       theme: 'success'
     });
+  }
+
+  handleViewData(row) {
+    this.sideslider.isShow = true;
+    this.sideslider.data = JSON.stringify(row, null, '\t');
   }
 
   init() {
@@ -212,7 +216,24 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               <TableColumn
                 label={this.$t('操作')}
                 width='175'
-              />
+                scopedSlots={{
+                  default: ({ row }) => [
+                    <Button
+                      class='mr8'
+                      text
+                      onClick={() => this.handleCopy(JSON.stringify(row, null, '\t'))}
+                    >
+                      {this.$t('复制')}
+                    </Button>,
+                    <Button
+                      text
+                      onClick={() => this.handleViewData(row)}
+                    >
+                      {this.$t('查看上报数据')}
+                    </Button>
+                  ]
+                }}
+              ></TableColumn>
             </Table>
           </div>
         </div>
@@ -230,7 +251,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             slot='header'
             class='sideslider-title'
           >
-            <span>{this.sideslider.title + this.$t('上报日志详情')}</span>
+            <span>{this.$t('上报日志详情')}</span>
             <Button onClick={() => this.handleCopy(this.sideslider.data)}>{this.$tc('复制')}</Button>
           </div>
           <div slot='content'>

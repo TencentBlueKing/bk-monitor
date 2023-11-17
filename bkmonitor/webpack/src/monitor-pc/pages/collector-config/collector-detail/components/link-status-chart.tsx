@@ -115,7 +115,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   get options(): echarts.EChartOption {
     const minute: echarts.EChartOption.SeriesLine = {
       name: this.$tc('分钟数据量'),
-      data: this.data || [],
+      data: this.data.map(item => [item[1], item[0]]) || [],
       type: 'line',
       symbol: 'none',
       itemStyle: {
@@ -124,7 +124,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     };
     const day: echarts.EChartOption.SeriesBar = {
       name: this.$tc('日数据量'),
-      data: this.data || [],
+      data: this.data.map(item => [item[1], item[0]]) || [],
       type: 'bar',
       barMaxWidth: 30,
       itemStyle: {
