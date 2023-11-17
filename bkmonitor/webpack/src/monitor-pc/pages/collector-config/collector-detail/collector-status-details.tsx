@@ -40,6 +40,7 @@ import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
 import { transformJobUrl } from '../../../utils/index';
 import {
   colorMap,
+  EStatus,
   FILTER_TYPE_LIST,
   IContentsItem,
   labelMap,
@@ -103,7 +104,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
 
   /* 头部状态 */
   header = {
-    status: 'ALL',
+    status: EStatus.ALL,
     batchRetry: false,
     data: {
       successNum: 0,
@@ -118,7 +119,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   get haveDeploying() {
     const resArr = [];
     this.contents.forEach(item => {
-      const res = item.child.some(one => ['DEPLOYING', 'RUNNING', 'PENDING'].includes(one.status));
+      const res = item.child.some(one => ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(one.status));
       resArr.push(res);
     });
     return resArr.some(item => item);
@@ -146,14 +147,18 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         item.child.forEach(set => {
           const alertHistogram = set.alert_histogram.map(a => ({ level: a[1] }));
           // 表格内容
-          if (STATUS_LIST.includes(set.status) || set.status === this.header.status || this.header.status === 'ALL') {
+          if (
+            STATUS_LIST.includes(set.status) ||
+            set.status === this.header.status ||
+            this.header.status === EStatus.ALL
+          ) {
             table.push({
               ...set,
               alertHistogram
             });
           }
           // 数量及状态
-          if (set.status === 'SUCCESS') {
+          if (set.status === EStatus.SUCCESS) {
             nums.successNum += 1;
             sumData.success[set.instance_id] = set.instance_id;
           } else if (STATUS_LIST.includes(set.status)) {
@@ -224,6 +229,19 @@ export default class CollectorStatusDetails extends tsc<IProps> {
    */
   handleFilterChange(id) {
     this.header.status = id;
+    this.contents.forEach(item => {
+      const table = [];
+      item.child.forEach(set => {
+        if (set.status === this.header.status || this.header.status === EStatus.ALL) {
+          const alertHistogram = set.alert_histogram.map(a => ({ level: a[1] }));
+          table.push({
+            ...set,
+            alertHistogram
+          });
+        }
+      });
+      item.table = table;
+    });
   }
 
   /**
@@ -238,7 +256,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     }
     this.contents.forEach(content => {
       if (content.child?.length) {
-        const setData = content.child.find(set => set.instance_id === data.instance_id && set.status === 'FAILED');
+        const setData = content.child.find(
+          set => set.instance_id === data.instance_id && set.status === EStatus.FAILED
+        );
         if (setData) {
           setData.status = 'PENDING';
           content.pendingNum += 1;
@@ -261,7 +281,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         }
       })
       .catch(() => {
-        data.status = 'FAILED';
+        data.status = EStatus.FAILED;
         table.failedNum += 1;
         table.pendingNum -= 1;
         this.header.data.failedNum += 1;
@@ -308,7 +328,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.side.title = '';
     this.contents.forEach(item => {
       item.child.forEach(set => {
-        if ('FAILED' === set.status) {
+        if (EStatus.FAILED === set.status) {
           set.status = 'PENDING';
           failedList.push(set);
         }
@@ -329,7 +349,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         }
       })
       .catch(() => {
-        failedList.forEach(item => (item.status = 'FAILED'));
+        failedList.forEach(item => (item.status = EStatus.FAILED));
         this.header.data.pendingNum = 0;
         this.header.batchRetry = false;
         this.header.data.failedNum = failedList.length;
@@ -367,6 +387,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.contents.forEach(ct => {
       ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
     });
+    console.log(copyStr);
     copyText(copyStr, msg => {
       this.$bkMessage({
         theme: 'error',
@@ -375,7 +396,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       return;
     });
     this.$bkMessage({
-      theme: 'success',
+      theme: EStatus.SUCCESS,
       message: this.$t('复制成功')
     });
   }
@@ -405,7 +426,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                       </span>
                     );
                   }
-                  if (item.id === 'RUNNING') {
+                  if (item.id === EStatus.RUNNING) {
                     return (
                       <Spin
                         size='mini'
@@ -444,7 +465,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             </Button>
             <Button
               hover-theme='primary'
-              onClick={() => this.handleCopyTargets}
+              onClick={() => this.handleCopyTargets()}
             >
               {this.$t('复制目标')}
             </Button>
@@ -479,19 +500,20 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                 {(() => {
                   if (this.isRunning) {
                     const temp = [];
-                    if (content.successNum && this.header.status !== 'FAILED') {
+                    if (content.successNum && this.header.status !== EStatus.FAILED) {
                       temp.push(
                         <span class='num fix-same-code'>
                           <i18n path='{0}个成功'>
                             <span style={{ color: '#2dcb56' }}>{content.successNum}</span>
                           </i18n>
-                          {(content.failedNum && ['ALL', 'FAILED'].includes(this.header.status)) || content.pendingNum
+                          {(content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) ||
+                          content.pendingNum
                             ? ','
                             : undefined}
                         </span>
                       );
                     }
-                    if (content.failedNum && ['ALL', 'FAILED'].includes(this.header.status)) {
+                    if (content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) {
                       temp.push(
                         <span class='num fix-same-code'>
                           <i18n path='{0}个失败'>
@@ -578,7 +600,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                       ></Spin>
                                     ) : undefined,
                                     this.isRunning &&
-                                    ['FAILED', 'WARNING', 'SUCCESS', 'STOPPED'].includes(row.status) ? (
+                                    [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
+                                      row.status
+                                    ) ? (
                                       <span
                                         class='point mr-3'
                                         style={{ background: colorMap[row.status][0] }}
@@ -605,7 +629,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                               return (
                                 <span class='col-detail'>
                                   <span class='col-detail-data'>{row.log || '--'}</span>
-                                  {this.isRunning && row.status === 'FAILED' && (
+                                  {this.isRunning && row.status === EStatus.FAILED && (
                                     <span
                                       class='col-detail-more fix-same-code'
                                       onClick={() => this.handleGetMoreDetail(row)}
@@ -618,7 +642,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                             }
                             case EColumn.operate: {
                               return [
-                                this.isRunning && row.status === 'FAILED' ? (
+                                this.isRunning && row.status === EStatus.FAILED ? (
                                   <div
                                     class='col-retry'
                                     onClick={() =>
@@ -630,7 +654,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                     {this.$t('重试')}
                                   </div>
                                 ) : undefined,
-                                this.isRunning && ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) ? (
+                                this.isRunning && ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
                                   <div class='col-retry fix-same-code'>{this.$t('终止')}</div>
                                 ) : undefined
                               ];
