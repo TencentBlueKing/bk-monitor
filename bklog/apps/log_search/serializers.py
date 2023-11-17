@@ -26,6 +26,10 @@ import re
 import time
 
 import arrow
+from dateutil.parser import parse
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import serializers
+
 from apps.exceptions import ValidationError
 from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleStateEnum
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
@@ -37,11 +41,9 @@ from apps.log_search.constants import (
     TemplateType,
 )
 from apps.log_search.models import ProjectInfo, Scenario
+from apps.utils.drf import DateTimeFieldWithEpoch
 from apps.utils.local import get_local_param
 from bkm_space.serializers import SpaceUIDField
-from dateutil.parser import parse
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
 
 HISTORY_MAX_DAYS = 7
 
@@ -157,11 +159,7 @@ class DesensitizeConfigSerializer(serializers.Serializer):
 
     rule_id = serializers.IntegerField(label=_("脱敏规则ID"), required=False)
     match_pattern = serializers.CharField(
-        label=_("匹配模式"),
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-        default=""
+        label=_("匹配模式"), required=False, allow_null=True, allow_blank=True, default=""
     )
     operator = serializers.ChoiceField(label=_("脱敏算子"), choices=DesensitizeOperator.get_choices(), required=False)
     params = serializers.DictField(label=_("脱敏配置参数"), required=False)
@@ -169,7 +167,7 @@ class DesensitizeConfigSerializer(serializers.Serializer):
         label=_("规则状态"),
         required=False,
         choices=DesensitizeRuleStateEnum.get_choices(),
-        default=DesensitizeRuleStateEnum.ADD.value
+        default=DesensitizeRuleStateEnum.ADD.value,
     )
 
     def validate(self, attrs):
@@ -244,8 +242,8 @@ class SearchAttrSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
-    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     time_range = serializers.CharField(required=False, default=None)
 
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -274,8 +272,8 @@ class OriginalSearchAttrSerializer(serializers.Serializer):
 
 
 class UserSearchHistorySerializer(serializers.Serializer):
-    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
