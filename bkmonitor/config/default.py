@@ -259,7 +259,7 @@ DATABASES = {}
 
 # auto clean DB connection
 DATABASE_CONNECTION_AUTO_CLEAN_INTERVAL = 600
-CONN_MAX_AGE = os.getenv("CONN_MAX_AGE", 0)
+CONN_MAX_AGE = int(os.getenv("CONN_MAX_AGE", 0))
 
 # 是否开启网络设备忽略
 USE_ETH_FILTER = True
