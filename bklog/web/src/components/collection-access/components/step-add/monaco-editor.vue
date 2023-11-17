@@ -161,7 +161,9 @@ export default {
     },
     placeholderStyle: {
       type: Object,
-      default: () => ({}),
+      default: () => ({
+        fontSize: '12px',
+      }),
     },
     initMonacoBeforeFun: {
       type: Function,
