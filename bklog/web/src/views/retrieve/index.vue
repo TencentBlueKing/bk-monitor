@@ -1005,9 +1005,7 @@ export default {
               case 'start_time':
               case 'end_time':
               case 'time_range':
-                if (this.retrieveParams[field] !== '') {
-                  queryParamsStr[field] = encodeURIComponent(this.retrieveParams[field]);
-                }
+                queryParamsStr[field] = this.retrieveParams[field] === '' ? '*' : encodeURIComponent(this.retrieveParams[field]);
                 break;
               case 'host_scopes':
                 if (this.retrieveParams[field].ips !== ''
