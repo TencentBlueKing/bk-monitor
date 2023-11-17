@@ -27,7 +27,6 @@ import { computed, defineComponent, onMounted, provide, reactive, readonly, ref 
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, DatePicker, Input, Switcher, TagInput } from 'bkui-vue';
-import { random } from 'lodash';
 import moment from 'moment';
 
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
@@ -95,17 +94,12 @@ export default defineComponent({
     const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
-      getPreviewData();
+      previewData.value = [];
     }
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
       rotationType.value = type;
       Object.assign(rotationTypeData, createDefaultRotation());
-      previewData.value = [];
-    }
-
-    function handleRotationDataReset<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
-      rotationTypeData[type] = val;
       previewData.value = [];
     }
 
@@ -119,20 +113,8 @@ export default defineComponent({
         regular: [],
         handoff: {
           id: undefined,
-          date: {
-            type: RotationSelectTypeEnum.WorkDay,
-            workTimeType: 'time_range',
-            isCustom: false,
-            customTab: 'duration',
-            customWorkDays: [],
-            periodSettings: { unit: 'day', duration: 1 },
-            value: [{ key: random(8, true), workTime: [], workDays: [1, 2, 3, 4, 5] }]
-          },
-          users: {
-            type: 'specified',
-            groupNumber: 1,
-            value: [{ key: random(8, true), value: [] }]
-          }
+          userGroupType: 'specified',
+          data: []
         }
       };
     }
@@ -175,32 +157,36 @@ export default defineComponent({
           res.msg = t('每条轮值规则最少添加一个用户');
         }
       } else {
-        const data = rotationTypeData[RotationTabTypeEnum.HANDOFF];
-        const hasUsers = data.users.value.some(item => item.value.length);
+        const { data } = rotationTypeData[RotationTabTypeEnum.HANDOFF];
+        const hasUsers = data.every(item => item.users.value.some(item => item.value.length));
         if (!hasUsers) {
           res.err = true;
           res.msg = t('每条轮值规则最少添加一个用户');
         }
-        const type = data.date.isCustom ? RotationSelectTypeEnum.Custom : data.date.type;
-        switch (type) {
-          case RotationSelectTypeEnum.Daily:
-          case RotationSelectTypeEnum.WorkDay:
-          case RotationSelectTypeEnum.Weekend: {
-            if (!data.date.value.some(item => item.workTime.length)) {
-              res.err = true;
-              res.msg = t('最少选择一个单班时间');
+        data.forEach(item => {
+          const type = item.date.isCustom ? RotationSelectTypeEnum.Custom : item.date.type;
+          switch (type) {
+            case RotationSelectTypeEnum.Daily:
+            case RotationSelectTypeEnum.WorkDay:
+            case RotationSelectTypeEnum.Weekend: {
+              if (!item.date.value.some(item => item.workTime.length)) {
+                res.err = true;
+                res.msg = t('每条轮值规则最少添加一个单班时间');
+              }
+            }
+            case RotationSelectTypeEnum.Weekly:
+            case RotationSelectTypeEnum.Monthly: {
+              if (item.date.workTimeType === 'time_range' && !item.date.value.some(item => item.workDays.length)) {
+                res.err = true;
+                res.msg = t('每条轮值规则最少添加一个单班时间');
+              }
+              if (item.date.workTimeType === 'datetime_range' && !item.date.value.some(item => item.workTime.length)) {
+                res.err = true;
+                res.msg = t('每条轮值规则最少添加一个单班时间');
+              }
             }
           }
-          case RotationSelectTypeEnum.Weekly:
-          case RotationSelectTypeEnum.Monthly: {
-            if (data.date.workTimeType === 'time_range' && !data.date.value.some(item => item.workDays.length)) {
-              res.msg = t('最少选择一个单班时间');
-            }
-            if (data.date.workTimeType === 'datetime_range' && !data.date.value.some(item => item.workTime.length)) {
-              res.msg = t('最少添加一个单班时间');
-            }
-          }
-        }
+        });
       }
       return res;
     }
@@ -320,7 +306,6 @@ export default defineComponent({
       getPreviewData,
       loading,
       handleRotationTypeDataChange,
-      handleRotationDataReset,
       handleSubmit,
       handleBack,
       handleBackPage
@@ -394,7 +379,7 @@ export default defineComponent({
                     ref='fixedRotationTabRef'
                     data={this.rotationTypeData.regular}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.REGULAR)}
-                    onReset={val => this.handleRotationDataReset(val, RotationTabTypeEnum.REGULAR)}
+                    onPreview={this.getPreviewData}
                   />
                 ) : (
                   <ReplaceRotationTab
@@ -402,7 +387,7 @@ export default defineComponent({
                     v-show={this.rotationType === RotationTabTypeEnum.HANDOFF}
                     data={this.rotationTypeData.handoff}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.HANDOFF)}
-                    onReset={val => this.handleRotationDataReset(val, RotationTabTypeEnum.HANDOFF)}
+                    onPreview={this.getPreviewData}
                     onDrop={this.getPreviewData}
                   />
                 )}

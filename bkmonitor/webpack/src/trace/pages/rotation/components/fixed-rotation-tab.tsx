@@ -55,7 +55,7 @@ export default defineComponent({
       default: () => []
     }
   },
-  emits: ['change', 'reset'],
+  emits: ['change', 'preview'],
   setup(props, { emit }) {
     // --------公共------------
     const { t } = useI18n();
@@ -98,7 +98,7 @@ export default defineComponent({
       } else {
         item.workDateRange = [];
       }
-      handleEmitReset();
+      handleEmitData();
     };
     function handleAddItem() {
       localValue.push(createDefaultData());
@@ -106,16 +106,18 @@ export default defineComponent({
     function handleDelItem(ind: number) {
       localValue.splice(ind, 1);
       handleEmitData();
+      handleEmitPreview();
     }
     function handleUserChange(val: FixedDataModel['users'], item: FixedDataModel) {
       item.users = val;
       handleEmitData();
+      handleEmitPreview();
     }
     function handleEmitData() {
       emit('change', localValue);
     }
-    function handleEmitReset() {
-      emit('reset', localValue);
+    function handleEmitPreview() {
+      emit('preview');
     }
 
     return {
@@ -178,6 +180,7 @@ export default defineComponent({
                     v-model={item.workDays}
                     onToggle={val => !val && this.handleEmitData()}
                     multiple
+                    clearable={false}
                   >
                     {WeekDataList.map(week => (
                       <Select.Option
