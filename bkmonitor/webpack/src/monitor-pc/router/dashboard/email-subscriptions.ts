@@ -44,6 +44,7 @@ export default [
     meta: {
       title: '邮件订阅',
       navId: 'email-subscriptions',
+      navName: '邮件订阅',
       needTitle: true, // 显示侧栏选中的导航标题
       route: {
         parent: 'dashboard'
@@ -60,6 +61,7 @@ export default [
     meta: {
       title: window.i18n.tc('route-发送历史'),
       navId: 'email-subscriptions-history',
+      navName: '邮件订阅',
       needTitle: true,
       route: {
         parent: 'dashboard'
@@ -74,7 +76,8 @@ export default [
     },
     meta: {
       title: '新建订阅',
-      navId: 'email-subscriptions-add',
+      navId: 'email-subscriptions',
+      navName: '邮件订阅',
       needBack: true,
       route: {
         parent: 'email-subscriptions'
@@ -92,7 +95,8 @@ export default [
     },
     meta: {
       title: '编辑订阅',
-      navId: 'email-subscriptions-edit',
+      navId: 'email-subscriptions',
+      navName: '邮件订阅',
       needBack: true,
       route: {
         parent: 'email-subscriptions'

@@ -38,6 +38,7 @@ export default [
     meta: {
       title: '仪表盘',
       navId: 'grafana',
+      navName: '仪表盘',
       noNavBar: true,
       // authority: {
       //   map: grafanaAuth,
@@ -63,6 +64,7 @@ export default [
     meta: {
       title: '仪表盘',
       navId: 'new-dashboard',
+      navName: '仪表盘',
       noNavBar: true,
       authority: {
         map: grafanaAuth,
@@ -89,6 +91,7 @@ export default [
       title: '仪表盘',
       noNavBar: true,
       navId: 'import-dashboard',
+      navName: '仪表盘',
       authority: {
         map: grafanaAuth,
         page: grafanaAuth.NEW_DASHBOARD_AUTH
@@ -113,6 +116,7 @@ export default [
     meta: {
       title: '仪表盘',
       navId: 'folder-dashboard',
+      navName: '仪表盘',
       noNavBar: true,
       authority: {
         map: grafanaAuth,
@@ -138,6 +142,7 @@ export default [
     meta: {
       title: '仪表盘',
       navId: 'grafana-datasource',
+      navName: '仪表盘',
       noNavBar: true,
       authority: {
         map: grafanaAuth,
@@ -157,6 +162,7 @@ export default [
     },
     meta: {
       title: '仪表盘',
+      navName: '仪表盘',
       noNavBar: true,
       navId: 'grafana',
       // authority: {
@@ -181,6 +187,7 @@ export default [
     meta: {
       title: '仪表盘',
       navId: 'grafana',
+      navName: '仪表盘',
       noNavBar: true,
       // authority: {
       //   map: grafanaAuth,
