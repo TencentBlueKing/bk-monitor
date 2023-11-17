@@ -710,6 +710,9 @@
                         },
                         {
                             "id":"manage_extract_config_v2"
+                        },
+                        {
+                            "id":"manage_desensitize_rule"
                         }
                     ]
                 },

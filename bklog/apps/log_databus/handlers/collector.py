@@ -29,6 +29,11 @@ from typing import Any, Dict, List, Union
 
 import arrow
 import yaml
+from django.conf import settings
+from django.db import IntegrityError, transaction
+from django.utils.translation import ugettext as _
+from rest_framework.exceptions import ErrorDetail, ValidationError
+
 from apps.api import BcsCcApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
 from apps.api.modules.bk_node import BKNodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -151,10 +156,6 @@ from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.db import IntegrityError, transaction
-from django.utils.translation import ugettext as _
-from rest_framework.exceptions import ErrorDetail, ValidationError
 
 
 class CollectorHandler(object):
@@ -1422,7 +1423,7 @@ class CollectorHandler(object):
                     "is_label": False,
                     "label_name": "",
                     "bk_obj_name": _("主机"),
-                    "node_path":  _("主机"),
+                    "node_path": _("主机"),
                     "bk_obj_id": "host",
                     "bk_inst_id": "",
                     "bk_inst_name": "",
@@ -3276,30 +3277,11 @@ class CollectorHandler(object):
 
     @transaction.atomic
     def update_bcs_container_config(self, data, rule_id):
-        bcs_collector_config_name = self.generate_collector_config_name(
-            bcs_cluster_id=data["bcs_cluster_id"],
-            collector_config_name=data["collector_config_name"],
-            collector_config_name_en=data.get(""),
-        )
-
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         if len(collectors) != DEFAULT_COLLECTOR_LENGTH:
             raise RuleCollectorException(RuleCollectorException.MESSAGE.format(rule_id=rule_id))
         for collector in collectors:
             if collector.collector_config_name_en.endswith("_path"):
-                if (
-                    collector.collector_config_name
-                    != bcs_collector_config_name["bcs_path_collector"]["collector_config_name"]
-                ):
-                    index_set_name = (
-                        _("[采集项]") + bcs_collector_config_name["bcs_path_collector"]["collector_config_name"]
-                    )
-                    LogIndexSet.objects.filter(index_set_id=collector.index_set_id).update(
-                        index_set_name=index_set_name
-                    )
-                collector.collector_config_name = bcs_collector_config_name["bcs_path_collector"][
-                    "collector_config_name"
-                ]
                 collector.description = data["description"]
                 collector.bcs_cluster_id = data["bcs_cluster_id"]
                 collector.add_pod_label = data["add_pod_label"]
@@ -3307,19 +3289,6 @@ class CollectorHandler(object):
                 collector.save()
                 path_collector = collector
             if collector.collector_config_name_en.endswith("_std"):
-                if (
-                    collector.collector_config_name
-                    != bcs_collector_config_name["bcs_std_collector"]["collector_config_name"]
-                ):
-                    index_set_name = (
-                        _("[采集项]") + bcs_collector_config_name["bcs_std_collector"]["collector_config_name"]
-                    )
-                    LogIndexSet.objects.filter(index_set_id=collector.index_set_id).update(
-                        index_set_name=index_set_name
-                    )
-                collector.collector_config_name = bcs_collector_config_name["bcs_std_collector"][
-                    "collector_config_name"
-                ]
                 collector.description = data["description"]
                 collector.bcs_cluster_id = data["bcs_cluster_id"]
                 collector.add_pod_label = data["add_pod_label"]
