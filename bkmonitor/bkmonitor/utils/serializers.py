@@ -11,11 +11,12 @@ specific language governing permissions and limitations under the License.
 
 import re
 
-from constants.result_table import RT_RESERVED_WORD_EXACT, RT_TABLE_NAME_WORD_EXACT
-from core.unit import UNITS
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+
+from constants.result_table import RT_RESERVED_WORD_EXACT, RT_TABLE_NAME_WORD_EXACT
+from core.unit import UNITS
 
 PATTERN = re.compile(r"^[_a-zA-Z][a-zA-Z0-9_]*$")
 
@@ -84,10 +85,14 @@ class MetricJsonBaseSerializer(serializers.Serializer):
                 ].startswith("_"):
                     raise serializers.ValidationError(_("非与保留关键字重名字段不允许以'_'开头"))
                 # 只有未开启自动发现才对名称进行校验
-                if field_detail["name"].upper() in RT_RESERVED_WORD_EXACT and not self.enable_field_blacklist:
+                if field_detail["name"].upper() in RT_RESERVED_WORD_EXACT and not self.initial_data.get(
+                    "enable_field_blacklist", False
+                ):
                     raise serializers.ValidationError(_("指标维度不允许与保留关键字重名"))
                 # 只有未开启自动发现才对名称进行校验
-                if not PATTERN.match(field_detail["name"]) and not self.enable_field_blacklist:
+                if not PATTERN.match(field_detail["name"]) and not self.initial_data.get(
+                    "enable_field_blacklist", False
+                ):
                     raise serializers.ValidationError(_("名称校验不通过:{}".format(field_detail["name"])))
                 if field_detail["monitor_type"] == "metric":
                     metric_name_list.append(field_detail["name"])
