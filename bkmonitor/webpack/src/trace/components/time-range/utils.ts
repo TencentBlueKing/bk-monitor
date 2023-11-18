@@ -23,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { DateRange } from '@blueking/date-picker';
+import { type DateValue } from '@blueking/date-picker/dist/utils';
 import { type Dayjs } from 'dayjs';
 
 export type TimeRangeType = string[];
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
 
-
 type TimestampsType = [number, number];
-import {DateRange} from '@blueking/date-picker'
-import { type DateValue } from '@blueking/date-picker/dist/utils';
 /** 处理时间范围的对象 */
 export class TimeRange {
   /** 实例化的时间范围对象 */
