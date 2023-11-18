@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@blueking/date-picker': ^0.0.55
+  '@blueking/date-picker': ^0.0.56
   '@blueking/stylelint-config': 0.0.3
   '@blueking/user-selector>vue': 2.7.14
   '@typescript-eslint/eslint-plugin': ^5.20.0
@@ -510,8 +510,8 @@ importers:
         specifier: 0.0.22
         version: 0.0.22
       '@blueking/date-picker':
-        specifier: ^0.0.55
-        version: 0.0.55(bkui-vue@0.0.2-beta.90)(dayjs@1.11.10)(vue@2.7.14)
+        specifier: ^0.0.56
+        version: 0.0.56(bkui-vue@0.0.2-beta.90)(dayjs@1.11.10)(vue@2.7.14)
       '@blueking/ip-selector':
         specifier: 0.0.1-beta.134
         version: 0.0.1-beta.134
@@ -855,8 +855,8 @@ importers:
         specifier: ^4.7.0
         version: 4.8.23
       '@blueking/date-picker':
-        specifier: ^0.0.55
-        version: 0.0.55(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8)
+        specifier: ^0.0.56
+        version: 0.0.56(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8)
       '@blueking/ip-selector':
         specifier: 0.0.1-beta.134
         version: 0.0.1-beta.134
@@ -2632,8 +2632,8 @@ packages:
       - whiskers
     dev: false
 
-  /@blueking/date-picker@0.0.55(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8):
-    resolution: {integrity: sha512-mdvpnvRiiMv02hdGUi+lQzMGGF/REAhnP6NMdWtvYG9gJmFtiudEUEUBXjScpPMjiPaBOJoQ2L0IHlcPYwjOEg==}
+  /@blueking/date-picker@0.0.56(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8):
+    resolution: {integrity: sha512-yqjrUKYqNTZ4L5nBzEzta5QbFMHIS+ktju0iAqJgQ1988mWVyJYi7hXO39Yo+HjZRXS+47geZNRwlrBl4uttvQ==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       bkui-vue: ^0.0.2-beta.90
@@ -2645,8 +2645,8 @@ packages:
       vue: 3.3.8(typescript@4.9.5)
     dev: false
 
-  /@blueking/date-picker@0.0.55(bkui-vue@0.0.2-beta.90)(dayjs@1.11.10)(vue@2.7.14):
-    resolution: {integrity: sha512-mdvpnvRiiMv02hdGUi+lQzMGGF/REAhnP6NMdWtvYG9gJmFtiudEUEUBXjScpPMjiPaBOJoQ2L0IHlcPYwjOEg==}
+  /@blueking/date-picker@0.0.56(bkui-vue@0.0.2-beta.90)(dayjs@1.11.10)(vue@2.7.14):
+    resolution: {integrity: sha512-yqjrUKYqNTZ4L5nBzEzta5QbFMHIS+ktju0iAqJgQ1988mWVyJYi7hXO39Yo+HjZRXS+47geZNRwlrBl4uttvQ==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       bkui-vue: ^0.0.2-beta.90
