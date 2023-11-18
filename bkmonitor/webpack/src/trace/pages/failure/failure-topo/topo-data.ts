@@ -23,51 +23,58 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const nodeCount = 50
-const comboCount = 16
+const nodeCount = 10;
+const comboCount = 5;
 export const enum NodeStatus {
   Normal = 'normal',
   Error = 'error',
-  Root = 'root',
+  Root = 'root'
 }
 
 export const enum EdgeStatus {
   Include = 'include',
-  Invoke = 'invoke',
+  Invoke = 'invoke'
 }
-
+export const enum ComboType {
+  Host = 'host',
+  Service = 'service',
+  Data = 'data'
+}
 const createNodes = () => {
   return new Array(nodeCount).fill(0).map((_, i) => {
     const comboId = `combo_${i % comboCount}`;
-    let status = i % 2 === 0 ? NodeStatus.Error: NodeStatus.Normal
-    if(i === 0) {
-      status = NodeStatus.Root
+    let status = i % 2 === 0 ? NodeStatus.Error : NodeStatus.Normal;
+    if (i === 0) {
+      status = NodeStatus.Root;
     }
     return {
       id: `node_${i}`,
       comboId,
-      aggregateNode: i % 2 === 0 ? [
-        {
-          id: `node_${i}_1`,
-          comboId: `${comboId}_1`,
-          status: NodeStatus.Normal
-        },
-        {
-          id: `node_${i}_2`,
-          comboId: `${comboId}_1`,
-          status: NodeStatus.Normal
-        },
-        {
-          id: `node_${i}_3`,
-          comboId: `${comboId}_2`,
-          status: NodeStatus.Error
-        },
-        {
-          id: `node_${i}_4`,
-          comboId: `${comboId}_2`,
-          status: NodeStatus.Error
-        }
-      ] : [],
+      aggregateNode:
+        i % 2 === 0
+          ? [
+              {
+                id: `node_${i}_1`,
+                comboId: `${comboId}_1`,
+                status: NodeStatus.Normal
+              },
+              {
+                id: `node_${i}_2`,
+                comboId: `${comboId}_1`,
+                status: NodeStatus.Normal
+              },
+              {
+                id: `node_${i}_3`,
+                comboId: `${comboId}_2`,
+                status: NodeStatus.Error
+              },
+              {
+                id: `node_${i}_4`,
+                comboId: `${comboId}_2`,
+                status: NodeStatus.Error
+              }
+            ]
+          : [],
       status
     };
   });
@@ -79,19 +86,27 @@ const createEdges = () => {
       source: `node_${Math.floor(Math.random() * nodeCount)}`,
       target: `node_${Math.floor(Math.random() * nodeCount)}`,
       count: Math.floor(Math.random() * 100),
-      type: i % 7 ? EdgeStatus.Include : EdgeStatus.Invoke,
+      type: i % 7 ? EdgeStatus.Include : EdgeStatus.Invoke
       //  x
     };
   });
 };
 const createCombos = () => {
   return new Array(comboCount).fill(0).map((_, i) => {
+    if (i % 2 === 0) {
+      return {
+        id: `combo_${i}`,
+        label: `主机模块 ${i}`,
+        dataType: ComboType.Host
+      };
+    }
     return {
       id: `combo_${i}`,
-      label: `服务模块 ${i}`
+      label: `服务模块 ${i}`,
+      dataType: ComboType.Service
     };
   });
-}
+};
 export default {
   nodes: createNodes(),
   edges: createEdges(),
