@@ -3,8 +3,14 @@ import copy
 from django.test import TestCase
 
 from apps.log_search.handlers.search.favorite_handlers import FavoriteHandler
+from apps.log_search.serializers import (
+    GenerateQuerySerializer,
+    GetSearchFieldsSerializer,
+    InspectSerializer,
+)
 from apps.utils.lucene import (
     CaseInsensitiveLogicalEnhanceLucene,
+    EnhanceLuceneAdapter,
     LuceneSyntaxResolver,
     OperatorEnhanceLucene,
     ReservedLogicalEnhanceLucene,
@@ -187,14 +193,69 @@ INSPECT_KEYWORD_RESULT = {
 # =================================== TEST ENHANCE LUCENE =================================== #
 ENHANCE_KEYWORD_TEST_CASES = [
     {
-        "keyword": """number >=83063 or title: "The Right Way" AND log: and """,
-        "expect": """number: [ 83063 TO * } OR title: "The Right Way" AND log: "and" """,
+        "keyword": """number >=83063 or title: "The Right Way" AND log: and""",
+        "expect": """number: [ 83063 TO * } OR title: "The Right Way" AND log: \"and\"""",
     },
     {
-        "keyword": """number < 83063 and title: "The Right Way" AND log: OR """,
-        "expect": """number: { * TO 83063 } AND title: "The Right Way" AND log: "OR" """,
+        "keyword": """number < 83063 and title: "The Right Way" AND log: OR""",
+        "expect": """number: { * TO 83063 } AND title: "The Right Way" AND log: \"OR\"""",
     },
 ]
+
+ENHANCE_KEYWORD_INSPECT_RESULT = {
+    "is_legal": True,
+    "is_resolved": True,
+    "message": "",
+    "keyword": """number: [ 83063 TO * } OR title: "The Right Way" AND log: "and" """,
+}
+
+ENHANCE_KEYWORD_FIELDS = [
+    {
+        'pos': 0,
+        'name': 'number',
+        'type': 'Range',
+        'operator': '[}',
+        'value': '[ 83063 TO * }',
+        'is_full_text_field': False,
+        'repeat_count': 0,
+    },
+    {
+        'pos': 26,
+        'name': 'title',
+        'type': 'Phrase',
+        'operator': '=',
+        'value': '"The Right Way"',
+        'is_full_text_field': False,
+        'repeat_count': 0,
+    },
+    {
+        'pos': 53,
+        'name': 'log',
+        'type': 'Phrase',
+        'operator': '=',
+        'value': '"and"',
+        'is_full_text_field': False,
+        'repeat_count': 0,
+    },
+]
+
+
+ENHANCE_UPDATE_QUERY_PARAMS = [
+    {
+        "pos": 0,
+        "value": "{ * TO 100000 ]",
+    },
+    {
+        "pos": 26,
+        "value": '"hello"',
+    },
+    {
+        "pos": 53,
+        "value": '"not"',
+    },
+]
+
+ENHANCE_EXPECT_NEW_QUERY = """number: { * TO 100000 ] OR title: "hello" AND log: \"not\""""
 
 
 class TestLucene(TestCase):
@@ -229,6 +290,7 @@ class TestEnhanceLucene(TestCase):
     def test_enhance(self):
         """测试增强Lucene Query"""
         for i in ENHANCE_KEYWORD_TEST_CASES:
+            # 测试单个增强函数是否符合预期
             keyword = i["keyword"]
             self.assertEqual(CaseInsensitiveLogicalEnhanceLucene(keyword).match(), True)
             keyword = CaseInsensitiveLogicalEnhanceLucene(keyword).transform()
@@ -237,6 +299,15 @@ class TestEnhanceLucene(TestCase):
             self.assertEqual(ReservedLogicalEnhanceLucene(keyword).match(), True)
             keyword = ReservedLogicalEnhanceLucene(keyword).transform()
             self.assertEqual(keyword, i["expect"])
+
+        # 完整的流程
+        for i in ENHANCE_KEYWORD_TEST_CASES:
+            keyword = i["keyword"]
+            adapter = EnhanceLuceneAdapter(keyword)
+            adapter.enhance()
+            self.assertEqual(adapter.is_enhanced, True)
+            self.assertEqual(adapter.origin_query_string, keyword)
+            self.assertEqual(adapter.query_string, i["expect"])
 
         # 测试正常的字符串
         keyword = copy.deepcopy(KEYWORD)
@@ -248,3 +319,35 @@ class TestEnhanceLucene(TestCase):
         keyword = OperatorEnhanceLucene(keyword).transform()
         keyword = ReservedLogicalEnhanceLucene(keyword).transform()
         self.assertEqual(keyword, KEYWORD)
+
+
+class TestFavoriteWithEnhanceLucene(TestCase):
+    def setUp(self) -> None:
+        self.maxDiff = None
+
+    def test_inspect(self):
+        """测试解析关键字"""
+        slz = InspectSerializer(data={"keyword": ENHANCE_KEYWORD_TEST_CASES[0]["keyword"]})
+        slz.is_valid(raise_exception=True)
+        inspect_result = FavoriteHandler().inspect(keyword=slz.validated_data["keyword"])
+        self.assertEqual(inspect_result["is_legal"], True)
+        self.assertEqual(inspect_result["is_resolved"], True)
+        self.assertEqual(inspect_result["keyword"], ENHANCE_KEYWORD_TEST_CASES[0]["expect"])
+        self.assertEqual(inspect_result["message"], "")
+
+    def test_get_search_fields(self):
+        """测试获取Lucene Query字段"""
+        slz = GetSearchFieldsSerializer(data={"keyword": ENHANCE_KEYWORD_TEST_CASES[0]["keyword"]})
+        slz.is_valid(raise_exception=True)
+        search_fields_result = FavoriteHandler().get_search_fields(keyword=slz.validated_data["keyword"])
+        self.assertEqual(len(search_fields_result), len(ENHANCE_KEYWORD_FIELDS))
+        for i in range(len(ENHANCE_KEYWORD_FIELDS)):
+            self.assertDictEqual(search_fields_result[i], ENHANCE_KEYWORD_FIELDS[i])
+
+    def test_generate_query_by_ui(self):
+        """测试更新Lucene Query"""
+        slz = GenerateQuerySerializer(
+            data={"keyword": ENHANCE_KEYWORD_TEST_CASES[0]["keyword"], "params": ENHANCE_UPDATE_QUERY_PARAMS}
+        )
+        slz.is_valid(raise_exception=True)
+        self.assertEqual(FavoriteHandler().generate_query_by_ui(**slz.validated_data), ENHANCE_EXPECT_NEW_QUERY)

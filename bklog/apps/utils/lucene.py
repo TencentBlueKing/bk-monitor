@@ -803,17 +803,18 @@ class EnhanceLuceneAdapter(object):
     REGISTERED_ENHANCERS = EnhanceLuceneBase.__subclasses__()
 
     def __init__(self, query_string: str):
+        # 原始的query_string, 用于日志记录, 前端回显
+        self.origin_query_string: str = query_string
+        # 增强后的query_string
         self.query_string: str = query_string
-        self.enhanced: bool = False
+        self.is_enhanced: bool = False
 
     def enhance(self) -> str:
-        query_string = copy.deepcopy(self.query_string)
         for enhancer_class in self.REGISTERED_ENHANCERS:
-            enhancer = enhancer_class(query_string)
+            enhancer = enhancer_class(self.query_string)
             if enhancer.match():
-                self.enhanced = True
-                query_string = enhancer.transform()
-        if self.enhanced:
-            logger.info(f"Enhanced lucene query string from [{self.query_string}] to [{query_string}]")
-            self.query_string = query_string
+                self.is_enhanced = True
+                self.query_string = enhancer.transform()
+        if self.is_enhanced:
+            logger.info(f"Enhanced lucene query string from [{self.origin_query_string}] to [{self.query_string}]")
         return self.query_string
