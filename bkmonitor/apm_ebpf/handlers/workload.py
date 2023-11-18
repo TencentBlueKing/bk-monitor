@@ -41,7 +41,7 @@ class DeploymentContent(_BaseContent):
     image_name: str = None
     ports: typing.List[_DeploymentSpecPort] = None
 
-    workload_type: WorkloadType = WorkloadType.DEPLOYMENT.value
+    workload_type: str = WorkloadType.DEPLOYMENT.value
 
 
 @dataclass
@@ -69,6 +69,9 @@ class WorkloadContent:
 
     @classmethod
     def deployment_to(cls, describe) -> DeploymentContent:
+        """
+        将K8S SDK返回的Workload转为DB存储格式
+        """
         spec_describe = describe.spec
         image = spec_describe.template.spec.containers[0]
 
@@ -85,6 +88,14 @@ class WorkloadContent:
             ],
             is_normal=cls._normal_predicate[WorkloadType.DEPLOYMENT.value](status_describe),
         )
+
+    @classmethod
+    def json_to_deployment(cls, content_json) -> DeploymentContent:
+        return from_dict(DeploymentContent, content_json)
+
+    @classmethod
+    def json_to_service(cls, content_json):
+        return from_dict(ServiceContent, content_json)
 
     @classmethod
     def service_to(cls, describe) -> ServiceContent:
@@ -129,6 +140,7 @@ class WorkloadHandler:
     def upsert(cls, cluster_id, namespace, content: _BaseContent):
         """
         创建/更新集群workload
+        因为下游仪表盘只会创建一次所以不进行删除
         """
         # 在此集群关联的所有业务中都建立workload信息
         bk_biz_ids = RelationHandler.list_biz_ids(cluster_id)

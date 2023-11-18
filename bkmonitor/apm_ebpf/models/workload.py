@@ -23,7 +23,7 @@ class DeepflowWorkload(models.Model):
     content = models.JSONField("特定配置内容")
     type = models.CharField("workload类型", max_length=32, choices=WorkloadType.choices)
     is_normal = models.BooleanField("是否正常")
-    last_check_time = models.DateTimeField("最近检查日期")
+    last_check_time = models.DateTimeField("最后检查日期")
     create_at = models.DateTimeField("创建时间", auto_now_add=True)
     update_at = models.DateTimeField("更新时间", auto_now=True)
 

@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import itertools
 import operator
 
 from django.db.models import Q
@@ -27,34 +28,42 @@ class RelationHandler:
         clusters = api.bcs_cluster_manager.get_project_clusters(exclude_shared_cluster=True)
 
         cluster_mapping = cls.group_by(clusters, operator.itemgetter("cluster_id"))
+        logger.info(f"[RelationHandler] found: {len(cluster_mapping)} clusters")
 
         add_keys = []
         update_ids = []
-        delete_ids = []
+        not_exist_ids = []
 
         for cluster_id, items in cluster_mapping.items():
-            exists_mappings = {
-                (str(i.bk_biz_id), i.project_id, i.cluster_id): i.id
-                for i in ClusterRelation.objects.filter(cluster_id=cluster_id)
-            }
+            exists_mappings = cls.group_by(
+                ClusterRelation.objects.filter(cluster_id=cluster_id),
+                lambda i: (str(i.bk_biz_id), i.project_id, i.cluster_id),
+            )
+
             for item in items:
-                key = (item["bk_biz_id"], item["project_id"], item["cluster_id"])
+                key = (str(item["bk_biz_id"]), item["project_id"], item["cluster_id"])
                 if key in exists_mappings:
-                    update_ids.append(exists_mappings[key])
+                    update_ids.extend([i.id for i in exists_mappings[key]])
                     del exists_mappings[key]
                 else:
                     add_keys.append(key)
 
-            delete_ids += list(exists_mappings.values())
+            not_exist_ids += list(itertools.chain(*exists_mappings.values()))
 
         ClusterRelation.objects.filter(id__in=update_ids).update(last_check_time=datetime.now())
-        ClusterRelation.objects.filter(Q(id__in=delete_ids) | ~Q(id__in=update_ids)).delete()
-        add_instances = [
-            ClusterRelation(bk_biz_id=i[0], project_id=i[1], cluster_id=i[2], last_check_time=datetime.now())
-            for i in add_keys
-        ]
-        ClusterRelation.objects.bulk_create(add_instances)
-        logger.info(f"[find_cluster] add: {len(add_instances)}, update: {len(update_ids)}, delete: {len(delete_ids)}")
+        ClusterRelation.objects.filter(Q(id__in=not_exist_ids) | ~Q(id__in=update_ids)).delete()
+        ClusterRelation.objects.bulk_create(
+            [
+                ClusterRelation(bk_biz_id=i[0], project_id=i[1], cluster_id=i[2], last_check_time=datetime.now())
+                for i in add_keys
+            ]
+        )
+        logger.info(
+            f"[find_cluster] relaton found finished. "
+            f"add: {len(add_keys)}, "
+            f"update: {len(update_ids)}, "
+            f"delete: {len(not_exist_ids) + len(update_ids)}"
+        )
 
     @classmethod
     def group_by(cls, iterators, get_key):
