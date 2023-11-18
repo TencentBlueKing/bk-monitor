@@ -102,6 +102,7 @@ const store = new Vuex.Store({
       toggleString: 'off',
       toggleList: [],
     },
+    isAppFirstLoad: true,
   },
   // 公共 getters
   getters: {
