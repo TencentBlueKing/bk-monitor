@@ -19,6 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.http import Http404
+from rest_framework import serializers
+from rest_framework.response import Response
+
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.exceptions import (
@@ -40,14 +44,10 @@ from apps.log_search.serializers import (
     GenerateQuerySerializer,
     GetSearchFieldsSerializer,
     InspectSerializer,
-    UpdateFavoriteGroupOrderSerializer,
     UpdateFavoriteGroupSerializer,
     UpdateFavoriteSerializer,
 )
 from apps.utils.drf import list_route
-from django.http import Http404
-from rest_framework import serializers
-from rest_framework.response import Response
 
 
 class FavoriteViewSet(APIViewSet):
@@ -705,34 +705,3 @@ class FavoriteGroupViewSet(APIViewSet):
         except Http404:
             raise FavoriteGroupNotExistException
         return Response()
-
-    @list_route(methods=["POST"], url_path="update_order")
-    def update_order(self, request, *args, **kwargs):
-        """
-        @api {POST} /search/favorite_group/update_order/ 02_检索收藏组-修改组排序
-        @apiDescription 修改收藏组排序
-        @apiName update_order
-        @apiGroup 21_Favorite
-        @apiParam {String} space_uid 空间唯一标识
-        @apiParam {List} group_order 收藏组排序
-        @apiParamExample {json} 请求参数
-        {
-            "space_uid": "bkcc__2"
-            "group_order": [4,3,2,1]
-        }
-        @apiSuccessExample {json} 成功返回：
-        {
-            "message": "",
-            "code": 0,
-            "data": {
-                    "username": xxx,
-                    "group_order": [4,3,2,1]
-                },
-            "result": true
-        }
-        """
-        data = self.params_valid(UpdateFavoriteGroupOrderSerializer)
-        group_order = FavoriteGroupHandler(space_uid=data["space_uid"]).update_group_order(
-            group_order=data["group_order"]
-        )
-        return Response(group_order)

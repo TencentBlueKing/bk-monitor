@@ -255,9 +255,10 @@ export default {
 
       .bk-table-body-wrapper {
         font-family: RobotoMono-Regular, monospace, Roboto, isometric-number,
-        San Francisco, Helvetica Neue, Helvetica, Arial, PingFangSC-Light,
-        Hiragina Sans GB, WenQuanYi Micro Hei, microsoft yahei ui, microsoft yahei;
+          San Francisco, Helvetica Neue, Helvetica, Arial, PingFangSC-Light,
+          Hiragina Sans GB, WenQuanYi Micro Hei, microsoft yahei ui, microsoft yahei;
         min-height: calc(100vh - 550px);
+
         .bk-table-empty-block {
           display: flex;
           justify-content: center;

@@ -47,6 +47,7 @@ import * as container from './container';
 import * as docs from './docs';
 import * as favorite from './favorite';
 import * as ipChooser from './ip-chooser';
+import * as authorization from './authorization';
 import * as masking from './masking';
 
 const getMyProjectList = {
@@ -100,5 +101,6 @@ export default {
   docs,
   favorite,
   ipChooser,
+  authorization,
   masking,
 };

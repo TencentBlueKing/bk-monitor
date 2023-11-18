@@ -90,7 +90,11 @@ from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.lucene import generate_query_string
 from bkm_ipchooser.constants import CommonEnum
@@ -126,6 +130,9 @@ class SearchHandler(object):
         export_fields=None,
         export_log: bool = False,
     ):
+        # 请求用户名
+        self.request_username = get_request_external_username() or get_request_username()
+
         self.search_dict: dict = search_dict
         self.export_log = export_log
 
@@ -241,9 +248,6 @@ class SearchHandler(object):
 
         # 导出字段
         self.export_fields = export_fields
-
-        # 请求用户名
-        self.request_username = get_request_username()
 
         self.is_desensitize = search_dict.get("is_desensitize", True)
 
@@ -801,7 +805,8 @@ class SearchHandler(object):
         @param kwargs:
         @return:
         """
-        username = get_request_username()
+        # 外部用户获取搜索历史的时候, 用external_username
+        username = get_request_external_username() or get_request_username()
         if index_set_id:
             history_obj = (
                 UserIndexSetSearchHistory.objects.filter(
@@ -1127,9 +1132,10 @@ class SearchHandler(object):
         if sort_list:
             return sort_list
         # 用户已设置排序规则
-        username = get_request_username()
         scope = self.search_dict.get("search_type", "default")
-        config_obj = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=username, scope=scope)
+        config_obj = UserIndexSetFieldsConfig.get_config(
+            index_set_id=index_set_id, username=self.request_username, scope=scope
+        )
         if config_obj:
             sort_list = config_obj.sort_list
             if sort_list:

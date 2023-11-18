@@ -20,25 +20,33 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import time
+import typing
 from abc import ABC
 
-import typing
-
 from django.utils.http import urlencode
-from rest_framework.reverse import reverse
-from pipeline.builder import EmptyStartEvent, EmptyEndEvent, Data, Var, ServiceActivity, NodeOutput, builder
+from pipeline.builder import (
+    Data,
+    EmptyEndEvent,
+    EmptyStartEvent,
+    NodeOutput,
+    ServiceActivity,
+    Var,
+    builder,
+)
 from pipeline.conf import settings
 from pipeline.core.pipeline import Pipeline
 from pipeline.parser import PipelineParser
 from pipeline.service import task_service
-from apps.utils.log import logger
+from rest_framework.reverse import reverse
+
 from apps.log_extract import constants, exceptions
 from apps.log_extract.constants import ExtractLinkType
 from apps.log_extract.exceptions import TaskExtractLinkNotExist
-from apps.log_extract.models import Tasks, ExtractLink
-from apps.utils.cos import QcloudCos
+from apps.log_extract.models import ExtractLink, Tasks
 from apps.utils.base_crypt import BaseCrypt
+from apps.utils.cos import QcloudCos
 from apps.utils.local import get_request
+from apps.utils.log import logger
 from apps.utils.remote_storage import BKREPOStorage
 
 
@@ -119,20 +127,23 @@ class QcloudCosExtractLink(ExtractLinkBase):
         return qcloud_cos.get_download_url(task.cos_file_name)
 
     def build_pipeline(self, task: Tasks, data: Data) -> Pipeline:
-        start = EmptyStartEvent()
-        packing = Packing().packing
-        distribution = Distribution().distribution
-        cos_upload = CosUpload().cos_upload
-        end = EmptyEndEvent()
-        distribution.extend(cos_upload).extend(end)
-        start.extend(packing).extend(distribution)
-        pipeline_data = self._build_data_context(data, distribution, packing)
-        tree = builder.build_tree(start_elem=start, data=pipeline_data)
-        pipeline = PipelineParser(pipeline_tree=tree).parse()
-        task.pipeline_id = pipeline.id
-        task.pipeline_components_id = tree
-        task.download_status = constants.DownloadStatus.PIPELINE.value
-        task.save()
+        try:
+            start = EmptyStartEvent()
+            packing = Packing().packing
+            distribution = Distribution().distribution
+            cos_upload = CosUpload().cos_upload
+            end = EmptyEndEvent()
+            distribution.extend(cos_upload).extend(end)
+            start.extend(packing).extend(distribution)
+            pipeline_data = self._build_data_context(data, distribution, packing)
+            tree = builder.build_tree(start_elem=start, data=pipeline_data)
+            pipeline = PipelineParser(pipeline_tree=tree).parse()
+            task.pipeline_id = pipeline.id
+            task.pipeline_components_id = tree
+            task.download_status = constants.DownloadStatus.PIPELINE.value
+            task.save()
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(f"[build_pipeline][{task.task_id}] {e}")
         return pipeline
 
     def _build_data_context(self, pipeline_data, distribution, packing) -> Data:
@@ -169,7 +180,6 @@ class BKRepoExtractLink(QcloudCosExtractLink):
 
 
 class ExtractLinkFactory:
-
     if settings.FEATURE_TOGGLE["extract_cos"] == "on":
         _LINK_MAP = {
             ExtractLinkType.COMMON.value: CommonExtractLink,
