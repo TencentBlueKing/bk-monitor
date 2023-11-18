@@ -150,6 +150,7 @@ class SaveMetricResource(Resource):
         config_version = serializers.IntegerField(required=True, label="插件版本")
         info_version = serializers.IntegerField(required=True, label="插件信息版本")
         need_upgrade = serializers.BooleanField(required=False, label="是否升级", default=False)
+        enable_field_blacklist = serializers.BooleanField(label="是否开启黑名单", default=False)
 
     def delay(self, request_data=None, **kwargs):
         request_data = request_data or kwargs
