@@ -1256,3 +1256,13 @@ class UserIndexSetFieldsConfig(models.Model):
             if obj:
                 return obj
         return None
+
+
+class StorageClusterRecord(SoftDeleteModel):
+    index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
+    storage_cluster_id = models.IntegerField(_("集群ID"))
+
+    class Meta:
+        verbose_name = _("索引集存储集群记录")
+        verbose_name_plural = _("索引集存储集群记录")
+        ordering = ("-updated_at",)

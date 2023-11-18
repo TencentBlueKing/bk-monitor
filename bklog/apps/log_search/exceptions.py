@@ -457,6 +457,11 @@ class UnionSearchErrorException(BaseSearchException):
     MESSAGE = _("联合检索API异常")
 
 
+class MultiSearchErrorException(BaseSearchException):
+    ERROR_CODE = "439"
+    MESSAGE = _("跨集群检索结果处理异常")
+
+
 # =================================================
 # 导出
 # =================================================

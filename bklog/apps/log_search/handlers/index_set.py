@@ -81,7 +81,8 @@ from apps.log_search.models import (
     Scenario,
     Space,
     UserIndexSetFieldsConfig,
-    IndexSetTag
+    IndexSetTag,
+    StorageClusterRecord,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_trace.handlers.proto.proto import Proto
@@ -1398,6 +1399,11 @@ class BaseIndexSetHandler(object):
         if self.category_id:
             self.index_set_obj.category_id = self.category_id
 
+        if self.index_set_obj.storage_cluster_id == self.storage_cluster_id:
+            old_storage_cluster_id = None
+        else:
+            old_storage_cluster_id = self.index_set_obj.storage_cluster_id
+
         self.index_set_obj.index_set_name = self.index_set_name
         self.index_set_obj.view_roles = self.view_roles
         self.index_set_obj.storage_cluster_id = self.storage_cluster_id
@@ -1411,6 +1417,13 @@ class BaseIndexSetHandler(object):
         self.index_set_obj.time_field_type = self.time_field_type
         self.index_set_obj.time_field_unit = self.time_field_unit
         self.index_set_obj.save()
+
+        if old_storage_cluster_id:
+            # 保存旧的存储集群记录
+            StorageClusterRecord.objects.create(
+                index_set_id=self.index_set_obj.index_set_id,
+                storage_cluster_id=old_storage_cluster_id
+            )
 
         # 需移除的索引
         to_delete_indexes = [
@@ -1451,6 +1464,7 @@ class BaseIndexSetHandler(object):
 
     def delete(self):
         self.index_set_obj.delete()
+        StorageClusterRecord.objects.filter(index_set_id=self.index_set_obj.index_set_id).delete()
 
     def post_delete(self, index_set):
         # @TODO 调用auth模块删除权限
