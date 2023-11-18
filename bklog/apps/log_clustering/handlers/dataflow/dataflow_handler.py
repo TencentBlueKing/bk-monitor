@@ -42,6 +42,8 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.exceptions import (
     BkdataFlowException,
     BkdataStorageNotExistException,
+    CollectorStorageNotExistException,
+    QueryFieldsException,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
@@ -614,7 +616,7 @@ class DataFlowHandler(BaseAiopsHandler):
         return input_fields
 
     @classmethod
-    def get_model_output_fields(cls, rt_fields):
+    def get_model_output_fields(cls, rt_fields, is_predict=False):
         """
         获取模型输出字段列表
         :param rt_fields: 输入结果表字段列表
@@ -637,6 +639,8 @@ class DataFlowHandler(BaseAiopsHandler):
         for field in output_fields:
             # 统一加上output_mark
             field["output_mark"] = True
+        if not is_predict:
+            return [field for field in output_fields if field["field_name"] not in ["is_new", "pattern"]]
         return output_fields
 
     @classmethod
@@ -1503,7 +1507,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 model_release_id=model_release_id,
                 model_id=model_id,
                 input_fields=json.dumps(self.get_model_input_fields(exclude_message_fields)),
-                output_fields=json.dumps(self.get_model_output_fields(exclude_message_fields)),
+                output_fields=json.dumps(self.get_model_output_fields(exclude_message_fields, is_predict=True)),
             ),
             # 签名字段打平
             format_signature=RealTimeCls(
@@ -1515,12 +1519,50 @@ class DataFlowHandler(BaseAiopsHandler):
             bk_biz_id=bk_biz_id,
             is_flink_env=self.conf.get("is_flink_env", False),
         )
-        # es输出的配置(计算平台和采集项均输出es存储)
-        es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
-        if not es_storage:
-            raise BkdataStorageNotExistException(
-                BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
-            )
+        # 采集项侧，创建聚类配置时设置 es_storage
+        if clustering_config.collector_config_id:
+            """
+            采集项侧配置的 es_storage
+            {
+            'es_storage': 'xxx',
+            'has_replica': 'false',
+            'expires': x,
+            'json_fields': [],
+            'analyzed_fields': [],
+            'doc_values_fields': []
+            }
+            """
+            # 采集项侧配置的 es_storage
+            es_storage = self.conf.get("collector_clustering_es_storage", {})
+            if not es_storage:
+                raise CollectorStorageNotExistException(
+                    CollectorStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                )
+            # es_storage["expires"] =
+            log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+            fields = log_index_set.get_fields()
+            if not fields:
+                raise QueryFieldsException(QueryFieldsException.MESSAGE.formate(index_set_id=index_set_id))
+            es_storage["doc_values_fields"] = [
+                i["field_name"] or i["field_alias"] for i in fields["fields"] if i["es_doc_values"]
+            ]
+            es_storage["analyzed_fields"] = [
+                i["field_name"] or i["field_alias"] for i in fields["fields"] if i["is_analyzed"]
+            ]
+            es_storage["json_fields"] = [
+                i["field_name"] or i["field_alias"] for i in fields["fields"] if i["field_type"] == "object"
+            ]
+            collector_config = CollectorConfig.objects.filter(
+                collector_config_id=clustering_config.collector_config_id
+            ).first()
+            es_storage["expires"] = str(collector_config.retention)
+        else:
+            # es输出的配置(计算平台和采集项均输出es存储)
+            es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
+            if not es_storage:
+                raise BkdataStorageNotExistException(
+                    BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                )
         predict_flow.es_cluster = clustering_config.es_storage
         predict_flow.es.expires = es_storage["expires"]
         predict_flow.es.has_replica = json.dumps(es_storage.get("has_replica", False))
