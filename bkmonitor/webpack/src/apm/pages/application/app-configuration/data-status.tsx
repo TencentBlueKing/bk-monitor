@@ -135,7 +135,6 @@ export default class DataStatus extends tsc<{}> {
     this.collapseRowIndexs = [];
     this.samplingList = data?.map(item => {
       const date = dayjs.tz(dayjs(item.sampling_time));
-      debugger;
       return {
         ...item,
         sampling_time: date.isValid() ? date.format('YYYY-MM-DD HH:mm:ssZ') : '--'

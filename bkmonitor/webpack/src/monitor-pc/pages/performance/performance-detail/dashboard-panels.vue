@@ -251,10 +251,10 @@
 </template>
 <script lang="ts">
 import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
-// import { handleTimeRange } from '../../../utils/index';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 
+// import { handleTimeRange } from '../../../utils/index';
 import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
 import { deepClone, random } from '../../../../monitor-common/utils/utils.js';
@@ -537,7 +537,9 @@ export default class DashboardPanels extends Vue {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-              ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2])
+                .fromNow()
+                .replace(/\s*/g, '')
               : val.replace('current', this.$t('当前'))
           );
         }

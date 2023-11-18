@@ -156,7 +156,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     }
     const { canChange, timeRange, timezone } = this.querySettings[0];
     // const isDefaultTimeRange = timeRange.every(item => CUSTOM_TIME_RANGE_REG.test(item));
-    debugger;
     return {
       type: this.$route.name === 'event-center' ? 'event' : this.$route.query.sceneId,
       expire_time: dayjs
