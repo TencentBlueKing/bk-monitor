@@ -33,7 +33,7 @@ export default class TimeFormatterSwitcher extends tsc<{}> {
   }
 
   timeZone = new Date().toString()
-    .slice(24, 33)
+    .slice(24, 33);
 
   handleClickSwitcher(val) {
     jsCookie.set('operation', String(val));

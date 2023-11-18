@@ -19,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import BaseException, ErrorCode
 from django.utils.translation import ugettext_lazy as _
+
+from apps.exceptions import BaseException, ErrorCode
 
 
 class BaseCommonsException(BaseException):
@@ -36,3 +37,8 @@ class SearchHostException(BaseCommonsException):
 class CCMissingBkHostIDException(BaseCommonsException):
     ErrorCode = "002"
     MESSAGE = _("CC返回的主机信息中缺少bk_host_id")
+
+
+class IllegalMaintainerException(BaseCommonsException):
+    ErrorCode = "003"
+    MESSAGE = _("非法的授权人")

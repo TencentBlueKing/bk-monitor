@@ -28,12 +28,12 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
+import store from '@/store';
 import reportLogStore from '@/store/modules/report-log';
 import http from '@/api';
 import page404 from '@/views/404';
 
 Vue.use(VueRouter);
-
 
 const LogCollectionView = {
   name: 'LogCollection',
@@ -210,6 +210,11 @@ const DataLinkConf = () => import(
   /* webpackChunkName: 'manage-data-link-conf' */
   '@/views/manage/manage-data-link/manage-data-link-conf'
 );
+// 外部版授权列表
+const externalAuth = () => import(
+  /* webpackChunkName: 'externalAuth' */
+  '@/views/authorization/authorization-list'
+);
 // ---- 脱敏 ---- 脱敏编辑
 const MaskingEdit = () => import(
   /* webpackChunkName: 'field-masking-separate' */
@@ -322,7 +327,12 @@ const routes = [
     path: '/manage',
     name: 'manage',
     component: Manage,
-    redirect: '/manage/log-collection/collection-item',
+    redirect: () => {
+      if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL)) {
+        return '/manage/log-extract-task';
+      }
+      return '/manage/log-collection/collection-item';
+    },
     children: [
       {
         path: 'collect', // 日志采集 支持监控跳转兼容旧版本管理端
@@ -931,6 +941,11 @@ const routes = [
   //   component: page403,
   // },
   {
+    path: '/external-auth',
+    name: 'externalAuth',
+    component: externalAuth,
+  },
+  {
     path: '*',
     name: 'page404',
     component: page404,
@@ -952,7 +967,16 @@ const cancelRequest = async () => {
 
 router.beforeEach(async (to, from, next) => {
   await cancelRequest();
-  next();
+  if (window.IS_EXTERNAL
+    && JSON.parse(window.IS_EXTERNAL)
+    && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)
+  ) {
+    // 非外部版路由重定向
+    const routeName = store.state.externalMenu.includes('retrieve') ? 'retrieve' : 'manage';
+    next({ name: routeName });
+  } else {
+    next();
+  }
 });
 
 router.afterEach((to) => {
