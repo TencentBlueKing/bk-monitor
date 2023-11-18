@@ -251,12 +251,9 @@
 </template>
 <script lang="ts">
 import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
-// import { handleTimeRange } from '../../../utils/index';
 import dayjs from 'dayjs';
-<<<<<<< HEAD
+// import { handleTimeRange } from '../../../utils/index';
 import deepMerge from 'deepmerge';
-=======
->>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
 
 import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
@@ -407,7 +404,6 @@ export default class DashboardPanels extends Vue {
   // 获取图表数据
   getSeriesData(config) {
     return async (startTime?, endTime?) => {
-<<<<<<< HEAD
       const dataList = await Promise.all((config.targets || []).map(async (item) => {
         let params = item.data;
         let timerange = this.getTimerange();
@@ -463,64 +459,6 @@ export default class DashboardPanels extends Vue {
               datapoints,
               ...setData,
               target:
-=======
-      const dataList = await Promise.all(
-        (config.targets || []).map(async item => {
-          let params = item.data;
-          let timerange = this.getTimerange();
-          if (this.variableData) {
-            params = this.compileVariableData(params);
-          }
-          if (startTime && endTime) {
-            timerange = {
-              start_time: dayjs(startTime).unix(),
-              end_time: dayjs(endTime).unix()
-            };
-          }
-          if (item.datasourceId === 'log') {
-            return await logQuery({
-              ...params,
-              ...timerange
-            }).catch(() => ({
-              columns: [],
-              rows: []
-            }));
-          }
-          return await graphUnifyQuery(
-            {
-              ...params,
-              ...timerange,
-              slimit: window.slimit || 500,
-              // interval: reviewInterval(params.interval, ),
-              down_sample_range: this.downSampleRangeComputed(this.downSampleRange, Object.values(timerange))
-            },
-            { needRes: true, needMessage: false }
-          )
-            .then(({ data, tips }) => {
-              if (data?.length >= window.slimit) {
-                this.$bkNotify({
-                  theme: 'warning',
-                  title: this.$t('注意：单图中的数据量过多!!!'),
-                  limitLine: 0,
-                  message: `${this.$t('[{title}] 单图中的数据条数过多，为了避免查询和使用问题只显示了{slimit}条。', {
-                    title: config.title,
-                    slimit: window.slimit || 500
-                  })}${this.$route.name === 'data-retrieval' ? this.$t('可以改变查询方式避免单图数量过大。') : ''}`
-                });
-              }
-              if (tips?.length) {
-                this.$bkMessage({
-                  theme: 'warning',
-                  message: tips
-                });
-              }
-              this.errorMsg = '';
-              const series = data?.series || [];
-              return series.map(({ target, datapoints, ...setData }) => ({
-                datapoints,
-                ...setData,
-                target:
->>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
                   this.handleBuildLegend(item.alias, {
                     ...setData,
                     tag: {
@@ -599,13 +537,9 @@ export default class DashboardPanels extends Vue {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-<<<<<<< HEAD
               ? dayjs.tz().add(-timeMatch[1], timeMatch[2])
                 .fromNow()
                 .replace(/\s*/g, '')
-=======
-              ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
->>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
               : val.replace('current', this.$t('当前'))
           );
         }
@@ -925,10 +859,6 @@ export default class DashboardPanels extends Vue {
         }
 
         @else {
-<<<<<<< HEAD
-=======
-          width: calc($w - 10px);
->>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
           flex: 0 0 calc($w - 10px);
           width: calc($w - 10px);
         }

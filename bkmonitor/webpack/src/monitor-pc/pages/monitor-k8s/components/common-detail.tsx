@@ -408,7 +408,6 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
     });
     this.$bkMessage({ theme: 'success', message: msgStr });
   }
-
   /**
    * 控制展开、收起索引列表
    */
