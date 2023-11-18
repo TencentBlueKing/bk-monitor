@@ -255,7 +255,7 @@ def sync_bcs_workload(bcs_cluster_id):
         try:
             workload_models = BCSWorkload.load_list_from_api(params)
         except Exception as exc_info:
-            logger.exception(exc_info)
+            logger.exception(f"sync_bcs_workload error[{bcs_cluster_id}]: {exc_info}")
             continue
         bcs_cluster_id_list = list({model.bcs_cluster_id for model in workload_models})
         if not bcs_cluster_id_list:
@@ -318,7 +318,7 @@ def sync_bcs_service(bcs_cluster_id):
         try:
             service_models = BCSService.load_list_from_api(params)
         except Exception as exc_info:
-            logger.exception(exc_info)
+            logger.exception(f"sync_bcs_service error[{bcs_cluster_id}]: {exc_info}")
             continue
         bcs_cluster_id_list = list({model.bcs_cluster_id for model in service_models})
         if not bcs_cluster_id_list:
@@ -409,7 +409,7 @@ def sync_bcs_pod(bcs_cluster_id):
         try:
             pod_models, container_models = BCSPod.load_list_from_api(params, with_container=True)
         except Exception as exc_info:
-            logger.exception(exc_info)
+            logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
             continue
 
         # 同步pod
@@ -481,7 +481,8 @@ def sync_bcs_node(bcs_cluster_id):
         try:
             node_models = BCSNode.load_list_from_api(params)
         except Exception as exc_info:
-            logger.exception(exc_info)
+            logger.exception(f"sync_bcs_node error[{bcs_cluster_id}]: {exc_info}")
+            continue
 
         # 查询主机对应的主机ID
         biz_hosts = defaultdict(list)
@@ -559,7 +560,7 @@ def sync_bcs_service_monitor(bcs_cluster_id):
         try:
             service_monitor_models = BCSServiceMonitor.load_list_from_api(params)
         except Exception as exc_info:
-            logger.exception(exc_info)
+            logger.exception(f"sync_bcs_service_monitor error[{bcs_cluster_id}]: {exc_info}")
             continue
         bcs_cluster_id_list = list({model.bcs_cluster_id for model in service_monitor_models})
         if not bcs_cluster_id_list:
@@ -623,7 +624,7 @@ def sync_bcs_pod_monitor(bcs_cluster_id):
         try:
             pod_monitor_models = BCSPodMonitor.load_list_from_api(params)
         except Exception as exc_info:
-            logger.exception(exc_info)
+            logger.exception(f"sync_bcs_pod_monitor error[{bcs_cluster_id}]: {exc_info}")
             continue
         bcs_cluster_id_list = list({model.bcs_cluster_id for model in pod_monitor_models})
         if not bcs_cluster_id_list:
