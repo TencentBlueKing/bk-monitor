@@ -256,7 +256,7 @@ import * as authorityMap from '../../common/authority-map';
 import { deepClone } from '../../components/monitor-echarts/utils';
 import CancelToken from 'axios/lib/cancel/CancelToken';
 import { updateTimezone } from '../../language/dayjs';
-import { formatDate } from '../../common/util';
+import dayjs from 'dayjs';
 
 export default {
   name: 'Retrieve',
@@ -298,9 +298,6 @@ export default {
       retrieveParams: { // 检索参数
         bk_biz_id: this.$store.state.bkBizId,
         keyword: '*', // 搜索关键字
-        // 自定义时间范围，10m 表示最近 10 分钟，10h 表示最近 10 小时，10d 表示最近 10 天
-        // 当 time_range === 'customized' 时，检索时间范围为 start_time ~ end_time
-        // time_range: 'customized',
         start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
         end_time: endTime, // 时间范围
         // ip 快选，modules 和 ips 只能修改其一，另一个传默认值
@@ -402,7 +399,7 @@ export default {
       isSetDefaultTableColumn: false,
       /** 是否还需要分页 */
       finishPolling: false,
-      timezone: window.timezone,
+      timezone: dayjs.tz.guess(),
     };
   },
   computed: {
@@ -730,9 +727,6 @@ export default {
     formatTimeRange() {
       const tempList = handleTransformToTimestamp(this.datePickerValue);
       Object.assign(this.retrieveParams, {
-        // start_time: formatDate(tempList[0] * 1000),
-        // end_time: formatDate(tempList[1] * 1000),
-        // TODO
         start_time: tempList[0],
         end_time: tempList[1],
       });
@@ -1028,11 +1022,6 @@ export default {
               case 'end_time':
                 queryParamsStr[field] = this.datePickerValue?.[1] ?? undefined;
                 break;
-              // case 'pickerTimeRange':
-              //   if (this[field].length) {
-              //     queryParamsStr[field] = encodeURIComponent(this[field]);
-              //   }
-              //   break;
               case 'activeTableTab':
               case 'clusterRouteParams':
                 if (param) {
@@ -1304,13 +1293,9 @@ export default {
           responseType: 'blob',
           data: {
             ...this.retrieveParams,
-            // time_range: 'customized',
             begin,
             size: pageSize,
             interval: this.interval,
-            // 每次轮循的起始时间
-            start_time: formatDate(startTimeStamp * 1000, false),
-            end_time: formatDate(endTimeStamp * 1000, false),
           },
         }).then((res) => {
           return readBlobRespToJson(res.data);

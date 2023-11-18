@@ -233,9 +233,6 @@ export default {
     handleRefreshChange() {
       const tempList = handleTransformToTimestamp(this.datePickerValue);
       Object.assign(this.retrieveParams, {
-        // start_time: formatDate(tempList[0] * 1000, false),
-        // end_time: formatDate(tempList[1] * 1000, false),
-        // TODO
         start_time: tempList[0],
         end_time: tempList[1],
       });

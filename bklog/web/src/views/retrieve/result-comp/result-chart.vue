@@ -86,7 +86,6 @@
 </template>
 
 <script>
-import { formatDate } from '@/common/util';
 import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
 import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
 import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
@@ -267,11 +266,8 @@ export default {
             ...this.retrieveParams,
             interval: this.interval,
             // 每次轮循的起始时间
-            start_time: formatDate(this.pollingStartTime * 1000, false),
-            end_time: formatDate(this.pollingEndTime * 1000, false),
-            // // TODO
-            // start_time: this.pollingStartTime,
-            // end_time: this.pollingEndTime,
+            start_time: this.pollingStartTime,
+            end_time: this.pollingEndTime,
           },
         });
         const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];

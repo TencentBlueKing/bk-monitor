@@ -153,9 +153,6 @@ export default {
           index_set_id: this.indexSetId,
         },
         query: {
-          // start_time: formatDate(tempList[0] * 1000),
-          // end_time: formatDate(tempList[1] * 1000),
-          // TODO
           start_time: tempList[0],
           end_time: tempList[1],
         },
@@ -230,9 +227,6 @@ export default {
             index_set_id: this.indexSetId,
           },
           query: {
-            // start_time: formatDate(tempList[0] * 1000, false),
-            // end_time: formatDate(tempList[1] * 1000, false),
-            // TODO
             start_time: tempList[0],
             end_time: tempList[1],
             page: this.pagination.current,
