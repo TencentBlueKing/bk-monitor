@@ -23,6 +23,11 @@ import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Q
+from django.utils.translation import ugettext as _
+
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -87,16 +92,16 @@ from apps.models import model_to_dict
 from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
 from apps.utils.db import array_hash
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import (
+    get_request_app_code,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
-from django.conf import settings
-from django.db import transaction
-from django.db.models import Q
-from django.utils.translation import ugettext as _
 
 
 class IndexSetHandler(APIModel):
@@ -112,7 +117,10 @@ class IndexSetHandler(APIModel):
         """修改用户当前索引集的配置"""
         username = get_request_username()
         UserIndexSetFieldsConfig.objects.update_or_create(
-            index_set_id=self.index_set_id, username=username, defaults={"config_id": config_id}
+            index_set_id=self.index_set_id,
+            username=username,
+            source_app_code=get_request_app_code(),
+            defaults={"config_id": config_id},
         )
         # add user_operation_record
         try:
@@ -1609,10 +1617,16 @@ class IndexSetFieldsConfigHandler(object):
 
     data: Optional[IndexSetFieldsConfig] = None
 
-    def __init__(self, config_id: int = None, index_set_id: int = None, scope: str = SearchScopeEnum.DEFAULT.value):
+    def __init__(
+        self,
+        config_id: int = None,
+        index_set_id: int = None,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ):
         self.config_id = config_id
         self.index_set_id = index_set_id
         self.scope = scope
+        self.source_app_code = get_request_app_code()
         if config_id:
             try:
                 self.data = IndexSetFieldsConfig.objects.get(pk=config_id)
@@ -1627,16 +1641,20 @@ class IndexSetFieldsConfigHandler(object):
     def list(self, scope: str = SearchScopeEnum.DEFAULT.value) -> list:
         config_list = [
             model_to_dict(i)
-            for i in IndexSetFieldsConfig.objects.filter(index_set_id=self.index_set_id, scope=scope).all()
+            for i in IndexSetFieldsConfig.objects.filter(
+                index_set_id=self.index_set_id, scope=scope, source_app_code=self.source_app_code
+            ).all()
         ]
         config_list.sort(key=lambda c: c["name"] == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME, reverse=True)
         return config_list
 
     def create_or_update(self, name: str, display_fields: list, sort_list: list):
-        username = get_request_username()
+        username = get_request_external_username() or get_request_username()
         # 校验配置需要修改名称时, 名称是否可用
         if self.data and self.data.name != name or not self.data:
-            if IndexSetFieldsConfig.objects.filter(name=name, index_set_id=self.index_set_id).exists():
+            if IndexSetFieldsConfig.objects.filter(
+                name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
+            ).exists():
                 raise IndexSetFieldsConfigAlreadyExistException()
 
         if self.data:
@@ -1654,7 +1672,10 @@ class IndexSetFieldsConfigHandler(object):
                 display_fields=display_fields,
                 sort_list=sort_list,
                 scope=self.scope,
+                source_app_code=self.source_app_code,
             )
+            self.data.created_by = username
+            self.data.save()
 
         # add user_operation_record
         try:
@@ -1671,6 +1692,7 @@ class IndexSetFieldsConfigHandler(object):
                     "index_set_id": self.index_set_id,
                     "display_fields": display_fields,
                     "sort_list": sort_list,
+                    "source_app_code": self.source_app_code,
                 },
             }
         except LogIndexSet.DoesNotExist:

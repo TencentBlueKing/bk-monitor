@@ -50,7 +50,7 @@
                 v-if="groupItem.children.length"
                 :key="groupItem.id"
                 :group-name="isExpand ? groupItem.name : groupItem.keyword">
-                <template v-for="navItem in groupItem.children">
+                <template v-for="navItem in getGroupChildren(groupItem.children)">
                   <a class="nav-item" :key="navItem.id" :href="getRouteHref(navItem.id)">
                     <bk-navigation-menu-item
                       :data-test-id="`navBox_nav_${navItem.id}`"
@@ -139,6 +139,7 @@ export default {
       'activeTopMenu',
       'activeManageNav',
       'userGuideData',
+      'isExternal',
       'isShowGlobalDialog',
       'globalSettingList',
       'globalActiveLabel',
@@ -154,6 +155,9 @@ export default {
     },
     menuList() {
       const list = this.topMenu.find(item => item.id === this.activeTopMenu.id)?.children;
+      if (this.isExternal && this.activeTopMenu.id === 'manage') { // 外部版只保留【日志提取】菜单
+        return list.filter(menu => menu.id === 'manage-extract-strategy');
+      }
       return list;
     },
     displayRetrieve() {
@@ -209,6 +213,8 @@ export default {
       }, 0);
     });
     if (!this.isAsIframe) this.getUserGuide();
+
+    this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
   },
   mounted() {
     window.LoginModal = this.$refs.login;
@@ -278,6 +284,13 @@ export default {
         },
       });
       return newUrl.href;
+    },
+    /** 侧边导航菜单 */
+    getGroupChildren(list) {
+      if (this.isExternal && this.activeTopMenu.id === 'manage') { // 外部版只保留【日志提取任务】
+        return list.filter(menu => menu.id === 'log-extract-task');
+      }
+      return list;
     },
   },
 };
