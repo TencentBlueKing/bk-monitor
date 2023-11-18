@@ -55,7 +55,7 @@ class RequestProcessor:
         """
         try:
             params = json.loads(request.body)
-        except Exception:
+        except json.decoder.JSONDecodeError:
             return ""
         # 先从external_proxy参数中获取
         if params.get("space_uid"):
@@ -74,7 +74,7 @@ class RequestProcessor:
             json_data = json.loads(json_data_str)
             if "space_uid" in json_data:
                 return json_data["space_uid"]
-        except Exception:
+        except json.decoder.JSONDecodeError:
             return ""
         return ""
 
@@ -97,14 +97,14 @@ class RequestProcessor:
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
         try:
             external_user = json.loads(external_user)
-        except Exception:
+        except json.decoder.JSONDecodeError:
             logger.error(f"解析外部用户信息失败({external_user})")
             external_user = {"username": external_user}
         return external_user
 
     @classmethod
     def get_view_set(cls, view_func):
-        """获取view_func对应的viewset名称"""
+        """获取view_func对应的viewset名称, 如果是viewset则返回viewset名称, 否则返回view_func名称"""
         if hasattr(view_func, "cls"):
             return view_func.cls.__name__
         return view_func.__name__
@@ -126,7 +126,7 @@ class RequestProcessor:
                 json_data = json.loads(json_data_str)
                 if "index_set_id" in json_data:
                     return int(json_data.get("index_set_id", ""))
-            except Exception:
+            except json.decoder.JSONDecodeError:
                 logger.exception(f"解析请求数据({json_data_str})失败")
         return None
 
@@ -214,7 +214,7 @@ def external(request):
     if space_uid:
         try:
             SpaceApi.get_space_detail(space_uid)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"获取空间信息({space_uid})失败：{e}")
     else:
         if not space_uid_list:
@@ -303,7 +303,7 @@ def dispatch_external_proxy(request):
 
     try:
         params = json.loads(request.body)
-    except Exception:
+    except json.decoder.JSONDecodeError:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
     # proxy: url/method/data
@@ -431,7 +431,7 @@ def external_callback(request):
     logger.info(f"[external_callback]: external_callback with header({request.headers}), body({request.body})")
     try:
         params = json.loads(request.body)
-    except Exception:
+    except json.decoder.JSONDecodeError:
         return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
 
     result = ExternalPermissionApplyRecord.callback(params)

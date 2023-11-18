@@ -397,7 +397,7 @@ class ViewSetActionEnum(ChoicesEnum):
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteGroupViewSet", view_action="destroy"
     )
     # ======================================= IP选择器 =======================================
-    # IpChooserConfigViewSet,IpChooserHostViewSet,IpChooserTemplateViewSet,IpChooserDynamicGroupViewSet,IpChooserConfigViewSet
+    # IpChooserConfigViewSet,IpChooserHostViewSet,IpChooserTemplateViewSet,IpChooserDynamicGroupViewSet
     IP_CHOOSER_TOPO_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IpChooserTopoViewSet"
     )
@@ -410,12 +410,14 @@ class ViewSetActionEnum(ChoicesEnum):
     IP_CHOOSER_DYNAMIC_GROUP_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IpChooserDynamicGroupViewSet"
     )
+    # IpChooserConfigViewSet, 默认允许
     IP_CHOOSER_CONFIG_VIEWSET = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="IpChooserConfigViewSet",
         default_permission=True,
-    )  # 默认允许
+    )
     # ======================================= BizsViewSet =======================================
+    # BizsViewSet, get_display_name 默认允许
     BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
         view_set="BizsViewSet", view_action="get_display_name", default_permission=True
     )
@@ -427,6 +429,7 @@ class ViewSetActionEnum(ChoicesEnum):
     # ======================================= 日志提取-TaskViewSet =======================================
     TASKS_VIEWSET = ViewSetAction(action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value, view_set="TasksViewSet")
     #  ======================================= META-MetaViewSet =======================================
+    # MetaViewSet, LanguageViewSet，MenuViewSet，get_docs_link 默认允许
     META_VIEWSET = ViewSetAction(view_set="MetaViewSet", default_permission=True)
     LANGUAGE_VIEWSET = ViewSetAction(view_set="LanguageViewSet", default_permission=True)
     MENU_VIEWSET = ViewSetAction(view_set="MenuViewSet", default_permission=True)

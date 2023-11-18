@@ -142,7 +142,7 @@ class QcloudCosExtractLink(ExtractLinkBase):
             task.pipeline_components_id = tree
             task.download_status = constants.DownloadStatus.PIPELINE.value
             task.save()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[build_pipeline][{task.task_id}] {e}")
         return pipeline
 
