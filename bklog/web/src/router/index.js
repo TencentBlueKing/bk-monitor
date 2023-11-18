@@ -28,7 +28,7 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-
+import reportLogStore from '@/store/modules/report-log';
 import http from '@/api';
 import page404 from '@/views/404';
 
@@ -225,11 +225,17 @@ const routes = [
   {
     path: '',
     redirect: 'retrieve',
+    meta: {
+      navId: 'retrieve',
+    },
   },
   {
     path: '/retrieve/:indexId?',
     name: 'retrieve',
     component: retrieve,
+    meta: {
+      navId: 'retrieve',
+    },
   },
   {
     path: '/dashboard',
@@ -241,6 +247,9 @@ const routes = [
         path: 'default-dashboard',
         name: 'default-dashboard',
         component: dashboard,
+        meta: {
+          navId: 'default-dashboard',
+        },
       },
       {
         path: 'create-dashboard',
@@ -248,6 +257,7 @@ const routes = [
         meta: {
           needBack: true,
           backName: 'default-dashboard',
+          navId: 'create-dashboard',
         },
         component: dashboard,
       },
@@ -257,6 +267,7 @@ const routes = [
         meta: {
           needBack: true,
           backName: 'default-dashboard',
+          navId: 'import-dashboard',
         },
         component: dashboard,
       },
@@ -266,6 +277,7 @@ const routes = [
         meta: {
           needBack: true,
           backName: 'default-dashboard',
+          navId: 'create-folder',
         },
         component: dashboard,
       },
@@ -276,16 +288,23 @@ const routes = [
     name: 'trace',
     component: TraceTempView,
     redirect: '/trace/trace-list',
+    meta: {
+      navId: 'trace',
+    },
     children: [
       {
         path: 'trace-list',
         name: 'trace-list', // 调用链列表
         component: trace,
+        meta: {
+          navId: 'trace',
+        },
       },
       {
         path: 'trace-detail',
         name: 'trace-detail', // 调用链详情
         component: traceDetaid,
+        navId: 'trace',
       },
       {
         path: '/notTraceIndex',
@@ -294,6 +313,7 @@ const routes = [
         meta: {
           needBack: true,
           backName: 'trace',
+          navId: 'trace',
         },
       },
     ],
@@ -318,6 +338,9 @@ const routes = [
             path: 'collection-item',
             name: 'collection-item', // 采集项列表
             component: CollectionItem,
+            meta: {
+              navId: 'log-collection',
+            },
           },
           {
             path: 'collection-item/manage/:collectorId',
@@ -325,6 +348,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: ManageCollection,
           },
@@ -335,6 +359,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: AccessSteps,
           },
@@ -344,6 +369,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: AccessSteps,
           },
@@ -353,6 +379,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: AccessSteps,
           },
@@ -362,6 +389,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: AccessSteps,
           },
@@ -371,6 +399,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: AccessSteps,
           },
@@ -380,6 +409,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: AccessSteps,
           },
@@ -389,6 +419,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'collection-item',
+              navId: 'log-collection',
             },
             component: AccessSteps,
           },
@@ -403,6 +434,9 @@ const routes = [
                 path: 'list',
                 name: 'log-index-set-list',
                 component: IndexList,
+                meta: {
+                  navId: 'log-collection',
+                },
               },
               {
                 path: 'manage/:indexSetId',
@@ -410,6 +444,7 @@ const routes = [
                 meta: {
                   needBack: true,
                   backName: 'log-index-set-list',
+                  navId: 'log-collection',
                 },
                 component: ManageIndex,
               },
@@ -419,6 +454,7 @@ const routes = [
                 meta: {
                   needBack: true,
                   backName: 'log-index-set-list',
+                  navId: 'log-collection',
                 },
                 component: CreateIndex,
               },
@@ -428,6 +464,7 @@ const routes = [
                 meta: {
                   needBack: true,
                   backName: 'log-index-set-list',
+                  navId: 'log-collection',
                 },
                 component: CreateIndex,
               },
@@ -437,6 +474,7 @@ const routes = [
                 meta: {
                   needBack: true,
                   backName: 'log-index-set-list',
+                  navId: 'log-collection',
                 },
                 component: MaskingEdit,
               },
@@ -454,6 +492,9 @@ const routes = [
             path: 'list',
             name: 'bkdata-index-set-list',
             component: IndexList,
+            meta: {
+              navId: 'bk-data-collection',
+            },
           },
           {
             path: 'manage/:indexSetId',
@@ -461,6 +502,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'bkdata-index-set-list',
+              navId: 'bk-data-collection',
             },
             component: ManageIndex,
           },
@@ -470,6 +512,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'bkdata-index-set-list',
+              navId: 'bk-data-collection',
             },
             component: CreateIndex,
           },
@@ -479,6 +522,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'bkdata-index-set-list',
+              navId: 'bk-data-collection',
             },
             component: CreateIndex,
           },
@@ -488,6 +532,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'bkdata-index-set-list',
+              navId: 'bk-data-collection',
             },
             component: MaskingEdit,
           },
@@ -503,6 +548,9 @@ const routes = [
             path: 'list',
             name: 'es-index-set-list',
             component: IndexList,
+            meta: {
+              navId: 'es-collection',
+            },
           },
           {
             path: 'manage/:indexSetId',
@@ -510,6 +558,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'es-index-set-list',
+              navId: 'es-collection',
             },
             component: ManageIndex,
           },
@@ -519,6 +568,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'es-index-set-list',
+              navId: 'es-collection',
             },
             component: CreateIndex,
           },
@@ -528,6 +578,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'es-index-set-list',
+              navId: 'es-collection',
             },
             component: CreateIndex,
           },
@@ -537,6 +588,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'es-index-set-list',
+              navId: 'es-collection',
             },
             component: MaskingEdit,
           },
@@ -552,6 +604,9 @@ const routes = [
             path: 'list',
             name: 'custom-report-list', // 日志接入 - 自定义上报列表
             component: CustomReportList,
+            meta: {
+              navId: 'custom-report',
+            },
           },
           {
             path: 'create',
@@ -559,6 +614,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'custom-report-list',
+              navId: 'custom-report',
             },
             component: CustomReportCreate,
           },
@@ -568,6 +624,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'custom-report-list',
+              navId: 'custom-report',
             },
             component: CustomReportCreate,
           },
@@ -577,6 +634,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'custom-report-list',
+              navId: 'custom-report',
             },
             component: CustomReportDetail,
           },
@@ -586,6 +644,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'custom-report-list',
+              navId: 'custom-report',
             },
             component: MaskingEdit,
           },
@@ -595,6 +654,9 @@ const routes = [
         path: 'collection-track',
         name: 'collection-track', // 全链路追踪 - 采集接入
         component: CollectionTrack,
+        meta: {
+          navId: 'collection-track',
+        },
       },
       {
         path: 'bk-data-track', // 全链路追踪 - 数据平台接入
@@ -606,6 +668,9 @@ const routes = [
             path: 'list',
             name: 'bkdata-track-list',
             component: IndexList,
+            meta: {
+              navId: 'bk-data-track',
+            },
           },
           {
             path: 'manage/:indexSetId',
@@ -613,6 +678,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'bkdata-track-list',
+              navId: 'bk-data-track',
             },
             component: ManageIndex,
           },
@@ -622,6 +688,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'bkdata-track-list',
+              navId: 'bk-data-track',
             },
             component: CreateIndex,
           },
@@ -631,6 +698,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'bkdata-track-list',
+              navId: 'bk-data-track',
             },
             component: CreateIndex,
           },
@@ -640,6 +708,9 @@ const routes = [
         path: 'sdk-track',
         name: 'sdk-track', // 全链路追踪 - SDK接入
         component: SdkTrack,
+        meta: {
+          navId: 'sdk-track',
+        },
       },
       {
         path: 'clean-list',
@@ -651,6 +722,9 @@ const routes = [
             path: 'list',
             name: 'log-clean-list', // 日志清洗 - 清洗列表
             component: cleanList,
+            meta: {
+              navId: 'clean-list',
+            },
           },
           {
             path: 'create',
@@ -658,6 +732,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'log-clean-list',
+              navId: 'clean-list',
             },
             component: cleanCreate,
           },
@@ -667,6 +742,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'log-clean-list',
+              navId: 'clean-list',
             },
             component: cleanCreate,
           },
@@ -682,6 +758,9 @@ const routes = [
             path: 'list',
             name: 'log-clean-templates', // 日志清洗 - 清洗模板
             component: cleanTemplate,
+            meta: {
+              navId: 'clean-templates',
+            },
           },
           {
             path: 'create',
@@ -689,6 +768,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'log-clean-templates',
+              navId: 'clean-templates',
             },
             component: cleanTempCreate,
           },
@@ -698,6 +778,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'log-clean-templates',
+              navId: 'clean-templates',
             },
             component: cleanTempCreate,
           },
@@ -713,6 +794,9 @@ const routes = [
             path: 'list',
             name: 'log-desensitize-list',
             component: MaskingList,
+            meta: {
+              navId: 'log-desensitize',
+            },
           },
         ],
       },
@@ -720,32 +804,50 @@ const routes = [
         path: 'archive-repository',
         name: 'archive-repository', // 日志归档 - 归档仓库
         component: ArchiveRepository,
+        meta: {
+          navId: 'archive-repository',
+        },
       },
       {
         path: 'archive-list',
         name: 'archive-list', // 日志归档 - 归档列表
         component: ArchiveList,
+        meta: {
+          navId: 'archive-list',
+        },
       },
       {
         path: 'archive-restore',
         name: 'archive-restore', // 日志归档 - 归档回溯
         component: ArchiveRestore,
+        meta: {
+          navId: 'archive-restore',
+        },
       },
       {
         path: 'manage-log-extract',
         name: 'manage-log-extract', // 日志提取 - 提取配置
         component: ExtractPermission,
+        meta: {
+          navId: 'manage-log-extract',
+        },
       },
       {
         path: 'log-extract-task',
         name: 'log-extract-task', // 日志提取 - 提取任务
         component: extract,
         redirect: '/manage/log-extract-task',
+        meta: {
+          navId: 'log-extract-task',
+        },
         children: [
           {
             path: '',
             name: 'extract-home', // 日志提取 - 提取任务
             component: extractHome,
+            meta: {
+              navId: 'log-extract-task',
+            },
           },
           {
             path: 'extract-create',
@@ -753,6 +855,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'log-extract-task',
+              navId: 'log-extract-task',
             },
             component: extractCreate,
           },
@@ -762,6 +865,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'log-extract-task',
+              navId: 'log-extract-task',
             },
             component: extractCreate,
           },
@@ -777,6 +881,9 @@ const routes = [
             path: 'list',
             name: 'extract-link-list',
             component: ExtractLinkList,
+            meta: {
+              navId: 'extract-link-manage',
+            },
           },
           {
             path: 'edit/:linkId',
@@ -784,6 +891,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'extract-link-list',
+              navId: 'extract-link-manage',
             },
             component: ExtractLinkCreate,
           },
@@ -793,6 +901,7 @@ const routes = [
             meta: {
               needBack: true,
               backName: 'extract-link-list',
+              navId: 'extract-link-manage',
             },
             component: ExtractLinkCreate,
           },
@@ -802,11 +911,17 @@ const routes = [
         path: 'es-cluster-manage',
         name: 'es-cluster-manage', // ES集群 - 集群信息
         component: ClusterMess,
+        meta: {
+          navId: 'es-cluster-manage',
+        },
       },
       {
         path: 'manage-data-link-conf',
         name: 'manage-data-link-conf', // 管理 - 采集链路管理
         component: DataLinkConf,
+        meta: {
+          navId: 'manage-data-link-conf',
+        },
       },
     ],
   },
@@ -819,6 +934,9 @@ const routes = [
     path: '*',
     name: 'page404',
     component: page404,
+    meta: {
+      navId: 'exception',
+    },
   },
 ];
 
@@ -836,5 +954,32 @@ router.beforeEach(async (to, from, next) => {
   await cancelRequest();
   next();
 });
+
+router.afterEach((to) => {
+  reportLogStore.reportRouteLog({
+    route_id: to.name,
+    nav_id: to.meta.navId,
+  });
+});
+
+/**
+ * @param id 路由id
+ * @returns 路由配置
+ */
+export function getRouteConfigById(id) {
+  const flatConfig = routes.flatMap((config) => {
+    if (config.children?.length) {
+      return config.children.flatMap((set) => {
+        if (set.children?.length) {
+          return set.children;
+        }
+        return set;
+      });
+    }
+    return config;
+  });
+
+  return flatConfig.find(item => item.meta?.navId === id);
+}
 
 export default router;
