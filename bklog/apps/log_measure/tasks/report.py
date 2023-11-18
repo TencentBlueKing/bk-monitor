@@ -33,6 +33,7 @@ from apps.feature_toggle.models import FeatureToggle
 from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS, LOG_MEASURE_METRIC_TOGGLE
 from apps.log_measure.models import MetricDataHistory
 from apps.log_measure.utils.metric import MetricUtils
+from apps.utils.task import high_priority_periodic_task
 from bk_monitor.handler.monitor import BKMonitor
 from bk_monitor.utils.collector import MetricCollector
 from bk_monitor.utils.metric import (
@@ -86,7 +87,7 @@ def bk_monitor_report():
     clear_registered_metrics()
 
 
-@periodic_task(run_every=crontab(minute="*/1"))
+@high_priority_periodic_task(run_every=crontab(minute="*/1"))
 def bk_monitor_collect():
     # todo 由于与菜单修改有相关性 暂时先改成跟原本monitor开关做联动
     if settings.FEATURE_TOGGLE["monitor_report"] == "off":
