@@ -48,7 +48,6 @@ export class TimeRange {
     this.value = [dateRange.startDate, dateRange.endDate];
   }
 
-
   /** 格式化时间范围 */
   format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
     return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;

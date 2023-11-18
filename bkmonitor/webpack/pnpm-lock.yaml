@@ -4991,7 +4991,7 @@ packages:
       highlight.js: 11.5.1
       js-calendar: 1.2.3
       json-formatter-js: 2.3.4
-      lodash: 4.17.21
+      lodash-es: 4.17.21
       tinycolor2: 1.6.0
       vue: 2.7.14
       vue-types: 4.1.1(vue@2.7.14)
