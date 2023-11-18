@@ -22,7 +22,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Watch } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import {
   Alert,
@@ -502,14 +502,16 @@ export default class AuthorizationList extends tsc<{}, {}> {
   async getResources() {
     this.resourcesLoading = true;
     try {
-      this.actionList.forEach(async (item) => {
-        const res = await $http.request('authorization/getByAction', {
-          query: {
-            space_uid: this.spaceUid,
-            action_id: item.id,
-          },
-        });
-        this.resourceMaps[item.id] = res?.data || [];
+      this.actionList.forEach((item) => {
+        (async () => {
+          const res = await $http.request('authorization/getByAction', {
+            query: {
+              space_uid: this.spaceUid,
+              action_id: item.id,
+            },
+          });
+          this.resourceMaps[item.id] = res?.data || [];
+        })();
       });
 
       this.columnFilter();
