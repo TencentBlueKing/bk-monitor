@@ -16,7 +16,7 @@
   "dependencies": {
     "@blueking/bkcharts": "^2.0.11-alpha.5",
     "@blueking/bkmonitor-cli": "1.0.0-beta.21",
-    "@blueking/date-picker": "@blueking/date-picker",
+    "@blueking/date-picker": "^0.0.56",
     "@blueking/ip-selector": "^0.0.1-beta.134",
     "@blueking/paas-login": "0.0.11",
     "@blueking/user-selector": "^1.0.9",
