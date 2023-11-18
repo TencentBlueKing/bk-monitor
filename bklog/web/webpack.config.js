@@ -75,6 +75,7 @@ const logPluginConfig = {
       window.BK_ETL_DOC_URL = '\${BK_ETL_DOC_URL}'
       window.ASSESSMEN_HOST_COUNT = \${BK_ASSESSMEN_HOST_COUNT}
       window.ENABLE_CHECK_COLLECTOR = \${ENABLE_CHECK_COLLECTOR}
+      window.IS_EXTERNAL = \${IS_EXTERNAL}
     </script>
     % if TAM_AEGIS_KEY != "" :
       <script src="https://cdn-go.cn/aegis/aegis-sdk/latest/aegis.min.js?_bid=3977"></script>
@@ -84,7 +85,7 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
+module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
@@ -123,7 +124,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       }),
     );
   } else if (!email) {
-    config.plugins.push(new LogWebpackPlugin({ ...logPluginConfig, mobile, fta }));
+    config.plugins.push(new LogWebpackPlugin({...logPluginConfig, mobile, fta}));
     config.plugins.push(
       new CopyWebpackPlugin({
         patterns: [
@@ -172,7 +173,7 @@ module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
       },
     },
     plugins: baseConfig.plugins.map((plugin) => {
-      return plugin instanceof wepack.ProgressPlugin ?  new WebpackBar({
+      return plugin instanceof wepack.ProgressPlugin ? new WebpackBar({
         profile: true,
         name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
       }) : plugin;
