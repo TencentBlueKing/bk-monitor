@@ -73,6 +73,8 @@ export default class Aipanel extends tsc<ICommonListProps> {
   @Prop({ type: String }) tips: string;
   // 所有的图表id
   @Prop({ default: () => [], type: Array }) allPanelId: string[];
+  // 当前场景id
+  @Prop({ default: '', type: String }) sceneId: string;
   @Ref('table') tableRef: any;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
@@ -265,6 +267,10 @@ export default class Aipanel extends tsc<ICommonListProps> {
     this.viewConfig = null;
   }
 
+  handleToAddStrategy() {
+    window.open(`${location.href.replace(location.hash, '#/strategy-config/add')}?scene_id=${this.sceneId}`);
+  }
+
   render() {
     return (
       <div class='ai-panel-component'>
@@ -277,6 +283,14 @@ export default class Aipanel extends tsc<ICommonListProps> {
               placements: ['top']
             }}
           ></i>
+          <span
+            class='icon-monitor icon-mc-add-strategy'
+            v-bk-tooltips={{
+              content: this.$t('添加策略'),
+              delay: 200
+            }}
+            onClick={this.handleToAddStrategy}
+          ></span>
           <i
             class='bk-icon icon-cog-shape setting-icon'
             onClick={this.handlerGoAiSettings}

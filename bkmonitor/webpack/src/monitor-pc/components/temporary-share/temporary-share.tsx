@@ -556,7 +556,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
                     ></TableColumn>
                     <TableColumn
                       label={this.$t('默认选项')}
-                      width={356}
+                      width={386}
                       scopedSlots={{
                         default: ({ row }) => (
                           <div class='time-warp'>

@@ -30,6 +30,7 @@ import { downFile } from '../../utils';
 export interface IUnifyQuerySeriesItem {
   datapoints: Array<[number, number]>;
   target: string;
+  key: string;
 }
 /**
  * 根据图表接口响应的数据转换成表格展示的原始数据

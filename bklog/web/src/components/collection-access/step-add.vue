@@ -109,9 +109,10 @@
         <!-- 环境选择 -->
         <bk-form-item :label="$t('环境选择')" required>
           <div class="environment-box">
-            <div class="environment-container"
-                 v-for="(fItem, fIndex) of environmentList"
-                 :key="fIndex">
+            <div
+              class="environment-container"
+              v-for="(fItem, fIndex) of environmentList"
+              :key="fIndex">
               <span class="environment-category">{{fItem.category}}</span>
               <div class="button-box">
                 <div
@@ -494,9 +495,10 @@
               </div>
             </div>
             <bk-form-item :label="$t('附加日志标签')">
-              <div class="add-log-label form-div"
-                   v-for="(item, index) in formData.extra_labels"
-                   :key="index">
+              <div
+                class="add-log-label form-div"
+                v-for="(item, index) in formData.extra_labels"
+                :key="index">
                 <bk-input
                   v-model.trim="item.key"
                   :class="{ 'extra-error': item.key === '' && isExtraError }"
@@ -507,11 +509,17 @@
                   :class="{ 'extra-error': item.value === '' && isExtraError }"
                   @blur="isExtraError = false"></bk-input>
                 <div class="ml9">
-                  <i :class="['bk-icon icon-plus-circle-yuan icons']"
-                     @click="handleAddExtraLabel"></i>
-                  <i :class="['bk-icon icon-minus-circle-shape icons ml9',
-                              { disable: formData.extra_labels.length === 1 }]"
-                     @click="handleDeleteExtraLabel(index)"></i>
+                  <i
+                    :class="['bk-icon icon-plus-circle-shape icons']"
+                    @click="handleAddExtraLabel"></i>
+                  <i
+                    :class="[
+                      'bk-icon icon-minus-circle-shape icons ml9',
+                      {
+                        disable: formData.extra_labels.length === 1
+                      }
+                    ]"
+                    @click="handleDeleteExtraLabel(index)"></i>
                 </div>
               </div>
               <bk-checkbox class="mt8" v-model="formData.add_pod_label">
@@ -698,6 +706,8 @@ export default {
               match_labels: [],
               match_expressions: [],
             },
+            match_labels: [],
+            match_expressions: [], // config 为空时回填的标签数组
             data_encoding: 'UTF-8',
             params: {
               paths: [{ value: '' }], // 日志路径
@@ -981,8 +991,14 @@ export default {
         this.getWorkLoadTypeList();
         this.isYaml = cloneCollect.yaml_config_enabled;
         // yaml模式可能会有多种容器环境 选择第一项配置里的环境作为展示
-        this.currentEnvironment = cloneCollect.configs[0].collector_type;
-        this.publicLetterIndex = cloneCollect.configs.length - 1;
+        if (cloneCollect.configs[0]) { // 如果采集项不为空 则回显
+          this.currentEnvironment = cloneCollect.configs[0].collector_type;
+          this.publicLetterIndex = cloneCollect.configs.length - 1;
+        } else { // 为空 重新赋值 标准输出
+          this.currentEnvironment = 'std_log_config';
+          this.publicLetterIndex = 0;
+          cloneCollect.configs = [this.configBaseObj];
+        }
         const initFormData = this.initContainerFormData(cloneCollect);
         Object.assign(this.formData, initFormData);
         // 若是容器环境 克隆时 初始化物理环境的值
@@ -1302,7 +1318,7 @@ export default {
         environment,
         bcs_cluster_id,
         add_pod_label,
-        extra_labels,
+        extra_labels: extraLabels,
         configs,
         yaml_config,
       } = formData;
@@ -1322,7 +1338,7 @@ export default {
         Object.assign(containerFromData, publicFromData, {
           bcs_cluster_id,
           add_pod_label,
-          extra_labels,
+          extra_labels: extraLabels,
           configs,
           yaml_config,
           yaml_config_enabled: this.isYaml,
@@ -1352,7 +1368,7 @@ export default {
           if (item.collector_type === 'std_log_config') item.params.paths = [];
           item.params = this.filterParams(item.params, isEdit);
         });
-        containerFromData.extra_labels = extra_labels.filter(item => !(item.key === '' && item.value === ''));
+        containerFromData.extra_labels = extraLabels.filter(item => !(item.key === '' && item.value === ''));
         return Object.assign(containerFromData, { // 容器环境更新
           bk_biz_id: this.bkBizId,
         });
@@ -1391,8 +1407,14 @@ export default {
           delete params.multiline_max_lines;
           delete params.multiline_timeout;
         }
-        const { match_type, match_content: matchContent, separator, separator_filters, type } = params.conditions;
-        const separatorEffectiveArr = separator_filters?.filter(item => item.fieldindex && item.word);
+        const {
+          match_type,
+          match_content: matchContent,
+          separator,
+          separator_filters: separatorFilters,
+          type,
+        } = params.conditions;
+        const separatorEffectiveArr = separatorFilters?.filter(item => item.fieldindex && item.word);
         let isHaveValue = false; // 判断当前过滤项是否有值
         switch (type) {
           case 'match':

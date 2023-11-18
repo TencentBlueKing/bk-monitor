@@ -921,3 +921,13 @@ APM_TOPO_DISCOVER_LOCK = register_key_with_config(
         "backend": "service",
     }
 )
+
+APM_EBPF_DISCOVER_LOCK = register_key_with_config(
+    {
+        "label": "[apm_ebpf]自动发现周期锁",
+        "key_type": "string",
+        "key_tpl": "apm_ebpf.tasks.discover.{bk_biz_id}",
+        "ttl": CONST_MINUTES * 10,
+        "backend": "service",
+    }
+)

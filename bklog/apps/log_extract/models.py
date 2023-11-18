@@ -24,6 +24,12 @@ from datetime import datetime
 from functools import reduce
 from typing import List
 
+from bkcrypto.contrib.django.fields import SymmetricTextField
+from django.db import models
+from django.db.models import Q
+from django.utils.translation import ugettext_lazy as _
+from pipeline.service import task_service
+
 from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType
 from apps.models import (
     JsonField,
@@ -32,12 +38,8 @@ from apps.models import (
     OperateRecordModelManager,
     SoftDeleteModel,
 )
+from apps.utils.local import get_request_app_code
 from apps.utils.log import logger
-from bkcrypto.contrib.django.fields import SymmetricTextField
-from django.db import models
-from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
-from pipeline.service import task_service
 
 
 class Strategies(SoftDeleteModel):
@@ -116,6 +118,7 @@ class Tasks(OperateRecordModel):
     ex_data = JsonField(_("额外数据"), null=True, blank=True)
     cos_file_name = models.CharField(_("cos对象文件名称"), null=True, blank=True, max_length=255)
     link_id = models.IntegerField(_("链路id"), null=True, blank=True)
+    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -195,8 +198,9 @@ class ExtractLink(OperateRecordModel):
     operator = models.CharField(_("执行人"), max_length=255)
     op_bk_biz_id = models.IntegerField(_("执行bk_biz_id"))
     qcloud_secret_id = SymmetricTextField(_("腾讯云SecretId"), default="", null=True, blank=True, help_text=_("内网链路不需要填写"))
-    qcloud_secret_key = SymmetricTextField(_("腾讯云SecretKey"), default="",
-                                           null=True, blank=True, help_text=_("内网链路不需要填写"))
+    qcloud_secret_key = SymmetricTextField(
+        _("腾讯云SecretKey"), default="", null=True, blank=True, help_text=_("内网链路不需要填写")
+    )
     qcloud_cos_bucket = models.CharField(
         _("腾讯云Cos桶名称"), max_length=255, default="", blank=True, help_text=_("内网链路不需要填写")
     )

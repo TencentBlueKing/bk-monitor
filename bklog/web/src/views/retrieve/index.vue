@@ -408,6 +408,8 @@ export default {
       spaceUid: state => state.spaceUid,
       currentMenu: state => state.currentMenu,
       storedIndexID: state => state.indexId, // 路由切换时缓存当前选择的索引
+      isExternal: state => state.isExternal,
+      externalMenu: state => state.externalMenu,
     }),
     ...mapGetters(['asIframe', 'iframeQuery']),
     ...mapGetters({
@@ -456,7 +458,10 @@ export default {
         this.indexSetList.splice(0);
         this.totalFields.splice(0);
         this.retrieveParams.bk_biz_id = this.bkBizId;
-        this.fetchPageData();
+        // 外部版 无检索权限跳转后不更新页面数据
+        if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
+          this.fetchPageData();
+        }
         this.resetFavoriteValue();
         this.$refs.searchCompRef?.clearAllCondition();
       },
@@ -1282,7 +1287,7 @@ export default {
       const begin = currentPage === 1 ? 0 : (currentPage - 1) * pageSize;
       try {
         const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-        const res = await axios({
+        const params = {
           method: 'post',
           url: `/search/index_set/${this.indexId}/search/`,
           cancelToken: new CancelToken((c) => {
@@ -1297,7 +1302,13 @@ export default {
             size: pageSize,
             interval: this.interval,
           },
-        }).then((res) => {
+        };
+        if (this.isExternal) {
+          params.headers = {
+            'X-Bk-Space-Uid': this.spaceUid,
+          };
+        }
+        const res = await axios(params).then((res) => {
           return readBlobRespToJson(res.data);
         });
 

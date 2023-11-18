@@ -75,6 +75,7 @@ import RealTimeLog from '../../result-comp/real-time-log';
 import ContextLog from '../../result-comp/context-log';
 import OriginalList from './original-list';
 import TableList from './table-list';
+import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
 export default {
   components: {
@@ -83,6 +84,7 @@ export default {
     OriginalList,
     TableList,
   },
+  mixins: [tableRowDeepViewMixin],
   props: {
     retrieveParams: {
       type: Object,
@@ -198,10 +200,13 @@ export default {
         // 传参配置指定字段
         if (Array.isArray(contextFields) && contextFields.length) {
           contextFields.push(config.timeField);
-          for (const [key, val] of Object.entries(row)) {
-            if (key === 'bk_host_id' && !val) continue; // 点击上下文时 若配置有bk_host_id 但 bk_host_id无有效值时不传指定字段
-            if (contextFields.includes(key)) dialogNewParams[key] = val;
-          }
+          contextFields.forEach((field) => {
+            if (field === 'bk_host_id') {
+              if (row[field]) dialogNewParams[field] = row[field];
+            } else {
+              dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+            }
+          });
         } else {
           Object.assign(dialogNewParams, row);
         }
@@ -249,6 +254,9 @@ export default {
       }
 
       .bk-table-body-wrapper {
+        font-family: RobotoMono-Regular, monospace, Roboto, isometric-number,
+          San Francisco, Helvetica Neue, Helvetica, Arial, PingFangSC-Light,
+          Hiragina Sans GB, WenQuanYi Micro Hei, microsoft yahei ui, microsoft yahei;
         min-height: calc(100vh - 550px);
 
         .bk-table-empty-block {
@@ -298,6 +306,7 @@ export default {
 
       .time-field {
         font-weight: 700;
+        white-space: nowrap;
       }
 
       .original-str,
@@ -441,6 +450,10 @@ export default {
         &.is-hidden {
           visibility: hidden;
         }
+      }
+
+      .timer-formatter {
+        transform: translateY(-1px);
       }
     }
 

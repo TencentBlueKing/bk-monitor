@@ -23,6 +23,7 @@
 import { mapState } from 'vuex';
 import { menuArr } from '../components/nav/complete-menu';
 import * as authorityMap from '../common/authority-map';
+import reportLogStore from '@/store/modules/report-log';
 
 export default {
   data() {
@@ -46,6 +47,8 @@ export default {
       spaceUid: state => state.spaceUid,
       bkBizId: state => state.bkBizId,
       mySpaceList: state => state.mySpaceList,
+      isExternal: state => state.isExternal,
+      externalMenu: state => state.externalMenu,
     }),
   },
   watch: {
@@ -176,6 +179,16 @@ export default {
         }
       }
       spaceUid && this.setRouter(spaceUid); // 项目id不为空时，获取菜单
+
+      // 由于首次加载应用路由触发上报还未获取到 spaceUid ，需手动执行上报
+      if (this.$store.state.isAppFirstLoad && spaceUid) {
+        this.$store.state.isAppFirstLoad = false;
+        const { name, meta } = this.$route;
+        reportLogStore.reportRouteLog({
+          route_id: name,
+          nav_id: meta.navId,
+        });
+      }
     },
     // 选择的业务是否有权限
     async checkSpaceAuth(space) {
@@ -199,7 +212,23 @@ export default {
         console.warn(err);
       }
     },
+    /** 外部版根据空间授权权限显示菜单 */
+    updateExternalMenuBySpace(spaceUid) {
+      const list = [];
+      const curSpace = (this.mySpaceList || []).find(item => item.space_uid === spaceUid);
+      (curSpace.external_permission || []).forEach((permission) => {
+        if (permission === 'log_search') {
+          list.push('retrieve');
+        } else if (permission === 'log_extract') {
+          list.push('manage');
+        }
+      });
+      this.$store.commit('updateExternalMenu', list);
+    },
     async setRouter(spaceUid) {
+      if (this.isExternal) {
+        this.updateExternalMenuBySpace(spaceUid);
+      }
       try {
         const res = await this.$store.dispatch('getMenuList', spaceUid);
         const menuList = this.replaceMenuId(res.data || []);
@@ -258,16 +287,16 @@ export default {
               return matchedList.some(record => record.name === item.id);
             }) : {};
           this.$store.commit('updateActiveManageSubNav', activeManageSubNav);
-          // 动态更新title
-          let headTitle = '';
-          if (activeTopMenu.id === 'manage') {
-            headTitle = activeManageNav.name;
-          } else if (activeTopMenu.id === 'retrieve') {
-            headTitle = this.$t('日志检索');
-          } else {
-            headTitle = activeTopMenu.name;
-          }
-          document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('腾讯蓝鲸智云')}`;
+          // // 动态更新title
+          // let headTitle = '';
+          // if (activeTopMenu.id === 'manage') {
+          //   headTitle = activeManageNav.name;
+          // } else if (activeTopMenu.id === 'retrieve') {
+          //   headTitle = this.$t('日志检索');
+          // } else {
+          //   headTitle = activeTopMenu.name;
+          // }
+          // document.title = `${headTitle} - ${this.$t('日志平台')} | ${this.$t('腾讯蓝鲸智云')}`;
         }, {
           immediate: true,
         });
@@ -276,7 +305,20 @@ export default {
       } catch (e) {
         console.warn(e);
       } finally {
-        if (this.$route.name !== 'retrieve' && !this.isFirstLoad) {
+        if (this.isExternal
+          && this.$route.name === 'retrieve'
+          && !this.externalMenu.includes('retrieve')
+        ) {
+          // 当前在检索页 如果该空间没有日志检索授权 则跳转管理页
+          this.$router.push({ name: 'extract-home' });
+        } else if (
+          this.isExternal
+           && ['extract-home', 'extract-create', 'extract-clone'].includes(this.$route.name)
+           && !this.externalMenu.includes('manage')
+        ) {
+          // 当前在管理页 如果该空间没有日志提取授权 则跳转检索页
+          this.$router.push({ name: 'retrieve' });
+        } else if (this.$route.name !== 'retrieve' && !this.isFirstLoad) {
           // 所有页面的子路由在切换业务的时候都统一返回到父级页面
           const { name, meta, params, query } = this.$route;
           const RoutingHop = meta.needBack && !this.isFirstLoad ? meta.backName : name ? name : 'retrieve';

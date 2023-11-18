@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import os
 from typing import Any, Dict, List, Optional
 
+from django.utils.translation import ugettext as _
+
 from apps.log_commons.job import JobHelper
 from apps.log_databus.constants import (
     GSE_PATH,
@@ -44,8 +46,7 @@ from apps.log_databus.handlers.check_collector.checker.transfer_checker import (
     TransferChecker,
 )
 from apps.log_databus.models import CollectorConfig
-from celery.task import task
-from django.utils.translation import ugettext as _
+from apps.utils.task import high_priority_task
 
 
 class CheckCollectorHandler:
@@ -179,7 +180,7 @@ class CheckCollectorHandler:
         return self.record.get_infos()
 
 
-@task(ignore_result=True)
+@high_priority_task(ignore_result=True)
 def async_run_check(collector_config_id: int, hosts: List[Dict[str, Any]] = None):
     handler = CheckCollectorHandler(collector_config_id=collector_config_id, hosts=hosts)
     handler.record.append_normal_info("check start", handler.HANDLER_NAME)

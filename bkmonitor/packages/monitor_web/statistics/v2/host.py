@@ -13,12 +13,12 @@ from collections import defaultdict
 import arrow
 from django.db import connections
 from django.utils.functional import cached_property
-from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.data_source import load_data_source
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import BaseCollector
 
 
 def nodeman_sql_to_result(sql):
@@ -55,8 +55,7 @@ class HostCollector(BaseCollector):
              (select a.bk_host_id, a.bk_biz_id, a.bk_cloud_id, b.status, b.name from node_man_host as a
              inner join (select name, status, bk_host_id, is_latest, source_type from node_man_processstatus) as b
              on a.bk_host_id = b.bk_host_id and b.name in ('basereport', 'bkmonitorbeat', 'bkunifylogbeat')
-             and b.is_latest = 1 and b.source_type = 'default'
-             group by bk_biz_id, status, bk_cloud_id, a.bk_host_id, name) as c
+             and b.is_latest = 1 and b.source_type = 'default') as c
              group by bk_biz_id, bk_cloud_id, status, name;
         """
         )
@@ -75,8 +74,7 @@ class HostCollector(BaseCollector):
              (select a.bk_host_id, a.bk_biz_id, a.bk_cloud_id, a.inner_ip, b.status, b.name from node_man_host as a
              inner join (select name, status, bk_host_id, is_latest, source_type from node_man_processstatus) as b
              on a.bk_host_id = b.bk_host_id and b.name in ('basereport', 'bkmonitorbeat')
-             and b.is_latest = 1 and b.source_type = 'default'
-             group by bk_biz_id, status, bk_cloud_id, a.bk_host_id) as c
+             and b.is_latest = 1 and b.source_type = 'default') as c
              group by bk_biz_id, bk_cloud_id, status;
         """
         )

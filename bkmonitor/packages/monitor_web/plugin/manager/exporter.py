@@ -15,12 +15,12 @@ import os
 from collections import namedtuple
 
 from django.utils.translation import ugettext as _
+
+from core.drf_resource import resource
 from monitor_web.commons.file_manager import PluginFileManager
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME, ParamMode
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import ExporterSerializer
-
-from core.drf_resource import resource
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,6 @@ class ExporterPluginManager(PluginManager):
     CollectorFile = namedtuple("CollectorFile", ["name", "data"])
 
     def fetch_collector_file(self):
-
         file_dict = {}
         for os_type, exporter_info in list(self.version.config.file_config.items()):
             if os_type == "windows":
@@ -141,10 +140,12 @@ class ExporterPluginManager(PluginManager):
         collector_params = param["collector"]
         plugin_params = param["plugin"]
         collector_params["config_name"] = self.plugin.plugin_id
-        collector_params["port"] = "{{ step_data.%s.control_info.listen_port }}" % self.plugin.plugin_id
-        collector_params["metric_url"] = "{}:{}/metrics".format(
-            collector_params["host"], "{{ step_data.%s.control_info.listen_port }}" % self.plugin.plugin_id
-        )
+        if collector_params.get("port"):
+            plugin_params["port"] = collector_params["port"]
+        else:
+            plugin_params["port"] = "{{ control_info.listen_port }}"
+            collector_params["port"] = "{{ step_data.%s.control_info.listen_port }}" % self.plugin.plugin_id
+        collector_params["metric_url"] = "{}:{}/metrics".format(collector_params["host"], collector_params["port"])
         env_context = {}
         user_files = []
         cmd_args = ""

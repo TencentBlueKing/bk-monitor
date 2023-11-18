@@ -31,11 +31,14 @@ import { handleTransformToTimestamp } from '../../../../monitor-pc/components/ti
 import CollectionDialog from '../../../../monitor-pc/pages/data-retrieval/components/collection-view-dialog';
 import { PanelToolsType } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import ViewDetail from '../../../../monitor-pc/pages/view-detail/index';
+import { isEnFn } from '../../../../monitor-pc/utils';
 import { IPanelModel, IViewOptions, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 
 import './chart-collect.scss';
+
+const isEn = isEnFn();
 
 export interface ICheckPanel {
   id: string | number;
@@ -211,7 +214,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       <div class='chart-colllect-component'>
         <transition name='collection-fade'>
           {this.checkList.length && !this.isCollectSingle ? (
-            <div class='view-collection'>
+            <div class={['view-collection', { en: isEn }]}>
               <div style='flex-grow: 1'>
                 <span>{window.i18n.t('已勾选{count}个', { count: this.checkList.length })}</span>
                 <span
@@ -233,7 +236,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
                   {window.i18n.t('route-数据探索')}
                 </span>
                 <span
-                  class='view-collection-btn mr5'
+                  class={['view-collection-btn', isEn ? 'mr24' : 'mr5']}
                   onClick={this.handleViewDetail}
                 >
                   {window.i18n.t('对比')}

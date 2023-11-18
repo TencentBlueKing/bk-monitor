@@ -26,7 +26,6 @@
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
-import dayjs from 'dayjs';
 
 import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from '../../../../monitor-api/index';
@@ -47,6 +46,7 @@ import IndexList, { IIndexListItem } from '../../data-retrieval/index-list/index
 import { ITableItem } from '../typings';
 import { IDetailItem } from '../typings/common-detail';
 
+import Aipanel from './ai-panel/ai-panel';
 import HostDetailView from './host-detail-view/host-detail-view';
 import ShowModeButton, { ShowModeButtonType } from './show-mode-button/show-mode-button';
 import { ShowModeType } from './common-page-new';
@@ -559,6 +559,12 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
               width={this.width}
               onLinkToDetail={v => this.$emit('linkToDetail', v)}
             ></HostDetailView>
+          )}
+          {this.aiPanel && (
+            <Aipanel
+              panel={this.aiPanel}
+              allPanelId={this.allPanelId}
+            />
           )}
         </div>
       </div>

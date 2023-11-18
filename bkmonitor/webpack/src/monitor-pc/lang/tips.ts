@@ -185,5 +185,6 @@ export default {
   '本空间屏蔽: 屏蔽告警中包含该空间的所有通知':
     'Local space mask: Mask all notifications that contain this space in an alarm',
   '数值越大，优先级越高，完全相同的一条数据检测到异常时以优先级高的策略为主。':
-    'The larger the value, the higher the priority. When an abnormality is detected in the same piece of data, the strategy with the higher priority will be used.'
+    'The larger the value, the higher the priority. When an abnormality is detected in the same piece of data, the strategy with the higher priority will be used.',
+  主机当前状态: 'Host current status'
 };
