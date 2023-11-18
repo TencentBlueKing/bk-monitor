@@ -1313,3 +1313,9 @@ IS_RESTRICT_DS_BELONG_SPACE = True
 
 # 最大的指标分片查询大小
 MAX_FIELD_PAGE_SIZE = 1000
+
+# 访问 PaaS 提供接口地址
+PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
+
+# 需要授权给蓝鲸应用的特定的数据源 ID
+BKPAAS_DATA_ID_LIST = []

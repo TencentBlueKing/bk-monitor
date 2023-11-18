@@ -391,7 +391,7 @@ class SpaceTableIDRedis:
         tids = models.ResultTable.objects.filter(table_id__startswith=BKCI_1001_TABLE_ID_PREFIX).values_list(
             "table_id", flat=True
         )
-        return {tid: {"filters": [{"projectId": f"{space_type}__{space_id}"}]} for tid in tids}
+        return {tid: {"filters": [{"projectId": space_id}]} for tid in tids}
 
     def _compose_bksaas_space_cluster_table_ids(
         self,

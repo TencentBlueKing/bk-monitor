@@ -812,7 +812,7 @@ class TimeSeriesMetric(models.Model):
                 field_name = metric_info["field_name"]
                 field_name_list.append(field_name)
             except KeyError as key:
-                logger.error("metric_info got bad metric->[{}] which has no key->[{}]".format(metric_info, key))
+                logger.error("metric_info got bad metric->[%s] which has no key->[%s]", metric_info, key)
                 raise ValueError(_("自定义时序列表配置有误，请确认后重试"))
 
             last_modify_time = make_aware(
