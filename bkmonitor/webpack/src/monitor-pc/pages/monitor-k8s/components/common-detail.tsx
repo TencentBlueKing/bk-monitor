@@ -26,10 +26,6 @@
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
-<<<<<<< HEAD
-=======
-import dayjs from 'dayjs';
->>>>>>> 7b326fb (feat: 新版监控日期选择及时区支持 --story=114879880  (#131))
 
 import MonitorDrag from '../../../../fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from '../../../../monitor-api/index';
