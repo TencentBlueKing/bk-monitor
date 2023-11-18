@@ -278,7 +278,6 @@ export default {
         });
       const data = { ...params };
       data.size = this.totalCount;
-      data.time_range = 'customized';
       data.export_fields = this.submitSelectFiledList;
       data.is_desensitize = this.desensitizeRadioType === 'desensitize';
 

@@ -88,7 +88,7 @@ import deepMerge from 'deepmerge'
 import { debounce } from 'throttle-debounce'
 import { addListener, removeListener, ResizeCallback } from 'resize-detector'
 import { Vue, Prop, Ref, Component, Watch } from 'vue-property-decorator'
-import moment from 'moment'
+import dayjs from 'dayjs';
 import { toPng, toBlob } from 'html-to-image'
 import ChartLegend from './components/chart-legend.vue'
 import ChartTools from './components/chart-tools.vue'
@@ -615,8 +615,8 @@ export default class MonitorEcharts extends Vue {
                   this.loading = true
                   const [batch] = event.batch
                   if (batch.startValue && batch.endValue) {
-                    const timeFrom = moment(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss')
-                    const timeTo = moment(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss')
+                    const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss')
+                    const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss')
                     this.timeRange = [timeFrom, timeTo]
                     if (this.getSeriesData) {
                       this.chart.dispatchAction({
@@ -674,7 +674,7 @@ export default class MonitorEcharts extends Vue {
       })
       return
     }
-    const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss')
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss')
     const data = params.map(item => {
       const value = item.value[1] === null ? 0 : item.value[1]
       return ({ color: item.color, seriesName: item.seriesName, value: value })
@@ -746,7 +746,7 @@ export default class MonitorEcharts extends Vue {
           this.annotation = {
             x: setPixel[0] + 10 + 220 > chartWidth ? setPixel[0] - 10 - 220 : setPixel[0] + 10,
             y: setPixel[1] + 5,
-            title: moment(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+            title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
             name: this.curValue.name,
             color: this.curValue.color,
             show: true,
