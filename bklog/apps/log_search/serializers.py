@@ -237,6 +237,24 @@ class DesensitizeConfigStateSerializer(serializers.Serializer):
     index_set_ids = serializers.ListField(child=serializers.IntegerField(), required=True)
 
 
+class KeywordSerializer(serializers.Serializer):
+    """
+    检索关键词序列化, 针对keyword为必须的时候, 继承该类
+    """
+
+    keyword = serializers.CharField(label=_("检索关键词"), required=True, allow_null=True, allow_blank=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs["keyword"].strip() == "":
+            attrs["keyword"] = WILDCARD_PATTERN
+            return attrs
+
+        enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=attrs["keyword"])
+        attrs["keyword"] = enhance_lucene_adapter.enhance()
+        return attrs
+
+
 class SearchAttrSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
     ip_chooser = serializers.DictField(default={}, required=False)
@@ -263,6 +281,13 @@ class SearchAttrSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        if attrs.get("keyword") and attrs["keyword"].strip() == "":
+            attrs["keyword"] = WILDCARD_PATTERN
+            return attrs
+
+        enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=attrs["keyword"])
+        attrs["keyword"] = enhance_lucene_adapter.enhance()
+        attrs["origin_keyword"] = enhance_lucene_adapter.origin_query_string
         return attrs
 
 
@@ -360,9 +385,8 @@ class SearchExportSerializer(serializers.Serializer):
         return attrs
 
 
-class SearchAsyncExportSerializer(serializers.Serializer):
+class SearchAsyncExportSerializer(KeywordSerializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
-    keyword = serializers.CharField(label=_("搜索关键字"), required=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
     start_time = serializers.CharField(label=_("起始时间"), required=True)
     end_time = serializers.CharField(label=_("结束时间"), required=True)
@@ -544,24 +568,6 @@ class UpdateFavoriteGroupOrderSerializer(serializers.Serializer):
 
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     group_order = serializers.ListField(label=_("收藏组顺序"), child=serializers.IntegerField())
-
-
-class KeywordSerializer(serializers.Serializer):
-    """
-    检索关键词序列化
-    """
-
-    keyword = serializers.CharField(label=_("检索关键词"), required=True, allow_null=True, allow_blank=True)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        if attrs["keyword"].strip() == "":
-            attrs["keyword"] = WILDCARD_PATTERN
-            return attrs
-
-        enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=attrs["keyword"])
-        attrs["keyword"] = enhance_lucene_adapter.enhance()
-        return attrs
 
 
 class GetSearchFieldsSerializer(KeywordSerializer):

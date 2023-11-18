@@ -191,6 +191,7 @@ class SearchHandler(object):
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
+        self.origin_query_string: str = search_dict.get("origin_keyword", "")
 
         # 透传start
         self.start: int = search_dict.get("begin", 0)
@@ -558,7 +559,8 @@ class SearchHandler(object):
         return result
 
     def _save_history(self, result, search_type):
-        params = {"keyword": self.query_string, "ip_chooser": self.ip_chooser, "addition": self.addition}
+        # 避免回显尴尬, 检索历史存原始未增强的query_string
+        params = {"keyword": self.origin_query_string, "ip_chooser": self.ip_chooser, "addition": self.addition}
         self._cache_history(
             username=self.request_username,
             index_set_id=self.index_set_id,
