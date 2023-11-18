@@ -459,7 +459,7 @@ class Host(BaseNode):
         attrs["bk_module_ids"] = attrs.get("bk_module_ids") or []
         for field in self.Fields:
             if field in ["bk_cloud_id", "bk_host_id", "bk_biz_id"]:
-                attrs[field] = int(attrs[field])
+                attrs[field] = int(attrs.get(field) or 0)
                 continue
             empty_value = ""
             if field in ["operator", "bk_bak_operator"]:
