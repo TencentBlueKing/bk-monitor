@@ -214,7 +214,7 @@ export default {
     });
     if (!this.isAsIframe) this.getUserGuide();
 
-    this.$store.state.isExternal = JSON.parse(window.IS_EXTERNAL) || false;
+    this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
   },
   mounted() {
     window.LoginModal = this.$refs.login;

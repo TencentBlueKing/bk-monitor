@@ -23,6 +23,7 @@
 import { mapState } from 'vuex';
 import { menuArr } from '../components/nav/complete-menu';
 import * as authorityMap from '../common/authority-map';
+import reportLogStore from '@/store/modules/report-log';
 
 export default {
   data() {
@@ -178,6 +179,16 @@ export default {
         }
       }
       spaceUid && this.setRouter(spaceUid); // 项目id不为空时，获取菜单
+
+      // 由于首次加载应用路由触发上报还未获取到 spaceUid ，需手动执行上报
+      if (this.$store.state.isAppFirstLoad && spaceUid) {
+        this.$store.state.isAppFirstLoad = false;
+        const { name, meta } = this.$route;
+        reportLogStore.reportRouteLog({
+          route_id: name,
+          nav_id: meta.navId,
+        });
+      }
     },
     // 选择的业务是否有权限
     async checkSpaceAuth(space) {

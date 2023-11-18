@@ -164,8 +164,6 @@ export default {
   '找到 {count} 条结果 , 耗时  {time} ms': 'Found {count} results, cost {time} ms',
   '{0}台主机Agent异常': '{0} agents abnormal',
   '已勾选{count}个': '{count} checked',
-  "获取会话ID方法:<br/>1.群聊列表右键添加群机器人: {name}<br/>2.手动 @{name} 并输入关键字'会话ID'<br/>3.将获取到的会话ID粘贴到输入框，使用逗号分隔":
-    "How to get the session ID:<br/>1. Right click on group chat list to add group robots: {name}<br/>2. Manually @{name} and enter the keyword'The session ID'<br/>3. The group that will be obtained Paste the ID into the input box, separated by commas",
   '监控的数据主体、查询方式': 'Data subject and query method to be monitored',
   已选择更低级告警级别: 'A lower alarm level is selected',
   '针对 综合拨测、APM、主机、K8s 等场景，提供该场景定制化的异常发现和告警功能':

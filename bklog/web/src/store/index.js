@@ -105,6 +105,7 @@ const store = new Vuex.Store({
     },
     /** 外部版路由菜单 */
     externalMenu: [],
+    isAppFirstLoad: true,
   },
   // 公共 getters
   getters: {
