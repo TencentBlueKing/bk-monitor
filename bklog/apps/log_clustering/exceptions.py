@@ -101,3 +101,13 @@ class IndexSetHasClsStrategyException(BaseClusteringException):
 class CreateBkdataDataIdException(BaseClusteringException):
     ERROR_CODE = "015"
     MESSAGE = _("同步创建bkdata_data_id失败: {index_set_id}")
+
+
+class CollectorStorageNotExistException(BaseClusteringException):
+    ERROR_CODE = "016"
+    MESSAGE = _("日志聚类-采集项侧落地es存储配置不存在: {index_set_id}")
+
+
+class QueryFieldsException(BaseClusteringException):
+    ERROR_CODE = "017"
+    MESSAGE = _("该索引集查询字段失败: {index_set_id}")
