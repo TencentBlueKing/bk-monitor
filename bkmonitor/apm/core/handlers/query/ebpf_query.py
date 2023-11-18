@@ -23,11 +23,6 @@ from apm.core.handlers.query.base import EsQueryBuilderMixin
 from apm.utils.es_search import EsSearch
 from apm_ebpf.resource import TraceQueryResource
 from constants.apm import OtlpKey
-from core.drf_resource import api
-
-logger = logging.getLogger("apm")
-
-logger = logging.getLogger("apm")
 
 logger = logging.getLogger("apm")
 

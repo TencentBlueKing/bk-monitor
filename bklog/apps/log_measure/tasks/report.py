@@ -86,7 +86,7 @@ def bk_monitor_report():
     clear_registered_metrics()
 
 
-@periodic_task(run_every=crontab(minute="*/1"), queue=settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+@periodic_task(run_every=crontab(minute="*/1"))
 def bk_monitor_collect():
     # todo 由于与菜单修改有相关性 暂时先改成跟原本monitor开关做联动
     if settings.FEATURE_TOGGLE["monitor_report"] == "off":
