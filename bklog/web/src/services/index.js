@@ -59,17 +59,24 @@ const getMySpaceList = {
   url: '/meta/spaces/mine/',
   method: 'get',
 };
+const frontendEventReport = {
+  url: '/frontend_event/report/',
+  method: 'post',
+};
 
 export default {
-  userInfo,
-  example,
-  retrieve,
   project: {
     getMyProjectList,
   },
   space: {
     getMySpaceList,
   },
+  report: {
+    frontendEventReport,
+  },
+  userInfo,
+  example,
+  retrieve,
   indexSet,
   source,
   meta,
