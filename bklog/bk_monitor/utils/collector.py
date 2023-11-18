@@ -47,9 +47,6 @@ class MetricCollector(object):
                         "data_name": metric_method["data_name"],
                     }
                 )
-                metric_id = build_metric_id(
-                    metric_method["namespace"], metric_method["data_name"], metric_method["prefix"]
-                )
                 logger.info(
                     "[statistics_data] collect metric->[{}] took {} ms".format(
                         metric_id, int((time.time() - begin_time) * 1000)
