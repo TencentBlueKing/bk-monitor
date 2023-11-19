@@ -20,19 +20,21 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import serializers
+
 from apps.exceptions import ValidationError
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_esquery.constants import ES_ROUTE_ALLOW_URL
 from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
     BaseSearchIndexSetException,
     BaseSearchIndexSetIdTimeFieldException,
 )
-from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import SCROLL
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.cache import cache_one_minute
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
+from apps.utils.lucene import EnhanceLuceneAdapter
 
 
 class EsQuerySearchAttrSerializer(serializers.Serializer):
@@ -99,6 +101,10 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        if attrs.get("query_string", ""):
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=attrs["query_string"])
+            attrs["query_string"] = enhance_lucene_adapter.enhance()
+            attrs["origin_query_string"] = enhance_lucene_adapter.origin_query_string
 
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
@@ -408,7 +414,9 @@ def _init_index_info(*, index_set_id, is_clustered_fields):
                 time_field = "dtEventTimeStamp"
             # 过滤的字段获取 field进行检索__dist的判断
             if is_clustered_fields:
-                clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+                clustering_config = ClusteringConfig.get_by_index_set_id(
+                    index_set_id=index_set_id, raise_exception=False
+                )
                 if clustering_config and clustering_config.clustered_rt:
                     indices = clustering_config.clustered_rt
             return {
