@@ -693,8 +693,6 @@ export default {
       this.indexId = val;
       this.activeFavoriteID = -1;
       this.activeFavorite = {};
-      // 在切换索引集之前 需要把表格里的table数据清空 数据不为空的话 table的empty骨架loading会不生效
-      this.$refs.resultMainRef.reset();
       this.retrieveLog();
     },
     // 切换索引时重置检索数据
@@ -1058,6 +1056,8 @@ export default {
       try {
         this.tableLoading = true;
         this.resetResult();
+        // 表格loading处理
+        this.$refs.resultMainRef.reset();
         if (!this.totalFields.length || this.shouldUpdateFields) {
           window.bus.$emit('openChartLoading');
           await this.requestFields();
@@ -1088,8 +1088,6 @@ export default {
           this.requestChart();
           this.requestSearchHistory(this.indexId);
         }
-        // 表格loading处理
-        this.$refs.resultMainRef.reset();
         this.searchCancelFn();
         await this.requestTable();
         if (this.isAfterRequestFavoriteList) await this.getFavoriteList();
