@@ -34,7 +34,8 @@ from apps.log_search.models import (
     EmailTemplate,
     UserMetaConf,
     Space,
-    SpaceType, StorageClusterRecord,
+    SpaceType,
+    StorageClusterRecord,
 )
 
 
