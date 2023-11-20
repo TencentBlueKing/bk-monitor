@@ -44,14 +44,14 @@ class ReportLogStore extends VuexModule {
       {
         event_name: '用户运营数据',
         event_content: '基于前端路由的运营数据上报',
-        target: 'bk_monitor',
+        target: location.host,
         timestamp: Date.now(),
         dimensions: {
           ...params,
           space_id: space?.space_uid || window.cc_biz_id,
           space_name: space?.space_name || window.cc_biz_id,
           user_name: window.user_name || window.username,
-          nav_name: params.nav_name || routeConfig?.name
+          nav_name: (!space ? '临时 ' : '') + (params.nav_name || routeConfig?.name)
         }
       },
       {
