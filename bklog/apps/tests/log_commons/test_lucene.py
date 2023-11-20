@@ -194,11 +194,11 @@ INSPECT_KEYWORD_RESULT = {
 ENHANCE_KEYWORD_TEST_CASES = [
     {
         "keyword": """number >=83063 or title: "The Right Way" AND log: and""",
-        "expect": """number: [ 83063 TO * } OR title: "The Right Way" AND log: \"and\"""",
+        "expect": """number: >=83063 OR title: "The Right Way" AND log: \"and\"""",
     },
     {
         "keyword": """number < 83063 and title: "The Right Way" AND log: OR""",
-        "expect": """number: { * TO 83063 } AND title: "The Right Way" AND log: \"OR\"""",
+        "expect": """number: <83063 AND title: "The Right Way" AND log: \"OR\"""",
     },
 ]
 
@@ -206,21 +206,21 @@ ENHANCE_KEYWORD_INSPECT_RESULT = {
     "is_legal": True,
     "is_resolved": True,
     "message": "",
-    "keyword": """number: [ 83063 TO * } OR title: "The Right Way" AND log: "and" """,
+    "keyword": """number: >=83063 OR title: "The Right Way" AND log: "and" """,
 }
 
 ENHANCE_KEYWORD_FIELDS = [
     {
         'pos': 0,
         'name': 'number',
-        'type': 'Range',
-        'operator': '[}',
-        'value': '[ 83063 TO * }',
+        'type': 'Word',
+        'operator': '>=',
+        'value': '83063',
         'is_full_text_field': False,
         'repeat_count': 0,
     },
     {
-        'pos': 26,
+        'pos': 19,
         'name': 'title',
         'type': 'Phrase',
         'operator': '=',
@@ -229,7 +229,7 @@ ENHANCE_KEYWORD_FIELDS = [
         'repeat_count': 0,
     },
     {
-        'pos': 53,
+        'pos': 46,
         'name': 'log',
         'type': 'Phrase',
         'operator': '=',
@@ -243,19 +243,19 @@ ENHANCE_KEYWORD_FIELDS = [
 ENHANCE_UPDATE_QUERY_PARAMS = [
     {
         "pos": 0,
-        "value": "{ * TO 100000 ]",
+        "value": "100000",
     },
     {
-        "pos": 26,
+        "pos": 19,
         "value": '"hello"',
     },
     {
-        "pos": 53,
+        "pos": 46,
         "value": '"not"',
     },
 ]
 
-ENHANCE_EXPECT_NEW_QUERY = """number: { * TO 100000 ] OR title: "hello" AND log: \"not\""""
+ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR title: "hello" AND log: \"not\""""
 
 
 class TestLucene(TestCase):

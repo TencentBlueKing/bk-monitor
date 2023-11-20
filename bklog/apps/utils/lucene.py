@@ -732,21 +732,7 @@ class OperatorEnhanceLucene(EnhanceLuceneBase):
     def transform(self) -> str:
         if not self.match():
             return self.query_string
-
-        def replace_operator(match):
-            operator = match.group(1)
-            value = match.group(2)
-            if operator not in self.ENHANCE_OPERATORS:
-                return match.group(0)
-            right = "]" if operator == OperatorEnhanceEnum.LE.value else "}"
-            left = "[" if operator == OperatorEnhanceEnum.GE.value else "{"
-
-            if operator in [OperatorEnhanceEnum.GT.value, OperatorEnhanceEnum.GE.value]:
-                return f': {left} {value} TO * {right}'
-            else:
-                return f': {left} * TO {value} {right}'
-
-        return re.sub(self.RE, replace_operator, self.query_string)
+        return re.sub(self.RE, r': \1\2', self.query_string)
 
 
 class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
