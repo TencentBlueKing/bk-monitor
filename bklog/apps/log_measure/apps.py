@@ -26,6 +26,7 @@ from django.conf import settings
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.utils.function import ignored
 from apps.utils.log import logger
+from apps.utils.prometheus import REGISTRY
 
 
 class MeasureConfig(AppConfig):
@@ -36,9 +37,8 @@ class MeasureConfig(AppConfig):
         if settings.DEBUG or not FeatureToggleObject.switch("monitor_report"):
             return
         with ignored(Exception):
-            from bk_monitor.models import MonitorReportConfig
-
             from apps.log_measure.constants import DJANGO_MONITOR_DATA_NAME
+            from bk_monitor.models import MonitorReportConfig
 
             monitor_report_config = None
             try:
@@ -53,5 +53,6 @@ class MeasureConfig(AppConfig):
                 access_token=monitor_report_config.access_token,
                 target=settings.APP_CODE,
                 url=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/v2/push/",
+                registry=REGISTRY,
             )
             reporter.start()
