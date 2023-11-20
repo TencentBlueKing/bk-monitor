@@ -33,7 +33,8 @@ import {
   batchRevokeTargetNodes,
   getCollectLogDetail,
   isTaskReady,
-  retryTargetNodes
+  retryTargetNodes,
+  revokeTargetNodes
 } from '../../../../monitor-api/modules/collecting';
 import { copyText } from '../../../../monitor-common/utils/utils.js';
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
@@ -295,6 +296,21 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.$emit('canPolling', v);
   }
 
+  handleRevoke(data, table) {
+    revokeTargetNodes({
+      id: this.config.id,
+      instance_ids: [data.instance_id]
+    }).finally(() => {
+      data.status = 'FAILED';
+      table.pendingNum -= 1;
+      table.failedNum += 1;
+      this.header.data.pendingNum -= 1;
+      this.header.data.failedNum += 1;
+      this.refresh = true;
+      this.handlePolling();
+    });
+  }
+
   /**
    * @description 准备状态
    * @param id
@@ -387,7 +403,6 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.contents.forEach(ct => {
       ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
     });
-    console.log(copyStr);
     copyText(copyStr, msg => {
       this.$bkMessage({
         theme: 'error',
@@ -436,7 +451,15 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                   }
                   return undefined;
                 })()}
-                <span>{item.name}</span>
+                <span class='mr-3'>{item.name}</span>
+                <span class='mt-2'>
+                  {(() => {
+                    if (item.id === EStatus.ALL) return this.header.data.total;
+                    if (item.id === EStatus.SUCCESS) return this.header.data.successNum;
+                    if (item.id === EStatus.FAILED) return this.header.data.failedNum;
+                    if (item.id === EStatus.RUNNING) return this.header.data.pendingNum;
+                  })()}
+                </span>
               </div>
             ))}
           </div>
@@ -655,7 +678,15 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                   </div>
                                 ) : undefined,
                                 this.isRunning && ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
-                                  <div class='col-retry fix-same-code'>{this.$t('终止')}</div>
+                                  <div
+                                    class='col-retry fix-same-code'
+                                    onClick={() =>
+                                      ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
+                                      this.handleRevoke(row, content)
+                                    }
+                                  >
+                                    {this.$t('终止')}
+                                  </div>
                                 ) : undefined
                               ];
                             }

@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Provide, ProvideReactive } from 'vue-property-decorator';
 
-import { collectInstanceStatus } from '../../../../monitor-api/modules/collecting';
+import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
 // import { collectingTargetStatus } from '../../../../monitor-api/modules/datalink';
 import { random } from '../../../../monitor-common/utils/index';
+import authorityMixinCreate from '../../../mixins/authorityMixin';
+import * as collectAuth from '../authority-map';
 import CollectorStatusDetails from '../collector-detail/collector-status-details';
 
 import { STATUS_LIST } from './utils';
@@ -36,7 +37,11 @@ import { STATUS_LIST } from './utils';
 import './collector-operate-detail.scss';
 
 @Component
-export default class CollectorOperateDetail extends tsc<{}> {
+export default class CollectorOperateDetail extends authorityMixinCreate(collectAuth) {
+  @ProvideReactive('authority') authority: { [propsName: string]: boolean } = {};
+  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
+  @Provide('authorityMap') authorityMap = collectAuth;
+
   id = '';
 
   data = null;
@@ -53,7 +58,7 @@ export default class CollectorOperateDetail extends tsc<{}> {
   }
 
   getHosts(count) {
-    return collectInstanceStatus({ id: this.id })
+    return collectingTargetStatus({ collect_config_id: this.id })
       .then(data => {
         if (count !== this.pollingCount) return;
         this.data = data;
@@ -83,7 +88,7 @@ export default class CollectorOperateDetail extends tsc<{}> {
   }
 
   handleRefreshData() {
-    return collectInstanceStatus({ id: this.id })
+    return collectingTargetStatus({ collect_config_id: this.id })
       .then(data => {
         this.data = data;
         this.updateKey = random(8);
@@ -98,6 +103,7 @@ export default class CollectorOperateDetail extends tsc<{}> {
           data={this.data}
           updateKey={this.updateKey}
           onCanPolling={this.handlePolling}
+          onRefresh={this.handleRefreshData}
         ></CollectorStatusDetails>
       </div>
     );
