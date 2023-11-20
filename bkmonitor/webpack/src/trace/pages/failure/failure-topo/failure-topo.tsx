@@ -24,57 +24,59 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onMounted, ref } from 'vue';
-import { Graph, registerNode, registerEdge, Arrow } from '@antv/g6';
+import { Arrow, Graph, registerEdge, registerLayout, registerNode } from '@antv/g6';
 
+import dbsvg from './db.svg';
+import httpSvg from './http.svg';
 import topoData, { EdgeStatus, NodeStatus } from './topo-data';
 import TopoTools from './topo-tools';
-import dbsvg from './db.svg'
-import httpSvg from './http.svg'
+
 import './failure-topo.scss';
+
 const StatusNodeMap = {
   [NodeStatus.Normal]: {
     groupAttrs: {
       fill: 'rgba(197, 197, 197, 0.2)',
-      stroke: '#979BA5',
+      stroke: '#979BA5'
     },
     rectAttrs: {
       stroke: '#EAEBF0',
       fill: '#313238'
     },
     textAttrs: {
-      fill: '#fff',
+      fill: '#fff'
     }
   },
   [NodeStatus.Error]: {
     groupAttrs: {
       fill: 'rgba(255, 102, 102, 0.4)',
-      stroke: '#F55555',
+      stroke: '#F55555'
     },
     rectAttrs: {
       stroke: '#F55555',
       fill: '#313238'
     },
     textErrorAttrs: {
-      fill: '#313238',
+      fill: '#313238'
     },
     textNormalAttrs: {
-      fill: '#fff',
+      fill: '#fff'
     }
   },
   [NodeStatus.Root]: {
     groupAttrs: {
       fill: '#F55555',
-      stroke: '#F55555',
+      stroke: '#F55555'
     },
     rectAttrs: {
       stroke: '#3A3B3D',
       fill: '#F55555'
     },
     textAttrs: {
-      fill: '#fff',
+      fill: '#fff'
     }
-  },
-}
+  }
+};
 export default defineComponent({
   name: 'FailureTopo',
   props: {
@@ -88,26 +90,26 @@ export default defineComponent({
     const registerCustomNode = () => {
       registerNode('topo-node', {
         afterDraw(cfg, group) {
-          if(cfg.status === NodeStatus.Root) {
+          if (cfg.status === NodeStatus.Root) {
             group.addShape('circle', {
               zIndex: -11,
               attrs: {
                 lineWidth: 2, // 描边宽度
                 cursor: 'pointer', // 手势类型
-                r: 22 , // 圆半径
-                stroke: 'rgba(58, 59, 61, 1)',
+                r: 22, // 圆半径
+                stroke: 'rgba(58, 59, 61, 1)'
               },
               name: 'topo-node-running'
-            })
+            });
             const circle2 = group.addShape('circle', {
               attrs: {
                 lineWidth: 0, // 描边宽度
                 cursor: 'pointer', // 手势类型
                 r: 22, // 圆半径
-                stroke: 'rgba(5, 122, 234, 1)',
+                stroke: 'rgba(5, 122, 234, 1)'
               },
               name: 'topo-node-running'
-            })
+            });
             group.addShape('rect', {
               zIndex: 10,
               attrs: {
@@ -135,20 +137,23 @@ export default defineComponent({
               },
               name: 'topo-node-text'
             });
-            circle2.animate({
-              lineWidth: 6,
-              r: 24,
-              strokeOpacity: 0.3,
-            }, {
-              repeat: true, // 循环
-              duration: 3000,
-              // easing: 'easeCubic',
-              delay: 100, // 无延迟
-            })
+            circle2.animate(
+              {
+                lineWidth: 6,
+                r: 24,
+                strokeOpacity: 0.3
+              },
+              {
+                repeat: true, // 循环
+                duration: 3000,
+                // easing: 'easeCubic',
+                delay: 100 // 无延迟
+              }
+            );
           }
         },
         draw(cfg, group) {
-          const{status, aggregateNode} = cfg as any;
+          const { status, aggregateNode } = cfg as any;
           const nodeShape = group.addShape('circle', {
             zIndex: 10,
             attrs: {
@@ -170,7 +175,7 @@ export default defineComponent({
             },
             name: 'topo-node-img'
           });
-          if(aggregateNode?.length) {
+          if (aggregateNode?.length) {
             group.addShape('rect', {
               zIndex: 10,
               attrs: {
@@ -204,60 +209,167 @@ export default defineComponent({
         setState(name, value, item) {
           const group = item.getContainer();
           const shape = group.get('children')[0]; // 顺序根据 draw 时确定
-          if(name === 'hover') {
-              // box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.5);
-              shape?.attr({ 
-                shadowColor: value ? 'rgba(0, 0, 0, 0.5)' : false,
-                shadowBlur: value ? 6 : false,
-                shadowOffsetX: value ? 0 : false,
-                shadowOffsetY: value ? 2 : false,
-                strokeOpacity: value ? 0.6 : 1,
-                cursor: 'pointer', // 手势类型
-              })
+          if (name === 'hover') {
+            // box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.5);
+            shape?.attr({
+              shadowColor: value ? 'rgba(0, 0, 0, 0.5)' : false,
+              shadowBlur: value ? 6 : false,
+              shadowOffsetX: value ? 0 : false,
+              shadowOffsetY: value ? 2 : false,
+              strokeOpacity: value ? 0.6 : 1,
+              cursor: 'pointer' // 手势类型
+            });
           }
         }
       });
     };
     const registerCustomEdge = () => {
-      registerEdge('topo-edge', {
-        afterDraw(cfg, group) {
-          if(!cfg.count) return
-           // 获取图形组中的第一个图形，在这里就是边的路径图形
-          const shape = group.get('children')[0];
-          // 获取路径图形的中点坐标
-          const midPoint = shape.getPoint(0.5);
-          // 在中点增加一个矩形，注意矩形的原点在其左上角
-          group.addShape('rect', {
-            zIndex: 10,
-            attrs: {
-              width: 10,
-              height: 10,
-              fill: 'rgba(58, 59, 61, 1)',
-              // x 和 y 分别减去 width / 2 与 height / 2，使矩形中心在 midPoint 上
-              x: midPoint.x - 5,
-              y: midPoint.y - 5,
-              radius: 5,
-            },
-          });
-          group.addShape('text', {
-            zIndex: 11,
-            attrs: {
-              x: midPoint.x,
-              y: midPoint.y,
-              textAlign: 'center',
-              textBaseline: 'middle',
-              text: cfg.count,
-              fontSize: 12,
-              fill: '#fff'
-            },
-            name: 'topo-node-text'
-          });
+      registerEdge(
+        'topo-edge',
+        {
+          afterDraw(cfg, group) {
+            if (!cfg.count) return;
+            // 获取图形组中的第一个图形，在这里就是边的路径图形
+            const shape = group.get('children')[0];
+            // 获取路径图形的中点坐标
+            const midPoint = shape.getPoint(0.5);
+            // 在中点增加一个矩形，注意矩形的原点在其左上角
+            group.addShape('rect', {
+              zIndex: 10,
+              attrs: {
+                width: 10,
+                height: 10,
+                fill: 'rgba(58, 59, 61, 1)',
+                // x 和 y 分别减去 width / 2 与 height / 2，使矩形中心在 midPoint 上
+                x: midPoint.x - 5,
+                y: midPoint.y - 5,
+                radius: 5
+              }
+            });
+            group.addShape('text', {
+              zIndex: 11,
+              attrs: {
+                x: midPoint.x,
+                y: midPoint.y,
+                textAlign: 'center',
+                textBaseline: 'middle',
+                text: cfg.count,
+                fontSize: 12,
+                fill: '#fff'
+              },
+              name: 'topo-node-text'
+            });
+          },
+          update: undefined
         },
-        update: undefined
-      }, 'line')
-    }
+        'line'
+      );
+    };
+    const registerCustomLayout = () => {
+      registerLayout('topo-layout', {
+        execute() {
+          console.info('execute', this);
+          // const self = this;
+          // const center = self.center || [0, 0];
+          // const biSep = self.biSep || 100;
+          // const nodeSep = self.nodeSep || 20;
+          // const nodeSize = self.nodeSize || 20;
+          // const direction = self.direction || 'horizontal';
+          // let part1Pos = 0;
+          // let part2Pos = 0;
+          // if (direction === 'horizontal') {
+          //   part1Pos = center[0] - biSep / 2;
+          //   part2Pos = center[0] + biSep / 2;
+          // }
+          // const { nodes, edges } = self;
+          // const part1Nodes = [];
+          // const part2Nodes = [];
+          // const part1NodeMap = new Map();
+          // const part2NodeMap = new Map();
+          // // separate the nodes and init the positions
+          // nodes.forEach(function (node, i) {
+          //   if (node.cluster === 'part1') {
+          //     part1Nodes.push(node);
+          //     part1NodeMap.set(node.id, i);
+          //   } else {
+          //     part2Nodes.push(node);
+          //     part2NodeMap.set(node.id, i);
+          //   }
+          // });
+
+          // // order the part1 node
+          // part1Nodes.forEach(function (p1n) {
+          //   let index = 0;
+          //   let adjCount = 0;
+          //   edges.forEach(function (edge) {
+          //     const sourceId = edge.source;
+          //     const targetId = edge.target;
+          //     if (sourceId === p1n.id) {
+          //       index += part2NodeMap.get(targetId);
+          //       adjCount += 1;
+          //     } else if (targetId === p1n.id) {
+          //       index += part2NodeMap.get(sourceId);
+          //       adjCount += 1;
+          //     }
+          //   });
+          //   index /= adjCount;
+          //   p1n.index = index;
+          // });
+          // part1Nodes.sort(function (a, b) {
+          //   return a.index - b.index;
+          // });
+          // part2Nodes.forEach(function (p2n) {
+          //   let index = 0;
+          //   let adjCount = 0;
+          //   edges.forEach(function (edge) {
+          //     const sourceId = edge.source;
+          //     const targetId = edge.target;
+          //     if (sourceId === p2n.id) {
+          //       index += part1NodeMap.get(targetId);
+          //       adjCount += 1;
+          //     } else if (targetId === p2n.id) {
+          //       index += part1NodeMap.get(sourceId);
+          //       adjCount += 1;
+          //     }
+          //   });
+          //   index /= adjCount;
+          //   p2n.index = index;
+          // });
+          // part2Nodes.sort(function (a, b) {
+          //   return a.index - b.index;
+          // });
+
+          // // place the nodes
+          // const hLength = part1Nodes.length > part2Nodes.length ? part1Nodes.length : part2Nodes.length;
+          // const height = hLength * (nodeSep + nodeSize);
+          // let begin = center[1] - height / 2;
+          // if (direction === 'vertical') {
+          //   begin = center[0] - height / 2;
+          // }
+          // part1Nodes.forEach(function (p1n, i) {
+          //   if (direction === 'horizontal') {
+          //     p1n.x = part1Pos;
+          //     p1n.y = begin + i * (nodeSep + nodeSize);
+          //   } else {
+          //     p1n.x = begin + i * (nodeSep + nodeSize);
+          //     p1n.y = part1Pos;
+          //   }
+          // });
+          // part2Nodes.forEach(function (p2n, i) {
+          //   if (direction === 'horizontal') {
+          //     p2n.x = part2Pos;
+          //     p2n.y = begin + i * (nodeSep + nodeSize);
+          //   } else {
+          //     p2n.x = begin + i * (nodeSep + nodeSize);
+          //     p2n.y = part2Pos;
+          //   }
+          // });
+        }
+      });
+    };
     onMounted(() => {
       const { width, height } = topoGraphRef.value.getBoundingClientRect();
+      registerCustomLayout();
       registerCustomNode();
       registerCustomEdge();
       const graph = new Graph({
@@ -290,12 +402,13 @@ export default defineComponent({
           // gpuEnabled: true,
           // type: 'grid',
 
-          type: 'dagre',
+          // type: 'dagre',
+          type: 'topo-layout',
           rankdir: 'LR',
           align: 'UL',
           nodesep: 10,
           ranksep: 10,
-          sortByCombo: true,
+          sortByCombo: true
         },
         defaultNode: {
           type: 'circle',
@@ -331,71 +444,74 @@ export default defineComponent({
         };
       });
       graph.edge((cfg: any) => {
-        const isInvoke = cfg.type === EdgeStatus.Invoke
+        const isInvoke = cfg.type === EdgeStatus.Invoke;
         const edg = {
           ...cfg,
           style: {
-            endArrow: cfg.type === EdgeStatus.Invoke ? {
-              path: Arrow.triangle(),
-              d: 0,
-              fill: '#F55555',
-              stroke: '#F55555',
-              lineDash: [0,0],
-            } : false,
-            fill: isInvoke ? '#F55555':'#63656E',
-            stroke: isInvoke ? '#F55555':'#63656E',
+            endArrow:
+              cfg.type === EdgeStatus.Invoke
+                ? {
+                    path: Arrow.triangle(),
+                    d: 0,
+                    fill: '#F55555',
+                    stroke: '#F55555',
+                    lineDash: [0, 0]
+                  }
+                : false,
+            fill: isInvoke ? '#F55555' : '#63656E',
+            stroke: isInvoke ? '#F55555' : '#63656E',
             lineWidth: isInvoke ? 2 : 1,
-            lineDash: isInvoke ? [4, 2] : false,
-          },
-        }
-        if(!cfg.color) return edg
+            lineDash: isInvoke ? [4, 2] : false
+          }
+        };
+        if (!cfg.color) return edg;
         return {
           ...edg,
           type: 'topo-edge'
         };
-      })
+      });
       graph.data(topoData);
       graph.render();
-      setTimeout(() => {
-        // topoData.nodes.forEach((node, index) => {
-        //   node.x += Math.random() * 50 - 25;
-        //   node.y += Math.random() * 50 - 25;
-        // })
-        topoData.combos.forEach((node, index) => {
-          node.x += Math.random() * 50 - 25;
-          node.y += Math.random() * 50 - 25;
-        })
-        graph.updateCombos()
-        graph.changeData(topoData)
-      }, 2000)
+      // setTimeout(() => {
+      //   // topoData.nodes.forEach((node, index) => {
+      //   //   node.x += Math.random() * 50 - 25;
+      //   //   node.y += Math.random() * 50 - 25;
+      //   // })
+      //   topoData.combos.forEach((node, index) => {
+      //     node.x += Math.random() * 50 - 25;
+      //     node.y += Math.random() * 50 - 25;
+      //   });
+      //   graph.updateCombos();
+      //   graph.changeData(topoData);
+      // }, 2000);
       // graph.combo(combo => {
       //   const { id } = combo;
       //   const nodes = graph.findAll('node', node => {
-      //    return node.getModel().comboId === id   
+      //    return node.getModel().comboId === id
       //   })
       //   console.info(nodes, '--------')
       //   // const nodes = combo.;
       // })
-      graph.on('node:mouseenter', (e) => {
+      graph.on('node:mouseenter', e => {
         const nodeItem = e.item;
         graph.setItemState(nodeItem, 'hover', true);
       });
       // 监听鼠标离开节点
-      graph.on('node:mouseleave', (e) => {
+      graph.on('node:mouseleave', e => {
         const nodeItem = e.item;
         graph.setItemState(nodeItem, 'hover', false);
         graph.setItemState(nodeItem, 'running', false);
       });
-      graph.on('node:click', (e) => {
+      graph.on('node:click', e => {
         const nodeItem = e.item;
         const { status, aggregateNode } = nodeItem.getModel() as any;
-        if(status === NodeStatus.Root) {
+        if (status === NodeStatus.Root) {
           graph.setItemState(nodeItem, 'running', true);
-          return 
+          return;
         }
       });
     });
-    
+
     return {
       topoGraphRef
     };
