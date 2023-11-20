@@ -104,12 +104,16 @@ class ArchiveHandler:
                         archive_group[archive.archive_config_id][field] = 0
                 for table_id in table_ids:
                     for field in ["doc_count", "store_size", "index_count"]:
-                        archive_group[archive.archive_config_id][field] += int(archive_detail[table_id][field])
+                        if field not in archive_group.get(archive.archive_config_id, {}):
+                            archive_group[archive.archive_config_id][field] = 0
+                        _num = int(archive_detail.get(table_id, {}).get(field, 0))
+                        archive_group[archive.archive_config_id][field] += _num
             else:
                 archive_group[archive.archive_config_id]["instance_name"] = archive.instance_name
                 archive_group[archive.archive_config_id]["_collector_config_id"] = archive.collector_config_id
                 for field in ["doc_count", "store_size", "index_count"]:
-                    archive_group[archive.archive_config_id][field] = archive_detail[archive.table_id][field]
+                    _num = int(archive_detail.get(archive.table_id, {}).get(field, 0))
+                    archive_group[archive.archive_config_id][field] = _num
         return archives
 
     def retrieve(self, page, pagesize):
@@ -121,23 +125,25 @@ class ArchiveHandler:
         """
         if self.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
             table_ids = list(LogIndexSetData.objects.filter(
-                index_set_id=self.archive.instance_id).values_list("result_table_id", flat=True))
+                index_set_id=self.archive.instance_id).values_list("result_table_id", flat=True)
+            )
         else:
             table_ids = [self.archive.table_id]
-        snapshot_info, *_ = TransferApi.list_result_table_snapshot_indices({"table_ids": table_ids})
+        snapshot_info = TransferApi.list_result_table_snapshot_indices({"table_ids": table_ids})
         archive = model_to_dict(self.archive)
         indices = []
         for snapshot in snapshot_info:
-            for indice in snapshot.get("indices", []):
+            _snapshot = snapshot[0]
+            for indice in _snapshot.get("indices", []):
                 indices.append(
                     {
                         **indice,
                         "start_time": self.to_user_time_format(indice.get("start_time")),
                         "end_time": self.to_user_time_format(indice.get("end_time")),
                         "expired_time": format_user_time_zone_humanize(
-                            snapshot.get("expired_time"), get_local_param("time_zone")
+                            _snapshot.get("expired_time"), get_local_param("time_zone")
                         ),
-                        "state": snapshot.get("state"),
+                        "state": _snapshot.get("state"),
                     }
                 )
         archive["indices"] = indices[page * pagesize : (page + 1) * pagesize]
