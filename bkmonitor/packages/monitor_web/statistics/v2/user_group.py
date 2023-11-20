@@ -12,11 +12,11 @@ from collections import defaultdict
 
 from django.utils import translation
 from django.utils.functional import cached_property
-from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.models import DutyArrange, UserGroup
 from constants.alert import EVENT_SEVERITY_DICT
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import BaseCollector
 
 
 class UserGroupCollector(BaseCollector):
@@ -65,7 +65,9 @@ class UserGroupCollector(BaseCollector):
         translation.activate("en")
         for group in self.user_groups:
             for time_config in group.alert_notice:
+                UserGroup.translate_notice_ways(time_config)
                 for notify_config in time_config["notify_config"]:
+                    UserGroup.translate_notice_ways(notify_config)
                     for notice_way in notify_config["type"]:
                         metric.labels(
                             bk_biz_id=group.bk_biz_id,
@@ -87,7 +89,9 @@ class UserGroupCollector(BaseCollector):
         }
         for group in self.user_groups:
             for time_config in group.action_notice:
+                UserGroup.translate_notice_ways(time_config)
                 for notify_config in time_config["notify_config"]:
+                    UserGroup.translate_notice_ways(notify_config)
                     for notice_way in notify_config["type"]:
                         metric.labels(
                             bk_biz_id=group.bk_biz_id,
@@ -110,7 +114,9 @@ class UserGroupCollector(BaseCollector):
                         users.extend(getattr(self.biz_info.get(group.bk_biz_id), user_info["id"], []))
 
                 for time_config in group.alert_notice:
+                    UserGroup.translate_notice_ways(time_config)
                     for notify_config in time_config["notify_config"]:
+                        UserGroup.translate_notice_ways(notify_config)
                         for notice_way in notify_config["type"]:
                             method_users_map[notice_way] = method_users_map[notice_way].union(set(users))
 

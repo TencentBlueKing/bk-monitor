@@ -21,7 +21,6 @@ from prometheus_client.metrics_core import Metric
 from prometheus_client.parser import text_string_to_metric_families
 from prometheus_client.registry import CollectorRegistry
 
-from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from core.prometheus.tools import get_metric_agg_gateway_url
@@ -33,7 +32,7 @@ logger = logging.getLogger("bkmonitor")
 def get_agg_gateway_url() -> Optional[str]:
     """获取聚合网关 URL"""
     # TODO: agg_gateway_url should include scheme part
-    agg_gateway_url = get_metric_agg_gateway_url(protocol="tcp")
+    agg_gateway_url = get_metric_agg_gateway_url()
     if not agg_gateway_url:
         logger.warning("agg gateway url is missing in settings, skipping report to bk-data")
         return
@@ -140,11 +139,9 @@ class JobFilterCollector:
         """返回 Metrics"""
 
         for metric in fetch_aggregated_metrics(self.agg_gateway_url):
-
             # 用于标记当前 metric 是否属于预期的 Job
             own_job_label: bool = False
             for sample in metric.samples:
-
                 sending = is_job_meet(self.wanted_job, sample.labels, self.allow_job_absent)
                 if not sending:
                     continue
@@ -158,10 +155,11 @@ class JobFilterCollector:
                 yield metric
 
 
-def push_agg_data_via_prometheus(wanted_job: Optional[str] = None, allow_job_absent: bool = False):
+def push_agg_data_via_prometheus(wanted_job: str, push_job: str, allow_job_absent: bool = False):
     """
     拉取聚合网关数据并以 Prometheus 格式上报到数据链路
     :param wanted_job: 想要获取的数据的 job 标签
+    :param push_job: 上报的 job 标签
     :param allow_job_absent: 是否允许 job 标签缺失
     """
     agg_gateway_url = get_agg_gateway_url()
@@ -179,7 +177,7 @@ def push_agg_data_via_prometheus(wanted_job: Optional[str] = None, allow_job_abs
     _registry.register(_collector)
 
     # TODO: 端口是否应该改从配置中读取？
-    target_url = f"http://{get_custom_report_default_hostname()}:4318/metrics/job/{quote_plus(wanted_job)}"
+    target_url = f"http://{get_custom_report_default_hostname()}:4318/metrics/job/{quote_plus(push_job)}"
     data = generate_latest(_registry)
     try:
         response = requests.put(
@@ -201,14 +199,3 @@ def push_agg_data_via_prometheus(wanted_job: Optional[str] = None, allow_job_abs
         return
 
     logger.info(f"Aggregated {wanted_job} data<size:{len(data)}> send done via Prometheus format")
-
-
-@share_lock()
-def fetch_operation_data_and_push(parallel=True):
-    push_agg_data_via_json(wanted_job=settings.OPERATION_STATISTICS_METRIC_PUSH_JOB, parallel=parallel)
-
-
-@share_lock()
-def fetch_sli_data_and_push(parallel=True):
-    # sli 数据可能并没有 job 标签，所以容忍缺失
-    push_agg_data_via_prometheus(wanted_job=settings.DEFAULT_METRIC_PUSH_JOB, allow_job_absent=True)

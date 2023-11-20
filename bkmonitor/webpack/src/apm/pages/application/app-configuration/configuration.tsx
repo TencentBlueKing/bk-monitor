@@ -88,6 +88,19 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     },
     application_instance_name_config: {
       instance_name_composition: []
+    },
+    application_db_config: [],
+    application_db_system: [],
+    plugin_id: '',
+    plugin_config: {
+      target_node_type: 'INSTANCE',
+      target_nodes: [],
+      target_object_type: 'HOST',
+      data_encoding: '',
+      paths: [''],
+      bk_biz_id: window.bk_biz_id,
+      bk_data_id: '',
+      subscription_id: ''
     }
   };
   /** 历史记录弹窗配置 */
@@ -133,6 +146,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
 
   beforeRouteEnter(from, to, next) {
     next((vm: ApplicationConfiguration) => {
+      // eslint-disable-next-line no-param-reassign
       vm.routeList = [
         // {
         //   id: 'home',
@@ -172,6 +186,16 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     if (this.appId) {
       this.loading = this.firstLoad;
       const res = await applicationInfo(this.appId).catch(() => {});
+      // 特殊处理。应该后端的 bug 。
+      if ((res as IAppInfo).application_db_config.length === 0) {
+        res.application_db_config.push({
+          db_system: '',
+          trace_mode: 'closed',
+          length: 10000,
+          threshold: 500,
+          enabled_slow_sql: true
+        });
+      }
       Object.assign(this.appInfo, res);
       const {
         // app_name: appName,

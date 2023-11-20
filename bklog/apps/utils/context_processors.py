@@ -62,7 +62,9 @@ def mysetting(request):
         "LOGIN_SERVICE_URL": ConfFixture.LOGIN_URL,
         # 'LOGOUT_URL': settings.LOGOUT_URL,
         "BK_PAAS_HOST": "%s/app/list/" % settings.BK_PAAS_HOST,
-        "BK_PLAT_HOST": settings.BK_PAAS_HOST,
+        "BK_PLAT_HOST": settings.BK_PAAS_HOST
+        if not bool(request.headers.get("Is-External", "false"))
+        else settings.EXTERNAL_PAAS_HOST,
         "BK_CC_HOST": settings.BK_CC_HOST,
         # 数据平台跳转URL
         "BKDATA_URL": settings.BKDATA_URL,
@@ -80,7 +82,9 @@ def mysetting(request):
         else settings.TITLE_MENU_CONFIG["zh"],
         "BK_DOC_URL": settings.BK_DOC_URL,
         "BK_DOC_QUERY_URL": settings.BK_DOC_QUERY_URL,
-        "BK_FAQ_URL": settings.BK_FAQ_URL,
+        "BK_FAQ_URL": settings.BK_FAQ_URL
+        if request.headers.get("Is-External", "false") == "false"
+        else "https://bk.tencent.com/s-mart/community/question",
         "BK_HOT_WARM_CONFIG_URL": settings.BK_HOT_WARM_CONFIG_URL,
         "BIZ_ACCESS_URL": settings.BIZ_ACCESS_URL,
         "DEMO_BIZ_ID": str(settings.DEMO_BIZ_ID),
@@ -93,4 +97,5 @@ def mysetting(request):
         "BK_ASSESSMEN_HOST_COUNT": str(settings.BK_ASSESSMEN_HOST_COUNT),
         "BK_ETL_DOC_URL": settings.BK_ETL_DOC_URL,
         "ENABLE_CHECK_COLLECTOR": "true" if request.user.is_superuser else "false",
+        "IS_EXTERNAL": request.headers.get("Is-External", "false"),
     }

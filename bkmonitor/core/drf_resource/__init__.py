@@ -27,10 +27,10 @@ __doc__ = """
     cc
     ├── adapter
     │   ├── default.py
-    │   ├── community
-    │   │   └── resources.py
-    │   └── enterprise
-    │       └── resources.py
+    │   ├── community
+    │   │   └── resources.py
+    │   └── enterprise
+    │       └── resources.py
     └── resources.py
     使用:
         resource.cc -> cc/resources.py

@@ -82,7 +82,7 @@ export default class Grafana extends Vue {
     this.loading = true;
     if (!this.url) {
       if (this.$route.name === 'grafana-home') {
-        this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}`;
+        this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       } else {
         const list = await getDashboardList().catch(() => []);
         const { bizId } = this.$store.getters;
@@ -97,7 +97,7 @@ export default class Grafana extends Vue {
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
-          this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}`;
+          this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
           this.$router.replace({ name: 'grafana-home' });
         }
         await this.$nextTick();
@@ -111,9 +111,18 @@ export default class Grafana extends Vue {
       // );
     } else {
       const isFavorite = this.$route.name === 'favorite-dashboard';
-      this.grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${this.$store.getters.bizId}`;
+      this.grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
     }
+  }
+  getUrlParamsString() {
+    const str =  Object.entries({
+      ...(this.$route.query || {}),
+      ...Object.fromEntries(new URLSearchParams(location.search))
+    }).map(entry => entry.join('='))
+      .join('&');
+    if (str.length) return `&${str}`;
+    return '';
   }
   mounted() {
     window.addEventListener('message', this.handleMessage, false);

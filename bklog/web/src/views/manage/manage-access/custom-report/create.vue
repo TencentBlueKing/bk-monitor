@@ -385,7 +385,7 @@ export default {
           },
           {
             max: 50,
-            message: this.$t('不能多于50个字符'),
+            message: this.$t('不能多于{n}个字符', { n: 50 }),
             trigger: 'blur',
           },
           {
@@ -567,7 +567,7 @@ export default {
           category_id,
           description,
           bk_data_id,
-          storage_shards_nums,
+          storage_shards_nums: storageShardsNums,
         } = res.data;
         Object.assign(this.formData, {
           collector_config_name,
@@ -581,7 +581,7 @@ export default {
           category_id,
           description,
           bk_data_id,
-          es_shards: storage_shards_nums,
+          es_shards: storageShardsNums,
         });
         // 缓存编辑时的集群ID
         // eslint-disable-next-line camelcase

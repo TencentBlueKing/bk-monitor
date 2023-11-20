@@ -1,0 +1,697 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 1,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 3
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_port\",\"select\":[{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"38e874ae-1797-ec2a-90e2-5fe66cd03283\",\"subFuncs\":[{\"func\":\"PerSecond\"}]}],\"where\":[{\"type\":\"tag\",\"key\":\"pod_cluster\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$cluster\",\"value\":\"cluster\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"b05cae19-b856-95d0-dce1-94d6645ffacf\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_ns\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$namespace\",\"value\":\"namespace\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"1220323f-d2ad-cefa-f4d3-f4ab55f10e15\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_group\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$workload\",\"value\":\"workload\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"b5b9841c-12f9-a563-7fb4-8328eba34228\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$protocol\",\"value\":\"protocol\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"80b91789-c207-d0a5-c7c2-eecd09dbf995\",\"subFuncs\":[],\"whereOnly\":false}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b7e4c522-19bd-5cfa-bc90-52fc6320dfe5\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"pod\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7f212e7e-00ef-4395-a544-7c3f1773e642\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b82ea2d0-9966-fb29-9485-35fbf95fd08f\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b7db1894-f3b9-03af-2ef2-f2f17762d4f9\",\"sort\":\"asc\"}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${pod} ${Enum(l7_protocol)}\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "Request",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 1,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 3
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_port\",\"select\":[{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"04ca0247-1ed6-0625-4f97-cee9f86d87ac\",\"subFuncs\":[],\"whereOnly\":false}],\"where\":[{\"type\":\"tag\",\"key\":\"pod_cluster\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$cluster\",\"value\":\"cluster\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"86fd291a-ddca-0865-a007-12ab0fedeef8\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_ns\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$namespace\",\"value\":\"namespace\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"c4817643-6714-fce3-9099-cdd8790ba519\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_group\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$workload\",\"value\":\"workload\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"a58c1969-fb59-fb29-47b6-25dfb4093cd2\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$protocol\",\"value\":\"protocol\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"e3a3b5e5-65fb-6da2-27ac-535f8dc97684\",\"subFuncs\":[],\"whereOnly\":false}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c513c654-b4ae-659d-4a08-ef4212d87a31\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"pod\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d57a2a25-d841-f337-1206-cf7219d9a003\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ea06d500-9a2f-441d-02f3-54383c878dc1\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9056516f-4c3a-68cb-2a7c-83d6f6d7ad54\",\"sort\":\"asc\"}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${pod} ${Enum(l7_protocol)}\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": " Server error",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 1,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "µs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 3
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_port\",\"select\":[{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6a73fa4e-4de3-8c32-36be-b9d39f77e488\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"pod_cluster\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$cluster\",\"value\":\"cluster\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"96ff0a7a-7473-a061-030e-72d2de44709f\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_ns\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$namespace\",\"value\":\"namespace\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"c23fc7f5-9503-9d15-0ad9-49cae829a978\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_group\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$workload\",\"value\":\"workload\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"3b04e083-62d2-ec63-20e9-89cc446c2ad7\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$protocol\",\"value\":\"protocol\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"209baec5-b87a-ad21-5de3-54bd9b9da64b\",\"subFuncs\":[],\"whereOnly\":false}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c513c654-b4ae-659d-4a08-ef4212d87a31\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"pod\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"50a3f97e-894b-5f13-f54b-5c12f56d6a54\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"71edb25b-60c7-42d6-9e03-0ad990ecedc8\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9056516f-4c3a-68cb-2a7c-83d6f6d7ad54\",\"sort\":\"asc\"}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${pod} ${Enum(l7_protocol)}\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "decimals": 2,
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Request"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Server error"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Client error"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 11,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Error"
+          }
+        ]
+      },
+      "pluginVersion": "9.2.5",
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_app_port\",\"select\":[{\"type\":\"tag\",\"key\":\"pod\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8435c1ab-7449-a12c-197c-ca77492a7077\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2eccdb38-1af9-1197-5c5a-944053ae57ad\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"request\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3e02455d-7b7c-0736-48cb-0701445e667b\",\"subFuncs\":[{\"func\":\"PerSecond\"}],\"cache\":{\"subFuncs\":[{\"func\":\"PerSecond\"}]}},{\"type\":\"metric\",\"key\":\"client_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1443427c-4932-00e1-ea8d-370bfdbc2663\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"server_error_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"33aeeb1d-e2e7-bd64-1500-45791d58da1f\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"rrt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"532702ba-eeda-0950-3c6d-0de4c5189491\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"pod_cluster\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$cluster\",\"value\":\"cluster\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"ce099b48-7d5c-e1dc-bf6e-5830eb0f9424\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_ns\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$namespace\",\"value\":\"namespace\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"d2e91e9d-1e57-ad5c-ac6c-cdd0aca3b259\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"pod_group\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$workload\",\"value\":\"workload\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"7085947b-9281-3b42-1636-fd2b19e4b7b5\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"IN\",\"val\":[{\"label\":\"$protocol\",\"value\":\"protocol\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"d08a6ddb-c9e6-eb30-4221-bebf3d50835b\",\"subFuncs\":[],\"whereOnly\":false}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c513c654-b4ae-659d-4a08-ef4212d87a31\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"pod\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"4d1bdecb-f9fd-c2e6-6016-fc6f5eb034a4\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"l7_protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"94573741-2920-7518-4197-505726c501eb\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9056516f-4c3a-68cb-2a7c-83d6f6d7ad54\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"100\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "Pod List",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "icon_id": true,
+              "l7_protocol": true,
+              "node_type": true,
+              "pod_id": true,
+              "time_1": true,
+              "time_60": true
+            },
+            "indexByName": {
+              "Avg(client_error_ratio)": 7,
+              "Avg(rrt)": 9,
+              "Avg(server_error_ratio)": 8,
+              "Enum(l7_protocol)": 1,
+              "PerSecond(Avg(request))": 6,
+              "icon_id": 5,
+              "l7_protocol": 2,
+              "node_type": 4,
+              "pod": 0,
+              "pod_id": 3
+            },
+            "renameByName": {
+              "Avg(TCP重传比例)": "TCP retrans rate ",
+              "Avg(client_error_ratio)": "Client error",
+              "Avg(error_ratio)": "Error",
+              "Avg(request)": "Resquest",
+              "Avg(rrt)": "Latency",
+              "Avg(server_error)": "Server error",
+              "Avg(server_error_ratio)": "Server error",
+              "Avg(包数)": "Throughput (pps)",
+              "Avg(平均TCP建连时延)": "TCP conn. establishment latency",
+              "Avg(平均数据时延)": "TCP/UDP data  latency ",
+              "Avg(建连-失败比例)": "TCP conn. establishment fail rate ",
+              "Avg(新建连接)": "TCP new conn",
+              "Enum(l7_protocol)": "Protocol",
+              "PerSecond(Avg(request))": "Request",
+              "PerSecond(Avg(包数))": "Throughput (pps)",
+              "PerSecond(Avg(新建连接))": "TCP new conn.",
+              "PerSecond(Math(Avg(字节)*8))": "Throughput (bps)",
+              "l7_protocol": "Protocol",
+              "pod": "Pod name",
+              "pod_id": "",
+              "time_60": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "value": "1"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "deepflowio-deepflow-datasource",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "Any"
+          ],
+          "value": [
+            "__any"
+          ]
+        },
+        "datasource": "$datasource",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "database": "flow_metrics",
+          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "useAny": true,
+          "useDisabled": false
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "Any"
+          ],
+          "value": [
+            "__any"
+          ]
+        },
+        "datasource": "$datasource",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_ns as value, pod_ns as display_name FROM `vtap_flow_port.1m` WHERE  ('$cluster' IN ('__disabled')  OR  '$cluster' IN ('__any')  OR pod_cluster IN (${cluster:singlequote}))  AND  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "database": "flow_metrics",
+          "sql": "SELECT pod_ns as value, pod_ns as display_name FROM `vtap_flow_port.1m` WHERE  ('$cluster' IN ('__disabled')  OR  '$cluster' IN ('__any')  OR pod_cluster IN (${cluster:singlequote}))  AND  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "useAny": true,
+          "useDisabled": false
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "Any"
+          ],
+          "value": [
+            "__any"
+          ]
+        },
+        "datasource": "$datasource",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_group as `value`, pod_group as `display_name` FROM `vtap_flow_port.1m` WHERE ('$cluster' IN ('__any', '__disabled') OR pod_cluster IN (${cluster:singlequote})) AND ('$namespace' IN ('__any', '__disabled') OR pod_ns IN (${namespace:singlequote})) AND  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "workload",
+        "options": [],
+        "query": {
+          "database": "flow_metrics",
+          "sql": "SELECT pod_group as `value`, pod_group as `display_name` FROM `vtap_flow_port.1m` WHERE ('$cluster' IN ('__any', '__disabled') OR pod_cluster IN (${cluster:singlequote})) AND ('$namespace' IN ('__any', '__disabled') OR pod_ns IN (${namespace:singlequote})) AND  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "useAny": true,
+          "useDisabled": false
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "Disabled"
+          ],
+          "value": [
+            "__disabled"
+          ]
+        },
+        "datasource": "$datasource",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"show tag l7_protocol values from vtap_app_port\"}",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "protocol",
+        "options": [],
+        "query": {
+          "database": "flow_metrics",
+          "sql": "show tag l7_protocol values from vtap_app_port",
+          "useDisabled": true
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Application - K8s Pod",
+  "uid": "Application_K8s_Pod",
+  "version": 15,
+  "weekStart": "",
+  "__inputs": [
+    {
+      "name": "DS_DeepFlow_-_uid",
+      "label": "蓝鲸监控 - DeepFlow数据",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "deepflowio-deepflow-datasource",
+      "pluginName": "DeepFlow Datasource"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "deepflowio-deepflow-datasource",
+      "name": "DeepFlow Datasource"
+    }
+  ],
+  "__path": "dashboards/DeepFlow-Templates/Application-K8s-Pod.json"
+}

@@ -16,4 +16,3 @@ project:
   # 范围，根据项目的模块或者分工设定，可为空
   scopes: []
   reviewers: []
-

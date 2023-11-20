@@ -9,20 +9,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import base64
 import logging
-from collections import namedtuple
+import ntpath
+import os
+import posixpath
+from collections import defaultdict, namedtuple
 
 import six
 from django.conf import settings
+from django.template import Context, Template
 from django.utils.translation import ugettext as _
 
 from bkmonitor.utils.common_utils import host_key
 from core.drf_resource import api, resource
 
 logger = logging.getLogger(__name__)
-
 
 # 系统信息
 SystemInfo = namedtuple("SystemInfo", ["bk_os_type", "script_ext", "job_execute_account", "script_type"])
@@ -69,7 +70,36 @@ class JobTaskClient(object):
             "aix": aix_system_info,
         }
 
-    def execute_task_by_system(self, hosts, task_func):
+    def get_linux_setup_path(self, gse_agent_path=None):
+        if not gse_agent_path:
+            gse_agent_path = settings.LINUX_GSE_AGENT_PATH
+        return posixpath.join(gse_agent_path, "plugins", "bin")
+
+    def get_linux_conf_path(self):
+        return posixpath.join(settings.LINUX_GSE_AGENT_PATH, "plugins", "etc")
+
+    def get_windows_setup_path(self, gse_agent_path=None):
+        if not gse_agent_path:
+            gse_agent_path = settings.WINDOWS_GSE_AGENT_PATH
+        return ntpath.join(gse_agent_path, "plugins", "bin")
+
+    def get_windows_conf_path(self):
+        return ntpath.join(settings.WINDOWS_GSE_AGENT_PATH, "plugins", "etc")
+
+    def render_script(self, directory, name, cxt):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        tpl_path = os.path.join(os.path.dirname(os.path.dirname(current_dir)), 'uptime_check', 'collector')
+        with open(os.path.join(tpl_path, directory, name), "r", encoding="utf-8") as fd:
+            script_tpl = fd.read()
+        template = Template(script_tpl)
+
+        return template.render(Context(cxt or {}))
+
+    # 如果settings里配置了分割符，就生成对应的语句，否则传回空字符串
+    def get_divide_symbol(self):
+        return settings.DIVIDE_SYMBOL
+
+    def execute_task_by_system_and_path(self, hosts, task_func):
         """
         根据系统类型执行用户给定的JOB任务并返回结果
         :param hosts: IP列表
@@ -78,10 +108,10 @@ class JobTaskClient(object):
         """
         task_results = []
 
-        hosts_info, error_hosts = self.separate_hosts_by_system(hosts)
+        hosts_info, error_hosts = self.separate_hosts_by_system_and_path(hosts)
         # 按系统类型分别执行任务
-        for system_info, ip_list in hosts_info:
-            task_result = task_func(system_info, ip_list)
+        for system_info, setup_path, ip_list in hosts_info:
+            task_result = task_func(system_info, setup_path, ip_list)
             task_results.append(task_result)
 
         # 任务结果合并
@@ -97,16 +127,14 @@ class JobTaskClient(object):
 
         return merged_result
 
-    def separate_hosts_by_system(self, hosts):
+    def separate_hosts_by_system_and_path(self, hosts):
         """
         将主机按系统类型进行分组，以便进行差异化的处理
         :rtype: dict[str, dict]
         """
         supported_systems = list(self._get_system_info_dict().keys())
 
-        hosts_by_system = {
-            key: {"hosts": [], "system": value} for key, value in list(self._get_system_info_dict().items())
-        }
+        hosts_by_system_and_path = defaultdict(lambda: {"hosts": [], "system": None, "path": ""})
         error_hosts = []
 
         # 实时获取当前主机的操作系统
@@ -114,9 +142,24 @@ class JobTaskClient(object):
 
         # 给业务下的所有主机建立索引，便于查找
         ip_os_dict = {}
+        host_key_dict = {}
         for host in all_hosts:
             ip_os_dict[f"{host.bk_host_innerip}|{host.bk_cloud_id}"] = host.bk_os_type_name
             ip_os_dict[int(host.bk_host_id)] = host.bk_os_type_name
+            host_key_dict[f"{host.bk_host_innerip}|{host.bk_cloud_id}"] = int(host.bk_host_id)
+
+        bk_host_ids = [
+            int(host["bk_host_id"]) if host.get("bk_host_id") else host_key_dict[f"{host['ip']}|{host['plat_id']}"]
+            for host in hosts
+        ]
+        host_info = api.node_man.plugin_search(
+            {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
+        )["list"]
+        host_path_dict = defaultdict()
+        for host in host_info:
+            if host.get("setup_path"):
+                host_path_dict[host["bk_host_id"]] = host["setup_path"]
+                host_path_dict[f"{host['inner_ip']}|{host['bk_cloud_id']}"] = host["setup_path"]
 
         for host in hosts:
             if host.get("bk_host_id"):
@@ -135,7 +178,11 @@ class JobTaskClient(object):
                 continue
             bk_os_type = ip_os_dict[host_id]
             if bk_os_type in supported_systems:
-                hosts_by_system[bk_os_type]["hosts"].append(host_dict)
+                path = host_path_dict.get(host_id, "")
+                host_type = (bk_os_type, path)
+                hosts_by_system_and_path[host_type]["hosts"].append(host_dict)
+                hosts_by_system_and_path[host_type]["path"] = path
+                hosts_by_system_and_path[host_type]["system"] = bk_os_type
             elif not bk_os_type:
                 error_hosts.append({"errmsg": _("{host_name} 操作系统类型不能为空").format(host_name=host_name), **host_dict})
             else:
@@ -149,102 +196,73 @@ class JobTaskClient(object):
                 )
 
         # 删除主机列表为空的系统信息
-        for k in list(hosts_by_system.keys()):
-            if not hosts_by_system[k]["hosts"]:
-                del hosts_by_system[k]
+        for k in list(hosts_by_system_and_path.keys()):
+            if not hosts_by_system_and_path[k]["hosts"]:
+                del hosts_by_system_and_path[k]
 
-        return [(info["system"], info["hosts"]) for info in list(hosts_by_system.values())], error_hosts
+        return [
+            (self._get_system_info_dict()[info["system"]], info["path"], info["hosts"])
+            for info in list(hosts_by_system_and_path.values())
+        ], error_hosts
 
-    @staticmethod
-    def render_context(system_info, system_special, attr_name, default):
+    def render_context(self, system_info, attr_name, test_config_yml, setup_path):
         """
         :param attr_name: 属性名称
         :param system_info: 系统信息
-        :param system_special: 上下文字典信息，格式 {"linux": {"attr": "1"}, "windows": {"attr": "2"}
-        :param default: 默认值
+        :param test_config_yml: 测试配置模版
+        :param setup_path: gse路径
         :return:
         """
-        if not system_special:
-            return default
-        if system_info.bk_os_type in system_special:
-            return system_special[system_info.bk_os_type].get(attr_name, default)
-        return default
+        # 生成执行脚本
+        test_filename = "test_bkmonitorbeat.yml"
+        script_content = self.render_script(
+            "linux",
+            "test.sh.tpl",
+            {
+                "divide_symbol": self.get_divide_symbol(),
+                "test_config_file_path": posixpath.join(settings.LINUX_FILE_DOWNLOAD_PATH, test_filename),
+                "test_config_yml": test_config_yml,
+                "setup_path": self.get_linux_setup_path(setup_path),
+                "download_path": settings.LINUX_FILE_DOWNLOAD_PATH,
+            },
+        )
+        system_special = (
+            dict(
+                windows=dict(
+                    script_content=self.render_script(
+                        "windows",
+                        "test.bat.tpl",
+                        {
+                            "divide_symbol": self.get_divide_symbol(),
+                            "test_config_file_path": posixpath.join(settings.WINDOWS_FILE_DOWNLOAD_PATH, test_filename),
+                            "test_config_yml": test_config_yml,
+                            "setup_path": self.get_windows_setup_path(setup_path),
+                            "download_path": settings.WINDOWS_FILE_DOWNLOAD_PATH,
+                        },
+                    ),
+                ),
+            ),
+        )
 
-    def fast_execute_script(self, hosts, script_content, system_special=None):
+        if system_info.bk_os_type in system_special:
+            return system_special[system_info.bk_os_type].get(attr_name, script_content)
+        return script_content
+
+    def fast_execute_script(self, hosts, test_config_yml):
         """
         快速执行脚本
         :param hosts: IP列表
-        :param script_content: 脚本内容
-        :param system_special: 系统上下文
+        :param test_config_yml: 测试配置模板
         :return:
         """
-        result = self.execute_task_by_system(
+        result = self.execute_task_by_system_and_path(
             hosts=hosts,
-            task_func=lambda system_info, host_list: resource.commons.fast_execute_script(
+            task_func=lambda system_info, setup_path, host_list: resource.commons.fast_execute_script(
                 host_list=host_list,
                 bk_biz_id=self.bk_biz_id,
                 account_alias=system_info.job_execute_account,
-                script_content=self.render_context(system_info, system_special, "script_content", script_content),
+                script_content=self.render_context(system_info, "script_content", test_config_yml, setup_path),
                 script_type=system_info.script_type,
             ),
         )
         return result
-
-    def test_fast_execute_script(self, hosts, script_content, system_special=None):
-        """
-        快速执行脚本，仅用于测试之用，不要用于其他场景
-        :param hosts: IP列表
-        :param script_content: 脚本内容
-        :param system_special: 系统上下文
-        :return:
-        """
-        result = self.execute_task_by_system(
-            hosts=hosts,
-            task_func=lambda system_info, ip_list: resource.commons.test_fast_execute_script(
-                operator=self.operator,
-                ip_list=ip_list,
-                bk_biz_id=self.bk_biz_id,
-                account=system_info.job_execute_account,
-                script_content=self.render_context(system_info, system_special, "script_content", script_content),
-                type=system_info.script_type,
-            ),
-        )
-        return result
-
-    def gse_push_file(self, hosts, path, file_list, system_special=None):
-        """
-        下发文件
-        :param hosts: IP列表
-        :param path: 下发路径
-        :param file_list: 文件列表，每个元素是file_name和content的字典
-        :param system_special
-        :return:
-        """
-
-        def covert_file_content(files):
-            for file_info in files:
-                file_info["content"] = base64.b64encode(file_info["content"].encode("utf-8")).decode("utf-8")
-            return files
-
-        result = self.execute_task_by_system(
-            hosts=hosts,
-            task_func=lambda system_info, ip_list: resource.commons.fast_push_file(
-                ip_list=ip_list,
-                bk_biz_id=self.bk_biz_id,
-                account=system_info.job_execute_account,
-                file_target_path=self.render_context(system_info, system_special, "path", path),
-                file_list=covert_file_content(self.render_context(system_info, system_special, "file_list", file_list)),
-            ),
-        )
-        return result
-
-    @staticmethod
-    def label_failed_ip(task_result, label):
-        """
-        对JOB失败的任务进行标记，用于定位出错所处的步骤
-        :param task_result: 任务结果, dict
-        :param label: 标签, str
-        """
-        for host in task_result["failed"]:
-            host["errmsg"] = "{}: {}".format(label, host.get("errmsg", ""))
-        return task_result

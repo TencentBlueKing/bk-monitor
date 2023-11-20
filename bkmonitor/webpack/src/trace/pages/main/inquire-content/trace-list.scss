@@ -590,12 +590,12 @@
   top: 6px;
   left: 50%;
   z-index: 1;
+  display: none;
   padding: 10px 12px;
   font-size: 14px;
   color: #fff;
   background: #6c6d6f;
   border-radius: 2px;
-  display: none;
   transform: translate(-50%);
 
   @keyframes fade-out {

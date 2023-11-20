@@ -79,6 +79,8 @@ def get_org_by_name(org_name: str) -> Optional[dict]:
     """
     获取组织
     """
+    org_name = str(org_name)
+
     if org_name in _ORG_CACHE:
         return _ORG_CACHE[org_name]
 
@@ -145,6 +147,10 @@ def get_or_create_org(org_name: str) -> dict:
         )
     except IntegrityError:
         org = Org.objects.get(name=org_name)
+
+    # 确保admin用户存在
+    user = get_or_create_user("admin")
+    sync_user_role(org.id, user["id"], "Admin")
 
     return {"id": org.id, "name": org.name}
 

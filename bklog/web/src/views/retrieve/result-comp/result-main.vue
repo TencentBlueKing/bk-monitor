@@ -30,7 +30,10 @@
         <template v-if="showAddMonitor">
           <span>
             , <i18n path="将搜索条件 {0}">
-              <a href="javascript:void(0);" class="monitor-link" @click="jumpMonitor">
+              <a
+                href="javascript:void(0);"
+                class="monitor-link"
+                @click="jumpMonitor">
                 {{ $t('添加为监控') }}
                 <span class="log-icon icon-lianjie"></span>
               </a>
@@ -127,9 +130,11 @@ export default {
   computed: {
     ...mapState({
       bkBizId: state => state.bkBizId,
+      isExternal: state => state.isExternal,
     }),
     showAddMonitor() {
-      return Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor'));
+      return !this.isExternal
+                  && Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor'));
     },
   },
   watch: {

@@ -124,7 +124,7 @@ export interface ITableChartOption {
   table_chart?: {
     need_filters?: boolean; // 是否需要表格筛选tab
     need_title?: boolean; // 表格图是否需要标题栏
-    search_type?: 'input' | 'search_select'; // 普通搜索 | search select组件
+    search_type?: 'input' | 'search_select' | 'none'; // 普通搜索 | search select组件
     json_viewer_data_key?: string; // 显示json格式数据的key show_expand=true生效
     json_viewer_data_empty_text?: string; // json格式数据为空的情况下提示内容 show_expand=true生效
     show_expand?: boolean; // 是否需要点击展开内容

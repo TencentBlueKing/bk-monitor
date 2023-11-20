@@ -152,6 +152,7 @@ StrategySchema = Schema(
             Optional("assign_mode", default=lambda: ["only_notice", "by_rule"]): And(
                 [Or("only_notice", "by_rule")], lambda x: len(x) > 0
             ),
+            Optional("chart_image_enabled", default=True): bool,
             Optional("interval_mode", default="standard"): Or("standard", "increasing"),
             Optional("interval", default=120): int,
             Optional(

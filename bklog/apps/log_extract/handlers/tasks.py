@@ -23,6 +23,13 @@ import ipaddress
 from datetime import timedelta
 from typing import List
 
+from django.conf import settings
+from django.utils import timezone
+from django.utils.translation import ugettext as _
+from pipeline.engine.exceptions import InvalidOperationException
+from pipeline.service import task_service
+from rest_framework.response import Response
+
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.iam import ActionEnum, Permission
@@ -38,25 +45,29 @@ from apps.log_extract.handlers.extract import ExtractLinkBase
 from apps.log_extract.models import ExtractLink, Tasks
 from apps.log_extract.serializers import PollingResultSerializer
 from apps.log_extract.tasks.extract import log_extract_task
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_app_code,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.time_handler import format_user_time_zone
-from django.conf import settings
-from django.utils import timezone
-from django.utils.translation import ugettext as _
-from pipeline.engine.exceptions import InvalidOperationException
-from pipeline.service import task_service
-from rest_framework.response import Response
 
 
 class TasksHandler(object):
+    def __init__(self):
+        self.request_user = get_request_external_username() or get_request_username()
+
     @classmethod
     def list(cls, tasks_views, bk_biz_id, keyword):
-        request_user = get_request_username()
+        source_app_code = get_request_app_code()
+        request_user = get_request_external_username() or get_request_username()
 
         # 运维人员可以看到完整的任务列表
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
-        tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id)
+        # source_app_code隔离
+        tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id, source_app_code=source_app_code)
         if not has_biz_manage:
             tasks = tasks.filter(created_by=request_user)
         queryset = tasks_views.filter_queryset(tasks)
@@ -75,12 +86,11 @@ class TasksHandler(object):
         return Response(serializer.data)
 
     def recreate(self, task_id):
-        request_user = get_request_username()
         try:
             task = Tasks.objects.get(task_id=task_id)
         except Tasks.DoesNotExist:
             raise exceptions.TaskIDDoesNotExist
-        if task.created_by != request_user:
+        if task.created_by != self.request_user:
             raise exceptions.TasksRecreateFailed
 
         return self.create(
@@ -107,6 +117,7 @@ class TasksHandler(object):
         preview_end_time,
         link_id,
     ):
+        request_user = get_request_external_username() or get_request_username()
         # K8S部署情况下禁止使用内网链路, 所以已有的内网链路不能创建任务
         extract_link: ExtractLink = ExtractLink.objects.filter(link_id=link_id).first()
         if extract_link and extract_link.link_type == ExtractLinkType.COMMON.value and settings.IS_K8S_DEPLOY_MODE:
@@ -159,6 +170,7 @@ class TasksHandler(object):
             "preview_start_time": preview_start_time,
             "preview_end_time": preview_end_time,
             "link_id": link_id,
+            "created_by": request_user,
         }
         task = Tasks.objects.create(**params)
         params["ip_list"] = ip_list
@@ -174,6 +186,7 @@ class TasksHandler(object):
             "preview_start_time",
             "preview_end_time",
             "link_id",
+            "created_by",
         ]:
             params.pop(pop_field)
 
@@ -195,7 +208,8 @@ class TasksHandler(object):
 
         # add user_operation_record
         operation_record = {
-            "username": get_request_username(),
+            # 外部请求时，记录真实的外部用户请求, 用于统计
+            "username": request_user,
             "biz_id": bk_biz_id,
             "record_type": UserOperationTypeEnum.LOG_EXTRACT_TASKS,
             "record_object_id": task.task_id,
@@ -208,7 +222,7 @@ class TasksHandler(object):
         return {"task_id": task.task_id}
 
     def retrieve(self, tasks_views):
-        request_user = get_request_username()
+        request_user = get_request_external_username() or get_request_username()
         instance = tasks_views.get_object()
         serializer = tasks_views.get_serializer(instance)
         task = serializer.data
@@ -277,10 +291,9 @@ class TasksHandler(object):
         return tasks_views.update(tasks_views.request, *args, **kwargs)
 
     def get_polling_result(self, task_list):
-        request_user = get_request_username()
         task_list = task_list.split(",")
 
-        records = Tasks.objects.filter(created_by=request_user, task_id__in=task_list)
+        records = Tasks.objects.filter(created_by=self.request_user, task_id__in=task_list)
 
         # 处理pipeline中发生错误而task状态未更新的情况
         self.pipeline_failure_to_task_status(records)

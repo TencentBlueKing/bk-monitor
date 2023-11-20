@@ -43,3 +43,7 @@ export const MANAGE_DASHBOARD_AUTH = 'manage_dashboard_v2'; // 仪表盘管理
 
 // 日志提取
 export const MANAGE_EXTRACT_AUTH = 'manage_extract_config_v2'; // 日志提取配置管理
+
+// 日志脱敏
+export const MANAGE_DESENSITIZE_RULE = 'manage_desensitize_rule'; // 业务日志脱敏
+export const MANAGE_GLOBAL_DESENSITIZE_RULE = 'manage_global_desensitize_rule'; // 全局日志脱敏

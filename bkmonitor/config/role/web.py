@@ -63,6 +63,7 @@ INSTALLED_APPS += (
     "monitor_api",
     "monitor_web",
     "apm_web",
+    "apm_ebpf",
     "apm",
     "weixin.core",
     "weixin",
@@ -111,39 +112,33 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.prometheus.MetricsAfterMiddleware",  # 必须放到最后面
 )
 
-DEFAULT_DB_NAME = os.environ.get("DB_NAME")
-DEFAULT_DB_USER = os.environ.get("DB_USERNAME")
-DEFAULT_DB_PASSWORD = os.environ.get("DB_PASSWORD")
-DEFAULT_DB_HOST = os.environ.get("DB_HOST")
-DEFAULT_DB_PORT = os.environ.get("DB_PORT")
 
 DATABASES = locals()["DATABASES"]
+# 未配置节点管理，默认和监控 SaaS 共用 DB
+DATABASES["nodeman"] = {}
+DATABASES["nodeman"].update(DATABASES["default"])
+DATABASES["nodeman"]["NAME"] = "bk_nodeman"
 # 设置节点管理数据库配置
-DATABASES.update(
-    {
-        "nodeman": {
-            "ENGINE": "django.db.backends.mysql",
-            "NAME": os.environ.get("BKAPP_NODEMAN_DB_NAME", "bk_nodeman"),
-            "USER": os.environ.get("BKAPP_NODEMAN_DB_USERNAME", DEFAULT_DB_USER),
-            "PASSWORD": os.environ.get("BKAPP_NODEMAN_DB_PASSWORD", DEFAULT_DB_PASSWORD),
-            "HOST": os.environ.get("BKAPP_NODEMAN_DB_HOST", DEFAULT_DB_HOST),
-            "PORT": os.environ.get("BKAPP_NODEMAN_DB_PORT", DEFAULT_DB_PORT),
-        },
-    }
-)
-
-if os.environ.get("BKAPP_NEED_MIGRATE_FTA", False) == "True":
-    # 需要进行迁移的用户才配置DB信息
+for db_key in [
+    "BKAPP_NODEMAN_DB_NAME",
+    "BKAPP_NODEMAN_DB_USERNAME",
+    "BKAPP_NODEMAN_DB_PASSWORD",
+    "BKAPP_NODEMAN_DB_HOST",
+    "BKAPP_NODEMAN_DB_PORT",
+]:
+    if db_key not in os.environ:
+        break
+else:
     DATABASES.update(
         {
-            "fta": {
+            "nodeman": {
                 "ENGINE": "django.db.backends.mysql",
-                "NAME": os.environ.get("BKAPP_FTA_DB_NAME", "bk_fta_solutions"),
-                "USER": os.environ.get("BKAPP_FTA_DB_USERNAME", DEFAULT_DB_USER),
-                "PASSWORD": os.environ.get("BKAPP_FTA_DB_PASSWORD", DEFAULT_DB_PASSWORD),
-                "HOST": os.environ.get("BKAPP_FTA_DB_HOST", DEFAULT_DB_HOST),
-                "PORT": os.environ.get("BKAPP_FTA_DB_PORT", DEFAULT_DB_PORT),
-            }
+                "NAME": os.environ["BKAPP_NODEMAN_DB_NAME"],
+                "USER": os.environ["BKAPP_NODEMAN_DB_USERNAME"],
+                "PASSWORD": os.environ["BKAPP_NODEMAN_DB_PASSWORD"],
+                "HOST": os.environ["BKAPP_NODEMAN_DB_HOST"],
+                "PORT": os.environ["BKAPP_NODEMAN_DB_PORT"],
+            },
         }
     )
 
@@ -263,6 +258,7 @@ LOGGING["loggers"].update(
         "monitor_web": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "monitor_api": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "apm": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
+        "apm_ebpf": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "utils": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "core": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
         "common": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
@@ -459,7 +455,10 @@ GRAPH_WATERMARK = True
 GRAFANA = {
     "HOST": GRAFANA_URL,
     "PROVISIONING_PATH": BASE_DIR + "/packages/monitor_web/grafana/provisioning",  # noqa
-    "PROVISIONING_CLASSES": ["monitor_web.grafana.provisioning.BkMonitorProvisioning"],
+    "PROVISIONING_CLASSES": [
+        "monitor_web.grafana.provisioning.BkMonitorProvisioning",
+        "monitor_web.grafana.provisioning.ApmEbpfProvisioning",
+    ],
     "PERMISSION_CLASSES": ["monitor_web.grafana.permissions.DashboardPermission"],
     "CODE_INJECTIONS": {
         "<head>": """<head>
@@ -632,3 +631,11 @@ EXTERNAL_PREFIX = ""
 EXTERNAL_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_EXTERNAL_APPROVAL_SERVICE_ID", 0))
 # 外部版APIGW公钥
 EXTERNAL_APIGW_PUBLIC_KEY = ""
+
+# https相关配置
+SECURE_SSL_REDIRECT = os.getenv("BKAPP_SECURE_SSL_REDIRECT", "").lower() == "true"
+SECURE_SSL_HOST = os.getenv("BKAPP_SECURE_SSL_HOST", "")
+SECURE_REDIRECT_EXEMPT = os.getenv("BKAPP_SECURE_REDIRECT_EXEMPT", "")
+if SECURE_REDIRECT_EXEMPT:
+    SECURE_REDIRECT_EXEMPT = SECURE_REDIRECT_EXEMPT.split(",")
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

@@ -28,16 +28,16 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.utils.context_processors import mysetting
-from apps.utils.drf import list_route
 from apps.exceptions import LanguageDoseNotSupported, ValidationError
 from apps.generic import APIViewSet
-from apps.log_search.constants import TimeEnum, FILTER_KEY_LIST
+from apps.log_search.constants import FILTER_KEY_LIST, TimeEnum
 from apps.log_search.handlers.meta import MetaHandler
 from apps.log_search.models import GlobalConfig, Scenario
 from apps.log_search.serializers import ProjectSerializer
-from apps.utils.local import get_request_username
+from apps.utils.context_processors import mysetting
 from apps.utils.db import get_toggle_data
+from apps.utils.drf import list_route
+from apps.utils.local import get_request_username
 
 
 class MetaViewSet(APIViewSet):
@@ -430,7 +430,7 @@ class MetaViewSet(APIViewSet):
             "result":true
         }
         """
-        username = get_request_username()
+        username = get_request_username() or getattr(request, "external_user", "")
         if not username:
             raise ValidationError(_("username 不能为空"))
         return Response(MetaHandler.get_user_guide(username=username))

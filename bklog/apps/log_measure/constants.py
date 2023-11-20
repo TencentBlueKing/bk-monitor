@@ -19,12 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
+from django.utils.translation import ugettext as _
+
 from apps.utils import ChoicesEnum
 from bk_monitor.constants import EVENT_TYPE, TIME_SERIES_TYPE
 from bk_monitor.handler.monitor import BKMonitor
 from config.domains import MONITOR_APIGATEWAY_ROOT
-from django.conf import settings
-from django.utils.translation import ugettext as _
 
 BK_MONITOR_CLIENT = BKMonitor(
     app_id=settings.APP_CODE,
@@ -49,7 +50,9 @@ INDEX_FORMAT = "*_bklog_*"
 COLLECTOR_IMPORT_PATHS = [
     "apps.log_measure.handlers.metric_collectors.business",
     "apps.log_measure.handlers.metric_collectors.cluster",
-    "apps.log_measure.handlers.metric_collectors.es",
+    "apps.log_measure.handlers.metric_collectors.es_stats",
+    "apps.log_measure.handlers.metric_collectors.es_pshard",
+    "apps.log_measure.handlers.metric_collectors.es_indices",
     "apps.log_measure.handlers.metric_collectors.grafana",
     "apps.log_measure.handlers.metric_collectors.log_archive",
     "apps.log_measure.handlers.metric_collectors.log_clustering",
@@ -108,3 +111,4 @@ MAX_RETRY_QUERY_SUBSCRIPTION_TIMES = 5
 TIME_WAIT_QUERY_SUBSCRIPTION_EXCEPTION = 10
 
 INDEX_SCENARIO = {"bkdata": "log_bkbase", "es": "log_third_es"}
+LOG_MEASURE_METRIC_TOGGLE = "log_measure_metric_toggle"
