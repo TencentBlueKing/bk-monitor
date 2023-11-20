@@ -15,7 +15,6 @@ from typing import Dict, List, Optional
 import six
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import Q
-from monitor_web.strategies.constant import ValueableList
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -23,8 +22,13 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.models import QueryConfigModel, StrategyLabel, StrategyModel
 from bkmonitor.views.serializers import BusinessOnlySerializer
 from constants.alert import EventStatus
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, resource
 from core.unit import UNITS, load_unit
+from monitor_web.aiops.ai_setting.constant import SceneSet
+from monitor_web.aiops.ai_setting.utils import AiSetting
+from monitor_web.strategies.constant import ValueableList
+from monitor_web.tasks import parse_scene_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -408,3 +412,53 @@ class GetUnitInfoResource(Resource):
             "suffix": unit_instance.suffix,
             "unit_series": unit_instance.fn.unit_series(),
         }
+
+
+class MultivariateAnomalyScenesResource(Resource):
+    """
+    获取智能AI观察场景列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False, default=0, label=_("业务ID"))
+
+    @classmethod
+    def parse_ai_setting(cls, bk_biz_id: int):
+        # 获取业务的AI配置
+        ai_setting = AiSetting(bk_biz_id=bk_biz_id).to_dict()
+        if (
+            "host" in ai_setting["multivariate_anomaly_detection"]
+            and ai_setting["multivariate_anomaly_detection"]["host"]["is_enabled"]
+        ):
+            # AI配置有打开时，才返回配置
+            intelligent_detect = ai_setting["multivariate_anomaly_detection"]["host"]["intelligent_detect"]
+            metrics_config = parse_scene_metrics(ai_setting["multivariate_anomaly_detection"]["host"]["plan_args"])
+            return True, intelligent_detect, metrics_config
+        return False, {}, []
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        is_enabled, intelligent_detect, metrics_config = self.parse_ai_setting(bk_biz_id)
+        if is_enabled:
+            return [
+                {
+                    "scene_id": SceneSet.HOST,
+                    "scene_name": _("主机场景"),
+                    "query_config": {
+                        "data_source_label": DataSourceLabel.BK_DATA,
+                        "data_type_label": DataTypeLabel.TIME_SERIES,
+                        "result_table_id": intelligent_detect["result_table_id"],
+                        "metric_field": "is_anomaly",
+                        # 添加anomaly_sort字段，用于算法检测输出报告
+                        "extend_fields": {"values": ["anomaly_sort"]},
+                        "agg_dimension": ["ip", "bk_cloud_id"],
+                        "agg_method": "MAX",
+                        "agg_interval": 60,
+                        # 只查询出is_anomaly=1的数据
+                        "agg_condition": [{"key": "is_anomaly", "value": [1], "method": "eq"}],
+                        "alias": "a",
+                    },
+                    "metrics": metrics_config,
+                }
+            ]
+        return []

@@ -13,37 +13,37 @@ from django.template import Template
 
 # agg节点sql模板
 AGG_METRICS_SQL_EXPR = Template(
-"""
-SELECT bk_biz_id, ip, bk_cloud_id, 
+    """
+SELECT bk_biz_id, ip, bk_cloud_id, bk_target_ip, bk_target_cloud_id,
     {% for metric, metric_alias in metric_infos %}
          AVG(`{{ metric }}`) as `{{ metric_alias }}`{% if not forloop.last %},{% endif %}
-    {% endfor %} 
-FROM {{output_table_name}} 
-GROUP BY bk_biz_id, ip, bk_cloud_id"""
+    {% endfor %}
+FROM {{output_table_name}}
+GROUP BY bk_biz_id, ip, bk_cloud_id, bk_target_ip, bk_target_cloud_id"""
 )
 
 # agg_trans节点sql模板
 AGG_TRANS_METRICS_SQL_EXPR = Template(
-"""
-SELECT bk_biz_id, ip, bk_cloud_id, 
+    """
+SELECT bk_biz_id, ip, bk_cloud_id, bk_target_ip, bk_target_cloud_id,
 CONCAT_WS('#',
-    {{ metrics|join:"," }}
-) AS metrics_key, 
+    {{ metrics_strs }}
+) AS metrics_key,
 CONCAT_WS('#',
     {% for metric in metrics %}
         CAST(IF(`{{ metric }}` IS NOT NULL,`{{ metric }}`,0.0) AS VARCHAR){% if not forloop.last %},{% endif %}
     {% endfor %}
-) AS metrics_value 
+) AS metrics_value
 from {{output_table_name}}
 """
 )
 
 # 最后将所有节点合并的sql模板
 MERGE_SQL_EXPR = Template(
-"""
-SELECT bk_biz_id, ip, bk_cloud_id,udf_merge_metrics_into_json('#',
+    """
+SELECT bk_biz_id, ip, bk_cloud_id, bk_target_ip, bk_target_cloud_id, udf_merge_metrics_into_json('#',
     metrics_key, '#', metrics_value)
     AS metrics_json
 FROM {{output_table_name}}
-GROUP BY bk_biz_id, ip, bk_cloud_id"""
+GROUP BY bk_biz_id, ip, bk_cloud_id, bk_target_ip, bk_target_cloud_id"""
 )

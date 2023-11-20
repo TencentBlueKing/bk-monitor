@@ -97,12 +97,14 @@ export interface IMetricDetail {
   index_set_name?: string;
   metric_type?: MetricType;
   logMetricList?: IMetricDetail[];
+  sceneConfig?: any;
 }
 export enum MetricType {
   TimeSeries = 'time_series',
   LOG = 'log',
   EVENT = 'event',
-  ALERT = 'alert'
+  ALERT = 'alert',
+  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection'
 }
 export class MetricDetail {
   alias?: string = '';
@@ -149,7 +151,7 @@ export class MetricDetail {
   agg_interval_list = INTERVAL_LIST;
   level = 1;
   agg_dimension: string[] = [];
-  agg_condition = [];
+  _agg_condition = [];
   functions = [];
   objectType = '';
   targetType = '';
@@ -233,8 +235,43 @@ export class MetricDetail {
     } else {
       this.logMetricList = null;
     }
+    // 处理日志关键字指标ID脏数据
+    if (this.metricMetaId === 'bk_log_search|log' && this.agg_method === 'COUNT') {
+      const list = this.metric_id.toString().split('.');
+      if (list.length > 3) {
+        this.metric_id = list.slice(0, 3).join('.');
+      }
+    }
     /* 随机key, 无实际含义 */
     this.key = random(8);
+  }
+  get agg_condition() {
+    return this._agg_condition;
+  }
+  set agg_condition(v) {
+    if (
+      v?.length &&
+      this.rawDimensions?.some(item => item?.type === 'number' && v?.some(set => set?.key === item?.id))
+    ) {
+      const conditions =
+        v?.map(condition => {
+          const dimension = this.rawDimensions?.find(dim => dim.id === condition.key);
+          if (dimension?.type === 'number' && Array.isArray(condition.value)) {
+            return {
+              ...condition,
+              value: condition.value.map(num => {
+                return isNaN(num) || num === '' ? num : Number(num);
+              })
+            };
+          }
+          return condition;
+        }) ||
+        v ||
+        [];
+      this._agg_condition = conditions;
+      return;
+    }
+    this._agg_condition = v;
   }
   get metricMetaId() {
     return `${this.data_source_label}|${this.data_type_label}`;
@@ -354,7 +391,7 @@ export class MetricDetail {
   /** 日志关键字对应指标列表 */
   setLogMetricList(list: IMetricDetail[]) {
     this.logMetricList = list;
-    if (list?.length && !list.find(item => item.metric_id === this.metric_id)) {
+    if (list?.length && !list.find(item => item.metric_id === this.metric_id) && this.agg_method !== 'COUNT') {
       this.metric_id = list[0].metric_id;
     }
   }
@@ -481,4 +518,11 @@ export interface ISourceData {
   sourceCodeCache?: string;
   promqlError?: boolean;
   errorMsg?: string;
+}
+
+/* 场景异常检测类型 此类型数据结构与其他几项数据结构不同 */
+export interface ISceneConfig {
+  query_configs: any[];
+  algorithms: any[];
+  scene_name?: string;
 }

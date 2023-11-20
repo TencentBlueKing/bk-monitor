@@ -12,8 +12,9 @@ import datetime
 from abc import ABC
 from typing import List
 
-from core.unit import load_unit
 from django.utils.translation import gettext_lazy as _lazy
+
+from core.unit import load_unit
 
 
 class DefaultTableFormat(ABC):
@@ -72,7 +73,7 @@ class TableFormat(DefaultTableFormat):
 
     def get_filter_key(self, row):
         """获取筛选的键"""
-        default_key = row.get(self.id, "")
+        default_key = row.get(self.id, "--")
         default_value = self.get_map_value(default_key)
         return {"text": default_key, "value": default_value}
 
@@ -145,7 +146,7 @@ class StringLabelTableFormat(StringTableFormat):
         return {**res, "showOverflowTooltip": self.show_over_flow_tool_tip}
 
     def get_filter_key(self, row):
-        default_key = row.get(self.id, "")
+        default_key = row.get(self.id, "--")
         return {"value": default_key, "text": self.label_getter(default_key)}
 
 

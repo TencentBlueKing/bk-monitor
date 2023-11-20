@@ -36,10 +36,10 @@ __doc__ = """
     cc
     ├── adapter
     │   ├── default.py
-    │   ├── community
-    │   │   └── resources.py
-    │   └── enterprise
-    │       └── resources.py
+    │       ├── community
+    │       │       └── resources.py
+    │       └── enterprise
+    │           └── resources.py
     └── resources.py
     使用:
         # api: 代表基于ESB/APIGW调用的接口调用
@@ -71,7 +71,6 @@ def lazy_load(func):
 
 
 class ResourceShortcut(object):
-
     _package_pool = {}
 
     _entry = "resources"
@@ -152,7 +151,6 @@ class ResourceShortcut(object):
 
 
 class AdapterResourceShortcut(ResourceShortcut):
-
     _entry = "adapter.default"
     _package_pool = {}
 

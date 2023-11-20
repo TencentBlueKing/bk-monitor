@@ -46,8 +46,8 @@ export default {
   正在执行中的配置暂不能升级: 'Configurations in progress cannot be upgraded at the moment',
   '已选群机器人，群ID不能为空': 'Selected group robot, group ID cannot be empty',
   视图标签名不能为空且不能相同: 'View label name cannot be empty and must be unique', // 这两个检验要分开
-  '所有的指标/维度的英文名和别名不能重名或与关键字冲突或为空':
-    'The English names and aliases of all metrics/dimensions cannot have the same name or be the same as the key Word conflict or empty',
+  '所有的指标/维度的英文名和别名不能重名或为空':
+    'All metric/dimension English names and aliases cannot have the same name. Word conflict or empty',
   不能输入emoji表情: 'Can not enter emoji expressions',
   '新建规则不能撤回, 可以删除': 'New rules cannot be withdrawn and can be deleted',
 

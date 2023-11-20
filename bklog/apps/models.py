@@ -21,13 +21,14 @@ the project delivered to anyone in the future.
 """
 import json
 
-from apps.utils.base_crypt import BaseCrypt
-from apps.utils.local import get_request_username
 from django.core import exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+
+from apps.utils.base_crypt import BaseCrypt
+from apps.utils.local import get_request_username
 
 
 class JSONEncoderSupportSet(DjangoJSONEncoder):
@@ -196,7 +197,10 @@ class OperateRecordModelManager(models.Manager):
         return OperateRecordQuerySet(self.model, using=self._db)
 
     def create(self, *args, **kwargs):
-        kwargs.update({"created_at": timezone.now(), "created_by": get_request_username()})
+        if not kwargs.get("created_by"):
+            # 如果已经传入了创建者，则不再进行修改
+            kwargs.update({"created_by": get_request_username()})
+        kwargs.update({"created_at": timezone.now()})
         return super().create(*args, **kwargs)
 
     def bulk_create(self, *args, **kwargs):
@@ -219,7 +223,8 @@ class OperateRecordModel(models.Model):
     def save(self, *args, **kwargs):
         if self._state.adding:
             self.created_at = timezone.now()
-            self.created_by = get_request_username()
+            if not self.created_by:
+                self.created_by = get_request_username()
 
         if get_request_username(default="") or not self.updated_by:
             # 当前是web请求，或者原先没有设置updated_by，则进行更新

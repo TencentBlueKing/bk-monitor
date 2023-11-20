@@ -166,6 +166,17 @@ class ResultTableAndDataSource:
                 continue
             storage_info = storage_info.first()
             storage_dict[storage_type] = storage_info.consul_config
+
+        # 通过结果表追加 vm 配置
+        table_id_vm_obj = models.AccessVMRecord.objects.filter(result_table_id=table_id)
+        if table_id_vm_obj:
+            obj = table_id_vm_obj.first()
+            storage_dict[models.ClusterInfo.TYPE_VM] = {
+                "vm_cluster_id": obj.vm_cluster_id,
+                "bk_base_data_id": obj.bk_base_data_id,
+                "vm_result_table_id": obj.vm_result_table_id,
+            }
+
         return storage_dict
 
     def get_influxdb_instance_cluster(self, table_id: str) -> Dict:
@@ -173,10 +184,17 @@ class ResultTableAndDataSource:
         influxdb_storage = models.InfluxDBStorage.objects.filter(table_id=table_id)
         if not influxdb_storage:
             return {"influxdb_instance_cluster": {}}
-        cluster_name = influxdb_storage.first().proxy_cluster_name
+        influxdb_proxy_storage_id = influxdb_storage.first().influxdb_proxy_storage_id
+        # 获取对应的集群
+        influxdb_proxy_storage_objs = models.InfluxDBProxyStorage.objects.filter(id=influxdb_proxy_storage_id)
+        if not influxdb_proxy_storage_objs.exists():
+            return {"influxdb_instance_cluster": {}}
+        cluster_name = influxdb_proxy_storage_objs.first().instance_cluster_name
         cluster_info = models.InfluxDBClusterInfo.objects.filter(cluster_name=cluster_name).values(
             "host_name", "host_readable"
         )
+        if not cluster_info:
+            return {"influxdb_instance_cluster": {}}
         host_dict = {i["host_name"]: i for i in cluster_info}
         # 通过cluster info获取对应的主机 ip及密码信息
         qs = models.InfluxDBHostInfo.objects.filter(host_name__in=host_dict.keys())

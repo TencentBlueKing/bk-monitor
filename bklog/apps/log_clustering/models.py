@@ -19,6 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.db import models
+from django.utils.translation import ugettext_lazy as _
+
 from apps.log_clustering.constants import (
     LogColShowTypeEnum,
     PatternEnum,
@@ -29,8 +32,6 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import ClusteringConfigNotExistException
 from apps.models import SoftDeleteModel
-from django.db import models
-from django.utils.translation import ugettext_lazy as _
 
 
 class SampleSet(SoftDeleteModel):
@@ -62,7 +63,9 @@ class AiopsSignatureAndPattern(SoftDeleteModel):
     model_id = models.CharField(_("模型ID"), max_length=128)
     signature = models.CharField(_("数据指纹"), max_length=256)
     pattern = models.TextField("pattern")
-    label = models.TextField(_("备注"), default="")
+    label = models.TextField(_("标签"), default="")
+    remark = models.JSONField(_("备注信息"), default=[], null=True, blank=True)
+    owners = models.JSONField(_("负责人"), default=[], null=True, blank=True)
 
     class Meta:
         index_together = ["model_id", "signature"]
@@ -105,6 +108,7 @@ class ClusteringConfig(SoftDeleteModel):
     options = models.JSONField(_("额外配置"), null=True, blank=True)
     task_records = models.JSONField(_("任务记录"), default=list)
     model_output_rt = models.CharField(_("模型输出结果表"), max_length=255, default="", null=True, blank=True)
+    clustered_rt = models.CharField(_("聚类结果表"), max_length=255, default="", null=True, blank=True)
     log_count_agg_rt = models.CharField(_("日志数量聚合结果表"), max_length=255, default="", null=True, blank=True)
     predict_flow = models.JSONField(_("predict_flow配置"), null=True, blank=True)
     predict_flow_id = models.IntegerField(_("预测flow_id"), null=True, blank=True)

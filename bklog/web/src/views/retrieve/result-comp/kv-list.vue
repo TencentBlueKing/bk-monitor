@@ -30,7 +30,7 @@
             :class="getFieldIcon(field)"
             v-bk-tooltips="fieldTypePopover(field)"
           ></span>
-          <span :title="field">{{ field }}</span>
+          <span class="field-text" :title="field">{{ field }}</span>
         </div>
         <div class="handle-option-list">
           <span
@@ -294,6 +294,9 @@ export default {
      * @param { string } field
      */
     getRelationMonitorField(field) {
+      // 外部版不提供外链跳转
+      if (this.$store.state.isExternal) return false;
+
       const key = field.toLowerCase();
       switch (key) {
         // trace检索
@@ -344,11 +347,21 @@ export default {
       align-items: baseline;
 
       .field-label {
-        width: 160px;
-        min-width: 160px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        width: 260px;
+        height: 100%;
+        min-width: 260px;
+        display: flex;
+        align-items: baseline;
+        flex-wrap: nowrap;
+
+        .field-text {
+          word-break: normal;
+          width: auto;
+          display: block;
+          white-space: pre-wrap;
+          word-wrap: break-word ;
+          overflow: hidden;
+        }
 
         :deep(.icon-ext) {
           width: 13px;

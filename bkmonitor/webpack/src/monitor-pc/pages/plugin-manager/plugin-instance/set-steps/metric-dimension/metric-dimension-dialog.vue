@@ -32,7 +32,9 @@
       <div
         class="title"
         v-if="!isFromHome"
-      >{{ $t('设置指标&维度') }}</div>
+      >
+        {{ $t('设置指标&维度') }}
+      </div>
       <!-- 顶部按钮 -->
       <div class="set-button">
         <bk-button
@@ -82,9 +84,8 @@
             class="mc-btn-add btn"
             style="margin-left: 8px"
             @click="handleRefreshData"
-          >{{
-            $t('button-刷新')
-          }}</bk-button>
+            >{{ $t('button-刷新') }}</bk-button
+          >
           <div slot="content">
             <div>{{ $t('此刷新仅追加新获取的指标和维度') }}</div>
           </div>
@@ -96,22 +97,23 @@
                     <a class="blue mr-14" href="javascript:void(0);" @click="handleDownloadMetricJson"> {{ $t('下载样例') }} </a> -->
           <template v-if="!isFromHome">
             <monitor-import
-              style=" margin-right: 10px;color: #3a84ff"
+              style="margin-right: 10px; color: #3a84ff"
               :return-text="true"
               accept="application/json"
               v-authority="{ active: !authority.MANAGE_AUTH }"
-              @change="(data) => (authority.MANAGE_AUTH ? handleImportMetric(data) : handleShowAuthorityDetail())"
+              @change="data => (authority.MANAGE_AUTH ? handleImportMetric(data) : handleShowAuthorityDetail())"
             />
             <span style="color: #dcdee5">|</span>
             <monitor-export
               v-authority="{ active: !authority.MANAGE_AUTH }"
-              @click="(cb) => (authority.MANAGE_AUTH ? handleExportMetric(cb) : handleShowAuthorityDetail())"
+              @click="cb => (authority.MANAGE_AUTH ? handleExportMetric(cb) : handleShowAuthorityDetail())"
             />
             <span>{{ $t('数据时间:') }}{{ dataTime }}</span>
             <span
               class="blue dataPreview"
               @click="handleShowData"
-            >{{ $t('预览') }}</span>
+              >{{ $t('预览') }}</span
+            >
             <bk-switcher
               v-model="dataPreview"
               size="small"
@@ -132,21 +134,22 @@
             </bk-popover>
             <span style="color: #dcdee5">|</span>
             <monitor-import
-              style=" margin: 0 10px;color: #3a84ff"
+              style="margin: 0 10px; color: #3a84ff"
               :return-text="true"
               v-authority="{ active: !authority.MANAGE_AUTH }"
-              @change="(data) => (authority.MANAGE_AUTH ? handleImportMetric(data) : handleShowAuthorityDetail())"
+              @change="data => (authority.MANAGE_AUTH ? handleImportMetric(data) : handleShowAuthorityDetail())"
             />
             <span style="color: #dcdee5">|</span>
             <monitor-export
               v-authority="{ active: !authority.MANAGE_AUTH }"
-              @click="(cb) => (authority.MANAGE_AUTH ? handleExportMetric(cb) : handleShowAuthorityDetail())"
+              @click="cb => (authority.MANAGE_AUTH ? handleExportMetric(cb) : handleShowAuthorityDetail())"
             />
             <span style="color: #dcdee5">|</span>
             <span
               class="blue dataPreview"
               @click="handleHideStop"
-            >{{ $t('隐藏已停用') }}</span>
+              >{{ $t('隐藏已停用') }}</span
+            >
             <bk-switcher
               v-model="hideStop"
               size="small"
@@ -249,7 +252,9 @@
           class="confirm-btn"
           theme="primary"
           @click="handleSetGroup"
-        > {{ $t('确认') }} </bk-button>
+        >
+          {{ $t('确认') }}
+        </bk-button>
         <bk-button @click="groupDialog.isShow = false">
           {{ $t('取消') }}
         </bk-button>
@@ -259,7 +264,6 @@
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex';
 import moment from 'moment';
 
 import { releaseCollectorPlugin } from '../../../../../../monitor-api/modules/model';
@@ -308,7 +312,8 @@ export default {
       default: false
     },
     isToken: Boolean, //  是否发布
-    pluginType: { // 插件类型
+    pluginType: {
+      // 插件类型
       type: String
     }
   },
@@ -340,7 +345,6 @@ export default {
     };
   },
   computed: {
-    ...mapGetters('plugin-manager', ['reservedWords']), //    关键字列表
     //  分组名称列表
     groupNameList() {
       return this.tableData.map(group => group.table_name);
@@ -352,7 +356,7 @@ export default {
     //  英文名列表
     nameList() {
       let list = [];
-      this.tableData.forEach((group) => {
+      this.tableData.forEach(group => {
         const res = group.fields.map(item => item.name);
         list = list.concat(res);
       });
@@ -369,23 +373,25 @@ export default {
       // 指标全局唯一
       let isMetricRepeat = false;
       const metricExisted = [];
-      this.tableData.some(row => row.fields
-        .filter(item => item.monitor_type === 'metric')
-        .some((item) => {
-          if (metricExisted.includes(item)) {
-            isMetricRepeat = true;
-            return true;
-          }
-          metricExisted.push(item);
-          return false;
-        }));
+      this.tableData.some(row =>
+        row.fields
+          .filter(item => item.monitor_type === 'metric')
+          .some(item => {
+            if (metricExisted.includes(item)) {
+              isMetricRepeat = true;
+              return true;
+            }
+            metricExisted.push(item);
+            return false;
+          })
+      );
       // 维度组里唯一
       let isDimensionRepeat = false;
-      this.tableData.some((row) => {
+      this.tableData.some(row => {
         const existed = [];
         return row.fields
           .filter(item => item.monitor_type === 'dimension')
-          .some((item) => {
+          .some(item => {
             if (existed.includes(item)) {
               isDimensionRepeat = true;
               return true;
@@ -396,28 +402,19 @@ export default {
       // 别名全局唯一
       let isDescRepeat = false;
       const descExisted = [];
-      this.tableData.some(row => row.fields
-        .filter(item => item.description !== '')
-        .some((item) => {
-          if (descExisted.includes(item)) {
-            isDescRepeat = true;
-            return true;
-          }
-          descExisted.push(item);
-          return false;
-        }));
-      // 关键字检查
-      let hasReservedWord = false;
-      this.tableData.forEach((row) => {
-        row.fields.forEach((item) => {
-          if (this.reservedWords.find(word => word === item.name.toLocaleUpperCase())) {
-            item.errValue = false;
-            item.reValue = true;
-            hasReservedWord = true;
-          }
-        });
-      });
-      return !isMetricRepeat && !isDimensionRepeat && !isDescRepeat && !hasReservedWord;
+      this.tableData.some(row =>
+        row.fields
+          .filter(item => item.description !== '')
+          .some(item => {
+            if (descExisted.includes(item)) {
+              isDescRepeat = true;
+              return true;
+            }
+            descExisted.push(item);
+            return false;
+          })
+      );
+      return !isMetricRepeat && !isDimensionRepeat && !isDescRepeat;
     },
     canMoveBtn() {
       //  能否启用移动
@@ -443,7 +440,7 @@ export default {
   watch: {
     metricJson: {
       handler(newV) {
-        this.tableData = this.handleTableDataConflictError(JSON.parse(JSON.stringify(newV)));
+        this.tableData = JSON.parse(JSON.stringify(newV));
         this.handleTabelDataChange();
       },
       deep: true
@@ -452,36 +449,16 @@ export default {
   created() {
     this.loading = true;
     this.getUnitListData();
-    !this.reservedWords.length && this.getReservedWords();
     this.loading = false;
   },
   methods: {
-    ...mapActions('plugin-manager', ['getReservedWords']),
-    /**
-     * 处理指标维度名字冲突报错置顶
-     * @param data 指标维度数据
-     */
-    handleTableDataConflictError(data) {
-      return data.map((group) => {
-        group.fields = group.fields.reduce((total, item) => {
-          if (this.reservedWords.find(word => word === item.name.toLocaleUpperCase())) {
-            item.errValue = false;
-            item.reValue = true;
-            item.order = 0; /** 将名字冲突的指标和维度置顶 */
-          }
-          total.push(item);
-          return total;
-        }, []);
-        return group;
-      });
-    },
     /**
      * 是否允许继续添加指标维度
      * @param tableData 指标维度数据
      * @param isImport 是否导入数据
      **/
     isAllowAddItem(tableData = this.tableData, isImport = false) {
-      const num = tableData.reduce((total, group) => total += group.fields.length, 0);
+      const num = tableData.reduce((total, group) => (total += group.fields.length), 0);
       const max = this.isSnmp ? MAX_NUM_METRIC_DIM_SNMP : MAX_NUM_METRIC_DIM;
       return isImport ? num <= max : num < max;
     },
@@ -502,7 +479,7 @@ export default {
     },
     handleTabelDataChange() {
       this.tableData.forEach((group, groupIndex) => {
-        group.fields.forEach((item) => {
+        group.fields.forEach(item => {
           item.id = random(10);
           if (item.monitor_type === 'metric' && item.type === 'double' && item.is_diff_metric) {
             item.type = 'diff';
@@ -518,7 +495,7 @@ export default {
     //  获取动态单位数据
     async getUnitListData() {
       await getUnitList()
-        .then((data) => {
+        .then(data => {
           this.unitList = data.map(item => ({
             ...item,
             children: item.formats,
@@ -564,7 +541,7 @@ export default {
     },
     //  排序
     handleSortTableData() {
-      this.tableData.forEach((item) => {
+      this.tableData.forEach(item => {
         item.fields.sort((a, b) => a.order - b.order);
       });
     },
@@ -578,7 +555,7 @@ export default {
     },
     //  隐藏已停用
     handleHideStop() {
-      this.tableData.forEach((item) => {
+      this.tableData.forEach(item => {
         item.fields = item.fields.filter(row => row.is_active);
       });
       this.hideStop = true;
@@ -590,7 +567,7 @@ export default {
       } else {
         this.tableData.forEach((item, index) => {
           const arr = this.stopedData[index] || [];
-          arr.forEach((row) => {
+          arr.forEach(row => {
             item.fields.splice(row.index, 0, row.data);
           });
         });
@@ -622,22 +599,20 @@ export default {
         return;
       }
       // 编辑情况下未变名字
-      if (group.isEdit
-          && this.tableData[group.index].table_name === group.name
-          && this.tableData[group.index].table_desc === group.desc) {
+      if (
+        group.isEdit &&
+        this.tableData[group.index].table_name === group.name &&
+        this.tableData[group.index].table_desc === group.desc
+      ) {
         group.isShow = false;
         return;
       }
       // 校验分组名字是否与关键字冲突
-      const res = this.tableData.some(item => (item.table_name === group.name
-        && item.table_name !== this.tableData[group.index].table_name));
-      const res1 = this.reservedWords.some(item => item === group.name.toLocaleUpperCase());
-      if (res || res1) {
-        if (res) {
-          this.$bkMessage({ theme: 'error', message: `${this.$t('注意: 名字冲突')}` });
-          return;
-        }
-        this.$bkMessage({ theme: 'error', message: this.$t('指标分类不能同名且不能为{0}', [group.name]) });
+      const res = this.tableData.some(
+        item => item.table_name === group.name && item.table_name !== this.tableData[group.index].table_name
+      );
+      if (res) {
+        this.$bkMessage({ theme: 'error', message: `${this.$t('注意: 名字冲突')}` });
         return;
       }
       // 新增/编辑
@@ -676,7 +651,8 @@ export default {
     },
     //  在当前行下新增一行
     handleAddRow(row, index, groupIndex) {
-      if (!this.isAllowAddItem()) { /** 超出最大限制无法添加 */
+      if (!this.isAllowAddItem()) {
+        /** 超出最大限制无法添加 */
         this.handleMaxMetircDimMsg();
         return;
       }
@@ -705,7 +681,7 @@ export default {
         if (group.table_name !== name) {
           const metrics = [];
           const dimensions = [];
-          group.fields.forEach((item) => {
+          group.fields.forEach(item => {
             item.monitor_type === 'metric' ? metrics.push(item) : dimensions.push(item);
           });
           const stopedData = this.stopedData[index];
@@ -723,7 +699,7 @@ export default {
               }
             }
           }
-          [...metrics, ...dimensions].forEach((item) => {
+          [...metrics, ...dimensions].forEach(item => {
             if (item.isCheck) {
               if (item.monitor_type === 'metric') {
                 const findIndex = group.fields.findIndex(row => row.name === item.name);
@@ -734,7 +710,9 @@ export default {
                 if (!this.checkDimensionRelevance(item, curMetrics)) {
                   let findIndex = group.fields.findIndex(row => row.name === item.name);
                   if (findIndex === -1 && Array.isArray(stopedData)) {
-                    findIndex = stopedData.findIndex(row => row.monitor_type === 'dimension' && row.data.name === item.name);
+                    findIndex = stopedData.findIndex(
+                      row => row.monitor_type === 'dimension' && row.data.name === item.name
+                    );
                     stopedData.splice(findIndex, 1);
                   } else {
                     // 若但前分组维度还有关联的指标则不需要删除维度
@@ -750,13 +728,13 @@ export default {
           });
         } else {
           targetGroup = group.fields;
-          targetGroup.forEach((item) => {
+          targetGroup.forEach(item => {
             item.isCheck = false;
           });
         }
       });
       // 移动目标到分组
-      result.forEach((item) => {
+      result.forEach(item => {
         const index = targetGroup.findIndex(row => row.name === item.name && row.monitor_type === item.monitor_type);
         const obj = item.monitor_type === 'metric' ? item : { ...item };
         if (index > -1) {
@@ -785,7 +763,7 @@ export default {
     async handleSave() {
       const cacheData = JSON.parse(JSON.stringify(this.tableData));
       //  过滤新增但没填名字的指标/维度
-      cacheData.forEach((group) => {
+      cacheData.forEach(group => {
         group.fields = group.fields.filter(item => item.name);
       });
       //  过度空的分组
@@ -797,7 +775,7 @@ export default {
       if (!this.canSave) {
         this.$bkMessage({
           theme: 'error',
-          message: this.$t('所有的指标/维度的英文名和别名不能重名或与关键字冲突或为空')
+          message: this.$t('所有的指标/维度的英文名和别名不能重名或为空')
         });
         return;
       }
@@ -810,13 +788,13 @@ export default {
         info_version: this.pluginData.info_version,
         metric_json: (tableData || []).map(item => ({
           ...item,
-          fields: item.fields.map((set) => {
+          fields: item.fields.map(set => {
             const tmpSet = { ...set };
             if (set.monitor_type === 'metric' && set.type === 'diff') {
               tmpSet.type = 'double';
               tmpSet.is_diff_metric = true;
             }
-            frontEndParams.forEach((filed) => {
+            frontEndParams.forEach(filed => {
               delete tmpSet[filed];
             });
             return tmpSet;
@@ -826,9 +804,9 @@ export default {
       if (this.isFromHome || !this.isToken) {
         params.need_upgrade = true;
       }
-      if(this.loading) return;
+      if (this.loading) return;
       this.loading = true;
-      const data = await saveMetric(params, { needMessage: false }).catch((err) => {
+      const data = await saveMetric(params, { needMessage: false }).catch(err => {
         this.$bkMessage({ theme: 'error', message: err.message, ellipsisLine: 0 });
         return false;
       });
@@ -874,15 +852,15 @@ export default {
       this.isImport = true;
       const result = [];
       let len = 0;
-      await new Promise((resolve) => {
-        files.forEach((file) => {
+      await new Promise(resolve => {
+        files.forEach(file => {
           const reader = new FileReader();
-          reader.onload = (e) => {
+          reader.onload = e => {
             const contents = JSON.parse(e.target.result);
             if (!Array.isArray(contents)) {
               this.$bkMessage('error', this.$t('文件内容不符合规范'));
             } else {
-              contents.forEach((item) => {
+              contents.forEach(item => {
                 result.push({
                   fields: Array.isArray(item.fields) ? item.fields : [],
                   table_name: item.table_name || '',
@@ -919,8 +897,8 @@ export default {
       this.$emit('back-plugin');
     },
     handleExportMetric(cb) {
-      typeof cb === 'function'
-        && cb(
+      typeof cb === 'function' &&
+        cb(
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           this.tableData
             .filter(item => item.table_name)
@@ -977,10 +955,12 @@ export default {
             const oldTableItem = this.tableData.find(set => set.table_name === item.table_name);
             item.fields.forEach((field, childIndex) => {
               if (!field.name) {
-                errorList.push(this.$t('分组：{tableName} 第{index}个字段未填写名称', {
-                  tableName: item.table_name,
-                  index: childIndex + 1
-                }));
+                errorList.push(
+                  this.$t('分组：{tableName} 第{index}个字段未填写名称', {
+                    tableName: item.table_name,
+                    index: childIndex + 1
+                  })
+                );
               }
               // else if (fieldList.some(set => set.name === field.name)) {
               //   errorList.push(this.$t(
@@ -989,21 +969,26 @@ export default {
               //   ))
               // }
               if (fieldList.some(set => set.description !== '' && set.description === field.description)) {
-                errorList.push(this.$t('分组：{tableName} 别名：{fieldName}重复', {
-                  tableName: item.table_name,
-                  fieldName: field.description
-                }));
+                errorList.push(
+                  this.$t('分组：{tableName} 别名：{fieldName}重复', {
+                    tableName: item.table_name,
+                    fieldName: field.description
+                  })
+                );
               }
               if (field.monitor_type === 'metric') {
                 if (allMetricFieldList.some(set => set.name === field.name)) {
-                  errorList.push(this.$t('分组：{tableName} 指标名：{fieldName}重复', {
-                    tableName: item.table_name,
-                    fieldName: field.name
-                  }));
+                  errorList.push(
+                    this.$t('分组：{tableName} 指标名：{fieldName}重复', {
+                      tableName: item.table_name,
+                      fieldName: field.name
+                    })
+                  );
                 }
                 const metricItem = this.getDefaultMetric(field);
-                const oldMetricItem = oldTableItem?.fields.find(set => set.name === metricItem.name
-                && set.monitor_type === metricItem.monitor_type);
+                const oldMetricItem = oldTableItem?.fields.find(
+                  set => set.name === metricItem.name && set.monitor_type === metricItem.monitor_type
+                );
                 if (oldMetricItem?.value) {
                   metricItem.value = oldMetricItem.value;
                 }
@@ -1011,24 +996,29 @@ export default {
                 allMetricFieldList.push(metricItem);
               } else if (field.monitor_type === 'dimension') {
                 if (fieldList.some(set => set.name === field.name)) {
-                  errorList.push(this.$t('分组：{tableName} 指标名：{fieldName}重复', {
-                    tableName: item.table_name,
-                    fieldName: field.name
-                  }));
+                  errorList.push(
+                    this.$t('分组：{tableName} 指标名：{fieldName}重复', {
+                      tableName: item.table_name,
+                      fieldName: field.name
+                    })
+                  );
                 }
                 const dimensionItem = this.getDefaultDimension(field);
-                const oldDimensionItem = oldTableItem?.fields.find(set => set.name === dimensionItem.name
-                && set.monitor_type === dimensionItem.monitor_type);
+                const oldDimensionItem = oldTableItem?.fields.find(
+                  set => set.name === dimensionItem.name && set.monitor_type === dimensionItem.monitor_type
+                );
                 if (oldDimensionItem?.value) {
                   dimensionItem.value = oldDimensionItem.value;
                 }
                 fieldList.push(dimensionItem);
                 allMetricFieldList.push(dimensionItem);
               } else {
-                errorList.push(this.$t('分组：{tableName} 字段：{fieldName}填写字段分类错误', {
-                  tableName: item.table_name,
-                  fieldName: field.name
-                }));
+                errorList.push(
+                  this.$t('分组：{tableName} 字段：{fieldName}填写字段分类错误', {
+                    tableName: item.table_name,
+                    fieldName: field.name
+                  })
+                );
               }
             });
             tableItem.fields = fieldList;
@@ -1061,7 +1051,7 @@ export default {
         this.handleMaxMetircDimMsg();
         return;
       }
-      this.tableData = this.handleTableDataConflictError(list);
+      this.tableData = JSON.parse(JSON.stringify(list));
       this.handleTabelDataChange();
     },
     getDefaultMetric({

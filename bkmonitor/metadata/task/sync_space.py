@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import threading
+from typing import Optional
 
 from django.db.models import Q
 
@@ -597,3 +599,69 @@ def refresh_not_biz_space_data_source():
         )
 
     logger.info("refresh not biz space data source successfully")
+
+
+def push_and_publish_space_router(
+    space_type: Optional[str] = None, space_id: Optional[str] = None, is_publish: Optional[bool] = True
+):
+    """推送数据和通知"""
+    from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
+    from metadata.models.space.ds_rt import get_space_table_id_data_id
+    from metadata.task.tasks import multi_push_space_table_ids
+
+    # 过滤数据
+    spaces = models.Space.objects.values("space_type_id", "space_id")
+    if space_type:
+        spaces = spaces.filter(space_type_id=space_type)
+    if space_id:
+        spaces = spaces.filter(space_id=space_id)
+    # 拼装数据
+    space_list = [{"space_type": space["space_type_id"], "space_id": space["space_id"]} for space in spaces]
+
+    # 设置线程数为 30，使用线程处理，暂不允许变动
+    MAX_TASK_THREAD_NUM = 30
+    count = len(space_list)
+    chunk_size = (
+        count // MAX_TASK_THREAD_NUM + 1 if count % MAX_TASK_THREAD_NUM != 0 else int(count / MAX_TASK_THREAD_NUM)
+    )
+    # 分组
+    chunks = [space_list[i : i + chunk_size] for i in range(0, count, chunk_size)]
+    threads = []
+
+    for chunk in chunks:
+        t = threading.Thread(target=multi_push_space_table_ids, args=(chunk,))
+        t.start()
+        threads.append(t)
+
+    # 等待所有线程完成
+    for t in threads:
+        t.join()
+
+    # 通知到使用方
+    if is_publish:
+        space_uid_list = [f"{space['space_type_id']}__{space['space_id']}" for space in spaces]
+        RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
+
+    # 更新数据
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+    # 仅存在空间 id 时，可以直接按照结果表进行处理
+    table_id_list = []
+    if space_id:
+        for space in space_list:
+            tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+            table_id_list.extend(tid_ds.keys())
+
+    space_client = SpaceTableIDRedis()
+    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=is_publish)
+    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish)
+
+
+@share_lock(identify="metadata_push_and_publish_space_router")
+def push_and_publish_space_router_task():
+    logger.info("start to push and publish space router")
+
+    push_and_publish_space_router(is_publish=False)
+
+    logger.info("push and publish space router successfully")

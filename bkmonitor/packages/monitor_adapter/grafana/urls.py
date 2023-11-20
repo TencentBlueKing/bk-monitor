@@ -13,9 +13,9 @@ from django.conf.urls import url
 from . import views
 
 urlpatterns = [
-    url(r"^$", views.SwitchOrgView.as_view()),
-    url(r"^home$", views.SwitchOrgView.as_view()),
-    url(r"^d/[a-zA-Z_0-9]+$", views.SwitchOrgView.as_view()),
+    url(r"^$", views.GrafanaSwitchOrgView.as_view()),
+    url(r"^home$", views.GrafanaSwitchOrgView.as_view()),
+    url(r"^d/[a-zA-Z_0-9]+$", views.GrafanaSwitchOrgView.as_view()),
     url(r"^public/", views.StaticView.as_view()),
     url(r"^avatar/", views.StaticView.as_view()),
     url(r"^api/", views.ApiProxyView.as_view()),

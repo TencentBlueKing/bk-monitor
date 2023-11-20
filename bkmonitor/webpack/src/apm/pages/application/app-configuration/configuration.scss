@@ -24,19 +24,19 @@ $statusType2: 'green' 'red' 'yellow';
       display: flex;
       flex: 1;
       width: 100%;
-      margin: 16px;
       min-height: calc(100% - 32px);
-      box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
+      margin: 16px;
       border-radius: 2px;
+      box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
 
       @for $i from 1 through length($statusType2) {
         .status-icon.status-#{nth($statusType2, $i)} {
           display: inline-block;
           width: 8px;
           height: 8px;
-          border-radius: 50%;
-          border: 1px solid nth($statusColor2, $i);
           background-color: nth($statusColor3, $i);
+          border: 1px solid nth($statusColor2, $i);
+          border-radius: 50%;
         }
       }
 
@@ -55,7 +55,7 @@ $statusType2: 'green' 'red' 'yellow';
           &.form-content {
             padding-bottom: 20px;
             border-bottom: 1px solid #eaebf0;
-          }    
+          }
         }
 
         .editable-form-item {
@@ -69,20 +69,20 @@ $statusType2: 'green' 'red' 'yellow';
 
         .content-card {
           position: relative;
-          margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           padding: 4px 160px 0 16px;
+          margin-bottom: 4px;
           background: #f5f7fa;
           border-radius: 2px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
 
           .msg-item {
             @include flex-align;
 
             .apdex-chart-box {
-              height: 52px;
               width: 234px;
+              height: 52px;
 
               .apdex-chart {
                 background-color: #f5f7fa;
@@ -113,13 +113,13 @@ $statusType2: 'green' 'red' 'yellow';
           }
 
           .group-tag {
-            margin-right: 4px;
-            padding: 0 10px;
             height: 22px;
+            padding: 0 10px;
+            margin-right: 4px;
             background: #fafbfd;
             border: 1px solid rgba(151,155,165,.30);
             border-radius: 2px;
-  
+
             @include flex-align;
           }
 
@@ -141,21 +141,21 @@ $statusType2: 'green' 'red' 'yellow';
       }
 
       .right-btn-wrap {
-        color: #3a84ff;
         font-weight: initial;
+        color: #3a84ff;
         cursor: pointer;
 
         .icon-shuaxin {
-          font-size: 14px;
           margin-right: 5px;
+          font-size: 14px;
         }
       }
 
       .sampling-table {
         .text-log {
           position: relative;
-          margin: 10px 0;
           max-height: 74px;
+          margin: 10px 0;
           overflow: hidden;
           cursor: pointer;
 
@@ -166,12 +166,12 @@ $statusType2: 'green' 'red' 'yellow';
 
         .collapse-btn {
           position: absolute;
-          left: 0;
           top: 60px;
-          width: 100%;
-          background: #fff;
+          left: 0;
           display: inline-block;
+          width: 100%;
           color: #3a84ff;
+          background: #fff;
           transition: background-color .25s ease;
         }
 
@@ -212,10 +212,10 @@ $statusType2: 'green' 'red' 'yellow';
       }
 
       .status-name {
-        line-height: 16px;
-        vertical-align: middle;
-        white-space: nowrap;
         margin-left: 8px;
+        line-height: 16px;
+        white-space: nowrap;
+        vertical-align: middle;
       }
     }
 
@@ -232,14 +232,14 @@ $statusType2: 'green' 'red' 'yellow';
       .drag {
         position: fixed;
         top: 104px;
-        width: 7px;
-        height: calc(100% - 104px);
+        z-index: 9;
         display: flex;
         align-items: center;
         justify-items: center;
-        outline: 0;
-        z-index: 9;
+        width: 7px;
+        height: calc(100% - 104px);
         border-left: 1px solid rgba(255, 255, 255, 0);
+        outline: 0;
 
         &.active {
           border-left: 1px solid #3a84ff;
@@ -251,25 +251,25 @@ $statusType2: 'green' 'red' 'yellow';
         }
 
         .line-trigger {
+          position: absolute;
+          top: 50%;
+          left: -16px;
+          z-index: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          position: absolute;
-          top: 50%;
-          left: -16px;
-          border-radius: 4px 0 0 4px;
-          transform: translateY(-50%);
           width: 16px;
           min-height: 72px;
           padding: 10px 0;
+          overflow: hidden;
           font-size: 12px;
           color: #63656e;
-          border: 1px solid #dcdee5;
-          background-color: #eaebf0;
           cursor: pointer;
-          z-index: 1;
-          overflow: hidden;
+          background-color: #eaebf0;
+          border: 1px solid #dcdee5;
+          border-radius: 4px 0 0 4px;
+          transform: translateY(-50%);
 
           .trigger-text {
             text-align: center;
@@ -277,9 +277,9 @@ $statusType2: 'green' 'red' 'yellow';
           }
 
           &:hover {
+            color: #3a84ff;
             background: #e1ecff;
             border-color: #3a84ff;
-            color: #3a84ff;
           }
 
           .icon-arrow-left {
@@ -307,14 +307,14 @@ $statusType2: 'green' 'red' 'yellow';
         .view-header {
           padding: 14px 24px;
           font-size: 14px;
-          color: #313238;
           line-height: 22px;
+          color: #313238;
 
           @include flex-justify(space-between);
 
           .detail-shrink {
             margin-left: auto;
-      
+
             @include tool-icon(24px);
           }
         }
@@ -391,8 +391,8 @@ $statusType2: 'green' 'red' 'yellow';
     top: -12px;
     padding-left: 68px;
     margin: 6px 0;
-    color: #979ba5;
     line-height: 20px;
+    color: #979ba5;
 
     .indentation-text {
       padding-left: 20px
@@ -413,9 +413,9 @@ $statusType2: 'green' 'red' 'yellow';
       width: 92px;
       min-width: 92px;
       margin-right: 24px;
+      line-height: 20px;
       color: #979ba5;
       text-align: right;
-      line-height: 20px;
       white-space: nowrap;
     }
 
@@ -447,12 +447,12 @@ $statusType2: 'green' 'red' 'yellow';
       .instance-card {
         display: flex;
         align-items: center;
-        padding: 0 10px;
         height: 22px;
+        padding: 0 10px;
         line-height: 22px;
+        cursor: move;
         background-color: #f0f1f5;
         border-radius: 2px;
-        cursor: move;
 
         &.active-item {
           background-color: #dcdee5;
@@ -466,9 +466,9 @@ $statusType2: 'green' 'red' 'yellow';
           position: relative;
           top: 1px;
           left: 3px;
+          display: none;
           font-size: 14px;
           cursor: pointer;
-          display: none;
         }
 
         &:not(.disabled-item):hover {
@@ -482,7 +482,7 @@ $statusType2: 'green' 'red' 'yellow';
           color: #c4c6cc;
         }
       }
-      
+
       .delimiter {
         margin: 0 4px;
       }
@@ -510,27 +510,27 @@ $statusType2: 'green' 'red' 'yellow';
         top: 5px;
         width: 22px;
         height: 22px;
-        background: #fff;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px;
         line-height: 20px;
         text-align: center;
         cursor: pointer;
+        background: #fff;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
 
         .icon-monitor {
           color: #979ba5;
         }
 
         &.is-disabled {
+          cursor: not-allowed;
           background-color: #fafbfd;
           border-color: #dcdee5;
-          cursor: not-allowed;
         }
       }
 
       .instance-select {
-        margin-left: 8px;
         width: 160px;
+        margin-left: 8px;
       }
     }
   }
@@ -575,15 +575,81 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     .history-btn {
-      margin-left: 8px;
       width: 32px;
       height: 32px;
+      margin-left: 8px;
+      line-height: 30px;
+      text-align: center;
+      cursor: pointer;
       background: #fff;
       border: 1px solid #c4c6cc;
       border-radius: 2px;
-      text-align: center;
-      line-height: 30px;
-      cursor: pointer;
+    }
+  }
+
+  .switcher-self {
+    margin-left: 24px;
+  }
+
+  .switcher-text {
+    margin-left: 10px;
+    font-size: 12px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    font-weight: normal !important;
+  }
+
+  .log-path-item-row {
+    display: flex;
+    margin-bottom: 4px;
+
+    .label {
+      min-width: 92px;
+      height: 32px;
+      margin-right: 24px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #979ba5;
+      text-align: right;
+    }
+
+    .value {
+      padding-top: 10px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+
+  .log-path-icon {
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 18px !important;
+    color: #c4c6cc;
+    cursor: pointer;
+
+    &-plus {
+      margin-left: 16px;
+    }
+
+    &-minus {
+      margin-left: 14px;
+    }
+
+    &.disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .log-path-hint {
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  .btn-target-collect {
+    font-size: 12px;
+
+    .bk-icon {
+      font-size: 18px;
     }
   }
 }
@@ -597,8 +663,8 @@ $statusType2: 'green' 'red' 'yellow';
 
     .retrieve-btn {
       margin-right: 18px;
-      color: #3a84ff;
       font-size: 14px;
+      color: #3a84ff;
       cursor: pointer;
 
       .icon-monitor {
@@ -611,9 +677,9 @@ $statusType2: 'green' 'red' 'yellow';
     padding: 20px 40px;
 
     .divider {
-      margin: 20px 0;
       width: 100%;
       height: 1px;
+      margin: 20px 0;
       background-color: #eaebf0;
     }
 
@@ -644,8 +710,8 @@ $statusType2: 'green' 'red' 'yellow';
     display: inline-block;
     width: 100%;
     height: 32px;
-    line-height: 32px;
     padding: 0 16px;
+    line-height: 32px;
     cursor: pointer;
 
     &:hover {
@@ -668,8 +734,8 @@ $statusType2: 'green' 'red' 'yellow';
 
     .help-icon {
       position: absolute;
-      right: 20px;
       top: 50%;
+      right: 20px;
       font-size: 12px;
       transform: translate(0, -50%);
     }
@@ -679,8 +745,8 @@ $statusType2: 'green' 'red' 'yellow';
 .origin-log-sideslider {
   .title-wrap {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
   }
 
   .bk-sideslider-content {
@@ -688,12 +754,12 @@ $statusType2: 'green' 'red' 'yellow';
 
     .json-text-style {
       height: 100%;
-      background-color: #313238;
       color: #c4c6cc;
+      background-color: #313238;
 
       .vjs-tree {
-        padding: 20px;
         height: 100%;
+        padding: 20px;
       }
     }
   }
@@ -708,8 +774,8 @@ $statusType2: 'green' 'red' 'yellow';
 
   .add-service {
     width: 80px;
-    margin-bottom: 16px;
     padding: 0 18px 0 10px;
+    margin-bottom: 16px;
   }
 
   .service-info {
@@ -752,28 +818,28 @@ $statusType2: 'green' 'red' 'yellow';
       }
 
       .right-btn-wrap {
-        color: #3a84ff;
-        font-weight: initial;
         font-size: 12px;
+        font-weight: initial;
+        color: #3a84ff;
         cursor: pointer;
 
         .icon-shuaxin {
-          font-size: 14px;
           margin-right: 5px;
+          font-size: 14px;
         }
       }
     }
 
     .source-box {
-      margin: 2px 0 14px;
       height: 80px;
+      margin: 2px 0 14px;
 
       .bk-form-textarea {
-        background-color: #313238;
         height: 80px;
         color: #c4c6cc;
-        border-radius: 2px;
         word-break: break-all;
+        background-color: #313238;
+        border-radius: 2px;
       }
 
       .bk-form-textarea:focus {
@@ -781,13 +847,13 @@ $statusType2: 'green' 'red' 'yellow';
         background-color: #313238 !important;
         border-radius: 2px;
       }
-  
+
       .bk-form-textarea[disabled] {
         /* stylelint-disable-next-line declaration-no-important */
         background-color: #313238 !important;
         border-radius: 2px;
       }
-  
+
       .bk-textarea-wrapper {
         border: none;
       }
@@ -840,8 +906,8 @@ $statusType2: 'green' 'red' 'yellow';
 
       .icon-monitor {
         margin-left: 16px;
-        color: #c4c6cc;
         font-size: 16px;
+        color: #c4c6cc;
         cursor: pointer;
       }
 
@@ -856,9 +922,9 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     .desc-contnet {
+      height: 87px;
       padding: 6px 16px;
       margin: 16px 0 12px;
-      height: 87px;
       background: #f0f1f5;
       border-radius: 2px;
     }
@@ -893,15 +959,15 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     .result-box {
-      margin-top: 24px;
-      padding: 12px 24px;
       height: 142px;
+      padding: 12px 24px;
+      margin-top: 24px;
+      overflow: auto;
+      font-size: 12px;
+      color: #63656e;
+      word-break: break-all;
       background: #f0f1f5;
       border-radius: 0 0 2px 2px;
-      color: #63656e;
-      font-size: 12px;
-      word-break: break-all;
-      overflow: auto;
 
       .bk-exception-text {
         font-size: 12px;
@@ -915,13 +981,13 @@ $statusType2: 'green' 'red' 'yellow';
 
     .icon-mc-close {
       position: absolute;
-      right: 8px;
       top: 8px;
+      right: 8px;
       font-size: 24px;
       color: #979ba5;
       cursor: pointer;
     }
-  } 
+  }
 }
 
 .instance-select-popover {
@@ -943,5 +1009,157 @@ $statusType2: 'green' 'red' 'yellow';
 
   .is-disabled .instance-alias {
     color: #c4c6cc;
+  }
+}
+
+.panel-intro {
+  .dropdown-list-item-disabled {
+    /* stylelint-disable-next-line declaration-no-important */
+    color: #c4c6cc !important;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
+  .bk-icon.icon-plus-circle {
+    display: inline;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 18px !important;
+    line-height: none;
+  }
+
+  .card-list-container {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .db-config-card {
+    width: 530px;
+    margin-bottom: 12px;
+
+    .title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 12px;
+      background-color: #f0f1f5;
+      border-radius: 2px 2px 0 0;
+
+      &.is-not-default {
+        /* stylelint-disable-next-line declaration-no-important */
+        background: #f0f5ff !important;
+      }
+
+      .close {
+        /* stylelint-disable-next-line declaration-no-important */
+        font-size: 20px !important;
+        cursor: pointer;
+      }
+    }
+
+    .card-container {
+      padding: 10px 0;
+      border: 1px solid #dcdee5;
+      border-top: none;
+      border-radius: 0 0 2px 2px;
+
+      .bk-radio-button-text {
+        height: 26px;
+        font-size: 12px;
+        line-height: 26px;
+      }
+
+      .bk-form-item+.bk-form-item {
+        margin-top: 10px;
+      }
+    }
+  }
+
+  .bk-label {
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
+  }
+
+  .low-sql-container {
+    display: flex;
+    align-items: center;
+
+    .excution-input {
+      width: 100px;
+    }
+
+    .text {
+      margin: 0 6px;
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+
+  .sql-length-container {
+    display: flex;
+    align-items: center;
+
+    .sql-cut-input {
+      width: 100px;
+    }
+
+    .text {
+      margin: 0 6px;
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+
+  .db-config-card-preview {
+    display: inline-flex;
+    flex-wrap: wrap;
+
+    .db-config-card-preview-container {
+      width: 320px;
+      margin: 0 16px 16px 0;
+
+      .db-config-card-preview-title {
+        padding: 2px 12px;
+        font-size: 12px;
+        color: #63656e;
+        background-color: #f0f5ff;
+        border-radius: 2px 2px 0 0;
+
+        &.is-default {
+          background-color: #f0f1f5;
+        }
+      }
+
+      .db-config-card-preview-content {
+        padding: 8px 0;
+        overflow: hidden;
+        background-color: #fafbfd;
+        border-radius: 0 0 2px 2px;
+
+        .row {
+          display: flex;
+          align-items: center;
+          padding-top: 8px;
+          padding-bottom: 8px;
+
+          .label-text {
+            display: inline-block;
+            width: 100px;
+            font-size: 12px;
+            color: #63656e;
+            text-align: right;
+          }
+
+          .label-colons {
+            margin: 0 10px 0 5px;
+          }
+
+          .label-value {
+            font-size: 12px;
+            color: #313238;
+          }
+        }
+      }
+    }
   }
 }

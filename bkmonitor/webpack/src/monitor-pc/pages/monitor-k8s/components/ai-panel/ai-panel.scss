@@ -1,21 +1,21 @@
 .ai-panel-component {
   display: flex;
   flex-direction: column;
+  padding: 0 8px 0 16px;
   font-size: 12px;
   border-top: 1px solid #eaebf0;
-  padding: 0 8px 0 16px;
 
   .ai-panel-title {
     display: flex;
     align-items: center;
     height: 42px;
-    color: #313238;
-    font-size: 14px;
     margin-top: 10px;
+    font-size: 14px;
+    color: #313238;
 
     .icon-hint {
-      font-size: 14px;
       margin-left: 4px;
+      font-size: 14px;
       color: #979ba5;
     }
 
@@ -23,31 +23,49 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
       width: 16px;
       height: 16px;
+      margin: 0;
       overflow: hidden;
-      cursor: pointer;
-      margin-left: auto;
+      font-size: 16px;
       color: #979ba5;
+      cursor: pointer;
+    }
+
+    .icon-mc-add-strategy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      margin-right: 10px;
+      margin-left: auto;
+      font-size: 15px;
+      color: #63656e;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #e1ecff;
+        border-radius: 50%;
+      }
     }
   }
 
   .ai-panel-subtitle {
     display: flex;
+    margin: 6px 0 0 0;
     line-height: 20px;
     color: #979ba5;
-    margin: 6px 0 0 0;
   }
 
   .ai-panel-table {
     width: 100%;
 
     .name-col {
-      text-overflow: ellipsis;
       overflow: hidden;
-      white-space: nowrap;
       color: #3a84ff;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       cursor: pointer;
     }
 
@@ -61,24 +79,24 @@
 
     .ai-panel-list-item {
       height: 48px;
-      background: #f5f7fa;
-      border-radius: 2px;
-      font-size: 12px;
       padding: 4px 8px;
       margin-top: 8px;
+      font-size: 12px;
       cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 2px;
 
       .metric-name {
-        color: #63656e;
         line-height: 20px;
+        color: #63656e;
       }
 
       .count-info {
-        color: #979ba5;
-        line-height: 20px;
         display: flex;
         align-items: center;
         justify-content: space-between;
+        line-height: 20px;
+        color: #979ba5;
 
         .red {
           color: #ea3636;
@@ -96,27 +114,27 @@
   }
 
   .no-data {
-    height: 160px;
-    background: #fafbfd;
-    border-radius: 2px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    height: 160px;
     margin-top: 6px;
+    background: #fafbfd;
+    border-radius: 2px;
 
     .no-data-img {
-      object-fit: cover;
       width: 176px;
       height: 80px;
-      background-image: url('../../../../static/images/png/success.png');
       margin-top: 24px;
+      background-image: url('../../../../static/images/png/success.png');
+      object-fit: cover;
     }
 
     .no-data-text {
-      font-size: 12px;
-      color: #c4c6cc;
-      line-height: 20px;
       margin-top: 8px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #c4c6cc;
     }
   }
 }

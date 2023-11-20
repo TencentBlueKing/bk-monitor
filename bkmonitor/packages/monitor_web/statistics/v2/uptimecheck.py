@@ -9,15 +9,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.utils.functional import cached_property
+
+from core.drf_resource import resource
+from core.statistics.metric import Metric, register
 from monitor_web.models.uptime_check import (
     UptimeCheckGroup,
     UptimeCheckNode,
     UptimeCheckTask,
 )
 from monitor_web.statistics.v2.base import BaseCollector
-
-from core.drf_resource import resource
-from core.statistics.metric import Metric, register
 
 
 class UptimeCheckCollector(BaseCollector):
@@ -68,13 +68,16 @@ class UptimeCheckCollector(BaseCollector):
         """
         status_mapping = {"0": "RUNNING", "-1": "DOWN", "2": "NEED_UPGRADE"}
         for node in self.uptimecheck_nodes:
-            node_status = list(
+            filtered_node_status = list(
                 filter(
                     lambda x: (x.get("bk_host_id") == node.bk_host_id)
                     or (x.get("ip") == node.ip and x.get("bk_cloud_id") == node.plat_id),
                     self.all_node_status,
                 )
-            )[0]
+            )
+            if not filtered_node_status:
+                continue
+            node_status = filtered_node_status[0]
             metric.labels(
                 bk_biz_id=node.bk_biz_id,
                 bk_biz_name=self.get_biz_name(node.bk_biz_id),

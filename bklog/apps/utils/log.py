@@ -19,12 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from logging.handlers import DatagramHandler
 import logging  # noqa
+from logging.handlers import DatagramHandler
+
 from opentelemetry import trace
+from opentelemetry.sdk._logs import OTLPHandler
 from opentelemetry.sdk._logs.export import BatchLogProcessor
 from opentelemetry.trace import format_trace_id
-from opentelemetry.sdk._logs import OTLPHandler
 
 """
 Usage:
@@ -171,3 +172,31 @@ class LoggerTraceback(object):
 
 # traceback--打印详细错误日志
 logger = LoggerTraceback()
+
+
+def requests_curl_log(resp, *args, **kwargs):
+    """记录requests curl log"""
+    # 添加日志信息
+    curl_req = "REQ: curl -X {method} '{url}'".format(method=resp.request.method, url=resp.request.url)
+
+    if resp.request.body:
+        curl_req += " -d '{body}'".format(body=resp.request.body)
+
+    if resp.request.headers:
+        for key, value in resp.request.headers.items():
+            # ignore headers
+            if key in ["User-Agent", "Accept-Encoding", "Connection", "Accept", "Content-Length"]:
+                continue
+            if key == "Cookie" and value.startswith("x_host_key"):
+                continue
+
+            curl_req += " -H '{k}: {v}'".format(k=key, v=value)
+
+    if resp.headers.get("Content-Type", "").startswith("application/json"):
+        resp_text = resp.content
+    else:
+        resp_text = f"Bin...(total {len(resp.content)} Bytes)"
+
+    curl_resp = "RESP: [{}] {:.2f}ms {}".format(resp.status_code, resp.elapsed.total_seconds() * 1000, resp_text)
+
+    logger.info("%s\n \t %s", curl_req, curl_resp)

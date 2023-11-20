@@ -42,6 +42,36 @@ class Strategy(object):
         return self._config
 
     @property
+    def strategy_group_key(self):
+        if not self.config.get("items"):
+            return ""
+
+        return self.config["items"][0].get("query_md5", "")
+
+    def get_interval(self) -> int:
+        """
+        获取策略周期
+        """
+        if not self.config.get("items"):
+            return CONST_MINUTES
+
+        min_interval = None
+        for query_config in self.config["items"][0]["query_configs"]:
+            if "agg_interval" not in query_config:
+                continue
+
+            # 如果是第一次循环，直接赋值
+            if min_interval is None:
+                min_interval = query_config["agg_interval"]
+                continue
+
+            # 如果当前循环的聚合间隔小于最小聚合间隔，更新最小聚合间隔
+            if query_config["agg_interval"] < min_interval:
+                min_interval = query_config["agg_interval"]
+
+        return min_interval or CONST_MINUTES
+
+    @property
     def priority(self):
         return self.config.get("priority")
 

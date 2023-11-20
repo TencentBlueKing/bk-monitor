@@ -16,24 +16,42 @@ from celery.task import periodic_task
 from django.conf import settings
 
 from alarm_backends.core.cluster import get_cluster
+from alarm_backends.core.lock.service_lock import share_lock
 from alarm_backends.service.report.tasks import (
     operation_data_custom_report_v2,
     report_mail_detect,
     report_transfer_operation_data,
 )
 from alarm_backends.service.scheduler.tasks.cron import task_duration
-from bkmonitor.utils import custom_report_aggate
+from bkmonitor.utils.custom_report_aggate import (
+    push_agg_data_via_json,
+    push_agg_data_via_prometheus,
+)
 from metadata.task.config_refresh import refresh_es_storage
 
 logger = logging.getLogger("bkmonitor.cron_report")
+
+
+@share_lock()
+def fetch_operation_data_and_push(parallel=True):
+    push_agg_data_via_json(wanted_job=settings.OPERATION_STATISTICS_METRIC_PUSH_JOB, parallel=parallel)
+
+
+@share_lock()
+def fetch_sli_data_and_push(parallel=True):
+    # sli 数据可能并没有 job 标签，所以容忍缺失
+    push_agg_data_via_prometheus(
+        wanted_job=settings.DEFAULT_METRIC_PUSH_JOB, push_job=get_cluster().name, allow_job_absent=True
+    )
+
 
 REPORT_CRONTAB = [
     (operation_data_custom_report_v2, "*/5 * * * *", "global"),
     (report_transfer_operation_data, "*/5 * * * *", "global"),
     (refresh_es_storage, "*/10 * * * *", "global"),  # NOTE: ES 周期性任务先放到当前队列中
     # SLI指标和运营数据调整到report周期任务
-    (custom_report_aggate.fetch_sli_data_and_push, "* * * * *", "global"),
-    (custom_report_aggate.fetch_operation_data_and_push, "*/5 * * * *", "global"),
+    (fetch_sli_data_and_push, "* * * * *", "cluster"),
+    (fetch_operation_data_and_push, "*/5 * * * *", "global"),
 ]
 
 if int(settings.MAIL_REPORT_BIZ):
