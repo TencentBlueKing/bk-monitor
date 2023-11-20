@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import pytz
 import copy
 import datetime
 import functools
@@ -78,6 +79,7 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeFieldType,
     UnionSearchErrorException,
     UnionSearchFieldsFailException,
+    MultiSearchErrorException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslBkDataCreateSearchContextBody,
@@ -97,6 +99,7 @@ from apps.log_search.models import (
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
+    StorageClusterRecord,
 )
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -533,11 +536,6 @@ class SearchHandler(object):
         """
         根据存储集群切换记录多线程请求 BkLogApi.search
         """
-        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-        start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_info)
-        storage_cluster_record_objs = StorageClusterRecord.objects.filter(
-            index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
-        ).exclude(storage_cluster_id=self.storage_cluster_id)
 
         params = {
             "indices": self.indices,
@@ -562,6 +560,15 @@ class SearchHandler(object):
             "collapse": self.collapse,
             "include_nested_fields": self.include_nested_fields,
         }
+
+        storage_cluster_record_objs = StorageClusterRecord.objects.none()
+
+        if self.start_time:
+            tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+            start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_info)
+            storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+                index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
+            ).exclude(storage_cluster_id=self.storage_cluster_id)
 
         if not storage_cluster_record_objs:
             try:
