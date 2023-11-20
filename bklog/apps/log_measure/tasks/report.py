@@ -104,7 +104,6 @@ def bk_monitor_collect():
         },
     )
     if not feature_toggle_obj.status == "on":
-        logger.info("[statistics_data] toggle is close, stop collecting")
         return
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
@@ -117,7 +116,6 @@ def bk_monitor_collect():
     execute_metrics = copy.deepcopy(REGISTERED_METRICS)
     for metric_id, metric in execute_metrics.items():
         if not time_now_minute % metric["time_filter"]:
-            logger.info(f"[statistics_data] start collecting {metric_id}")
             collect_metrics.delay(import_paths, [metric["namespace"]], [metric["data_name"]])
     # 清理注册表里的内容，下一次运行的时候重新注册
     clear_registered_metrics()
@@ -150,7 +148,7 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
                     "updated_at": MetricUtils.get_instance().report_ts,
                 },
             )
-            logger.info(f"save metric_data[{metric_id}] successfully")
+            logger.info(f"[statistics_data] save metric_data[{metric_id}] successfully")
 
         # 此处是为了释放对应util资源 非必须
         MetricUtils.del_instance()
@@ -159,4 +157,4 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
         clear_registered_metrics()
 
     except Exception as ex:
-        logger.exception(f"Failed to save metric_data, msg: {ex}")
+        logger.exception(f"[statistics_data] Failed to save metric_data, msg: {ex}")

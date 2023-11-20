@@ -204,15 +204,21 @@ class CustomReporter(object):
 
                 if aggregation_data_name_datas:
                     self.batch_report(data_name=metric_id_info["data_name"], data=aggregation_data_name_datas)
-                logger.info(f"report metric_id[{metric_id}] successfully, cost: {int(time.time() - stime)}s")
+                logger.info(
+                    f"[statistics_data] report metric_id[{metric_id}] successfully,"
+                    f" cost: {int(time.time() - stime)}s"
+                )
             except Exception as e:
-                logger.error(f"report metric_id[{metric_id}] failed, cost: {int(time.time() - stime)}s, msg: {e}")
+                logger.error(
+                    f"[statistics_data] report metric_id[{metric_id}] failed,"
+                    f" cost: {int(time.time() - stime)}s, msg: {e}"
+                )
 
     def batch_report(self, data_name: str, data: list):
         try:
             monitor_report_config = MonitorReportConfig.objects.get(data_name=data_name, is_enable=True)
         except MonitorReportConfig.DoesNotExist:
-            logger.exception("data_name[%s] init error, please check", data_name)
+            logger.exception("[statistics_data] data_name[%s] init error, please check", data_name)
             return
 
         try:
@@ -224,7 +230,7 @@ class CustomReporter(object):
                 }
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning(f"custom_report error: {e}")
+            logger.warning(f"[statistics_data] custom_report error: {e}")
 
     def metric_id_filter(self) -> list:
         metric_ids = []

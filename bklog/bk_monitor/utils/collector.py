@@ -18,6 +18,7 @@ class MetricCollector(object):
     """
 
     def __init__(self, collector_import_paths=None):
+        self.collector_import_paths = collector_import_paths
         if collector_import_paths and not REGISTERED_METRICS:
             for key in collector_import_paths:
                 importlib.reload(importlib.import_module(key))
@@ -26,6 +27,7 @@ class MetricCollector(object):
         """
         采集入口
         """
+        logger.info("[statistics_data] import path->{} receive collection task.".format(self.collector_import_paths))
         metric_methods = self.metric_filter(namespaces=namespaces, data_names=data_names)
         metric_groups = []
         for metric_method in metric_methods:
@@ -48,9 +50,7 @@ class MetricCollector(object):
                     }
                 )
                 logger.info(
-                    "[statistics_data] collect metric->[{}] took {} ms".format(
-                        metric_id, int((time.time() - begin_time) * 1000)
-                    ),
+                    "[statistics_data] collect metric->[{}] took {}s".format(metric_id, int(time.time() - begin_time)),
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception("[statistics_data] collect metric->[{}] failed: {}".format(metric_id, e))
@@ -89,4 +89,5 @@ class MetricCollector(object):
             )
             return True
         # 否则跳过当前轮次
+        logger.info("[statistics_data] collect metric->[{}] is not allowed.".format(metric_id))
         return False
