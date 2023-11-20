@@ -379,7 +379,7 @@ class SpaceTableIDRedis:
             # NOTE: 现阶段针对1001下 `system.` 或者 `dbm_system.` 开头的结果表不允许被覆盖
             if tid.startswith("system.") or tid.startswith("dbm_system."):
                 continue
-            _values[tid] = {"filters": [{"projectId": space_id}]}
+            _values[tid] = {"filters": []}
 
         return _values
 
