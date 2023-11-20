@@ -126,7 +126,9 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
         )
     except Exception as e:
         if raise_exception:
-            raise CreateBkdataDataIdException.MESSAGE.format(index_set_id=collector_config.index_set_id)
+            raise CreateBkdataDataIdException(
+                CreateBkdataDataIdException.MESSAGE.format(index_set_id=collector_config.index_set_id)
+            )
         logger.error(
             "sync data_id:{data_id} to bkdata failed, collector_config_id: {collector_config_id}, err: {error}".format(
                 data_id=collector_config.bkdata_data_id,
