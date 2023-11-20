@@ -267,6 +267,8 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
         # 删除数据库中已经不存在的数据源
         ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
+        # 每天同步一次蓝鲸应用的使用的集群
+        ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
     ]
 
 # Timeout for image exporter service, default set to 10 seconds
