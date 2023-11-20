@@ -259,8 +259,8 @@ ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR title: "hello" AND log: \"not\
 
 
 class TestLucene(TestCase):
-    def setUp(self) -> None:
-        self.maxDiff = None
+    def setUp(self) -> None:  # pylint: disable=invalid-name
+        self.maxDiff = None  # pylint: disable=invalid-name
 
     def test_get_search_fields(self):
         """测试获取Lucene Query字段"""
@@ -284,8 +284,8 @@ class TestLucene(TestCase):
 
 
 class TestEnhanceLucene(TestCase):
-    def setUp(self) -> None:
-        self.maxDiff = None
+    def setUp(self) -> None:  # pylint: disable=invalid-name
+        self.maxDiff = None  # pylint: disable=invalid-name
 
     def test_enhance(self):
         """测试增强Lucene Query"""
@@ -322,8 +322,8 @@ class TestEnhanceLucene(TestCase):
 
 
 class TestFavoriteWithEnhanceLucene(TestCase):
-    def setUp(self) -> None:
-        self.maxDiff = None
+    def setUp(self) -> None:  # pylint: disable=invalid-name
+        self.maxDiff = None  # pylint: disable=invalid-name
 
     def test_inspect(self):
         """测试解析关键字"""

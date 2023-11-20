@@ -360,7 +360,7 @@ class IllegalCharacterInspector(BaseInspector):
             if match:
                 self.remove_unexpected_character(match)
                 self.set_illegal()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return
 
 
@@ -375,7 +375,7 @@ class IllegalRangeSyntaxInspector(BaseInspector):
     def inspect(self):
         try:
             parser.parse(self.keyword, lexer=lexer)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             new_keyword = self.keyword
             for i in self.keyword.split("AND"):
                 for keyword_slice in i.split("OR"):
@@ -442,7 +442,7 @@ class IllegalBracketInspector(BaseInspector):
                     return
                 self.keyword = self.keyword[: s[-1]["index"]] + self.keyword[s[-1]["index"] + 1 :].strip()
                 self.set_illegal()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return
 
 
@@ -463,7 +463,7 @@ class IllegalColonInspector(BaseInspector):
                 if self.keyword.find(":") == len(self.keyword) - 1:
                     self.keyword = self.keyword[:-1].strip()
                     self.set_illegal()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return
 
 
@@ -492,7 +492,7 @@ class IllegalOperatorInspector(BaseInspector):
                     self.set_illegal()
                     # 单次修复
                     break
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return
 
 
@@ -508,7 +508,7 @@ class UnknownOperatorInspector(BaseInspector):
             resolver = UnknownOperationResolver()
             self.keyword = str(resolver(parser.parse(self.keyword, lexer=lexer)))
             self.set_illegal()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return
 
 
@@ -527,7 +527,7 @@ class DefaultInspector(BaseInspector):
             resolver = UnknownOperationResolver()
             self.keyword = str(resolver(parser.parse(self.keyword, lexer=lexer)))
             self.set_illegal()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.set_illegal()
 
 
@@ -565,7 +565,7 @@ class LuceneSyntaxResolver(object):
 
     def resolve(self):
         is_resolved = False
-        for i in range(MAX_RESOLVE_TIMES):
+        for __ in range(MAX_RESOLVE_TIMES):
             if self.inspect():
                 is_resolved = True
                 break
@@ -747,7 +747,7 @@ class ReservedLogicalEnhanceLucene(EnhanceLuceneBase):
         matches = list(re.finditer(self.RE, self.query_string))
         if matches:
             for match in matches:
-                start, end = match.span()
+                start, __ = match.span()
                 # 检查逻辑运算符前面是否有冒号
                 colon_index = self.query_string.rfind(':', 0, start)
                 if colon_index != -1:
