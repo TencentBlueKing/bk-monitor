@@ -44,7 +44,7 @@ class ReportLogStore extends VuexModule {
       {
         event_name: '用户运营数据',
         event_content: '基于前端路由的运营数据上报',
-        target: location.host,
+        target: 'bk_monitor',
         timestamp: Date.now(),
         dimensions: {
           ...params,
