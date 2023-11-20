@@ -42,3 +42,5 @@ CHECK_COLLECTOR_CUSTOM_CONFIG = "check_collector_custom_config"
 
 # grafana自定义ES数据源
 GRAFANA_CUSTOM_ES_DATASOURCE = "grafana_custom_es_datasource"
+# EXTERNAL业务被授权人配置
+EXTERNAL_AUTHORIZER_MAP = "external_authorizer_map"
