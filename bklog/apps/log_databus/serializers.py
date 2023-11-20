@@ -1124,6 +1124,25 @@ class ListBCSCollectorSerializer(serializers.Serializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
 
 
+class ListStorageClusterSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=False)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
+
+    def validate(self, attrs: dict) -> dict:
+        attrs = super().validate(attrs)
+        if attrs.get("space_uid", ""):
+            attrs["bk_biz_id"] = space_uid_to_bk_biz_id(attrs["space_uid"])
+        elif not attrs.get("bk_biz_id", ""):
+            raise ValueError("bk_biz_id or space_uid not found")
+        return attrs
+
+
+class SwitchStorageClusterSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+    bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
+    storage_cluster_id = serializers.CharField(label=_("存储集群id"), required=True)
+
+
 class ListBCSCollectorWithoutRuleSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)

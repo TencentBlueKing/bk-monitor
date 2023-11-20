@@ -21,6 +21,12 @@ the project delivered to anyone in the future.
 """
 import base64
 
+from django.conf import settings
+from django.db.models import Q
+from django.utils.translation import ugettext as _
+from rest_framework import serializers
+from rest_framework.response import Response
+
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -57,6 +63,7 @@ from apps.log_databus.serializers import (
     ListBCSCollectorWithoutRuleSerializer,
     ListCollectorsByHostSerializer,
     ListCollectorSerlalizer,
+    ListStorageClusterSerializer,
     PreCheckSerializer,
     PreviewContainersSerializer,
     RetrySerializer,
@@ -78,11 +85,6 @@ from apps.log_search.permission import Permission
 from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
 from bkm_space.utils import space_uid_to_bk_biz_id
-from django.conf import settings
-from django.db.models import Q
-from django.utils.translation import ugettext as _
-from rest_framework import serializers
-from rest_framework.response import Response
 
 
 class CollectorViewSet(ModelViewSet):
@@ -2009,6 +2011,37 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.params_valid(PreCheckSerializer)
         return Response(CollectorHandler().pre_check(data))
+
+    @list_route(methods=["GET"], url_path="list_storage_cluster")
+    def list_storage_cluster(self, request):
+        """
+        @api {get} /databus/collectors/list_storage_cluster/ 获取存储集群列表
+        @apiName list_storage_cluster
+        @apiDescription 根据项目ID获取ES共享集群和独立集群列表
+        @apiGroup 10_Collector
+        @apiParam {Int} bk_biz_id 所属业务ID
+        @apiParam {Int} space_uid 所属空间唯一标识
+        """
+        data = self.params_valid(ListStorageClusterSerializer)
+        return Response(CollectorHandler().list_storage_cluster(bk_biz_id=data["bk_biz_id"]))
+
+    @list_route(methods=["POST"], url_path="switch_storage_cluster")
+    def switch_storage_cluster(self, request):
+        """
+        @api {get} /databus/collectors/switch_storage_cluster/ 切换存储集群
+        @apiName list_storage_cluster
+        @apiDescription 根据项目ID切换存量&增量存储集群
+        @apiGroup 10_Collector
+        @apiParam {Int} bk_biz_id 所属业务ID
+        @apiParam {Int} space_uid 所属空间唯一标识
+        @apiParam {Int} storage_cluster_id 存储集群ID
+        """
+        auth_info = Permission.get_auth_info(request, raise_exception=False)
+        if not auth_info:
+            raise BkJwtVerifyException()
+        data = self.params_valid(BCSCollectorSerializer)
+        result = CollectorHandler().switch_storage_cluster(data=data, bk_app_code=auth_info["bk_app_code"])
+        return Response(result)
 
     @list_route(methods=["GET"], url_path="list_bcs_collector")
     def list_bcs_collector(self, request):

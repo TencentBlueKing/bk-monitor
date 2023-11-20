@@ -125,6 +125,7 @@ from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
     ArchiveConfig,
     BcsRule,
+    BcsStorageClusterConfig,
     CleanStash,
     CollectorConfig,
     CollectorPlugin,
@@ -2984,6 +2985,21 @@ class CollectorHandler(object):
                 )
             result.append(rule)
         return result
+
+    def list_storage_cluster(self, bk_biz_id: int):
+        return StorageHandler().list(bk_biz_id=bk_biz_id, enable_archive=False)
+
+    def switch_storage_cluster(self, data: Dict[str, Any], bk_app_code="bk_bcs"):
+        queryset = CollectorConfig.objects.filter(bcs_cluster_id=data["bcs_cluster_id"], bk_app_code=bk_app_code)
+        if data["bk_biz_id"]:
+            queryset = queryset.filter(bk_biz_id=data["bk_biz_id"])
+        collectors = queryset.exclude(bk_app_code="bk_log_search").order_by("-updated_at")
+        # 新增bcs采集存储集群全局配置更新
+        BcsStorageClusterConfig.objects.update_or_create(**data)
+
+        # 存量bcs采集存储集群更新
+        for collector in collectors:
+            pass
 
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
