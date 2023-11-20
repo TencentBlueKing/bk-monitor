@@ -303,7 +303,10 @@ class ArchiveHandler:
                 }
                 bulk_create_params.append(RestoreConfig(**params))
             RestoreConfig.objects.bulk_create(bulk_create_params)
-            objs = RestoreConfig.objects.filter(archive_config_id=self.archive.archive_config_id)
+            objs = RestoreConfig.objects.filter(
+                archive_config_id=self.archive.archive_config_id,
+                index_set_name=index_set_name
+            )
             restore_config_info = [model_to_dict(obj) for obj in objs]
         else:
             create_restore_config = RestoreConfig.objects.create(
