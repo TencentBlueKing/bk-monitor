@@ -18,6 +18,7 @@ def get_metric_tag_from_metric_info(metric_info: Dict) -> List:
         tags = set(metric_info["tag_value_list"].keys())
     else:
         tags = {tag["field_name"] for tag in metric_info.get("tag_list", [])}
+
     # 添加特殊字段，兼容先前逻辑
     tags.add("target")
     return list(tags)
