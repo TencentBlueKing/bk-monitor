@@ -85,10 +85,6 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       loading: false,
       data: null
     },
-    [TabEnum.FieldDetails]: {
-      fieldData: [],
-      type: 'metric'
-    },
     [TabEnum.Configuration]: {
       renderKey: random(8)
     }
@@ -347,11 +343,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             label={this.$t('字段详情')}
             name={TabEnum.FieldDetails}
           >
-            <FieldDetails
-              detailData={this.detailData}
-              type={this.allData[TabEnum.FieldDetails].type}
-              fieldData={this.allData[TabEnum.FieldDetails].fieldData}
-            />
+            <FieldDetails detailData={this.detailData} />
           </TabPanel>
         </MonitorTab>
       </div>
