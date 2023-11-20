@@ -159,8 +159,10 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
-    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每分钟触发-每次处理1/10业务
-    ("apm_ebpf.task.tasks.ebpf_discover_cron", "* * * * *", "global"),
+    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每十分钟触发
+    ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/10 * * * *", "global"),
+    # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
+    ("apm_ebpf.task.tasks.cluster_discover_cron", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:

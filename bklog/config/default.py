@@ -86,6 +86,7 @@ INSTALLED_APPS += (
     "bkm_space",
     "bkm_ipchooser",
     "apps.log_desensitize",
+    "log_adapter",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -125,7 +126,9 @@ MIDDLEWARE = (
     # exception middleware
     "blueapps.core.exceptions.middleware.AppExceptionMiddleware",
     # 自定义中间件
-    "django.middleware.locale.LocaleMiddleware",
+    # "django.middleware.locale.LocaleMiddleware",
+    # 自定义国际化中间件, 替换django.middleware.locale.LocaleMiddleware
+    "apps.middleware.custom_locale.CustomLocaleMiddleware",
     "apps.middlewares.CommonMid",
     "apps.middleware.user_middleware.UserLocalMiddleware",
     "apps.middleware.user_middleware.BkLogMetricsAfterMiddleware",
@@ -181,7 +184,6 @@ if "celery" in sys.argv:
     IS_CELERY = True
     if "beat" in sys.argv:
         IS_CELERY_BEAT = True
-
 
 # CELERY 并发数，默认为 2，可以通过环境变量或者 Procfile 设置
 CELERYD_CONCURRENCY = os.getenv("BK_CELERYD_CONCURRENCY", 2)
@@ -246,7 +248,6 @@ if IS_CELERY:
     SERVICE_NAME = APP_CODE + "_worker"
 if IS_CELERY_BEAT:
     SERVICE_NAME = APP_CODE + "_beat"
-
 
 # load logging settings
 if RUN_VER != "open":
@@ -381,6 +382,7 @@ BK_HOT_WARM_CONFIG_URL = (
 )
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
+
 
 # ===============================================================================
 # 企业版登录重定向
@@ -873,6 +875,11 @@ BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
 BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
 TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
 
+# 前端上报
+FRONTEND_REPORT_DATA_ID = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_ID")
+FRONTEND_REPORT_DATA_TOKEN = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_TOKEN")
+FRONTEND_REPORT_DATA_URL = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_URL")
+
 # ===============================================================================
 # EsQuery
 # ===============================================================================
@@ -1005,7 +1012,6 @@ if os.getenv("BKAPP_GSE_VERSION"):
 else:
     GSE_VERSION = "v2" if ENABLE_DHCP else "v1"
 
-
 # 国际化切换语言设置
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")
 # 容器采集配置
@@ -1015,6 +1021,12 @@ CONTAINER_COLLECTOR_CR_LABEL_BKENV: str = os.getenv("BKAPP_CONTAINER_COLLECTOR_C
 
 # 是否开启RETAIN_EXTRA_JSON
 RETAIN_EXTRA_JSON = os.getenv("BKAPP_RETAIN_EXTRA_JSON", "on") == "on"
+# 外部版授权ITSM服务ID
+ITSM_EXTERNAL_PERMISSION_SERVICE_ID = int(os.getenv("BKAPP_ITSM_EXTERNAL_PERMISSION_SERVICE_ID", 0))
+# ITSM回调地址
+BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_BKLOG_HOST)
+# 外部版PAAS地址
+EXTERNAL_PAAS_HOST = os.getenv("BKAPP_EXTERNAL_PAAS_HOST", "")
 
 # ==============================================================================
 # Templates

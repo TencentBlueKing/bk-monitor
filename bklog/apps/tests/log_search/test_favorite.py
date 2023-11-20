@@ -19,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import random
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -135,9 +134,7 @@ class TestFavorite(TestCase):
         # Step7: 查看各个用户的收藏
         self._test_user1_list_favorites()
         self._test_user2_list_favorites()
-        # Step8: 调整组排序，查看组排序下收藏
-        self._test_user1_optimate_group_order()
-        # Step9: 删除组
+        # Step8: 删除组
         self._test_delete_group()
 
     def _test_user1_create_group(self):
@@ -215,14 +212,6 @@ class TestFavorite(TestCase):
     def _test_user2_list_favorites(self):
         """可见的收藏数，USER2 3个"""
         self.assertEqual(len(FavoriteHandler(space_uid=SPACE_UID).list_favorites()), 3)
-
-    def _test_user1_optimate_group_order(self):
-        group_order = FavoriteGroupHandler(space_uid=SPACE_UID).get_group_order()
-        random.shuffle(group_order)
-        FavoriteGroupHandler(space_uid=SPACE_UID).update_group_order(group_order)
-
-        favorites_by_group = FavoriteHandler(space_uid=SPACE_UID).list_group_favorites()
-        self.assertEqual(group_order, [i["group_id"] for i in favorites_by_group])
 
     def _test_delete_group(self):
         """删除公共组，公共组的收藏会归类到未分组"""

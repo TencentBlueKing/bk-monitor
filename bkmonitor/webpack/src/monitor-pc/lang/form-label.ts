@@ -1065,7 +1065,7 @@ export default {
   发送字节流量: 'Sent Byte Traffic',
 
   数据步长: 'Data Step',
-  点击全选: 'Select All',
+  点击全选: 'Select all',
   内容: 'Content',
   查看语法: 'View Syntax',
   过滤条件: 'Filtering conditions',
@@ -1651,7 +1651,7 @@ export default {
   // 日历
   仅修改该日程: 'Only modify this schedule',
   仅删除该日程: 'Delete this schedule only',
-  收藏至仪表盘: 'Add to Dashboard',
+  收藏至仪表盘: 'Add to dashboard',
 
   // link
   K8s内置: 'K8s Built-in',
