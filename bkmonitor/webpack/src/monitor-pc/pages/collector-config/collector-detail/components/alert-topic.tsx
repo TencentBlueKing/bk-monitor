@@ -82,7 +82,7 @@ export default class AlertTopic extends tsc<IProps> {
         <span class='left-wrap'>
           <span class='cur-alert'>
             {this.hasAlert
-              ? undefined
+              ? [<span class='icon-monitor icon-danger'></span>, <span class='ml-8'>{this.$t('当前有告警')}</span>]
               : [
                   <span class='icon-monitor icon-mc-check-fill'></span>,
                   <span class='ml-8'>{this.$t('当前暂无告警')}</span>

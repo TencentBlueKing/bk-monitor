@@ -233,7 +233,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.contents.forEach(item => {
       const table = [];
       item.child.forEach(set => {
-        if (set.status === this.header.status || this.header.status === EStatus.ALL) {
+        if ((id === EStatus.RUNNING && STATUS_LIST.includes(set.status)) || set.status === id || id === EStatus.ALL) {
           const alertHistogram = set.alert_histogram.map(a => ({ level: a[1] }));
           table.push({
             ...set,
@@ -269,6 +269,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     });
     this.header.data.pendingNum += 1;
     this.header.data.failedNum -= 1;
+    this.handleFilterChange(this.header.status);
     this.handlePolling(false);
     retryTargetNodes({
       id: this.config.id,
@@ -306,6 +307,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       table.failedNum += 1;
       this.header.data.pendingNum -= 1;
       this.header.data.failedNum += 1;
+      this.handleFilterChange(this.header.status);
       this.refresh = true;
       this.handlePolling();
     });
@@ -354,6 +356,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     });
     this.header.data.pendingNum += this.header.data.failedNum;
     this.header.data.failedNum = 0;
+    this.handleFilterChange(this.header.status);
     this.handlePolling(false);
     batchRetry({ id: this.config.id })
       .then(async () => {

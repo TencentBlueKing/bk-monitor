@@ -30,7 +30,8 @@ export enum EStatus {
   FAILED = 'FAILED',
   RUNNING = 'RUNNING',
   WARNING = 'WARNING',
-  STOPPED = 'STOPPED'
+  STOPPED = 'STOPPED',
+  PENDING = 'PENDING'
 }
 
 export const FILTER_TYPE_LIST = [
