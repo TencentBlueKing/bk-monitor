@@ -244,6 +244,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
         ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
         ("BKPAAS_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
+        ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
     ]
 )
 

@@ -24,6 +24,7 @@ from metadata.models.space.constants import (
     BKCI_1001_TABLE_ID_PREFIX,
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
+    DBM_1001_TABLE_ID_PREFIX,
     FIELD_TO_RESULT_TABLE_CHANNEL,
     FIELD_TO_RESULT_TABLE_KEY,
     RESULT_TABLE_DETAIL_CHANNEL,
@@ -525,6 +526,13 @@ class SpaceTableIDRedis:
             # NOTE: 特殊逻辑，忽略跨空间类型的 bkci 的结果表; 如果有其它，再提取为常量
             if tid.startswith(BKCI_1001_TABLE_ID_PREFIX):
                 continue
+            # NOTE: 特殊逻辑，针对 `dbm_system` 开头的结果表，设置过滤条件为空
+            if tid.startswith(DBM_1001_TABLE_ID_PREFIX):
+                # 如果不允许访问，则需要跳过
+                if f"{space_type}__{space_id}" not in settings.ACCESS_DBM_RT_SPACE_UID:
+                    continue
+                default_filters = []
+
             measurement_type = measurement_type_dict.get(tid)
             # 如果查询不到类型，则忽略
             if not measurement_type:
@@ -553,7 +561,7 @@ class SpaceTableIDRedis:
     def _is_need_filter_for_bkcc(
         self,
         measurement_type: str,
-        space_type_id: str,
+        space_type: str,
         space_id: str,
         data_id_detail: Optional[Dict] = None,
         is_exist_space: Optional[bool] = True,
@@ -580,7 +588,7 @@ class SpaceTableIDRedis:
             and measurement_type == MeasurementType.BK_SPLIT.value
         ):
             # 如果space_id与data_id所属空间UID相同，则不需要过滤
-            if data_id_detail["space_uid"] == f"{space_type_id}__{space_id}":
+            if data_id_detail["space_uid"] == f"{space_type}__{space_id}":
                 return False
             else:
                 return True

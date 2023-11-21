@@ -1326,3 +1326,6 @@ BKPAAS_DATA_ID_LIST = []
 
 # 环境代号
 ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
+
+# `dbm_` 开头的结果表，仅特定的业务可以查看，并且不需要添加过滤条件
+ACCESS_DBM_RT_SPACE_UID = []
