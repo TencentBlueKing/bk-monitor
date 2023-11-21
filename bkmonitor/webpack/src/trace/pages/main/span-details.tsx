@@ -853,7 +853,8 @@ export default defineComponent({
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
-          apm_span_id: props.spanDetails.span_id
+          apm_span_id: props.spanDetails.span_id,
+          apm_trace_id: props.spanDetails.traceID
         })
           .catch(console.log)
           .finally(() => (isTabPanelLoading.value = false));
@@ -865,7 +866,8 @@ export default defineComponent({
           id: activeTab.value.toLowerCase(),
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
-          apm_span_id: props.spanDetails.span_id
+          apm_span_id: props.spanDetails.span_id,
+          apm_trace_id: props.spanDetails.traceID
         })
           .catch(console.log)
           .finally(() => (isTabPanelLoading.value = false));
