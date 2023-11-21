@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Q
 from django.db.transaction import atomic
@@ -19,13 +20,15 @@ from metadata.models import (
     TimeSeriesGroup,
 )
 from metadata.models.bcs import BCSClusterInfo
+from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 
 from .constants import (
-    BKCI_AUTHORIZED_DATA_LIST,
+    BKCI_AUTHORIZED_DATA_ID_LIST,
     DEFAULT_PAGE,
     DEFAULT_PAGE_SIZE,
     SPACE_DATASOURCE_ETL_LIST,
     SYSTEM_USERNAME,
+    BCSClusterTypes,
     SpaceStatus,
     SpaceTypes,
 )
@@ -210,19 +213,29 @@ def create_space(
     # NOTE: 针对 bkci 类型 需要授权一下空间访问 1001(唯一一个跨空间类型查询的场景)
     try:
         if space_type_id == SpaceTypes.BKCI.value:
-            for bk_data_id in BKCI_AUTHORIZED_DATA_LIST:
-                SpaceDataSource.objects.get_or_create(
-                    space_type_id=space_type_id, space_id=space_id, bk_data_id=bk_data_id, from_authorization=True
-                )
+            # 正常创建空间前不会存在，直接创建
+            authorize_data_id_list(space_type_id, space_id, BKCI_AUTHORIZED_DATA_ID_LIST)
     except Exception as e:
         logger.error(
-            "create space_type: %s, space_id: %s, data_ids: %s, error: %s",
+            "authorize space datasource error, space_type: %s, space_id: %s, data_ids: %s, error: %s",
             space_type_id,
             space_id,
-            json.dumps(BKCI_AUTHORIZED_DATA_LIST),
+            json.dumps(BKCI_AUTHORIZED_DATA_ID_LIST),
             e,
         )
 
+    # 针对 bksaas 授权使用的集群及 PaaS 特定的数据源
+    try:
+        if space_type_id == SpaceTypes.BKSAAS.value:
+            authorize_data_id_list(space_type_id, space_id, settings.BKPAAS_AUTHORIZED_DATA_ID_LIST)
+            create_bksaas_space_resource(space_type_id, space_id, creator)
+    except Exception as e:
+        logger.error(
+            "create space datasource error, space_type: %s, space_id: %s, error: %s",
+            space_type_id,
+            space_id,
+            e,
+        )
     # 关联资源
     # 考虑到关联类型不会太多，直接展开处理
     resources = resources or []
@@ -259,6 +272,108 @@ def create_space(
         )
 
     return space_obj.to_dict()
+
+
+def bulk_create_space_data_source(
+    space_type: str, space_id: str, data_id_list: List, from_authorization: Optional[bool] = True
+):
+    """批量创建空间和数据源关系"""
+    bulk_create_records = []
+    for data_id in data_id_list:
+        bulk_create_records.append(
+            SpaceDataSource(
+                space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=from_authorization
+            )
+        )
+    # 批量创建
+    SpaceDataSource.objects.bulk_create(bulk_create_records, batch_size=BULK_CREATE_BATCH_SIZE)
+
+
+def authorize_data_id_list(space_type: str, space_id: str, data_id_list: List):
+    """针对指定类型授权特定的数据源"""
+    logger.info(
+        "start to authorize data id, space_type: %s, space_id: %s, data_id_list: %s",
+        space_type,
+        space_id,
+        json.dumps(data_id_list),
+    )
+    # bkpaas_data_id_list = settings.BKPAAS_DATA_ID_LIST
+    if not data_id_list:
+        return
+    used_data_ids = SpaceDataSource.objects.filter(
+        space_type_id=space_type, space_id=space_id, bk_data_id__in=data_id_list
+    ).values_list("bk_data_id", flat=True)
+    need_created_data_ids = set(data_id_list) - set(used_data_ids)
+    try:
+        bulk_create_space_data_source(space_type, space_id, list(need_created_data_ids), from_authorization=True)
+    except Exception as e:
+        logger.error(
+            "bulk create space datasource failed, data_id_list: %s, error: %s", json.dumps(need_created_data_ids), e
+        )
+        return
+
+    logger.info("authorize data id successfully, data_id_list: %s", json.dumps(data_id_list))
+
+
+@atomic(config.DATABASE_CONNECTION_NAME)
+def create_bksaas_space_resource(space_type: str, space_id: str, creator: str):
+    """创建蓝鲸应用类型关联的空间资源"""
+    logger.info("create and authorize bksaas space resource, space_type: %s, space_id: %s", space_type, space_id)
+    # 通过蓝鲸应用的空间 ID 获取使用的集群信息
+    cluster_namespaces = api.bk_paas.get_app_cluster_namespace(app_code=space_id)
+    if not cluster_namespaces:
+        return
+
+    # 组装数据
+    _cluster_ns = {}
+    for cn in cluster_namespaces:
+        _cluster_ns.setdefault(cn["bcs_cluster_id"], []).append(cn["namespace"])
+
+    # 提取集群，然后获取集群的内置指标数据
+    dimension_values = []
+    for cluster_id, ns_list in _cluster_ns.items():
+        dimension_values.append(
+            {
+                "cluster_id": cluster_id,
+                "namespace": ns_list,
+                "cluster_type": BCSClusterTypes.SHARED.value,
+            }
+        )
+    # 组装绑定的资源数据
+    try:
+        SpaceResource.objects.create(
+            creator=creator,
+            space_type_id=space_type,
+            space_id=space_id,
+            resource_type=space_type,
+            resource_id=space_id,
+            dimension_values=dimension_values,
+        )
+    except Exception as e:
+        logger.error(
+            "create space resource failed, space_type: %s, space_id: %s, dimension_values: %s  error: %s",
+            space_type,
+            space_id,
+            json.dumps(dimension_values),
+            e,
+        )
+        raise
+
+    clusters = set(_cluster_ns.keys())
+    # 获取集群的内置指标进行授权
+    ks8_metric_data_ids = list(
+        BCSClusterInfo.objects.filter(cluster_id__in=clusters).values_list("K8sMetricDataID", flat=True)
+    )
+    # 然后进行批量授权
+    try:
+        bulk_create_space_data_source(space_type, space_id, ks8_metric_data_ids, from_authorization=True)
+    except Exception as e:
+        logger.error(
+            "bulk create space datasource of k8s metric failed, data_id_list: %s, error: %s",
+            json.dumps(ks8_metric_data_ids),
+            e,
+        )
+        raise
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
@@ -889,3 +1004,18 @@ def get_bkci_projects() -> List:
     except Exception as e:
         logger.error("query project error, %s", e)
         return []
+
+
+def cached_cluster_k8s_data_id() -> List:
+    """从缓存中读取集群内置的数据源 ID
+
+    NOTE: 因为集群变动没有那么频繁，可以设置超时时间为1小时
+    """
+    key = "cached_cluster_k8s_data_id"
+    if key in cache:
+        return cache.get(key)
+    # 不存在，则缓存
+    cluster_data_ids = BCSClusterInfo.objects.values("cluster_id", "K8sMetricDataID")
+    cluster_data_id = {cluster_info["cluster_id"]: cluster_info["K8sMetricDataID"] for cluster_info in cluster_data_ids}
+    cache.set(key, cluster_data_id, 1 * 60 * 60)
+    return cluster_data_id
