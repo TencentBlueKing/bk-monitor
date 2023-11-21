@@ -597,7 +597,7 @@ export default defineComponent({
   render() {
     return (
       <tr class='replace-rotation-table-item-component'>
-        <td class='step-wrapper'>
+        <td class='step-wrapper replace-rotation'>
           <FormItem
             label={this.t('轮值类型')}
             labelWidth={70}
@@ -617,7 +617,7 @@ export default defineComponent({
 
           {this.renderClassesContent()}
         </td>
-        <td class='step-wrapper'>
+        <td class='step-wrapper replace-rotation'>
           <div class='user-panel-wrap'>
             {this.localValue.users.type === 'specified' ? (
               // 手动分组

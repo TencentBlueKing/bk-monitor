@@ -36,8 +36,8 @@ import { IAuthority } from '../../typings/authority';
 import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
-import { RotationSelectTextMap, RotationSelectTypeEnum, RotationTabTypeEnum } from './typings/common';
-import { randomColor, transformDetailTimer, transformDetailUsers } from './utils';
+import { RotationTabTypeEnum } from './typings/common';
+import { randomColor, RuleDetailModel, transformRulesDetail } from './utils';
 
 import './rotation-detail.scss';
 
@@ -82,9 +82,7 @@ export default defineComponent({
 
     const type = ref<RotationTabTypeEnum>(RotationTabTypeEnum.REGULAR);
     const detailData = ref();
-    const rotationType = ref<RotationSelectTypeEnum>(RotationSelectTypeEnum.Weekly);
-    const users = ref([]);
-    const timeList = ref([]);
+    const rules = ref<RuleDetailModel[]>([]);
 
     function getData() {
       loading.value = true;
@@ -92,9 +90,7 @@ export default defineComponent({
         .then(res => {
           detailData.value = res;
           type.value = res.category;
-          rotationType.value = res.duty_arranges?.[0]?.duty_time?.[0].work_type || RotationSelectTypeEnum.Weekly;
-          users.value = transformDetailUsers(detailData.value.duty_arranges, type.value);
-          timeList.value = transformDetailTimer(detailData.value.duty_arranges, type.value);
+          rules.value = transformRulesDetail(detailData.value.duty_arranges);
           historyList.value = [
             { label: t('创建人'), value: res.create_user || '--' },
             { label: t('创建时间'), value: res.create_time || '--' },
@@ -155,9 +151,7 @@ export default defineComponent({
       loading,
       type,
       detailData,
-      rotationType,
-      users,
-      timeList,
+      rules,
       historyList,
       previewData,
       authority,
@@ -228,79 +222,41 @@ export default defineComponent({
                     {this.type === RotationTabTypeEnum.REGULAR ? this.t('日常值班') : this.t('交替轮值')}
                   </span>
                 </FormItem>
-                {this.type === RotationTabTypeEnum.REGULAR
-                  ? [
-                      <FormItem
-                        label={this.t('值班人员')}
-                        hasColon={true}
-                      >
-                        <span class='notice-user'>
-                          {this.users.map(user => (
-                            <div class='personnel-choice'>
-                              {this.renderUserLogo(user)}
-                              <span>{user.display_name}</span>
-                            </div>
+                <FormItem label={this.type === RotationTabTypeEnum.REGULAR ? this.t('值班规则') : this.t('轮值规则')}>
+                  {this.rules.map(rule => (
+                    <div class='rule-item-wrap'>
+                      {rule.ruleTime.map((time, ind) => (
+                        <div class='rule-item'>
+                          {rule.ruleTime.length > 1 && [
+                            <span class='rule-item-index'>{this.t('第 {num} 班', { num: ind + 1 })}</span>,
+                            <div class='col-separate'></div>
+                          ]}
+                          <span class='rule-item-title'>{time.day}</span>
+                          {time.timer.map(item => (
+                            <div class='rule-item-time-tag'>{item}</div>
                           ))}
-                        </span>
-                      </FormItem>,
-                      <FormItem
-                        label={this.t('工作时间范围')}
-                        hasColon={true}
-                      >
-                        <div class='regular-form-item-wrap'>
-                          {this.timeList.map(item => (
-                            <span class='detail-text'>{item.dateRange}</span>
-                          ))}
+                          {time.periodSettings && <span class='rule-item-period'>{time.periodSettings}</span>}
                         </div>
-                      </FormItem>,
-                      <FormItem
-                        label={this.t('工作时间')}
-                        hasColon={true}
-                      >
-                        <div class='regular-form-item-wrap'>
-                          {this.timeList.map(item => (
-                            <span class='detail-text'>{item.time}</span>
-                          ))}
-                        </div>
-                      </FormItem>
-                    ]
-                  : [
-                      <FormItem
-                        label={this.t('值班用户组')}
-                        hasColon={true}
-                      >
-                        <div class='notice-user-list'>
-                          {this.users.map((item, ind) => (
-                            <span class='notice-user pl-16'>
-                              <div
-                                class='has-color'
-                                style={{ background: randomColor(ind) }}
-                              ></div>
-                              {item.map(user => (
-                                <div class='personnel-choice'>
-                                  {this.renderUserLogo(user)}
-                                  <span>{user.display_name}</span>
-                                </div>
-                              ))}
-                            </span>
-                          ))}
-                        </div>
-                      </FormItem>,
-                      <FormItem
-                        label={this.t('轮值类型')}
-                        hasColon={true}
-                      >
-                        <span class='detail-text'>{RotationSelectTextMap[this.rotationType]}</span>
-                      </FormItem>,
-                      <FormItem
-                        label={this.t('单班时间')}
-                        hasColon={true}
-                      >
-                        {this.timeList.map(time => (
-                          <div class='muti-text'>{time}</div>
+                      ))}
+                      <div class='notice-user-list'>
+                        {rule.ruleUser.map((item, ind) => (
+                          <div class='notice-user-item'>
+                            <div
+                              class='has-color'
+                              style={{ background: randomColor(ind) }}
+                            ></div>
+                            {item.map(user => (
+                              <div class='personnel-choice'>
+                                {this.renderUserLogo(user)}
+                                <span>{user.display_name}</span>
+                              </div>
+                            ))}
+                          </div>
                         ))}
-                      </FormItem>
-                    ]}
+                      </div>
+                    </div>
+                  ))}
+                </FormItem>
                 <FormItem
                   label={this.t('生效时间')}
                   hasColon={true}
