@@ -57,9 +57,6 @@ class HostHandler:
         """
         if not scope_list:
             return []
-        # 当没有CC业务时, 直接返回空列表
-        if not [scope["bk_biz_id"] for scope in scope_list if scope["bk_biz_id"] > 0]:
-            return []
 
         inner_ip_set: typing.Set[str] = set()
         bk_host_id_set: typing.Set[int] = set()

@@ -24,6 +24,10 @@ import hashlib
 import json
 from typing import Any, Dict, List, Union
 
+from django.conf import settings
+from django.core.cache import cache
+from django.utils.translation import ugettext as _
+
 from apps.api import BcsCcApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
@@ -33,6 +37,7 @@ from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -85,13 +90,14 @@ from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.lucene import generate_query_string
 from bkm_ipchooser.constants import CommonEnum
-from django.conf import settings
-from django.core.cache import cache
-from django.utils.translation import ugettext as _
 
 max_len_dict = Dict[str, int]  # pylint: disable=invalid-name
 
@@ -124,6 +130,9 @@ class SearchHandler(object):
         export_fields=None,
         export_log: bool = False,
     ):
+        # 请求用户名
+        self.request_username = get_request_external_username() or get_request_username()
+
         self.search_dict: dict = search_dict
         self.export_log = export_log
 
@@ -226,7 +235,7 @@ class SearchHandler(object):
         self.serverIp: str = search_dict.get("serverIp")  # pylint: disable=invalid-name
         self.ip: str = search_dict.get("ip", "undefined")
         self.path: str = search_dict.get("path", "")
-        self.container_id: str = search_dict.get("container_id", None)
+        self.container_id: str = search_dict.get("container_id", None) or search_dict.get("__ext.container_id", None)
         self.logfile: str = search_dict.get("logfile", None)
         self._iteration_idx: str = search_dict.get("_iteration_idx", None)
         self.iterationIdx: str = search_dict.get("iterationIdx", None)  # pylint: disable=invalid-name
@@ -240,11 +249,7 @@ class SearchHandler(object):
         # 导出字段
         self.export_fields = export_fields
 
-        # 请求用户名
-        self.request_username = get_request_username()
-
-        # 透传脱敏配置
-        self.desensitize_config_list = self.search_dict.get("desensitize_configs", [])
+        self.is_desensitize = search_dict.get("is_desensitize", True)
 
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
@@ -253,8 +258,12 @@ class SearchHandler(object):
         # 脱敏配置原文字段
         self.text_fields = desensitize_config_obj.text_fields if desensitize_config_obj else []
 
-        field_configs = [
-            {
+        self.field_configs = list()
+
+        self.text_fields_field_configs = list()
+
+        for field_config_obj in desensitize_field_config_objs:
+            _config = {
                 "field_name": field_config_obj.field_name or "",
                 "rule_id": field_config_obj.rule_id or 0,
                 "operator": field_config_obj.operator,
@@ -262,13 +271,15 @@ class SearchHandler(object):
                 "match_pattern": field_config_obj.match_pattern,
                 "sort_index": field_config_obj.sort_index,
             }
-            for field_config_obj in desensitize_field_config_objs
-        ]
-        if field_configs:
-            self.desensitize_config_list.extend(field_configs)
+            if field_config_obj.field_name not in self.text_fields:
+                self.field_configs.append(_config)
+            else:
+                self.text_fields_field_configs.append(_config)
 
         # 初始化脱敏工厂对象
-        self.desensitize_handler = DesensitizeHandler(self.desensitize_config_list)
+        self.desensitize_handler = DesensitizeHandler(self.field_configs)
+
+        self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
     def fields(self, scope="default"):
         mapping_handlers = MappingHandlers(
@@ -503,6 +514,9 @@ class SearchHandler(object):
         _scroll_id = result.get("_scroll_id")
 
         result = self._deal_query_result(result)
+        # 脱敏配置日志原文检索 提前返回
+        if self.search_dict.get("original_search"):
+            return result
         field_dict = self._analyze_field_length(result.get("list"))
         result.update({"fields": field_dict})
 
@@ -791,7 +805,8 @@ class SearchHandler(object):
         @param kwargs:
         @return:
         """
-        username = get_request_username()
+        # 外部用户获取搜索历史的时候, 用external_username
+        username = get_request_external_username() or get_request_username()
         if index_set_id:
             history_obj = (
                 UserIndexSetSearchHistory.objects.filter(
@@ -1070,6 +1085,15 @@ class SearchHandler(object):
         if tmp_index_obj:
             self.scenario_id = tmp_index_obj.scenario_id
             self.storage_cluster_id = tmp_index_obj.storage_cluster_id
+            # 根据检索条件addition中的字段，判断是否需要查询聚类结果表
+            for addition in self.search_dict.get("addition", []):
+                # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
+                if addition.get("field", "").startswith("__dist"):
+                    clustering_config = ClusteringConfig.get_by_index_set_id(
+                        index_set_id=index_set_id, raise_exception=False
+                    )
+                    if clustering_config and clustering_config.clustered_rt:
+                        return clustering_config.clustered_rt
             index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
             if len(index_set_data_obj_list) > 0:
                 index_list: list = [x.get("result_table_id", None) for x in index_set_data_obj_list]
@@ -1108,9 +1132,10 @@ class SearchHandler(object):
         if sort_list:
             return sort_list
         # 用户已设置排序规则
-        username = get_request_username()
         scope = self.search_dict.get("search_type", "default")
-        config_obj = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=username, scope=scope)
+        config_obj = UserIndexSetFieldsConfig.get_config(
+            index_set_id=index_set_id, username=self.request_username, scope=scope
+        )
         if config_obj:
             sort_list = config_obj.sort_list
             if sort_list:
@@ -1342,7 +1367,7 @@ class SearchHandler(object):
         for hit in result_dict["hits"]["hits"]:
             log = hit["_source"]
             # 脱敏处理
-            if self.desensitize_config_list:
+            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
             if self.export_fields:
@@ -1364,7 +1389,7 @@ class SearchHandler(object):
             if "highlight" not in hit:
                 log_list.append(log)
                 continue
-            if not self.desensitize_config_list:
+            if not (self.field_configs or self.text_fields_field_configs) or not self.is_desensitize:
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
 
@@ -1380,6 +1405,18 @@ class SearchHandler(object):
         agg_dict = result_dict.get("aggregations", {})
         result.update({"aggs": agg_dict})
         return result
+
+    @classmethod
+    def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        递归更新嵌套字典
+        """
+        for key, value in update_dict.items():
+            if isinstance(value, dict):
+                base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
+            else:
+                base_dict[key] = value
+        return base_dict
 
     @staticmethod
     def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -1399,8 +1436,8 @@ class SearchHandler(object):
         兼容Object类型字段的高亮
         ES层会返回打平后的高亮字段, 该函数将其高亮的字段更新至对应Object字段
         """
-        log.update(self.nested_dict_from_dotted_key(dotted_dict=highlight))
-        return log
+        nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
+        return self.update_nested_dict(log, nested_dict)
 
     def _log_desensitize(self, log: dict = None):
         """
@@ -1409,13 +1446,15 @@ class SearchHandler(object):
         if not log:
             return log
 
+        # 展开object对象
+        log = expand_nested_data(log)
         # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
         log_content_tmp = copy.deepcopy(log)
 
         # 字段脱敏处理
         log = self.desensitize_handler.transform_dict(log)
 
-        # 处理原文字段
+        # 原文字段应用其他字段的脱敏结果
         if not self.text_fields:
             return log
 
@@ -1424,12 +1463,17 @@ class SearchHandler(object):
             if text_field not in log.keys():
                 continue
 
-            for _config in self.desensitize_config_list:
+            for _config in self.field_configs:
                 field_name = _config["field_name"]
-                if field_name not in log.keys():
+                if field_name not in log.keys() or field_name == text_field:
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 
+        # 处理原文字段自身绑定的脱敏逻辑
+        if self.text_fields:
+            log = self.text_fields_desensitize_handler.transform_dict(log)
+        # 折叠object对象
+        log = merge_nested_data(log)
         return log
 
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):

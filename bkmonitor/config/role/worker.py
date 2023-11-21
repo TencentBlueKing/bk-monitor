@@ -12,10 +12,11 @@ import logging
 import os
 import sys
 
+from jinja2 import DebugUndefined
+
 from config.tools.consul import get_consul_settings
 from config.tools.rabbitmq import get_rabbitmq_settings
 from config.tools.redis import get_cache_redis_settings, get_redis_settings
-from jinja2 import DebugUndefined
 
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
@@ -53,6 +54,7 @@ INSTALLED_APPS += (  # noqa: F405
     "metadata",
     "alarm_backends",
     "apm",
+    "apm_ebpf",
     "core.drf_resource",
 )
 
@@ -157,6 +159,10 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
+    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每十分钟触发
+    ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/10 * * * *", "global"),
+    # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
+    ("apm_ebpf.task.tasks.cluster_discover_cron", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -252,6 +258,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.sync_space.refresh_redis_data", "*/30 * * * *", "global"),
         ("metadata.task.sync_space.sync_bkcc_space_data_source", "*/10 * * * *", "global"),
         ("metadata.task.sync_space.refresh_not_biz_space_data_source", "*/10 * * * *", "global"),
+        # ("metadata.task.sync_space.push_and_publish_space_router_task", "* */3 * * *", "global"),
         # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
         ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
         # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
@@ -262,6 +269,8 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
         # 删除数据库中已经不存在的数据源
         ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
+        # 每天同步一次蓝鲸应用的使用的集群
+        ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
     ]
 
 # Timeout for image exporter service, default set to 10 seconds
@@ -339,6 +348,7 @@ def get_logger_config(log_path, logger_level, log_file_prefix):
             "recovery": LOGGER_DEFAULT,
             "fta_action": LOGGER_DEFAULT,
             "bkmonitor": LOGGER_DEFAULT,
+            "apm_ebpf": LOGGER_DEFAULT,
             "apm": LOGGER_DEFAULT,
             "data_source": LOGGER_DEFAULT,
             "alarm_backends": LOGGER_DEFAULT,

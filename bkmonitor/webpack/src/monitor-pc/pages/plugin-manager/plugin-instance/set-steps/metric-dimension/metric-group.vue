@@ -601,8 +601,6 @@ export default {
     };
   },
   computed: {
-    //    关键字列表
-    ...mapGetters('plugin-manager', ['reservedWords']),
     localGroupRules() {
       const data = this.groupRules.map(item => ({
         type: 'value',
@@ -696,7 +694,7 @@ export default {
       });
     },
     transFromAll() {
-      this.metricData.forEach((item) => {
+      this.metricData.forEach(item => {
         this.reNameFn(item);
       });
     },
@@ -725,7 +723,7 @@ export default {
           /** 预留添加规则按钮和数字标记按钮宽度 */
           widthTotal = addRuleWidth + numMarkWidth;
           /** 查找开始被隐藏的规则项的索引 */
-          const startInd = Array.from(ruleTagList).findIndex((item) => {
+          const startInd = Array.from(ruleTagList).findIndex(item => {
             const { width } = item.getBoundingClientRect();
             /*
              * 如果当前规则项的宽度加上已显示的规则项总宽度大于容器宽度,隐藏当前规则
@@ -745,8 +743,7 @@ export default {
     }
   },
   async created() {
-    !this.reservedWords.length && (await this.getReservedWords());
-    this.metricData.forEach((row) => {
+    this.metricData.forEach(row => {
       this.checkNameFn(row);
     });
   },
@@ -777,8 +774,8 @@ export default {
     //  勾选指标联动勾选维度
     handleCheckMetric(scope) {
       if (scope.row.tag_list) {
-        scope.row.tag_list.forEach((dimension) => {
-          this.metricData.forEach((item) => {
+        scope.row.tag_list.forEach(dimension => {
+          this.metricData.forEach(item => {
             if (dimension.field_name === item.name) {
               item.isCheck = scope.row.isCheck;
             }
@@ -794,14 +791,15 @@ export default {
         // 有关联指标的维度集合
         const relatedDimensions = new Set();
         const data = type === 'current' ? this.paginationData : this.metricData;
-        data.forEach((item) => {
+        data.forEach(item => {
           // 维度不能被勾选
           item.isCheck = value === 2 && item.monitor_type !== 'dimension';
           // 收集已勾选指标所关联的维度
-          item.monitor_type === 'metric' && (item.tag_list || []).forEach(item => relatedDimensions.add(item.field_name));
+          item.monitor_type === 'metric' &&
+            (item.tag_list || []).forEach(item => relatedDimensions.add(item.field_name));
         });
         // 自动勾选关联的维度
-        this.metricData.forEach((item) => {
+        this.metricData.forEach(item => {
           item.monitor_type === 'dimension' && (item.isCheck = relatedDimensions.has(item.name));
         });
       }
@@ -836,14 +834,11 @@ export default {
           data.errValue = true;
           data.reValue = false;
         } else if (
-          row.monitor_type === 'dimension'
-          && this.metricData.filter(item => item.name === row.name).length > 1
+          row.monitor_type === 'dimension' &&
+          this.metricData.filter(item => item.name === row.name).length > 1
         ) {
           data.errValue = true;
           data.reValue = false;
-        } else if (this.reservedWords.find(item => item === row.name.toLocaleUpperCase())) {
-          data.errValue = false;
-          data.reValue = true;
         } else if (!judgeIsIllegal(row.name)) {
           data.errValue = false;
           data.reValue = true;
@@ -884,7 +879,7 @@ export default {
     reNameFn(row) {
       const index = this.metricData.findIndex(item => item.id === row.id);
       this.metricData[index].source_name = row.name;
-      this.metricData[index].name = metricNameTransFrom(row.name, this.reservedWords);
+      this.metricData[index].name = metricNameTransFrom(row.name);
       this.metricData[index].reValue = false;
       this.checkNameFn(row);
     },
@@ -957,7 +952,7 @@ export default {
     //  找到单位值对应的name
     handleFindUnitName(id) {
       let name = id;
-      this.unitList.forEach((group) => {
+      this.unitList.forEach(group => {
         const res = group.formats.find(item => item.id === id);
         if (res) {
           name = res.name;
@@ -994,7 +989,7 @@ export default {
       this.pagination.limit = limit;
     },
     resetCheckStatus() {
-      this.metricData.forEach((item) => {
+      this.metricData.forEach(item => {
         // 维度不能被勾选
         item.isCheck = false;
       });
@@ -1058,10 +1053,10 @@ export default {
       this.addRuleCancel();
     },
     changeCheckStatus() {
-      this.paginationData.forEach((metric) => {
+      this.paginationData.forEach(metric => {
         if (metric.tag_list) {
-          metric.tag_list.forEach((name) => {
-            this.paginationData.forEach((item) => {
+          metric.tag_list.forEach(name => {
+            this.paginationData.forEach(item => {
               if (name === item.name) {
                 item.isCheck = false;
               }
@@ -1087,10 +1082,7 @@ export default {
 };
 </script>
 
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 /* stylelint-disable no-descending-specificity */
 
 .pl5 {
@@ -1108,7 +1100,7 @@ export default {
 .metric-group {
   margin-top: 16px;
   color: #63656e;
-  transition: height .5s;
+  transition: height 0.5s;
 
   :deep(.bk-form-input),
   :deep(.bk-select) {
@@ -1317,9 +1309,8 @@ export default {
     border-top: none;
 
     .left-table {
-
       width: 100%;
-      transition: width .5s;
+      transition: width 0.5s;
 
       .name {
         position: relative;

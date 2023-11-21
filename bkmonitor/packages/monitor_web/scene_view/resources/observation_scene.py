@@ -15,16 +15,6 @@ from functools import reduce
 
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from monitor_web.collecting.constant import OperationType
-from monitor_web.constants import EVENT_TYPE
-from monitor_web.models import (
-    CollectConfigMeta,
-    CollectorPluginMeta,
-    CustomEventGroup,
-    CustomTSTable,
-    PluginVersionHistory,
-)
-from monitor_web.plugin.constant import PluginType
 from rest_framework import serializers
 
 from bkmonitor.commons.tools import get_host_view_display_fields
@@ -38,6 +28,16 @@ from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.common_utils import to_dict
 from constants.cmdb import TargetNodeType, TargetObjectType
 from core.drf_resource import Resource, api
+from monitor_web.collecting.constant import OperationType
+from monitor_web.constants import EVENT_TYPE
+from monitor_web.models import (
+    CollectConfigMeta,
+    CollectorPluginMeta,
+    CustomEventGroup,
+    CustomTSTable,
+    PluginVersionHistory,
+)
+from monitor_web.plugin.constant import PluginType
 
 logger = logging.getLogger(__name__)
 
@@ -225,10 +225,10 @@ class GetObservationSceneList(Resource):
                     QueryConfigModel.objects.filter(
                         reduce(lambda x, y: x | y, (Q(config__result_table_id=table_id) for table_id in table_ids))
                     )
-                    .values("strategy_id")
+                    .values_list("strategy_id", flat=True)
                     .distinct()
                 )
-                strategy_count = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids).count()
+                strategy_count = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=list(strategy_ids)).count()
             else:
                 strategy_count = 0
 
@@ -264,10 +264,10 @@ class GetObservationSceneList(Resource):
             group_info = CustomEventGroup.objects.get(name=event_group_name)
             strategy_ids = (
                 QueryConfigModel.objects.filter(config__result_table_id=group_info.table_id)
-                .values("strategy_id")
+                .values_list("strategy_id", flat=True)
                 .distinct()
             )
-            strategy_count = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids).count()
+            strategy_count = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=list(strategy_ids)).count()
             result.append(
                 {
                     "id": collect_config.id,

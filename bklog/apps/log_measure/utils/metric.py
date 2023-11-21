@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import arrow
+
 from apps.api import TransferApi
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
@@ -139,9 +140,11 @@ class MetricUtils(object):
         cls._instance = None
 
 
-def build_metric_id(data_name, namespace, prefix: str) -> str:
-    return f"{data_name}##{namespace}##{prefix}"
-
-
-def get_metric_id_info(metric_id: str) -> list:
-    return metric_id.split("##")
+def get_metric_id_info(metric_id: str) -> dict:
+    metric_list = metric_id.split("##")
+    return {
+        "data_name": metric_list[0],
+        "namespace": metric_list[1],
+        "prefix": metric_list[2],
+        "sub_type": metric_list[3] if len(metric_list) == 4 else "",
+    }

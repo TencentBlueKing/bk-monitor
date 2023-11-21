@@ -54,7 +54,7 @@ export default class SimpleSelect extends tsc<IProps, IEvents> {
   @Prop({ default: '', type: [Array, String] }) value: string[] | string;
   @Prop({ default: () => [], type: Array }) list: IItem[];
   @Prop({ default: false, type: Boolean }) multiple: boolean; // 是否多选
-  @Prop({ default: 100, type: Number }) popoverMinWidth: number;
+  @Prop({ default: 100, type: [Number, String] }) popoverMinWidth: number;
   @Prop({ default: false, type: Boolean }) disabled: boolean;
 
   @Ref('selectDropdown') selectRef: Select;
@@ -95,7 +95,7 @@ export default class SimpleSelect extends tsc<IProps, IEvents> {
           class='select-dropdown'
           ref='selectDropdown'
           value={this.localValue}
-          popoverMinWidth={this.popoverMinWidth}
+          popoverMinWidth={this.popoverMinWidth || 100}
           multiple={this.multiple}
           on-toggle={v => this.handleToggle(v)}
           on-change={this.handleSelectChange}

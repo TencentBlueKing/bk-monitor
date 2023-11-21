@@ -10,17 +10,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import base64
 import ntpath
+import os
 from urllib.parse import urljoin
 
 from bkcrypto import constants
-from bkcrypto.asymmetric.interceptors import BaseAsymmetricInterceptor
-from bkcrypto.symmetric import interceptors
-from bkcrypto.symmetric.ciphers import AESSymmetricCipher, BaseSymmetricCipher
-from bkcrypto.symmetric.ciphers.base import EncryptionMetadata
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
-from bkcrypto.utils import convertors
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
@@ -264,6 +259,7 @@ DATABASES = {}
 
 # auto clean DB connection
 DATABASE_CONNECTION_AUTO_CLEAN_INTERVAL = 600
+CONN_MAX_AGE = int(os.getenv("CONN_MAX_AGE", 0))
 
 # 是否开启网络设备忽略
 USE_ETH_FILTER = True
@@ -429,6 +425,7 @@ ACTIVE_VIEWS = {
         "apm_topo": "apm_web.topo.views",
         "apm_service": "apm_web.service.views",
         "apm_log": "apm_web.log.views",
+        "apm_db": "apm_web.db.views",
     },
 }
 
@@ -527,6 +524,7 @@ SKIP_PLUGIN_DEBUG = False
 
 # 统一查询模块配置
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
+UNIFY_QUERY_ROUTING_RULES = []
 
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
@@ -686,9 +684,8 @@ PING_SERVER_TARGET_NUMBER_LIMIT = 6000
 DISABLE_BIZ_ID = []
 
 # 是否开启聚合网关上报
-METRIC_AGG_GATEWAY_URL = ""
-# TODO: remove me after checking
-HTTP_METRIC_AGG_GATEWAY_URL = os.getenv("HTTP_METRIC_AGG_GATEWAY_URL", "")
+METRIC_AGG_GATEWAY_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_URL", "")
+METRIC_AGG_GATEWAY_UDP_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_UDP_URL", METRIC_AGG_GATEWAY_URL)
 
 # 网关API域名
 APIGW_BASE_URL = os.getenv("BKAPP_APIGW_BASE_URL", "")
@@ -1095,6 +1092,7 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
+MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1105,7 +1103,6 @@ BKHCAT_APP_CODE = os.getenv("BKHCAT_APP_CODE", "")
 BKHCAT_APP_SECRET = os.getenv("BKHCAT_APP_SECRET", "")
 BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
-BK_NODEMAN_VERSION = "2.0"  # 节点管理版本，默认是2.0，如果还是老的版本，需要在全局配置页面修改为1.3
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
 )
@@ -1157,9 +1154,6 @@ OFFICIAL_PLUGINS_MANAGERS = []
 
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
-
-# 特别的AES加密配置信息
-SPECIFY_AES_KEY = ""
 
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
@@ -1223,16 +1217,9 @@ BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_MONITOR_HOST)
 # 蓝鲸业务名
 BLUEKING_NAME = os.getenv("BKAPP_BLUEKING_NAME", "蓝鲸")
 
-# https设置
-SECURE_SSL_REDIRECT = os.getenv("BKAPP_SECURE_SSL_REDIRECT", "").lower() == "true"
-SECURE_SSL_HOST = os.getenv("BKAPP_SECURE_SSL_HOST", "")
-SECURE_REDIRECT_EXEMPT = os.getenv("BKAPP_SECURE_REDIRECT_EXEMPT", "")
-if SECURE_REDIRECT_EXEMPT:
-    SECURE_REDIRECT_EXEMPT = SECURE_REDIRECT_EXEMPT.split(",")
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
 # 后台任务多进程并行数量，默认设置为1个
 MAX_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
+MAX_TS_METRIC_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
 
 # 是否默认展示策略模块实时功能
 SHOW_REALTIME_STRATEGY = False
@@ -1305,9 +1292,15 @@ BKCRYPTO = {
     },
 }
 
+# 特别的AES加密配置信息(全局配置)
+SPECIFY_AES_KEY = ""
+BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
+
+
 # 前端事件上报
 FRONTEND_REPORT_DATA_ID = 0
 FRONTEND_REPORT_DATA_TOKEN = ""
+FRONTEND_REPORT_DATA_HOST = ""
 
 KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST = []
 
@@ -1321,3 +1314,15 @@ IS_SUBSCRIPTION_ENABLED = True
 
 # 允许限制空间功能开关， 默认限制
 IS_RESTRICT_DS_BELONG_SPACE = True
+
+# 最大的指标分片查询大小
+MAX_FIELD_PAGE_SIZE = 1000
+
+# 访问 PaaS 提供接口地址
+PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
+
+# 需要授权给蓝鲸应用的特定的数据源 ID
+BKPAAS_DATA_ID_LIST = []
+
+# 环境代号
+ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"

@@ -273,7 +273,7 @@ export default class App extends tsc<{}> {
                     class={['header-list-item', { 'item-active': id === this.navActive }]}
                     onClick={() => this.handleHeaderMenuClick(id, route)}
                   >
-                    {this.$t(name)}
+                    {this.$t(`route-${name}`)}
                   </li>
                 ))}
               </ul>
@@ -293,7 +293,7 @@ export default class App extends tsc<{}> {
                 {this.menuToggle ? (
                   this.menuSelect()
                 ) : (
-                  <span class='menu-title'>{this.bizName?.split(']')?.[1]?.[1].toLocaleUpperCase()}</span>
+                  <span class='menu-title'>{this.bizName?.slice(0, 1).toLocaleUpperCase()}</span>
                 )}
               </div>
               <NavigationMenu
@@ -315,7 +315,7 @@ export default class App extends tsc<{}> {
                           href={child.href}
                           {...{ props: child }}
                         >
-                          <span>{this.$t(child.name)}</span>
+                          <span>{this.$t(`route-${child.name}`)}</span>
                         </NavigationMenuItem>
                       ))}
                     </NavigationMenuGroup>

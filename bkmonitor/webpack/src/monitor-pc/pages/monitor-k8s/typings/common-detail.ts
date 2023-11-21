@@ -25,6 +25,12 @@
  */
 import { ITableItemMap } from './table';
 
+interface Children {
+  name: string;
+  type: string;
+  value: string | string[];
+}
+
 export type CommonDetailType = 'link' | 'number' | 'list' | 'status' | 'string' | 'tag' | 'time' | 'kv' | 'progress';
 
 export interface IDetailItem {
@@ -34,6 +40,8 @@ export interface IDetailItem {
   isExpand?: boolean; // 是否展开显示
   isOverflow?: boolean; // 是否已溢出
   need_copy?: boolean; // 是否需要复制文本按钮
+  count?: number; // 如果为 0 ，则不需要渲染展开数据
+  children?: Children[];
 }
 
 export type IDetailItemMap = Pick<ITableItemMap, CommonDetailType>;

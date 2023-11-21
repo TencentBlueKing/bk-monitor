@@ -930,7 +930,7 @@ class QueryTraceDetailResource(Resource):
     def perform_request(self, validated_data):
         trace, relation_mapping = QueryProxy(
             validated_data["bk_biz_id"], validated_data["app_name"]
-        ).query_trace_detail(validated_data["trace_id"])
+        ).query_trace_detail(validated_data["trace_id"], validated_data["bk_biz_id"])
 
         return {"trace_data": trace, "relation_mapping": relation_mapping}
 

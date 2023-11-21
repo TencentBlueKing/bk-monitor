@@ -28,6 +28,7 @@ from kafka.consumer.fetcher import ConsumerRecord
 from kafka.errors import NoBrokersAvailable
 
 from alarm_backends import constants
+from alarm_backends.cluster import TargetType
 from alarm_backends.core.cache import clear_mem_cache, key
 from alarm_backends.core.cache.key import ACCESS_END_TIME_KEY, REAL_TIME_HOST_TOPIC_KEY
 from alarm_backends.core.cache.result_table import ResultTableCacheManager
@@ -404,6 +405,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 记录检测点 下次从检测点开始重新检查
             checkpoint.set(last_checkpoint)
 
+        # 记录access最后一次数据拉取时间
+        access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
+        key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
+
         logger.info(
             "strategy_group_key({}), push records({}), last_checkpoint({})".format(
                 self.strategy_group_key,
@@ -499,6 +504,20 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             start_time = time.time()
             # 获取所有实时监控待拉取的topic及对应的策略信息
             rt_id_to_strategies = StrategyCacheManager.get_real_time_data_strategy_ids()
+
+            # 过滤出当前集群下的策略
+            for rt_id in rt_id_to_strategies:
+                rt_id_to_strategies[rt_id] = {
+                    biz_id: strategy_ids
+                    for biz_id, strategy_ids in rt_id_to_strategies[rt_id].items()
+                    if get_cluster().match(TargetType.biz, biz_id)
+                }
+
+            # 去除空的rt_id
+            rt_id_to_strategies = {
+                rt_id: strategy_ids for rt_id, strategy_ids in rt_id_to_strategies.items() if strategy_ids
+            }
+
             rt_ids = list(rt_id_to_strategies.keys())
             partitions = []
             topic_strategy = defaultdict(set)

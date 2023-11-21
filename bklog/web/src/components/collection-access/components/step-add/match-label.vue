@@ -90,9 +90,10 @@
               <div class="justify-sb">
                 <span v-bk-overflow-tips>{{item.value}}</span>
                 <span v-if="item.customize">
-                  <span v-show="activeItemID === item.id"
-                        class="bk-icon icon-close3-shape"
-                        @click.stop="handleDeleteMatch(item.id)"></span>
+                  <span
+                    v-show="activeItemID === item.id"
+                    class="bk-icon icon-close3-shape"
+                    @click.stop="handleDeleteMatch(item.id)"></span>
                   <span v-show="activeItemID !== item.id" class="match-right">{{$t('自定义')}}</span>
                 </span>
               </div>

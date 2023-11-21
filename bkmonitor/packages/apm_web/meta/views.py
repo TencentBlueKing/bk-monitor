@@ -48,6 +48,7 @@ from apm_web.meta.resources import (
     StartResource,
     StopResource,
     StorageFieldInfoResource,
+    GETDataEncodingResource,
 )
 from apm_web.models import Application
 
@@ -221,4 +222,6 @@ class ApplicationViewSet(ResourceViewSet):
             "POST", CustomServiceDataViewResource, endpoint="custom_service_data_view_config", pk_field="application_id"
         ),
         ResourceRoute("POST", CustomServiceDataSourceResource, endpoint="custom_service_url_list"),
+        ResourceRoute("GET", GETDataEncodingResource, endpoint="data_encoding"),
+
     ]

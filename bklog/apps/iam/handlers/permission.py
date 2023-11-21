@@ -20,33 +20,41 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from typing import Union, List, Dict
+from typing import Dict, List, Union
+
 from django.conf import settings
 from django.utils.translation import ugettext as _
-
-from apps.iam.handlers.compatible import CompatibleIAM
-from apps.utils.log import logger
-from apps.iam.exceptions import ActionNotExistError, PermissionDeniedError, GetSystemInfoError
-from apps.iam.handlers.actions import ActionMeta, get_action_by_id, _all_actions
-from apps.iam.handlers.resources import (
-    get_resource_by_id,
-    _all_resources,
-    ResourceEnum,
-    Business as BusinessResource,
+from iam import (
+    MultiActionRequest,
+    ObjectSet,
+    Request,
+    Resource,
+    Subject,
+    make_expression,
 )
-from apps.utils.local import get_request, get_request_username
-from iam import Request, Subject, Resource, make_expression, ObjectSet, MultiActionRequest
 from iam.apply.models import (
     ActionWithoutResources,
-    Application,
     ActionWithResources,
+    Application,
     RelatedResourceType,
     ResourceInstance,
     ResourceNode,
 )
 from iam.exceptions import AuthAPIError
-from iam.meta import setup_system, setup_resource, setup_action
+from iam.meta import setup_action, setup_resource, setup_system
 from iam.utils import gen_perms_apply_data
+
+from apps.iam.exceptions import (
+    ActionNotExistError,
+    GetSystemInfoError,
+    PermissionDeniedError,
+)
+from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
+from apps.iam.handlers.compatible import CompatibleIAM
+from apps.iam.handlers.resources import Business as BusinessResource
+from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
+from apps.utils.local import get_request, get_request_username
+from apps.utils.log import logger
 
 
 class Permission(object):
@@ -68,6 +76,11 @@ class Permission(object):
                 self.username = get_request_username()
 
         self.iam_client = self.get_iam_client()
+        # 是否跳过权限中心校验
+        # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
+        self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
+        if request and getattr(request, "skip_check", False):
+            self.skip_check = True
 
     @classmethod
     def get_iam_client(cls):
@@ -138,7 +151,9 @@ class Permission(object):
 
                     related_resources.append(
                         RelatedResourceType(
-                            system_id=related_resource.system_id, type=related_resource.id, instances=instances,
+                            system_id=related_resource.system_id,
+                            type=related_resource.id,
+                            instances=instances,
                         )
                     )
 
@@ -253,10 +268,22 @@ class Permission(object):
         if not result and raise_exception:
             apply_data, apply_url = self.get_apply_data([action], resources)
             raise PermissionDeniedError(
-                action_name=action.name, apply_url=apply_url, permission=apply_data,
+                action_name=action.name,
+                apply_url=apply_url,
+                permission=apply_data,
             )
 
         return result
+
+    def is_allowed_by_biz(self, bk_biz_id: int, action: Union[ActionMeta, str], raise_exception: bool = False):
+        """
+        判断用户对当前动作在该业务下是否有权限
+        """
+        if self.skip_check:
+            return True
+
+        resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
+        return self.is_allowed(action, resources, raise_exception)
 
     def batch_is_allowed(self, actions: List[ActionMeta], resources: List[List[Resource]]):
         """

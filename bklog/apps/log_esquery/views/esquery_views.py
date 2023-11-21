@@ -21,6 +21,10 @@ the project delivered to anyone in the future.
 """
 import time
 
+from django.conf import settings
+from rest_framework import serializers
+from rest_framework.response import Response
+
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import IAMPermission
 from apps.log_esquery import metrics
@@ -44,9 +48,6 @@ from apps.log_esquery.serializers import (
 )
 from apps.log_search.models import Scenario
 from apps.utils.drf import list_route
-from django.conf import settings
-from rest_framework import serializers
-from rest_framework.response import Response
 
 
 class EsQueryViewSet(APIViewSet):
@@ -233,12 +234,18 @@ class EsQueryViewSet(APIViewSet):
             exc = e
             raise
         finally:
+            auth_info = Permission.get_auth_info(request, raise_exception=False)
+            if not auth_info:
+                source_app_code = "unknown"
+            else:
+                source_app_code = auth_info["bk_app_code"]
             labels = {
                 "index_set_id": data.get("index_set_id") or -1,
                 "indices": data.get("indices") or "",
                 "scenario_id": data.get("scenario_id") or "",
                 "storage_cluster_id": data.get("storage_cluster_id") or -1,
                 "status": str(exc),
+                "source_app_code": source_app_code,
             }
             metrics.ESQUERY_SEARCH_LATENCY.labels(**labels).observe(time.time() - start_at)
             metrics.ESQUERY_SEARCH_COUNT.labels(**labels).inc()

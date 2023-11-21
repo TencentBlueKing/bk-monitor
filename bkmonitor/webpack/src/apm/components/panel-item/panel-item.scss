@@ -1,33 +1,41 @@
-@import "../../theme";
+@import '../../theme';
 
 .panel-item {
   display: flex;
-  width: 100%;
   flex-direction: column;
+  width: 100%;
+
   .item-header {
     margin-bottom: 16px;
 
     @include flex-justify(space-between);
     @include flex-align;
+
     .title {
-      font-weight: bold;
+      display: flex;
+      align-items: center;
       font-size: 14px;
+      font-weight: bold;
       line-height: 22px;
     }
+
     .header-tool {
       color: #3a84ff;
       cursor: pointer;
     }
   }
+
   .item-row {
     @include flex-align
   }
+
   .item-content {
     position: relative;
-    margin-bottom: 24px;
-    flex: 1;
     display: flex;
+    flex: 1;
     width: 100%;
+    margin-bottom: 24px;
+
     .form-content {
       width: 100%;
       padding-bottom: 20px;

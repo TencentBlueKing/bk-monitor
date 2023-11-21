@@ -238,6 +238,8 @@ class TraceHandler:
                     trace_data.extend(sorted(adjacent_ebpf_spans, key=lambda i: i["elapsed_time"], reverse=True))
                     adjacent_ebpf_spans = []
                 trace_data.append(span)
+        if adjacent_ebpf_spans:
+            trace_data.extend(sorted(adjacent_ebpf_spans, key=lambda i: i["elapsed_time"], reverse=True))
 
         res = {
             "trace_id": trace_id,

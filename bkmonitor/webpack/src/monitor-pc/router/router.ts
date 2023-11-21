@@ -32,6 +32,7 @@ import { getUrlParam, random } from '../../monitor-common/utils/utils';
 import introduce from '../common/introduce';
 import { NO_BUSSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
+import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
 // #if APP !== 'external'
 import dataRetrievalRoutes from './data-retrieval';
@@ -84,6 +85,17 @@ const isAuthority = async (page: string | string[]) => {
 
 const hasEmailSubscriptions = (route: Route) => (route.path || route.name || '').indexOf(EmailSubscriptionsName) > -1;
 
+const specialReportRouteList = [
+  'email-subscriptions',
+  'email-subscriptions-history',
+  'platform-setting',
+  'external-auth',
+  'metrics-manager',
+  'new-dashboard',
+  'import-dashboard',
+  'folder-dashboard',
+  'grafana-datasource'
+];
 router.beforeEach(async (to, from, next) => {
   // 空闲初始化introduce数据
   store.getters.bizList?.length && introduce.initIntroduce();
@@ -176,6 +188,12 @@ router.beforeEach(async (to, from, next) => {
 });
 router.afterEach(to => {
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
+  if (to.name === 'no-business') return;
+  reportLogStore.reportRouteLog({
+    route_id: to.name,
+    nav_id: to.meta.navId,
+    nav_name: specialReportRouteList.includes(to.meta.navId) ? to.meta?.navName || to.meta?.title : undefined
+  });
 });
 
 export default router;
