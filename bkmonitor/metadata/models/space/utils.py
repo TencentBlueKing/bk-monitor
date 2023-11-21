@@ -1009,7 +1009,7 @@ def get_bkci_projects() -> List:
 def cached_cluster_k8s_data_id() -> List:
     """从缓存中读取集群内置的数据源 ID
 
-    NOTE: 因为集群变动没有那么频繁，可以设置超时时间为12小时
+    NOTE: 因为集群变动没有那么频繁，可以设置超时时间为1小时
     """
     key = "cached_cluster_k8s_data_id"
     if key in cache:
@@ -1017,5 +1017,5 @@ def cached_cluster_k8s_data_id() -> List:
     # 不存在，则缓存
     cluster_data_ids = BCSClusterInfo.objects.values("cluster_id", "K8sMetricDataID")
     cluster_data_id = {cluster_info["cluster_id"]: cluster_info["K8sMetricDataID"] for cluster_info in cluster_data_ids}
-    cache.set(key, cluster_data_id, 12 * 60 * 60)
+    cache.set(key, cluster_data_id, 1 * 60 * 60)
     return cluster_data_id
