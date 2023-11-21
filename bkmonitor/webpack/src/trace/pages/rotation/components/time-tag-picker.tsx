@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onUnmounted, PropType, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onUnmounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message, Tag, TimePicker } from 'bkui-vue';
 import moment from 'moment';
@@ -36,6 +36,8 @@ interface CurrentTimeModel {
   value: string[];
   index: number;
   show: boolean;
+  inputValue: string;
+  showInput: boolean;
 }
 
 export default defineComponent({
@@ -69,13 +71,16 @@ export default defineComponent({
       return localValue.some(val => !sourceValue.value.some(source => source[0] === val[0] && source[1] === val[1]));
     });
 
+    const inputRef = ref();
     const currentTime = reactive<CurrentTimeModel>({
       /** 当前输入的时间 */
       value: [],
       /** 当前时间索引，用于判断是否是编辑 */
       index: -1,
       /** 时间选择器是否展示 */
-      show: false
+      show: false,
+      showInput: false,
+      inputValue: ''
     });
 
     watch(
@@ -102,6 +107,13 @@ export default defineComponent({
       currentTime.index = ind ?? -1;
       currentTime.value = time ? [...time] : [];
       currentTime.show = !currentTime.show;
+      currentTime.showInput = !time;
+      currentTime.inputValue = '';
+      if (currentTime.showInput) {
+        nextTick(() => {
+          inputRef.value?.focus?.();
+        });
+      }
       sourceValue.value = JSON.parse(JSON.stringify(localValue));
     }
 
@@ -125,14 +137,38 @@ export default defineComponent({
       handleEmitData();
     }
 
+    function handleTimeChange(val) {
+      currentTime.inputValue = val.join(' - ');
+    }
+
+    const inputWidth = ref(8);
+    const textTestRef = ref();
+    function handleInput() {
+      nextTick(() => {
+        inputWidth.value = textTestRef.value.offsetWidth;
+      });
+    }
+
     /**
      * 确认选择时间
      */
     function handleConfirm(e: Event) {
       if (timeTagPickerRef.value.contains(e.target as Node) || getEventPaths(e, '.time-picker-popover').length) return;
-      if (!currentTime.value.length) {
+
+      if (!currentTime.value.length && !currentTime.inputValue) {
         currentTime.show = false;
+        currentTime.showInput = false;
         return;
+      }
+
+      const reg = /^([0-1][0-9]|2[0-3]):[0-5][0-9] - ([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+      if (currentTime.inputValue) {
+        if (!reg.test(currentTime.inputValue)) {
+          currentTime.show = false;
+          currentTime.showInput = false;
+          return;
+        }
+        currentTime.value = currentTime.inputValue.split(' - ');
       }
 
       if (
@@ -142,6 +178,7 @@ export default defineComponent({
         )
       ) {
         currentTime.show = false;
+        currentTime.showInput = false;
         Message({
           theme: 'warning',
           message: t('时间段重叠了')
@@ -157,6 +194,7 @@ export default defineComponent({
         localValue.splice(currentTime.index, 1, [...currentTime.value]);
       }
       currentTime.show = false;
+      currentTime.showInput = false;
       handleEmitData();
     }
 
@@ -200,8 +238,13 @@ export default defineComponent({
       timeTagPickerRef,
       localValue,
       currentTime,
+      inputWidth,
+      inputRef,
+      textTestRef,
+      handleInput,
       tagNameFormat,
       handleShowTime,
+      handleTimeChange,
       handleTagClose,
       handleConfirm
     };
@@ -228,6 +271,7 @@ export default defineComponent({
           open={this.currentTime.show}
           appendToBody
           allowCrossDay
+          onChange={this.handleTimeChange}
           ext-popover-cls='time-picker-popover'
         >
           {{
@@ -248,12 +292,30 @@ export default defineComponent({
                       {this.tagNameFormat(item)}
                     </Tag>
                   ))}
-                  {!this.localValue.length && <span class='placeholder'>{this.t('选择')}</span>}
+                  {this.currentTime.showInput && (
+                    <input
+                      ref='inputRef'
+                      class='custom-input'
+                      style={{ width: `${this.inputWidth}px` }}
+                      v-model={this.currentTime.inputValue}
+                      onClick={e => e.stopPropagation()}
+                      onInput={this.handleInput}
+                    ></input>
+                  )}
+                  {!this.localValue.length && !this.currentTime.showInput && (
+                    <span class='placeholder'>{this.t('选择')}</span>
+                  )}
                 </div>
               </div>
             )
           }}
         </TimePicker>
+        <span
+          class='text-width-test'
+          ref='textTestRef'
+        >
+          {this.currentTime.inputValue}
+        </span>
       </div>
     );
   }
