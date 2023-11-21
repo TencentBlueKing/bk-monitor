@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onBeforeMount, onMounted, onUnmounted, ref } from 'vue';
+import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import { Arrow, Graph, registerEdge, registerLayout, registerNode } from '@antv/g6';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
