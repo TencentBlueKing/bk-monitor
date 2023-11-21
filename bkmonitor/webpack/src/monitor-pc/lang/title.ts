@@ -106,5 +106,13 @@ export default {
   指标维度设置: 'Metric / Dimension Setting',
   此操作存在危险: 'This operation is dangerous',
   DB设置: 'DB settings',
-  DB类型: 'DB type'
+  DB类型: 'DB type',
+  配置信息: 'Configuration information',
+  链路状态: 'Link state',
+  字段详情: 'Field details',
+  当前暂无告警: 'No warning at this time',
+  当前有告警: 'current warning',
+  可接收告警: 'Can receive warning',
+  总告警: 'General warning',
+  近一小时: 'Almost an hour'
 };
