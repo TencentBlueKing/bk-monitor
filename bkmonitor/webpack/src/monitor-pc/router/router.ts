@@ -188,7 +188,7 @@ router.beforeEach(async (to, from, next) => {
 });
 router.afterEach(to => {
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
-  if (to.name === 'no-business') return;
+  if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({
     route_id: to.name,
     nav_id: to.meta.navId,
