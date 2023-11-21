@@ -489,7 +489,9 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
               v-authority={{ active: !this.hasManageAuth }}
               class='mc-btn-add'
               theme='primary'
-              onClick={() => (this.hasManageAuth ? this.addCustomEscalation() : this.handleShowAuthorityDetail())}
+              onClick={() =>
+                this.hasManageAuth ? this.addCustomEscalation() : this.handleShowAuthorityDetail(this.manageAuthDetail)
+              }
             >
               {this.$t('新建')}
             </Button>
