@@ -1105,9 +1105,17 @@ export default class MonitorEcharts extends Vue {
    */
   handleExportCsv() {
     if (!!this.seriesData?.length) {
-      const { tableThArr, tableTdArr } = transformSrcData(this.seriesData);
-      const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-      downCsvFile(csvString, this.title);
+      const csvList = [];
+      const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
+      csvList.push(keys.map(key => key.replace(/,/gmi, '_')).join(','));
+      this.tableData.forEach((item) => {
+        const list = [];
+        keys.forEach((key) => {
+          list.push(item[key]);
+        });
+        csvList.push(list.join(','));
+      });
+      downCsvFile(csvList.join('\n'), this.title);
     }
   }
   // 点击title 告警图标跳转
