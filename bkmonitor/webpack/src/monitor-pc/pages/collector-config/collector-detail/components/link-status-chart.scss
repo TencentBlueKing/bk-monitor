@@ -18,12 +18,23 @@
     .chart-tools {
       font-size: 12px;
 
-      .refresh {
+      .operate {
+        display: inline-block;
+        width: 20px;
         margin-left: 26px;
-        cursor: pointer;
 
-        &:hover {
-          color: #3a84ff;
+        .refresh {
+          cursor: pointer;
+  
+          &:hover {
+            color: #3a84ff;
+          }
+        }
+
+        .loading-spin {
+          position: relative;
+          top: 3px;
+          width: 16px;
         }
       }
     }

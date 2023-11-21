@@ -28,6 +28,7 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import echarts from 'echarts';
 
+import loadingIcon from '../../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import BaseEchart from '../../../../../monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -39,6 +40,7 @@ interface LinkStatusChartProps {
   timeRange?: TimeRangeType;
   type: 'minute' | 'day';
   data: [number, number][];
+  getChartData: () => any;
 }
 
 interface LinkStatusChartEvents {
@@ -51,6 +53,14 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   @Prop({ type: Array, required: true }) data: LinkStatusChartProps['data'];
   @Prop({ type: String, default: 'minute' }) type: LinkStatusChartProps['type'];
   @Prop({ type: Array, default: () => [...DEFAULT_TIME_RANGE] }) timeRange: LinkStatusChartProps['timeRange'];
+  @Prop({
+    type: Function,
+    default: () =>
+      new Promise(resolve => {
+        resolve(true);
+      })
+  })
+  getChartData: () => any;
 
   @Ref('baseChartRef') baseChart;
 
@@ -112,6 +122,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     }
   });
 
+  loading = false;
+
   get options(): echarts.EChartOption {
     const minute: echarts.EChartOption.SeriesLine = {
       name: this.$tc('分钟数据量'),
@@ -168,8 +180,12 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     return val;
   }
 
-  @Emit('refresh')
-  handleRefresh() {}
+  // @Emit('refresh')
+  async handleRefresh() {
+    this.loading = true;
+    await this.getChartData();
+    this.loading = false;
+  }
 
   render() {
     return (
@@ -184,10 +200,19 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
             >
               {this.type === 'day' && <div slot='header'></div>}
             </TimeRange>
-            <i
-              class='icon-monitor icon-zhongzhi1 refresh'
-              onClick={this.handleRefresh}
-            ></i>
+            <span class='operate'>
+              {this.loading ? (
+                <img
+                  class='loading-spin'
+                  src={loadingIcon}
+                ></img>
+              ) : (
+                <i
+                  class='icon-monitor icon-zhongzhi1 refresh'
+                  onClick={this.handleRefresh}
+                ></i>
+              )}
+            </span>
           </div>
         </div>
         {this.data.length ? (

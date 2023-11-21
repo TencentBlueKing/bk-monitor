@@ -164,7 +164,8 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               type='minute'
               timeRange={this.minuteChartConfig.timeRange}
               data={this.minuteChartConfig.data}
-              onRefresh={() => this.getChartData('minute')}
+              getChartData={() => this.getChartData('minute')}
+              // onRefresh={() => this.getChartData('minute')}
               onTimeRangeChange={val => this.handleTimeRange(val, 'minute')}
             />
           </div>
@@ -174,7 +175,8 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               type='day'
               timeRange={this.dayChartConfig.timeRange}
               data={this.dayChartConfig.data}
-              onRefresh={() => this.getChartData('day')}
+              getChartData={() => this.getChartData('day')}
+              // onRefresh={() => this.getChartData('day')}
               onTimeRangeChange={val => this.handleTimeRange(val, 'day')}
             />
           </div>
