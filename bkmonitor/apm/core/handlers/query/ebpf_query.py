@@ -50,7 +50,7 @@ class EbpfQuery(EsQueryBuilderMixin):
 
 class DeepFlowQuery:
     @classmethod
-    def get_ebpf(cls, trace_id: str, bk_biz_id: int):
+    def get_ebpf(cls, trace_id, bk_biz_id, start_time=None, end_time=None):
         """
         获取ebpf数据
         """
@@ -76,7 +76,13 @@ class DeepFlowQuery:
             "l7_protocol, signal_source, tap_side, tap_port_type, response_status, is_ipv4  FROM l7_flow_log"
         )
         ebpf_spans = []
-        ebpf_param = {"trace_id": trace_id, "bk_biz_id": bk_biz_id, "sql": sql, "db": "flow_log"}
+        ebpf_param = {"bk_biz_id": bk_biz_id, "sql": sql, "db": "flow_log"}
+        if trace_id:
+            ebpf_param["trace_id"] = trace_id
+        if start_time:
+            ebpf_param["start_time"] = start_time
+        if start_time:
+            ebpf_param["end_time"] = end_time
         try:
             res = TraceQueryResource().request(ebpf_param)
             for item in res:

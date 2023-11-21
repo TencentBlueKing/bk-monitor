@@ -30,7 +30,7 @@ from apm.core.deepflow.constants import (
     L7_PROTOCOL_POSTGRE,
     L7_PROTOCOL_REDIS,
 )
-from apm_web.constants import EbpfTapSideType, EbpfSignalSourceType
+from apm_web.constants import EbpfSignalSourceType, EbpfTapSideType
 from constants.apm import SpanKind
 
 logger = logging.getLogger("apm")
@@ -359,6 +359,11 @@ class EBPFHandler:
         return ''.join(random.choice('0123456789abcdef') for _ in range(16))
 
     @classmethod
+    def type_to_str(cls, tag_type):
+        switcher = {0: "Request", 1: "Response", 2: "Session"}
+        return switcher.get(tag_type, "Session")
+
+    @classmethod
     def l7_flow_log_to_resource_span(cls, item: dict):
 
         span = Span()
@@ -366,7 +371,11 @@ class EBPFHandler:
         span_resource = span.resource
         status = span.status
         span.trace_id = item.get("trace_id")
-        signal_source = cls.signal_source_to_string(item.get("signal_source"))
+        span.start_time = item.get("start_time_us")
+        span.end_time = item.get("end_time_us")
+        signal_source = item.get("Enum(signal_source)")
+        if not signal_source:
+            signal_source = cls.signal_source_to_string(item.get("signal_source"))
 
         # 将ebpf的span_id作为parent_span_id，都挂到上一层应用span下
         # 自身的span_id则重新生成
@@ -521,7 +530,10 @@ class EBPFHandler:
         status["message"] = cls.response_status_to_span_status_message(item.get("response_status"))
 
         cls.put_value_map(span_attrs, "df.span.endpoint", item.get("endpoint"))
-        cls.put_value_map(span_attrs, "df.span.type", item.get("Enum(type)"))
+        if item.get("Enum(type)"):
+            cls.put_value_map(span_attrs, "df.span.type", item.get("Enum(type)"))
+        elif item.get("type"):
+            cls.put_value_map(span_attrs, "df.span.type", cls.type_to_str(item.get("type")))
 
         # 数据补充
         if not span_resource.get("service.name"):

@@ -17,7 +17,6 @@ from django.conf import settings
 from django.conf.urls import include, url
 from django.contrib import admin
 from django.urls import path
-from monitor_web.grafana import views as grafana_views
 from rest_framework.documentation import include_docs_urls
 from six.moves import map
 
@@ -25,6 +24,7 @@ from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkmonitor.utils.common_utils import package_contents
 from core.drf_resource.routers import ResourceRouter
 from kernel_api import views
+from monitor_web.grafana import views as grafana_views
 
 try:
     from kernel_api import extend_views
@@ -104,6 +104,7 @@ urlpatterns = [
     url(r"^o/bk_monitorv3/query-api/rest/v2/", include(router.urls)),
     url(r"^query-api/o/bk_monitorv3/rest/v2/", include(router.urls)),
     url(r"^apm_api/v1/", include("apm.urls")),
+    url(r"^apm_api/v1/", include("apm_ebpf.urls")),
 ]
 
 
