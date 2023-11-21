@@ -8,43 +8,29 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import datetime
-import time
-
-from alarm_backends.core.cache.key import APM_EBPF_DISCOVER_LOCK
-from alarm_backends.core.lock.service_lock import service_lock
-from alarm_backends.service.scheduler.app import app
 from apm_ebpf.apps import logger
-from apm_ebpf.handlers.deepflow import DeepflowHandler
-from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
-from core.errors.alarm_backends import LockError
-
-
-@app.task(ignore_result=True, queue="celery_cron")
-def handler(bk_biz_id):
-    start = time.time()
-    DeepflowHandler(bk_biz_id).check_installed()
-    logger.info(f"[ebpf_discover_cron] end. bk_biz_id: {bk_biz_id} cost: {time.time() - start}")
+from apm_ebpf.handlers.deepflow import DeepflowInstaller
+from apm_ebpf.handlers.relation import RelationHandler
+from apm_ebpf.models import ClusterRelation
 
 
 def ebpf_discover_cron():
     """
-    定时寻找安装DeepFlow的业务
+    定时寻找安装DeepFlow的集群
     """
-    interval = 10
-    slug = datetime.datetime.now().minute % interval
-    spaces = SpaceApi.list_spaces()
+    logger.info(f"[ebpf_discover_cron] start")
 
-    business = [i for i in spaces if i.space_type_id == SpaceTypeEnum.BKCC.value]
-    logger.info(f"[ebpf_discover_cron] business length: {len(business)} slug: {slug}")
-    # 目前只遍历业务下集群
-    for index, biz in enumerate(business):
-        try:
-            with service_lock(APM_EBPF_DISCOVER_LOCK, bk_biz_id=biz.bk_biz_id):
-                if index % interval == slug:
-                    logger.info(f"[ebpf_discover_cron] start. bk_biz_id: {biz.bk_biz_id}")
-                    handler.delay(biz.bk_biz_id)
-        except LockError:
-            logger.info(f"skipped: [ebpf_discover_cron] already running. bk_biz_id: {biz.bk_biz_id}")
-            continue
+    cluster_ids = ClusterRelation.all_cluster_ids()
+    logger.info(f"[ebpf_discover_cron] start to discover deepflow in {len(cluster_ids)} clusters")
+    for cluster_id in cluster_ids:
+        DeepflowInstaller(cluster_id).check_installed()
+
+    logger.info(f"[ebpf_discover_cron] end")
+
+
+def cluster_discover_cron():
+    """
+    定时发现所有集群
+    """
+    RelationHandler.find_clusters()
+    logger.info(f"[cluster_discover_cron] end.")

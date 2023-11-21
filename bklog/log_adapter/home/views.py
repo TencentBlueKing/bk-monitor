@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 from typing import Any, Dict
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
@@ -41,6 +41,7 @@ from apps.utils.db import get_toggle_data
 from apps.utils.local import set_local_param
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class RequestProcessor:
@@ -64,16 +65,21 @@ class RequestProcessor:
         # 这里是字符串
         json_data_str: str = params.get("data", "")
         parsed = urlsplit(url)
-        match = resolve(parsed.path, urlconf=None)
-        kwargs = match.kwargs
+        query_string = parsed.query
+        # 使用parse_qs解析查询参数
+        kwargs = parse_qs(query_string)
         # 从URL中获取
         if "space_uid" in kwargs:
-            return kwargs["space_uid"]
+            return kwargs["space_uid"][0]
+        if "bk_biz_id" in kwargs:
+            return bk_biz_id_to_space_uid(kwargs["bk_biz_id"][0])
         # 从请求参数中获取
         try:
             json_data = json.loads(json_data_str)
             if "space_uid" in json_data:
                 return json_data["space_uid"]
+            if "bk_biz_id" in json_data:
+                return bk_biz_id_to_space_uid(json_data["bk_biz_id"])
         except json.decoder.JSONDecodeError:
             return ""
         return ""

@@ -260,7 +260,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
                 result.append(
                     {
                         "description": tag.get("description", ""),
-                        "type": tag.get("type", ""),
+                        "type": tag.get("type", "") or "string",
                         "monitor_type": "dimension",
                         "unit": tag.get("unit", ""),
                         "name": tag.get("field_name", ""),
@@ -387,7 +387,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
                     table_fields["fields"].append(
                         {
                             "description": tag_data.get("description", ""),
-                            "type": tag_data.get("type", ""),
+                            "type": tag_data.get("type", "") or "string",
                             "monitor_type": "dimension",
                             "unit": tag_data.get("unit", ""),
                             "name": tag_data.get("field_name", ""),
