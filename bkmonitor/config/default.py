@@ -1323,3 +1323,6 @@ PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
 
 # 需要授权给蓝鲸应用的特定的数据源 ID
 BKPAAS_DATA_ID_LIST = []
+
+# 环境代号
+ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
