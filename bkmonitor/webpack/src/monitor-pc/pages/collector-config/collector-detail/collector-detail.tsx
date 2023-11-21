@@ -160,50 +160,6 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       .then(res => {
         this.allData[TabEnum.StorageState].data = res;
       })
-      .catch(() => {
-        this.allData[TabEnum.StorageState].data = {
-          info: [
-            { key: 'index', name: '存储索引名', value: 'trace_agg_scene' },
-            { key: 'cluster_name', name: '存储集群', value: '默认集群', hasEdit: true, type: 'input' },
-            { key: 'expire_time', name: '过期时间', value: 7, hasEdit: true, hasUnderline: true, type: 'number' },
-            { key: 'copy', name: '副本数', value: '1', hasEdit: true, hasUnderline: true, type: 'number' }
-          ],
-          status: [
-            {
-              name: '集群状态',
-              content: {
-                keys: [
-                  { key: 'index', name: '索引' },
-                  { key: 'running_status', name: '运行状态' },
-                  { key: 'copy', name: '主分片' },
-                  { key: 'v_copy', name: '负分片' }
-                ],
-                values: [
-                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
-                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
-                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 }
-                ]
-              }
-            },
-            {
-              name: '索引状态',
-              content: {
-                keys: [
-                  { key: 'index', name: '索引' },
-                  { key: 'running_status', name: '运行状态' },
-                  { key: 'copy', name: '主分片' },
-                  { key: 'v_copy', name: '负分片' }
-                ],
-                values: [
-                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
-                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 },
-                  { index: 'object/list', running_status: '正常', copy: 8, v_copy: 8 }
-                ]
-              }
-            }
-          ]
-        };
-      })
       .finally(() => {
         this.allData[TabEnum.StorageState].loading = false;
       });
@@ -263,6 +219,27 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
         this.allData[TabEnum.TargetDetail].updateKey = random(8);
       })
       .catch(() => {});
+  }
+
+  /**
+   * @description 跳转到采集视图
+   */
+  handleToRetrieval() {
+    const url = this.$router.resolve({
+      name: 'collect-config-view',
+      params: {
+        id: this.collectConfigData.id,
+        title: this.collectConfigData.name
+      },
+      query: {
+        name: this.collectConfigData.name,
+        customQuery: JSON.stringify({
+          pluginId: this.collectConfigData.plugin_id,
+          bizId: this.collectConfigData.bk_biz_id
+        })
+      }
+    });
+    window.open(url.href);
   }
 
   render() {
@@ -345,6 +322,19 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           >
             <FieldDetails detailData={this.detailData} />
           </TabPanel>
+          <span
+            slot='setting'
+            class='tab-right-tip'
+          >
+            <span class='icon-monitor icon-tishi'></span>
+            <span>{this.$t('可对当前采集内容进行检索')},</span>
+            <span
+              class='link-btn'
+              onClick={() => this.handleToRetrieval()}
+            >
+              {this.$t('去检索')}
+            </span>
+          </span>
         </MonitorTab>
       </div>
     );

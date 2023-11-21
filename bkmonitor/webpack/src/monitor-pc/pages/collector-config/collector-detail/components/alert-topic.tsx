@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Popover } from 'bk-magic-vue';
 
 import { alertStatus } from '../../../../../monitor-api/modules/datalink';
+import { isEnFn } from '../../../../utils/index';
 import { TCollectorAlertStage } from '../typings/detail';
 
 import AlarmGroup, { IAlarmGroupList } from './alarm-group';
@@ -66,6 +67,15 @@ export default class AlertTopic extends tsc<IProps> {
     }
   }
 
+  handleToEvent() {
+    const strategyIds = this.strategies.map(item => item.id);
+    const isEn = isEnFn();
+    const strategyKey = isEn ? 'strategy_id' : this.$t('策略ID');
+    const query = `queryString=${strategyIds.map(id => `${strategyKey} : ${id}`).join(' OR ')}`;
+    const timeRange = 'from=now-30d&to=now';
+    window.open(`${location.origin}${location.pathname}${location.search}#/event-center?${query}&${timeRange}`);
+  }
+
   render() {
     return (
       <div class='alert-topic-component'>
@@ -84,7 +94,12 @@ export default class AlertTopic extends tsc<IProps> {
               <span>{this.$t('总告警')}</span>
               <span class='sub-msg'>({this.$t('近1小时')})</span>
             </span>
-            <AlertHistogram value={this.alertHistogram}></AlertHistogram>
+            <span
+              class='alert-link'
+              onClick={() => this.handleToEvent()}
+            >
+              <AlertHistogram value={this.alertHistogram}></AlertHistogram>
+            </span>
           </span>
         </span>
         <span class='right-wrap'>

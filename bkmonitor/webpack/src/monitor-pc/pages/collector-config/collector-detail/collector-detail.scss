@@ -21,4 +21,27 @@
   .collector-status-details-component {
     padding: 0;
   }
+
+  .tab-right-tip {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 8px;
+    line-height: 20px;
+    color: #63656e;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .icon-tishi {
+      margin-right: 4px;
+      font-size: 14px;
+    }
+
+    .link-btn {
+      margin-left: 4px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
 }
