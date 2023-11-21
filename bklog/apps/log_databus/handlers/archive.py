@@ -133,9 +133,8 @@ class ArchiveHandler:
         archive = model_to_dict(self.archive)
         indices = []
         for snapshot in snapshot_info:
-            _snapshot = snapshot[0]
-            for indice in _snapshot.get("indices", []):
-                indices.append(
+            for _snapshot in snapshot:
+                indices.extend([
                     {
                         **indice,
                         "start_time": self.to_user_time_format(indice.get("start_time")),
@@ -144,8 +143,8 @@ class ArchiveHandler:
                             _snapshot.get("expired_time"), get_local_param("time_zone")
                         ),
                         "state": _snapshot.get("state"),
-                    }
-                )
+                    } for indice in _snapshot.get("indices", [])
+                ])
         archive["indices"] = indices[page * pagesize : (page + 1) * pagesize]
         return archive
 
