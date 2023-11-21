@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Button, Input, Table, TableColumn } from 'bk-magic-vue';
 
 import { renameCollectConfig } from '../../../../monitor-api/modules/collecting';
+import { copyText } from '../../../../monitor-common/utils/utils.js';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 
@@ -95,6 +96,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
     copyName: ''
   };
   name = '';
+
+  loading = false;
 
   get historyList() {
     return [
@@ -253,6 +256,30 @@ export default class CollectorConfiguration extends tsc<IProps> {
     });
   }
 
+  handleCopyTarget() {
+    let copyStr = '';
+    if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo.target_node_type)) {
+      this.targetInfo.table_data.forEach(item => {
+        copyStr += `${item.bk_inst_name}\n`;
+      });
+    } else if (this.targetInfo.target_node_type === 'INSTANCE') {
+      this.targetInfo.table_data.forEach(item => {
+        copyStr += `${item.display_name || item.ip}\n`;
+      });
+    }
+    copyText(copyStr, msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error'
+      });
+      return;
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success'
+    });
+  }
+
   render() {
     function formItem(label, content) {
       return (
@@ -400,6 +427,17 @@ export default class CollectorConfiguration extends tsc<IProps> {
         <div class='split-line mt-24'></div>
         <div class='detail-wrap-item'>
           <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
+          {!!this.targetInfo?.table_data?.length && (
+            <Button
+              class='mt-10'
+              theme='primary'
+              size='small'
+              text
+              onClick={() => this.handleCopyTarget()}
+            >
+              {this.$t('复制目标')}
+            </Button>
+          )}
           <div class='wrap-item-content mt-12'>
             {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
               <Table
