@@ -1219,6 +1219,7 @@ BLUEKING_NAME = os.getenv("BKAPP_BLUEKING_NAME", "蓝鲸")
 
 # 后台任务多进程并行数量，默认设置为1个
 MAX_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
+MAX_TS_METRIC_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
 
 # 是否默认展示策略模块实时功能
 SHOW_REALTIME_STRATEGY = False
@@ -1316,6 +1317,12 @@ IS_RESTRICT_DS_BELONG_SPACE = True
 
 # 最大的指标分片查询大小
 MAX_FIELD_PAGE_SIZE = 1000
+
+# 访问 PaaS 提供接口地址
+PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
+
+# 需要授权给蓝鲸应用的特定的数据源 ID
+BKPAAS_DATA_ID_LIST = []
 
 # 环境代号
 ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
