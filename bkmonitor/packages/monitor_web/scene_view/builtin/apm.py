@@ -12,15 +12,16 @@ import json
 from itertools import chain
 from typing import Dict, List, Optional, Set
 
+from django.utils.translation import gettext as _
+from rest_framework import serializers
+
 from apm_web.constants import HostAddressType
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.utils import list_remote_service_callers
-from django.utils.translation import gettext as _
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
-from rest_framework import serializers
 
 
 class ApmBuiltinProcessor(BuiltinProcessor):
@@ -129,19 +130,17 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 if not service_name or not span_id:
                     raise ValueError(_("缺少ServiceName或者spanId参数"))
 
+                trace_id = params.get("trace_id")
                 view_config = cls._replace_variable(view_config, "${app_name}", app_name)
                 view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                 view_config = cls._replace_variable(view_config, "${span_id}", span_id)
 
-                span_host = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
-                if span_host:
-                    cls._handle_log_chart_keyword(view_config, span_host)
+                cls._handle_log_chart_keyword(view_config, trace_id, span_id)
 
             return view_config
 
         # APM观测场景处
         if builtin_view == "apm_service-service-default-host":
-
             if all(list(params.values())) and HostHandler.list_application_hosts(
                 view.bk_biz_id, params.get("app_name"), params.get("service_name")
             ):
@@ -156,14 +155,22 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def _handle_log_chart_keyword(cls, view_config, span_host):
+    def _handle_log_chart_keyword(cls, view_config, trace_id, span_id):
         """
         处理日志标签页默认的查询条件
         对于Trace检索日志处 如果Span中存在主机IP 需要将此IP作为查询关键词
         """
 
-        for overview_panel in view_config.get("overview_panels", []):
-            overview_panel["options"] = {"related_log_chart": {"defaultKeyword": span_host["bk_host_innerip"]}}
+        query = []
+        if trace_id:
+            query.append(f'trace_id: "{trace_id}"')
+        if span_id:
+            query.append(f'span_id: "{span_id}"')
+
+        query_string = " OR ".join(query)
+        if query_string:
+            for overview_panel in view_config.get("overview_panels", []):
+                overview_panel["options"] = {"related_log_chart": {"defaultKeyword": query_string}}
 
     @classmethod
     def _handle_current_target(cls, span_host, view_config):
@@ -178,7 +185,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             for panel in overview_panel.get("panels", []):
                 for target in panel.get("targets"):
                     for query_config in target.get("data", {}).get("query_configs", []):
-
                         if "$current_target" not in query_config.get("filter_dict", {}).get("targets", []):
                             continue
                         current_target = {}
@@ -343,10 +349,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             5. apm_predicate_value
         APM Trace检索页面处:
             1. apm_span_id
+            2. apm_trace_id
         """
 
         if scene_id.startswith(cls.APM_TRACE_PREFIX):
             return {
+                "trace_id": params.get("apm_trace_id"),
                 "span_id": params.get("apm_span_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
