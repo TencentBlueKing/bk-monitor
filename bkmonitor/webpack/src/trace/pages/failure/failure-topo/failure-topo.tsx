@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, ref } from 'vue';
+import { defineComponent, onBeforeMount, onMounted, onUnmounted, ref } from 'vue';
 import { Arrow, Graph, registerEdge, registerLayout, registerNode } from '@antv/g6';
+import { addListener, removeListener } from 'resize-detector';
+import { debounce } from 'throttle-debounce';
 
 import dbsvg from './db.svg';
 import httpSvg from './http.svg';
-import topoData, { EdgeStatus, NodeStatus } from './topo-data';
+import topoData, { ComboStatus, EdgeStatus, NodeStatus } from './topo-data';
 import TopoTools from './topo-tools';
 
 import './failure-topo.scss';
@@ -87,6 +89,7 @@ export default defineComponent({
   },
   setup() {
     const topoGraphRef = ref<HTMLDivElement>(null);
+    let graph: Graph;
     const registerCustomNode = () => {
       registerNode('topo-node', {
         afterDraw(cfg, group) {
@@ -269,37 +272,63 @@ export default defineComponent({
       registerLayout('topo-layout', {
         execute() {
           console.info('execute', this);
-          const { nodes, edges, combos, width } = this;
+          const { nodes, edges, combos } = this;
+          const width = graph.getWidth();
           const begin = 60;
           const indexStep = Math.ceil(width / 500);
           const comboMargin = 40;
           const nodeMargin = 40;
           const nodeSize = 30;
-          console.info(nodes, edges, combos);
+          const comboStatusValues = Object.values(ComboStatus);
+          combos.sort((a, b) => {
+            const aStatus = comboStatusValues.indexOf(a.status);
+            const bStatus = comboStatusValues.indexOf(b.status);
+            return aStatus - bStatus;
+          });
+          let preBegin = 0;
           combos.forEach((combo, comboIndex) => {
             const comboNodes = nodes.filter(node => node.comboId === combo.id);
+            let xBegin = (comboIndex % indexStep) * 400;
+            let yBegin = Math.floor(comboIndex / indexStep) * 200;
+            let nodeStep = nodeMargin + nodeSize;
+            let yStep = nodeMargin;
+            const isSpecial = [ComboStatus.Host, ComboStatus.DataCenter].includes(combo.status);
+            if (isSpecial) {
+              if (xBegin > 0) {
+                yBegin = Math.floor(comboIndex / indexStep + 1) * 200;
+                yBegin = preBegin === yBegin ? yBegin + 200 : yBegin;
+                preBegin = yBegin;
+              }
+              xBegin = 0;
+              nodeStep = width / comboNodes.length;
+              yStep = nodeMargin * 1.2;
+            }
             comboNodes.forEach((node, index) => {
-              node.x = (comboIndex % indexStep) * 400 + index * (nodeMargin + nodeSize) + begin;
-              node.y = Math.floor(comboIndex / indexStep) * 200 + begin;
+              node.x = xBegin + index * nodeStep + begin;
+              node.y = yBegin + (index % (isSpecial ? comboNodes.length : 3)) * yStep + begin;
             });
-            // combo.ch;
-            // combo.x = index * 400 + 20;
-            // combo.y = Math.floor(index / 2) * 200 + 20;
           });
         }
       });
     };
+    const handleResize = () => {
+      if (!graph || graph.get('destroyed')) return;
+      const { width, height } = topoGraphRef.value.getBoundingClientRect();
+      graph.changeSize(width, Math.max(160 * topoData.combos.length, height));
+      graph.render();
+    };
+    const onResize = debounce(300, handleResize);
     onMounted(() => {
       const { width, height } = topoGraphRef.value.getBoundingClientRect();
       registerCustomLayout();
       registerCustomNode();
       registerCustomEdge();
-      const graph = new Graph({
+      graph = new Graph({
         container: 'topo-graph',
         width,
         height: Math.max(160 * topoData.combos.length, height),
         // fitView: [20, 20] as any,
-        // fitView: true,
+        // fitView: false,
         fitViewPadding: 16,
         minZoom: 0.00000001,
         groupByTypes: false,
@@ -432,8 +461,11 @@ export default defineComponent({
           return;
         }
       });
+      addListener(topoGraphRef.value, onResize);
     });
-
+    onUnmounted(() => {
+      removeListener(topoGraphRef.value, onResize);
+    });
     return {
       topoGraphRef
     };
