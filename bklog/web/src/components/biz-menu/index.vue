@@ -338,7 +338,8 @@ export default {
         if ((show && keyword) || (!this.searchTypeId && !show)) {
           show = (item.space_name.toLocaleLowerCase().indexOf(keyword) > -1
         || item.py_text.toLocaleLowerCase().indexOf(keyword) > -1
-        // || `${item.id}`.includes(keyword));
+        || item.space_uid.toLocaleLowerCase().indexOf(keyword) > -1
+        || `${item.bk_biz_id}`.includes(keyword)
         || `${item.space_code}`.includes(keyword));
         }
         if (show) {
