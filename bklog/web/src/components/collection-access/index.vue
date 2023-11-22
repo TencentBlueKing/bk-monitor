@@ -203,7 +203,8 @@ export default {
     },
     isFinish() {
       if (this.isItsmAndNotStartOrStop) {
-        return this.curStep === 6;
+        const finishStepNum = this.isShowMaskingTemplate ? 6 : 5;
+        return this.curStep === finishStepNum;
       }
       // 非开关步骤下需要判断当前是否是日志脱敏步骤 如果不是 则当前step + 1 与stepFinish结束步骤保持同步
       const isMaskingStep = this.isSwitch || this.isShowMaskingTemplate;
