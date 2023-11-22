@@ -33,7 +33,7 @@ export default class QueryStatement extends tsc<IProps> {
   /** 原始日志字符串 */
   @Prop({ type: String, default: '' }) originJsonStr: string;
 
-  segmentReg = /<black-mark>(.*?)<\/black-mark>|<mark>(.*?)<\/mark>/;
+  segmentReg = /"<black-mark>(.*?)<\/black-mark>"|<mark>(.*?)<\/mark>/;
 
   /** 正则切割原始日志 */
   get splitList() {
@@ -92,7 +92,7 @@ export default class QueryStatement extends tsc<IProps> {
             return <br />;
           }
           if (this.checkBlackMark(item)) {
-            return <span class="black-mark">{item}</span>;
+            return <span class="black-mark">"{item}"</span>;
           }
           if (this.checkMark(item)) {
             return <mark>{item}</mark>;
