@@ -29,7 +29,7 @@ import moment from 'moment';
 import { FixedDataModel } from './components/fixed-rotation-tab';
 import { ItemDataModel } from './components/replace-rotation-tab';
 import { ReplaceItemDataModel } from './components/replace-rotation-table-item';
-import { RotationSelectTextMap, RotationSelectTypeEnum, RotationTabTypeEnum, WeekNameList } from './typings/common';
+import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common';
 
 /**
  * 以15分钟为间隔生成一天的时间段
@@ -296,152 +296,63 @@ export function fixedRotationTransform<T extends 'params' | 'data'>(
 }
 
 /**
- * 轮值详情用户展示
- * @param data 用户数据
- * @param type 固定值班/交替轮值
- * @returns
+ * 根据值，展示值所对应的星期名
+ * @param data 值
+ * @returns 星期名
  */
-export function transformDetailUsers(data: any = [], type: RotationTabTypeEnum) {
-  if (type === RotationTabTypeEnum.REGULAR) {
-    const res = new Map();
-    data.forEach(item => {
-      item.duty_users.flat(Infinity).forEach(user => {
-        const key = `${user.id}_${user.type}`;
-        !res.has(key) && res.set(key, user);
-      });
-    });
-    return Array.from(res.values());
-  }
-
-  return data.reduce((pre, cur) => {
-    pre.push(...cur.duty_users);
-    return pre;
-  }, []);
+export function transformWeeklyName(data: number[]) {
+  const week = [
+    '',
+    window.i18n.t('一'),
+    window.i18n.t('二'),
+    window.i18n.t('三'),
+    window.i18n.t('四'),
+    window.i18n.t('五'),
+    window.i18n.t('六'),
+    window.i18n.t('日')
+  ];
+  return data.length ? `${window.i18n.t('每周')}${data.map(item => week[item]).join('、')}` : '';
 }
-/**
- * 轮值详情-轮值时间展示
- * @param data 轮值时间
- * @param type 固定值班/交替轮值
- * @returns
- */
-export function transformDetailTimer(data: any = [], type: RotationTabTypeEnum) {
-  if (type === RotationTabTypeEnum.REGULAR) {
-    const res = data.reduce((pre, cur) => {
-      pre.push(...cur.duty_time);
-      return pre;
-    }, []);
-    return res
-      .map(item => {
-        const date = item.work_days;
-        const week = [
-          '',
-          window.i18n.t('一'),
-          window.i18n.t('二'),
-          window.i18n.t('三'),
-          window.i18n.t('四'),
-          window.i18n.t('五'),
-          window.i18n.t('六'),
-          window.i18n.t('日')
-        ];
-        let dateRange = '';
-        switch (item.work_type) {
-          case RotationSelectTypeEnum.Weekly: {
-            dateRange = `${window.i18n.t('每周')}${date.map(item => week[item]).join('、')}`;
-            break;
-          }
-          case RotationSelectTypeEnum.Monthly: {
-            dateRange = `${window.i18n.t('每月')}${date.join('、')}`;
-            break;
-          }
-          case RotationSelectTypeEnum.DateRange: {
-            dateRange = `${window.i18n.t('指定时间')}${item.work_date_range.join('、')}`;
-            break;
-          }
-        }
-        return {
-          /** 工作时间范围 */
-          dateRange,
-          /** 工作时间 */
-          time: item.work_time.map(item => timeRangeTransform(item)).join('、')
-        };
-      })
-      .filter(item => item.dateRange);
-  }
 
-  const timeList = data.reduce((pre, cur) => {
-    pre.push(...cur.duty_time);
-    return pre;
-  }, []);
-  return timeList.map(item => {
-    let dateRange = '';
-    const week = [
-      '',
-      window.i18n.t('一'),
-      window.i18n.t('二'),
-      window.i18n.t('三'),
-      window.i18n.t('四'),
-      window.i18n.t('五'),
-      window.i18n.t('六'),
-      window.i18n.t('日')
-    ];
-    // 自定义轮值类型
-    if (item.is_custom) {
-      const time = item.work_time.map(item => timeRangeTransform(item)).join('、');
-      const unit = item.window_unit === 'hour' ? window.i18n.t('小时') : window.i18n.t('天');
-      const duration = item.duration ? `${window.i18n.t('单班时长')}: ${item.duration} ${unit}` : '';
-      if (item.work_type === 'week') {
-        dateRange = `${window.i18n.t('每周')}${item.work_days.map(item => week[item]).join('、')} ${time} ${duration}`;
-      } else {
-        dateRange = `${window.i18n.t('每月')}${item.work_days.join('、')} ${time} ${duration}`;
+export interface RuleDetailModel {
+  ruleTime: {
+    day: string;
+    timer: string[];
+    periodSettings: string;
+  }[];
+  ruleUser: { type: 'group' | 'user'; display_name: string; logo: string }[][];
+}
+export function transformRulesDetail(data: any[]): RuleDetailModel[] {
+  return data.map(rule => {
+    const ruleTime = rule.duty_time.map(time => {
+      let day = RotationSelectTextMap[time.work_type];
+      switch (time.work_type) {
+        case RotationSelectTypeEnum.Weekly:
+          day = transformWeeklyName(time.work_days);
+          break;
+        case RotationSelectTypeEnum.Monthly:
+          day = time.work_days.length ? `${window.i18n.t('每月')}${time.work_days.join('、')}` : '';
+          break;
       }
-    } else {
-      switch (item.work_type) {
-        case RotationSelectTypeEnum.WorkDay:
-        case RotationSelectTypeEnum.Weekend:
-        case RotationSelectTypeEnum.Daily: {
-          const time = item.work_time.map(item => timeRangeTransform(item)).join('、');
-          dateRange = `${RotationSelectTextMap[item.work_type]} ${time}`;
-          break;
-        }
-        case RotationSelectTypeEnum.Weekly: {
-          if (item.work_time_type === 'time_range') {
-            const time = item.work_time.map(item => timeRangeTransform(item)).join('、');
-            dateRange = `${window.i18n.t('每周')}${item.work_days.map(item => week[item]).join('、')} ${time}`;
-          } else {
-            dateRange = item.work_time
-              .map(time => {
-                let [start, end] = time.split('--');
-                const [startDate, startTime] = start.split(' ');
-                const [endDate, endTime] = end.split(' ');
-                start = `${WeekNameList[Number(startDate) - 1]} ${startTime}`;
-                end = `${WeekNameList[Number(endDate) - 1]} ${endTime}`;
-                return `${start}--${end}`;
-              })
-              .join('、');
-          }
-          break;
-        }
-        case RotationSelectTypeEnum.Monthly: {
-          if (item.work_time_type === 'time_range') {
-            const time = item.work_time.map(item => timeRangeTransform(item)).join('、');
-            dateRange = `${window.i18n.t('每月')}${item.work_days.join('、')} ${time}`;
-          } else {
-            dateRange = item.work_time
-              .map(time => {
-                let [start, end] = time.split('--');
-                const [startDate, startTime] = start.split(' ');
-                const [endDate, endTime] = end.split(' ');
-                start = `${startDate}${window.i18n.t('日')} ${startTime}`;
-                end = `${endDate}${window.i18n.t('日')} ${endTime}`;
-                return `${start}--${end}`;
-              })
-              .join('、');
-          }
-          break;
-        }
-      }
-    }
 
-    return dateRange;
+      let periodSettings = '';
+      if (time.is_custom && rule.duty_time.length > 1) {
+        const { duration, window_unit } = time.period_settings;
+        periodSettings = window.i18n.t('单班 {num} {type}', {
+          num: duration,
+          type: window.i18n.t(window_unit === 'day' ? '天' : '小时')
+        });
+      }
+
+      return {
+        day,
+        timer: time.work_time,
+        periodSettings
+      };
+    });
+    return {
+      ruleTime,
+      ruleUser: rule.duty_users
+    };
   });
 }

@@ -11,19 +11,22 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import threading
-from typing import Optional
+from typing import Dict, Optional, Set
 
+from django.conf import settings
 from django.db.models import Q
+from django.db.transaction import atomic
 
 from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
-from metadata import models
+from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SKIP_DATA_ID_LIST_FOR_BKCC,
     SPACE_REDIS_KEY,
     SYSTEM_USERNAME,
+    BCSClusterTypes,
     SpaceTypes,
 )
 from metadata.models.space.space_data_source import (
@@ -32,6 +35,7 @@ from metadata.models.space.space_data_source import (
 )
 from metadata.models.space.space_redis import SpaceRedis, push_and_publish_all_space
 from metadata.models.space.utils import (
+    cached_cluster_k8s_data_id,
     create_bcs_spaces,
     create_bkcc_space_data_source,
     create_bkcc_spaces,
@@ -665,3 +669,181 @@ def push_and_publish_space_router_task():
     push_and_publish_space_router(is_publish=False)
 
     logger.info("push and publish space router successfully")
+
+
+@atomic(config.DATABASE_CONNECTION_NAME)
+def delete_and_create_paas_space_data_id(
+    space_type: str,
+    space_id: str,
+    need_delete_data_ids: Set,
+    need_add_data_ids: Set,
+):
+    if need_delete_data_ids:
+        models.SpaceDataSource.objects.filter(
+            space_type_id=space_type, space_id=space_id, bk_data_id__in=need_delete_data_ids
+        ).delete()
+    bulk_create_records = []
+    for data_id in need_add_data_ids:
+        bulk_create_records.append(
+            models.SpaceDataSource(
+                space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=True
+            )
+        )
+
+    # 批量创建
+    models.SpaceDataSource.objects.bulk_create(bulk_create_records, batch_size=BULK_CREATE_BATCH_SIZE)
+
+
+def authorize_paas_space_cluster_data_source(space_cluster: Dict):
+    """重新针对使用的集群内置指标数据源授权
+
+    NOTE: 仅针对集群的进行授权处理
+    """
+    space_type = SpaceTypes.BKSAAS.value
+    # 变更授权的集群内置指标 ID
+    # 过滤和已经授权的交集，然后删除，再批量创建
+    space_data_ids = list(
+        models.SpaceDataSource.objects.filter(space_type_id=space_type).values("space_id", "bk_data_id")
+    )
+    space_data_id_map = {}
+    for space_data_id in space_data_ids:
+        space_data_id_map.setdefault(space_data_id["space_id"], set()).add(space_data_id["bk_data_id"])
+    paas_data_id_list = settings.BKPAAS_AUTHORIZED_DATA_ID_LIST
+    # 进行数据匹配
+    for space_id, data_ids in space_data_id_map.items():
+        paas_data_id_exist = False or bool(set(paas_data_id_list) & data_ids)
+        try:
+            # 如果平台授权的数据源不存在，则进行创建
+            if not paas_data_id_exist:
+                for data_id in paas_data_id_list:
+                    models.SpaceDataSource.objects.create(
+                        space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=True
+                    )
+        except Exception as e:
+            logger.error(
+                """authorize paas data_ids failed, space_type: %s, space_id: %s, data_ids: %s, error: %s""",
+                space_type,
+                space_id,
+                json.dumps(paas_data_id_list),
+                e,
+            )
+
+        clusters = space_cluster.get(space_id)
+        if not clusters:
+            logger.error("not found cluster by space: %s", f"{space_type}__{space_id}")
+            continue
+
+        # 获取空间使用的集群 data_id, 然后删除
+        # 获取集群内置指标
+        cluster_data_id_list = cached_cluster_k8s_data_id()
+        need_delete_data_ids = data_ids & set(cluster_data_id_list.keys())
+        # 获取最新使用的集群的 data_id
+        need_add_data_ids = {cluster_data_id_list[c] for c in clusters if c in cluster_data_id_list}
+        # 如果要删除的和要添加的一样，则不需要处理
+        if need_add_data_ids == need_delete_data_ids:
+            continue
+
+        logger.info(
+            """delete and create space data_ids,
+            space_type: %s, space_id: %s, need_delete_data_ids: %s, need_add_data_ids: %s""",
+            space_type,
+            space_id,
+            json.dumps(need_delete_data_ids),
+            json.dumps(need_add_data_ids),
+        )
+        try:
+            delete_and_create_paas_space_data_id(space_type, space_id, need_delete_data_ids, need_add_data_ids)
+        except Exception as e:
+            logger.error(
+                """delete and create space data_ids failed, space_type: %s, space_id: %s,
+                need_delete_data_ids: %s, need_add_data_ids: %s, error: %s""",
+                space_type,
+                space_id,
+                json.dumps(need_delete_data_ids),
+                json.dumps(need_add_data_ids),
+                e,
+            )
+
+
+def create_and_update_paas_space_resource(space_cluster_namespaces: Dict):
+    """创建或更新空间绑定的资源"""
+    space_type = SpaceTypes.BKSAAS.value
+    # 针对资源的集群进行处理
+    objs = models.SpaceResource.objects.filter(space_type_id=space_type, space_id__in=space_cluster_namespaces.keys())
+
+    # 进行关联资源的更新
+    exist_space_set = set()
+    for obj in objs:
+        exist_space_set.add(obj.space_id)
+        obj.dimension_values = space_cluster_namespaces.get(obj.space_id, [])
+    try:
+        models.SpaceResource.objects.bulk_update(objs, ["dimension_values"], batch_size=BULK_CREATE_BATCH_SIZE)
+    except Exception as e:
+        logger.error("bulk update space resource error, space: %s, error: %s", json.dumps(exist_space_set), e)
+
+    # 如果不存在，则进行创建
+    need_add_space = set(space_cluster_namespaces.keys()) - exist_space_set
+    add_records = []
+    for space in need_add_space:
+        add_records.append(
+            models.SpaceResource(
+                space_type_id=space_type,
+                space_id=space,
+                resource_type=space_type,
+                resource_id=space,
+                dimension_values=space_cluster_namespaces.get(space, []),
+            )
+        )
+    try:
+        models.SpaceResource.objects.bulk_create(add_records, batch_size=BULK_CREATE_BATCH_SIZE)
+    except Exception as e:
+        logger.error("bulk add space resource error, space: %s, error: %s", json.dumps(need_add_space), e)
+
+
+@share_lock(identify="metadata_refresh_bksaas_space_resource")
+def refresh_bksaas_space_resouce():
+    """刷新蓝鲸应用空间绑定的资源"""
+    logger.info("start to refresh bksaas space resource")
+
+    # 设置每次处理的数据量
+    MAX_PAGE_NUM = 30
+    space_type = SpaceTypes.BKSAAS.value
+
+    # 获取bksaas的空间
+    space_id_list = [
+        {"app_code": space_id}
+        for space_id in models.Space.objects.filter(space_type_id=space_type).values_list("space_id", flat=True)
+    ]
+
+    # 批量获取蓝鲸应用使用的集群资源
+    space_id_count = len(space_id_list)
+    # 分组
+    space_with_page_list = [space_id_list[i : i + MAX_PAGE_NUM] for i in range(0, space_id_count, MAX_PAGE_NUM)]
+
+    # 然后根据分组进行请求
+    space_cluster_namespaces, space_cluster = {}, {}
+    for spaces in space_with_page_list:
+        cluster_ns = api.bk_paas.get_app_cluster_namespace.bulk_request(spaces)
+        # 组装数据
+        for space, val in zip(spaces, cluster_ns):
+            # 转换格式 {"cluster_id": xxx, "namespace": ["xxx", "xxx"]}
+            _cn = {}
+            for v in val:
+                _cn.setdefault(v["bcs_cluster_id"], []).append(v["namespace"])
+            # 获取空间使用的集群数据
+            space_cluster_namespaces[space["app_code"]] = [
+                {
+                    "cluster_id": c,
+                    "namespace": n,
+                    "cluster_type": BCSClusterTypes.SHARED.value,
+                }
+                for c, n in _cn.items()
+            ]
+            space_cluster[space["app_code"]] = {v["bcs_cluster_id"] for v in val}
+
+    # 创建或更新空间绑定的资源
+    create_and_update_paas_space_resource(space_cluster_namespaces)
+    # 重新授权
+    authorize_paas_space_cluster_data_source(space_cluster)
+
+    logger.info("refresh bksaas space resource successfully")

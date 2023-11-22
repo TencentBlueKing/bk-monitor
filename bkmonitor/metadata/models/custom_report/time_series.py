@@ -484,6 +484,8 @@ class TimeSeriesGroup(CustomGroupBase):
         if not metrics:
             return [self.to_json()]
         results = []
+        is_auto_discovery = self.is_auto_discovery()
+        data_label = self.data_label
         for metric in metrics:
             results.append(
                 {
@@ -499,8 +501,8 @@ class TimeSeriesGroup(CustomGroupBase):
                     "last_modify_user": self.last_modify_user,
                     "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "metric_info_list": [metric],
-                    "is_auto_discovery": self.is_auto_discovery(),
-                    "data_label": self.data_label,
+                    "is_auto_discovery": is_auto_discovery,
+                    "data_label": data_label,
                 }
             )
 
@@ -812,7 +814,7 @@ class TimeSeriesMetric(models.Model):
                 field_name = metric_info["field_name"]
                 field_name_list.append(field_name)
             except KeyError as key:
-                logger.error("metric_info got bad metric->[{}] which has no key->[{}]".format(metric_info, key))
+                logger.error("metric_info got bad metric->[%s] which has no key->[%s]", json.dumps(metric_info), key)
                 raise ValueError(_("自定义时序列表配置有误，请确认后重试"))
 
             last_modify_time = make_aware(

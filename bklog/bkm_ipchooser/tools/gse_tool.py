@@ -1,9 +1,10 @@
 import logging
 from typing import Dict, List
 
+from django.conf import settings
+
 from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.constants import AgentStatusType, GSEV2AgentStatusType
-from django.conf import settings
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -33,8 +34,9 @@ class GseAdapterV1(GseAdapter):
         index = 0
         hosts, host_map = [], {}
         for cc_host in cc_hosts:
-            ip, bk_cloud_id = cc_host["bk_host_innerip"], cc_host["bk_cloud_id"]
-            if ip and bk_cloud_id >= 0:
+            # 有些主机没有bk_cloud_id，这里做个兼容
+            ip, bk_cloud_id = cc_host["bk_host_innerip"], cc_host.get("bk_cloud_id", None)
+            if ip and bk_cloud_id is not None and bk_cloud_id >= 0:
                 hosts.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
 
             host_map[f"{bk_cloud_id}:{ip}"] = index

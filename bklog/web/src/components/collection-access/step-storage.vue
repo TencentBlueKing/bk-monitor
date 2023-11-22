@@ -495,17 +495,17 @@ export default {
       !isNeedAssessment && (delete data.assessment_config);
       /* eslint-disable */
       if (etl_config !== 'bk_log_text') {
-        const etlParams = {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
-        }
+        const payload = {
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+        };
         if (etl_config === 'bk_log_delimiter') {
-          etlParams.separator = etl_params.separator
+          payload.separator = etlParams.separator;
         }
         if (etl_config === 'bk_log_regexp') {
-          etlParams.separator_regexp = etl_params.separator_regexp
+          payload.separator_regexp = etlParams.separator_regexp;
         }
-        data.etl_params = etlParams
+        data.etl_params = payload;
         // data.fields = this.$refs.fieldTable.getData()
       }
       /* eslint-enable */
@@ -527,7 +527,7 @@ export default {
           if (this.isCleanField) {
             this.messageSuccess(this.$t('保存成功'));
             // 只有在不展示日志脱敏的情况下才改变保存状态
-            this.$emit('change-submit', true);
+            this.$emit('changeSubmit', true);
             this.$emit('stepChange', 'back');
           } else {
             if (data.need_assessment && data.assessment_config.need_approval) {
@@ -538,6 +538,8 @@ export default {
             } else {
               this.$emit('setAssessmentItem', {});
             }
+            // 只有在不展示日志脱敏的情况下才改变保存状态
+            if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
             this.$emit('stepChange');
           }
         }

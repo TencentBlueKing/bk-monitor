@@ -445,17 +445,17 @@ class Sender(BaseSender):
         send_result = {"errcode": 0, "errmsg": []}
         for chat_id in chat_ids:
             # 每个chatid的通知人员可能不一样，需要根据不同的chatid进行拆分
-            current_layouts = copy.deepcopy(layouts)
             chat_mentioned_users = mentioned_users.get(chat_id, [])
             mentioned_users_string = ""
             if chat_mentioned_users:
                 mentioned_users_string = "".join([f"<@{user}>" for user in chat_mentioned_users])
                 mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}"
-            current_layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
+            chat_layouts = copy.deepcopy(layouts)
+            chat_layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
             params = {
                 "msgtype": "message",
                 "chatid": chat_id,
-                "layouts": current_layouts,
+                "layouts": chat_layouts,
             }
             try:
                 response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()

@@ -12,7 +12,6 @@ import os
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from monitor_web.aiops.ai_setting.constant import SceneSet
 
 from bkmonitor.dataflow.node.machine_learning import (
     ModelApiServingNode,
@@ -30,6 +29,7 @@ from bkmonitor.dataflow.node.processor import (
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import HDFSStorageNode, TSpiderStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
+from monitor_web.aiops.ai_setting.constant import SceneSet
 
 
 class StrategyIntelligentModelDetectTask(BaseTask):
@@ -98,11 +98,11 @@ class StrategyIntelligentModelDetectTask(BaseTask):
             parent=scene_service_node,
         )
 
-        hdfs_result_storage_node = HDFSStorageNode(
-            source_rt_id=scene_service_node.output_table_name,
-            storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
-            parent=scene_service_node,
-        )
+        # hdfs_result_storage_node = HDFSStorageNode(
+        #     source_rt_id=scene_service_node.output_table_name,
+        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
+        #     parent=scene_service_node,
+        # )
 
         self.node_list = [
             stream_source_node,
@@ -110,7 +110,8 @@ class StrategyIntelligentModelDetectTask(BaseTask):
             strategy_storage_node,
             scene_service_node,
             tspider_result_storage_node,
-            hdfs_result_storage_node,
+            # 去除hdfs存储节点
+            # hdfs_result_storage_node,
         ]
 
         self.data_flow = None
@@ -128,7 +129,6 @@ class MultivariateAnomalyAggIntelligentModelDetectTask(BaseTask):
         return _("【主机场景异常检测】聚合数据源")
 
     def __init__(self, sources, merge_table_name, result_table_name):
-
         from bkmonitor.dataflow.utils.multivariate_anomaly.host.utils import (
             build_agg_sql,
             build_agg_trans_sql,
@@ -195,15 +195,13 @@ class MultivariateAnomalyAggIntelligentModelDetectTask(BaseTask):
             parent=result_real_time_node,
         )
 
-        hdfs_result_storage_node = HDFSStorageNode(
-            source_rt_id=result_real_time_node.output_table_name,
-            storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
-            parent=result_real_time_node,
-        )
+        # hdfs_result_storage_node = HDFSStorageNode(
+        #     source_rt_id=result_real_time_node.output_table_name,
+        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
+        #     parent=result_real_time_node,
+        # )
 
-        self.node_list.extend(
-            [merge_node, result_real_time_node, tspider_result_storage_node, hdfs_result_storage_node]
-        )
+        self.node_list.extend([merge_node, result_real_time_node, tspider_result_storage_node])
 
 
 class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
@@ -275,11 +273,11 @@ class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
             parent=scene_service_node,
         )
 
-        hdfs_result_storage_node = HDFSStorageNode(
-            source_rt_id=scene_service_node.output_table_name,
-            storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
-            parent=scene_service_node,
-        )
+        # hdfs_result_storage_node = HDFSStorageNode(
+        #     source_rt_id=scene_service_node.output_table_name,
+        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
+        #     parent=scene_service_node,
+        # )
 
         self.node_list = [
             stream_source_node,
@@ -287,7 +285,7 @@ class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
             strategy_storage_node,
             scene_service_node,
             tspider_result_storage_node,
-            hdfs_result_storage_node,
+            # hdfs_result_storage_node,
         ]
 
         self.data_flow = None
@@ -307,7 +305,6 @@ class MetricRecommendTask(BaseTask):
     FLOW_NAME_KEY = _("指标推荐V2")
 
     def __init__(self, access_bk_biz_id, scene_id, plan_id):
-
         from monitor_web.aiops.metric_recommend.utils import build_biz_filter_sql
 
         self.access_bk_biz_id = access_bk_biz_id

@@ -97,7 +97,7 @@ export interface IMetricDetail {
   index_set_name?: string;
   metric_type?: MetricType;
   logMetricList?: IMetricDetail[];
-  sceneConfig?: any;
+  sceneConfig?: ISceneConfig;
 }
 export enum MetricType {
   TimeSeries = 'time_series',
@@ -165,6 +165,7 @@ export class MetricDetail {
   readable_name = '';
   metric_type = null;
   logMetricList: IMetricDetail[] = null;
+  sceneConfig?: ISceneConfig = null;
   constructor(public metricDetail?: IMetricDetail) {
     if (!metricDetail) return;
     Object.keys(metricDetail).forEach(key => {

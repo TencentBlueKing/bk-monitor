@@ -143,9 +143,13 @@ class CreateSpaceResource(Resource):
         space = utils.create_space(**request_data)
 
         # 空间信息刷新到 redis
-        from metadata.task.tasks import push_space_to_redis
+        from metadata.task.tasks import (
+            push_and_publish_space_router,
+            push_space_to_redis,
+        )
 
         push_space_to_redis.delay(space_type=space["space_type_id"], space_id=space["space_id"])
+        push_and_publish_space_router.delay(space_type=space["space_type_id"], space_id=space["space_id"])
 
         return space
 
