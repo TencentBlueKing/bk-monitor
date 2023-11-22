@@ -900,17 +900,17 @@ export default {
       };
       /* eslint-disable */
       if (etlConfig !== 'bk_log_text') {
-        const etlParams = {
+        const payload = {
           retain_original_text: etlParams.retain_original_text,
           retain_extra_json : etlParams.retain_extra_json ?? false
         }
         if (etlConfig === 'bk_log_delimiter') {
-          etlParams.separator = etlParams.separator
+          payload.separator = etlParams.separator
         }
         if (etlConfig === 'bk_log_regexp') {
-          etlParams.separator_regexp = etlParams.separator_regexp
+          payload.separator_regexp = etlParams.separator_regexp
         }
-        data.etlParams = etlParams
+        data.etlParams = payload
         data.etl_fields = this.$refs.fieldTable.getData()
       }
 

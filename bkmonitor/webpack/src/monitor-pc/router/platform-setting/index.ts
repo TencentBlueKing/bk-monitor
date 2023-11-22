@@ -38,7 +38,7 @@ export default [
     },
     meta: {
       title: '平台设置',
-      navId: 'PlatformSetting',
+      navId: 'platform-setting',
       pageCls: 'platform-setting',
       noNavBar: true,
       authority: {

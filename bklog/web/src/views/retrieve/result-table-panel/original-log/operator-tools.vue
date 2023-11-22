@@ -38,7 +38,10 @@
         @click.stop="handleCheckClick('contextLog', isActiveLog)">
       </span>
     </span>
-    <span class="handle-card" v-bk-tooltips="{ allowHtml: true, content: '#monitorWeb-html', delay: 500 }">
+    <span
+      v-if="!isExternal"
+      class="handle-card"
+      v-bk-tooltips="{ allowHtml: true, content: '#monitorWeb-html', delay: 500 }">
       <span
         :class="`icon icon-handle log-icon icon-inform ${!isActiveMonitorWeb && 'is-disable'}`"
         @click.stop="handleCheckClick('monitorWeb', isActiveMonitorWeb)"></span>
@@ -72,7 +75,7 @@
         <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
       </span>
     </div>
-    <div id="monitorWeb-html">
+    <div id="monitorWeb-html" v-if="!isExternal">
       <span>
         <span v-if="!isActiveMonitorWeb" class="bk-icon icon-exclamation-circle-shape"></span>
         <span>{{toolMessage.monitorWeb}}</span>
@@ -123,6 +126,9 @@ export default {
     },
     toolMessage() {
       return this.operatorConfig.toolMessage;
+    },
+    isExternal() {
+      return this.$store.state.isExternal;
     },
   },
   methods: {

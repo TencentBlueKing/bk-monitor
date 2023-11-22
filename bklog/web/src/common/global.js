@@ -24,14 +24,11 @@
 const getTopWindow = function () {
   try {
     if (window.top?.document) {
-      console.log('TOP窗口对象获取成功');
       return window.top;
     }
-    console.log('TOP窗口对象获取失败，已切换到当前窗口对象');
     return window;
   } catch (err) {
     console.log(err);
-    console.log('TOP窗口对象获取失败，已切换到当前窗口对象');
     return window;
   }
 };
@@ -52,7 +49,6 @@ const closeLoginDialog = function () {
 try {
   window.top.BLUEKING.corefunc.open_login_dialog = openLoginDialog;
   window.top.BLUEKING.corefunc.close_login_dialog = closeLoginDialog;
-  console.log('弹窗方法已注册到TOP窗口', window.top.BLUEKING.corefunc.close_login_dialog);
 } catch (_) {
   topWindow.BLUEKING = {
     corefunc: {
@@ -62,5 +58,4 @@ try {
   };
   window.open_login_dialog = openLoginDialog;
   window.close_login_dialog = closeLoginDialog;
-  console.log('弹窗方法已注册到当前窗口', window.close_login_dialog);
 }

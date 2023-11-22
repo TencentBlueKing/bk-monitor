@@ -18,11 +18,11 @@ from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import ugettext as _
 from elasticsearch import Elasticsearch
+
+from bkmonitor.utils.db.fields import JsonField
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
-
-from bkmonitor.utils.db.fields import JsonField
 
 from .base import CustomGroupBase
 
@@ -220,7 +220,6 @@ class EventGroup(CustomGroupBase):
         logger.info("all metrics about EventGroup->[{}] is deleted.".format(self.event_group_id))
 
     def to_json(self):
-
         return {
             "event_group_id": self.event_group_id,
             "bk_data_id": self.bk_data_id,
@@ -234,7 +233,10 @@ class EventGroup(CustomGroupBase):
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
             "event_info_list": [
-                event_info.to_json() for event_info in Event.objects.filter(event_group_id=self.event_group_id)
+                event_info.to_json()
+                for event_info in Event.objects.filter(event_group_id=self.event_group_id).only(
+                    "event_id", "event_name", "dimension_list"
+                )
             ],
             "data_label": self.data_label,
         }
@@ -368,7 +370,6 @@ class Event(models.Model):
 
         # 1. 遍历所有的事件进行处理，判断是否存在custom_event_id
         for event_info in event_info_list:
-
             # 如果存在这个custom_event_id，那么需要进行修改
             try:
                 event_name = event_info["event_name"]
@@ -418,5 +419,4 @@ class Event(models.Model):
         return self._event_group
 
     def to_json(self):
-
         return {"event_id": self.event_id, "event_name": self.event_name, "dimension_list": self.dimension_list}

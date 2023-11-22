@@ -739,7 +739,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                     content: item.tips,
                     extCls: 'garfana-link-tips'
                   }}
-                  class={`link-item ${this.$route.name === item.router ? 'is-active' : ''}`}
+                  class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}
                 >
                   <i class={['icon-monitor', item.icon]}></i>

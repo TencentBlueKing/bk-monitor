@@ -28,7 +28,7 @@
     <template v-if="!isSingle">
       <transition name="collection-fade">
         <div
-          class="view-collection"
+          :class="['view-collection', { en: isEn }]"
           v-show="show"
         >
           <div style="flex-grow: 1">
@@ -48,7 +48,7 @@
             >
               {{ $t('route-数据探索') }}</span>
             <span
-              class="view-collection-btn mr5"
+              :class="['view-collection-btn', isEn ? 'mr24' : 'mr5']"
               @click="gotoViewDetail"
             >{{ $t('对比') }}</span>
           </div>
@@ -71,6 +71,8 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
+import { isEnFn } from '../../../utils';
+
 import CollectionDialog from './collection-dialog.vue';
 
 @Component({
@@ -86,6 +88,8 @@ export default class CollectChart extends Vue {
   @Prop({ default: false, type: Boolean }) isSingle: boolean;
 
   isDialogShow = false;
+
+  isEn = isEnFn();
 
   get isDataRetrieval() {
     return this.$route.name === 'data-retrieval';
@@ -134,6 +138,10 @@ export default class CollectChart extends Vue {
 <style lang="scss" scoped>
 @import '../../../theme/index.scss';
 
+.mr24 {
+  margin-right: 24px;
+}
+
 .view-collection {
   position: fixed;
   bottom: 50px;
@@ -153,6 +161,14 @@ export default class CollectChart extends Vue {
     margin-left: 10px;
     color: $primaryFontColor;
     cursor: pointer;
+  }
+
+  &.en {
+    .view-collection-btn {
+      margin-left: 24px;
+      color: $primaryFontColor;
+      cursor: pointer;
+    }
   }
 
   .icon-mc-close-fill {

@@ -105,6 +105,8 @@ export default {
 
 <style lang="scss" scoped>
   .expand-view-wrapper {
+    color: #313238;
+
     .view-tab {
       font-size: 0;
       background-color: #fafbfd;

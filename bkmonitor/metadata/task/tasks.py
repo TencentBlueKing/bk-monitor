@@ -125,23 +125,25 @@ def update_time_series_metrics(time_series_metrics, task_result_queue):
     for time_series_group in time_series_metrics:
         try:
             is_updated = time_series_group.update_time_series_metrics()
+            logger.info(
+                "bk_data_id->[%s] metric add from redis success, is_updated: %s",
+                time_series_group.bk_data_id,
+                is_updated,
+            )
             # 记录是否有更新，如果有更新则推送到redis
             if is_updated:
                 data_id_list.append(time_series_group.bk_data_id)
                 table_id_list.append(time_series_group.table_id)
         except Exception as e:
             logger.error(
-                "data_id->[{data_id}], table_id->[{table_id}] try to update ts metrics from redis failed, error->[{err_msg}], traceback_detail->[{detail}]".format(  # noqa
-                    data_id=time_series_group.bk_data_id,
-                    table_id=time_series_group.table_id,
-                    err_msg=e,
-                    detail=traceback.format_exc(),
-                )
+                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], traceback_detail->[%s]",  # noqa
+                time_series_group.bk_data_id,
+                time_series_group.table_id,
+                e,
+                traceback.format_exc(),
             )
         else:
-            logger.info(
-                "time_series_group->[{}] metric update from redis success.".format(time_series_group.bk_data_id)
-            )
+            logger.info("time_series_group->[%s] metric update from redis success.", time_series_group.bk_data_id)
 
     # 仅当指标有变动的结果表存在时，才进行路由配置更新
     if table_id_list:
@@ -230,7 +232,12 @@ def push_and_publish_space_router(
         SPACE_TO_RESULT_TABLE_CHANNEL,
         SpaceTypes,
     )
+    from metadata.models.space.ds_rt import get_space_table_id_data_id
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+    # 获取空间下的结果表，如果不存在，则获取空间下的所有
+    if not table_id_list:
+        table_id_list = get_space_table_id_data_id(space_type, space_id)
 
     space_client = SpaceTableIDRedis()
     # 更新数据
