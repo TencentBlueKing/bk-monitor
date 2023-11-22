@@ -147,6 +147,9 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   /* 指标选择器 */
   metricSelectorShow = false;
 
+  /* 是否展示未选择ip及云区域的提示 */
+  showTargetMessageTip = false;
+
   // promqlError = false
   // 指标标示名称
   get metricNameLabel() {
@@ -302,11 +305,34 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     // this.handleSetTargetDesc(this.targetList, this.metricData[0].targetType);
   }
 
+  /**
+   * @description 判断是否展示监控目标提示
+   */
+  showTargetMessageTipChange() {
+    const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
+    const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
+    let hasIpDimension = false;
+    if (this.editMode === 'Source') {
+      const str = this.source;
+      const regex = /\(([^)]*)\)/g; // 匹配括号内的内容
+      const strList = str.match(regex);
+      hasIpDimension =
+        !!strList?.length &&
+        strList.some(str => ipMap.some(s => new RegExp(s).test(str)) && cloudIdMap.some(s => new RegExp(s).test(str)));
+    } else {
+      hasIpDimension = this.metricData.some(
+        item => item.agg_dimension.some(d => cloudIdMap.includes(d)) && item.agg_dimension.some(d => ipMap.includes(d))
+      );
+    }
+    this.showTargetMessageTip = !hasIpDimension && this.targetList?.length;
+  }
+
   handleTopoCheckedChange(data: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType }) {
     this.targetList = transformValueToMonitor(data.value, data.nodeType);
     this.target.targetType = data.nodeType;
     this.handleSetTargetDesc(this.targetList, this.target.targetType);
     this.handleTargetSave();
+    this.showTargetMessageTipChange();
   }
 
   // 编辑时设置监控目标描述
@@ -693,7 +719,17 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       on-click={this.handleAddTarget}
                     >
                       {this.$t(this.readonly ? '查看监控目标' : '修改监控目标')}
-                    </span>
+                    </span>,
+                    this.showTargetMessageTip && (
+                      <span class='ip-dimension-tip'>
+                        <span class='icon-monitor icon-remind'></span>
+                        <span>{this.$t('当前维度未选择IP目标与云区域ID，会导致监控目标选择无法生效')}</span>
+                        <span
+                          class='icon-monitor icon-mc-close'
+                          onClick={() => (this.showTargetMessageTip = false)}
+                        ></span>
+                      </span>
+                    )
                   ]}
             </div>
           )}
