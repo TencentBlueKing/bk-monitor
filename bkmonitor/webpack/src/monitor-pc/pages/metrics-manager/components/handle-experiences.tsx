@@ -284,20 +284,24 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     this.$bkInfo({
       type: 'warning',
       title: this.$t('确认删除该经验？'),
-      subHeader: () => (
-        <DeleteSubtitle title={titleMap[v.type]}>
-          <div slot='name'>
-            {v.type === EType.METRIC ? (
-              v.metric?.map(id => this.metricNameMap[id] || id)?.join(',') || this.getMetricName()
-            ) : (
-              <WhereDisplay
-                value={v.conditions as any}
-                groupByList={this.dimensionList}
-                metric={this.metricMeta as any}
-              ></WhereDisplay>
-            )}
-          </div>
-        </DeleteSubtitle>
+      subHeader: this.$createElement(
+        DeleteSubtitle,
+        {
+          props: {
+            title: titleMap[v.type]
+          }
+        },
+        [
+          v.type === EType.METRIC
+            ? v.metric?.map(id => this.metricNameMap[id] || id).join(',') || this.getMetricName()
+            : this.$createElement(WhereDisplay, {
+                props: {
+                  value: v.conditions,
+                  groupByList: this.dimensionList,
+                  metric: this.metricMeta
+                }
+              })
+        ]
       ),
       maskClose: true,
       escClose: true,
