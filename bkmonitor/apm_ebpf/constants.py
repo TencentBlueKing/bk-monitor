@@ -13,7 +13,6 @@ from django.utils.translation import ugettext_lazy as _
 
 
 class WorkloadType(TextChoices):
-
     DEPLOYMENT = "deployment", _("deployment")
 
     SERVICE = "service", _("service")
@@ -24,13 +23,15 @@ class DeepflowComp:
 
     NAMESPACE = "deepflow"
 
+    # deployment镜像名称
     DEPLOYMENT_SERVER = "deepflow-server"
-    DEPLOYMENT_GRAFANA = "deepflow-grafana"
+    DEPLOYMENT_GRAFANA = "grafana"
     DEPLOYMENT_APP = "deepflow-app"
 
-    SERVICE_SERVER = "deepflow-server"
-    SERVICE_GRAFANA = "deepflow-grafana"
-    SERVICE_APP = "deepflow-app"
+    # service服务名称正则
+    SERVICE_SERVER_REGEX = r"^(.*)?deepflow(.*)?-(.*)?server(.*)?$"
+    SERVICE_GRAFANA_REGEX = r"^(.*)?deepflow(.*)?-(.*)?grafana(.*)?$"
+    SERVICE_APP_REGEX = r"^(.*)?deepflow(.*)?-(.*)?app(.*)?$"
 
     # service: deepflow-server的查询端口名称
     SERVICE_SERVER_PORT_QUERY = "querier"
@@ -39,3 +40,21 @@ class DeepflowComp:
 
     # deepflow grafana数据源名称
     GRAFANA_DATASOURCE_TYPE_NAME = "deepflowio-deepflow-datasource"
+
+    @classmethod
+    def required_deployments(cls):
+        """Deepflow必须的deployment中镜像名称"""
+        return [
+            cls.DEPLOYMENT_SERVER,
+            cls.DEPLOYMENT_GRAFANA,
+            cls.DEPLOYMENT_APP,
+        ]
+
+    @classmethod
+    def required_services(cls):
+        """Deepflow必须的service的名称"""
+        return [
+            cls.SERVICE_SERVER_REGEX,
+            cls.SERVICE_GRAFANA_REGEX,
+            cls.SERVICE_APP_REGEX,
+        ]

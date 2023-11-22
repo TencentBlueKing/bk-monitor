@@ -11,6 +11,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import ntpath
+import os
 from urllib.parse import urljoin
 
 from bkcrypto import constants
@@ -258,6 +259,7 @@ DATABASES = {}
 
 # auto clean DB connection
 DATABASE_CONNECTION_AUTO_CLEAN_INTERVAL = 600
+CONN_MAX_AGE = int(os.getenv("CONN_MAX_AGE", 0))
 
 # 是否开启网络设备忽略
 USE_ETH_FILTER = True
@@ -683,6 +685,7 @@ DISABLE_BIZ_ID = []
 
 # 是否开启聚合网关上报
 METRIC_AGG_GATEWAY_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_URL", "")
+METRIC_AGG_GATEWAY_UDP_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_UDP_URL", METRIC_AGG_GATEWAY_URL)
 
 # 网关API域名
 APIGW_BASE_URL = os.getenv("BKAPP_APIGW_BASE_URL", "")
@@ -1216,6 +1219,7 @@ BLUEKING_NAME = os.getenv("BKAPP_BLUEKING_NAME", "蓝鲸")
 
 # 后台任务多进程并行数量，默认设置为1个
 MAX_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
+MAX_TS_METRIC_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
 
 # 是否默认展示策略模块实时功能
 SHOW_REALTIME_STRATEGY = False
@@ -1313,3 +1317,12 @@ IS_RESTRICT_DS_BELONG_SPACE = True
 
 # 最大的指标分片查询大小
 MAX_FIELD_PAGE_SIZE = 1000
+
+# 访问 PaaS 提供接口地址
+PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
+
+# 需要授权给蓝鲸应用的特定的数据源 ID
+BKPAAS_DATA_ID_LIST = []
+
+# 环境代号
+ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"

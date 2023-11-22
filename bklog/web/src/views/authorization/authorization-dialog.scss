@@ -1,0 +1,28 @@
+.bk-date-picker {
+  width: 100%;
+}
+
+.bk-form {
+  .bk-label {
+    font-size: 12px;
+  }
+}
+
+.custom-label {
+  font-size: 12px;
+
+  .label {
+    &.required::after {
+      content: '*';
+      display: inline-block;
+      margin-left: 6px;
+      color: #ea3636
+    }
+  }
+
+  .hint {
+    color: #ff9c01;
+    margin-left: 10px;
+    line-height: 20px;
+  }
+}

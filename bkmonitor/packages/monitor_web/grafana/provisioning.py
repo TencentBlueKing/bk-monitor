@@ -58,6 +58,8 @@ class ApmEbpfProvisioning(SimpleProvisioning):
         @ApmEbpfProvisioning返回空列表 不走外层sync_dashboards逻辑
         注册仪表盘操作在@method: self.upsert_dashboards里完成
         """
+        if not DeepflowHandler(org_name).list_datasources():
+            yield from []
 
         # 接入APM EBPF仪表盘
         dashboard_mapping = self.get_dashboard_mapping(org_name)
