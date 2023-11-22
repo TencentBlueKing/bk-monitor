@@ -777,6 +777,8 @@ export default {
   }
 
   .finger-cluster-table {
+    color: #313238;
+
     :deep(.bk-table-body-wrapper) {
       margin-top: 32px;
       min-height: calc(100vh - 570px);
