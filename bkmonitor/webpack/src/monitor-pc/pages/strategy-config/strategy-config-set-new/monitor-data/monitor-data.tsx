@@ -723,7 +723,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     this.showTargetMessageTip && (
                       <span class='ip-dimension-tip'>
                         <span class='icon-monitor icon-remind'></span>
-                        <span>{this.$t('当前维度未选择IP目标与云区域ID，会导致监控目标选择无法生效')}</span>
+                        <span>{this.$t('当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效')}</span>
                         <span
                           class='icon-monitor icon-mc-close'
                           onClick={() => (this.showTargetMessageTip = false)}
