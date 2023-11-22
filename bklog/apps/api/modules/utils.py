@@ -102,6 +102,14 @@ if (
     or ("runserver" not in sys.argv and sys.argv and "manage.py" in sys.argv[0])
 ):
 
+    def add_app_info_before_request(params):
+        params["bk_app_code"] = settings.APP_CODE
+        params["bk_app_secret"] = settings.SECRET_KEY
+
+        params["X-Bk-App-Code"] = settings.APP_CODE
+        params["X-Bk-App-Secret"] = settings.SECRET_KEY
+        return params
+
     def add_esb_info_before_request(params):
         if "bk_username" not in params:
             params["bk_username"] = "admin"
@@ -112,18 +120,31 @@ if (
 
     def add_esb_info_before_request_for_bkdata_token(params):  # pylint: disable=function-name-too-long
         params = add_esb_info_before_request(params)
+        params = add_app_info_before_request(params)
         params = update_bkdata_auth_info(params)
         params.setdefault("bkdata_authentication_method", "user")
         return params
 
     def add_esb_info_before_request_for_bkdata_user(params):  # pylint: disable=function-name-too-long
         params = add_esb_info_before_request(params)
+        params = add_app_info_before_request(params)
         params.setdefault("bkdata_authentication_method", "user")
         return params
 
 
 # 正常 WEB 请求所使用的函数
 else:
+
+    def add_app_info_before_request(params):
+        params["bk_app_code"] = settings.APP_CODE
+        params["bk_app_secret"] = settings.SECRET_KEY
+
+        params["app_code"] = settings.APP_CODE
+        params["app_secret"] = settings.SECRET_KEY
+
+        params["X-Bk-App-Code"] = settings.APP_CODE
+        params["X-Bk-App-Secret"] = settings.SECRET_KEY
+        return params
 
     def add_esb_info_before_request(params):
         """
@@ -170,12 +191,14 @@ else:
                 params = update_bkdata_auth_info(params)
 
         params = add_esb_info_before_request(params)
+        params = add_app_info_before_request(params)
         params = adapt_non_bkcc(params)
         params.setdefault("bkdata_authentication_method", "user")
         return params
 
     def add_esb_info_before_request_for_bkdata_user(params):  # pylint: disable=function-name-too-long
         params = add_esb_info_before_request(params)
+        params = add_app_info_before_request(params)
         params = adapt_non_bkcc(params)
         params.setdefault("bkdata_authentication_method", "user")
         return params

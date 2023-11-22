@@ -493,7 +493,7 @@ class DataAPI(object):
         # headers 增加api认证数据
         api_auth_params = {}
         for key in API_AUTH_KEYS:
-            value = params.pop(key, None)
+            value = params.get(key)
             if value:
                 api_auth_params[key] = value
         session.headers.update({"X-Bkapi-Authorization": get_request_api_headers(api_auth_params)})
