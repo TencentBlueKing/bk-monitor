@@ -98,6 +98,7 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
     StorageClusterRecord,
 )
+from apps.log_search.utils import sort_func
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
@@ -646,7 +647,7 @@ class SearchHandler(object):
             hits = merge_result.get("hits", {}).get("hits", [])
             buckets = merge_result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
             if hits:
-                sorted_hits = sorted(hits, key=functools.cmp_to_key(self._sort_compare))
+                sorted_hits = sort_func(data=hits, sort_list=self.sort_list, key_func=lambda x: x["_source"])
                 merge_result["hits"]["hits"] = sorted_hits[self.start : (once_size + self.start)]
 
             # buckets 排序合并处理
@@ -666,39 +667,6 @@ class SearchHandler(object):
             raise MultiSearchErrorException()
 
         return merge_result
-
-    def _sort_compare(self, x: Dict[str, Any], y: Dict[str, Any]) -> int:
-        """
-        排序比较函数
-        """
-
-        def _get_value(keys: str, data: Dict[str, Any]) -> Any:
-            try:
-                _value = functools.reduce(operator.getitem, keys.split("."), data)
-            except (KeyError, TypeError):
-                _value = None
-            return _value
-
-        for sort_info in self.sort_list:
-            field_name, order = sort_info
-            if "." in field_name:
-                _x_value = _get_value(field_name, x["_source"])
-                _y_value = _get_value(field_name, y["_source"])
-            else:
-                _x_value = x["_source"].get(field_name, None)
-                _y_value = y["_source"].get(field_name, None)
-            if _x_value is None or _y_value is None:
-                continue
-
-            try:
-                if _x_value != _y_value:
-                    if order == "desc":
-                        return (_x_value < _y_value) - (_x_value > _y_value)
-                    else:
-                        return (_x_value > _y_value) - (_x_value < _y_value)
-            except TypeError:
-                continue
-        return 0
 
     def scroll_search(self):
         """
@@ -2067,8 +2035,8 @@ class UnionSearchHandler(object):
                     result_origin_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True
                 )
         else:
-            result_log_list = sorted(result_log_list, key=functools.cmp_to_key(self._sort_compare))
-            result_origin_log_list = sorted(result_origin_log_list, key=functools.cmp_to_key(self._sort_compare))
+            result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
+            result_origin_log_list = sort_func(data=result_origin_log_list, sort_list=self.sort_list)
 
         # 处理分页
         result_log_list = result_log_list[: self.search_dict.get("size")]
@@ -2096,41 +2064,6 @@ class UnionSearchHandler(object):
         self._save_union_search_history(res)
 
         return res
-
-    def _sort_compare(self, x: Dict[str, Any], y: Dict[str, Any]) -> int:
-        """
-        排序比较函数
-        """
-
-        def _get_value(keys: str, data: Dict[str, Any]) -> Any:
-            try:
-                _value = functools.reduce(operator.getitem, keys.split("."), data)
-            except (KeyError, TypeError):
-                _value = None
-            return _value
-
-        for sort_info in self.sort_list:
-            field_name, order = sort_info
-            if "." in field_name:
-                _x_value = _get_value(field_name, x)
-                _y_value = _get_value(field_name, y)
-            else:
-                _x_value = x.get(field_name, None)
-                _y_value = y.get(field_name, None)
-
-            if _x_value is None or _y_value is None:
-                continue
-
-            try:
-                if _x_value != _y_value:
-                    if order == "desc":
-                        return (_x_value < _y_value) - (_x_value > _y_value)
-                    else:
-                        return (_x_value > _y_value) - (_x_value < _y_value)
-            except TypeError:
-                continue
-
-        return 0
 
     def _iam_check(self):
         """
