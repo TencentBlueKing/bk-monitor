@@ -122,7 +122,24 @@ def test_assign_unparse():
                 'additional_tags': [{'key': 'key1', 'value': '123value'}],
                 'id': 0,
                 'is_enabled': True,
-            }
+            },
+            {
+                'user_groups': [1],
+                'enabled': True,
+                'conditions': [{'field': 'bcs_cluster_id', 'value': ['123'], 'method': 'eq', 'condition': 'and'}],
+                'actions': [
+                    {
+                        'action_type': 'notice',
+                        'is_enabled': True,
+                        'upgrade_config': {'user_groups': [1], 'upgrade_interval': 1440, 'is_enabled': True},
+                    },
+                    {'action_type': 'itsm', 'is_enabled': True, 'action_id': 23},
+                ],
+                'alert_severity': 1,
+                'additional_tags': [{'key': 'key1', 'value': '123value'}],
+                'id': 0,
+                'is_enabled': True,
+            },
         ],
     }
     notice_group_ids = {"日常运维": 1}
@@ -138,3 +155,6 @@ def test_assign_unparse():
     assert itsm_action["type"] == "itsm"
     assert itsm_action["name"] == "test"
     assert itsm_action["enabled"]
+
+    last_rule = config["rules"][-1]
+    assert "notice_enabled" not in last_rule
