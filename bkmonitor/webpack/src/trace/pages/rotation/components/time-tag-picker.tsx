@@ -139,11 +139,12 @@ export default defineComponent({
 
     function handleTimeChange(val) {
       currentTime.inputValue = val.join(' - ');
+      resetInputWidth();
     }
 
     const inputWidth = ref(8);
     const textTestRef = ref();
-    function handleInput() {
+    function resetInputWidth() {
       nextTick(() => {
         inputWidth.value = textTestRef.value.offsetWidth;
       });
@@ -161,14 +162,15 @@ export default defineComponent({
         return;
       }
 
-      const reg = /^([0-1][0-9]|2[0-3]):[0-5][0-9] - ([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+      const reg = /^(([0-1][0-9]|2[0-3]):[0-5][0-9])(?: ?)-(?: ?)(([0-1][0-9]|2[0-3]):[0-5][0-9])$/;
       if (currentTime.inputValue) {
         if (!reg.test(currentTime.inputValue)) {
           currentTime.show = false;
           currentTime.showInput = false;
           return;
         }
-        currentTime.value = currentTime.inputValue.split(' - ');
+        const match = currentTime.inputValue.match(reg);
+        currentTime.value = [match[1], match[3]];
       }
 
       if (
@@ -241,7 +243,7 @@ export default defineComponent({
       inputWidth,
       inputRef,
       textTestRef,
-      handleInput,
+      resetInputWidth,
       tagNameFormat,
       handleShowTime,
       handleTimeChange,
@@ -299,11 +301,11 @@ export default defineComponent({
                       style={{ width: `${this.inputWidth}px` }}
                       v-model={this.currentTime.inputValue}
                       onClick={e => e.stopPropagation()}
-                      onInput={this.handleInput}
+                      onInput={this.resetInputWidth}
                     ></input>
                   )}
                   {!this.localValue.length && !this.currentTime.showInput && (
-                    <span class='placeholder'>{this.t('选择')}</span>
+                    <span class='placeholder'>{this.t('如')}：01:00 - 02:00</span>
                   )}
                 </div>
               </div>
