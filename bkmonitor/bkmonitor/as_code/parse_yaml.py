@@ -1067,7 +1067,14 @@ class AssignGroupRuleParser(BaseConfigParser):
                 action["action_type"] = action["type"]
 
             # 将通知升级的内容转到actions中
-            rule["actions"].insert(0, {"action_type": "notice", "is_enabled": True, "upgrade_config": upgrade_config})
+            rule["actions"].insert(
+                0,
+                {
+                    "action_type": "notice",
+                    "is_enabled": rule.get("notice_enabled", True),
+                    "upgrade_config": upgrade_config,
+                },
+            )
 
         return config
 
@@ -1082,6 +1089,7 @@ class AssignGroupRuleParser(BaseConfigParser):
             actions = []
             for action in rule.pop("actions", []):
                 if action["action_type"] == "notice":
+                    rule["notice_enabled"] = action.pop("is_enabled", False)
                     rule["upgrade_config"] = action["upgrade_config"]
                     rule["upgrade_config"]["enabled"] = rule["upgrade_config"].pop("is_enabled", False)
                     rule["upgrade_config"]["interval"] = rule["upgrade_config"].pop("upgrade_interval", 1440)

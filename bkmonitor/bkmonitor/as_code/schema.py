@@ -308,6 +308,7 @@ AssignGroupRuleSchema = Schema(
                         Optional("condition", default="and"): Or("and"),
                     }
                 ],
+                Optional("notice_enabled", default=True): bool,
                 Optional("upgrade_config", default=lambda: {"enabled": False, "user_groups": [], "interval": 1440}): {
                     "enabled": bool,
                     "user_groups": [str],

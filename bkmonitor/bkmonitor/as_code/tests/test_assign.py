@@ -45,6 +45,7 @@ def test_assign_parse():
     assert rule["user_groups"] == [1]
     notice_action = rule["actions"][0]
     assert notice_action["action_type"] == "notice"
+    assert notice_action["is_enabled"]
     assert notice_action["upgrade_config"]["user_groups"] == [1]
     itsm_action = rule["actions"][1]
     assert itsm_action["action_type"] == "itsm"
@@ -112,7 +113,7 @@ def test_assign_unparse():
                 'actions': [
                     {
                         'action_type': 'notice',
-                        'is_enabled': True,
+                        'is_enabled': False,
                         'upgrade_config': {'user_groups': [1], 'upgrade_interval': 1440, 'is_enabled': True},
                     },
                     {'action_type': 'itsm', 'is_enabled': True, 'action_id': 23},
@@ -130,6 +131,7 @@ def test_assign_unparse():
     config = p.unparse(rule_config)
     rule = config["rules"][0]
     assert rule["user_groups"] == ["日常运维"]
+    assert rule["notice_enabled"] is False
     upgrade_config = rule["upgrade_config"]
     assert upgrade_config["user_groups"] == ["日常运维"]
     itsm_action = rule["actions"][0]
