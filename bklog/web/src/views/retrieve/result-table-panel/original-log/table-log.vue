@@ -254,9 +254,7 @@ export default {
       }
 
       .bk-table-body-wrapper {
-        font-family: RobotoMono-Regular, monospace, Roboto, isometric-number,
-          San Francisco, Helvetica Neue, Helvetica, Arial, PingFangSC-Light,
-          Hiragina Sans GB, WenQuanYi Micro Hei, microsoft yahei ui, microsoft yahei;
+        color: #313238;
         min-height: calc(100vh - 550px);
 
         .bk-table-empty-block {
@@ -275,7 +273,7 @@ export default {
 
       td mark {
         background: #f3e186;
-        color: #575961;
+        color: #313238;
       }
 
       :deep(.result-table-loading) {
@@ -321,7 +319,7 @@ export default {
           line-height: 20px;
 
           &.is-limit {
-            max-height: 96px;
+            max-height: 116px;
           }
         }
 
@@ -336,13 +334,18 @@ export default {
           }
         }
 
+        .origin-str {
+          color: #313238;
+          line-height: 24px;
+        }
+
         .origin-str:hover {
           color: #3a84ff;
         }
 
         .show-whole-btn {
           position: absolute;
-          top: 80px;
+          top: 93px;
           width: 100%;
           height: 24px;
           color: #3a84ff;

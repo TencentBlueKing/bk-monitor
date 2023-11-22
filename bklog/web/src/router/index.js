@@ -31,7 +31,7 @@ import VueRouter from 'vue-router';
 import store from '@/store';
 import reportLogStore from '@/store/modules/report-log';
 import http from '@/api';
-import page404 from '@/views/404';
+import exception from '@/views/404';
 
 Vue.use(VueRouter);
 
@@ -947,8 +947,8 @@ const routes = [
   },
   {
     path: '*',
-    name: 'page404',
-    component: page404,
+    name: 'exception',
+    component: exception,
     meta: {
       navId: 'exception',
     },
@@ -980,6 +980,7 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to) => {
+  if (to.name === 'exception') return;
   reportLogStore.reportRouteLog({
     route_id: to.name,
     nav_id: to.meta.navId,

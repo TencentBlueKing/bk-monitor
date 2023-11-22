@@ -19,12 +19,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from datetime import datetime, timedelta
+
 from celery.schedules import crontab
 from celery.task import periodic_task, task
 
 from apps.exceptions import ApiResultError
 from apps.log_search.constants import BkDataErrorCode
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
@@ -32,7 +34,13 @@ from apps.utils.task import high_priority_task
 @periodic_task(run_every=crontab(minute="*/10"))
 def sync_index_set_mapping_snapshot():
     logger.info("[sync_index_set_mapping_snapshot] task publish start")
-    index_set_list = LogIndexSet.objects.filter(is_active=True)
+    # 仅更新近一周用户检索过的索引集快照
+    index_set_ids = list(
+        UserIndexSetSearchHistory.objects.filter(created_at__gte=datetime.now() - timedelta(days=7)).values_list(
+            "index_set_id", flat=True
+        )
+    )
+    index_set_list = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
 
     for index_set in index_set_list:
         sync_single_index_set_mapping_snapshot_periodic.delay(index_set.index_set_id)
