@@ -227,6 +227,9 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
     }
     return cur;
   }, false as any);
+  if (!allRangeTime.length && !freeTimes.length) {
+    freeTimes.push(totalRangeTime);
+  }
   return freeTimes
     .filter(t => t[0] < totalRangeTime[1] && t[1] - t[0] !== 60000)
     .map(t => getDateStrAndRange(t, totalRangeTime));
