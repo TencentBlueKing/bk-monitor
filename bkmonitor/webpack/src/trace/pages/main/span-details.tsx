@@ -36,6 +36,7 @@ import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exc
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
+import ProfilingGraph from '../../plugins/charts/profiling-graph/profiling-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
@@ -69,7 +70,7 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Index: {}
 };
 
-type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index';
+type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index' | 'Profiling';
 export default defineComponent({
   name: 'SpanDetails',
   props: {
@@ -816,6 +817,10 @@ export default defineComponent({
       {
         label: window.i18n.t('主机'),
         name: 'Host'
+      },
+      {
+        label: window.i18n.t('性能分析'),
+        name: 'Profiling'
       }
       // 20230525 这期暂时不需要
       // {
@@ -1137,6 +1142,21 @@ export default defineComponent({
                             ></FlexDashboardPanel>
                           </div>
                         )}
+                      </Loading>
+                    )
+                  }
+                  {
+                    // 火焰图 部分
+                    activeTab.value === 'Profiling' && (
+                      <Loading
+                        loading={isTabPanelLoading.value}
+                        style='height: 100%;'
+                      >
+                        <ProfilingGraph
+                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                          traceId={originalData.value.trace_id}
+                          appName={appName.value}
+                        />
                       </Loading>
                     )
                   }
