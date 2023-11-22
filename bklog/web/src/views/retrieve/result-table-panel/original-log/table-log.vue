@@ -273,7 +273,7 @@ export default {
 
       td mark {
         background: #f3e186;
-        color: #575961;
+        color: #313238;
       }
 
       :deep(.result-table-loading) {
