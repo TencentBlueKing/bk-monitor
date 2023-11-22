@@ -193,15 +193,16 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     );
   }
   handleDeleteRow(row: IRowData) {
+    const h = this.$createElement;
     this.$bkInfo({
       type: 'warning',
       title: this.$t('确认删除该套餐？'),
-      subHeader: () => (
-        <DeleteSubtitle
-          title={this.$tc('套餐名称')}
-          name={row.name}
-        />
-      ),
+      subHeader: h(DeleteSubtitle, {
+        props: {
+          title: this.$tc('套餐名称'),
+          name: row.name
+        }
+      }),
       confirmLoading: true,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       confirmFn: async () => {

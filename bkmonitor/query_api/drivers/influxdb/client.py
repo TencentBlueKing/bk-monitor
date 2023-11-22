@@ -26,7 +26,7 @@ class InfluxDBClientFactory(BaseClientFactory):
     def client_key(self, host="127.0.0.1", port=8086, **context):
         return "{}:{}".format(host, port)
 
-    def new_client(self, host="127.0.0.1", port=8086, retries=0, **context):
+    def new_client(self, host="127.0.0.1", port=8086, retries=-1, **context):
         key_words = [
             "host",
             "port",

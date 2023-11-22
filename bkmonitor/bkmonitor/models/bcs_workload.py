@@ -295,7 +295,7 @@ class BCSWorkload(BCSBase, BCSBaseResources):
             # 1. Job是从CronJob生成的
             # 2. ReplicaSet是从Deployment生成的
             top_workload_type = w.get("top_workload_type")
-            if top_workload_type:
+            if top_workload_type or not w.get("namespace"):
                 continue
 
             bcs_cluster_id = w.get("bcs_cluster_id")

@@ -9,24 +9,25 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import operator
+import re
 from dataclasses import dataclass
 
 import requests
+from kubernetes.client import ApiException
 
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
 from apm_ebpf.handlers.kube import BcsKubeClient
 from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
-
+from apm_ebpf.utils import group_by
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
-from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
 
 
 @dataclass
 class DeepflowDatasourceInfo:
-    bk_biz_id: str = None
+    bk_biz_id: int = None
     name: str = None
     request_url: str = None
     # tracingUrl为可选项
@@ -42,85 +43,166 @@ class DeepflowDatasourceInfo:
             try:
                 requests.get(self.tracing_url, timeout=10)
             except requests.exceptions.RequestException:
-                logger.warning(f"fail to request: {self.tracing_url} in {self.name}, tracing may be abnormal.")
+                logger.warning(
+                    f"[DatasourceInfo] fail to request: {self.tracing_url} in {self.name}, tracing may be abnormal."
+                )
 
         try:
             requests.get(self.request_url, timeout=10)
         except requests.exceptions.RequestException:
-            logger.warning(f"fail to request: {self.request_url} in {self.name}")
+            logger.warning(
+                f"[DatasourceInfo] fail to request: {self.request_url} in {self.name}, "
+                f"this datasource will not be created."
+            )
             return False
 
         return True
 
 
-class DeepflowHandler:
-    _required_deployments = [
-        DeepflowComp.DEPLOYMENT_SERVER,
-        DeepflowComp.DEPLOYMENT_GRAFANA,
-        DeepflowComp.DEPLOYMENT_APP,
-    ]
-    _required_services = [
-        DeepflowComp.SERVICE_SERVER,
-        DeepflowComp.SERVICE_GRAFANA,
-        DeepflowComp.SERVICE_APP,
-    ]
-
-    _scheme = "http"
-
-    def __init__(self, bk_biz_id):
-        self.bk_biz_id = bk_biz_id
+class DeepflowInstaller:
+    def __init__(self, cluster_id):
+        self.cluster_id = cluster_id
+        self.k8s_client = BcsKubeClient(self.cluster_id)
 
     def check_installed(self):
         """
-        遍历所有集群检查是否安装了ebpf
+        检查集群是否安装了ebpf
         """
 
-        for cluster in self._clusters:
-            cluster_id = cluster['clusterID']
-            k8s_client = BcsKubeClient(cluster_id)
-
-            handler = WorkloadHandler(self.bk_biz_id, cluster_id)
-            # 获取Deployment
-            deployments = k8s_client.api.list_namespaced_deployment(namespace=DeepflowComp.NAMESPACE)
+        # 获取Deployment
+        try:
+            deployments = self.k8s_client.api.list_namespaced_deployment(namespace=DeepflowComp.NAMESPACE)
             for deployment in deployments.items:
                 content = WorkloadContent.deployment_to(deployment)
-                if content.name in self._required_deployments:
-                    handler.upsert(DeepflowComp.NAMESPACE, content)
+                if self._check_deployment(content):
+                    logger.info(
+                        f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid deployment: {content.name}"
+                    )
+                    WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
+        except ApiException as e:
+            logger.error(
+                f"[DeepflowInstaller] failed to list deployments "
+                f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
+            )
 
-            # 获取Service
-            services = k8s_client.core_api.list_namespaced_service(namespace=DeepflowComp.NAMESPACE)
+        # 获取Service
+        try:
+            services = self.k8s_client.core_api.list_namespaced_service(namespace=DeepflowComp.NAMESPACE)
             for service in services.items:
                 content = WorkloadContent.service_to(service)
-                if content.name in self._required_services:
-                    handler.upsert(DeepflowComp.NAMESPACE, content)
+                if self._check_service(content):
+                    logger.info(f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid service: {content.name}")
+                    WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
+        except ApiException as e:
+            logger.error(
+                f"[DeepflowInstaller] failed to list services "
+                f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
+            )
+
+    @classmethod
+    def check_deployment(cls, content, required_deployment):
+        image_name = cls._exact_image_name(content.image)
+        return image_name == required_deployment
+
+    def _check_deployment(self, content):
+        # 对镜像名称进行匹配
+        for i in DeepflowComp.required_deployments():
+            if self.check_deployment(content, i):
+                return True
+
+        return False
+
+    @classmethod
+    def check_service(cls, content, required_service):
+        return re.match(required_service, content.name)
+
+    def _check_service(self, content):
+        # service名称可以为deepflow-xx的任意变形
+        for i in DeepflowComp.required_services():
+            if bool(self.check_service(content, i)):
+                return True
+
+        return False
+
+    @classmethod
+    def _exact_image_name(cls, image):
+        return image.split("/")[-1].split(":")[0]
+
+
+class DeepflowHandler:
+    _scheme = "http"
+
+    def __init__(self, bk_biz_id):
+        self.bk_biz_id = int(bk_biz_id)
+
+    @classmethod
+    def _find_deployment(cls, instances):
+        res = []
+        req_names = []
+        for i in DeepflowComp.required_deployments():
+            v = next(
+                (
+                    j
+                    for j in instances
+                    if DeepflowInstaller.check_deployment(WorkloadContent.json_to_deployment(j.content), i)
+                ),
+                None,
+            )
+            if v:
+                res.append(v)
+            else:
+                req_names.append(i)
+
+        return res, req_names
+
+    @classmethod
+    def _find_service(cls, instances):
+        res = []
+        req_names = []
+        for i in DeepflowComp.required_services():
+            v = next(
+                (
+                    j
+                    for j in instances
+                    if DeepflowInstaller.check_service(WorkloadContent.json_to_service(j.content), i)
+                ),
+                None,
+            )
+            if v:
+                res.append(v)
+            else:
+                req_names.append(i)
+
+        return res, req_names
 
     def list_datasources(self):
         """
         获取业务下可用的数据源
         """
         res = []
-
         deployments = WorkloadHandler.list_deployments(self.bk_biz_id, DeepflowComp.NAMESPACE)
 
-        from apm_web.utils import group_by
         cluster_deploy_mapping = group_by(deployments, operator.attrgetter("cluster_id"))
 
         valid_cluster_ids = []
         # Step1: 过滤出有效的Deployment
         for cluster_id, items in cluster_deploy_mapping.items():
-            cluster_deploys = [i for i in deployments if i.name in self._required_deployments]
-
-            if len(deployments) != len(self._required_deployments):
-                diff = set(self._required_deployments) - set(cluster_deploys)
+            sorted_items = sorted(items, key=lambda i: i.last_check_time, reverse=True)
+            valid_deploys, req_names = self._find_deployment(sorted_items)
+            if req_names:
                 logger.warning(
-                    f"there is no complete deployment in cluster: {cluster_id} of bk_biz_id: {self.bk_biz_id}"
-                    f"(missing: {','.join(diff)}). this cluster will be ignored."
+                    f"[DeepflowHandler] there is no"
+                    f" complete deployment in cluster: {cluster_id} of bk_biz_id: {self.bk_biz_id}"
+                    f"(missing: {','.join(req_names)}). this cluster will be ignored."
                 )
                 continue
 
-            invalid_item = next((i for i in items if not i.is_normal), None)
+            invalid_item = next((i for i in valid_deploys if not i.is_normal), None)
             if invalid_item:
-                logger.warning(f"an abnormal deployment({invalid_item.name}) was found, this cluster will be ignored.")
+                logger.warning(
+                    f"[DeepflowHandler] "
+                    f"an abnormal deployment({invalid_item.name}) was found, this cluster will be ignored."
+                )
                 continue
 
             valid_cluster_ids.append(cluster_id)
@@ -128,22 +210,25 @@ class DeepflowHandler:
         # Step2: 过滤出有效的Service
         for cluster_id in valid_cluster_ids:
             services = WorkloadHandler.list_services(self.bk_biz_id, DeepflowComp.NAMESPACE, cluster_id)
-            service_name_mapping = {i.name: i for i in services if i.name in self._required_services}
-            if len(service_name_mapping) != len(self._required_services):
-                diff = set(self._required_services) - set(service_name_mapping.keys())
+            sorted_items = sorted(services, key=lambda i: i.last_check_time, reverse=True)
+            valid_services, req_names = self._find_service(sorted_items)
+            if req_names:
                 logger.warning(
-                    f"there is no complete service in cluster: {cluster_id} of bk_biz_id: {self.bk_biz_id}"
-                    f"(missing: {','.join(diff)}). this cluster will be ignored."
+                    f"[DeepflowHandler] there is no"
+                    f" complete service in cluster: {cluster_id} of bk_biz_id: {self.bk_biz_id}"
+                    f"(missing: {','.join(req_names)}). this cluster will be ignored."
                 )
                 continue
 
+            logger.info(f"[DeepflowHandler] valid datasource of cluster_id: {cluster_id}")
             info = DeepflowDatasourceInfo(bk_biz_id=self.bk_biz_id, name=f"DeepFlow-{cluster_id}")
 
-            for service in services:
-                if service.name == DeepflowComp.SERVICE_SERVER:
+            for service in valid_services:
+                content = WorkloadContent.json_to_service(service.content)
+                if DeepflowInstaller.check_service(content, DeepflowComp.SERVICE_SERVER_REGEX):
                     # 从deepflow-server获取RequestUrl
                     info.request_url = self.get_server_access(cluster_id, service.content)
-                if service.name == DeepflowComp.SERVICE_APP:
+                if DeepflowInstaller.check_service(content, DeepflowComp.SERVICE_APP_REGEX):
                     # 从deepflow-app获取TracingUrl
                     info.tracing_url = self.get_app_access(cluster_id, service.content)
 
@@ -165,10 +250,10 @@ class DeepflowHandler:
                     if addr.type == "InternalIP":
                         return addr.address
 
+        logger.warning(f"[DeepflowHandler] failed to get node address of cluster_id: {cluster_id} ")
         return None
 
     @property
-    @using_cache(CacheType.APM_EBPF(60 * 30))
     def _clusters(self):
         """
         获取业务下所有集群列表
@@ -229,7 +314,6 @@ class DeepflowHandler:
         return self._get_access(
             cluster_id,
             service_content,
-            DeepflowComp.SERVICE_SERVER,
             DeepflowComp.SERVICE_SERVER_PORT_QUERY,
         )
 
@@ -240,23 +324,13 @@ class DeepflowHandler:
         return self._get_access(
             cluster_id,
             service_content,
-            DeepflowComp.SERVICE_APP,
             DeepflowComp.SERVICE_APP_PORT_QUERY,
         )
 
-    @using_cache(CacheType.APM_EBPF(60 * 30))
-    def _get_access(self, cluster_id, service_content, comp_name, port_name):
+    def _get_access(self, cluster_id, service_content, port_name):
         node_ip = self._get_cluster_access_ip(cluster_id)
         if not node_ip:
             return None
-
-        if not service_content:
-            services = WorkloadHandler.list_services(self.bk_biz_id, DeepflowComp.NAMESPACE, cluster_id)
-            server_service = next((i for i in services if i.name == comp_name), None)
-            if not server_service:
-                raise ValueError(f"业务Id: {self.bk_biz_id} 集群Id: {cluster_id}下无法找到{comp_name}服务")
-
-            service_content = server_service.content
 
         port = WorkloadContent.extra_port(service_content, port_name)
         url = f"{self._scheme}://{node_ip}:{port}"

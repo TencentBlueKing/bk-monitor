@@ -409,6 +409,8 @@ export default {
       spaceUid: state => state.spaceUid,
       currentMenu: state => state.currentMenu,
       storedIndexID: state => state.indexId, // 路由切换时缓存当前选择的索引
+      isExternal: state => state.isExternal,
+      externalMenu: state => state.externalMenu,
     }),
     ...mapGetters(['asIframe', 'iframeQuery']),
     ...mapGetters({
@@ -457,7 +459,10 @@ export default {
         this.indexSetList.splice(0);
         this.totalFields.splice(0);
         this.retrieveParams.bk_biz_id = this.bkBizId;
-        this.fetchPageData();
+        // 外部版 无检索权限跳转后不更新页面数据
+        if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
+          this.fetchPageData();
+        }
         this.resetFavoriteValue();
         this.$refs.searchCompRef?.clearAllCondition();
       },
@@ -688,8 +693,6 @@ export default {
       this.indexId = val;
       this.activeFavoriteID = -1;
       this.activeFavorite = {};
-      // 在切换索引集之前 需要把表格里的table数据清空 数据不为空的话 table的empty骨架loading会不生效
-      this.$refs.resultMainRef.reset();
       this.retrieveLog();
     },
     // 切换索引时重置检索数据
@@ -1053,6 +1056,8 @@ export default {
       try {
         this.tableLoading = true;
         this.resetResult();
+        // 表格loading处理
+        this.$refs.resultMainRef.reset();
         if (!this.totalFields.length || this.shouldUpdateFields) {
           window.bus.$emit('openChartLoading');
           await this.requestFields();
@@ -1083,8 +1088,6 @@ export default {
           this.requestChart();
           this.requestSearchHistory(this.indexId);
         }
-        // 表格loading处理
-        this.$refs.resultMainRef.reset();
         this.searchCancelFn();
         await this.requestTable();
         if (this.isAfterRequestFavoriteList) await this.getFavoriteList();
@@ -1277,7 +1280,7 @@ export default {
 
       try {
         const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-        const res = await axios({
+        const params = {
           method: 'post',
           url: `/search/index_set/${this.indexId}/search/`,
           cancelToken: new CancelToken((c) => {
@@ -1296,7 +1299,13 @@ export default {
             start_time: formatDate(startTimeStamp),
             end_time: formatDate(endTimeStamp),
           },
-        }).then((res) => {
+        };
+        if (this.isExternal) {
+          params.headers = {
+            'X-Bk-Space-Uid': this.spaceUid,
+          };
+        }
+        const res = await axios(params).then((res) => {
           return readBlobRespToJson(res.data);
         });
 

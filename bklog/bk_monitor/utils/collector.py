@@ -5,7 +5,7 @@ import importlib
 import logging
 import time
 
-import arrow
+from django.core.cache import cache
 
 from bk_monitor.utils.metric import REGISTERED_METRICS, build_metric_id
 
@@ -18,19 +18,25 @@ class MetricCollector(object):
     """
 
     def __init__(self, collector_import_paths=None):
+        self.collector_import_paths = collector_import_paths
         if collector_import_paths and not REGISTERED_METRICS:
             for key in collector_import_paths:
                 importlib.reload(importlib.import_module(key))
 
-    def collect(self, namespaces=None, data_names=None, time_filter_enable=True):
+    def collect(self, namespaces=None, data_names=None):
         """
         采集入口
         """
-        metric_methods = self.metric_filter(
-            namespaces=namespaces, time_filter_enable=time_filter_enable, data_names=data_names
-        )
+        logger.info("[statistics_data] import path->{} receive collection task.".format(self.collector_import_paths))
+        metric_methods = self.metric_filter(namespaces=namespaces, data_names=data_names)
         metric_groups = []
         for metric_method in metric_methods:
+            metric_id = build_metric_id(
+                metric_method["data_name"],
+                metric_method["namespace"],
+                metric_method["prefix"],
+                metric_method["sub_type"],
+            )
             try:
                 begin_time = time.time()
                 metric_groups.append(
@@ -43,29 +49,20 @@ class MetricCollector(object):
                         "data_name": metric_method["data_name"],
                     }
                 )
-                metric_id = build_metric_id(
-                    metric_method["data_name"],
-                    metric_method["namespace"],
-                    metric_method["prefix"],
-                    metric_method["sub_type"],
-                )
                 logger.info(
-                    "[statistics_data] collect metric->[{}] took {} ms".format(
-                        metric_id, int((time.time() - begin_time) * 1000)
-                    ),
+                    "[statistics_data] collect metric->[{}] took {}s".format(metric_id, int(time.time() - begin_time)),
                 )
             except Exception as e:  # pylint: disable=broad-except
-                logger.exception(
-                    "[statistics_data] collect metric->[{}] failed: {}".format(metric_method["namespace"], e)
-                )
+                logger.exception("[statistics_data] collect metric->[{}] failed: {}".format(metric_id, e))
+            finally:
+                # 释放metric_id对应执行锁
+                cache.delete(metric_id)
 
         return metric_groups
 
     @classmethod
-    def metric_filter(cls, namespaces=None, data_names=None, time_filter_enable=True):
+    def metric_filter(cls, namespaces=None, data_names=None):
         metric_methods = []
-        time_now = arrow.now()
-        time_now_minute = 60 * time_now.hour + time_now.minute
         for metric_id, metric in REGISTERED_METRICS.items():
             if data_names and metric["data_name"] not in data_names:
                 continue
@@ -73,8 +70,24 @@ class MetricCollector(object):
             if namespaces and metric["namespace"] not in namespaces:
                 continue
 
-            # 如果register_metric 有设置time_filter字段以及该字段符合当前时间所属周期才会被添加
-            if time_filter_enable and metric["time_filter"] and time_now_minute % metric["time_filter"]:
+            # 根据执行锁是否过期判定是否采集，避免队列堆积时同时执行子任务
+            if not cls.is_allow_execute(metric):
                 continue
             metric_methods.append(metric)
         return metric_methods
+
+    @classmethod
+    def is_allow_execute(cls, metric):
+        metric_id = build_metric_id(**metric)
+        key = cache.get(metric_id)
+        # 执行锁未被占用则允许执行
+        if key is None:
+            cache.set(
+                metric_id,
+                True,
+                timeout=metric["time_filter"] * 60,
+            )
+            return True
+        # 否则跳过当前轮次
+        logger.info("[statistics_data] collect metric->[{}] is not allowed.".format(metric_id))
+        return False

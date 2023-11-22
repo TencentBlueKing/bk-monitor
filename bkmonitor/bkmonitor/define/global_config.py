@@ -18,6 +18,7 @@ from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
     [
+        ("UNIFY_QUERY_ROUTING_RULES", slz.ListField(label=_("统一查询路由规则"), default=[])),
         (
             "ALARM_BACKEND_CLUSTER_ROUTING_RULES",
             slz.ListField(
@@ -29,6 +30,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("FRONTEND_REPORT_DATA_ID", slz.IntegerField(label=_("前端上报数据ID"), default=0)),
         ("FRONTEND_REPORT_DATA_TOKEN", slz.CharField(label=_("前端上报数据Token"), default="")),
+        ("FRONTEND_REPORT_DATA_HOST", slz.CharField(label=_("前端上报地址"), default="")),
         ("QOS_DROP_ALARM_THREADHOLD", slz.IntegerField(label=_("流控丢弃阈值"), default=3)),
         ("QOS_DROP_ACTION_THRESHOLD", slz.IntegerField(label=_("处理动作流控丢弃阈值"), default=100)),
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label=_("处理动作流控窗口大小(秒)"), default=60)),
@@ -235,11 +237,13 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SHOW_REALTIME_STRATEGY", slz.BooleanField(label="是否默认展示策略模块实时功能", default=False)),
         ("BKDATA_CMDB_LEVEL_TABLES", slz.ListField(label=_("数据平台CMDB聚合表"), default=[])),
         ("MAX_TASK_PROCESS_NUM", slz.IntegerField(label="后台任务多进程并行数量", default=1)),
+        ("MAX_TS_METRIC_TASK_PROCESS_NUM", slz.IntegerField(label="指标后台任务多进程并行数量", default=1)),
         ("QUERY_VM_SPACE_UID_LIST", slz.ListField(label="通过 vm 查询的空间列表", default=[])),
         ("MAIL_REPORT_FULL_PAGE_WAIT_TIME", slz.IntegerField(label="邮件报表整屏渲染等待时间", default=60)),
         ("KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST", slz.ListField(label=_("容器关联关系丰富业务白名单"), default=[])),
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
         ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
+        ("BKPAAS_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
     ]
 )
 

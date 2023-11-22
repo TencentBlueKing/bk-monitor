@@ -103,7 +103,7 @@ class GetDirectoryTree(Resource):
                 folders[record["id"]].update(record)
             elif _type == "dash-db":
                 # 过滤仪表盘权限
-                if role == GrafanaRole.Anonymous and record["uid"] not in dashboard_permissions:
+                if getattr(request, "external_user", None) and record["uid"] not in dashboard_permissions:
                     continue
                 # 仪表盘是否可编辑
                 record["editable"] = (
@@ -309,7 +309,7 @@ class QuickImportDashboard(Resource):
 
         # 寻找对应仪表盘文件
         if not BkMonitorProvisioning.create_default_dashboard(
-            org_id, str(bk_biz_id), json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id
+            org_id, json_name=dash_name, folder_id=folder_id, bk_biz_id=bk_biz_id
         ):
             raise ImportError(f"bk_biz_id[{bk_biz_id}], quick import dashboard[{dash_name}] failed")
 
