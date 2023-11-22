@@ -2,7 +2,7 @@ import copy
 import re
 from collections import Counter, deque
 from dataclasses import asdict, dataclass
-from typing import List
+from typing import List, Optional
 
 from django.utils.translation import ugettext_lazy as _
 from luqum.auto_head_tail import auto_head_tail
@@ -804,3 +804,240 @@ class EnhanceLuceneAdapter(object):
         if self.is_enhanced:
             logger.info(f"Enhanced lucene query string from [{self.origin_query_string}] to [{self.query_string}]")
         return self.query_string
+
+
+class LuceneCheckerBase(object):
+    """
+    Lucene语法检查器基类
+    """
+
+    # prompt message
+    prompt_template = _("{error}, {suggestion}")
+
+    def __init__(self, query_string: str):
+        self.query_string = query_string
+        # 是否检查
+        self.is_checked: bool = False
+        # 是否可以修复, 如果不可以修复, 则不会调用fix方法
+        self.is_fixable: bool = True
+        # 是否修复
+        self.is_fixed: bool = False
+        self.error = ""
+        self.fixed_query_string = query_string
+
+    def check(self):
+        """
+        检查语法是否正确, 如果不正确, 则设置error
+        """
+        self.is_checked = True
+        return self._check()
+
+    def _check(self):
+        """
+        检查语法是否正确, 实际需要实现的方法
+        """
+        raise NotImplementedError
+
+    def prompt(self):
+        """
+        返回提示信息, 如果没有错误, 则返回空字符串, 否则返回错误信息
+        """
+        if not self.is_checked:
+            self.check()
+        if not self.error:
+            return ""
+        if self.error and self.is_fixable and not self.is_fixed:
+            self.fix()
+        if not self.is_fixable:
+            return self.prompt_template.format(error=self.error, suggestion="")
+
+        return self.prompt_template.format(error=self.error, suggestion=f"你可能想输入: {self.fixed_query_string}")
+
+    def fix(self):
+        """
+        修复语法错误, 如果修复成功, 则设置is_fixed为True, 将修复后的query_string赋值给fixed_query_string
+        """
+        self._fix()
+        self.is_fixed = True
+
+    def _fix(self):
+        """
+        修复语法错误, 实际需要实现的方法
+        """
+        raise NotImplementedError
+
+
+class LuceneParenthesesChecker(LuceneCheckerBase):
+    """
+    括号配对检查器
+    """
+
+    PAIR_LEFT = '('
+    PAIR_RIGHT = ')'
+
+    def __init__(self, query_string: str):
+        super().__init__(query_string=query_string)
+        self.more_or_less: Optional[bool] = None
+
+    def _fix(self):
+        stack = deque()
+        query_string = copy.deepcopy(self.query_string)
+        for i, char in enumerate(query_string):
+            if char == self.PAIR_LEFT:
+                stack.append((char, i))
+            elif char == self.PAIR_RIGHT:
+                if not stack:
+                    query_string = query_string[:i] + query_string[i + 1 :]
+                else:
+                    top_char, __ = stack.pop()
+                    if not self.is_matching(top_char, char):
+                        query_string = query_string[:i] + self.PAIR_LEFT + query_string[i:]
+
+        while stack:
+            stack.pop()
+            query_string += self.PAIR_RIGHT
+        self.fixed_query_string = query_string
+
+    def _check(self):
+        stack = deque()
+        for char in self.query_string:
+            if char == self.PAIR_LEFT:
+                stack.append(char)
+            elif char == self.PAIR_RIGHT:
+                if not stack:
+                    self.more_or_less = True
+                    self.error = f'多了 {self.PAIR_RIGHT}'
+                    return False
+                top_char = stack.pop()
+                if not self.is_matching(top_char, char):
+                    self.more_or_less = False
+                    self.error = f'缺少 {self.PAIR_LEFT}'
+                    return False
+        if stack:
+            self.more_or_less = False
+            self.error = f'缺少 {self.PAIR_RIGHT}'
+            return False
+        return True
+
+    def is_matching(self, left_char, right_char):
+        return left_char == self.PAIR_LEFT and right_char == self.PAIR_RIGHT
+
+
+class LuceneQuotesChecker(LuceneCheckerBase):
+    """
+    处理查询字符串中的引号使用情况的修正类
+    """
+
+    SINGLE_QUOTE = "'"
+    DOUBLE_QUOTE = '"'
+    CHARACTER_WHITESPACE = " "
+
+    def __init__(self, query_string: str):
+        super().__init__(query_string=query_string)
+
+    def _fix(self):
+        words = []
+        for word in self.query_string.split(self.CHARACTER_WHITESPACE):
+            if (
+                # 先判断 ' 和 " 是否同时出现
+                word.startswith(self.SINGLE_QUOTE)
+                and word.endswith(self.DOUBLE_QUOTE)
+                or word.startswith(self.DOUBLE_QUOTE)
+                and word.endswith(self.SINGLE_QUOTE)
+            ):
+                word = self.DOUBLE_QUOTE + word[1:-1] + self.DOUBLE_QUOTE
+            elif word.startswith(self.SINGLE_QUOTE) and not word.endswith(self.SINGLE_QUOTE):
+                word = word + self.SINGLE_QUOTE
+            elif word.startswith(self.DOUBLE_QUOTE) and not word.endswith(self.DOUBLE_QUOTE):
+                word = word + self.DOUBLE_QUOTE
+            elif word.endswith(self.SINGLE_QUOTE) and not word.startswith(self.SINGLE_QUOTE):
+                word = self.SINGLE_QUOTE + word
+            elif word.endswith(self.DOUBLE_QUOTE) and not word.startswith(self.DOUBLE_QUOTE):
+                word = self.DOUBLE_QUOTE + word
+            words.append(word)
+
+        self.fixed_query_string = self.CHARACTER_WHITESPACE.join(words)
+
+    def _check(self):
+        for word in self.query_string.split(self.CHARACTER_WHITESPACE):
+            if (
+                (word.startswith(self.SINGLE_QUOTE) and not word.endswith(self.SINGLE_QUOTE))
+                or (word.startswith(self.DOUBLE_QUOTE) and not word.endswith(self.DOUBLE_QUOTE))
+                or (word.endswith(self.SINGLE_QUOTE) and not word.startswith(self.SINGLE_QUOTE))
+                or (word.endswith(self.DOUBLE_QUOTE) and not word.startswith(self.DOUBLE_QUOTE))
+                or (word.startswith(self.SINGLE_QUOTE) and word.endswith(self.DOUBLE_QUOTE))
+                or (word.startswith(self.DOUBLE_QUOTE) and word.endswith(self.SINGLE_QUOTE))
+            ):
+                self.error = '引号不匹配'
+                return False
+        return True
+
+
+class LuceneRangeChecker(LuceneCheckerBase):
+    RESERVED_OPERATORS = ['AND', 'OR', 'NOT']
+
+    def __init__(self, query_string: str):
+        super().__init__(query_string)
+        self.sub_query_list = self.prepare()
+
+    def prepare(self):
+        # 构造模式字符串，其中的(?:...)用于标记一个子表达式开始和结束的位置，匹配满足这个子表达式规则的字符串
+        pattern = '|'.join(r'\b{}\b'.format(x) for x in self.RESERVED_OPERATORS)
+        # 使用正则来分割字符串，但是保持分割引号的存在
+        result = re.split('(' + pattern + ')', self.query_string)
+        # 去除结果中的空格部分，这样就不会有头尾空格了
+        result = [x.strip() for x in result if x.strip() != ""]
+        return result
+
+    def _check(self):
+        """
+        Checking logic for minimum sub queries with 'TO'.
+        """
+        for sub_query in self.sub_query_list:
+            if 'TO' in sub_query:
+                parts = sub_query.split('TO')
+                if len(parts) >= 2 and ":" not in parts[0]:
+                    self.error = 'RANGE语法异常, 缺少字段名'
+                    self.is_fixable = False
+                    return False
+                __, start = parts[0].split(':')
+                start = start.strip()
+                end = parts[1].strip()
+                if not (re.match(r"\[\d+|\{\d+|\{.\*", start) and re.match(r"\d+\}|\d+\]|.\*\}", end)):
+                    self.error = 'RANGE语法异常, 格式错误'
+                    return False
+
+        return True
+
+    def _fix(self):
+        """
+        Fixing logic for minimum sub queries with 'TO'.
+        """
+        # perform corrections
+        fixed_sub_query_list = []
+        for sub_query in self.sub_query_list:
+            original_sub_query = copy.deepcopy(sub_query)
+            if 'TO' in sub_query:
+                start, end = map(lambda x: x.strip(), sub_query.split('TO'))
+                field, start = start.split(':')
+                start = start.strip()
+                # 兼容 1 [ TO 2] 和 [ 1 TO ] 2 这种情况
+                if start.endswith('['):
+                    start = "[" + start[:-1].strip()
+                if end.startswith(']'):
+                    end = end[1:].strip() + "]"
+
+                if start.isdigit():
+                    start = '[' + start
+                if not start.split("[")[-1].isdigit() or not start:
+                    start = '{*'
+
+                if end.isdigit():
+                    end = end + ']'
+                elif not end:
+                    end = '*}'
+
+                fixed_sub_query_list.append(f'{field}: {start} TO {end}')
+            else:
+                fixed_sub_query_list.append(original_sub_query)
+        self.fixed_query_string = ' '.join(fixed_sub_query_list)

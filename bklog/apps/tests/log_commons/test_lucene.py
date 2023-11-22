@@ -11,6 +11,9 @@ from apps.log_search.serializers import (
 from apps.utils.lucene import (
     CaseInsensitiveLogicalEnhanceLucene,
     EnhanceLuceneAdapter,
+    LuceneParenthesesChecker,
+    LuceneQuotesChecker,
+    LuceneRangeChecker,
     LuceneSyntaxResolver,
     OperatorEnhanceLucene,
     ReservedLogicalEnhanceLucene,
@@ -257,6 +260,49 @@ ENHANCE_UPDATE_QUERY_PARAMS = [
 
 ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR title: "hello" AND log: \"not\""""
 
+# =================================== TEST LUCENE CHECKER =================================== #
+PARENTHESES_CHECK_TEST_CASES = [
+    {
+        "keyword": """log: ("INFO" and (a or b""",
+        "check_result": False,
+        "prompt": """缺少 ), 你可能想输入: log: ("INFO" and (a or b))""",
+    },
+    {
+        "keyword": """log: "INFO" and a or b)""",
+        "check_result": False,
+        "prompt": """多了 ), 你可能想输入: log: "INFO" and a or b""",
+    },
+]
+QUOTE_CHECK_TEST_CASES = [
+    {
+        "keyword": """log: "INFO' and a or 'b" """,
+        "check_result": False,
+        "prompt": """引号不匹配, 你可能想输入: log: "INFO" and a or "b" """,
+    },
+    {
+        "keyword": """log: INFO' and a or b" """,
+        "check_result": False,
+        "prompt": """引号不匹配, 你可能想输入: log: 'INFO' and a or "b" """,
+    },
+]
+RANGE_CHECK_TEST_CASES = [
+    {
+        "keyword": """log: [100 TO 200 OR time: [100 TO 200] AND id: TO 100""",
+        "check_result": False,
+        "prompt": """RANGE语法异常, 格式错误, 你可能想输入: log: [100 TO 200] OR time: [100 TO 200] AND id: {* TO 100]""",
+    },
+    {
+        "keyword": """log: [100 TO ] 200 OR time: [100 TO 200]""",
+        "check_result": False,
+        "prompt": """RANGE语法异常, 格式错误, 你可能想输入: log: [100 TO 200] OR time: [100 TO 200]""",
+    },
+    {
+        "keyword": """log: [100 TO 200]""",
+        "check_result": True,
+        "prompt": "",
+    },
+]
+
 
 class TestLucene(TestCase):
     def setUp(self) -> None:  # pylint: disable=invalid-name
@@ -322,6 +368,10 @@ class TestEnhanceLucene(TestCase):
 
 
 class TestFavoriteWithEnhanceLucene(TestCase):
+    """
+    测试增强Lucene Query在拆分关键字、更新关键字、检查关键字的行为
+    """
+
     def setUp(self) -> None:  # pylint: disable=invalid-name
         self.maxDiff = None  # pylint: disable=invalid-name
 
@@ -351,3 +401,38 @@ class TestFavoriteWithEnhanceLucene(TestCase):
         )
         slz.is_valid(raise_exception=True)
         self.assertEqual(FavoriteHandler().generate_query_by_ui(**slz.validated_data), ENHANCE_EXPECT_NEW_QUERY)
+
+
+class TestLuceneChecker(TestCase):
+    """
+    测试Lucene检查器
+    """
+
+    def setUp(self) -> None:  # pylint: disable=invalid-name
+        self.maxDiff = None  # pylint: disable=invalid-name
+
+    def test_pair_checker(self):
+        for case in PARENTHESES_CHECK_TEST_CASES:
+            keyword = case["keyword"]
+            checker = LuceneParenthesesChecker(keyword)
+            self.assertEqual(checker.check(), case["check_result"])
+            if not checker.check():
+                checker.fix()
+                self.assertEqual(checker.prompt(), case["prompt"])
+
+        for case in QUOTE_CHECK_TEST_CASES:
+            keyword = case["keyword"]
+            checker = LuceneQuotesChecker(keyword)
+            self.assertEqual(checker.check(), case["check_result"])
+            if not checker.check():
+                checker.fix()
+                self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_range_checker(self):
+        for case in RANGE_CHECK_TEST_CASES:
+            keyword = case["keyword"]
+            checker = LuceneRangeChecker(keyword)
+            self.assertEqual(checker.check(), case["check_result"])
+            if not checker.check():
+                checker.fix()
+                self.assertEqual(checker.prompt(), case["prompt"])
