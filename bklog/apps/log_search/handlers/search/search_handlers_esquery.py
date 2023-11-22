@@ -25,10 +25,9 @@ import datetime
 import functools
 import hashlib
 import json
-from operator import itemgetter
+import operator
 from typing import Any, Dict, List, Union
 
-import pytz
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
@@ -71,7 +70,6 @@ from apps.log_search.exceptions import (
     BaseSearchSortListException,
     IntegerErrorException,
     IntegerMaxErrorException,
-    MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
     SearchNotTimeFieldType,
@@ -96,7 +94,6 @@ from apps.log_search.models import (
     LogIndexSet,
     LogIndexSetData,
     Scenario,
-    StorageClusterRecord,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
     StorageClusterRecord,
@@ -662,7 +659,7 @@ class SearchHandler(object):
                         buckets_info[_key] = bucket
                         continue
                     buckets_info[_key]["doc_count"] += bucket["doc_count"]
-                sorted_buckets = sorted(list(buckets_info.values()), key=itemgetter("key"))
+                sorted_buckets = sorted(list(buckets_info.values()), key=operator.itemgetter("key"))
                 merge_result["aggregations"]["group_by_histogram"]["buckets"] = sorted_buckets
         except Exception as e:
             logger.error(f"[_multi_search] error -> e: {e}")
@@ -670,21 +667,37 @@ class SearchHandler(object):
 
         return merge_result
 
-    def _sort_compare(self, x, y):
+    def _sort_compare(self, x: Dict[str, Any], y: Dict[str, Any]) -> int:
         """
         排序比较函数
         """
+
+        def _get_value(keys: str, data: Dict[str, Any]) -> Any:
+            try:
+                _value = functools.reduce(operator.getitem, keys.split("."), data)
+            except (KeyError, TypeError):
+                _value = None
+            return _value
+
         for sort_info in self.sort_list:
             field_name, order = sort_info
-            if field_name not in x.get("_source") or field_name not in y.get("_source"):
+            if "." in field_name:
+                _x_value = _get_value(field_name, x["_source"])
+                _y_value = _get_value(field_name, y["_source"])
+            else:
+                _x_value = x["_source"].get(field_name, None)
+                _y_value = y["_source"].get(field_name, None)
+            if _x_value is None or _y_value is None:
                 continue
-            _x_value = x["_source"][field_name]
-            _y_value = y["_source"][field_name]
-            if _x_value != _y_value:
-                if order == "desc":
-                    return (_x_value < _y_value) - (_x_value > _y_value)
-                else:
-                    return (_x_value > _y_value) - (_x_value < _y_value)
+
+            try:
+                if _x_value != _y_value:
+                    if order == "desc":
+                        return (_x_value < _y_value) - (_x_value > _y_value)
+                    else:
+                        return (_x_value > _y_value) - (_x_value < _y_value)
+            except TypeError:
+                continue
         return 0
 
     def scroll_search(self):
@@ -2043,15 +2056,15 @@ class UnionSearchHandler(object):
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=itemgetter(list(time_fields)[0]), reverse=True)
+                result_log_list = sorted(result_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True)
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=itemgetter(list(time_fields)[0]), reverse=True
+                    result_origin_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True
                 )
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=itemgetter("unionSearchTimeStamp"), reverse=True)
+                result_log_list = sorted(result_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True)
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=itemgetter("unionSearchTimeStamp"), reverse=True
+                    result_origin_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True
                 )
         else:
             result_log_list = sorted(result_log_list, key=functools.cmp_to_key(self._sort_compare))
@@ -2084,17 +2097,39 @@ class UnionSearchHandler(object):
 
         return res
 
-    def _sort_compare(self, x, y):
+    def _sort_compare(self, x: Dict[str, Any], y: Dict[str, Any]) -> int:
         """
         排序比较函数
         """
+
+        def _get_value(keys: str, data: Dict[str, Any]) -> Any:
+            try:
+                _value = functools.reduce(operator.getitem, keys.split("."), data)
+            except (KeyError, TypeError):
+                _value = None
+            return _value
+
         for sort_info in self.sort_list:
             field_name, order = sort_info
-            if x[field_name] != y[field_name]:
-                if order == "desc":
-                    return (x[field_name] < y[field_name]) - (x[field_name] > y[field_name])
-                else:
-                    return (x[field_name] > y[field_name]) - (x[field_name] < y[field_name])
+            if "." in field_name:
+                _x_value = _get_value(field_name, x)
+                _y_value = _get_value(field_name, y)
+            else:
+                _x_value = x.get(field_name, None)
+                _y_value = y.get(field_name, None)
+
+            if _x_value is None or _y_value is None:
+                continue
+
+            try:
+                if _x_value != _y_value:
+                    if order == "desc":
+                        return (_x_value < _y_value) - (_x_value > _y_value)
+                    else:
+                        return (_x_value > _y_value) - (_x_value < _y_value)
+            except TypeError:
+                continue
+
         return 0
 
     def _iam_check(self):
