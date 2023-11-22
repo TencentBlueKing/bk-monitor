@@ -339,6 +339,7 @@ export default {
           show = (item.space_name.toLocaleLowerCase().indexOf(keyword) > -1
         || item.py_text.toLocaleLowerCase().indexOf(keyword) > -1
         // || `${item.id}`.includes(keyword));
+        || item.space_uid.toLocaleLowerCase().indexOf(keyword) > -1
         || `${item.space_code}`.includes(keyword));
         }
         if (show) {
