@@ -35,9 +35,11 @@ from apps.utils.task import high_priority_task
 def sync_index_set_mapping_snapshot():
     logger.info("[sync_index_set_mapping_snapshot] task publish start")
     # 仅更新近一周用户检索过的索引集快照
-    index_set_ids = UserIndexSetSearchHistory.objects.filter(
-        created_at__gte=datetime.now() - timedelta(days=7)
-    ).values_list("index_set_id", flat=True)
+    index_set_ids = list(
+        UserIndexSetSearchHistory.objects.filter(created_at__gte=datetime.now() - timedelta(days=7)).values_list(
+            "index_set_id", flat=True
+        )
+    )
     index_set_list = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
 
     for index_set in index_set_list:
