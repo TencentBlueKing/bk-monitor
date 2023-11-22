@@ -25,10 +25,9 @@ import datetime
 import functools
 import hashlib
 import json
-from operator import itemgetter
+import operator
 from typing import Any, Dict, List, Union
 
-import pytz
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
@@ -71,7 +70,6 @@ from apps.log_search.exceptions import (
     BaseSearchSortListException,
     IntegerErrorException,
     IntegerMaxErrorException,
-    MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
     SearchNotTimeFieldType,
@@ -96,11 +94,11 @@ from apps.log_search.models import (
     LogIndexSet,
     LogIndexSetData,
     Scenario,
-    StorageClusterRecord,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
     StorageClusterRecord,
 )
+from apps.log_search.utils import sort_func
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
@@ -649,7 +647,7 @@ class SearchHandler(object):
             hits = merge_result.get("hits", {}).get("hits", [])
             buckets = merge_result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
             if hits:
-                sorted_hits = sorted(hits, key=functools.cmp_to_key(self._sort_compare))
+                sorted_hits = sort_func(data=hits, sort_list=self.sort_list, key_func=lambda x: x["_source"])
                 merge_result["hits"]["hits"] = sorted_hits[self.start : (once_size + self.start)]
 
             # buckets 排序合并处理
@@ -662,30 +660,13 @@ class SearchHandler(object):
                         buckets_info[_key] = bucket
                         continue
                     buckets_info[_key]["doc_count"] += bucket["doc_count"]
-                sorted_buckets = sorted(list(buckets_info.values()), key=itemgetter("key"))
+                sorted_buckets = sorted(list(buckets_info.values()), key=operator.itemgetter("key"))
                 merge_result["aggregations"]["group_by_histogram"]["buckets"] = sorted_buckets
         except Exception as e:
             logger.error(f"[_multi_search] error -> e: {e}")
             raise MultiSearchErrorException()
 
         return merge_result
-
-    def _sort_compare(self, x, y):
-        """
-        排序比较函数
-        """
-        for sort_info in self.sort_list:
-            field_name, order = sort_info
-            if field_name not in x.get("_source") or field_name not in y.get("_source"):
-                continue
-            _x_value = x["_source"][field_name]
-            _y_value = y["_source"][field_name]
-            if _x_value != _y_value:
-                if order == "desc":
-                    return (_x_value < _y_value) - (_x_value > _y_value)
-                else:
-                    return (_x_value > _y_value) - (_x_value < _y_value)
-        return 0
 
     def scroll_search(self):
         """
@@ -2043,19 +2024,19 @@ class UnionSearchHandler(object):
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=itemgetter(list(time_fields)[0]), reverse=True)
+                result_log_list = sorted(result_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True)
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=itemgetter(list(time_fields)[0]), reverse=True
+                    result_origin_log_list, key=operator.itemgetter(list(time_fields)[0]), reverse=True
                 )
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=itemgetter("unionSearchTimeStamp"), reverse=True)
+                result_log_list = sorted(result_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True)
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=itemgetter("unionSearchTimeStamp"), reverse=True
+                    result_origin_log_list, key=operator.itemgetter("unionSearchTimeStamp"), reverse=True
                 )
         else:
-            result_log_list = sorted(result_log_list, key=functools.cmp_to_key(self._sort_compare))
-            result_origin_log_list = sorted(result_origin_log_list, key=functools.cmp_to_key(self._sort_compare))
+            result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
+            result_origin_log_list = sort_func(data=result_origin_log_list, sort_list=self.sort_list)
 
         # 处理分页
         result_log_list = result_log_list[: self.search_dict.get("size")]
@@ -2083,19 +2064,6 @@ class UnionSearchHandler(object):
         self._save_union_search_history(res)
 
         return res
-
-    def _sort_compare(self, x, y):
-        """
-        排序比较函数
-        """
-        for sort_info in self.sort_list:
-            field_name, order = sort_info
-            if x[field_name] != y[field_name]:
-                if order == "desc":
-                    return (x[field_name] < y[field_name]) - (x[field_name] > y[field_name])
-                else:
-                    return (x[field_name] > y[field_name]) - (x[field_name] < y[field_name])
-        return 0
 
     def _iam_check(self):
         """
