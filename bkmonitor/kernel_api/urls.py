@@ -16,8 +16,8 @@ import six
 from django.conf import settings
 from django.conf.urls import include, url
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import path
-from monitor_web.grafana import views as grafana_views
 from rest_framework.documentation import include_docs_urls
 from six.moves import map
 
@@ -25,6 +25,7 @@ from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkmonitor.utils.common_utils import package_contents
 from core.drf_resource.routers import ResourceRouter
 from kernel_api import views
+from monitor_web.grafana import views as grafana_views
 
 try:
     from kernel_api import extend_views
@@ -88,7 +89,12 @@ router = ResourceRouter()
 router.register_module(grafana_views)
 
 
+def ping(request):
+    return HttpResponse("pong")
+
+
 urlpatterns = [
+    url(r"^ping$", ping),
     url(r"^account/", include("blueapps.account.urls")),
     path(r"admin/", admin.site.urls),
     url(r"^docs/", include_docs_urls(title="My API title", public=True)),
