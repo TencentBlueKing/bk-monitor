@@ -1089,7 +1089,8 @@ class AssignGroupRuleParser(BaseConfigParser):
             actions = []
             for action in rule.pop("actions", []):
                 if action["action_type"] == "notice":
-                    rule["notice_enabled"] = action.pop("is_enabled", False)
+                    if not action.pop("is_enabled"):
+                        rule["notice_enabled"] = False
                     rule["upgrade_config"] = action["upgrade_config"]
                     rule["upgrade_config"]["enabled"] = rule["upgrade_config"].pop("is_enabled", False)
                     rule["upgrade_config"]["interval"] = rule["upgrade_config"].pop("upgrade_interval", 1440)
