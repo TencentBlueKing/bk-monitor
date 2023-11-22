@@ -265,7 +265,7 @@ export default class AppList extends tsc<{}> {
     this.tableData.loading = false;
     this.tableData.data = listData?.data || [];
     this.tableData.columns = [
-      ...(listData?.columns || {}),
+      ...(listData?.columns || []),
       ...[
         {
           id: 'enable',

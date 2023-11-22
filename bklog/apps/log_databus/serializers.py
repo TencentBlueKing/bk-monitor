@@ -21,6 +21,12 @@ the project delivered to anyone in the future.
 """
 import base64
 
+from django.conf import settings
+from django.utils.translation import ugettext
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError as SlzValidationError
+
 from apps.exceptions import ValidationError
 from apps.generic import DataModelSerializer
 from apps.log_commons.serializers import BkIpSerializer
@@ -47,13 +53,9 @@ from apps.log_search.constants import (
     FieldBuiltInEnum,
     SyslogProtocolEnum,
 )
+from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 from bkm_space.utils import space_uid_to_bk_biz_id
-from django.conf import settings
-from django.utils.translation import ugettext
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError as SlzValidationError
 
 
 class LabelsSerializer(serializers.Serializer):
@@ -908,14 +910,14 @@ class RestoreArchiveSerlalizer(serializers.Serializer):
     archive_config_id = serializers.IntegerField(label=_("业务ID"), required=True)
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     index_set_name = serializers.CharField(label=_("索引集名称"), required=True)
-    start_time = serializers.DateTimeField(required=True, label=_("数据开始时间"), format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=True, label=_("数据结束时间"), format="%Y-%m-%d %H:%M:%S")
-    expired_time = serializers.DateTimeField(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=True, label=_("数据开始时间"), format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=True, label=_("数据结束时间"), format="%Y-%m-%d %H:%M:%S")
+    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
     notice_user = serializers.ListField(required=True, label=_("通知人"))
 
 
 class UpdateRestoreArchiveSerlalizer(serializers.Serializer):
-    expired_time = serializers.DateTimeField(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
+    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
 
 
 class DeleteRestoreArchiveSerlalizer(serializers.Serializer):

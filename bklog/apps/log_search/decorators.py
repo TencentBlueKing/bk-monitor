@@ -23,13 +23,13 @@ import functools
 import time
 
 from apps.log_search.models import UserIndexSetSearchHistory
+from apps.utils.local import get_request_external_username
 
 
 # 接口耗时装饰器
 def search_history_record(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-
         # 接口耗时
         start_time = time.time()
         result = func(*args, **kwargs)
@@ -40,12 +40,17 @@ def search_history_record(func):
         result.data["took"] = time_consume
         history_obj = result.data.get("history_obj")
         if history_obj:
-            UserIndexSetSearchHistory.objects.create(
+            obj = UserIndexSetSearchHistory.objects.create(
                 index_set_id=history_obj["index_set_id"],
                 params=history_obj["params"],
                 search_type=history_obj["search_type"],
                 duration=time_consume,
             )
+            # 当外部用户检索的时候, 将记录设置为外部用户
+            external_username = get_request_external_username()
+            if external_username:
+                obj.created_by = external_username
+                obj.save()
             del result.data["history_obj"]
         return result
 
