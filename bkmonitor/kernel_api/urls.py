@@ -13,6 +13,7 @@ specific language governing permissions and limitations under the License.
 import os
 
 import six
+from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.conf.urls import include, url
 from django.contrib import admin
@@ -89,6 +90,7 @@ router = ResourceRouter()
 router.register_module(grafana_views)
 
 
+@login_exempt
 def ping(request):
     return HttpResponse("pong")
 

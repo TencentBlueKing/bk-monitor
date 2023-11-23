@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import Dict, List
 
-from core.statistics.metric import Metric
+from core.statistics.metric import MC, Metric
 from core.statistics.storage import Storage
 
 
@@ -21,8 +21,8 @@ class Collector:
         for var_name in dir(self):
             if var_name == "registry":
                 continue
-            metric_func = getattr(self, var_name)
-            if callable(metric_func) and hasattr(metric_func, "metric"):
+            if var_name in MC.register_metrics:
+                metric_func = getattr(self, var_name)
                 functions[metric_func.metric.name] = metric_func
         return functions
 
