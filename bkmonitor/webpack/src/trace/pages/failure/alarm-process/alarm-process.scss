@@ -1,0 +1,115 @@
+.alarm-process {
+  padding: 16px 0px 16px 0px;
+  background: #ffffff;
+  .alarm-process-search {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-right: 12px;
+    padding-left: 16px;
+    .bk-input--default {
+      flex: 1;
+    }
+    .alarm-process-search-setting {
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      background: #ffffff;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      color: #989ca7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 8px;
+    }
+  }
+  .alarm-process-list-line {
+    width: 1px;
+    background: #dcdee5;
+    border-radius: 1px;
+    height: 36px;
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    top: 32px;
+  }
+  .alarm-process-list {
+    .alarm-process-item {
+      display: flex;
+      flex-direction: row;
+      padding: 10px 16px;
+      cursor: pointer;
+      &:hover {
+        background: #f5f7fa;
+      }
+      &.active {
+        background: #f0f5ff;
+      }
+    }
+    .alarm-process-item-avatar {
+      margin-right: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #c4c6cc;
+      position: relative;
+      // img {
+      //   width: 30px;
+      //   height: 30px;
+      //   border: none;
+      // }
+    }
+    .alarm-process-item-content {
+      p {
+        line-height: 20px;
+        padding: 0px;
+        margin: 0px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        &:first-child {
+          display: flex;
+          align-items: center;
+          height: 30px;
+        }
+      }
+      .alarm-process-item-time {
+        font-size: 12px;
+        color: #63656e;
+      }
+      .alarm-process-item-title {
+        font-size: 12px;
+        color: #000000;
+        margin-left: 8px;
+      }
+    }
+  }
+}
+
+.alarm-process-search-setting-popover {
+  padding: 7px 0px !important;
+  .bk-node-row:has(.node-line) {
+    margin-bottom: 4px;
+  }
+  .bk-tree-node .bk-node-action {
+    margin-right: 9px;
+  }
+  .alarm-process-search-setting-tree-node {
+    margin-left: 5px;
+    font-size: 12px;
+    color: #63656e;
+    i {
+      margin-right: 5px;
+      font-size: 16px;
+    }
+    .node-line {
+      position: absolute;
+      right: 8px;
+      bottom: -2px;
+      width: calc(100% - 14px);
+      height: 1px;
+      background: #dcdee5;
+    }
+  }
+}

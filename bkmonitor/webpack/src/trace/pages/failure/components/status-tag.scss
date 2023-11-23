@@ -1,0 +1,21 @@
+.status-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+
+  .status-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    padding: 0 5px;
+    color: #63656e;
+    background-color: #f0f1f5;
+  }
+  .item-icon {
+    font-size: 14px;
+    margin-right: 3px;
+  }
+}

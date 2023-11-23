@@ -26,6 +26,7 @@
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import AlarmDetail from '../alarm-detail/alarm-detail';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureTopo from '../failure-topo/failure-topo';
 
