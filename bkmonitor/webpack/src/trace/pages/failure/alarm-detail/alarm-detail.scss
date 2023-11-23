@@ -1,0 +1,167 @@
+@import '../../../static/scss/mixin.scss';
+$statusColors: #ea3635 #ff9c00 #699df4;
+
+.alarm-detail {
+  .alarm-detail-table {
+    .cell {
+      display: flex !important;
+      height: 56px !important;
+      line-height: 56px !important;
+    }
+    .id-column {
+      display: inline-block;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .time-column {
+      height: 40px;
+      line-height: 20px;
+    }
+    .name-column {
+      .root-cause {
+        padding: 0px 3px;
+        height: 14px;
+        background: #f55555;
+        border-radius: 7px;
+        color: #ffffff;
+        font-size: 12px;
+        margin-right: 3px;
+      }
+    }
+    .status-column {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+
+      .status-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 22px;
+        padding: 0 5px;
+        color: #63656e;
+        background-color: #f0f1f5;
+      }
+      .item-icon {
+        font-size: 14px;
+        margin-right: 3px;
+      }
+      .operate-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 0 15px;
+        margin: 0 -15px;
+        background-color: #f0f1f5;
+
+        &.en-lang {
+          padding: 0 30px;
+          margin: 0 -30px;
+        }
+
+        &-item {
+          margin: 0 10px;
+
+          @include icon-size(20px, true);
+
+          &.icon-chuli {
+            @include icon-size(18px, true);
+          }
+
+          &.is-disable {
+            color: #c4c6cc;
+            cursor: not-allowed;
+          }
+        }
+
+        .operate-more {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+
+          .icon-mc-more {
+            font-size: 18px;
+            color: #63656e;
+          }
+
+          &:hover {
+            cursor: pointer;
+            background: #ffffff;
+          }
+
+          &.active {
+            background: #ffffff;
+          }
+        }
+      }
+    }
+    .event-status {
+      height: 16px;
+      padding-left: 4px;
+      line-height: 16px;
+      color: #3a84ff;
+      cursor: pointer;
+      border-left: 4px solid #699df4;
+
+      @for $i from 1 through length($statusColors) {
+        &.status-#{$i} {
+          border-left-color: nth($statusColors, $i);
+        }
+      }
+    }
+  }
+}
+
+.alarm-detail-table-options-more-items {
+  display: flex;
+  flex-direction: column;
+  min-width: 68px;
+  font-size: 12px;
+  color: #63656e;
+
+  .more-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    height: 32px;
+    padding: 0 12px;
+    white-space: nowrap;
+    background: #fff;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background: #f0f1f5;
+    }
+
+    .icon-monitor {
+      width: 16px;
+      margin-right: 4px;
+      font-size: 14px;
+    }
+
+    .icon-fenpai {
+      font-size: 12px;
+    }
+
+    &.is-disable {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.alarm-detail-table-more-popover {
+  padding: 6px 0px !important;
+}

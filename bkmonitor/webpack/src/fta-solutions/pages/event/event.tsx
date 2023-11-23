@@ -29,7 +29,7 @@
 import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Mixins, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import { Alert, BigTree, Checkbox, Icon, Pagination, Popover, Select, Tab, TabPanel } from 'bk-magic-vue';
+import { Alert, BigTree, Checkbox, Icon, Pagination, Popover, Select, Tab, TabPanel, Transition } from 'bk-magic-vue';
 import moment from 'moment';
 
 import {
@@ -83,6 +83,7 @@ import AlertAnalyze from './alert-analyze';
 import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import EventTable, { IShowDetail } from './event-table';
+import AlarmTable from './fault-table';
 import FilterInput from './filter-input';
 import MonitorDrag from './monitor-drag';
 
@@ -230,6 +231,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   @InjectReactive('refleshImmediate') readonly panelRefleshImmediate: string;
 
   @Ref('filterInput') filterInputRef: FilterInput;
+
   commonFilterData: ICommonTreeItem[] = [];
   /* 默认事件范围为近24小时 */
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
@@ -378,7 +380,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   get hasSearchParams() {
     return !!(this.queryString || Object.values(this.condition).some(item => item.length));
   }
-
+  /** 以父类为维度打平所有id,用于左侧菜单展开的判断 */
+  get commonFilterDataIdMap() {
+    const idMap = {};
+    this.commonFilterData.forEach(item => {
+      idMap[item.id] = [item.id].concat(item.children.map(child => child.id));
+    });
+    return idMap;
+  }
   @Watch('panelTimeRange')
   // 数据时间间隔
   handlePanelTimeRangeChange(v: TimeRangeType) {
@@ -742,7 +751,53 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       code
     };
   }
-
+  /**
+   * @description: 获取故障列表信息
+   * @param {*} onlyOverview 是否overview模式
+   * @return {*}
+   */
+  async handleGetSearchFaultList(onlyOverview = false) {
+    const {
+      aggs,
+      alerts: list,
+      overview,
+      total,
+      code
+    } = await searchAlert(this.handleGetSearchParams(onlyOverview), { needRes: true, needMessage: false })
+      .then(res => {
+        !onlyOverview && (this.filterInputStatus = 'success');
+        return res.data || {};
+      })
+      .catch(({ message, code }) => {
+        if (code !== grammaticalErrorCode) {
+          this.$bkMessage({ message, theme: 'error' });
+        }
+        return {
+          aggs: [],
+          alerts: [],
+          overview: [],
+          total: 0,
+          code
+        };
+      });
+    if (list?.length && !onlyOverview) {
+      const ids = list.map(item => item.id);
+      this.handleGetEventRelateInfo(ids);
+      this.handleGetEventCount(ids);
+    }
+    return {
+      aggs,
+      list: list?.map(item => ({
+        ...item,
+        extend_info: '',
+        event_count: '--',
+        bizName: this.allowedBizList?.find(set => +set.id === +item.bk_biz_id)?.name || '--'
+      })),
+      overview,
+      total,
+      code
+    };
+  }
   /**
    * @description: 获取告警列表信息
    * @param {*} onlyOverview 是否overview模式
@@ -973,11 +1028,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @return {*}
    */
   async handleGetFilterData() {
-    const [{ overview }, { overview: actionOverview }] = await Promise.all([
+    const [{ overview }, { overview: actionOverview }, { overview: faultOverview }] = await Promise.all([
       this.handleGetSearchAlertList(true),
-      this.handleGetSearchActionList(true)
+      this.handleGetSearchActionList(true),
+      this.handleGetSearchFaultList(true)
     ]).catch(() => [{ overview: [] }, { overview: [] }]);
-    this.commonFilterData = [overview, { ...actionOverview }];
+    this.commonFilterData = [overview, { ...actionOverview }, { ...faultOverview }];
     if (!this.activeFilterId) {
       this.activeFilterId = overview.id;
       this.activeFilterName = overview.name;
@@ -1993,15 +2049,22 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     );
   }
   filterListComponent(item: ICommonTreeItem) {
+    const isOpen = this.commonFilterDataIdMap[item.id].includes(this.activeFilterId);
     return [
       <div
         class={['list-title', { 'item-active': item.id === this.activeFilterId }]}
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >
+        <i class={['bk-icon', isOpen ? 'icon-down-shape' : 'icon-right-shape']}></i>
         {item.name}
         <span class='item-count'>{item.count}</span>
       </div>,
-      <ul class='set-list'>
+      // <Transition name='collapse'>
+      <ul
+        key={item.id}
+        class='set-list'
+        v-show={isOpen}
+      >
         {item?.children?.map?.(set =>
           filterIconMap[set.id] ? (
             <li
@@ -2019,6 +2082,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           ) : undefined
         ) || undefined}
       </ul>
+      // </Transition>
     ];
   }
 
@@ -2043,7 +2107,51 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       return;
     }
   }
-
+  renderList() {
+    return this.activeFilterId === 'fault' ? (
+      <AlarmTable
+        doLayout={this.activePanel}
+        bizIds={this.bizIds}
+        tableData={this.tableData}
+        pagination={this.pagination}
+        loading={this.tableLoading}
+        searchType={this.searchType}
+        selectedList={this.selectedList}
+        onBatchSet={this.handleBatchAlert}
+        onPageChange={this.handleTabelPageChange}
+        onLimitChange={this.handleTableLimitChange}
+        onShowDetail={this.handleShowDetail}
+        onSelectChange={this.handleTableSelecChange}
+        onAlertConfirm={this.handleAlertConfirm}
+        onQuickShield={this.handleQuickShield}
+        onSortChange={this.handleSortChange}
+        onManualProcess={this.handleManualProcess}
+        onChatGroup={this.handleChatGroup}
+        onAlarmDispatch={this.handleAlarmDispatch}
+      />
+    ) : (
+      <EventTable
+        doLayout={this.activePanel}
+        bizIds={this.bizIds}
+        tableData={this.tableData}
+        pagination={this.pagination}
+        loading={this.tableLoading}
+        searchType={this.searchType}
+        selectedList={this.selectedList}
+        onBatchSet={this.handleBatchAlert}
+        onPageChange={this.handleTabelPageChange}
+        onLimitChange={this.handleTableLimitChange}
+        onShowDetail={this.handleShowDetail}
+        onSelectChange={this.handleTableSelecChange}
+        onAlertConfirm={this.handleAlertConfirm}
+        onQuickShield={this.handleQuickShield}
+        onSortChange={this.handleSortChange}
+        onManualProcess={this.handleManualProcess}
+        onChatGroup={this.handleChatGroup}
+        onAlarmDispatch={this.handleAlarmDispatch}
+      />
+    );
+  }
   render() {
     return (
       <div class='event-center-page'>
@@ -2255,26 +2363,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 <div class='table-content'>
                   <keep-alive>
                     {this.activePanel === 'list' ? (
-                      <EventTable
-                        doLayout={this.activePanel}
-                        bizIds={this.bizIds}
-                        tableData={this.tableData}
-                        pagination={this.pagination}
-                        loading={this.tableLoading}
-                        searchType={this.searchType}
-                        selectedList={this.selectedList}
-                        onBatchSet={this.handleBatchAlert}
-                        onPageChange={this.handleTabelPageChange}
-                        onLimitChange={this.handleTableLimitChange}
-                        onShowDetail={this.handleShowDetail}
-                        onSelectChange={this.handleTableSelecChange}
-                        onAlertConfirm={this.handleAlertConfirm}
-                        onQuickShield={this.handleQuickShield}
-                        onSortChange={this.handleSortChange}
-                        onManualProcess={this.handleManualProcess}
-                        onChatGroup={this.handleChatGroup}
-                        onAlarmDispatch={this.handleAlarmDispatch}
-                      />
+                      this.renderList()
                     ) : (
                       <AlertAnalyze
                         bizIds={this.bizIds}

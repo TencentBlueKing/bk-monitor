@@ -46,22 +46,43 @@
       display: flex;
       flex-direction: column;
       width: 100%;
-      padding: 16px 0;
+      padding-top: 10px;
+      padding-bottom: 16px;
       font-size: 14px;
       color: #63656e;
       border-bottom: 1px solid #dcdee5;
-
       .list-title {
         position: relative;
         display: flex;
-        flex: 0 0 36px;
+        flex: 0 0 32px;
         align-items: center;
-        height: 36px;
-        padding: 0 24px 0 20px;
+        height: 32px;
+        padding: 0 12px 0 16px;
         margin: 0;
-
+        i {
+          margin-right: 5px;
+          font-size: 12px;
+        }
         @include item-active();
+
         @include item-count(#63656e);
+
+        .item-count {
+          height: 16px;
+          background: #f0f1f5;
+          border-radius: 100%;
+          padding: 0px 6px;
+          color: #979ba5;
+          text-align: center;
+          line-height: 16px;
+          font-size: 12px;
+        }
+        &.item-active {
+          .item-count {
+            background: #a3c5fd;
+            color: #ffffff;
+          }
+        }
 
         &:hover {
           @include item-hover();
@@ -72,28 +93,54 @@
         display: flex;
         flex: 1;
         flex-direction: column;
+        position: relative;
+        margin-bottom: 6px;
 
+        &::before {
+          content: '';
+          width: 2px;
+          height: 100%;
+          background: #dcdee5;
+          position: absolute;
+          left: 20px;
+          transform: translateX(1px) scaleX(0.5);
+          z-index: 1;
+        }
         &-item {
           position: relative;
           display: flex;
-          flex: 0 0 36px;
+          flex: 0 0 32px;
           align-items: center;
-          height: 36px;
-          padding: 0 24px 0 25px;
+          height: 32px;
+          padding: 0 12px 0 32px;
 
           @include item-active();
           @include item-count();
 
           .item-icon {
             margin-right: 8px;
-
             @include icon-size(16px);
           }
 
           &:hover {
             @include item-hover();
           }
-
+          .item-count {
+            height: 16px;
+            background: #f0f1f5;
+            border-radius: 100%;
+            padding: 0px 6px;
+            color: #979ba5;
+            text-align: center;
+            line-height: 16px;
+            font-size: 12px;
+          }
+          &.item-active {
+            .item-count {
+              background: #a3c5fd;
+              color: #ffffff;
+            }
+          }
           .icon-inform-circle {
             position: relative;
             font-size: 12px;
@@ -107,6 +154,9 @@
             }
           }
         }
+      }
+      .set-list:last-child {
+        margin: 0px;
       }
     }
 
@@ -128,8 +178,8 @@
       }
 
       .search-group {
-        margin-top: 16px;
-        margin-right: 18px;
+        margin-top: 8px;
+        margin-right: 12px;
 
         .collapse-item {
           margin-bottom: 10px;
@@ -195,11 +245,11 @@
     .content-header {
       z-index: 9;
       display: flex;
-      flex: 0 0 42px;
+      flex: 0 0 52px;
       align-items: center;
-      height: 42px;
+      height: 52px;
       background-color: white;
-      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
       .set-filter {
         margin: 0 5px 0 20px;
@@ -231,7 +281,7 @@
         height: 200px;
         margin: 16px 24px 0;
         background-color: white;
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
       }
 
       &-filter {
@@ -352,7 +402,7 @@
         margin: 16px 24px;
         background-color: white;
         border-radius: 2px;
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
         .bk-tab {
           margin: 0 24px;

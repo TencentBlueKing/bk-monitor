@@ -422,5 +422,8 @@ export default {
   原始命令: 'Original Command',
   无参数命令: 'Command Without Parameters',
   不储存: 'Do Not Save',
-  指定DB: 'Specify DB'
+  指定DB: 'Specify DB',
+  告警明细: 'Alarm Details',
+  故障流转: 'Fault Transfer',
+  故障处理: 'Fault Handling'
 };
