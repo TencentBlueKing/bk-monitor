@@ -34,7 +34,7 @@ class TraceQueryResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         trace_id = serializers.CharField(label="TraceID", max_length=255, required=False)
-        sql = serializers.CharField(label="sql语句", max_length=5000)
+        sql = serializers.CharField(label="sql语句", max_length=50000)
         db = serializers.CharField(label="查询数据库", max_length=50)
         bk_biz_id = serializers.IntegerField(label="业务id")
         start_time = serializers.IntegerField(label="开始时间", required=False, min_value=0)

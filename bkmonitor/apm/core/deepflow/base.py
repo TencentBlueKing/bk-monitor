@@ -389,10 +389,10 @@ class EBPFHandler:
             span.parent_span_id = span_id
             span.span_id = cls.new_span_id()
 
-        if item.get("start_time"):
+        if not span.start_time and item.get("start_time"):
             span.start_time = cls.str_time_to_unit_time(item.get("start_time"))
 
-        if item.get("end_time"):
+        if not span.end_time and item.get("end_time"):
             span.end_time = cls.str_time_to_unit_time(item.get("end_time"))
 
         if item.get("kind"):

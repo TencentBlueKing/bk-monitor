@@ -34,7 +34,7 @@ from apm_ebpf.constants import (
     TAP_SIDE_SERVER_GATEWAY,
     TAP_SIDE_SERVER_GATEWAY_HAPERVISOR,
     TAP_SIDE_SERVER_PROCESS,
-    L7_TRACINg_LIMIT,
+    L7_TRACING_LIMIT,
 )
 
 logger = logging.getLogger("apm-ebpf")
@@ -47,7 +47,7 @@ class L7FlowTracing(object):
         self.start_time = self.param.get("start_time", 0)
         self.end_time = self.param.get("end_time", 0)
         self.id = self.param.get("id")
-        self.max_iteration = self.param.get("max_iteration", 3)
+        self.max_iteration = self.param.get("max_iteration", 30)
 
     def query(self) -> list:
         time_filter = f'time>={self.start_time} AND time<={self.end_time}'
@@ -212,7 +212,7 @@ class L7FlowTracing(object):
         FROM `l7_flow_log` 
         WHERE (({time_filter}) AND ({base_filter})) limit {l7_tracing_limit}
         """.format(
-            time_filter=time_filter, base_filter=base_filter, l7_tracing_limit=L7_TRACINg_LIMIT
+            time_filter=time_filter, base_filter=base_filter, l7_tracing_limit=L7_TRACING_LIMIT
         )
         return self.query_ck(sql)
 
@@ -234,7 +234,7 @@ class L7FlowTracing(object):
             else:
                 fields.append(field)
         sql = """
-        SELECT {fields} FROM `l7_flow_log` WHERE (({time_filter}) AND ({l7_flow_ids})) ORDER BY start_time_us asc
+        SELECT {fields} FROM `l7_flow_log` WHERE (({time_filter}) AND ({l7_flow_ids})) 
         """.format(
             time_filter=time_filter, l7_flow_ids=" OR ".join(ids), fields=",".join(fields)
         )
