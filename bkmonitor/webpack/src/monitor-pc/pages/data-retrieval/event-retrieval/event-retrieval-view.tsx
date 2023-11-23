@@ -322,7 +322,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: kv列表检索语句下钻
    */
   @Emit('drillSearch')
-  handleDrillSearch(keywords: string) {
+  handleDrillSearch(keywords: EventRetrievalViewType.IDrillModel) {
     return keywords;
   }
 

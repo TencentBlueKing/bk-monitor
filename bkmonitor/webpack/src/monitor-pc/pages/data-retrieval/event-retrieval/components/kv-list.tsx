@@ -23,67 +23,125 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from '../../../../../monitor-common/utils/utils';
-import { EventRetrievalViewType } from '../../typings';
+import { EventRetrievalViewType, IFilterCondition } from '../../typings';
 
 import TextSegmentation from './text-segmentation';
 
 import './kv-list.scss';
 
+interface IProps {
+  data: object;
+}
+
+interface IEvent {
+  onDrillSearch: EventRetrievalViewType.IDrillModel;
+}
+
+interface FieldModel {
+  field: string;
+  hasFilterCondition: boolean;
+  value: string;
+}
+
 @Component
-export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
+export default class FieldFiltering extends tsc<IProps, IEvent> {
   @Prop({ default: () => ({}), type: Object }) data: object;
 
+  @InjectReactive({ from: 'eventWhere', default: [] }) eventWhere: IFilterCondition.localValue[];
+  @InjectReactive({ from: 'filterConditionList', default: [] }) filterConditionList;
+
   toolMenuList = [
-    { id: 'is', icon: 'bk-icon icon-enlarge-line search' },
+    { id: 'eq', icon: 'bk-icon icon-enlarge-line search' },
+    { id: 'neq', icon: 'bk-icon icon-narrow-line search' },
     { id: 'copy', icon: 'icon icon-monitor icon-mc-copy' }
   ];
   toolMenuTips = {
-    is: window.i18n.t('添加查询语句'),
-    copy: window.i18n.t('复制'),
-    cannot_is: window.i18n.t('不支持查询语句')
+    eq: '=',
+    neq: '!=',
+    copy: window.i18n.t('复制')
   };
 
   @Emit('drillSearch')
-  handleDrillSearch(keywords: string) {
-    return keywords;
+  handleDrillSearch(condition: string | IFilterCondition.localValue) {
+    return {
+      type: typeof condition === 'string' ? 'search' : 'filter',
+      condition
+    };
   }
 
   get fieldMap() {
     return Object.entries(this.data).map(([key, value]) => ({
       field: key,
+      hasFilterCondition: this.filterConditionList.some(item => item.id === key || item.id === this.transformName(key)),
       value
     }));
   }
+
+  transformName(field: string) {
+    return field.startsWith('dimensions.') ? field.split('.')[1] : field;
+  }
+
   /** 判断下钻操作是否可用 */
   isDisableMenu(field: string) {
-    return ['time'].includes(field);
+    const key = field.startsWith('dimensions.') ? field.split('.')[1] : field;
+    return ['time'].includes(field) || this.eventWhere.some(item => item.key === key);
   }
   /** 判断添加禁用类名 */
-  checkDisable(operate: string, field: string) {
-    return this.isDisableMenu(field) && operate === 'is' ? 'is-disabled' : '';
+  checkDisable(operate: string, field: FieldModel) {
+    const fieldName = this.transformName(field.field);
+    if (fieldName === 'time') {
+      return {
+        disabled: true,
+        tooltip: this.$t('不支持查询语句')
+      };
+    }
+    if (operate === 'eq' && this.eventWhere.some(where => where.method === operate && where.key === fieldName)) {
+      return {
+        disabled: true,
+        tooltip: this.$t('已添加过滤条件')
+      };
+    }
+    if (operate === 'neq' && !field.hasFilterCondition) {
+      return {
+        disabled: true,
+        tooltip: this.$t('不支持 != 操作')
+      };
+    }
+    return {
+      disabled: false,
+      tooltip: `${fieldName} ${this.toolMenuTips[operate]} ${field.value}`
+    };
   }
-  /** 获取tips文本 */
-  getIconPopover(operate: string, field: string) {
-    if (this.isDisableMenu(field) && operate === 'is') return this.toolMenuTips.cannot_is;
-    return this.toolMenuTips[operate];
-  }
+
   /** 判断是否是不可操作的字段 */
-  handleMenuClick(operate: string, value: string, field: string) {
-    const disableMenu = this.isDisableMenu(field) && operate === 'is';
-    if (!disableMenu) this.drillMenu(operate, value, field);
+  handleMenuClick(operate: string, field: FieldModel) {
+    const disableMenu = this.checkDisable(operate, field).disabled;
+    if (!disableMenu) this.drillMenu(operate, field.value, field);
   }
   /** 事件下钻 */
-  drillMenu(operate: string, value: string, field: string) {
+  drillMenu(operate: string, value: string, field: FieldModel) {
     let drillValue = value;
+    const fieldName = this.transformName(field.field);
     switch (operate) {
-      case 'is':
-        if (field === 'event.content')
-          drillValue = `"${value.replace(/([+\-=&|><!(){}[\]^"~*?\\:/])/g, v => `\\${v}`)}"`;
-        this.handleDrillSearch(`${field}: ${drillValue}`);
+      case 'eq':
+      case 'neq':
+        if (field.hasFilterCondition) {
+          this.handleDrillSearch({
+            condition: 'and',
+            method: operate,
+            key: fieldName,
+            value: [drillValue]
+          });
+        } else {
+          if (fieldName === 'event.content') {
+            drillValue = `"${value.replace(/([+\-=&|><!(){}[\]^"~*?\\:/])/g, v => `\\${v}`)}"`;
+          }
+          this.handleDrillSearch(`${fieldName}: ${drillValue}`);
+        }
         break;
       case 'copy':
         copyText(drillValue, msg => {
@@ -112,9 +170,9 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
             <div class='handle-option-list'>
               {this.toolMenuList.map(option => (
                 <span
-                  class={`icon ${option.icon} ${this.checkDisable(option.id, item.field)}`}
-                  v-bk-tooltips={{ content: this.getIconPopover(option.id, item.field), delay: 300 }}
-                  onClick={() => this.handleMenuClick(option.id, item.value, item.field)}
+                  class={['icon', option.icon, this.checkDisable(option.id, item).disabled ? 'is-disabled' : '']}
+                  v-bk-tooltips={{ content: this.checkDisable(option.id, item).tooltip, delay: 300 }}
+                  onClick={() => this.handleMenuClick(option.id, item)}
                 ></span>
               ))}
             </div>
@@ -122,7 +180,7 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
               <TextSegmentation
                 content={String(item.value)}
                 fieldType={item.field}
-                onMenuClick={({ type, value }) => this.drillMenu(type, value, item.field)}
+                onMenuClick={({ type, value }) => this.drillMenu(type, value, item)}
               />
             </div>
           </div>

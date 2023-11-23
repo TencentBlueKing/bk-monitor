@@ -309,7 +309,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   }
 
   @Emit('drillKeywordsSearch')
-  handleDrillSearch(keywords: string) {
+  handleDrillSearch(keywords: EventRetrievalViewType.IDrillModel) {
     return keywords;
   }
 
