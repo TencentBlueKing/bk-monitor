@@ -13,3 +13,78 @@
     }
   }
 }
+
+.flame-graph-tips {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 99999;
+  display: block;
+  width: 240px;
+  height: 100px;
+  font-size: 12px;
+  color: #fff;
+  pointer-events: none;
+  background: #000;
+  border-radius: 2px;
+
+  .tips-title {
+    padding: 8px;
+    overflow: hidden;
+    font-weight: 700;
+    color: #fff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-color: #d8d8d8;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+  }
+
+  .funtion-name {
+    padding: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tips-table {
+    display: table;
+    width: calc(100% - 16px);
+    margin: 0 8px;
+    border-collapse: collapse;
+
+    th,
+    td {
+      padding-left: 4px;
+      font-weight: 400;
+      background-color: #000;
+      border: 1px solid #63656e;
+    }
+  }
+
+  .tips-info {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    margin: 5px 0 8px 0;
+    color: white;
+
+    &-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+      font-size: 18px;
+    }
+  }
+
+  .tips-added {
+    display: flex;
+    align-items: ce;
+    justify-content: center;
+    color: #2dcb56;
+  }
+}

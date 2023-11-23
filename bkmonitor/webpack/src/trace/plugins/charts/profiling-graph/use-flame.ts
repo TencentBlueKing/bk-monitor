@@ -437,8 +437,9 @@ export class FlameChart<D extends BaseDataType> {
           .transition()
           .delay(this.transitionDuration / 2)
           .attr('width', (w, index, groups) => {
-            const width = getWidth(w);
-            select(groups[index]).attr('transform', 'translate(0, 0)');
+            const padding = 6;
+            const width = getWidth(w) <= padding ? padding : getWidth(w) - padding;
+            select(groups[index]).attr('transform', `translate(${padding}, 0)`);
             return width;
           })
           .attr('height', () => this.c);
