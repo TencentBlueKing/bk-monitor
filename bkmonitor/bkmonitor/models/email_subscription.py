@@ -11,8 +11,37 @@ specific language governing permissions and limitations under the License.
 from django.db import models
 from django.utils.translation import ugettext_lazy as _lazy
 
+from apps.utils import ChoicesEnum
 from bkmonitor.models.external_iam import STATUS_CHOICES
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
+
+
+class ChannelEnum(ChoicesEnum):
+    # 订阅渠道
+    EMAIL = "email"
+    WXBOT = "wxbot"
+    USER = "user"
+
+    _choices_labels = ((EMAIL, _lazy("外部邮件")), (WXBOT, _lazy("企业微信机器人")), (USER, _lazy("内部用户")))
+
+
+class ScenarioEnum(ChoicesEnum):
+    # 订阅场景
+    CLUSTERING = "clustering"
+    DASHBOARD = "dashboard"
+    SCENE = "scene"
+
+    _choices_labels = ((CLUSTERING, _lazy("日志聚类")), (DASHBOARD, _lazy("仪表盘")), (SCENE, _lazy("观测场景")))
+
+
+class HourFrequencyTime:
+    HALF_HOUR = {"minutes": ["00", "30"]}
+    HOUR = {"minutes": ["00"]}
+    HOUR_2 = {"hours": ["00", "02", "04", "06", "08", "10", "12", "14", "16", "18", "20", "22"]}
+    HOUR_6 = {"hours": ["00", "06", "12", "18"]}
+    HOUR_12 = {"hours": ["09", "21"]}
+
+    TIME_CONFIG = {"0.5": HALF_HOUR, "1": HOUR, "2": HOUR_2, "6": HOUR_6, "12": HOUR_12}
 
 
 class SubscriptionChannel(Model):
@@ -38,7 +67,7 @@ class EmailSubscription(AbstractRecordModel):
 
     name = models.CharField(verbose_name="订阅名称", max_length=512)
     bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
-    scenario = models.CharField(verbose_name="订阅场景", max_length=512)
+    scenario = models.CharField(verbose_name="订阅场景", max_length=32, choices=ScenarioEnum.get_choices())
     channels = models.ForeignKey(SubscriptionChannel, verbose_name="订阅渠道", on_delete=models.CASCADE)
     frequency = models.JSONField(verbose_name="发送频率", default=dict)
     content_config = models.JSONField(verbose_name="内容配置", default=dict)
@@ -46,23 +75,6 @@ class EmailSubscription(AbstractRecordModel):
     last_send_time = models.DateTimeField(verbose_name="发送时间", null=True)
     time_range = models.CharField(verbose_name="有效时间", max_length=512)
     is_manager_created = models.BooleanField(verbose_name="是否管理员创建", default=False)
-
-    class Channel:
-        # 订阅渠道
-        EMAIL = "email"
-        WXBOT = "wxbot"
-        USER = "user"
-
-        CHANNEL_DICT = {EMAIL: _lazy("外部邮件"), WXBOT: _lazy("企业微信机器人"), USER: _lazy("内部用户")}
-
-    class HourFrequencyTime:
-        HALF_HOUR = {"minutes": ["00", "30"]}
-        HOUR = {"minutes": ["00"]}
-        HOUR_2 = {"hours": ["00", "02", "04", "06", "08", "10", "12", "14", "16", "18", "20", "22"]}
-        HOUR_6 = {"hours": ["00", "06", "12", "18"]}
-        HOUR_12 = {"hours": ["09", "21"]}
-
-        TIME_CONFIG = {"0.5": HALF_HOUR, "1": HOUR, "2": HOUR_2, "6": HOUR_6, "12": HOUR_12}
 
     class Meta:
         verbose_name = "邮件订阅"

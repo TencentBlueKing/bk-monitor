@@ -8,77 +8,57 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from bkmonitor.models.email_subscription import EmailSubscription
 
 
-class BaseSubscriptionProcessor(object):
+class BaseSubscriptionHandler(object):
     """
-    基础订阅处理器
+    基础订阅管理器
     """
 
-    def __init__(
-        self,
-    ):
+    # 订阅模板名称
+    tpl_name = ""
+    # 订阅配置校验类
+    serializer_class = None
+
+    def __init__(self, subscription_id):
         """
-        获取对应订阅配置
+        初始化对应订阅配置
         """
-        pass
+        self.subscription = EmailSubscription.objects.get(id=subscription_id)
 
     def fetch_subscribers(self):
         """
-        获取订阅者列表，解析用户组
+        获取订阅人列表，解析用户组
         """
         pass
 
     def parse_frequency(self):
         """
-        解析订阅发送频率
+        解析发送频率
         """
         pass
 
-    def send_email(self):
-        pass
-
-    def send_wxbot(self):
-        pass
-
-    def render(self):
+    def is_run_time(self):
         """
-        渲染邮件订阅内容
+        是否到执行时间
         """
         pass
 
-
-class ClusteringSubscriptionProcessor(BaseSubscriptionProcessor):
-    """
-    日志聚类订阅处理器
-    """
-
-    def render(self):
+    def send_subscription(self):
         """
-        渲染邮件订阅内容
+        发送订阅
         """
         pass
 
-
-class SceneSubscriptionProcessor(BaseSubscriptionProcessor):
-    """
-    观测场景订阅处理器
-    """
-
-    def render(self):
+    def render_subscription(self):
         """
-        渲染邮件订阅内容
+        渲染订阅
         """
         pass
 
-
-class DashboardSubscriptionProcessor(BaseSubscriptionProcessor):
-    """
-    仪表盘订阅处理器
-    """
-
-    def render(self):
+    def cancel_subscription(self):
         """
-        渲染邮件订阅内容
+        取消订阅
         """
         pass
