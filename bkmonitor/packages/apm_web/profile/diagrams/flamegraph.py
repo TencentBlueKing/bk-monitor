@@ -19,6 +19,7 @@ logger = logging.getLogger("apm")
 
 def function_node_to_element(function_node: FunctionNode) -> dict:
     return {
+        "id": function_node.id,
         "name": function_node.display_name,
         "value": function_node.value,
         "children": [function_node_to_element(child) for child in function_node.children],
@@ -28,10 +29,10 @@ def function_node_to_element(function_node: FunctionNode) -> dict:
 @dataclass
 class FlamegraphDiagrammer:
     def draw(self, c: Converter, **options) -> dict:
-        tree = FunctionTree.load_from_profile(c.profile)
+        tree = FunctionTree.load_from_profile(c)
 
-        root = {"name": "root", "value": tree.root.value, "children": []}
+        root = {"name": "root", "value": tree.root.value, "children": [], "id": 0}
         for r in tree.root.children:
             root["children"].append(function_node_to_element(r))
 
-        return {"flame_data": root}
+        return {"flame_data": root, **c.get_sample_type()}
