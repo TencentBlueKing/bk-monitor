@@ -446,6 +446,10 @@ class DutyRuleSlz(serializers.ModelSerializer):
 
 class DutyRuleDetailSlz(DutyRuleSlz):
     duty_arranges = serializers.ListField(child=DutyArrangeSlz(), required=False, default=list)
+    code_hash = serializers.CharField(default="")
+    app = serializers.CharField(default="")
+    path = serializers.CharField(default="")
+    snippet = serializers.CharField(default="")
 
     class Meta:
         model = DutyRule
@@ -464,6 +468,10 @@ class DutyRuleDetailSlz(DutyRuleSlz):
             "create_user",
             "update_time",
             "update_user",
+            "code_hash",
+            "app",
+            "path",
+            "snippet",
         )
 
     def save(self, **kwargs):

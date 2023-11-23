@@ -23,6 +23,7 @@ from bkmonitor.as_code.schema import (
     DEFAULT_TEMPLATE_TITLE,
     ActionSchema,
     AssignGroupRuleSchema,
+    DutyRuleSchema,
     StrategySchema,
     UserGroupSchema,
 )
@@ -41,6 +42,7 @@ from bkmonitor.models import ActionPlugin, AlgorithmModel, MetricListCache
 from bkmonitor.strategy.new_strategy import Algorithm
 from bkmonitor.utils.dict import nested_diff, nested_update
 from constants.action import DEFAULT_CONVERGE_CONFIG, NoticeChannel, NoticeWay
+from constants.common import DutyGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 LEVEL_NAME_TO_ID = {"fatal": 1, "warning": 2, "remind": 3}
@@ -745,6 +747,13 @@ class NoticeGroupConfigParser(BaseConfigParser):
     通知组配置解析器
     """
 
+    def __init__(self, bk_biz_id, duty_rules=None):
+        if not duty_rules:
+            duty_rules = {}
+        self.duty_rules = duty_rules
+        self.reverse_duty_rules = {v: k for k, v in duty_rules.items()}
+        super(NoticeGroupConfigParser, self).__init__(bk_biz_id)
+
     @staticmethod
     def translate_notice_ways(notice_way_config):
         notice_ways = []
@@ -766,6 +775,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
             "action_notice": [],
             "alert_notice": [],
             "duty_arranges": [],
+            "duty_rules": [],
         }
 
         notice_group["mention_list"] = [
@@ -821,18 +831,13 @@ class NoticeGroupConfigParser(BaseConfigParser):
                 notice["notify_config"].append(notify_config)
             notice_group["action_notice"].append(notice)
 
-        if not config["duties"]:
-            # 非轮值配置
-            users = []
-            for user in config["users"]:
-                splits = user.split("#")
-                if len(splits) == 1:
-                    users.append({"id": splits[0], "type": "user"})
-                elif len(splits) == 2:
-                    users.append({"id": splits[1], "type": splits[0]})
-
-            notice_group["duty_arranges"].append({"duty_type": "always", "work_time": "always", "users": users})
-        else:
+        if config["duty_rules"]:
+            # 当存在duty_rules的时候, 表示是新的轮值结构
+            notice_group["need_duty"] = True
+            notice_group["duty_rules"] = [
+                self.duty_rules[name] for name in config["duty_rules"] if name in self.duty_rules
+            ]
+        elif config["duties"]:
             # 轮值配置解析
             notice_group["need_duty"] = True
             for duty in config["duties"]:
@@ -875,6 +880,18 @@ class NoticeGroupConfigParser(BaseConfigParser):
                         "duty_users": user_groups,
                     }
                 )
+        else:
+            # 非轮值配置
+            users = []
+            for user in config["users"]:
+                splits = user.split("#")
+                if len(splits) == 1:
+                    users.append({"id": splits[0], "type": "user"})
+                elif len(splits) == 2:
+                    users.append({"id": splits[1], "type": splits[0]})
+
+            notice_group["duty_arranges"].append({"duty_type": "always", "work_time": "always", "users": users})
+
         return notice_group
 
     def unparse(self, config: Dict) -> Dict:
@@ -1131,3 +1148,85 @@ class AssignGroupRuleParser(BaseConfigParser):
 
     def check(self, config: Dict) -> Dict:
         return AssignGroupRuleSchema.validate(config)
+
+
+class DutyRuleParser(BaseConfigParser):
+    """
+    处理套餐配置解析器
+    """
+
+    def __init__(self, bk_biz_id: int):
+        super(DutyRuleParser, self).__init__(bk_biz_id)
+
+    def parse(self, config: Dict) -> Dict:
+        # yaml -> config
+        config["bk_biz_id"] = self.bk_biz_id
+        config["duty_arranges"] = []
+
+        for duty in config.pop("arranges", []):
+            duty_users = []
+            for users in duty["users"]:
+                user_group = []
+                for user in users:
+                    user_dict = parse_user(user)
+                    if not user_dict:
+                        continue
+                    user_group.append(user_dict)
+                duty_users.append(user_group)
+            duty_times = []
+            for duty_time in duty["time"]:
+                duty_times.append(
+                    {
+                        "work_type": duty_time["type"],
+                        "work_days": duty_time["work"]["days"],
+                        "work_date_range": duty_time["work"]["date_range"],
+                        "work_time_type": "time_range" if "time_range" in duty_time["work"] else "datetime_range",
+                        "work_time": duty_time["work"].get("time_range") or duty_time["work"].get("datetime_range"),
+                        "period_settings": duty_time["period_settings"],
+                    }
+                )
+
+            config["duty_arranges"].append(
+                {
+                    "duty_time": duty_times,
+                    "backups": [],
+                    "duty_users": duty_users,
+                    "group_number": duty["group"].get("number", 0),
+                    "group_type": duty["group"]["type"],
+                }
+            )
+        return config
+
+    def unparse(self, config: Dict) -> Dict:
+        # config -> yaml
+        config["arranges"] = []
+        for duty_arrange in config.pop("duty_arranges", []):
+            #     反向解析
+            arrange = {}
+            arrange["time"] = []
+            for time_item in duty_arrange.pop("duty_time", []):
+                time_type = time_item.get("work_time_type", "time_range")
+                work = {
+                    "days": time_item.get("work_days", []),
+                    "date_range": time_item.get("work_date_range", ""),
+                    time_type: time_item.get(time_type, ""),
+                }
+                arrange_time = {"type": time_type, "work": work}
+                if time_item.get("is_custom"):
+                    arrange_time["is_custom"] = True
+                if time_item.get("period_settings"):
+                    arrange_time["period_settings"] = time_item["period_settings"]
+                arrange["time"].append(arrange_time)
+            arrange["users"] = []
+            for user_list in duty_arrange.pop("users", []):
+                arrange["users"].append(
+                    [f"group#{user['id']}" if user["type"] == "group" else user["id"] for user in user_list]
+                )
+            arrange["group"] = {"type": duty_arrange.pop("group_type", DutyGroupType.SPECIFIED)}
+            if duty_arrange.get("group_number", 0) > 0:
+                arrange["group"]["number"] = duty_arrange.pop("group_number")
+            config["arranges"].append(arrange)
+        return config
+
+    def check(self, config: Dict) -> Dict:
+        return DutyRuleSchema.validate(config)

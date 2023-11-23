@@ -26,7 +26,6 @@
 |----------------|------------------|-----|---------------------------------|
 | id             | int              | 否   | 轮值ID，保存时有id表示更新，没有id表示新增        |
 | need_rotation  | bool             | 否   | 是否需要交接班                         |
-| effective_time | string           | 是   | 生效时间， 格式 `2022-03-11 00:00:00`  |
 | duty_time      | list[object]     | 否   | 工作时间配置，默认为每天 24小时工作             |
 | group_type     | string           | 否   | `specified(手动指定)`  `auto(自动分配)` |
 | group_number   | int              | 否   | `auto(自动分配)` 情况下每组人数            |

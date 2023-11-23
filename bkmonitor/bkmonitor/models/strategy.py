@@ -569,10 +569,11 @@ class DutyRule(AbstractRecordModel):
     # 配置生效时间, 有时区控制，所以存为charfield
     effective_time = models.CharField("配置生效时间", max_length=32, null=True, db_index=True)
     end_time = models.CharField("配置截止时间", null=True, max_length=32, blank=True, db_index=True)
+    hash = models.CharField("原始配置摘要", max_length=64, default="", blank=True, null=True)
 
     app = models.CharField("所属应用", max_length=128, default="", blank=True, null=True)
     path = models.CharField("资源路径", max_length=128, default="", blank=True, null=True)
-    hash = models.CharField("原始配置摘要", max_length=64, default="", blank=True, null=True)
+    code_hash = models.CharField("配置摘要(ascode)", max_length=64, default="", blank=True, null=True)
     snippet = models.TextField("配置片段", default="", blank=True, null=True)
 
     class Meta:
@@ -811,7 +812,7 @@ class DutyPlan(Model):
         """
         当前排班是否命中
         """
-        # 结束时间没有的话，认为一直有效
+        # 结束时间没有的话，认为一直有效a
         try:
             tz_info = pytz.timezone(self.timezone)
         except Exception:
