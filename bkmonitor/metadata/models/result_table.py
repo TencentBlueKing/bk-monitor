@@ -504,17 +504,15 @@ class ResultTable(models.Model):
 
         # 针对归属具体业务的结果表，直接推送 redis
         try:
-            from metadata.task.tasks import publish_redis, push_and_publish_space_router
+            from metadata.task.tasks import push_and_publish_space_router
 
             if default_storage == ClusterInfo.TYPE_INFLUXDB:
                 if target_bk_biz_id != 0 and space_id and space_type:
                     push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
-                    publish_redis(space_type, space_id, table_id=table_id)
                 else:
                     on_commit(
                         lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[table_id])
                     )
-                    on_commit(lambda: publish_redis.delay(space_type, space_id))
         except Exception as e:
             logger.error("push and publish redis error, %s", e)
         return result_table

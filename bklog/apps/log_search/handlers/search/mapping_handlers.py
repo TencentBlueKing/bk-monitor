@@ -58,7 +58,12 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import (
+    get_local_param,
+    get_request_app_code,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.time_handler import generate_time_range
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
@@ -231,7 +236,7 @@ class MappingHandlers(object):
         # search_context情况，默认只显示log字段
         # if scope in CONTEXT_SCOPE:
         #     return self._get_context_fields(final_fields_list)
-        username = get_request_username()
+        username = get_request_external_username() or get_request_username()
         user_index_set_config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=self.index_set_id, username=username, scope=scope
         )
@@ -265,6 +270,8 @@ class MappingHandlers(object):
     @atomic
     def get_or_create_default_config(self, scope=SearchScopeEnum.DEFAULT.value):
         """获取默认配置"""
+        # 获取当前请求用户(兼容外部用户)
+        username = get_request_external_username() or get_request_username()
         final_fields_list, display_fields = self.get_default_fields(scope=scope)
         default_sort_tag: bool = False
         # 判断是否有gseindex和_iteration_idx字段
@@ -276,12 +283,18 @@ class MappingHandlers(object):
         sort_list = self.get_default_sort_list(
             index_set_id=self.index_set_id, scenario_id=self.scenario_id, scope=scope, default_sort_tag=default_sort_tag
         )
-        obj, __ = IndexSetFieldsConfig.objects.get_or_create(
+        obj, created = IndexSetFieldsConfig.objects.get_or_create(
             index_set_id=self.index_set_id,
             name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
             scope=scope,
+            source_app_code=get_request_app_code(),
             defaults={"display_fields": display_fields, "sort_list": sort_list},
         )
+        # 创建的时候, 如果存在外部用户, 手动修改created_by为外部用户
+        if created:
+            obj.created_by = username
+            obj.save()
+
         return obj
 
     @classmethod
@@ -776,7 +789,7 @@ class MappingHandlers(object):
         @param scope: 请求来源
         @return:
         """
-        username = get_request_username()
+        username = get_request_external_username() or get_request_username()
         index_config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=index_set_id, username=username, scope=scope
         )

@@ -706,6 +706,8 @@ export default {
               match_labels: [],
               match_expressions: [],
             },
+            match_labels: [],
+            match_expressions: [], // config 为空时回填的标签数组
             data_encoding: 'UTF-8',
             params: {
               paths: [{ value: '' }], // 日志路径
@@ -989,8 +991,14 @@ export default {
         this.getWorkLoadTypeList();
         this.isYaml = cloneCollect.yaml_config_enabled;
         // yaml模式可能会有多种容器环境 选择第一项配置里的环境作为展示
-        this.currentEnvironment = cloneCollect.configs[0].collector_type;
-        this.publicLetterIndex = cloneCollect.configs.length - 1;
+        if (cloneCollect.configs[0]) { // 如果采集项不为空 则回显
+          this.currentEnvironment = cloneCollect.configs[0].collector_type;
+          this.publicLetterIndex = cloneCollect.configs.length - 1;
+        } else { // 为空 重新赋值 标准输出
+          this.currentEnvironment = 'std_log_config';
+          this.publicLetterIndex = 0;
+          cloneCollect.configs = [this.configBaseObj];
+        }
         const initFormData = this.initContainerFormData(cloneCollect);
         Object.assign(this.formData, initFormData);
         // 若是容器环境 克隆时 初始化物理环境的值

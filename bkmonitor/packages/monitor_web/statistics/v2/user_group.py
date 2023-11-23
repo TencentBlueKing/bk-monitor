@@ -67,6 +67,7 @@ class UserGroupCollector(BaseCollector):
             for time_config in group.alert_notice:
                 UserGroup.translate_notice_ways(time_config)
                 for notify_config in time_config["notify_config"]:
+                    UserGroup.translate_notice_ways(notify_config)
                     for notice_way in notify_config["type"]:
                         metric.labels(
                             bk_biz_id=group.bk_biz_id,
@@ -90,6 +91,7 @@ class UserGroupCollector(BaseCollector):
             for time_config in group.action_notice:
                 UserGroup.translate_notice_ways(time_config)
                 for notify_config in time_config["notify_config"]:
+                    UserGroup.translate_notice_ways(notify_config)
                     for notice_way in notify_config["type"]:
                         metric.labels(
                             bk_biz_id=group.bk_biz_id,
@@ -114,6 +116,7 @@ class UserGroupCollector(BaseCollector):
                 for time_config in group.alert_notice:
                     UserGroup.translate_notice_ways(time_config)
                     for notify_config in time_config["notify_config"]:
+                        UserGroup.translate_notice_ways(notify_config)
                         for notice_way in notify_config["type"]:
                             method_users_map[notice_way] = method_users_map[notice_way].union(set(users))
 

@@ -294,7 +294,7 @@ class BCSBase(models.Model):
             try:
                 BCSLabel.objects.bulk_create(bulk_create_label_list, 200)
             except Exception as exc_info:
-                logger.error(exc_info)
+                logger.exception(exc_info)
 
         # 获得中间表远程唯一性数据
         new_resource_label_hash_set = {
@@ -324,7 +324,7 @@ class BCSBase(models.Model):
             try:
                 cls.labels.through.objects.bulk_create(bulk_create_label_relation_list, 200)
             except Exception as exc_info:
-                logger.error(exc_info)
+                logger.exception(exc_info)
 
         # 中间表删除数据
         label_hash_set_inserted_deleted = old_resource_label_hash_set - new_resource_label_hash_set

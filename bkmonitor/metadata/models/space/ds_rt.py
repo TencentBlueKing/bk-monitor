@@ -16,7 +16,7 @@ from django.core.cache import cache
 from django.db.models import Q
 
 from metadata import models
-from metadata.models.space.constants import EtlConfigs, MeasurementType
+from metadata.models.space.constants import EtlConfigs, MeasurementType, SpaceTypes
 
 
 def get_result_tables_by_data_ids(data_id_list: Optional[List] = None, table_id_list: Optional[List] = None) -> Dict:
@@ -33,17 +33,13 @@ def get_result_tables_by_data_ids(data_id_list: Optional[List] = None, table_id_
 # 缓存平台或者类型级的数据源
 def get_platform_data_ids(space_type: Optional[str] = None) -> Dict[int, str]:
     """获取平台级的数据源
-    NOTE: 仅针对当前空间类型，比如 bkcc
+    NOTE: 仅针对当前空间类型，比如 bkcc，特殊的是 all 类型
     """
-    key = f"cached_platform_data_id_list_{space_type}"
-    if key in cache:
-        return cache.get(key)
     qs = models.DataSource.objects.filter(is_platform_data_id=True).values("bk_data_id", "space_type_id")
-    if space_type:
+    # 针对 bkcc 类型，这要是插件，不属于某个业务空间，也没有传递空间类型，因此，需要包含 all 类型
+    if space_type and space_type != SpaceTypes.BKCC.value:
         qs = qs.filter(space_type_id=space_type)
     data_ids = {data["bk_data_id"]: data["space_type_id"] for data in qs}
-    # 缓存数据
-    cache.set(key, data_ids, 60 * 60)
     return data_ids
 
 

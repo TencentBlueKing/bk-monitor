@@ -7,6 +7,17 @@ from prometheus_client import Gauge
 from prometheus_client.exposition import generate_latest
 
 
+class MetricCollector(object):
+    def __init__(self):
+        self.register_metrics = set()
+
+    def register(self, metric):
+        self.register_metrics.add(metric.name)
+
+
+MC = MetricCollector()
+
+
 class Metric(Gauge):
     def __init__(self, *args, run_every=5 * 60, **kwargs):
         super(Metric, self).__init__(*args, **kwargs)
@@ -100,10 +111,10 @@ def register(name="", documentation="", labelnames=(), run_every=5 * 60):
             labelnames=labelnames,
             run_every=run_every,
         )
+        MC.register(metric)
 
         @functools.wraps(func)
         def wrapped(_self):
-
             # 设置当前用户名，避免出现无权限情况
             from bkmonitor.utils.request import set_request_username
 

@@ -15,7 +15,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from constants.result_table import RT_RESERVED_WORD_EXACT, RT_TABLE_NAME_WORD_EXACT
+from constants.result_table import RT_TABLE_NAME_WORD_EXACT
 from core.unit import UNITS
 
 PATTERN = re.compile(r"^[_a-zA-Z][a-zA-Z0-9_]*$")
@@ -79,14 +79,6 @@ class MetricJsonBaseSerializer(serializers.Serializer):
 
             dimension_name_list = []
             for field_detail in value_detail["fields"]:
-                if field_detail.get("source_name", "").upper() not in RT_RESERVED_WORD_EXACT and field_detail[
-                    "name"
-                ].startswith("_"):
-                    raise serializers.ValidationError(_("非与保留关键字重名字段不允许以'_'开头"))
-                if field_detail["name"].upper() in RT_RESERVED_WORD_EXACT:
-                    raise serializers.ValidationError(_("指标维度不允许与保留关键字重名"))
-                if not PATTERN.match(field_detail["name"]):
-                    raise serializers.ValidationError(_("名称校验不通过:{}".format(field_detail["name"])))
                 if field_detail["monitor_type"] == "metric":
                     metric_name_list.append(field_detail["name"])
                 if field_detail["monitor_type"] == "dimension":
