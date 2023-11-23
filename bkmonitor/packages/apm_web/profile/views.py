@@ -82,9 +82,9 @@ class ProfileViewSet(ViewSet):
         end = validated_data["end"]
         # 由于 doris 入库可能存在延迟，所以需要稍微加大查询时间范围
         # profile_id 对于数据有较强的过滤效果，不会引起数据量过大问题
-        # 1000 * 1000: second -> nanosecond
-        start = start - offset * 1000 * 1000
-        end = end + offset * 1000 * 1000
+        # 1000 * 1000: second -> microsecond
+        start = start - offset * 1000
+        end = end + offset * 1000
 
         extra_params = {}
         profile_id = validated_data["profile_id"]
@@ -131,7 +131,7 @@ class ProfileViewSet(ViewSet):
 
         try:
             application = Application.objects.get(pk=validated_data["application_id"])
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             raise ValueError(_("应用({}) 不存在").format(validated_data["application_id"]))
 
         # 2. convert file to Profile object
