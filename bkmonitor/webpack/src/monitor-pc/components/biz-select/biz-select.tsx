@@ -33,7 +33,7 @@ import authorityStore from '../../store/modules/authority';
 import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
 
-import List, { IListItem } from './list';
+import List, { ETagsType, IListItem } from './list';
 
 import './biz-select.scss';
 /** 业务组件常用的业务缓存key */
@@ -155,6 +155,12 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       ?.trim()
       ?.slice(0, 1)
       ?.toLocaleUpperCase();
+  }
+  /* 当前业务的ID */
+  get curentBizId() {
+    return this.curentBizItem?.space_type_id === ETagsType.BKCC
+      ? `#${this.curentBizItem?.id}`
+      : this.curentBizItem?.space_id || this.curentBizItem?.space_code || '';
   }
 
   /**  */
@@ -436,6 +442,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   v-bk-overflow-tips
                 >
                   {this.bizName}
+                  <span class='biz-name-text-id'>({this.curentBizId})</span>
                 </span>
                 <i
                   class='icon-monitor icon-mc-triangle-down'

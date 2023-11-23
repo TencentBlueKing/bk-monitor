@@ -12,8 +12,8 @@
 
   &.dark {
     .biz-select-target {
-      cursor: pointer;
       height: 32px;
+      cursor: pointer;
 
       .biz-name-first-code {
         width: 20px;
@@ -34,6 +34,10 @@
           text-overflow: ellipsis;
           white-space: nowrap;
 
+          .biz-name-text-id {
+            margin-left: 8px;
+            color: #66768e;
+          }
         }
       }
 
@@ -60,6 +64,7 @@
 
     .biz-name-first-code {
       display: inline-block;
+      flex-shrink: 0;
       width: 21px;
       height: 21px;
       font-size: 12px;
@@ -67,18 +72,17 @@
       color: #fff;
       background-color: #ffd695;
       border-radius: 2px;
-      flex-shrink: 0;
 
       @include flex-center;
     }
 
     &-main {
       display: flex;
+      align-items: center;
       height: 40px;
       padding: 0 8px 0 16px;
       background-color: #f0f1f5;
       border-radius: 2px;
-      align-items: center;
 
       .biz-name-first-code {
         margin-right: 8px;
@@ -86,13 +90,13 @@
 
       .biz-name-text {
         display: inline-block;
+        flex: 1;
         height: 20px;
         font-size: 12px;
         font-weight: 400;
         line-height: 20px;
         color: #63656e;
         white-space: nowrap;
-        flex: 1;
 
         @include ellipsis;
       }
@@ -109,24 +113,24 @@
 
   .space-type-list {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     padding: 8px 0 4px 0;
     margin: 0 12px;
     border-bottom: 1px solid #434e68;
-    flex-wrap: wrap;
 
     .space-type-item {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 0 10px;
-      border-radius: 2px;
-      margin-right: 4px;
       height: 22px;
+      padding: 0 10px;
+      margin-right: 4px;
+      margin-bottom: 4px;
+      white-space: nowrap;
       cursor: pointer;
       border: 1px solid transparent;
-      white-space: nowrap;
-      margin-bottom: 4px;
+      border-radius: 2px;
     }
 
   }
@@ -184,8 +188,8 @@
 
     .biz-search {
       .control-icon.left-icon {
-        color: #63656e;
         left: 0;
+        color: #63656e;
       }
 
       &.with-left-icon {
@@ -214,9 +218,9 @@
 
     .biz-btn {
       position: relative;
+      flex: 1;
       color: #63656e;
       cursor: pointer;
-      flex: 1;
 
       @include flex-center;
 
@@ -226,8 +230,8 @@
           top: 50%;
           right: 0;
           height: 16px;
-          border-right: 1px solid #434e68;
           content: '';
+          border-right: 1px solid #434e68;
           transform: translateY(-50%);
         }
       }
