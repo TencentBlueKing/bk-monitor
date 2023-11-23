@@ -457,7 +457,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     const [isSuccess, data] = res;
     if (isSuccess) {
       this.totalListData = data;
-      this.pagination.count = data.length;
+      this.pagination.count = this.totalListData.length;
       this.getResources();
       this.emptyStatusType = 'empty';
       this.changeEmptyStatusType();
@@ -533,6 +533,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     this.pagination.current = page;
   }
   handlePageLimitChange(limit: number) {
+    this.pagination.current = 1;
     this.pagination.limit = limit;
   }
 

@@ -379,7 +379,7 @@ class SpaceTableIDRedis:
             # NOTE: 现阶段针对1001下 `system.` 或者 `dbm_system.` 开头的结果表不允许被覆盖
             if tid.startswith("system.") or tid.startswith("dbm_system."):
                 continue
-            _values[tid] = {"filters": [{"projectId": space_id}]}
+            _values[tid] = {"filters": []}
 
         return _values
 
@@ -391,7 +391,7 @@ class SpaceTableIDRedis:
         tids = models.ResultTable.objects.filter(table_id__startswith=BKCI_1001_TABLE_ID_PREFIX).values_list(
             "table_id", flat=True
         )
-        return {tid: {"filters": [{"projectId": f"{space_type}__{space_id}"}]} for tid in tids}
+        return {tid: {"filters": [{"projectId": space_id}]} for tid in tids}
 
     def _compose_bksaas_space_cluster_table_ids(
         self,
