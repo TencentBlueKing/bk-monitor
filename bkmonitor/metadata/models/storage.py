@@ -907,7 +907,6 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
 
     @property
     def consul_config(self):
-
         consul_config = {
             "storage_config": {
                 "real_table_name": self.real_table_name,
@@ -959,7 +958,6 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
 
     @property
     def consul_cluster_path(self):
-
         return "/".join([self.CONSUL_CONFIG_CLUSTER_PATH, self.database, self.real_table_name])
 
     @property
@@ -1298,6 +1296,8 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         """刷新额外的信息，方便 unify query 查询使用
 
         现阶段包含数据源 ID, 所属的业务 ID, measurement 类型
+
+        TODO: 待移除
         """
         from metadata.models import InfluxDBProxyStorage
 
@@ -1458,6 +1458,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         for table_id, table_info in table_id_map.items():
             table_id_list.append(table_id)
             table_list.append({"table_id": table_id, "schema_type": table_info["schema_type"]})
+
         return get_measurement_type_by_table_id(table_id_list, table_list)
 
 
@@ -1776,7 +1777,6 @@ class ESStorage(models.Model, StorageResultTable):
         # 2. 构建需要刷新的字典信息
         refresh_dict = {}
         for table_info in info_list:
-
             # 如果结果表已经废弃了，则不需要继续更新路径
             if table_info.is_index_enable():
                 refresh_dict[table_info.table_id] = table_info
@@ -2258,7 +2258,6 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 判断获取最大的index名字
                 for stat_index_name in list(stat_info["indices"].keys()):
-
                     re_result = self.index_re.match(stat_index_name)
                     if re_result is None:
                         # 去掉一个整体index的计数
@@ -2392,7 +2391,6 @@ class ESStorage(models.Model, StorageResultTable):
         index_name = self.index_name
 
         while now_gap <= ahead_time:
-
             round_time = now_datetime_object + datetime.timedelta(minutes=now_gap)
             round_time_str = round_time.strftime(self.date_format)
 
@@ -2583,7 +2581,6 @@ class ESStorage(models.Model, StorageResultTable):
         if now_datetime_object.strftime(self.date_format) == current_index_info["datetime_object"].strftime(
             self.date_format
         ):
-
             # 如果当前index并没有写入过数据(count==0),则对其进行删除重建操作即可
             if es_client.count(index=last_index_name).get("count", 0) == 0:
                 new_index = current_index_info["index"]
@@ -2873,7 +2870,7 @@ class ESStorage(models.Model, StorageResultTable):
                     "doc_count_error_upper_bound" : 0,
                     "sum_other_doc_count" : 0,
                     "buckets" : [{
-                        "key" : "10.0.0.1",
+                        "key" : "127.0.0.1",
                         "doc_count" : 2124190
                     }]
                 }
@@ -2935,7 +2932,6 @@ class ESStorage(models.Model, StorageResultTable):
 
             # 遍历所有的alias是否需要删除
             for alias_name in alias_info["aliases"]:
-
                 logger.info("going to process table_id->[%s] ", self.table_id)
 
                 # 判断这个alias是否命中正则，是否需要删除的范围内
@@ -3181,7 +3177,6 @@ class ESStorage(models.Model, StorageResultTable):
                     current_datetime_str, self.snapshot_date_format, self.time_zone
                 )
                 if max_datetime:
-
                     if current_datetime > max_datetime:
                         max_datetime = current_datetime
                         max_snapshot = snapshot
@@ -3404,7 +3399,6 @@ class BkDataStorage(models.Model, StorageResultTable):
             tasks.access_to_bk_data_task.apply_async(args=(self.table_id,), countdown=60)
 
     def create_databus_clean(self, result_table):
-
         kafka_storage = KafkaStorage.objects.filter(table_id=result_table.table_id).first()
         if not kafka_storage:
             raise ValueError(_("结果表[{}]数据未写入消息队列，请确认后重试".format(result_table.table_id)))

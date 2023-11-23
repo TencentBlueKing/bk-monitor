@@ -75,6 +75,7 @@ class SpaceTableIDRedis:
         self, field_list: Optional[str] = None, table_id_list: Optional[List] = None, is_publish: Optional[bool] = False
     ):
         """推送指标及对应的结果表
+        TODO: 待稳定后，移除指标到结果表的映射
 
         1. 根据 ts metric 进行过滤
         2. 跟进 result field tag: metric 进行过滤
@@ -106,10 +107,13 @@ class SpaceTableIDRedis:
             table_ids, table_id_field_list = set(), []
             # 通过指标在反查结果表
             for _fields in chunks:
-                table_id_fields_qs = models.ResultTableField.objects.filter(
-                    tag=models.ResultTableField.FIELD_TAG_METRIC, field_name__in=list(_fields)
-                ).values("table_id", "field_name")
-                table_id_field_list.extend(list(table_id_fields_qs))
+                table_id_fields_qs = list(
+                    models.ResultTableField.objects.filter(
+                        tag=models.ResultTableField.FIELD_TAG_METRIC, field_name__in=list(_fields)
+                    ).values("table_id", "field_name")
+                )
+
+                table_id_field_list.extend(table_id_fields_qs)
                 table_ids = table_ids.union({data["table_id"] for data in table_id_fields_qs})
         else:
             table_id_field_list = list(table_id_fields)
@@ -206,8 +210,15 @@ class SpaceTableIDRedis:
             )
         }
         _table_list = list(_table_id_dict.values())
+        # 写入 influxdb 的结果表，不会太多，直接获取结果表和数据源的关系
+        table_id_data_id = {
+            drt["table_id"]: drt["bk_data_id"]
+            for drt in models.DataSourceResultTable.objects.filter(table_id__in=table_ids).values(
+                "table_id", "bk_data_id"
+            )
+        }
         # 获取结果表对应的类型
-        measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list)
+        measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list, table_id_data_id)
         table_id_cluster_id = get_table_id_cluster_id(table_ids)
         # 再追加上结果表的指标数据、集群 ID、类型
         table_id_fields = self._compose_table_id_fields(set(table_id_detail.keys()))
@@ -217,6 +228,7 @@ class SpaceTableIDRedis:
             detail["measurement_type"] = measurement_type_dict.get(table_id) or ""
             detail["bcs_cluster_id"] = table_id_cluster_id.get(table_id) or ""
             detail["data_label"] = _table_id_dict.get(table_id, {}).get("data_label") or ""
+            detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
             _table_id_detail[table_id] = json.dumps(detail)
 
         # 推送数据
@@ -497,8 +509,12 @@ class SpaceTableIDRedis:
         if not table_id_data_id:
             logger.error("space_type: %s, space_id:%s not found table_id and data_id", space_type, space_id)
             return _values
+
         # 提取仅包含写入 influxdb 和 vm 的结果表
         table_ids = self._refine_table_ids(list(table_id_data_id.keys()))
+        # 再一次过滤，过滤到有链路的结果表，并且写入 influxdb 或 vm 的数据
+        table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}
+
         data_id_list = list(table_id_data_id.values())
         # 获取datasource的信息，避免后续每次都去查询db
         data_id_detail = {
@@ -517,7 +533,7 @@ class SpaceTableIDRedis:
             models.ResultTable.objects.filter(table_id__in=table_ids).values("table_id", "schema_type", "data_label")
         )
         # 获取结果表对应的类型
-        measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list)
+        measurement_type_dict = get_measurement_type_by_table_id(table_ids, _table_list, table_id_data_id)
         # 获取空间所属的数据源 ID
         _space_data_ids = models.SpaceDataSource.objects.filter(
             space_type_id=space_type, space_id=space_id, from_authorization=False
@@ -683,4 +699,5 @@ class SpaceTableIDRedis:
             }
         )
 
+        return table_id_metrics
         return table_id_metrics
