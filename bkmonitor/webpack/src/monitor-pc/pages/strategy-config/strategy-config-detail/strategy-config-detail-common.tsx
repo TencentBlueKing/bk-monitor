@@ -44,7 +44,7 @@ import {
 import { deepClone, random, transformDataKey } from '../../../../monitor-common/utils/utils';
 import PromqlEditor from '../../../../monitor-ui/promql-editor/promql-editor';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-import { updateTimezone } from '../../../i18n/dayjs';
+import { destroyTimezone } from '../../../i18n/dayjs';
 import { ISpaceItem } from '../../../types';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
@@ -450,7 +450,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.strategyView.rightWidth = this.$el.clientWidth * 0.33;
   }
   beforeDestroy() {
-    updateTimezone();
+    destroyTimezone();
   }
   // 获取告警组数据
   async getAlarmGroupList() {

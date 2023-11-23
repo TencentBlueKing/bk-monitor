@@ -27,7 +27,7 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone } from '../../i18n/dayjs';
 
 import DataRetrieval from './data-retrieval';
 
@@ -43,7 +43,7 @@ export default class EventRetrieval extends tsc<{}> {
     });
   }
   beforeDestroy() {
-    updateTimezone();
+    destroyTimezone();
   }
   render() {
     return <DataRetrieval ref='eventRetrieval' />;

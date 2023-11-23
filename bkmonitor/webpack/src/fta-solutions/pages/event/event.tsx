@@ -45,14 +45,14 @@ import {
 import { listSpaces } from '../../../monitor-api/modules/commons';
 import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
 import { checkAllowed } from '../../../monitor-api/modules/iam';
-import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY, TIMEZONE_STORE_KEY } from '../../../monitor-common/utils';
 import { random } from '../../../monitor-common/utils/utils';
 import { showAccessRequest } from '../../../monitor-pc/components/access-request-dialog';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
 import SpaceSelect from '../../../monitor-pc/components/space-select/space-select';
 import { type TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
-import { updateTimezone } from '../../../monitor-pc/i18n/dayjs';
+import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../../monitor-pc/i18n/dayjs';
 import * as eventAuth from '../../../monitor-pc/pages/event-center/authority-map';
 import DashboardTools from '../../../monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import SplitPanel from '../../../monitor-pc/pages/monitor-k8s/components/split-panel';
@@ -235,7 +235,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   /* 默认事件范围为近24小时 */
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
   /* 时区 */
-  timezone: string;
+  timezone: string = getDefautTimezone();
   refleshInterval = 5 * 60 * 1000;
   refleshInstance = null;
   allowedBizList = [];
@@ -492,7 +492,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
 
   beforeDestroy() {
-    updateTimezone(dayjs.tz.guess());
+    destroyTimezone();
     this.routeStateKeyList = [];
     window.removeEventListener('popstate', this.handlePopstate);
     const { contentWrap } = this.$refs as any;
@@ -1150,7 +1150,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       // timeRange: 3600000,
       from: 'now-30d',
       to: 'now',
-      timezone: dayjs.tz.guess(),
+      timezone: getDefautTimezone(),
       refleshInterval: 300000,
       activePanel: 'list',
       chartInterval: 'auto',

@@ -31,6 +31,7 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+import { TIMEZONE_STORE_KEY } from '@common/utils';
 import { Collapse, CollapseItem, Input, Popover } from 'bk-magic-vue';
 
 import { getMainlineObjectTopo } from '../../../monitor-api/modules/commons';
@@ -65,7 +66,7 @@ import {
   handleTransformToTimestamp,
   timestampTransformStr
 } from '../../components/time-range/utils';
-import { updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
@@ -206,7 +207,7 @@ export default class DataRetrieval extends tsc<{}> {
     tools: {
       refleshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: window.timezone
+      timezone: getDefautTimezone()
     }
   };
 
@@ -528,7 +529,7 @@ export default class DataRetrieval extends tsc<{}> {
   }
 
   beforeDestroy() {
-    updateTimezone();
+    destroyTimezone();
     window.removeEventListener('message', this.handleMessage, false);
   }
   /** 非路由组件无法触发 BeforeRouteEnter 钩子 在其父组件触发后跳用此方法 */

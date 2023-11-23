@@ -82,7 +82,7 @@ import DropDownMenu from '../../../../components/monitor-dropdown/dropdown-menu.
 import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import { ICompareChangeType, IOption } from '../../../performance/performance-type';
-import { updateTimezone } from '../../../../i18n/dayjs';
+import { updateTimezone, getDefautTimezone } from '../../../../i18n/dayjs';
 
 @Component({
   name: 'tool-panel',
@@ -129,7 +129,7 @@ export default class ToolPanel extends Vue {
 
   showText = false;
   timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
-  timezone: string = window.timezone;
+  timezone: string = getDefautTimezone();
   refleshInterval = 5 * 60 * 1000;
   resizeHandler: Function = null;
 
@@ -175,7 +175,7 @@ export default class ToolPanel extends Vue {
     };
     this.resizeHandler();
     addListener(this.refPanelWrap, this.resizeHandler);
-    this.timezone = window.timezone
+    this.timezone = getDefautTimezone()
   }
 
   beforeDestroy() {

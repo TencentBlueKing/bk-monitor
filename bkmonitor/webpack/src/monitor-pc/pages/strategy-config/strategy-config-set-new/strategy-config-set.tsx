@@ -56,7 +56,7 @@ import { deepClone, getUrlParam, transformDataKey, typeTools } from '../../../..
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
-import { updateTimezone } from '../../../i18n/dayjs';
+import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
 import { IDataRetrieval } from '../../data-retrieval/typings';
@@ -378,7 +378,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
   /* 时区 */
-  timezone = window.timezone;
+  timezone = getDefautTimezone();
   get isEdit(): boolean {
     return !!this.$route.params.id;
   }
@@ -500,7 +500,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
   beforeDestroy() {
-    updateTimezone();
+    destroyTimezone();
     bus.$off(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
   @Watch('fromRouteName', { immediate: true })

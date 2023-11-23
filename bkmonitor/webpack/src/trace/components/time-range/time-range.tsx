@@ -26,7 +26,6 @@
 
 import { defineComponent, PropType } from 'vue';
 import { DatePicker } from '@blueking/date-picker';
-import dayjs from 'dayjs';
 
 import { updateTimezone } from '../../i18n/dayjs';
 
@@ -45,8 +44,7 @@ export default defineComponent({
       default: () => []
     },
     timezone: {
-      type: String,
-      default: window.timezone
+      type: String
     },
     needTimezone: {
       type: Boolean,
@@ -68,7 +66,6 @@ export default defineComponent({
     };
   },
   render() {
-    console.info(this.modelValue, '----------')
     return (
       <DatePicker
         class='time-range-date-picker'
