@@ -223,7 +223,7 @@ export declare namespace IDataRetrievalView {
     onAddEventStrategy: IFilterCondition.VarParams;
     onCompareValueChange: PanelToolsType.Compare;
     onTimeRangeChange: PanelHeaderType.TimeRangeValue;
-    onDrillKeywordsSearch: string;
+    onDrillKeywordsSearch: EventRetrievalViewType.IDrillModel;
   }
   interface IProps {
     compareValue: ICompareValue;
@@ -333,6 +333,7 @@ export declare namespace IEventRetrieval {
     onAutoQueryChange?: (v: boolean) => void;
     onClearDrillKeywords: void;
     onEmptyStatusChange: (val: EmptyStatusType) => void;
+    onFilterConditionListChange: (val) => void;
   }
   interface IProps {
     where: IFilterCondition.localValue[];
@@ -516,11 +517,14 @@ export declare namespace EventRetrievalViewType {
     onAddStrategy?: IFilterCondition.VarParams;
     onTimeRangeChange: [number, number];
     onExportDataRetrieval?: void;
+    onDrillSearch?: IDrillModel;
   }
-  interface IDrill {
-    data: object;
-    onDrillSearch: (v: string) => string;
+
+  interface IDrillModel {
+    type: 'search' | 'filter';
+    condition: string | IFilterCondition.localValue;
   }
+
   interface ITextSegment {
     content: string;
     fieldType: string;

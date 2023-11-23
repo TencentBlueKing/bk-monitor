@@ -267,8 +267,11 @@ export default class DataRetrieval extends tsc<{}> {
 
   /** 事件检索字段列表 */
   // eventFieldList: FieldValue[] = []
+  @ProvideReactive('filterConditionList')
+  filterConditionList = [];
   /** 事件检索查询图表的指标数据 */
   eventMetricParams: IFilterCondition.VarParams = null;
+  @ProvideReactive('eventWhere')
   /** 事件检索过滤条件 */
   eventWhere: IFilterCondition.localValue[] = [];
   /** 事件检索汇聚周期 */
@@ -2300,6 +2303,15 @@ export default class DataRetrieval extends tsc<{}> {
     );
   }
 
+  handleDrillKeywordsSearch(val: EventRetrievalViewType.IDrillModel) {
+    console.log(val);
+    if (val.type === 'search') {
+      this.drillKeywords = val.condition as string;
+    } else {
+      this.eventWhere.push(val.condition as IFilterCondition.localValue);
+    }
+  }
+
   /**
    * @description: 源码值更新
    * @param {DataRetrievalQueryItem} item
@@ -3264,6 +3276,7 @@ export default class DataRetrieval extends tsc<{}> {
                           onQuery={this.handleEventQuery}
                           onAddFav={this.handleClickAddOrUpdateFav}
                           onWhereChange={this.eventWhereChange}
+                          onFilterConditionListChange={val => (this.filterConditionList = val)}
                           onEmptyStatusChange={this.handleEmptyStatusChange}
                         />
                       ) : undefined
@@ -3301,7 +3314,7 @@ export default class DataRetrieval extends tsc<{}> {
                     onEventIntervalChange={this.handleEventIntervalChange}
                     onAddEventStrategy={this.handleAddEventStrategy}
                     onAddStrategy={this.handleAddStrategy}
-                    onDrillKeywordsSearch={val => (this.drillKeywords = val)}
+                    onDrillKeywordsSearch={this.handleDrillKeywordsSearch}
                     emptyStatus={this.emptyStatus}
                   />
                 </div>

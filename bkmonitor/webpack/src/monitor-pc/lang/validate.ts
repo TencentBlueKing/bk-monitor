@@ -99,6 +99,7 @@ export default {
   // 规范：不支持
   不支持该协议: 'Protocol not supported',
   不支持查询语句: 'Query statement is not supported',
+  '不支持 != 操作': 'Does not support != operation',
   '不支持“插件包不完整”的批量导入': 'Bulk import of incomplete plugin packages is not supported',
   '不支持大于、大于等于、小于和小于等于条件':
     'Does not support greater than, greater than or equal to, less than and less than or equal to conditions',
@@ -251,6 +252,7 @@ export default {
   '检查查询条件是否完整，是否有报错提示':
     'Check whether the query conditions are complete and whether there is an error prompt',
   已添加该默认值: 'The default value has been added',
+  已添加过滤条件: 'Filter criteria added',
   '字段“{key}”请确保大于0': 'Please ensure that field "{key}" is greater than 0',
   '标签格式应为key:value': 'The tag format should be key:value',
   '第{index}个分组未填写字段table_name': 'Field table_name not filled in for group {index}',

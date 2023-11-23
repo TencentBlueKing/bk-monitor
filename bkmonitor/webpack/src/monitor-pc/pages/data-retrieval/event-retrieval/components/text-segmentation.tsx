@@ -138,7 +138,7 @@ export default class FieldFiltering extends tsc<EventRetrievalViewType.ITextSegm
             <span
               class='icon bk-icon icon-close-circle'
               v-bk-tooltips={{ content: this.$t('添加查询语句'), delay: 300 }}
-              onClick={() => this.handleMenuClick('is')}
+              onClick={() => this.handleMenuClick('eq')}
             ></span>
             <span
               class='icon icon-monitor icon-mc-copy'
