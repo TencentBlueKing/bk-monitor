@@ -2,7 +2,7 @@ import copy
 import re
 from collections import Counter, deque
 from dataclasses import asdict, dataclass
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.utils.translation import ugettext_lazy as _
 from luqum.auto_head_tail import auto_head_tail
@@ -806,6 +806,28 @@ class EnhanceLuceneAdapter(object):
         return self.query_string
 
 
+@dataclass
+class LuceneCheckResult:
+    """
+    Lucene语法检查结果
+    """
+
+    # 是否检查
+    checked: bool = False
+    # 是否合法
+    legal: bool = True
+    # 是否可以修复
+    fixable: bool = True
+    # 是否修复
+    fixed: bool = False
+    # 错误信息
+    error: str = ""
+    # 修复建议
+    suggestion: str = _("你可能想输入: ")
+    # 修复后的query_string
+    fixed_query_string: str = ""
+
+
 class LuceneCheckerBase(object):
     """
     Lucene语法检查器基类
@@ -814,27 +836,22 @@ class LuceneCheckerBase(object):
     # prompt message
     prompt_template = _("{error}, {suggestion}")
 
-    def __init__(self, query_string: str):
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
         self.query_string = query_string
-        # 是否检查
-        self.is_checked: bool = False
-        # 是否可以修复, 如果不可以修复, 则不会调用fix方法
-        self.is_fixable: bool = True
-        # 是否修复
-        self.is_fixed: bool = False
-        self.error = ""
-        self.fixed_query_string = query_string
+        self.fields = fields or []
+        self.check_result = LuceneCheckResult(fixed_query_string=query_string)
 
     def check(self):
         """
         检查语法是否正确, 如果不正确, 则设置error
         """
-        self.is_checked = True
-        return self._check()
+        self.check_result.checked = True
+        self.check_result.legal = self._check()
 
     def _check(self):
         """
         检查语法是否正确, 实际需要实现的方法
+        如果不正确, 则设置 legal=False 以及 error
         """
         raise NotImplementedError
 
@@ -842,27 +859,30 @@ class LuceneCheckerBase(object):
         """
         返回提示信息, 如果没有错误, 则返回空字符串, 否则返回错误信息
         """
-        if not self.is_checked:
+        if not self.check_result.checked:
             self.check()
-        if not self.error:
+        if self.check_result.legal or not self.check_result.error:
             return ""
-        if self.error and self.is_fixable and not self.is_fixed:
+        if self.check_result.error and self.check_result.fixable and not self.check_result.fixed:
             self.fix()
-        if not self.is_fixable:
-            return self.prompt_template.format(error=self.error, suggestion="")
-
-        return self.prompt_template.format(error=self.error, suggestion=f"你可能想输入: {self.fixed_query_string}")
+        if self.check_result.fixable:
+            return self.prompt_template.format(
+                error=self.check_result.error,
+                suggestion=self.check_result.suggestion + self.check_result.fixed_query_string,
+            )
+        return self.prompt_template.format(error=self.check_result.error, suggestion=self.check_result.suggestion)
 
     def fix(self):
         """
         修复语法错误, 如果修复成功, 则设置is_fixed为True, 将修复后的query_string赋值给fixed_query_string
         """
-        self._fix()
-        self.is_fixed = True
+        self.check_result.fixed_query_string = self._fix()
+        self.check_result.fixed = True
 
-    def _fix(self):
+    def _fix(self) -> str:
         """
         修复语法错误, 实际需要实现的方法
+        返回修复后的query_string
         """
         raise NotImplementedError
 
@@ -877,6 +897,7 @@ class LuceneParenthesesChecker(LuceneCheckerBase):
 
     def __init__(self, query_string: str):
         super().__init__(query_string=query_string)
+        # 检查是否多了左括号或者右括号, 如果多了, 则为True, 否则为False
         self.more_or_less: Optional[bool] = None
 
     def _fix(self):
@@ -896,7 +917,7 @@ class LuceneParenthesesChecker(LuceneCheckerBase):
         while stack:
             stack.pop()
             query_string += self.PAIR_RIGHT
-        self.fixed_query_string = query_string
+        return query_string
 
     def _check(self):
         stack = deque()
@@ -906,16 +927,16 @@ class LuceneParenthesesChecker(LuceneCheckerBase):
             elif char == self.PAIR_RIGHT:
                 if not stack:
                     self.more_or_less = True
-                    self.error = f'多了 {self.PAIR_RIGHT}'
+                    self.check_result.error = _("多了 {pair}").format(pair=self.PAIR_RIGHT)
                     return False
                 top_char = stack.pop()
                 if not self.is_matching(top_char, char):
                     self.more_or_less = False
-                    self.error = f'缺少 {self.PAIR_LEFT}'
+                    self.check_result.error = _("缺少 {pair}").format(pair=self.PAIR_LEFT)
                     return False
         if stack:
             self.more_or_less = False
-            self.error = f'缺少 {self.PAIR_RIGHT}'
+            self.check_result.error = _("缺少 {pair}").format(pair=self.PAIR_RIGHT)
             return False
         return True
 
@@ -956,7 +977,7 @@ class LuceneQuotesChecker(LuceneCheckerBase):
                 word = self.DOUBLE_QUOTE + word
             words.append(word)
 
-        self.fixed_query_string = self.CHARACTER_WHITESPACE.join(words)
+        return self.CHARACTER_WHITESPACE.join(words)
 
     def _check(self):
         for word in self.query_string.split(self.CHARACTER_WHITESPACE):
@@ -968,7 +989,7 @@ class LuceneQuotesChecker(LuceneCheckerBase):
                 or (word.startswith(self.SINGLE_QUOTE) and word.endswith(self.DOUBLE_QUOTE))
                 or (word.startswith(self.DOUBLE_QUOTE) and word.endswith(self.SINGLE_QUOTE))
             ):
-                self.error = '引号不匹配'
+                self.check_result.error = _("引号不匹配")
                 return False
         return True
 
@@ -997,23 +1018,22 @@ class LuceneRangeChecker(LuceneCheckerBase):
             if 'TO' in sub_query:
                 parts = sub_query.split('TO')
                 if len(parts) >= 2 and ":" not in parts[0]:
-                    self.error = 'RANGE语法异常, 缺少字段名'
-                    self.is_fixable = False
+                    self.check_result.error = _("RANGE语法异常, 缺少字段名")
+                    self.check_result.is_fixable = False
                     return False
                 __, start = parts[0].split(':')
                 start = start.strip()
                 end = parts[1].strip()
                 if not (re.match(r"\[\d+|\{\d+|\{.\*", start) and re.match(r"\d+\}|\d+\]|.\*\}", end)):
-                    self.error = 'RANGE语法异常, 格式错误'
+                    self.check_result.error = _("RANGE语法异常, 格式错误")
                     return False
 
         return True
 
     def _fix(self):
         """
-        Fixing logic for minimum sub queries with 'TO'.
+        按'TO'拆分, 依次检查左边和右边是否缺失边界以及边界符号
         """
-        # perform corrections
         fixed_sub_query_list = []
         for sub_query in self.sub_query_list:
             original_sub_query = copy.deepcopy(sub_query)
@@ -1040,4 +1060,4 @@ class LuceneRangeChecker(LuceneCheckerBase):
                 fixed_sub_query_list.append(f'{field}: {start} TO {end}')
             else:
                 fixed_sub_query_list.append(original_sub_query)
-        self.fixed_query_string = ' '.join(fixed_sub_query_list)
+        return ' '.join(fixed_sub_query_list)

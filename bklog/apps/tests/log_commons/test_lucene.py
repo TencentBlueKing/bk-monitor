@@ -415,24 +415,23 @@ class TestLuceneChecker(TestCase):
         for case in PARENTHESES_CHECK_TEST_CASES:
             keyword = case["keyword"]
             checker = LuceneParenthesesChecker(keyword)
-            self.assertEqual(checker.check(), case["check_result"])
-            if not checker.check():
-                checker.fix()
-                self.assertEqual(checker.prompt(), case["prompt"])
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            self.assertEqual(checker.prompt(), case["prompt"])
 
         for case in QUOTE_CHECK_TEST_CASES:
             keyword = case["keyword"]
             checker = LuceneQuotesChecker(keyword)
-            self.assertEqual(checker.check(), case["check_result"])
-            if not checker.check():
-                checker.fix()
-                self.assertEqual(checker.prompt(), case["prompt"])
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
 
     def test_range_checker(self):
         for case in RANGE_CHECK_TEST_CASES:
             keyword = case["keyword"]
             checker = LuceneRangeChecker(keyword)
-            self.assertEqual(checker.check(), case["check_result"])
-            if not checker.check():
-                checker.fix()
-                self.assertEqual(checker.prompt(), case["prompt"])
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
