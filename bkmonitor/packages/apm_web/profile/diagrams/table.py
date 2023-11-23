@@ -17,13 +17,17 @@ from .base import FunctionTree
 @dataclass
 class TableDiagrammer:
     def draw(self, c: Converter, **options) -> dict:
-        tree = FunctionTree.load_from_profile(c.profile)
+        tree = FunctionTree.load_from_profile(c)
 
         nodes = list(tree.nodes_map.values())
-        nodes.sort(key=lambda x: x.value, reverse=True)
-        total = sum([x.value for x in nodes])
+        total_nodes = sorted(nodes, key=lambda x: x.value, reverse=True)
+        self_nodes = sorted(nodes, key=lambda x: x.self_time, reverse=True)
 
         return {
-            "table_data": {"items": {"func": x.display_name, "value": x.value} for x in nodes},
-            "total": total,
+            "table_data": {
+                "self": [{"id": x.id, "func": x.display_name, "value": x.self_time} for x in self_nodes],
+                "total": [{"id": x.id, "func": x.display_name, "value": x.value} for x in total_nodes],
+            },
+            "all": tree.root.value,
+            **c.get_sample_type(),
         }
