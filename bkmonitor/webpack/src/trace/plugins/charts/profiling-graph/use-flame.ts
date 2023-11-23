@@ -44,7 +44,7 @@ import {
   RootId,
   ThreadPos
 } from './types';
-import { findChildById, findRegionById } from './utils';
+import { findChildById, findRegionById, getHashVal } from './utils';
 
 const usFormat = getValueFormat('µs');
 export class FlameChart<D extends BaseDataType> {
@@ -325,7 +325,9 @@ export class FlameChart<D extends BaseDataType> {
         };
         const getFillColor = (d: HierarchyRectangularNode<D> | HierarchyNode<D>) => {
           const customColor = this.getFillColor(d.data);
-          const defColor = customColor || ColorTypes[d.data.icon_type || 'other'];
+          const palette = Object.values(ColorTypes);
+          const colorIndex = getHashVal(d.data.name) % palette.length;
+          const defColor = customColor || palette[colorIndex];
           if (this.zoomData?.keywords?.length) {
             if (this.zoomData.keywords.some(k => d.data.name.toLocaleLowerCase().includes(k))) return defColor;
             return '#aaa';
@@ -508,10 +510,10 @@ export class FlameChart<D extends BaseDataType> {
 
   getValue(d: D | HierarchyRectangularNode<D>) {
     if ('data' in d) {
-      return d.data.value;
+      return d.data.value / 1000;
     }
 
-    return d.value;
+    return d.value / 1000;
   }
 
   getChildren(d: D | HierarchyRectangularNode<D> | HierarchyNode<D>) {

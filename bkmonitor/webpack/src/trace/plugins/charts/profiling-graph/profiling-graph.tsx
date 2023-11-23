@@ -29,7 +29,7 @@ import { HierarchyNode } from 'd3-hierarchy';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
-import { traceDiagram } from '../../../../monitor-api/modules/apm_trace';
+import { profileQuery } from '../../../../monitor-api/modules/apm_profile';
 import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import { getSingleDiffColor } from '../../../utils/compare';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
@@ -60,10 +60,6 @@ const paddingLeft = 6;
 export default defineComponent({
   name: 'FlameGraph',
   props: {
-    traceId: {
-      type: String,
-      required: true
-    },
     appName: {
       type: String,
       required: true
@@ -79,6 +75,22 @@ export default defineComponent({
     textDirection: {
       type: String as () => 'ltr' | 'rtl',
       default: 'ltr'
+    },
+    profileId: {
+      type: String,
+      default: ''
+    },
+    start: {
+      type: Number,
+      required: true
+    },
+    end: {
+      type: Number,
+      required: true
+    },
+    bizId: {
+      type: [Number, String],
+      required: true
     }
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess'],
@@ -110,26 +122,26 @@ export default defineComponent({
       }
     );
     watch(
-      [() => props.traceId, () => props.appName, () => props.diffTraceId],
+      [() => props.appName, () => props.profileId, () => props.diffTraceId],
       debounce(16, async () => {
         contextMenuRect.value.left = -1;
         emit('update:loading', true);
         showException.value = false;
         try {
-          const data = await traceDiagram(
+          const { bizId, appName, start, end, profileId } = props;
+          const data = await profileQuery(
             {
-              trace_id: props.traceId,
-              app_name: props.appName,
-              diagram_type: 'flamegraph',
-              show_attrs: 0,
-              diff_trace_id: props.diffTraceId,
-              displays: []
+              bk_biz_id: bizId,
+              app_name: appName,
+              start,
+              end,
+              profile_id: profileId
             },
             {
               needCancel: true
             }
           ).catch(() => false);
-          if (data?.diagram_data?.flame_data?.length) {
+          if (data?.flame_data) {
             if (props.diffTraceId) {
               emit('diffTraceSuccess');
             }
@@ -138,7 +150,7 @@ export default defineComponent({
             initScale();
             if (!chartRef.value?.clientWidth) return;
             graphInstance = new FlameChart(
-              initGraphData(data.diagram_data.flame_data),
+              initGraphData(data.flame_data),
               {
                 w: chartRef.value.clientWidth - paddingLeft * 2,
                 c: 20,
@@ -154,7 +166,7 @@ export default defineComponent({
                     tipDetail.value = {};
                     return;
                   }
-                  const { text, suffix } = usFormat(d.data.value);
+                  const { text, suffix } = usFormat(d.data.value / 1000);
                   let diffDuration = '';
                   let diffValue = 0;
                   if (props.diffTraceId && d.data?.diff_info) {
@@ -286,28 +298,10 @@ export default defineComponent({
      * @param data flame graph data
      * @param traceInfo trace info
      * @returns flame graph data
-     * @description: add root node
      */
-    function addRootNode(data: BaseDataType[]): BaseDataType {
-      const root = {
-        name: 'total',
-        id: RootId,
-        value: data[0]?.value ?? 0 // ToDO
-      };
-      return {
-        ...root,
-        children: data
-      };
-    }
-    /**
-     *
-     * @param data flame graph data
-     * @param traceInfo trace info
-     * @returns flame graph data
-     */
-    function initGraphData(data: BaseDataType[]) {
-      const main = addRootNode(data.filter(item => !item.last_sibling_id));
-      const threads = data.filter(item => item.last_sibling_id);
+    function initGraphData(data: BaseDataType) {
+      const main = data;
+      const threads = [];
       return {
         main,
         threads
@@ -370,7 +364,7 @@ export default defineComponent({
      */
     function handleStoreImg() {
       const svgDom = chartRef.value.querySelector('svg');
-      convertSvgToPngAndDownload(svgDom, `${props.appName}_${props.traceId}.png`);
+      convertSvgToPngAndDownload(svgDom, `${props.appName}_${props.profileId}.png`);
     }
     /**
      *

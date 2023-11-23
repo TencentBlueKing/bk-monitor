@@ -41,6 +41,7 @@ import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
+import { useAppStore } from '../../store/modules/app';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
@@ -106,6 +107,10 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
+
+    const ellipsisDirection = computed(() => store.ellipsisDirection);
+
+    const bizId = computed(() => useAppStore().bizId || 0);
 
     const countOfInfo = ref<Record<TabName, number> | {}>({});
 
@@ -1153,9 +1158,13 @@ export default defineComponent({
                         style='height: 100%;'
                       >
                         <ProfilingGraph
-                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
-                          traceId={originalData.value.trace_id}
                           appName={appName.value}
+                          profileId={originalData.value.span_id}
+                          start={originalData.value.start_time}
+                          end={originalData.value.end_time}
+                          bizId={bizId.value}
+                          textDirection={ellipsisDirection.value}
+                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
                         />
                       </Loading>
                     )

@@ -23,30 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-function useGetWidthByText() {
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-
-  /**
-   * Measures the rendered width of arbitrary text given the font size and font face
-   * @param {string} text The text to measure
-   * @param {number} fontSize The font size in pixels
-   * @param {string} fontFace The font face ("Arial", "Helvetica", etc.)
-   * @returns {number} The width of the text
-   **/
-  function getWidth(text: string, fontSize: number, fontFace: string) {
-    context.font = `${fontSize}px ${fontFace}`;
-    return context.measureText(text).width;
-  }
-
-  return {
-    getWidth
-  };
-}
-
-const context = useGetWidthByText();
-
-export const getWidthByText = context.getWidth;
 
 /**
  * 查找父节点
@@ -89,4 +65,21 @@ export const findChildById = (treeList, id) => {
   };
   searchFn(treeList);
   return temp;
+};
+
+/**
+ * @desc 字符串生成 hash 值
+ */
+export const getHashVal = string => {
+  let hash = 0;
+  let i;
+  let chr;
+  if (string.length === 0) return hash;
+  for (i = 0; i < string.length; i++) {
+    chr = string.charCodeAt(i);
+    hash = (hash << 5) - hash + chr;
+    hash |= 0;
+  }
+
+  return Math.abs(hash);
 };
