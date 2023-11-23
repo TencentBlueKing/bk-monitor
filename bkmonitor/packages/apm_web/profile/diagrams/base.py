@@ -31,6 +31,12 @@ class FunctionNode:
     ROOT_DISPLAY_NAME: ClassVar[str] = "root"
 
     @property
+    def self_time(self) -> int:
+        """self time"""
+        sub = self.value - sum(x.value for x in self.children)
+        return sub if sub > 0 else 0
+
+    @property
     def display_name(self) -> str:
         """display name"""
         if self.is_root:
@@ -47,14 +53,14 @@ class FunctionTree:
 
     nodes_map: Dict[int, FunctionNode] = field(default_factory=dict)
 
-    def add_function_node(self, f: Function, v: int, parent: FunctionNode, parser: Converter) -> FunctionNode:
+    def add_function_node(self, f: Function, v: int, parent: FunctionNode, converter: Converter) -> FunctionNode:
         """Add function node to tree"""
         node = FunctionNode(
             id=f.id,
             value=v,
-            name=parser.get_string(f.name),
-            system_name=parser.get_string(f.system_name),
-            filename=parser.get_string(f.filename),
+            name=converter.get_string(f.name),
+            system_name=converter.get_string(f.system_name),
+            filename=converter.get_string(f.filename),
         )
         self.nodes_map[f.id] = node
 
@@ -75,14 +81,17 @@ class FunctionTree:
         for sample in profile.sample:
             sample_value = sample.value[0]
             parent_node = None
-            for location_id in sample.location_id:
+
+            # "The leaf is at location_id[0]." from profile.proto
+            # so build the tree reversely
+            for location_id in reversed(sample.location_id):
                 location = converter.get_location(location_id)
-                # 同一个 Location 下的 Line 列表形成一个调用关系
+
                 for line in location.line:
                     node = tree.nodes_map.get(line.function_id)
 
-                    function = converter.get_function(line.function_id)
                     if node is None:
+                        function = converter.get_function(line.function_id)
                         node = tree.add_function_node(function, sample_value, parent_node, converter)
                     else:
                         node.value += sample_value

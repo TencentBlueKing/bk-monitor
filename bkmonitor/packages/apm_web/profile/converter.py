@@ -63,11 +63,25 @@ class Converter:
     def get_function(self, function_id: int) -> Function:
         return self._function_id_mapping.get(function_id)
 
+    def get_function_name(self, function_id: int) -> str:
+        return self.get_string(self.get_function(function_id).name)
+
     def get_location(self, location_id: int) -> Location:
         return self._location_id_mapping.get(location_id)
 
     def get_mapping(self, mapping_id: int) -> Mapping:
         return self._mapping_id_mapping.get(mapping_id)
+
+    def get_sample_type(self) -> dict:
+        """get sample type for profile"""
+        # sometimes we would remove the first value of sample_type, which is describing the number of samples
+        target_sample_type = self.profile.sample_type[0]
+
+        # by convention, the first value on all profiles is the number of samples collected at this call stack,
+        if len(self.profile.sample_type) > 1:
+            target_sample_type = self.profile.sample_type[1]
+
+        return {"type": self.get_string(target_sample_type.type), "unit": self.get_string(target_sample_type.unit)}
 
 
 _converters: Dict[str, Type[Converter]] = {}

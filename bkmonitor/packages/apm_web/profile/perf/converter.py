@@ -95,6 +95,20 @@ class PerfScriptConverter(Converter):
                 continue
 
             addr = int(stack_fields[0], 16)
+            location = self._location_mapping.get(str(addr))
+            if location is None:
+                location = Location(
+                    id=len(self.profile.location) + 1,
+                    mapping_id=self.profile.mapping[0].id,
+                    address=addr,
+                    is_folded=False,
+                )
+
+                self._location_mapping[str(addr)] = location
+                self._location_id_mapping[location.id] = location
+
+                self.profile.location.append(location)
+
             func_name = stack_fields[1]
             if len(func_name.split("+")) == 2:
                 func_name = func_name.split("+")[0]
@@ -114,21 +128,8 @@ class PerfScriptConverter(Converter):
 
                 self.profile.function.append(function)
 
-            location = self._location_mapping.get(str(addr))
-            if location is None:
-                location = Location(
-                    id=len(self.profile.location) + 1,
-                    mapping_id=self.profile.mapping[0].id,
-                    address=addr,
-                    is_folded=False,
-                )
+                location.line.append(Line(function_id=function.id, line=1))
 
-                self._location_mapping[str(addr)] = location
-                self._location_id_mapping[location.id] = location
-
-                self.profile.location.append(location)
-
-            location.line.append(Line(function_id=function.id, line=1))
             # locations only for this sample
             sample_locations.append(location)
 

@@ -14,7 +14,7 @@ from apm_web.models import ProfileUploadRecord
 
 class ProfileQuerySerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
-    application_id = serializers.IntegerField(label="应用ID")
+    app_name = serializers.CharField(label="应用名称")
     start = serializers.IntegerField(label="开始时间", help_text="请使用 Microsecond")
     end = serializers.IntegerField(label="结束时间", help_text="请使用 Microsecond")
     profile_type = serializers.CharField(label="profile类型", required=False, default="cpu")
