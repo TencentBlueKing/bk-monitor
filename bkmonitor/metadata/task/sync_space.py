@@ -73,6 +73,7 @@ def sync_bkcc_space(allow_deleted=False):
     if not (diff or diff_delete):
         logger.info("bkcc space not need add or delete!")
         return
+
     # 针对删除的业务
     # 当业务在 cmdb 删除业务，并且允许删除为 True 时，才进行删除；避免因为接口返回不正确，误删除的场景
     if diff_delete and allow_deleted:
