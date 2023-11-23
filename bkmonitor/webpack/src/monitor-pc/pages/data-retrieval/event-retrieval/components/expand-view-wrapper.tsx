@@ -35,15 +35,23 @@ import KVList from './kv-list';
 import './expand-view-wrapper.scss';
 import 'vue-json-pretty/lib/styles.css';
 
+interface IProps {
+  data: object;
+}
+
+interface IEvent {
+  onDrillSearch: EventRetrievalViewType.IDrillModel;
+}
+
 @Component
-export default class FieldFiltering extends tsc<EventRetrievalViewType.IDrill> {
+export default class FieldFiltering extends tsc<IProps, IEvent> {
   @Prop({ default: () => ({}), type: Object }) data: object;
 
   /** 当前活跃的nav */
   activeExpandView = 'kv';
 
   @Emit('drillSearch')
-  handleMenuClick(keywords: string) {
+  handleMenuClick(keywords: EventRetrievalViewType.IDrillModel) {
     return keywords;
   }
 

@@ -17,10 +17,10 @@
     }
 
     .handle-option-list {
-      flex-shrink: 0;
       display: flex;
-      justify-content: space-between;
+      flex-shrink: 0;
       align-items: center;
+      justify-content: space-between;
       margin: 0 20px;
 
       .icon {
@@ -55,14 +55,15 @@
       }
 
       .icon-copy {
-        transform: rotate(0);
         font-size: 24px;
         cursor: pointer;
+        transform: rotate(0);
       }
 
       .icon-enlarge-line,
       .icon-minus-circle,
       .icon-arrows-up-circle,
+      .icon-narrow-line,
       .icon-copy {
         &.is-disabled {
           color: #dcdee5;
