@@ -12,7 +12,6 @@ import logging
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from monitor_web.commons.biz.func_control import CM
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
@@ -24,6 +23,7 @@ from bkmonitor.views import serializers
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
+from monitor_web.commons.biz.func_control import CM
 
 BK_MONITOR_SITE_URL = "/o/bk_monitorv3/"
 
@@ -46,6 +46,14 @@ class BusinessListOptionResource(Resource):
         select_options = [{"id": biz.bk_biz_id, "text": biz.display_name} for biz in biz_list]
         select_options.sort(key=lambda b: safe_int(b["id"]))
         return select_options
+
+
+class ListBusinessOfBizSetResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        biz_set_id = serializers.IntegerField(required=True)
+
+    def perform_request(self, validated_request_data):
+        return api.cmdb.get_business_by_biz_set(bk_biz_set_id=validated_request_data["biz_set_id"])
 
 
 class FetchBusinessInfoResource(Resource):
@@ -116,7 +124,6 @@ class ListSpacesResource(Resource):
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
     def perform_request(self, validated_request_data) -> [dict]:
-
         if validated_request_data["show_all"]:
             all_space_list = SpaceApi.list_spaces()
         else:

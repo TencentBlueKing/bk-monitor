@@ -31,7 +31,16 @@ from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
 
 from . import client
-from .define import Business, Host, Module, Process, ServiceInstance, Set, TopoTree
+from .define import (
+    Business,
+    BusinessSet,
+    Host,
+    Module,
+    Process,
+    ServiceInstance,
+    Set,
+    TopoTree,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -405,6 +414,34 @@ class GetTopoTreeResource(Resource):
 
     def perform_request(self, params):
         return TopoTree(_get_topo_tree(params["bk_biz_id"]))
+
+
+class GetBusinessSetList(Resource):
+    """
+    获取业务集列表
+    """
+
+    def perform_request(self, validated_request_data):
+        response_data = client.list_business_set()["info"]
+        return [BusinessSet(**biz_set) for biz_set in response_data]
+
+
+class GetBusinessByBizSet(Resource):
+    """
+    根据业务集id 获取业务列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_set_id = serializers.IntegerField(label="业务集ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_set_id = validated_request_data["bk_biz_set_id"]
+        response_data = batch_request(
+            client.list_business_in_business_set,
+            {"bk_biz_set_id": bk_biz_set_id, "fields": ["bk_biz_id", "bk_biz_name"]},
+            app="cmdb_v2",
+        )
+        return response_data
 
 
 class GetBusiness(Resource):

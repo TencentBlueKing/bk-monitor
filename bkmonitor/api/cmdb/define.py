@@ -110,6 +110,29 @@ class TopoNode(object):
         return node_attrs
 
 
+class BusinessSet(object):
+    """
+    业务集合
+    """
+
+    def __init__(self, **kwargs):
+        self.info = kwargs
+        # 运维人员
+        self.bk_biz_maintainer = kwargs.pop("bk_biz_maintainer")
+        # 描述
+        self.bk_biz_set_desc = kwargs.pop("bk_biz_set_desc", "")
+        # 业务集id
+        self.bk_biz_set_id = kwargs.pop("bk_biz_set_id")
+        # 业务集名称 s
+        self.bk_biz_set_name = kwargs.pop("bk_biz_set_name")
+
+    def __getattr__(self, item):
+        return self.info[item]
+
+    def __repr__(self):
+        return "<BusinessSet: {}-{}>".format(self.bk_biz_set_id, self.bk_biz_set_name)
+
+
 class Business(TopoNode):
     """
     业务

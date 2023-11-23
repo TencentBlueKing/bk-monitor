@@ -12,6 +12,9 @@ from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.query import resource
 from bkm_ipchooser.tools import batch_request, topo_tool
 from bkm_ipchooser.tools.gse_tool import GseTool
+from bkm_space.api import SpaceApi
+from bkmonitor.utils.thread_backend import ThreadPool
+from core.drf_resource import api
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -57,6 +60,38 @@ class TopoHandler:
             formatted_topo_tree_stack.extend(formatted_node["child"])
 
         return formatted_topo_tree
+
+    @staticmethod
+    def get_biz_data(biz_info: dict):
+        result = {
+            "child": [],
+            "instance_id": biz_info["bk_biz_id"],
+            "instance_name": biz_info["bk_biz_name"],
+            "meta": BaseHandler.get_meta_data(biz_info["bk_biz_id"]),
+            "object_id": constants.ScopeType.BIZ.value,
+            "object_name": "业务",
+            "lazy": True,
+        }
+        cache_key = f"host_topo_relations:{biz_info['bk_biz_id']}"
+        host_topo_relations: typing.List[typing.Dict] = cache.get(cache_key)
+        if not host_topo_relations:
+            host_topo_relations = resource.ResourceQueryHelper.fetch_host_topo_relations(biz_info['bk_biz_id'])
+            cache.set(cache_key, host_topo_relations, topo_tool.TopoTool.CACHE_5MIN)
+        result.update(count=len(host_topo_relations))
+        return result
+
+    @classmethod
+    def get_biz_tree_from_biz_set(cls, biz_set_id: int):
+        biz_data = api.cmdb.get_business_by_biz_set(bk_biz_set_id=biz_set_id)
+        pool = ThreadPool()
+        result = pool.map(cls.get_biz_data, biz_data)
+        pool.close()
+        pool.join()
+        return result
+
+    @classmethod
+    def query_business(cls, bk_biz_id: int) -> typing.List[typing.Dict]:
+        return cls.get_biz_tree_from_biz_set(biz_set_id=int(SpaceApi.get_space_detail(bk_biz_id=bk_biz_id).space_id))
 
     @classmethod
     def trees(

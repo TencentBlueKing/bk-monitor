@@ -25,6 +25,7 @@ class SpaceTypes(Enum):
     BCS = "bcs"
     BKCI = "bkci"
     BKSAAS = "bksaas"
+    BKCC_SET = "bkcc_set"
     DEFAULT = "default"
     ALL = "all"
 

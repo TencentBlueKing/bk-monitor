@@ -277,6 +277,24 @@ class FindTopoNodePaths(CMDBBaseResource):
     method = "POST"
 
 
+class ListBusinessSet(CMDBBaseResource):
+    """
+    查询业务集
+    """
+
+    action = "list_business_set"
+    method = "POST"
+
+
+class ListBusinessInBusinessSet(CMDBBaseResource):
+    """
+    查询业务集中的业务列表
+    """
+
+    action = "list_business_in_business_set"
+    method = "POST"
+
+
 search_set = SearchSet()
 search_module = SearchModule()
 list_biz_hosts_topo = ListBizHostsTopo()
@@ -298,3 +316,5 @@ find_host_by_service_template = FindHostByServiceTemplate()
 list_hosts_without_biz = ListHostsWithoutBiz()
 find_host_biz_relation = FindHostBizRelation()
 find_topo_node_paths = FindTopoNodePaths()
+list_business_set = ListBusinessSet()
+list_business_in_business_set = ListBusinessInBusinessSet()
