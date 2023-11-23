@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,21 +7,25 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import pytest
 
-from django.conf.urls import include, url
+from apm_web.profile.diagrams.flamegraph import FlamegraphDiagrammer
+from apm_web.profile.parser import ProfileParser
 
-from apm_web.views import apm_home
+from .utils import read_profile
 
-app_name = "apm_web"
 
-urlpatterns = [
-    url(r"^$", apm_home),
-    url(r"meta/", include("apm_web.meta.urls")),
-    url(r"^trace_api/", include("apm_web.trace.urls")),
-    url(r"^profile_api/", include("apm_web.profile.urls")),
-    url(r"^metric/", include("apm_web.metric.urls")),
-    url(r"^topo/", include("apm_web.topo.urls")),
-    url(r"^service/", include("apm_web.service.urls")),
-    url(r"^service_log/", include("apm_web.log.urls")),
-    url(r"^service_db/", include("apm_web.db.urls")),
-]
+class TestProfileFlamegraph:
+    @pytest.fixture(scope="class")
+    def diagrammer(self):
+        return FlamegraphDiagrammer()
+
+    @pytest.fixture(scope="class")
+    def parser(self):
+        return ProfileParser()
+
+    def test_draw(self, diagrammer, parser):
+        """test for drawing"""
+        parser.raw_to_profile(read_profile())
+        assert parser.profile
+        assert diagrammer.draw(parser)

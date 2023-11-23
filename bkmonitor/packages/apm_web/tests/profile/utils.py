@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,21 +7,24 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 
-from django.conf.urls import include, url
+# use cache to avoid read file every time
+# make unittest faster
+_CACHE = {}
 
-from apm_web.views import apm_home
 
-app_name = "apm_web"
+def read_profile(name: str = "simple", category: str = "") -> dict:
+    """read trace case by name"""
+    if (name, category) in _CACHE:
+        return _CACHE[(name, category)]
 
-urlpatterns = [
-    url(r"^$", apm_home),
-    url(r"meta/", include("apm_web.meta.urls")),
-    url(r"^trace_api/", include("apm_web.trace.urls")),
-    url(r"^profile_api/", include("apm_web.profile.urls")),
-    url(r"^metric/", include("apm_web.metric.urls")),
-    url(r"^topo/", include("apm_web.topo.urls")),
-    url(r"^service/", include("apm_web.service.urls")),
-    url(r"^service_log/", include("apm_web.log.urls")),
-    url(r"^service_db/", include("apm_web.db.urls")),
-]
+    cases_prefix = "packages/apm_web/tests/profile/cases"
+    if category:
+        cases_prefix += f"/{category}"
+
+    with open(f"{cases_prefix}/{name}.json", "r") as f:
+        trace_list = json.loads(f.read())
+
+    _CACHE[(name, category)] = trace_list
+    return trace_list
