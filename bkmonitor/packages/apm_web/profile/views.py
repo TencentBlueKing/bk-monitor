@@ -60,10 +60,15 @@ class ProfileViewSet(ViewSet):
         validated_data = serializer.validated_data
 
         bk_biz_id = validated_data["bk_biz_id"]
-        application_id = validated_data["application_id"]
+        app_name = validated_data["application_id"]
+        try:
+            application_id = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id).pk
+        except Exception:  # pylint: disable=broad-except
+            raise ValueError(_("应用({}) 不存在").format(app_name))
+
         try:
             application_info = api.apm_api.detail_application({"application_id": application_id})
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             raise ValueError(_("应用({}) 不存在").format(application_id))
 
         if "app_name" not in application_info:

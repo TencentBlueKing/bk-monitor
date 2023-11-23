@@ -7,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 from dataclasses import dataclass
-from typing import Optional
+from typing import ClassVar, Optional
 
 from apm_web.profile.constants import InputType
 from apm_web.profile.converter import Converter, register_converter
@@ -27,6 +28,8 @@ from apm_web.profile.models import (
 class DorisConverter(Converter):
     """Convert data in doris(pprof json) to Profile object"""
 
+    DESCRIBING_SAMPLE_UNIT: ClassVar[str] = "count"
+
     def convert(self, raw: dict) -> Optional[Profile]:
         """parse single raw json data to Profile object"""
         samples_info = raw["list"]
@@ -34,22 +37,34 @@ class DorisConverter(Converter):
             return
 
         first_sample = samples_info[0]
-        self.profile.period = first_sample["period"]
-        self.profile.default_sample_type = self.add_string(first_sample["sample_type"])
-
         period_type, period_unit = first_sample["period_type"].split("/")
         self.profile.period_type = ValueType(self.add_string(period_type), self.add_string(period_unit))
-        sample_type, sample_unit = first_sample["sample_type"].split("/")
-        self.profile.sample_type = [ValueType(self.add_string(sample_type), self.add_string(sample_unit))]
+        self.profile.period = first_sample["period"]
 
+        default_sample_type = []
         for sample_info in samples_info:
-            # TODO: labels may need json.loads one more time
-            sample = Sample(value=[int(sample_info["value"])], label=sample_info.get("labels", {}))
-            for stacktrace in sample_info["stacktrace"]:
+            # according to profile.proto:
+            # "By convention, the first value on all profiles is the number of samples collected at this call stack,
+            # with unit `count`."
+            # samples_info contains lots of samples, including `sample/counts` and target values
+            # `sample/counts` mainly for `describing`, ignoring it and adding after all samples added
+            if sample_info["sample_type"].split("/")[1] == self.DESCRIBING_SAMPLE_UNIT:
+                continue
+
+            if not default_sample_type:
+                default_sample_type = sample_info["sample_type"].split("/")
+
+            labels = json.loads(sample_info.get("labels", "{}"))
+            sample = Sample(value=[int(sample_info["value"])], label=labels)
+            for stacktrace in json.loads(sample_info["stacktrace"]):
                 location = self.stacktrace_to_location(stacktrace)
                 sample.location_id.append(location.id)
 
             self.profile.sample.append(sample)
+
+        sample_type, sample_unit = default_sample_type
+        self.profile.sample_type = [ValueType(self.add_string(sample_type), self.add_string(sample_unit))]
+        self.profile.default_sample_type = 0
 
         return self.profile
 
@@ -100,7 +115,7 @@ class DorisConverter(Converter):
                 self._function_id_mapping[function.id] = function
                 self.profile.function.append(function)
 
-            location.line.append(Line(function_id=function.id, line=line_info["line"]))
+                location.line.append(Line(function_id=function.id, line=line_info["line"]))
 
         return location
 
