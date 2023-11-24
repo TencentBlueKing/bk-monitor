@@ -24,6 +24,14 @@ import json
 import math
 from urllib import parse
 
+from django.conf import settings
+from django.http import HttpResponse
+from django.utils import timezone
+from django.utils.translation import ugettext as _
+from rest_framework import serializers
+from rest_framework.response import Response
+from six import StringIO
+
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
@@ -61,23 +69,16 @@ from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
+    OriginalSearchAttrSerializer,
     SearchAsyncExportSerializer,
     SearchAttrSerializer,
     SearchExportSerializer,
     SearchIndexSetScopeSerializer,
     SearchUserIndexSetConfigSerializer,
     UpdateIndexSetFieldsConfigSerializer,
-    OriginalSearchAttrSerializer,
 )
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_username
-from django.conf import settings
-from django.http import HttpResponse
-from django.utils import timezone
-from django.utils.translation import ugettext as _
-from rest_framework import serializers
-from rest_framework.response import Response
-from six import StringIO
+from apps.utils.local import get_request_external_username, get_request_username
 
 
 class SearchViewSet(APIViewSet):
@@ -468,7 +469,7 @@ class SearchViewSet(APIViewSet):
         {"a": "good", "b": {"c": ["d", "e"]}}
         {"a": "good", "b": {"c": ["d", "e"]}}
         """
-
+        request_user = get_request_external_username() or get_request_username()
         params = self.params_valid(SearchExportSerializer).get("export_dict")
         data = json.loads(params)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
@@ -515,6 +516,7 @@ class SearchViewSet(APIViewSet):
             end_time=data["end_time"],
             export_type=ExportType.SYNC,
             bk_biz_id=data["bk_biz_id"],
+            created_by=request_user,
         )
 
         # add user_operation_record

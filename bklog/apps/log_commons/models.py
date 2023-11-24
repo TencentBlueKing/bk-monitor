@@ -432,7 +432,7 @@ class ExternalPermission(OperateRecordModel):
                     resource_to_user[resource_key]["resource_id"] = resource_id
                     resource_to_user[resource_key]["status"] = permission.status
                     resource_to_user[resource_key]["space_uid"] = permission.space_uid
-                    if not resource_to_user[resource_key]["created_at"]:
+                    if "created_at" not in resource_to_user[resource_key]:
                         resource_to_user[resource_key]["created_at"] = permission.created_at
                     elif permission.created_at and permission.created_at < resource_to_user[resource_key]["created_at"]:
                         resource_to_user[resource_key]["created_at"] = permission.created_at

@@ -51,6 +51,7 @@ from apps.utils.local import (
     get_request_app_code,
     get_request_external_username,
     get_request_language_code,
+    get_request_username,
 )
 from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -68,6 +69,7 @@ class AsyncExportHandlers(object):
                 export_fields=export_fields,
                 export_log=True,
             )
+        self.request_user = get_request_external_username() or get_request_username()
 
     def async_export(self):
         # 判断fields是否支持
@@ -93,6 +95,7 @@ class AsyncExportHandlers(object):
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "created_by": self.request_user,
             }
         )
 
