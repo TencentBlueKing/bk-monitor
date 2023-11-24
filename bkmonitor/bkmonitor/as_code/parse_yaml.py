@@ -9,12 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+import datetime
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
-import arrow
+from rest_framework.exceptions import ValidationError
 
+from bkmonitor.action.serializers import DutyRuleDetailSlz
 from bkmonitor.as_code.constants import MaxVersion
 from bkmonitor.as_code.ply.error import ParseError
 from bkmonitor.as_code.ply.expression import expression_lexer, expression_parser
@@ -38,11 +40,11 @@ from bkmonitor.as_code.utils import (
     parse_threshold,
     parse_user,
 )
-from bkmonitor.models import ActionPlugin, AlgorithmModel, MetricListCache
+from bkmonitor.models import ActionPlugin, AlgorithmModel, DutyRule, MetricListCache
 from bkmonitor.strategy.new_strategy import Algorithm
 from bkmonitor.utils.dict import nested_diff, nested_update
 from constants.action import DEFAULT_CONVERGE_CONFIG, NoticeChannel, NoticeWay
-from constants.common import DutyGroupType
+from constants.common import DutyCategory, DutyGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 LEVEL_NAME_TO_ID = {"fatal": 1, "warning": 2, "remind": 3}
@@ -747,9 +749,11 @@ class NoticeGroupConfigParser(BaseConfigParser):
     通知组配置解析器
     """
 
-    def __init__(self, bk_biz_id, duty_rules=None):
+    def __init__(self, bk_biz_id, duty_rules=None, overwrite: bool = False):
         if not duty_rules:
             duty_rules = {}
+        # 老版本的数据里，包含了部分携带轮值的信息，需要做兼容，此时也需要根据历史数据是否存在做判断
+        self.overwrite = overwrite
         self.duty_rules = duty_rules
         self.reverse_duty_rules = {v: k for k, v in duty_rules.items()}
         super(NoticeGroupConfigParser, self).__init__(bk_biz_id)
@@ -763,6 +767,75 @@ class NoticeGroupConfigParser(BaseConfigParser):
                 notice_way["receivers"] = notice_way_config.get("chatids", "").split(",")
             notice_ways.append(notice_way)
         notice_way_config["notice_ways"] = notice_ways
+
+    def translate_duty_rule(self, config, notice_group):
+        """
+        翻译老版本的轮值规则
+        """
+        # 轮值配置解析
+        notice_group["need_duty"] = True
+
+        # 沿用用户组的名字加一个AsCode作为标记
+        duty_rule = {
+            "name": f"[AsCode]{notice_group['name']}",
+            "category": DutyCategory.REGULAR,
+            "bk_biz_id": notice_group["bk_biz_id"],
+            "duty_arranges": [],
+            "effective_time": "",
+        }
+        for duty in config["duties"]:
+            user_groups = []
+            for users in duty["user_groups"]:
+                user_group = []
+                for user in users:
+                    user_dict = parse_user(user)
+                    if not user_dict:
+                        continue
+                    user_group.append(user_dict)
+                user_groups.append(user_group)
+
+            # 交接配置
+            work_days = duty["work"]["days"]
+            if "handover" in duty:
+                duty_rule["category"] = DutyCategory.HANDOFF
+                handover_date = duty["handover"]["date"]
+                if handover_date in work_days:
+                    index = work_days.index(duty["handover"]["date"])
+                    work_days = work_days[index:] + work_days[:index]
+            # 多个轮值组的生效时间取最早生效的那个作为整个轮值规则组的生效开始时间
+            duty_rule["effective_time"] = min(duty_rule["effective_time"], duty["effective_time"])
+
+            duty_rule["duty_arranges"].append(
+                {
+                    "duty_time": [
+                        {
+                            "work_type": duty["type"],
+                            "work_days": work_days,
+                            "work_time": [duty["work"]["time_range"]],
+                            "work_time_type": "time_range",
+                        }
+                    ],
+                    "backups": [],
+                    "duty_users": user_groups,
+                    "group_number": 0,
+                    "group_type": DutyGroupType.SPECIFIED,
+                }
+            )
+        rule_instance = None
+        if not duty_rule["effective_time"]:
+            duty_rule["effective_time"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:00")
+        if duty_rule["name"] in self.duty_rules:
+            # 判断一下是不是曾经有过
+            try:
+                rule_instance = DutyRule.objects.get(id=self.duty_rules[duty_rule["name"]])
+            except DutyRule.DoesNotExist:
+                rule_instance = None
+        rule_slz = DutyRuleDetailSlz(data=duty_rule, instance=rule_instance)
+        rule_slz.is_valid(raise_exception=True)
+        if rule_instance and rule_slz.data["hash"] != rule_instance.hash and not self.overwrite:
+            raise ValidationError("Duty rule is existed but overwrite if not allowed")
+        rule_instance = rule_slz.save()
+        notice_group["duty_rules"] = [rule_instance.id]
 
     def parse(self, config: Dict) -> Dict:
         #  yaml -> config
@@ -838,48 +911,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
                 self.duty_rules[name] for name in config["duty_rules"] if name in self.duty_rules
             ]
         elif config["duties"]:
-            # 轮值配置解析
-            notice_group["need_duty"] = True
-            for duty in config["duties"]:
-                user_groups = []
-                for users in duty["user_groups"]:
-                    user_group = []
-                    for user in users:
-                        user_dict = parse_user(user)
-                        if not user_dict:
-                            continue
-                        user_group.append(user_dict)
-                    user_groups.append(user_group)
-
-                # 交接配置
-                need_rotation = "handover" in duty
-                if need_rotation:
-                    handover_date = duty["handover"]["date"]
-                    handover_time = duty["handover"]["time"]
-                else:
-                    handover_date = 0
-                    handover_time = "00:00"
-
-                notice_group["duty_arranges"].append(
-                    {
-                        "need_rotation": need_rotation,
-                        "effective_time": duty["effective_time"],
-                        "handoff_time": {
-                            "rotation_type": duty["type"],
-                            "date": handover_date,
-                            "time": handover_time,
-                        },
-                        "duty_time": [
-                            {
-                                "work_type": duty["type"],
-                                "work_days": duty["work"]["days"],
-                                "work_time": duty["work"]["time_range"],
-                            }
-                        ],
-                        "backups": [],
-                        "duty_users": user_groups,
-                    }
-                )
+            self.translate_duty_rule(config, notice_group)
         else:
             # 非轮值配置
             users = []
@@ -964,31 +996,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
 
             notice_group["alert"][time_range] = level_configs
 
-        if config["need_duty"]:
-            notice_group["duties"] = []
-            for duty_arrange in config["duty_arranges"]:
-                duty = {
-                    "user_groups": [
-                        [f"group#{user['id']}" if user["type"] == "group" else user["id"] for user in user_group]
-                        for user_group in duty_arrange.get("duty_users", [])
-                    ],
-                    "type": duty_arrange["handoff_time"]["rotation_type"],
-                    "work": {
-                        "days": duty_arrange["duty_time"][0]["work_days"],
-                        "time_range": duty_arrange["duty_time"][0]["work_time"],
-                    },
-                    "effective_time": arrow.get(duty_arrange["effective_time"]).strftime("%Y-%m-%d %H:%M:%S"),
-                    "need_rotation": duty_arrange["need_rotation"],
-                }
-
-                if duty_arrange["need_rotation"]:
-                    duty["handover"] = {
-                        "date": duty_arrange["handoff_time"]["date"],
-                        "time": duty_arrange["handoff_time"]["time"],
-                    }
-
-                notice_group["duties"].append(duty)
-        else:
+        if not config["need_duty"]:
             notice_group["users"] = []
             for user in config["duty_arranges"][0]["users"]:
                 notice_group["users"].append(f"group#{user['id']}" if user["type"] == "group" else user["id"])
@@ -1175,13 +1183,14 @@ class DutyRuleParser(BaseConfigParser):
                 duty_users.append(user_group)
             duty_times = []
             for duty_time in duty["time"]:
+                work_time_type = "time_range" if "time_range" in duty_time["work"] else "datetime_range"
                 duty_times.append(
                     {
                         "work_type": duty_time["type"],
                         "work_days": duty_time["work"]["days"],
                         "work_date_range": duty_time["work"]["date_range"],
-                        "work_time_type": "time_range" if "time_range" in duty_time["work"] else "datetime_range",
-                        "work_time": duty_time["work"].get("time_range") or duty_time["work"].get("datetime_range"),
+                        "work_time_type": work_time_type,
+                        "work_time": duty_time["work"].get(work_time_type, ["00:00--23:59"]),
                         "period_settings": duty_time["period_settings"],
                     }
                 )

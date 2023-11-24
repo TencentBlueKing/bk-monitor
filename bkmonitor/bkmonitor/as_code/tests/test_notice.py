@@ -10,12 +10,14 @@ specific language governing permissions and limitations under the License.
 """
 import pytest
 import yaml
+from django.test import TestCase
 from schema import SchemaError
 
 from bkmonitor.as_code.constants import MinVersion
 from bkmonitor.as_code.parse_yaml import NoticeGroupConfigParser, SnippetRenderer
 
 pytestmark = pytest.mark.django_db
+TestCase.databases = {"default", "monitor_api"}
 
 DATA_PATH = "bkmonitor/as_code/tests/data/"
 
@@ -55,6 +57,7 @@ def test_notice_parse():
     assert code_config["version"] == MinVersion.USER_GROUP
     config = p.parse(code_config)
     assert config
+    assert config["duty_rules"]
 
 
 def test_invalid_version_notice_parse():

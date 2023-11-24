@@ -76,8 +76,8 @@ def convert_notices(
     name_user_groups = {user_group.name.lower(): user_group for user_group in user_groups}
 
     parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules)
-
     records = []
+    duties = []
     for path, config in configs.items():
         snippet = snippets.get(config.pop("snippet", ""), "")
         if snippet:
@@ -105,6 +105,8 @@ def convert_notices(
                 old_user_group = name_user_groups[config["name"].lower()]
 
             if not parse_error:
+                if "duties" in config:
+                    duties.append(config["duties"])
                 instance = None
                 if old_user_group:
                     config["id"] = old_user_group.id
@@ -448,6 +450,9 @@ def convert_assign_groups(
 def convert_duty_rules(
     bk_biz_id: int, app: str, configs: Dict[str, Dict], snippets: Dict[str, Dict], overwrite: bool = False
 ):
+    """
+    转换轮值规则
+    """
     duty_rules = DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "code_hash", "name")
     path_duty_rules = {rule.path: rule for rule in duty_rules.filter(app=app)}
     name_rules = {duty_rule.name.lower(): duty_rule for duty_rule in duty_rules}
@@ -564,7 +569,12 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
     # 配置转换及检查
     # 轮值规则
     duty_records = convert_duty_rules(
-        bk_biz_id=bk_biz_id, app=app, snippets=duty_snippets, configs=duty_configs, overwrite=overwrite
+        bk_biz_id=bk_biz_id,
+        app=app,
+        snippets=duty_snippets,
+        configs=duty_configs,
+        overwrite=overwrite,
+        notice_configs=notice_configs,
     )
     errors: Dict[str, str] = get_errors(duty_records)
     if errors:
