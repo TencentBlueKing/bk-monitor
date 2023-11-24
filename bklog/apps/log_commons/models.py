@@ -218,6 +218,8 @@ class ExternalPermission(OperateRecordModel):
     def build_itsm_resources_display_name(cls, action_id: str, space_uid: str, resources: List[Any]) -> str:
         """
         拼接资源列表, 用于ITSM审批单据展示
+        :param action_id: ExternalPermissionActionEnum 定义的模块操作ID
+        :param space_uid: 空间唯一标识
         :param resources:
         :return:
         """
@@ -256,7 +258,7 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "bk_biz_name", "value": bk_biz_name},
                 {"key": "title", "value": ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT},
                 {"key": "expire_time", "value": params["expire_time"]},
-                {"key": "action_id", "value": params["action_id"]},
+                {"key": "action_id", "value": ExternalPermissionActionEnum.get_choice_label(params["action_id"])},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
                 {
                     "key": "resources",
