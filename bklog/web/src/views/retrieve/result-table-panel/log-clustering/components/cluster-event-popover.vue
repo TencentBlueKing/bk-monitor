@@ -183,7 +183,7 @@ export default {
     }
 
     mark {
-      color: #575961;
+      color: #313238;
       background: #f0f1f5;
     }
 

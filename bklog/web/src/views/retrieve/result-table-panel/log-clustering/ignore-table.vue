@@ -222,6 +222,8 @@ export default {
 
 <style lang="scss">
   .log-cluster-table {
+    color: #313238;
+
     .bk-table-body td.bk-table-expanded-cell {
       padding: 0;
     }

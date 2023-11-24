@@ -9,11 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
-from typing import Tuple, List
+from typing import List, Tuple
 
 import mock
 import pytest
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 
 from api.bcs_cluster_manager.default import FetchClustersResource
 from api.cmdb.default import GetHostByIP
@@ -222,7 +222,7 @@ class HashConsulMocker(object):
                     self.result_list.pop(k)
         else:
             self.result_list.pop(key, None)
-    
+
     def list(self, key: str) -> List:
         """返回格式
         (xxx, [{Key: xxx, Value: xxx}])
@@ -231,10 +231,9 @@ class HashConsulMocker(object):
         for k in self.result_list:
             if k.startswith(key):
                 val.append({"Key": k})
-        
+
         return ("297766103", val if val else None)
 
     def get(self, key: str) -> Tuple:
         val = self.result_list.get(key)
         return ("297766103", {"Key": key, "Value": val} if val else None)
-

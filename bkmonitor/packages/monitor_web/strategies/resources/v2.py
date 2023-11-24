@@ -14,22 +14,6 @@ import arrow
 from django.conf import settings
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
-from monitor.models import ApplicationConfig
-from monitor_web.aiops.ai_setting.utils import AiSetting
-from monitor_web.commons.cc.utils.cmdb import CmdbUtil
-from monitor_web.models import (
-    CollectorPluginMeta,
-    CustomEventGroup,
-    CustomTSTable,
-    DataTargetMapping,
-)
-from monitor_web.shield.utils import ShieldDetectManager
-from monitor_web.strategies.constant import (
-    DEFAULT_TRIGGER_CONFIG_MAP,
-    GLOBAL_TRIGGER_CONFIG,
-)
-from monitor_web.strategies.serializers import handle_target
-from monitor_web.tasks import update_metric_list_by_biz
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -80,6 +64,22 @@ from constants.strategy import (
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
+from monitor.models import ApplicationConfig
+from monitor_web.aiops.ai_setting.utils import AiSetting
+from monitor_web.commons.cc.utils.cmdb import CmdbUtil
+from monitor_web.models import (
+    CollectorPluginMeta,
+    CustomEventGroup,
+    CustomTSTable,
+    DataTargetMapping,
+)
+from monitor_web.shield.utils import ShieldDetectManager
+from monitor_web.strategies.constant import (
+    DEFAULT_TRIGGER_CONFIG_MAP,
+    GLOBAL_TRIGGER_CONFIG,
+)
+from monitor_web.strategies.serializers import handle_target
+from monitor_web.tasks import update_metric_list_by_biz
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,6 @@ class GetStrategyListV2Resource(Resource):
 
         ip_strategy_ids = set()
         for item in items:
-
             # 如果没有监控目标，则监控全部主机
             if not item.target or not item.target[0]:
                 ip_strategy_ids.add(item.strategy_id)
@@ -1187,8 +1186,6 @@ class GetMetricListV2Resource(Resource):
         (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
-        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
-        (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
     )
 
     class RequestSerializer(serializers.Serializer):

@@ -21,20 +21,22 @@ the project delivered to anyone in the future.
 """
 import os
 import socket
+
 import pytz
-from django.utils import timezone
 from django.conf import settings
+from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
-from django_prometheus.utils import Time, TimeSince
 from django_prometheus.middleware import (
-    Metrics,
     PrometheusAfterMiddleware,
     PrometheusBeforeMiddleware,
 )
+from django_prometheus.utils import Time, TimeSince
+
 from apps.api import BKLoginApi
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.utils.cache import cache_half_minute
 from apps.utils.local import activate_request, set_local_param
+from apps.utils.prometheus import BkLogMetrics
 
 HOSTNAME = socket.gethostname()
 STAGE = os.getenv("BKPAAS_ENVIRONMENT", "dev")
@@ -74,42 +76,43 @@ class UserLocalMiddleware(MiddlewareMixin):
             return {}
 
 
-class BkLogMetrics(Metrics):
-    def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
-        labelnames = [*labelnames, "hostname", "stage", "bk_app_code", "app_name", "module_name"]
-        return super().register_metric(
-            metric_cls, name, documentation, labelnames=labelnames, **kwargs
-        )
-
-
 class BkLogMetricsBeforeMiddleware(PrometheusBeforeMiddleware):
     metrics_cls = BkLogMetrics
 
     def process_request(self, request):
         self.metrics.requests_total.labels(
-            hostname=HOSTNAME, stage=STAGE, bk_app_code=settings.APP_CODE,
+            hostname=HOSTNAME,
+            stage=STAGE,
+            bk_app_code=settings.APP_CODE,
             app_name=get_app_name(request),
-            module_name=get_module_name(request)
+            module_name=get_module_name(request),
         ).inc()
         request.prometheus_before_middleware_event = Time()
 
     def process_response(self, request, response):
         self.metrics.responses_total.labels(
-            hostname=HOSTNAME, stage=STAGE, bk_app_code=settings.APP_CODE,
+            hostname=HOSTNAME,
+            stage=STAGE,
+            bk_app_code=settings.APP_CODE,
             app_name=get_app_name(request),
-            module_name=get_module_name(request)
+            module_name=get_module_name(request),
         ).inc()
         if hasattr(request, "prometheus_before_middleware_event"):
             self.metrics.requests_latency_before.labels(
-                hostname=HOSTNAME, stage=STAGE, bk_app_code=settings.APP_CODE,
+                hostname=HOSTNAME,
+                stage=STAGE,
+                bk_app_code=settings.APP_CODE,
                 app_name=get_app_name(request),
-                module_name=get_module_name(request)
+                module_name=get_module_name(request),
             ).observe(TimeSince(request.prometheus_before_middleware_event))
         else:
             self.metrics.requests_unknown_latency_before.labels(
-                hostname=HOSTNAME, stage=STAGE, bk_app_code=settings.APP_CODE,
+                hostname=HOSTNAME,
+                stage=STAGE,
+                bk_app_code=settings.APP_CODE,
                 app_name=get_app_name(request),
-                module_name=get_module_name(request)).inc()
+                module_name=get_module_name(request),
+            ).inc()
         return response
 
 
@@ -119,9 +122,11 @@ class BkLogMetricsAfterMiddleware(PrometheusAfterMiddleware):
     def label_metric(self, metric, request, response=None, **labels):
         labels.update(
             {
-                "hostname": HOSTNAME, "stage": STAGE, "bk_app_code": settings.APP_CODE,
+                "hostname": HOSTNAME,
+                "stage": STAGE,
+                "bk_app_code": settings.APP_CODE,
                 "app_name": get_app_name(request),
-                "module_name": get_module_name(request)
+                "module_name": get_module_name(request),
             }
         )
         return super().label_metric(metric, request, response=response, **labels)

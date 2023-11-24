@@ -51,7 +51,7 @@ class ReportLogStore extends VuexModule {
           space_id: space?.space_uid || window.cc_biz_id,
           space_name: space?.space_name || window.cc_biz_id,
           user_name: window.user_name || window.username,
-          nav_name: params.nav_name || routeConfig?.name
+          nav_name: (!space ? '临时 ' : '') + (params.nav_name || routeConfig?.name)
         }
       },
       {
