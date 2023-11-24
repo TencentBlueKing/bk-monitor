@@ -9,14 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+from typing import Dict
 
 import pytz
-
-"""
-处理套餐配置缓存
-"""
-
-from typing import Dict
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.cmdb.business import BusinessManager
@@ -100,7 +95,7 @@ class ActionConfigCacheManager(CacheManager):
 
         action_configs = ActionConfig.objects.filter(bk_biz_id__in=biz_list)
         if minutes:
-            action_configs = action_configs.fitler(
+            action_configs = action_configs.filter(
                 update_time__gte=datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(minutes=minutes)
             )
         action_configs = ActionConfigDetailSlz(instance=action_configs, many=True).data
