@@ -718,7 +718,7 @@ const routes = [
             name: 'bkdata-track-list',
             component: IndexList,
             meta: {
-              title: '数据平接入',
+              title: '数据平台接入',
               navId: 'bk-data-track',
             },
           },
@@ -726,7 +726,7 @@ const routes = [
             path: 'manage/:indexSetId',
             name: 'bkdata-track-manage',
             meta: {
-              title: '数据平接入',
+              title: '数据平台接入',
               needBack: true,
               backName: 'bkdata-track-list',
               navId: 'bk-data-track',
@@ -737,7 +737,7 @@ const routes = [
             path: 'create',
             name: 'bkdata-track-create',
             meta: {
-              title: '数据平接入',
+              title: '数据平台接入',
               needBack: true,
               backName: 'bkdata-track-list',
               navId: 'bk-data-track',
@@ -748,7 +748,7 @@ const routes = [
             path: 'edit/:indexSetId',
             name: 'bkdata-track-edit',
             meta: {
-              title: '数据平接入',
+              title: '数据平台接入',
               needBack: true,
               backName: 'bkdata-track-list',
               navId: 'bk-data-track',
