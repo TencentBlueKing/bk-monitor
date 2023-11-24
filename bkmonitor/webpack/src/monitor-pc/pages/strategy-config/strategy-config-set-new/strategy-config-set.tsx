@@ -1867,9 +1867,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (this.isMultivariateAnomalyDetection) {
       const level = this.metricData?.[0]?.sceneConfig?.algorithms?.[0]?.level;
       level && levelMap.push(level);
-    }
-    // 系统事件
-    else if (
+    } else if (
+      // 系统事件
       this.selectMetricData.length &&
       this.selectMetricData.every(item => item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert')
     ) {

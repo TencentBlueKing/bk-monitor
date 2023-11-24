@@ -50,6 +50,7 @@
     <div class="nav-right fr" v-show="usernameRequested">
       <!-- 全局设置 -->
       <bk-dropdown-menu
+        v-if="!isExternal"
         align="center"
         trigger="click"
         @show="dropdownGlobalShow"
@@ -126,6 +127,7 @@
               {{ $t('产品文档') }}
             </a>
             <a
+              v-if="!isExternal"
               href="javascript:;"
               @click.stop="dropdownHelpTriggerHandler('logVersion')">
               {{ $t('版本日志') }}
@@ -473,14 +475,13 @@ export default {
         cursor: pointer;
 
         .logo-text {
-          font-size: 18px;
+          font-size: 16px;
+          color: #96a2b9;
         }
 
         .logo-image {
-          margin-right: 10px;
-        }
-
-        .logo-image {
+          width: 32px;
+          height: 32px;
           margin-right: 10px;
         }
       }

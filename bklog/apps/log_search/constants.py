@@ -857,6 +857,14 @@ class TimeFieldUnitEnum(ChoicesEnum):
     _choices_labels = ((SECOND, _("second")), (MILLISECOND, _("millisecond")), (MICROSECOND, _("microsecond")))
 
 
+# 时间单位倍数映射关系
+TIME_FIELD_MULTIPLE_MAPPING = {
+    TimeFieldUnitEnum.SECOND.value: 1000,
+    TimeFieldUnitEnum.MILLISECOND.value: 1,
+    TimeFieldUnitEnum.MICROSECOND.value: 1 / 1000,
+}
+
+
 class FieldDataTypeEnum(ChoicesEnum):
     """
     字段类型
@@ -1252,6 +1260,17 @@ class UserFunctionGuideType(ChoicesEnum):
     SEARCH_FAVORITE = "search_favorite"
 
     _choices_keys = (SEARCH_FAVORITE,)
+
+
+class IndexSetType(ChoicesEnum):
+    """
+    索引集类型
+    """
+
+    SINGLE = "single"
+    UNION = "union"
+
+    _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
 
 
 # 索引集无数据检查缓存前缀

@@ -107,7 +107,7 @@ class AgentEvent(GSEBaseAlarmEventRecord):
                 else:
                     alarm_time = utctime
 
-                hosts = alarm["extra"].pop("host", [])
+                hosts = alarm["extra"].get("host", [])
                 for host in hosts:
                     new_alarm = {
                         "_time_": alarm_time,
