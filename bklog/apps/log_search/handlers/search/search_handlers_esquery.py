@@ -633,11 +633,25 @@ class SearchHandler(object):
                     continue
 
                 if "aggregations" not in merge_result:
-                    merge_result["aggregations"] = {"group_by_histogram": {"buckets": []}}
+                    merge_result["aggregations"] = _result.get("aggregations", {})
+                    continue
 
-                merge_result["aggregations"]["group_by_histogram"]["buckets"].extend(
-                    _result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
-                )
+                for _agg_k, _agg_v in _result.get("aggregations", {}).items():
+                    if _agg_k not in merge_result["aggregations"]:
+                        merge_result["aggregations"][_agg_k] = _agg_v
+                        continue
+                    if not isinstance(_agg_v, dict):
+                        continue
+                    for _agg_v_k, _agg_v_v in _agg_v.items():
+                        if _agg_v_k not in merge_result["aggregations"][_agg_k]:
+                            merge_result["aggregations"][_agg_k][_agg_v_k] = _agg_v_v
+                            continue
+                        if isinstance(_agg_v_v, int):
+                            merge_result["aggregations"][_agg_k][_agg_v_k] += _agg_v_v
+                        elif isinstance(_agg_v_v, list):
+                            merge_result["aggregations"][_agg_k][_agg_v_k].extend(_agg_v_v)
+                        else:
+                            continue
 
             # 排序分页处理
             if not merge_result:
@@ -645,23 +659,29 @@ class SearchHandler(object):
 
             # hits 排序处理
             hits = merge_result.get("hits", {}).get("hits", [])
-            buckets = merge_result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
             if hits:
                 sorted_hits = sort_func(data=hits, sort_list=self.sort_list, key_func=lambda x: x["_source"])
                 merge_result["hits"]["hits"] = sorted_hits[self.start : (once_size + self.start)]
 
+            aggregations = merge_result.get("aggregations", {})
+
             # buckets 排序合并处理
-            if buckets:
-                # 合并
-                buckets_info = dict()
-                for bucket in buckets:
-                    _key = bucket["key"]
-                    if _key not in buckets_info:
-                        buckets_info[_key] = bucket
+            if aggregations:
+                for _kk, _vv in aggregations.items():
+                    if not isinstance(_vv, dict) or "buckets" not in _vv:
                         continue
-                    buckets_info[_key]["doc_count"] += bucket["doc_count"]
-                sorted_buckets = sorted(list(buckets_info.values()), key=operator.itemgetter("key"))
-                merge_result["aggregations"]["group_by_histogram"]["buckets"] = sorted_buckets
+                    buckets = _vv.get("buckets", [])
+                    if buckets:
+                        # 合并
+                        buckets_info = dict()
+                        for bucket in buckets:
+                            _key = bucket["key"]
+                            if _key not in buckets_info:
+                                buckets_info[_key] = bucket
+                                continue
+                            buckets_info[_key]["doc_count"] += bucket["doc_count"]
+                        sorted_buckets = sorted(list(buckets_info.values()), key=operator.itemgetter("key"))
+                        merge_result["aggregations"][_kk]["buckets"] = sorted_buckets
         except Exception as e:
             logger.error(f"[_multi_search] error -> e: {e}")
             raise MultiSearchErrorException()
