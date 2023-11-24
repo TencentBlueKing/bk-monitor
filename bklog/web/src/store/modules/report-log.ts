@@ -62,7 +62,7 @@ class ReportLogStore extends VuexModule {
             space_id: space?.space_uid || bkBizId,
             space_name: space?.space_name || bkBizId,
             user_name: username,
-            nav_name: routeConfig?.name,
+            nav_name: params.nav_name || routeConfig?.meta?.title,
             ...params
           }
         },
