@@ -49,7 +49,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   });
   const timeMap = {};
   data.forEach(item => {
-    item.datapoints.forEach(([v, time], i) => {
+    item.datapoints.forEach(([v, time]) => {
       let list = timeMap[time];
       if (!list) {
         timeMap[time] = new Array(tableThArr.length).fill(null);

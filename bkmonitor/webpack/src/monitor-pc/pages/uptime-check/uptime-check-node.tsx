@@ -130,12 +130,12 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
         this.$bkInfo({
           type: 'warning',
           title: this.$t('你确认要删除?'),
-          subHeader: () => (
-            <DeleteSubtitle
-              title={this.$tc('节点名称')}
-              name={row.name}
-            />
-          ),
+          subHeader: this.$createElement(DeleteSubtitle, {
+            props: {
+              title: this.$tc('节点名称'),
+              name: row.name
+            }
+          }),
           maskClose: true,
           escClose: true,
           confirmFn: () => {
