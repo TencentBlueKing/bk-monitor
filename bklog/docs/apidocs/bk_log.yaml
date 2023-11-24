@@ -788,7 +788,7 @@
   name: switch_storage_cluster
   label: 日志平台-切换存储集群
   label_en: bk_log switch storage cluster
-  method: GET
+  method: POST
   api_type: query
   comp_codename: generic.v2.bk_log.bk_log_component
   dest_path: /api/v1/databus/collectors/switch_storage_cluster/

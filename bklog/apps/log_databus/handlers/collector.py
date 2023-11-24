@@ -2996,14 +2996,38 @@ class CollectorHandler(object):
         collectors = queryset.exclude(bk_app_code="bk_log_search").order_by("-updated_at")
         # 新增bcs采集存储集群全局配置更新
         BcsStorageClusterConfig.objects.update_or_create(**data)
+        # 存量索引集存储集群更新
+        self.update_bcs_project_index_set(
+            bcs_cluster_id=data["bcs_cluster_id"],
+            bk_biz_id=data["bk_biz_id"],
+            storage_cluster_id=data["storage_cluster_id"],
+        )
 
         # 存量bcs采集存储集群更新
+        from apps.log_databus.handlers.etl import EtlHandler
+
         for collector in collectors:
-            pass
+            custom_config = get_custom(collector.custom_type)
+            etl_handler = EtlHandler(collector.collector_config_id)
+            etl_params = {
+                "table_id": collector.collector_config_name_en,
+                "storage_cluster_id": data["storage_cluster_id"],
+                "retention": DEFAULT_RETENTION,
+                "allocation_min_days": 0,
+                "storage_replies": 0,
+                "etl_params": custom_config.etl_params,
+                "etl_config": custom_config.etl_config,
+                "fields": custom_config.fields,
+            }
+            etl_handler.update_or_create(**etl_params)
 
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
-        conf = self.get_bcs_config(bk_biz_id=data["bk_biz_id"], storage_cluster_id=data.get("storage_cluster_id"))
+        conf = self.get_bcs_config(
+            bk_biz_id=data["bk_biz_id"],
+            bcs_cluster_id=data["bcs_cluster_id"],
+            storage_cluster_id=data.get("storage_cluster_id"),
+        )
         bcs_collector_config_name = self.generate_collector_config_name(
             bcs_cluster_id=data["bcs_cluster_id"],
             collector_config_name=data["collector_config_name"],
@@ -3187,6 +3211,25 @@ class CollectorHandler(object):
             bcs_project_id=bcs_project_id,
         )
         return path_index_set, std_index_set
+
+    @staticmethod
+    def update_bcs_project_index_set(bcs_cluster_id, bk_biz_id, storage_cluster_id):
+        """
+        更新BCS项目索引集的存储集群配置
+        """
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid)
+
+        std_index_set_name = f"{bcs_cluster_id}_std"
+        std_index_set = src_index_list.filter(index_set_name=std_index_set_name).first()
+        path_index_set_name = f"{bcs_cluster_id}_path"
+        path_index_set = src_index_list.filter(index_set_name=path_index_set_name).first()
+        if path_index_set:
+            path_index_set.storage_cluster_id = storage_cluster_id
+            path_index_set.save()
+        if std_index_set:
+            std_index_set.storage_cluster_id = storage_cluster_id
+            std_index_set.save()
 
     @classmethod
     def generate_collector_config_name(cls, bcs_cluster_id, collector_config_name, collector_config_name_en):
@@ -3458,14 +3501,19 @@ class CollectorHandler(object):
         self.destroy()
 
     @staticmethod
-    def get_bcs_config(bk_biz_id: int, storage_cluster_id: int = None):
+    def get_bcs_config(bk_biz_id: int, bcs_cluster_id: str, storage_cluster_id: int = None):
+        bcs_storage_config = BcsStorageClusterConfig.objects.filter(
+            bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
+        ).first()
         toggle = FeatureToggleObject.toggle(BCS_COLLECTOR)
         conf = toggle.feature_config if toggle else {}
         data_link_id = int(conf.get("data_link_id") or 0)
         data_link_id = get_data_link_id(bk_biz_id=bk_biz_id, data_link_id=data_link_id)
-        # 优先使用传的集群ID, 传的集群ID和特性配置里的集群都不存在时, 使用第一个默认集群
+        # 优先使用传的集群ID, 传的集群ID和bcs业务指定存储集群都不存在时, 使用第一个默认集群
         if not storage_cluster_id:
-            storage_cluster_id = conf.get("storage_cluster_id")
+            storage_cluster_id = (
+                bcs_storage_config.storage_cluster_id if bcs_storage_config else conf.get("storage_cluster_id")
+            )
         if not storage_cluster_id:
             es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
             for es in es_clusters:
