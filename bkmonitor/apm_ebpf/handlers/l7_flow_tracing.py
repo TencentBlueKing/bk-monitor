@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import hashlib
 import logging
 import math
 from collections import defaultdict
@@ -21,6 +22,7 @@ from apm_ebpf.constants import (
     L7_FLOW_TYPE_REQUEST,
     L7_FLOW_TYPE_RESPONSE,
     L7_FLOW_TYPE_SESSION,
+    L7_TRACING_LIMIT,
     MERGE_KEY_REQUEST,
     MERGE_KEY_RESPONSE,
     MERGE_KEYS,
@@ -34,8 +36,8 @@ from apm_ebpf.constants import (
     TAP_SIDE_SERVER_GATEWAY,
     TAP_SIDE_SERVER_GATEWAY_HAPERVISOR,
     TAP_SIDE_SERVER_PROCESS,
-    L7_TRACING_LIMIT,
 )
+from constants.apm import EbpfQueryType
 
 logger = logging.getLogger("apm-ebpf")
 
@@ -361,7 +363,7 @@ def merge_all_flows(dataframe_flows: DataFrame, return_fields: list) -> list:
     # 按start_time升序，用于merge_flow
     dict_flows = dataframe_flows.sort_values(by=["start_time_us"], ascending=True).to_dict("list")
     for index in dataframe_flows.index:
-        flow = {"duration": dataframe_flows["end_time_us"][index] - dataframe_flows["start_time_us"][index]}
+        flow = {}
         for key in return_fields:
             key = key.strip("")
             if key == "_id":  # 流合并后会对应多条记录
@@ -370,6 +372,7 @@ def merge_all_flows(dataframe_flows: DataFrame, return_fields: list) -> list:
                 flow[key] = dict_flows[key][index]
         if merge_flow(flows, flow):  # 合并单向Flow为会话
             continue
+        flow["_uid"] = index
         flows.append(flow)
     flow_count = len(flows)
     for i, flow in enumerate(reversed(flows)):
@@ -395,22 +398,20 @@ def sort_all_flows(flows: list) -> list:
     # 排序
     ebpf_data = []
     for i, network in network_map.items():
-        sorted_traces = network_flow_sort(network)
+        sorted_traces = sort_and_set_parent(network)
         ebpf_data.extend(sorted_traces)
 
     return ebpf_data
 
 
 def data_format(l7_flow_data: list) -> list:
-    # 补充trace_id, span_id
-    trace_id = hex(RandomIdGenerator().generate_trace_id())
-    for trace in l7_flow_data:
-        if not trace.get("span_id"):
-            trace["span_id"] = generate_span_id()
-        trace["trace_id"] = trace_id
-        trace["_id"] = trace["_id"][0]
-        trace["flow_id"] = str(trace["flow_id"])
-    return l7_flow_data
+    new_l7_flow_data = format_trace(l7_flow_data)
+    for trace in new_l7_flow_data:
+        if trace.get("deepflow_parent_span_id") is not None:
+            trace["parent_span_id"] = generate_string(trace.get("deepflow_parent_span_id"))
+        if trace.get("deepflow_span_id") is not None:
+            trace["span_id"] = generate_string(trace.get("deepflow_span_id"))
+    return new_l7_flow_data
 
 
 def _get_df_key(df: DataFrame, key: str):
@@ -489,3 +490,51 @@ def network_flow_sort(traces):
                         sorted_traces.insert(i, trace)
                         break
     return sorted_traces
+
+
+def format_trace(l7_flow_data: list) -> list:
+    """
+    格式化数据
+    """
+    id_map = {-1: ""}
+    # 补充trace_id
+    trace_id = hex(RandomIdGenerator().generate_trace_id())
+    new_l7_flow_data = []
+    for flow in l7_flow_data:
+        id_map[flow["_uid"]] = f"{flow['span_id']}.{flow['tap_side']}.{flow['_uid']}"
+        flow["id"] = flow["_uid"]
+        flow["parent_id"] = flow.get("parent_id", -1)
+        flow["trace_id"] = trace_id
+        flow["_id"] = flow["_id"][0]
+        flow["flow_id"] = str(flow["flow_id"])
+        flow["query_type"] = EbpfQueryType.EBPF_ID
+        new_l7_flow_data.append(flow)
+    # 构建父子关系
+    for trace in new_l7_flow_data:
+        trace["deepflow_span_id"] = id_map[trace["id"]]
+        trace["deepflow_parent_span_id"] = id_map.get(trace["parent_id"], -1)
+    return new_l7_flow_data
+
+
+def sort_and_set_parent(flows):
+    sort_flows = network_flow_sort(flows)
+    sort_flows.reverse()
+    for i, _ in enumerate(sort_flows):
+        if i + 1 >= len(sort_flows):
+            break
+        _set_parent(flows[i], flows[i + 1], "trace mounted due to tcp_seq")
+    sort_flows.reverse()
+    return sort_flows
+
+
+def _set_parent(flow, flow_parent, info=None):
+    flow["parent_id"] = flow_parent["_uid"]
+    if flow_parent.get("childs"):
+        flow_parent["childs"].append(flow["_uid"])
+    else:
+        flow_parent["childs"] = [flow["_uid"]]
+    flow["set_parent_info"] = info
+
+
+def generate_string(s):
+    return hashlib.md5(s.encode()).hexdigest()[8:-8]

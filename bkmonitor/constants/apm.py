@@ -474,3 +474,12 @@ class IndexSetSource(TextChoices):
 
     HOST_COLLECT = "host_collect", _("主机采集项")
     SERVICE_RELATED = "service_related", _("服务关联")
+
+
+class EbpfQueryType:
+    """
+    ebpf 数据查询方式
+    """
+
+    TRACE_ID = "trace_id"
+    EBPF_ID = "ebpf_id"

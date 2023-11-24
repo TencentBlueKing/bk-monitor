@@ -31,7 +31,7 @@ from apm.core.deepflow.constants import (
     L7_PROTOCOL_REDIS,
 )
 from apm_web.constants import EbpfSignalSourceType, EbpfTapSideType
-from constants.apm import SpanKind
+from constants.apm import EbpfQueryType, SpanKind
 
 logger = logging.getLogger("apm")
 
@@ -304,7 +304,6 @@ class EBPFHandler:
 
     @classmethod
     def signal_source_to_string(cls, signal_source: int):
-
         switcher = {
             0: EbpfSignalSourceType.SIGNAL_SOURCE_PACKET,
             1: EbpfSignalSourceType.SIGNAL_SOURCE_XFLOW,
@@ -365,7 +364,6 @@ class EBPFHandler:
 
     @classmethod
     def l7_flow_log_to_resource_span(cls, item: dict):
-
         span = Span()
         span_attrs = span.attributes
         span_resource = span.resource
@@ -381,7 +379,11 @@ class EBPFHandler:
         # 自身的span_id则重新生成
         span_id = item.get("span_id")
         parent_span_id = item.get("parent_span_id")
-        if signal_source == EbpfSignalSourceType.SIGNAL_SOURCE_OTEL:
+        if item.get("query_type") == EbpfQueryType.EBPF_ID:
+            # 如果是通过 ebpf_id 查询出来的数据, 保留父子关系
+            span.parent_span_id = parent_span_id
+            span.span_id = span_id
+        elif signal_source == EbpfSignalSourceType.SIGNAL_SOURCE_OTEL:
             # 如果是OTEL应用层的span，保留父子关系
             span.parent_span_id = parent_span_id
             span.span_id = span_id
