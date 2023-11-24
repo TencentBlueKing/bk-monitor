@@ -8,13 +8,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
+
+import pytz
+
 """
 处理套餐配置缓存
 """
 
 from typing import Dict
-
-from django.db.models import Q
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.cmdb.business import BusinessManager
@@ -79,7 +81,7 @@ class ActionConfigCacheManager(CacheManager):
         )
 
     @classmethod
-    def refresh(cls):
+    def refresh(cls, minutes=None):
         biz_list = [biz.bk_biz_id for biz in BusinessManager.all()]
         pipeline = cls.cache.pipeline()
         action_plugins = ActionPluginSlz(instance=ActionPlugin.objects.all(), many=True).data
@@ -94,7 +96,13 @@ class ActionConfigCacheManager(CacheManager):
         for deleted_plugin_id in deleted_plugins:
             pipeline.delete(cls.PLUGIN_CACHE_KEY.format(cache_id=deleted_plugin_id))
 
-        action_configs = ActionConfig.objects.filter(Q(bk_biz_id__in=biz_list) | Q(bk_biz_id=GLOBAL_BIZ_ID))
+        biz_list.append(GLOBAL_BIZ_ID)
+
+        action_configs = ActionConfig.objects.filter(bk_biz_id__in=biz_list)
+        if minutes:
+            action_configs = action_configs.fitler(
+                update_time__gte=datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(minutes=minutes)
+            )
         action_configs = ActionConfigDetailSlz(instance=action_configs, many=True).data
 
         for action_config in action_configs:
@@ -111,5 +119,15 @@ class ActionConfigCacheManager(CacheManager):
         pipeline.execute()
 
 
-def main():
+def refresh_total():
+    """
+    刷新全部
+    """
     ActionConfigCacheManager.refresh()
+
+
+def refresh_latest_5_minutes():
+    """
+    刷新全部
+    """
+    ActionConfigCacheManager.refresh(minutes=5)
