@@ -563,7 +563,7 @@ export default class SpaceSelect extends tsc<
                           class='space-tags-item'
                           style={{ ...SPACE_TYPE_MAP[tag.id]?.light }}
                         >
-                          {SPACE_TYPE_MAP[tag.id].name}
+                          {SPACE_TYPE_MAP[tag.id]?.name || ''}
                         </span>
                       ))
                     )}
