@@ -30,7 +30,13 @@ from django.utils.translation import ugettext as _
 from jinja2 import Environment, FileSystemLoader
 from retrying import retry
 
-from apps.api import BkDataAIOPSApi, BkDataDatabusApi, BkDataDataFlowApi, BkDataMetaApi
+from apps.api import (
+    BkDataAIOPSApi,
+    BkDataDatabusApi,
+    BkDataDataFlowApi,
+    BkDataMetaApi,
+    TransferApi,
+)
 from apps.api.base import DataApiRetryClass, check_result_is_true
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
@@ -1552,8 +1558,14 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage["json_fields"] = [
                 i["field_name"] or i["field_alias"] for i in fields["fields"] if i["field_type"] == "object"
             ]
-            collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
-            es_storage["expires"] = str(collector_config.retention)
+            # 获取storage 中的retention
+            collector_config = CollectorConfig.objects.filter(
+                collector_config_id=clustering_config.collector_config_id
+            ).first()
+            storage = TransferApi.get_result_table_storage(
+                params={"result_table_list": collector_config.table_id, "storage_type": "elasticsearch"}
+            )[collector_config.table_id]
+            es_storage["expires"] = str(storage["storage_config"].get("retention"))
         else:
             # es输出的配置(计算平台和采集项均输出es存储)
             es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
