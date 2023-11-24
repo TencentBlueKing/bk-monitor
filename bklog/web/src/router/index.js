@@ -255,18 +255,18 @@ const routes = [
         name: 'default-dashboard',
         component: dashboard,
         meta: {
-          title: '默认仪表盘',
-          navId: 'default-dashboard',
+          title: '仪表盘',
+          navId: 'dashboard',
         },
       },
       {
         path: 'create-dashboard',
         name: 'create-dashboard',
         meta: {
-          title: '新建仪表盘',
+          title: '仪表盘',
           needBack: true,
           backName: 'default-dashboard',
-          navId: 'create-dashboard',
+          navId: 'dashboard',
         },
         component: dashboard,
       },
@@ -274,10 +274,10 @@ const routes = [
         path: 'import-dashboard',
         name: 'import-dashboard',
         meta: {
-          title: '导入仪表盘',
+          title: '仪表盘',
           needBack: true,
           backName: 'default-dashboard',
-          navId: 'import-dashboard',
+          navId: 'dashboard',
         },
         component: dashboard,
       },
@@ -285,10 +285,10 @@ const routes = [
         path: 'create-folder',
         name: 'create-folder',
         meta: {
-          title: '新建目录',
+          title: '仪表盘',
           needBack: true,
           backName: 'default-dashboard',
-          navId: 'create-folder',
+          navId: 'dashboard',
         },
         component: dashboard,
       },
@@ -1019,6 +1019,7 @@ const routes = [
     component: exception,
     meta: {
       navId: 'exception',
+      title: '无权限页面',
     },
   },
 ];
@@ -1049,7 +1050,6 @@ router.beforeEach(async (to, from, next) => {
 
 router.afterEach((to) => {
   if (to.name === 'exception') return;
-  console.log(to);
   reportLogStore.reportRouteLog({
     route_id: to.name,
     nav_id: to.meta.navId,
