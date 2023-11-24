@@ -29,13 +29,14 @@ from apps.log_clustering.constants import (
     ActionEnum,
     PatternEnum,
 )
+from apps.utils.drf import DateTimeFieldWithEpoch
 
 
 class PatternSearchSerlaizer(serializers.Serializer):
     host_scopes = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default=[])
-    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     time_range = serializers.CharField(required=False, default="customized")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     size = serializers.IntegerField(required=False, default=10000)

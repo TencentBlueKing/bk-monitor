@@ -21,13 +21,16 @@ the project delivered to anyone in the future.
 """
 from collections import defaultdict
 from dataclasses import asdict
-from typing import Optional
+from typing import Any, Dict, List, Optional
+
+from django.db.transaction import atomic
 
 from apps.log_search.constants import (
     INDEX_SET_NOT_EXISTED,
     FavoriteGroupType,
     FavoriteListOrderType,
     FavoriteVisibleType,
+    IndexSetType,
 )
 from apps.log_search.exceptions import (
     FavoriteAlreadyExistException,
@@ -38,21 +41,19 @@ from apps.log_search.exceptions import (
     FavoriteNotExistException,
     FavoriteVisibleTypeNotAllowedModifyException,
 )
-from apps.log_search.models import (
-    Favorite,
-    FavoriteGroup,
-    FavoriteGroupCustomOrder,
-    LogIndexSet,
-)
+from apps.log_search.models import Favorite, FavoriteGroup, LogIndexSet
 from apps.models import model_to_dict
-from apps.utils.local import get_request_username
+from apps.utils.local import (
+    get_request_app_code,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.lucene import (
     LuceneParser,
     LuceneSyntaxResolver,
     LuceneTransformer,
     generate_query_string,
 )
-from django.db.transaction import atomic
 
 
 class FavoriteHandler(object):
@@ -61,12 +62,13 @@ class FavoriteHandler(object):
     def __init__(self, favorite_id: int = None, space_uid: str = None) -> None:
         self.favorite_id = favorite_id
         self.space_uid = space_uid
-        self.username = get_request_username()
+        self.username = get_request_external_username() or get_request_username()
+        self.source_app_code = get_request_app_code()
         if favorite_id:
             try:
                 self.data = Favorite.objects.get(pk=favorite_id)
-                user_groups: dict = FavoriteGroup.get_user_groups(self.data.space_uid, self.username)
-                if self.data.group_id not in user_groups:
+                user_groups: List[Dict[str, Any]] = FavoriteGroup.get_user_groups(self.data.space_uid, self.username)
+                if self.data.group_id not in [i["id"] for i in user_groups]:
                     raise FavoriteNotAllowedAccessException()
             except Favorite.DoesNotExist:
                 raise FavoriteNotExistException()
@@ -74,25 +76,48 @@ class FavoriteHandler(object):
     def retrieve(self) -> dict:
         """收藏详情"""
         result = model_to_dict(self.data)
-        if LogIndexSet.objects.filter(index_set_id=result["index_set_id"]).exists():
-            result["is_active"] = True
-            result["index_set_name"] = LogIndexSet.objects.get(index_set_id=result["index_set_id"]).index_set_name
+        if result["index_set_type"] == IndexSetType.UNION.value:
+            active_index_set_id_dict = {
+                i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
+                for i in LogIndexSet.objects.filter(index_set_id__in=result["index_set_ids"]).values(
+                    "index_set_id", "index_set_name", "is_active"
+                )
+            }
+            is_actives = []
+            index_set_names = []
+            for index_set_id in result["index_set_ids"]:
+                if active_index_set_id_dict.get(index_set_id):
+                    is_actives.append(active_index_set_id_dict[index_set_id]["is_active"])
+                    index_set_names.append(active_index_set_id_dict[index_set_id]["index_set_name"])
+                else:
+                    is_actives.append(False)
+                    index_set_names.append(INDEX_SET_NOT_EXISTED)
+            result["is_actives"] = is_actives
+            result["index_set_names"] = index_set_names
         else:
-            result["is_active"] = False
-            result["index_set_name"] = INDEX_SET_NOT_EXISTED
+            if LogIndexSet.objects.filter(index_set_id=result["index_set_id"]).exists():
+                result["is_active"] = True
+                result["index_set_name"] = LogIndexSet.objects.get(index_set_id=result["index_set_id"]).index_set_name
+            else:
+                result["is_active"] = False
+                result["index_set_name"] = INDEX_SET_NOT_EXISTED
 
         result["query_string"] = generate_query_string(self.data.params)
         result["created_at"] = result["created_at"]
         result["updated_at"] = result["updated_at"]
         return result
 
-    def list_group_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
+    def list_group_favorites(
+        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
+    ) -> list:
         """收藏栏分组后且排序后的收藏列表"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
         # 将收藏分组
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
+        )
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
             favorites_by_group[favorite["group_id"]].append(favorite)
@@ -106,12 +131,16 @@ class FavoriteHandler(object):
             for group in groups
         ]
 
-    def list_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
+    def list_favorites(
+        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
+    ) -> list:
         """管理界面列出根据name A-Z排序的所有收藏"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
+        )
         return [
             {
                 "id": fi["id"],
@@ -147,6 +176,8 @@ class FavoriteHandler(object):
         display_fields: list,
         index_set_id: int = None,
         group_id: int = None,
+        index_set_ids: list = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ) -> dict:
         # 构建params
         params = {"ip_chooser": ip_chooser, "addition": addition, "keyword": keyword, "search_fields": search_fields}
@@ -166,12 +197,10 @@ class FavoriteHandler(object):
                 self.data.visible_type == FavoriteVisibleType.PUBLIC.value
                 and visible_type == FavoriteVisibleType.PRIVATE.value
             ):
-                if self.data.created_by != get_request_username():
+                if self.data.created_by != self.username:
                     raise FavoriteVisibleTypeNotAllowedModifyException()
                 else:
-                    group_id = FavoriteGroup.get_or_create_private_group(
-                        space_uid=space_uid, username=get_request_username()
-                    ).id
+                    group_id = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username).id
             # 名称检查
             if self.data.name != name and Favorite.objects.filter(name=name, space_uid=space_uid).exists():
                 raise FavoriteAlreadyExistException()
@@ -200,6 +229,8 @@ class FavoriteHandler(object):
                 visible_type=visible_type,
                 is_enable_display_fields=is_enable_display_fields,
                 display_fields=display_fields,
+                index_set_ids=index_set_ids,
+                index_set_type=index_set_type,
             )
 
         return model_to_dict(self.data)
@@ -250,7 +281,8 @@ class FavoriteGroupHandler(object):
     def __init__(self, group_id: int = None, space_uid: str = None) -> None:
         self.group_id = group_id
         self.space_uid = space_uid
-        self.username = get_request_username()
+        self.username = get_request_external_username() or get_request_username()
+        self.source_app_code = get_request_app_code()
         if group_id:
             try:
                 self.data = FavoriteGroup.objects.get(pk=group_id)
@@ -262,10 +294,7 @@ class FavoriteGroupHandler(object):
 
     def list(self) -> list:
         """获取所有收藏组"""
-        group_order = self.get_group_order()
-        groups = FavoriteGroup.get_user_groups(space_uid=self.space_uid, username=self.username)
-        # 排序后输出
-        return [groups[i] for i in group_order]
+        return FavoriteGroup.get_user_groups(space_uid=self.space_uid, username=self.username)
 
     @atomic
     def create_or_update(self, name: str) -> dict:
@@ -283,12 +312,9 @@ class FavoriteGroupHandler(object):
             self.data.save()
         # 创建
         else:
-            # get_group_order中包含get_or_create同步个人组和未分类组的逻辑
-            group_order = self.get_group_order()
-            self.data = FavoriteGroup.objects.create(name=name, group_type=group_type, space_uid=space_uid)
-            # 同时追加到用户自定义组的末尾
-            group_order.insert(-1, self.data.id)
-            self.update_group_order(group_order)
+            self.data = FavoriteGroup.objects.create(
+                name=name, group_type=group_type, space_uid=space_uid, source_app_code=self.source_app_code
+            )
 
         return model_to_dict(self.data)
 
@@ -302,41 +328,3 @@ class FavoriteGroupHandler(object):
         unknown_group_id = FavoriteGroup.get_or_create_ungrouped_group(space_uid=self.data.space_uid)
         Favorite.objects.filter(group_id=self.group_id).update(group_id=unknown_group_id.id)
         self.data.delete()
-
-    def get_group_order(self) -> list:
-        """获取用户组排序"""
-        private_group = FavoriteGroup.get_or_create_private_group(space_uid=self.space_uid, username=self.username)
-        ungrouped_group = FavoriteGroup.get_or_create_ungrouped_group(space_uid=self.space_uid)
-        obj, __ = FavoriteGroupCustomOrder.objects.get_or_create(
-            space_uid=self.space_uid,
-            username=self.username,
-            defaults={"group_order": [private_group.id, ungrouped_group.id]},
-        )
-
-        # 同步组排序内容，不会触发很频繁，只有创建了公共的组才会同步
-        order_group_ids = obj.group_order
-        all_group_ids = list(FavoriteGroup.get_user_groups(space_uid=self.space_uid, username=self.username).keys())
-        # 组内元素相同直接返回
-        if sorted(all_group_ids) == sorted(order_group_ids):
-            return order_group_ids
-
-        # 保持原有排序，删掉不存在的收藏组，追加缺少的收藏组
-        group_ids = [group_id for group_id in order_group_ids if group_id in all_group_ids]
-        missing_ids = list(set(all_group_ids).difference(set(order_group_ids)))
-        # 永远保证最后一个组为未分组
-        new_group_ids = group_ids[:-1]
-        new_group_ids.extend(missing_ids)
-        new_group_ids.append(group_ids[-1])
-
-        # 更新用户排序
-        obj.group_order = new_group_ids
-        obj.save()
-
-        return obj.group_order
-
-    def update_group_order(self, group_order: list) -> dict:
-        """更新用户组排序"""
-        obj = FavoriteGroupCustomOrder.objects.get(space_uid=self.space_uid, username=self.username)
-        obj.group_order = group_order
-        obj.save()
-        return model_to_dict(obj)

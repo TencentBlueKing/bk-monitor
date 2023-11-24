@@ -17,12 +17,50 @@ from django.conf import settings
 from rest_framework import serializers
 from six.moves.urllib.parse import urljoin
 
-from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.request import get_request
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
 
 logger = logging.getLogger("bkmonitor")
+
+
+def get_unify_query_url(space_uid: str):
+    """
+    根据空间ID获取统一查询的URL
+    """
+    if not space_uid:
+        return settings.UNIFY_QUERY_URL
+
+    space_type, space_id = parse_space_uid(space_uid)
+    for routing_rule in settings.UNIFY_QUERY_ROUTING_RULES:
+        url = routing_rule.get("url")
+        if not url:
+            continue
+
+        match_keys = {"space_type": space_type, "space_id": space_id, "space_uid": space_uid}
+
+        # 至少存在一个匹配条件
+        if not (set(match_keys.keys()) & set(routing_rule.keys())):
+            continue
+
+        # 匹配条件
+        for key, value in match_keys.items():
+            match_values = routing_rule.get(key)
+            if match_values:
+                if isinstance(match_values, (int, str)):
+                    # 匹配条件是数字或者字符串，转换成列表
+                    match_values = [str(match_values)]
+                elif not isinstance(match_values, list):
+                    # 匹配条件不是列表或者字符串，跳过
+                    break
+
+                if value not in match_values:
+                    break
+        else:
+            return url
+
+    return settings.UNIFY_QUERY_URL
 
 
 class UnifyQueryAPIResource(Resource):
@@ -34,28 +72,29 @@ class UnifyQueryAPIResource(Resource):
     path = ""
 
     def perform_request(self, params):
-        url = urljoin(settings.UNIFY_QUERY_URL, self.path.format(**params))
-
         request = get_request(peaceful=True)
         if request and hasattr(request, "user"):
             username = request.user.username
         else:
             username = ""
 
+        space_uid = ""
+        if params.get("space_uid"):
+            space_uid = params["space_uid"]
+        elif params.get("bk_biz_ids"):
+            bk_biz_id = params.pop("bk_biz_ids")[0]
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        elif request and request.biz_id:
+            space_uid = bk_biz_id_to_space_uid(request.biz_id)
+
+        url = urljoin(get_unify_query_url(space_uid), self.path.format(**params))
         requests_params = {
             "method": self.method,
             "url": url,
             "headers": {"Bk-Query-Source": f"username:{username}" if username else "backend"},
         }
-
-        if params.get("space_uid"):
-            requests_params["headers"]["X-Bk-Scope-Space-Uid"] = params["space_uid"]
-        elif params.get("bk_biz_ids"):
-            bk_biz_id = params.pop("bk_biz_ids")[0]
-            requests_params["headers"]["X-Bk-Scope-Space-Uid"] = bk_biz_id_to_space_uid(bk_biz_id)
-        elif request and request.biz_id:
-            # request兜底
-            requests_params["headers"]["X-Bk-Scope-Space-Uid"] = bk_biz_id_to_space_uid(request.biz_id)
+        if space_uid:
+            requests_params["headers"]["X-Bk-Scope-Space-Uid"] = space_uid
 
         if self.method in ["PUT", "POST", "PATCH"]:
             requests_params["json"] = params

@@ -38,6 +38,7 @@ from metadata.models.space.constants import (
 from metadata.models.space.ds_rt import (
     get_cluster_data_ids,
     get_measurement_type_by_table_id,
+    get_platform_data_ids,
     get_result_tables_by_data_ids,
     get_space_table_id_data_id,
     get_table_id_cluster_id,
@@ -53,7 +54,9 @@ class SpaceTableIDRedis:
 
     def push_space_table_ids(self, space_type: str, space_id: str, is_publish: Optional[bool] = False):
         """推送空间及对应的结果表和过滤条件"""
-        logger.info("start to push space table_id data")
+        logger.info("start to push space table_id data, space_type: %s, space_id: %s", space_type, space_id)
+        # NOTE: 为防止 space_id 传递非字符串，转换一次
+        space_id = str(space_id)
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
             self._push_bkcc_space_table_ids(space_type, space_id)
@@ -66,7 +69,7 @@ class SpaceTableIDRedis:
         # 如果指定要更新，则通知
         if is_publish:
             RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [f"{space_type}__{space_id}"])
-        logger.info("push space table_id data successfully")
+        logger.info("push space table_id data successfully, space_type: %s, space_id: %s", space_type, space_id)
 
     def push_field_table_ids(
         self, field_list: Optional[str] = None, table_id_list: Optional[List] = None, is_publish: Optional[bool] = False
@@ -76,22 +79,41 @@ class SpaceTableIDRedis:
         1. 根据 ts metric 进行过滤
         2. 跟进 result field tag: metric 进行过滤
         """
-        logger.info("start to push field table_id data")
+        logger.info(
+            "start to push field table_id data, field_list: %s, table_id_list: %s",
+            json.dumps(field_list),
+            json.dumps(table_id_list),
+        )
         table_ids = self._refine_table_ids(table_id_list)
 
-        fields = models.ResultTableField.objects.filter(
+        table_id_fields = models.ResultTableField.objects.filter(
             tag=models.ResultTableField.FIELD_TAG_METRIC, table_id__in=table_ids
-        ).values_list("field_name", flat=True)
+        ).values("table_id", "field_name")
         # 如果指标存在，则以指标进行过滤
         if field_list:
-            fields = fields.filter(field_name__in=field_list)
+            table_id_fields = table_id_fields.filter(field_name__in=field_list)
 
-        # 通过指标在反查结果表
-        table_id_fields_qs = models.ResultTableField.objects.filter(
-            tag=models.ResultTableField.FIELD_TAG_METRIC, field_name__in=fields
-        ).values("table_id", "field_name")
+        # NOTE: 当部分结果表进行更新时，才进行指标的匹配, 否则，直接使用结果表过滤的指标
+        if table_id_list:
+            fields = list({field["field_name"] for field in table_id_fields})
+            # 获取指标，进行分片查询, 默认每个分页 1000
+            # NOTE: 如果不分片，因为数据量太大，会导致查询丢连接
+            count = len(fields)
+            page_size = getattr(settings, "MAX_FIELD_PAGE_SIZE", 1000)
+            # 分组
+            chunks = [fields[i : i + page_size] for i in range(0, count, page_size)]
 
-        table_ids = {data["table_id"] for data in table_id_fields_qs}
+            table_ids, table_id_field_list = set(), []
+            # 通过指标在反查结果表
+            for _fields in chunks:
+                table_id_fields_qs = models.ResultTableField.objects.filter(
+                    tag=models.ResultTableField.FIELD_TAG_METRIC, field_name__in=list(_fields)
+                ).values("table_id", "field_name")
+                table_id_field_list.extend(list(table_id_fields_qs))
+                table_ids = table_ids.union({data["table_id"] for data in table_id_fields_qs})
+        else:
+            table_id_field_list = list(table_id_fields)
+
         # 根据 option 过滤是否有开启黑名单，如果开启黑名单，则指标会有过期时间
         white_tables = set(
             models.ResultTableOption.objects.filter(
@@ -105,26 +127,20 @@ class SpaceTableIDRedis:
         # 剩余的结果表，需要判断是否时序的，然后根据过期时间过滤数据
         table_id_set = table_ids - white_tables
         ts_info = self._filter_ts_info(table_id_set)
-        # 获取非时序的结果表
-        not_ts_table_ids = table_ids - set(ts_info.get("table_id_ts_group_id", {}).keys())
+        # 获取时序的结果表
+        ts_table_ids = set(ts_info.get("table_id_ts_group_id", {}).keys())
         # 组装指标和结果表的关系
         field_table_ids = {}
-        for data in table_id_fields_qs:
+        for data in table_id_field_list:
             table_id = data["table_id"]
-            if table_id not in not_ts_table_ids:
-                continue
-            field_table_ids.setdefault(data["field_name"], []).append(table_id)
-        # 如果时序的数据存在，则进行处理
-        if ts_info:
-            for table_id in ts_info["table_id_ts_group_id"]:
+            field_name = data["field_name"]
+            if table_id in ts_table_ids:
                 group_id = ts_info["table_id_ts_group_id"][table_id]
                 fields = ts_info["group_id_field_map"].get(group_id)
-                # 如果指标为空，也直接跳过
-                if not fields:
-                    logger.warning("table_id: %s not found field or expired", table_id)
+                # NOTE: 指标可能已经过期，所以有指标为空的场景
+                if not fields or (fields and field_name not in fields):
                     continue
-                for field in fields:
-                    field_table_ids.setdefault(field, []).append(table_id)
+            field_table_ids.setdefault(field_name, []).append(table_id)
 
         # 推送数据到 redis，需要 json 序列化处理
         if field_table_ids:
@@ -134,6 +150,7 @@ class SpaceTableIDRedis:
             if is_publish:
                 RedisTools.publish(FIELD_TO_RESULT_TABLE_CHANNEL, list(field_table_ids.keys()))
 
+        # TODO: 推送的数据详情先添加上，待稳定后删除
         logger.info("push redis field_to_result_table, data: %s", json.dumps(field_table_ids))
 
     def push_data_label_table_ids(
@@ -143,7 +160,11 @@ class SpaceTableIDRedis:
         is_publish: Optional[bool] = False,
     ):
         """推送 data_label 及对应的结果表"""
-        logger.info("start to push data_label table_id data")
+        logger.info(
+            "start to push data_label table_id data, data_label_list: %s, table_id_list: %s",
+            json.dumps(data_label_list),
+            json.dumps(table_id_list),
+        )
         table_ids = self._refine_table_ids(table_id_list)
         # 过滤掉结果表数据标签为空或者为 None 的记录
         data_labels = (
@@ -154,7 +175,7 @@ class SpaceTableIDRedis:
         if data_label_list:
             data_labels = data_labels.filter(data_label__in=data_label_list)
         # 再通过 data_label 过滤到结果表
-        rt_dl_qs = models.ResultTable.objects.filter(data_label__in=data_label_list).values("table_id", "data_label")
+        rt_dl_qs = models.ResultTable.objects.filter(data_label__in=list(data_labels)).values("table_id", "data_label")
         # 组装数据
         rt_dl_map = {}
         for data in rt_dl_qs:
@@ -166,14 +187,14 @@ class SpaceTableIDRedis:
 
             if is_publish:
                 RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(rt_dl_map.keys()))
-        logger.info("push redis data_label_to_result_table, data: %s", json.dumps(rt_dl_map))
+        logger.info("push redis data_label_to_result_table")
 
     def push_table_id_detail(self, table_id_list: Optional[List] = None, is_publish: Optional[bool] = False):
         """推送结果表的详细信息"""
-        logger.info("start to push table_id detail data")
+        logger.info("start to push table_id detail data, table_id_list: %s", json.dumps(table_id_list))
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
         if not table_id_detail:
-            logger.info("not found table")
+            logger.info("not found table from influxdb or vm")
             return
 
         table_ids = set(table_id_detail.keys())
@@ -203,7 +224,7 @@ class SpaceTableIDRedis:
             RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
             if is_publish:
                 RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
-        logger.info("push redis result_table_detail, data: %s", json.dumps(_table_id_detail))
+        logger.info("push redis result_table_detail")
 
     def _push_bkcc_space_table_ids(
         self,
@@ -212,17 +233,16 @@ class SpaceTableIDRedis:
         from_authorization: Optional[bool] = None,
     ):
         """推送 bkcc 类型空间数据"""
-        logger.info("start to push bkcc space table_id")
+        logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_data(space_type, space_id, from_authorization=from_authorization)
         # 推送数据
         if _values:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id:%s data: %s",
+            "push redis space_to_result_table, space_type: %s, space_id: %s",
             space_type,
             space_id,
-            json.dumps(_values),
         )
 
     def _push_bkci_space_table_ids(
@@ -231,9 +251,10 @@ class SpaceTableIDRedis:
         space_id: str,
     ):
         """推送 bcs 类型空间下的关联业务的数据"""
-        logger.info("start to push biz of bcs space table_id")
+        logger.info("start to push biz of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_bcs_space_biz_table_ids(space_type, space_id)
         _values.update(self._compose_bcs_space_cluster_table_ids(space_type, space_id))
+        _values.update(self._compose_bkci_level_table_ids(space_type, space_id))
         _values.update(self._compose_bkci_other_table_ids(space_type, space_id))
         # 追加跨空间类型的数据源授权
         _values.update(self._compose_bkci_cross_table_ids(space_type, space_id))
@@ -242,10 +263,9 @@ class SpaceTableIDRedis:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id:%s data: %s",
+            "push redis space_to_result_table, space_type: %s, space_id:%s",
             space_type,
             space_id,
-            json.dumps(_values),
         )
 
     def _push_bksaas_space_table_ids(
@@ -255,7 +275,7 @@ class SpaceTableIDRedis:
         table_id_list: Optional[List] = None,
     ):
         """推送 bksaas 类型空间下的数据"""
-        logger.info("start to push bksaas space table_id")
+        logger.info("start to push bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_bksaas_space_cluster_table_ids(space_type, space_id, table_id_list)
         # 获取蓝鲸应用使用的集群数据
         _values.update(self._compose_bksaas_other_table_ids(space_type, space_id, table_id_list))
@@ -263,10 +283,9 @@ class SpaceTableIDRedis:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
             RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, redis_values)
         logger.info(
-            "push redis space_to_result_table, space_type: %s, space_id:%s data: %s",
+            "push redis space_to_result_table, space_type: %s, space_id: %s",
             space_type,
             space_id,
-            json.dumps(_values),
         )
 
     def _compose_bcs_space_biz_table_ids(
@@ -275,7 +294,7 @@ class SpaceTableIDRedis:
         space_id: str,
     ) -> Dict:
         """推送 bcs 类型空间下的集群数据"""
-        logger.info("start to push cluster of bcs space table_id")
+        logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 首先获取关联业务的数据
         resource_type = SpaceTypes.BKCC.value
         obj = models.SpaceResource.objects.filter(
@@ -301,7 +320,7 @@ class SpaceTableIDRedis:
         space_id: str,
     ) -> Dict:
         """推送 bcs 类型空间下的集群数据"""
-        logger.info("start to push cluster of bcs space table_id")
+        logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 获取空间的集群数据
         resource_type = SpaceTypes.BCS.value
         # 优先进行判断项目相关联的容器资源，减少等待
@@ -345,11 +364,36 @@ class SpaceTableIDRedis:
 
         return _values
 
+    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str) -> Dict:
+        """组装 bkci 全局下的结果表"""
+        logger.info("start to push bkci level table_id, space_type: %s, space_id: %s", space_type, space_id)
+        # 过滤空间级的数据源
+        data_ids = get_platform_data_ids(space_type=space_type)
+        table_is_list = list(
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids.keys()).values_list(
+                "table_id", flat=True
+            )
+        )
+        _values = {}
+        if not table_is_list:
+            return _values
+        # 过滤仅写入influxdb和vm的数据
+        table_ids = self._refine_table_ids(table_is_list)
+        # 组装数据
+        for tid in table_ids:
+            _values[tid] = {"filters": [{"projectId": space_id}]}
+
+        return _values
+
     def _compose_bkci_other_table_ids(self, space_type: str, space_id: str) -> Dict:
-        logger.info("start to push bkci space other table_id")
+        logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         table_id_data_id = get_space_table_id_data_id(
-            space_type, space_id, exclude_data_id_list=exclude_data_id_list, from_authorization=False
+            space_type,
+            space_id,
+            exclude_data_id_list=exclude_data_id_list,
+            include_platform_data_id=False,
+            from_authorization=False,
         )
         _values = {}
         if not table_id_data_id:
@@ -362,17 +406,19 @@ class SpaceTableIDRedis:
             # NOTE: 现阶段针对1001下 `system.` 或者 `dbm_system.` 开头的结果表不允许被覆盖
             if tid.startswith("system.") or tid.startswith("dbm_system."):
                 continue
-            _values[tid] = {"filters": [{"projectId": space_id}]}
+            _values[tid] = {"filters": []}
 
         return _values
 
     def _compose_bkci_cross_table_ids(self, space_type: str, space_id: str) -> Dict:
         """组装跨空间类型的结果表数据"""
-        logger.info("start to push bkci space cross space_type table_id")
+        logger.info(
+            "start to push bkci space cross space_type table_id, space_type: %s, space_id: %s", space_type, space_id
+        )
         tids = models.ResultTable.objects.filter(table_id__startswith=BKCI_1001_TABLE_ID_PREFIX).values_list(
             "table_id", flat=True
         )
-        return {tid: {"filters": [{"projectId": f"{space_type}__{space_id}"}]} for tid in tids}
+        return {tid: {"filters": [{"projectId": space_id}]} for tid in tids}
 
     def _compose_bksaas_space_cluster_table_ids(
         self,
@@ -380,7 +426,9 @@ class SpaceTableIDRedis:
         space_id: str,
         table_id_list: Optional[List] = None,
     ):
-        logger.info("start to push cluster of bksaas space table_id")
+        logger.info(
+            "start to push cluster of bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id
+        )
         # 获取空间的集群数据
         resource_type = SpaceTypes.BKSAAS.value
         # 优先进行判断项目相关联的容器资源，减少等待
@@ -428,7 +476,7 @@ class SpaceTableIDRedis:
         """组装蓝鲸应用非集群数据
         TODO: 暂时不考虑全局的数据源信息
         """
-        logger.info("start to push bksaas space other table_id")
+        logger.info("start to push bksaas space other table_id, space_type: %s, space_id: %s", space_type, space_id)
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         # 过滤到对应的结果表
         table_id_data_id = get_space_table_id_data_id(

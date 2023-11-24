@@ -37,6 +37,7 @@ export const getIntelligentModel = request('GET', 'rest/v2/strategies/get_intell
 export const getIntelligentModelTaskStatus = request('GET', 'rest/v2/strategies/get_intelligent_model_task_status/');
 export const getIntelligentDetectAccessStatus = request('GET', 'rest/v2/strategies/get_intelligent_detect_access_status/');
 export const updateMetricListByBiz = request('POST', 'rest/v2/strategies/update_metric_list_by_biz/');
+export const multivariateAnomalyScenes = request('GET', 'rest/v2/strategies/multivariate_anomaly_scenes/');
 
 export default {
   getScenarioList,
@@ -75,5 +76,6 @@ export default {
   getIntelligentModel,
   getIntelligentModelTaskStatus,
   getIntelligentDetectAccessStatus,
-  updateMetricListByBiz
+  updateMetricListByBiz,
+  multivariateAnomalyScenes
 };

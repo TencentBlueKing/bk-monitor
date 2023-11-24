@@ -139,7 +139,8 @@ export default class TreeList extends tsc<IProps, IEvents> {
       {
         id: MoreType.delete,
         name: window.i18n.tc('删除'),
-        icon: 'icon-mc-delete-line'
+        icon: 'icon-mc-delete-line',
+        hasAuth: true
       }
     ];
   }

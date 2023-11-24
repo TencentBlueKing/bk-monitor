@@ -17,7 +17,7 @@ jobs:
       - name: Check project label
         uses: docker://agilepathway/pull-request-label-checker:latest
         with:
-          one_of: project/monitor,project/apm,project/log,project/public
+          any_of: project/monitor,project/apm,project/log,project/public
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Comment PR
         if : ${{ failure() }}
@@ -32,7 +32,7 @@ jobs:
       - name: Check type label
         uses: docker://agilepathway/pull-request-label-checker:latest
         with:
-          one_of: fix,feat,docs,style,refactor,test,chore,merge,perf
+          any_of: fix,feat,docs,style,refactor,test,chore,merge,perf
           repo_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Comment PR
         if : ${{ failure() }}

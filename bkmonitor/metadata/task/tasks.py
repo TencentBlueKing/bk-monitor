@@ -125,30 +125,34 @@ def update_time_series_metrics(time_series_metrics, task_result_queue):
     for time_series_group in time_series_metrics:
         try:
             is_updated = time_series_group.update_time_series_metrics()
+            logger.info(
+                "bk_data_id->[%s] metric add from redis success, is_updated: %s",
+                time_series_group.bk_data_id,
+                is_updated,
+            )
             # 记录是否有更新，如果有更新则推送到redis
             if is_updated:
                 data_id_list.append(time_series_group.bk_data_id)
                 table_id_list.append(time_series_group.table_id)
         except Exception as e:
             logger.error(
-                "data_id->[{data_id}], table_id->[{table_id}] try to update ts metrics from redis failed, error->[{err_msg}], traceback_detail->[{detail}]".format(  # noqa
-                    data_id=time_series_group.bk_data_id,
-                    table_id=time_series_group.table_id,
-                    err_msg=e,
-                    detail=traceback.format_exc(),
-                )
+                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], traceback_detail->[%s]",  # noqa
+                time_series_group.bk_data_id,
+                time_series_group.table_id,
+                e,
+                traceback.format_exc(),
             )
         else:
-            logger.info(
-                "time_series_group->[{}] metric update from redis success.".format(time_series_group.bk_data_id)
-            )
-    # 更新空间路由信息
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+            logger.info("time_series_group->[%s] metric update from redis success.", time_series_group.bk_data_id)
 
-    space_client = SpaceTableIDRedis()
-    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=True)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
-    logger.info("ts updated table_id: %s", json.dumps(table_id_list))
+    # 仅当指标有变动的结果表存在时，才进行路由配置更新
+    if table_id_list:
+        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+        space_client = SpaceTableIDRedis()
+        space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=True)
+        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
+        logger.info("metric updated of table_id: %s", json.dumps(table_id_list))
 
     # 如果有更新时，刷新数据到 redis
     # NOTE: 因为一个空间下关联不止一个 data id，所以先过滤到空间数据，然后再进行推送消息
@@ -224,8 +228,16 @@ def push_and_publish_space_router(
 ):
     """推送并发布空间路由功能"""
     logger.info("start to push and publish space_type: %s, space_id: %s router", space_type, space_id)
-    from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL, SpaceTypes
+    from metadata.models.space.constants import (
+        SPACE_TO_RESULT_TABLE_CHANNEL,
+        SpaceTypes,
+    )
+    from metadata.models.space.ds_rt import get_space_table_id_data_id
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+    # 获取空间下的结果表，如果不存在，则获取空间下的所有
+    if not table_id_list:
+        table_id_list = get_space_table_id_data_id(space_type, space_id)
 
     space_client = SpaceTableIDRedis()
     # 更新数据

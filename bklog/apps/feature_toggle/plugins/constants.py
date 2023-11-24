@@ -35,11 +35,12 @@ BKDATA_CLUSTERING_TOGGLE = "bkdata_aiops_toggle"
 BKLOG_ES_CONFIG = "bklog_es_config"
 # 新人指引相关配置
 USER_GUIDE_CONFIG = "user_guide_config"
-# 采集下发的时候，是否自动安装采集器
-IS_AUTO_DEPLOY_PLUGIN = "is_auto_deploy_plugin"
+
 BCS_COLLECTOR = "bcs_collector"
 BCS_DEPLOYMENT_TYPE = "bcs_deployment_type"
 CHECK_COLLECTOR_CUSTOM_CONFIG = "check_collector_custom_config"
 
 # grafana自定义ES数据源
 GRAFANA_CUSTOM_ES_DATASOURCE = "grafana_custom_es_datasource"
+# EXTERNAL业务被授权人配置
+EXTERNAL_AUTHORIZER_MAP = "external_authorizer_map"

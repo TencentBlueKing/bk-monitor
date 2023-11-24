@@ -75,6 +75,7 @@ import RealTimeLog from '../../result-comp/real-time-log';
 import ContextLog from '../../result-comp/context-log';
 import OriginalList from './original-list';
 import TableList from './table-list';
+import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
 export default {
   components: {
@@ -83,6 +84,7 @@ export default {
     OriginalList,
     TableList,
   },
+  mixins: [tableRowDeepViewMixin],
   props: {
     retrieveParams: {
       type: Object,
@@ -198,10 +200,13 @@ export default {
         // 传参配置指定字段
         if (Array.isArray(contextFields) && contextFields.length) {
           contextFields.push(config.timeField);
-          for (const [key, val] of Object.entries(row)) {
-            if (key === 'bk_host_id' && !val) continue; // 点击上下文时 若配置有bk_host_id 但 bk_host_id无有效值时不传指定字段
-            if (contextFields.includes(key)) dialogNewParams[key] = val;
-          }
+          contextFields.forEach((field) => {
+            if (field === 'bk_host_id') {
+              if (row[field]) dialogNewParams[field] = row[field];
+            } else {
+              dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+            }
+          });
         } else {
           Object.assign(dialogNewParams, row);
         }
@@ -249,6 +254,7 @@ export default {
       }
 
       .bk-table-body-wrapper {
+        color: #313238;
         min-height: calc(100vh - 550px);
 
         .bk-table-empty-block {
@@ -267,7 +273,7 @@ export default {
 
       td mark {
         background: #f3e186;
-        color: #575961;
+        color: #313238;
       }
 
       :deep(.result-table-loading) {
@@ -298,33 +304,30 @@ export default {
 
       .time-field {
         font-weight: 700;
+        white-space: nowrap;
       }
 
       .original-str,
       .visiable-field {
-        .cell {
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 12px 14px 0 14px;
-        }
-
         .str-content {
           position: relative;
           line-height: 20px;
 
           &.is-limit {
-            max-height: 96px;
+            max-height: 116px;
           }
         }
 
         &.is-wrap {
-          .cell {
-            padding: 12px 14px 8px;
-          }
-
           .str-content {
             display: block;
             overflow: hidden;
           }
+        }
+
+        .origin-str {
+          color: #313238;
+          line-height: 24px;
         }
 
         .origin-str:hover {
@@ -333,7 +336,7 @@ export default {
 
         .show-whole-btn {
           position: absolute;
-          top: 80px;
+          top: 93px;
           width: 100%;
           height: 24px;
           color: #3a84ff;
@@ -369,6 +372,14 @@ export default {
         .hide-whole-btn {
           margin-top: 4px;
         }
+
+        .cell {
+          padding: 10px 14px 0 14px;
+        }
+
+        &.is-wrap .cell {
+          padding: 10px 14px 8px;
+        }
       }
 
       td.bk-table-expanded-cell {
@@ -393,6 +404,10 @@ export default {
           &.is-limit {
             max-height: 74px;
           }
+        }
+
+        .cell {
+          padding: 12px 14px 0 14px;
         }
 
         &.is-wrap .cell {
@@ -441,6 +456,10 @@ export default {
         &.is-hidden {
           visibility: hidden;
         }
+      }
+
+      .timer-formatter {
+        transform: translateY(-1px);
       }
     }
 

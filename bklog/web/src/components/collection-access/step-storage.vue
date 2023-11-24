@@ -246,7 +246,7 @@
           :loading="isLoading"
           :disabled="!collectProject"
           @click.stop.prevent="finish">
-          {{$t('完成')}}
+          {{$t('下一步')}}
         </bk-button>
         <bk-button
           theme="default"
@@ -403,6 +403,7 @@ export default {
       curCollect: 'collect/curCollect',
       globalsData: 'globals/globalsData',
       accessUserManage: 'accessUserManage',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     collectProject() {
       return projectManages(this.$store.state.topMenu, 'collection-item');
@@ -462,8 +463,8 @@ export default {
         allocation_min_days: allMinDays,
         view_roles,
         fields,
-        etl_params,
-        assessment_config,
+        etl_params: etlParams,
+        assessment_config: assessmentConfig,
       } = this.formData;
       const isNeedAssessment = this.getNeedAssessmentStatus();
       this.isLoading = true;
@@ -478,33 +479,33 @@ export default {
         allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
         view_roles,
         etl_params: {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
-          separator_regexp: etl_params.separator_regexp,
-          separator: etl_params.separator,
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+          separator_regexp: etlParams.separator_regexp,
+          separator: etlParams.separator,
         },
         fields,
         assessment_config: {
-          log_assessment: `${assessment_config.log_assessment}G`,
-          need_approval: assessment_config.need_approval,
-          approvals: assessment_config.approvals,
+          log_assessment: `${assessmentConfig.log_assessment}G`,
+          need_approval: assessmentConfig.need_approval,
+          approvals: assessmentConfig.approvals,
         },
         need_assessment: isNeedAssessment,
       };
       !isNeedAssessment && (delete data.assessment_config);
       /* eslint-disable */
       if (etl_config !== 'bk_log_text') {
-        const etlParams = {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
-        }
+        const payload = {
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+        };
         if (etl_config === 'bk_log_delimiter') {
-          etlParams.separator = etl_params.separator
+          payload.separator = etlParams.separator;
         }
         if (etl_config === 'bk_log_regexp') {
-          etlParams.separator_regexp = etl_params.separator_regexp
+          payload.separator_regexp = etlParams.separator_regexp;
         }
-        data.etl_params = etlParams
+        data.etl_params = payload;
         // data.fields = this.$refs.fieldTable.getData()
       }
       /* eslint-enable */
@@ -523,9 +524,10 @@ export default {
             this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
             this.$emit('changeIndexSetId', res.data.index_set_id || '');
           }
-          this.$emit('change-submit', true);
           if (this.isCleanField) {
             this.messageSuccess(this.$t('保存成功'));
+            // 只有在不展示日志脱敏的情况下才改变保存状态
+            this.$emit('changeSubmit', true);
             this.$emit('stepChange', 'back');
           } else {
             if (data.need_assessment && data.assessment_config.need_approval) {
@@ -536,6 +538,8 @@ export default {
             } else {
               this.$emit('setAssessmentItem', {});
             }
+            // 只有在不展示日志脱敏的情况下才改变保存状态
+            if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
             this.$emit('stepChange');
           }
         }
@@ -583,7 +587,7 @@ export default {
         storage_cluster_id,
         retention,
         storage_replies,
-        storage_shards_nums,
+        storage_shards_nums: storageShardsNums,
         allocation_min_days,
         table_id_prefix,
         view_roles,
@@ -627,7 +631,7 @@ export default {
         table_id: table_id ? table_id : collector_config_name_en ? collector_config_name_en : '',
         // eslint-disable-next-line camelcase
         storage_cluster_id: default_exclusive_cluster_id ? default_exclusive_cluster_id : storage_cluster_id,
-        es_shards: storage_shards_nums,
+        es_shards: storageShardsNums,
         table_id_prefix,
         etl_config: this.fieldType,
         etl_params: Object.assign({

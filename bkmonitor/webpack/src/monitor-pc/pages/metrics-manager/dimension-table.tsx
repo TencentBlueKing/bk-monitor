@@ -157,19 +157,19 @@ export default class DimensionTable extends tsc<IProps> {
     this.$bkInfo({
       title: '',
       extCls: 'dimension-table-dimension-values-dialog',
-      subHeader: () => (
-        <div class='dimension-values-content'>
-          <div class='title'>{this.$t('维度值')}</div>
-          <div class='content-wrap'>
-            <div class='content'>
-              {values.map(item => (
-                <span class='label'>{item.label}</span>
-              ))}
-            </div>
-          </div>
-          <div class='bottom'>{this.$t('当前仅展示{0}条数据', [values.length])}</div>
-        </div>
-      ),
+      subHeader: this.$createElement('div', { class: 'dimension-values-content' }, [
+        this.$createElement('div', { class: 'title' }, this.$tc('维度值')),
+        this.$createElement(
+          'div',
+          { class: 'content-wrap' },
+          this.$createElement(
+            'div',
+            { class: 'content' },
+            values.map(item => this.$createElement('span', { class: 'label' }, item.label))
+          )
+        ),
+        this.$createElement('div', { class: 'bottom' }, this.$tc('当前仅展示{0}条数据', [values.length]))
+      ]),
       showFooter: false,
       width: 640
     });

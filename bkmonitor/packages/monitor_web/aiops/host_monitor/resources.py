@@ -13,6 +13,13 @@ import logging
 
 from django.db.models import Value
 from django.db.models.functions import Concat
+
+from bkmonitor.data_source import UnifyQuery, load_data_source
+from bkmonitor.models import MetricListCache
+from bkmonitor.strategy.new_strategy import get_metric_id
+from bkmonitor.views import serializers
+from constants.data_source import DataSourceLabel
+from core.drf_resource import Resource, resource
 from monitor_web.aiops.ai_setting.utils import AiSetting
 from monitor_web.aiops.host_monitor.constant import (
     GROUP_BY_METRIC_FIELDS,
@@ -28,20 +35,13 @@ from monitor_web.aiops.host_monitor.utils import (
 from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.scene_view.builtin.host import get_metric_panel
 
-from bkmonitor.data_source import UnifyQuery, load_data_source
-from bkmonitor.models import MetricListCache
-from bkmonitor.strategy.new_strategy import get_metric_id
-from bkmonitor.views import serializers
-from constants.data_source import DataSourceLabel
-from core.drf_resource import Resource, resource
-
 logger = logging.getLogger(__name__)
 
 
 def query_metric_info(metric_name_set):
     bkmonitor_metric_queryset = MetricListCache.objects.annotate(
-        bkmonitor_metirc_fullname=Concat("result_table_id", Value("."), "metric_field")
-    ).filter(bkmonitor_metirc_fullname__in=metric_name_set)
+        bkmonitor_metric_fullname=Concat("result_table_id", Value("."), "metric_field")
+    ).filter(bkmonitor_metric_fullname__in=metric_name_set)
 
     return bkmonitor_metric_queryset
 
@@ -176,7 +176,6 @@ class HostIntelligenAnomalyRangeResource(Resource):
                 # 遍历异常中异常指标每一个指标是否是传入的指标
                 for anomaly_item in anomaly_sort:
                     if metric == anomaly_item[0].replace("__", "."):
-
                         if anomaly_ranges and (point_time_stamp - last_point_time_stamp == point_time_range):
                             anomaly_ranges[-1]["to"] += point_time_range
                         else:

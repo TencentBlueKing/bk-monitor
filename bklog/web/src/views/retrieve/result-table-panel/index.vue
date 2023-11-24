@@ -53,6 +53,7 @@
 import { mapState } from 'vuex';
 import OriginalLog from './original-log/index.vue';
 import LogClustering from './log-clustering/index.vue';
+import reportLogStore from '@/store/modules/report-log';
 
 export default {
   components: { OriginalLog, LogClustering },
@@ -74,13 +75,16 @@ export default {
     return {
       active: 'origin',
       isChangeTableNav: false,
+      isReported: false,
     };
   },
   computed: {
     ...mapState({
       bkBizId: state => state.bkBizId,
+      isExternal: state => state.isExternal,
     }),
     isAiopsToggle() { // 日志聚类总开关
+      if (this.isExternal) return false; // 外部版不包含日志聚类
       if (window.FEATURE_TOGGLE.bkdata_aiops_toggle !== 'on') return false;
       const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
@@ -98,6 +102,17 @@ export default {
   watch: {
     isInitPage() {
       if (this.activeTableTab === 'clustering' && this.isAiopsToggle) this.active = 'clustering';
+    },
+    active(val) {
+      if (val === 'clustering' && !this.isReported) {
+        const { name, meta } = this.$route;
+        reportLogStore.reportRouteLog({
+          route_id: name,
+          nav_id: meta.navId,
+          nav_name: '日志聚类',
+        });
+        this.isReported = true;
+      }
     },
   },
   methods: {

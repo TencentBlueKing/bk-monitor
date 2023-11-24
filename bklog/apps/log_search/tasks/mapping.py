@@ -19,27 +19,36 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import ApiResultError
-from apps.log_search.constants import BkDataErrorCode
-from apps.log_search.models import LogIndexSet
-from apps.utils.log import logger
+from datetime import datetime, timedelta
+
 from celery.schedules import crontab
 from celery.task import periodic_task, task
+
+from apps.exceptions import ApiResultError
+from apps.log_search.constants import BkDataErrorCode
+from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory
+from apps.utils.log import logger
+from apps.utils.task import high_priority_task
 
 
 @periodic_task(run_every=crontab(minute="*/10"))
 def sync_index_set_mapping_snapshot():
     logger.info("[sync_index_set_mapping_snapshot] task publish start")
-    index_set_list = LogIndexSet.objects.filter(is_active=True)
+    # 仅更新近一周用户检索过的索引集快照
+    index_set_ids = list(
+        UserIndexSetSearchHistory.objects.filter(created_at__gte=datetime.now() - timedelta(days=7)).values_list(
+            "index_set_id", flat=True
+        )
+    )
+    index_set_list = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
 
     for index_set in index_set_list:
-        sync_single_index_set_mapping_snapshot.delay(index_set.index_set_id)
+        sync_single_index_set_mapping_snapshot_periodic.delay(index_set.index_set_id)
 
     logger.info(f"[sync_index_set_mapping_snapshot] task publish end, total: {len(index_set_list)}")
 
 
-@task(ignore_result=True)
-def sync_single_index_set_mapping_snapshot(index_set_id=None):  # pylint: disable=function-name-too-long
+def sync_mapping_snapshot_subtask(index_set_id=None):
     try:
         index_set_obj = LogIndexSet.objects.get(index_set_id=index_set_id)
     except LogIndexSet.DoesNotExist:
@@ -62,3 +71,13 @@ def sync_single_index_set_mapping_snapshot(index_set_id=None):  # pylint: disabl
         )
     else:
         logger.info(f"[sync_single_index_set_mapping_snapshot] index_set({index_set_obj.index_set_id}) sync success")
+
+
+@task(ignore_result=True)
+def sync_single_index_set_mapping_snapshot_periodic(index_set_id=None):  # pylint: disable=function-name-too-long
+    sync_mapping_snapshot_subtask(index_set_id)
+
+
+@high_priority_task(ignore_result=True)
+def sync_single_index_set_mapping_snapshot(index_set_id=None):  # pylint: disable=function-name-too-long
+    sync_mapping_snapshot_subtask(index_set_id)

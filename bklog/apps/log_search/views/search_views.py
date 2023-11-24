@@ -24,6 +24,14 @@ import json
 import math
 from urllib import parse
 
+from django.conf import settings
+from django.http import HttpResponse
+from django.utils import timezone
+from django.utils.translation import ugettext as _
+from rest_framework import serializers
+from rest_framework.response import Response
+from six import StringIO
+
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
@@ -43,6 +51,7 @@ from apps.log_search.constants import (
     RESULT_WINDOW_COST_TIME,
     ExportStatus,
     ExportType,
+    IndexSetType,
     SearchScopeEnum,
 )
 from apps.log_search.decorators import search_history_record
@@ -55,28 +64,27 @@ from apps.log_search.handlers.search.async_export_handlers import AsyncExportHan
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
+from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
+    OriginalSearchAttrSerializer,
     SearchAsyncExportSerializer,
     SearchAttrSerializer,
     SearchExportSerializer,
     SearchIndexSetScopeSerializer,
     SearchUserIndexSetConfigSerializer,
+    UnionSearchAttrSerializer,
+    UnionSearchFieldsSerializer,
+    UnionSearchGetExportHistorySerializer,
+    UnionSearchHistorySerializer,
     UpdateIndexSetFieldsConfigSerializer,
 )
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_username
-from django.conf import settings
-from django.http import HttpResponse
-from django.utils import timezone
-from django.utils.translation import ugettext as _
-from rest_framework import serializers
-from rest_framework.response import Response
-from six import StringIO
+from apps.utils.local import get_request_external_username, get_request_username
 
 
 class SearchViewSet(APIViewSet):
@@ -263,6 +271,65 @@ class SearchViewSet(APIViewSet):
             return Response(search_handler.scroll_search())
         return Response(search_handler.search())
 
+    @detail_route(methods=["POST"], url_path="search/original")
+    def original_search(self, request, index_set_id=None):
+        """
+        @api {post} /search/index_set/$index_set_id/search/original/ 11_搜索-原始日志内容
+        @apiName search_original_log
+        @apiGroup 11_Search
+        @apiParam {Int} begin 起始位置
+        @apiParam {Int} size 条数
+        @apiParamExample {Json} 请求参数
+        {
+            "begin": 0,
+            "size": 3
+        }
+
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "total": 100,
+                "took": 0.29,
+                "list": [
+                    {
+                        "srcDataId": "2087",
+                        "dtEventTimeStamp": 1534825132000,
+                        "moduleName": "公共组件->consul",
+                        "log": "is_cluster</em>-COMMON: ok",
+                        "sequence": 1,
+                        "dtEventTime": "2018-08-21 04:18:52",
+                        "timestamp": 1534825132,
+                        "serverIp": "127.0.0.1",
+                        "errorCode": "0",
+                        "gseIndex": 152358,
+                        "dstDataId": "2087",
+                        "worldId": "-1",
+                        "logTime": "2018-08-21 12:18:52",
+                        "path": "/tmp/health_check.log",
+                        "platId": 0,
+                        "localTime": "2018-08-21 04:18:00"
+                    }
+                ],
+                "fields": {
+                    "agent": {
+                        "max_length": 101
+                    },
+                    "bytes": {
+                        "max_length": 4
+                    },
+                }
+            },
+            "result": true
+        }
+        """
+        data = self.params_valid(OriginalSearchAttrSerializer)
+        data["original_search"] = True
+        data["is_desensitize"] = False
+        search_handler = SearchHandlerEsquery(index_set_id, data)
+        return Response(search_handler.search())
+
     @detail_route(methods=["POST"], url_path="context")
     def context(self, request, index_set_id=None):
         """
@@ -408,9 +475,13 @@ class SearchViewSet(APIViewSet):
         {"a": "good", "b": {"c": ["d", "e"]}}
         {"a": "good", "b": {"c": ["d", "e"]}}
         """
-
+        request_user = get_request_external_username() or get_request_username()
         params = self.params_valid(SearchExportSerializer).get("export_dict")
         data = json.loads(params)
+        if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
+            data["is_desensitize"] = False
+        else:
+            data["is_desensitize"] = True
         index_set_id = int(index_set_id)
         request_data = copy.deepcopy(data)
 
@@ -451,6 +522,7 @@ class SearchViewSet(APIViewSet):
             end_time=data["end_time"],
             export_type=ExportType.SYNC,
             bk_biz_id=data["bk_biz_id"],
+            created_by=request_user,
         )
 
         # add user_operation_record
@@ -515,6 +587,10 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAsyncExportSerializer)
+        if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
+            data["is_desensitize"] = False
+        else:
+            data["is_desensitize"] = True
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
@@ -966,3 +1042,378 @@ class SearchViewSet(APIViewSet):
         """
         index_set_id = kwargs.get("index_set_id")
         return Response(SearchHandlerEsquery.search_history(index_set_id))
+
+    @list_route(methods=["POST"], url_path="union_search")
+    @search_history_record
+    def union_search(self, request, *args, **kwargs):
+        """
+        @api {post} /search/index_set/union_search/ 11_联合检索-日志内容
+        @apiName union_search_log
+        @apiGroup 11_Search
+        @apiParam {String} start_time 开始时间
+        @apiParam {String} end_time 结束时间
+        @apiParam {String} time_range 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]
+        @apiParam {String} keyword 搜索关键字
+        @apiParam {Json} ip_chooser IP列表
+        @apiParam {Array[Json]} addition 搜索条件
+        @apiParam {Int} size 条数
+        @apiParam {Array[Json]} union_configs 联合检索索引集配置
+        @apiParam {Int} union_configs.index_set_id 索引集ID
+        @apiParam {Int} union_configs.begin 索引对应的滚动条数
+        @apiParamExample {Json} 请求参数
+        {
+            "start_time": "2019-06-11 00:00:00",
+            "end_time": "2019-06-12 11:11:11",
+            "time_range": "customized"
+            "keyword": "error",
+            "host_scopes": {
+                "modules": [
+                    {
+                        "bk_obj_id": "module",
+                        "bk_inst_id": 4
+                    },
+                    {
+                        "bk_obj_id": "set",
+                        "bk_inst_id": 4
+                    }
+                ],
+                "ips": "127.0.0.1, 127.0.0.2"
+            },
+            "addition": [
+                {
+                    "key": "ip",
+                    "method": "is",
+                    "value": "127.0.0.1",
+                    "condition": "and",  (默认不传是and，只支持and or)
+                    "type": "field" (默认field 目前支持field，其他无效)
+                }
+            ],
+            "size": 15,
+            "union_configs": [
+                {
+                    "index_set_id": 146,
+                    "begin": 0
+                },
+                {
+                    "index_set_id": 147,
+                    "begin": 0
+                }
+            ]
+        }
+
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "total": 100,
+                "took": 0.29,
+                "list": [
+                    {
+                        "srcDataId": "2087",
+                        "dtEventTimeStamp": 1534825132000,
+                        "moduleName": "公共组件->consul",
+                        "log": "is_cluster</em>-COMMON: ok",
+                        "sequence": 1,
+                        "dtEventTime": "2018-08-21 04:18:52",
+                        "timestamp": 1534825132,
+                        "serverIp": "127.0.0.1",
+                        "errorCode": "0",
+                        "gseIndex": 152358,
+                        "dstDataId": "2087",
+                        "worldId": "-1",
+                        "logTime": "2018-08-21 12:18:52",
+                        "path": "/tmp/health_check.log",
+                        "platId": 0,
+                        "localTime": "2018-08-21 04:18:00"
+                    }
+                ],
+                "origin_log_list": [
+                    {
+                        "srcDataId": "2087",
+                        "dtEventTimeStamp": 1534825132000,
+                        "moduleName": "公共组件->consul",
+                        "log": "is_cluster</em>-COMMON: ok",
+                        "sequence": 1,
+                        "dtEventTime": "2018-08-21 04:18:52",
+                        "timestamp": 1534825132,
+                        "serverIp": "127.0.0.1",
+                        "errorCode": "0",
+                        "gseIndex": 152358,
+                        "dstDataId": "2087",
+                        "worldId": "-1",
+                        "logTime": "2018-08-21 12:18:52",
+                        "path": "/tmp/health_check.log",
+                        "platId": 0,
+                        "localTime": "2018-08-21 04:18:00"
+                    }
+                ],
+                "union_configs": [
+                    {
+                        "index_set_id": 146,
+                        "begin": 7
+                    },
+                    {
+                        "index_set_id": 147,
+                        "begin": 3
+                    }
+                ]
+
+            },
+            "result": true
+        }
+        """
+        data = self.params_valid(UnionSearchAttrSerializer)
+        return Response(UnionSearchHandler(data).union_search())
+
+    @list_route(methods=["POST"], url_path="union_search/fields")
+    def union_search_fields(self, request, *args, **kwargs):
+        """
+        @api {POST} /search/index_set/union_search/fields/?scope=search_context 联合检索-获取索引集配置
+        @apiDescription 联合检索-获取字段Mapping字段信息
+        @apiName union_search_fields
+        @apiGroup 11_Search
+        @apiParam {String} [start_time] 开始时间(非必填)
+        @apiParam {String} [end_time] 结束时间（非必填)
+        @apiParam {Array[Int]} [index_set_ids] 索引集ID
+        @apiSuccess {String} display_fields 列表页显示的字段
+        @apiSuccess {String} fields.field_name 字段名
+        @apiSuccess {String} fields.field_alias 字段中文称 (为空时会直接取description)
+        @apiSuccess {String} fields.description 字段说明
+        @apiSuccess {String} fields.field_type 字段类型
+        @apiSuccess {Bool} fields.is_display 是否显示给用户
+        @apiSuccess {Bool} fields.is_editable 是否可以编辑（是否显示）
+        @apiSuccess {Bool} fields.es_doc_values 是否聚合字段
+        @apiSuccess {Bool} fields.is_analyzed 是否分词字段
+        @apiSuccess {String} time_field 时间字段
+        @apiSuccess {String} time_field_type 时间字段类型
+        @apiSuccess {String} time_field_unit 时间字段单位
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "display_fields": ["dtEventTimeStamp", "log"],
+                "fields": [
+                    {
+                        "field_name": "log",
+                        "field_alias": "日志",
+                        "field_type": "text",
+                        "is_display": true,
+                        "is_editable": true,
+                        "description": "日志",
+                        "es_doc_values": false
+                    },
+                    {
+                        "field_name": "dtEventTimeStamp",
+                        "field_alias": "时间",
+                        "field_type": "date",
+                        "is_display": true,
+                        "is_editable": true,
+                        "description": "描述",
+                        "es_doc_values": true
+                    }
+                ],
+            },
+            "result": true
+        }
+        """
+        data = self.params_valid(UnionSearchFieldsSerializer)
+        return Response(UnionSearchHandler().union_search_fields(data))
+
+    @list_route(methods=["GET"], url_path="union_search/export")
+    def union_search_export(self, request, *args, **kwargs):
+        """
+        @api {get} /search/index_set/union_search/export/ 14_联合检索-导出日志
+        @apiName search_log_export
+        @apiGroup 11_Search
+        @apiParam {Dict} export_dict 序列化后的查询字典
+        @apiParam {String} start_time 开始时间
+        @apiParam {String} end_time 结束时间
+        @apiParam {String} time_range 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]
+        @apiParam {String} keyword 搜索关键字
+        @apiParam {Json} ip IP列表
+        @apiParam {Json} addition 搜索条件
+        @apiParam {Int} start 起始位置
+        @apiParam {Array} index_set_ids 索引集列表
+        @apiDescription 直接下载结果
+        @apiParamExample {Json} 请求参数
+        /search/index_set/union_search/export/
+        ?export_dict={"start_time":"2019-06-26 00:00:00","end_time":"2019-06-27 11:11:11","time_range":"customized",
+        "keyword":"error","host_scopes":{"modules":[{"bk_obj_id":"module","bk_inst_id":4},
+        {"bk_obj_id":"set","bk_inst_id":4}],"ips":"127.0.0.1, 127.0.0.2"},
+        "addition":[{"field":"ip","operator":"eq","value":[]}],"begin":0,"size":10000,"index_set_ids": [146, 147]}
+
+        @apiSuccessExample text/plain 成功返回:
+        {"a": "good", "b": {"c": ["d", "e"]}}
+        {"a": "good", "b": {"c": ["d", "e"]}}
+        {"a": "good", "b": {"c": ["d", "e"]}}
+        """
+
+        params = self.params_valid(SearchExportSerializer).get("export_dict")
+        data = json.loads(params)
+        request_data = copy.deepcopy(data)
+        index_set_ids = sorted(data.get("index_set_ids", []))
+
+        output = StringIO()
+        search_handler = UnionSearchHandler(search_dict=data)
+        result = search_handler.union_search(is_export=True)
+        result_list = result.get("origin_log_list")
+        for item in result_list:
+            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
+        response = HttpResponse(output.getvalue())
+        response["Content-Type"] = "application/x-msdownload"
+
+        file_name = "bk_log_union_search_{}.txt".format("_".join([str(i) for i in index_set_ids]))
+        file_name = parse.quote(file_name, encoding="utf8")
+        file_name = parse.unquote(file_name, encoding="ISO8859_1")
+        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+
+        # 保存下载历史
+        AsyncTask.objects.create(
+            request_param=request_data,
+            result=True,
+            completed_at=timezone.now(),
+            export_status=ExportStatus.SUCCESS,
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            export_type=ExportType.SYNC,
+            index_set_ids=index_set_ids,
+            index_set_type=IndexSetType.UNION.value,
+            bk_biz_id=data.get("bk_biz_id"),
+        )
+
+        return response
+
+    @list_route(methods=["GET"], url_path="union_search/export_history")
+    def union_search_get_export_history(self, request, *args, **kwargs):
+        """
+        @api {get} /search/index_set/union_search/export_history/?page=1&pagesize=10 联合检索-导出历史
+        @apiDescription 联合检索-导出历史
+        @apiName export_history
+        @apiGroup 11_Search
+        @apiParam {Int} index_set_id 索引集id
+        @apiParam {Int} page 当前页
+        @apiParam {Int} pagesize 页面大小
+        @apiParam {Bool} show_all 是否展示所有历史
+        @apiParam {String} index_set_ids 索引集ID  "146,147"
+        @apiSuccess {Int} total 返回大小
+        @apiSuccess {list} list 返回结果列表
+        @apiSuccess {Int} list.id 导出历史任务id
+        @apiSuccess {Int} list.log_index_set_id 导出索引集id
+        @apiSuccess {Str} list.search_dict 导出请求参数
+        @apiSuccess {Str} list.start_time 导出请求所选择开始时间
+        @apiSuccess {Str} list.end_time 导出请求所选择结束时间
+        @apiSuccess {Str} list.export_type 导出请求类型
+        @apiSuccess {Str} list.export_status 导出状态
+        @apiSuccess {Str} list.error_msg 导出请求异常原因
+        @apiSuccess {Str} list.download_url 异步导出下载地址
+        @apiSuccess {Str} list.export_pkg_name 异步导出打包名
+        @apiSuccess {int} list.export_pkg_size 异步导出包大小 单位M
+        @apiSuccess {Str} list.export_created_at 异步导出创建时间
+        @apiSuccess {Str} list.export_created_by 异步导出创建者
+        @apiSuccess {Str} list.export_completed_at 异步导出成功时间
+        @apiSuccess {Bool} list.download_able 是否可下载（不可下载禁用下载按钮且hover提示"下载链接过期"）
+        @apiSuccess {Bool} list.retry_able 是否可重试（不可重试禁用对应按钮且hover提示"数据源过期"）
+        @apiSuccessExample {json} 成功返回：
+        {
+            "result": true,
+            "data": {
+                "total": 1,
+                "list": [
+                    {
+                        "id": 25,
+                        "search_dict": {
+                            "size": 100,
+                            "begin": 0,
+                            "keyword": "*",
+                            "addition": [],
+                            "end_time": "2023-08-02 17:26:33",
+                            "interval": "auto",
+                            "ip_chooser": {},
+                            "start_time": "2023-08-02 17:11:33",
+                            "time_range": "customized",
+                            "host_scopes": {
+                                "ips": "",
+                                "modules": [],
+                                "target_nodes": [],
+                                "target_node_type": ""
+                            },
+                            "export_fields": [],
+                            "index_set_ids": [
+                                146,
+                                147
+                            ]
+                        },
+                        "start_time": "2023-08-02 17:11:33",
+                        "end_time": "2023-08-02 17:26:33",
+                        "export_type": "sync",
+                        "export_status": "success",
+                        "error_msg": null,
+                        "download_url": null,
+                        "export_pkg_name": null,
+                        "export_pkg_size": null,
+                        "export_created_at": "2023-08-02T09:32:33.547018Z",
+                        "export_created_by": "admin",
+                        "export_completed_at": "2023-08-02T09:32:32.303892Z",
+                        "download_able": true,
+                        "retry_able": true,
+                        "index_set_type": "union",
+                        "index_set_ids": [
+                            146,
+                            147
+                        ]
+                    }
+                ]
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UnionSearchGetExportHistorySerializer)
+        index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
+        return AsyncExportHandlers(index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]).get_export_history(
+            request=request, view=self, show_all=data["show_all"], is_union_search=True
+        )
+
+    @list_route(methods=["GET"], url_path="union_search/history")
+    def union_search_history(self, request, *args, **kwargs):
+        """
+        @api {get} /search/index_set/union_search/history/ 06_搜索-检索历史
+        @apiDescription 检索历史记录
+        @apiName union_search_index_set_user_history
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": [
+                {
+                    "id": 13,
+                    "params": {
+                        "keyword": "*",
+                        "host_scopes": {
+                            "modules": [
+                                {
+                                    "bk_inst_id": 25,
+                                    "bk_obj_id": "module"
+                                }
+                            ],
+                            "ips": "127.0.0.1,127.0.0.2"
+                        },
+                        "addition": [
+                            {
+                                "field": "cloudId",
+                                "operator": "is",
+                                "value": "0"
+                            }
+                        ]
+                    },
+                    "query_string": "keyword:* ADN modules:25 AND ips:127.0.0.1,127.0.0.2"
+                }],
+            "result": true
+        }
+        """
+        data = self.params_valid(UnionSearchHistorySerializer)
+        index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
+        return Response(SearchHandlerEsquery.search_history(index_set_ids=index_set_ids, is_union_search=True))

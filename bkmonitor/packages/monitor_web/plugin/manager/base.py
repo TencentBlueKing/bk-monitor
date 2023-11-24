@@ -29,6 +29,22 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template import engines
 from django.utils.translation import ugettext as _
+from six.moves import map
+
+from bkmonitor.utils import time_tools
+from bkmonitor.utils.serializers import MetricJsonSerializer
+from core.drf_resource import api
+from core.errors.api import BKAPIError
+from core.errors.plugin import (
+    ExportPluginError,
+    ExportPluginTimeout,
+    MakePackageError,
+    NodeManDeleteError,
+    ParsingDataError,
+    PluginError,
+    PluginParseError,
+    RemoteCollectError,
+)
 from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.models.plugin import (
     CollectorPluginConfig,
@@ -47,23 +63,7 @@ from monitor_web.plugin.constant import (
 )
 from monitor_web.plugin.signature import Signature, load_plugin_signature_manager
 from monitor_web.tasks import append_metric_list_cache
-from six.moves import map
 from utils import count_md5
-
-from bkmonitor.utils import time_tools
-from bkmonitor.utils.serializers import MetricJsonSerializer
-from core.drf_resource import api
-from core.errors.api import BKAPIError
-from core.errors.plugin import (
-    ExportPluginError,
-    ExportPluginTimeout,
-    MakePackageError,
-    NodeManDeleteError,
-    ParsingDataError,
-    PluginError,
-    PluginParseError,
-    RemoteCollectError,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +410,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             PluginDataAccessor(current_version, self.operator).access()
             self.update_plugin_metric_cache(current_version)
         except Exception as err:
-            logger.error("[plugin] data_access error, msg is %s" % str(err))
+            logger.exception("[plugin] data_access error, msg is %s" % str(err))
             current_version.stage = "unregister"
             current_version.save()
             raise err
@@ -603,7 +603,6 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
 
     @staticmethod
     def update_version_params(data, version, current_version, stag=None):
-
         sig_manager = load_plugin_signature_manager(version)
         version.signature = sig_manager.signature().dumps2python()
 
@@ -725,7 +724,6 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             if add_files:
                 # 追加文件
                 for os_type, file_list in list(add_files.items()):
-
                     dest_dir = os.path.join(top_dir, OS_TYPE_TO_DIRNAME[os_type], self.plugin.plugin_id)
 
                     # 如果存在文件配置，追加到etc文件夹下
