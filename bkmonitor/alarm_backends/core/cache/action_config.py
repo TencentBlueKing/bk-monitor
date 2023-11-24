@@ -93,12 +93,23 @@ class ActionConfigCacheManager(CacheManager):
 
         biz_list.append(GLOBAL_BIZ_ID)
 
-        action_configs = ActionConfig.objects.filter(bk_biz_id__in=biz_list)
+        deleted_configs = []
+        updated_configs = []
         if minutes:
-            action_configs = action_configs.filter(
+            # 如果有带时间，通过原生manager查找出来
+            all_configs = ActionConfig.origin_objects.filter(
                 update_time__gte=datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(minutes=minutes)
             )
-        action_configs = ActionConfigDetailSlz(instance=action_configs, many=True).data
+            for config in all_configs:
+                if config.is_deleted:
+                    deleted_configs.append(config.id)
+                    continue
+                else:
+                    updated_configs.append(config)
+        else:
+            updated_configs = ActionConfig.objects.all()
+
+        action_configs = ActionConfigDetailSlz(instance=updated_configs, many=True).data
 
         for action_config in action_configs:
             pipeline.set(
@@ -106,7 +117,7 @@ class ActionConfigCacheManager(CacheManager):
                 extended_json.dumps(action_config),
                 cls.CACHE_TIMEOUT,
             )
-        deleted_configs = set(ActionConfig.origin_objects.filter(is_deleted=True).values_list("id", flat=True))
+
         for deleted_config_id in deleted_configs:
             pipeline.delete(
                 cls.CACHE_KEY_TEMPLATE.format(cache_type=cls.CacheType.CONFIG_ID, cache_id=deleted_config_id)
