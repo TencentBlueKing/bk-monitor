@@ -256,10 +256,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.config_refresh.refresh_influxdb_route", "*/10 * * * *", "global"),
         # 刷新空间信息，业务、BCS的关联资源
         ("metadata.task.sync_space.refresh_cluster_resource", "*/30 * * * *", "global"),
-        ("metadata.task.sync_space.refresh_redis_data", "*/30 * * * *", "global"),
         ("metadata.task.sync_space.sync_bkcc_space_data_source", "*/10 * * * *", "global"),
-        ("metadata.task.sync_space.refresh_not_biz_space_data_source", "*/10 * * * *", "global"),
-        # ("metadata.task.sync_space.push_and_publish_space_router_task", "* */3 * * *", "global"),
         # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
         ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
         # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
