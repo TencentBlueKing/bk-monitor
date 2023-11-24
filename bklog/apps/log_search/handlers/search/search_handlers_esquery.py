@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import pytz
 import copy
 import datetime
-import functools
 import hashlib
 import json
 import operator
