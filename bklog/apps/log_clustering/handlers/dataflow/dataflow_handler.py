@@ -1552,9 +1552,7 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage["json_fields"] = [
                 i["field_name"] or i["field_alias"] for i in fields["fields"] if i["field_type"] == "object"
             ]
-            collector_config = CollectorConfig.objects.filter(
-                collector_config_id=clustering_config.collector_config_id
-            ).first()
+            collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
             es_storage["expires"] = str(collector_config.retention)
         else:
             # es输出的配置(计算平台和采集项均输出es存储)
