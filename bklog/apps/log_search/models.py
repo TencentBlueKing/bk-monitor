@@ -57,6 +57,7 @@ from apps.log_search.constants import (
     FieldDateFormatEnum,
     GlobalCategoriesEnum,
     GlobalTypeEnum,
+    IndexSetType,
     InnerTag,
     SearchScopeEnum,
     SeparatorEnum,
@@ -677,11 +678,15 @@ class UserIndexSetConfig(SoftDeleteModel):
 
 
 class UserIndexSetSearchHistory(SoftDeleteModel):
-    index_set_id = models.IntegerField(_("索引集ID"))
+    index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     params = JsonField(_("检索条件"), null=True, default=None)
     search_type = models.CharField(_("检索类型"), max_length=32, default="default")
     duration = models.FloatField(_("查询耗时"), null=True, default=None)
     rank = models.IntegerField(_("排序"), default=0)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_type = models.CharField(
+        _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
     class Meta:
         verbose_name = _("索引集用户检索记录")
@@ -778,7 +783,7 @@ class FavoriteSearch(SoftDeleteModel):
 
 class Favorite(OperateRecordModel):
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
-    index_set_id = models.IntegerField(_("索引集ID"))
+    index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     name = models.CharField(_("收藏名称"), max_length=255)
     group_id = models.IntegerField(_("收藏组ID"), db_index=True)
     params = JsonField(_("检索条件"), null=True, default=None)
@@ -786,6 +791,10 @@ class Favorite(OperateRecordModel):
     is_enable_display_fields = models.BooleanField(_("是否同时显示字段"), default=False)
     display_fields = models.JSONField(_("显示字段"), blank=True, default=None)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_type = models.CharField(
+        _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
     class Meta:
         verbose_name = _("检索收藏")
@@ -795,14 +804,23 @@ class Favorite(OperateRecordModel):
 
     @classmethod
     def get_user_favorite(
-        cls, space_uid: str, username: str, order_type: str = FavoriteListOrderType.NAME_ASC.value
+        cls,
+        space_uid: str,
+        username: str,
+        order_type: str = FavoriteListOrderType.NAME_ASC.value,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ) -> list:
         """获取用户所有能看到的收藏"""
         source_app_code = get_request_app_code()
         favorites = []
         qs = cls.objects.filter(
-            Q(space_uid=space_uid, created_by=username, visible_type=FavoriteVisibleType.PRIVATE.value)
-            | Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
+            Q(
+                space_uid=space_uid,
+                created_by=username,
+                visible_type=FavoriteVisibleType.PRIVATE.value,
+                index_set_type=index_set_type,
+            )
+            | Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value, index_set_type=index_set_type)
         )
         qs = qs.filter(source_app_code=source_app_code)
         if order_type == FavoriteListOrderType.NAME_ASC.value:
@@ -812,7 +830,13 @@ class Favorite(OperateRecordModel):
         else:
             qs = qs.order_by("-updated_at")
 
-        index_set_id_list = list(qs.all().values_list("index_set_id", flat=True).distinct())
+        if index_set_type == IndexSetType.SINGLE.value:
+            index_set_id_list = list(qs.all().values_list("index_set_id", flat=True).distinct())
+        else:
+            index_set_id_list = list()
+            for obj in qs.all():
+                index_set_id_list.extend(obj.index_set_ids)
+            index_set_id_list = list(set(index_set_id_list))
         active_index_set_id_dict = {
             i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
             for i in LogIndexSet.objects.filter(index_set_id__in=index_set_id_list).values(
@@ -821,12 +845,25 @@ class Favorite(OperateRecordModel):
         }
         for fi in qs.all():
             fi_dict = model_to_dict(fi)
-            if active_index_set_id_dict.get(fi.index_set_id):
-                fi_dict["is_active"] = active_index_set_id_dict[fi.index_set_id]["is_active"]
-                fi_dict["index_set_name"] = active_index_set_id_dict[fi.index_set_id]["index_set_name"]
+            if index_set_type == IndexSetType.SINGLE.value:
+                if active_index_set_id_dict.get(fi.index_set_id):
+                    fi_dict["is_active"] = active_index_set_id_dict[fi.index_set_id]["is_active"]
+                    fi_dict["index_set_name"] = active_index_set_id_dict[fi.index_set_id]["index_set_name"]
+                else:
+                    fi_dict["is_active"] = False
+                    fi_dict["index_set_name"] = INDEX_SET_NOT_EXISTED
             else:
-                fi_dict["is_active"] = False
-                fi_dict["index_set_name"] = INDEX_SET_NOT_EXISTED
+                is_actives = []
+                index_set_names = []
+                for index_set_id in fi.index_set_ids:
+                    if active_index_set_id_dict.get(index_set_id):
+                        is_actives.append(active_index_set_id_dict[index_set_id]["is_active"])
+                        index_set_names.append(active_index_set_id_dict[index_set_id]["index_set_name"])
+                    else:
+                        is_actives.append(False)
+                        index_set_names.append(INDEX_SET_NOT_EXISTED)
+                fi_dict["is_actives"] = is_actives
+                fi_dict["index_set_names"] = index_set_names
             fi_dict["created_at"] = fi_dict["created_at"]
             fi_dict["updated_at"] = fi_dict["updated_at"]
             favorites.append(fi_dict)
@@ -993,8 +1030,8 @@ class AsyncTask(OperateRecordModel):
 
     request_param = models.JSONField(_("检索请求参数"))
     sorted_param = models.JSONField(_("异步导出排序字段"), null=True, blank=True)
-    scenario_id = models.CharField(_("接入场景"), max_length=64)
-    index_set_id = models.IntegerField(_("索引集id"))
+    scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
+    index_set_id = models.IntegerField(_("索引集id"), null=True, blank=True)
     result = models.BooleanField(_("异步导出结果"), default=False)
     failed_reason = models.TextField(_("异步导出异常原因"), null=True, blank=True)
     file_name = models.CharField(_("文件名"), max_length=256, null=True, blank=True)
@@ -1008,6 +1045,10 @@ class AsyncTask(OperateRecordModel):
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
     completed_at = models.DateTimeField(_("任务完成时间"), null=True, blank=True)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_type = models.CharField(
+        _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
     class Meta:
         db_table = "export_task"
@@ -1259,3 +1300,13 @@ class UserIndexSetFieldsConfig(models.Model):
             if obj:
                 return obj
         return None
+
+
+class StorageClusterRecord(SoftDeleteModel):
+    index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
+    storage_cluster_id = models.IntegerField(_("集群ID"))
+
+    class Meta:
+        verbose_name = _("索引集存储集群记录")
+        verbose_name_plural = _("索引集存储集群记录")
+        ordering = ("-updated_at",)
