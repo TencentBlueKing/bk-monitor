@@ -116,11 +116,11 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       if (valid) {
         this.loading = true;
         try {
-          const { expire_time, ...params } = this.formData;
+          const { authorized_users, ...params } = this.formData;
           const res = await createOrUpdateExternalPermission({
             bk_biz_id: this.bizId,
             ...params,
-            ...(expire_time ? { expire_time } : {}),
+            authorized_users: authorized_users.map(item => item.replace(/\s/g, '')),
             authorizer: this.authorizer,
             operate_type: this.rowData ? 'update' : 'create',
             view_type: this.viewType === 'approval' ? 'user' : this.viewType
