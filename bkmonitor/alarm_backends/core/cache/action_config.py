@@ -14,11 +14,10 @@ from typing import Dict
 import pytz
 
 from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.cache.cmdb.business import BusinessManager
 from bkmonitor.action.serializers import ActionConfigDetailSlz, ActionPluginSlz
 from bkmonitor.models import ActionConfig, ActionPlugin
 from bkmonitor.utils import extended_json
-from constants.action import DEFAULT_NOTICE_ID, DEFAULT_NOTICE_INTERVAL, GLOBAL_BIZ_ID
+from constants.action import DEFAULT_NOTICE_ID, DEFAULT_NOTICE_INTERVAL
 
 
 class ActionConfigCacheManager(CacheManager):
@@ -77,7 +76,6 @@ class ActionConfigCacheManager(CacheManager):
 
     @classmethod
     def refresh(cls, minutes=None):
-        biz_list = [biz.bk_biz_id for biz in BusinessManager.all()]
         pipeline = cls.cache.pipeline()
         action_plugins = ActionPluginSlz(instance=ActionPlugin.objects.all(), many=True).data
         for action_plugin in action_plugins:
@@ -90,8 +88,6 @@ class ActionConfigCacheManager(CacheManager):
         deleted_plugins = set(ActionPlugin.origin_objects.filter(is_deleted=True).values_list("id", flat=True))
         for deleted_plugin_id in deleted_plugins:
             pipeline.delete(cls.PLUGIN_CACHE_KEY.format(cache_id=deleted_plugin_id))
-
-        biz_list.append(GLOBAL_BIZ_ID)
 
         deleted_configs = []
         updated_configs = []
