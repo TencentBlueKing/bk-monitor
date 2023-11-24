@@ -30,7 +30,7 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
     排序函数 提供复杂嵌套的数据结构排序能力
     params data 源数据  [{"a": {"b": 3}}, {"a": {"b": 7}}, {"a": {"b": 2}}]
     params sort_list 排序规则 [["a.b", "desc"]]
-    key_func 排序字段值获取函数
+    params key_func 排序字段值获取函数
     """
 
     def _sort_compare(x: Dict[str, Any], y: Dict[str, Any]) -> int:
