@@ -131,7 +131,8 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.shield", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
-    ("alarm_backends.core.cache.action_config", "* * * * *", "global"),
+    ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
+    ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
     # api cache
