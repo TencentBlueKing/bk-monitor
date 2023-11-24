@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import json
 import re
 
+from django.utils.translation import ugettext_lazy as _
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.constants import (
@@ -32,6 +34,8 @@ from apps.log_clustering.exceptions import (
     BkdataFieldsException,
     BkdataRegexException,
     ClusteringConfigNotExistException,
+    CollectorEsStorageNotExistException,
+    CollectorStorageNotExistException,
 )
 from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
     AiopsModelHandler,
@@ -60,7 +64,6 @@ from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.utils.translation import ugettext_lazy as _
 
 
 class ClusteringConfigHandler(object):
@@ -102,6 +105,8 @@ class ClusteringConfigHandler(object):
         log_index_set_data, *_ = log_index_set.indexes
         collector_config_name_en = ""
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
+        es_storage = ""
         if collector_config_id:
             collector_config = CollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
             collector_config_name_en = (
@@ -109,6 +114,16 @@ class ClusteringConfigHandler(object):
                 if clustering_config
                 else collector_config.collector_config_name_en
             )
+            collector_clustering_es_storage = conf.get("collector_clustering_es_storage", {})
+            if not collector_clustering_es_storage:
+                raise CollectorStorageNotExistException(
+                    CollectorStorageNotExistException.MESSAGE.formate(collector_config_id=collector_config_id)
+                )
+            es_storage = collector_clustering_es_storage.get("es_storage", "")
+            if not es_storage:
+                raise CollectorEsStorageNotExistException(
+                    CollectorEsStorageNotExistException.MESSAGE.formate(collector_config_id=collector_config_id)
+                )
         source_rt_name = log_index_set_data["result_table_id"]
         min_members = params["min_members"]
         max_dist_list = params["max_dist_list"]
@@ -190,11 +205,11 @@ class ClusteringConfigHandler(object):
                     update_clustering_clean.delay(index_set_id=index_set_id)
 
             return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
-        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
         clustering_config = ClusteringConfig.objects.create(
             model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
             collector_config_id=collector_config_id,
             collector_config_name_en=collector_config_name_en,
+            es_storage=es_storage,
             min_members=min_members,
             max_dist_list=max_dist_list,
             predefined_varibles=predefined_varibles,

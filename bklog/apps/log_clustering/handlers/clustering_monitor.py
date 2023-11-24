@@ -20,6 +20,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.db.transaction import atomic
+from django.utils.translation import ugettext as _
+
 from apps.api import MonitorApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
@@ -61,8 +64,6 @@ from apps.log_clustering.exceptions import (
 from apps.log_clustering.models import ClusteringConfig, SignatureStrategySettings
 from apps.log_clustering.utils.monitor import MonitorUtils
 from apps.log_search.models import LogIndexSet
-from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
 
 
 class ClusteringMonitorHandler(object):
@@ -275,7 +276,7 @@ class ClusteringMonitorHandler(object):
                             "visual_type": "score",
                             "args": {
                                 "$model_file_id": self.clustering_config.model_output_rt,  # 预测节点输出
-                                "$new_class_alert_interval": "30",
+                                "$new_class_alert_interval": "1",
                                 "$new_class_alert_th": "1",
                             },
                         },
