@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('log_search', '0067_auto_20230620_1609'),
     ]
@@ -18,7 +17,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='asynctask',
             name='index_set_type',
-            field=models.CharField(choices=[('single', '单索引集'), ('union', '联合索引集')], default='single', max_length=32, verbose_name='索引集类型'),
+            field=models.CharField(
+                choices=[('single', '单索引集'), ('union', '联合索引集')], default='single', max_length=32, verbose_name='索引集类型'
+            ),
         ),
         migrations.AddField(
             model_name='userindexsetsearchhistory',
@@ -28,7 +29,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='userindexsetsearchhistory',
             name='index_set_type',
-            field=models.CharField(choices=[('single', '单索引集'), ('union', '联合索引集')], default='single', max_length=32, verbose_name='索引集类型'),
+            field=models.CharField(
+                choices=[('single', '单索引集'), ('union', '联合索引集')], default='single', max_length=32, verbose_name='索引集类型'
+            ),
         ),
         migrations.AlterField(
             model_name='asynctask',

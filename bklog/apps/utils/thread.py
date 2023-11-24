@@ -23,14 +23,18 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytz
 from django.utils import timezone
-from rest_framework.test import APIRequestFactory
-from rest_framework.request import Request
-from rest_framework.parsers import MultiPartParser, FormParser
-
 from opentelemetry.context import attach, get_current
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.request import Request
+from rest_framework.test import APIRequestFactory
 
 from apps.utils.function import ignored
-from apps.utils.local import get_request, activate_request, get_local_param, set_local_param
+from apps.utils.local import (
+    activate_request,
+    get_local_param,
+    get_request,
+    set_local_param,
+)
 
 
 class FuncThread:
@@ -60,7 +64,10 @@ class FuncThread:
         if self.use_request and self.requests:
             activate_request(self.requests)
         if self.params:
-            self.results[self.result_key] = self.func(self.params) if not self.multi_func_params else self.func(**self.params)
+            if not self.multi_func_params:
+                self.results[self.result_key] = self.func(self.params)
+            else:
+                self.results[self.result_key] = self.func(**self.params)
         else:
             self.results[self.result_key] = self.func()
 
@@ -83,7 +90,12 @@ class MultiExecuteFunc(object):
         if result_key in self.results:
             raise ValueError(f"result_key: {result_key} is duplicate. Please rename it.")
         task = FuncThread(
-            func=func, params=params, result_key=result_key, results=self.results, use_request=use_request, multi_func_params=multi_func_params
+            func=func,
+            params=params,
+            result_key=result_key,
+            results=self.results,
+            use_request=use_request,
+            multi_func_params=multi_func_params,
         )
         self.task_list.append(task)
 
