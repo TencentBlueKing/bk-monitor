@@ -86,7 +86,8 @@ class HostCollector(BaseCollector):
             "target_cloud_id",
             "target_cloud_name",
             "agent_status",
-        )
+        ),
+        run_every=30 * 60,
     )
     def host_agent_count(self, metric: Metric):
         """
@@ -121,7 +122,8 @@ class HostCollector(BaseCollector):
             "target_cloud_id",
             "target_cloud_name",
             "data_status",
-        )
+        ),
+        run_every=30 * 60,
     )
     def host_report_count(self, metric: Metric):
         """
@@ -188,7 +190,8 @@ class HostCollector(BaseCollector):
             "target_cloud_name",
             "collector_status",
             "collector_name",
-        )
+        ),
+        run_every=30 * 60,
     )
     def host_collector_count(self, metric: Metric):
         """
