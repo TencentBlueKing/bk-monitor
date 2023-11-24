@@ -102,6 +102,7 @@ class ActionConfigCacheManager(CacheManager):
             )
             for config in all_configs:
                 if config.is_deleted:
+                    # 如果被删除的，加入到删除列表中
                     deleted_configs.append(config.id)
                     continue
                 else:
