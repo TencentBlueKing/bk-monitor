@@ -24,6 +24,10 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 
 import arrow
+from django.conf import settings
+from django.utils.http import urlencode
+from rest_framework.reverse import reverse
+
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
@@ -42,12 +46,14 @@ from apps.log_search.tasks.async_export import async_export
 from apps.models import model_to_dict
 from apps.utils.db import array_chunk
 from apps.utils.drf import DataPageNumberPagination
-from apps.utils.local import get_request, get_request_language_code
+from apps.utils.local import (
+    get_request,
+    get_request_app_code,
+    get_request_external_username,
+    get_request_language_code,
+)
 from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.utils.http import urlencode
-from rest_framework.reverse import reverse
 
 
 class AsyncExportHandlers(object):
@@ -137,7 +143,12 @@ class AsyncExportHandlers(object):
 
     def get_export_history(self, request, view, show_all=False):
         # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
-        query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id)
+        source_app_code = get_request_app_code()
+        external_username = get_request_external_username()
+        query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id, source_app_code=source_app_code)
+        # 外部用户只能看到自己的导出历史
+        if external_username:
+            query_set = query_set.filter(created_by=external_username)
         if not show_all:
             query_set = query_set.filter(index_set_id=self.index_set_id)
         pg = DataPageNumberPagination()
