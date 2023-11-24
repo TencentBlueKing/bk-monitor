@@ -1329,3 +1329,6 @@ ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
 
 # `dbm_` 开头的结果表，仅特定的业务可以查看，并且不需要添加过滤条件
 ACCESS_DBM_RT_SPACE_UID = []
+
+# BCS APIGW 地址
+BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")

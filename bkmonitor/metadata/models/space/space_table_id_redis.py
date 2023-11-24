@@ -700,4 +700,3 @@ class SpaceTableIDRedis:
         )
 
         return table_id_metrics
-        return table_id_metrics
