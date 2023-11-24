@@ -117,7 +117,8 @@
     align-items: center;
     padding: 8px 0 4px 0;
     margin: 0 12px;
-    border-bottom: 1px solid #434e68;
+    // border-bottom: 1px solid #434e68;
+    border-bottom: 1px solid #2c354d;
 
     .space-type-item {
       display: flex;
@@ -150,21 +151,26 @@
       .biz-search {
         .bk-form-input {
           color: #acb5c6;
-          background-color: #39455f;
+          // background-color: #39455f;
+          background-color: #192133;
           border: 0;
-          border-bottom: 1px solid #434e68!important;
+          // border-bottom: 1px solid #434e68!important;
+          border-bottom: 1px solid #2c354d!important;
           border-radius: 0;
 
           /* stylelint-disable-next-line selector-no-vendor-prefix */
           &::placeholder {
             color: #66768e!important;
-            background-color: #39455f;
+            // background-color: #39455f;
+            background-color: #192133;
           }
 
           &:focus {
-            background-color: #39455f !important;
+            // background-color: #39455f !important;
+            background-color: #192133 !important;
 
-            border-bottom-color: #434e68 !important;
+            // border-bottom-color: #434e68 !important;
+            border-bottom-color: #2c354d!important;
           }
         }
       }
@@ -178,6 +184,12 @@
       .biz-btn {
         color: #acb2c6;
       }
+    }
+  }
+
+  &.light {
+    .space-type-list {
+      border-bottom: 1px solid #eaebf0;
     }
   }
 
