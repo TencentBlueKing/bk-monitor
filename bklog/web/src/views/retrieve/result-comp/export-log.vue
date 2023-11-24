@@ -51,6 +51,7 @@
     <bk-dialog
       v-model="isShowExportDialog"
       theme="primary"
+      width="440"
       header-position="left"
       ext-cls="async-export-dialog"
       :title="getDialogTitle"
@@ -475,6 +476,7 @@ export default {
 
       .bk-button {
         margin-left: auto;
+        min-width: auto;
       }
     }
   }

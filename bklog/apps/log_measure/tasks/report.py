@@ -43,7 +43,7 @@ from bk_monitor.utils.metric import (
 )
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
-logger = logging.getLogger("log_measure")
+logger = logging.getLogger("app")
 
 
 @periodic_task(run_every=crontab(minute="*/1"))
@@ -116,13 +116,23 @@ def bk_monitor_collect():
     execute_metrics = copy.deepcopy(REGISTERED_METRICS)
     for metric_id, metric in execute_metrics.items():
         if not time_now_minute % metric["time_filter"]:
-            collect_metrics.delay(import_paths, [metric["namespace"]], [metric["data_name"]])
+            collect_params = {
+                "namespaces": [metric["namespace"]],
+                "data_names": [metric["data_name"]],
+                "sub_types": [metric["sub_type"]] if metric["sub_type"] else None,
+            }
+            logger.info("[statistics_data] metric->{} receive collection task.".format(metric_id))
+            collect_metrics(
+                import_paths, collect_params["namespaces"], collect_params["data_names"], collect_params["sub_types"]
+            )
     # 清理注册表里的内容，下一次运行的时候重新注册
     clear_registered_metrics()
 
 
 @task(ignore_result=True)
-def collect_metrics(collector_import_paths: list, namespaces: list = None, data_names: list = None):
+def collect_metrics(
+    collector_import_paths: list, namespaces: list = None, data_names: list = None, sub_types: list = None
+):
     """
     将已通过 register_metric 注册的对应metric收集存入数据库
     Attributes:
@@ -130,7 +140,7 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
         namespaces: 允许上报namespace列表
     """
     metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(
-        namespaces=namespaces, data_names=data_names
+        namespaces=namespaces, data_names=data_names, sub_types=sub_types
     )
     try:
         for group in metric_groups:
