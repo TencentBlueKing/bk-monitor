@@ -1,0 +1,43 @@
+.step-verify-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .tooltips-icon {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    display: inline-block;
+    font-size: 16px;
+  }
+
+  .bottom-text {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 600px;
+    padding-top: 6px;
+    font-size: 12px;
+    line-height: 1;
+    color: #f56c6c;
+  }
+
+  :deep(.bk-select) {
+    width: 100%;
+  }
+}
+
+.is-empty {
+  :deep(input) {
+    border-color: #ff5656;
+  }
+
+  .tooltips-icon {
+    color: #ea3636;
+    cursor: pointer;
+  }
+
+  :deep(.bk-select) {
+    border-color: #ff5656;
+  }
+}

@@ -26,12 +26,15 @@
  */
 
 import type { App } from 'vue';
+import { bkTooltips, overflowTitle } from 'bkui-vue';
 
 import authority from './authority';
 
 const directives: Record<string, any> = {
   // 指令对象
-  authority
+  authority,
+  bkTooltips,
+  overflowTitle
 };
 
 export default {

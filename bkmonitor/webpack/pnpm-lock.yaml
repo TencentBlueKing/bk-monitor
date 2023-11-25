@@ -57,8 +57,8 @@ importers:
         specifier: ^1.13.5
         version: 1.13.8
       babel-plugin-import-bkui-vue:
-        specifier: ^0.0.7
-        version: 0.0.7
+        specifier: ^0.0.9-beta.0
+        version: 0.0.9-beta.0
       eslint:
         specifier: ^8.47.0
         version: 8.53.0
@@ -851,8 +851,8 @@ importers:
         specifier: 0.0.1-beta.125
         version: 0.0.1-beta.125
       bkui-vue:
-        specifier: 0.0.2-beta.24
-        version: 0.0.2-beta.24(highlight.js@11.5.1)(vue@3.2.33)
+        specifier: 0.0.2-beta.86
+        version: 0.0.2-beta.86(highlight.js@11.5.1)(vue@3.2.33)
       d3-array:
         specifier: ^3.1.1
         version: 3.2.4
@@ -4942,8 +4942,8 @@ packages:
     resolution: {integrity: sha512-B44DM+kl/bE1UwVm2vjjX/wCzuPtMh0jHpvYJUcprygfNvaOZWMpOx0tACqkl3hwwWKfGpkxb89GRUdvMfo7SQ==}
     dev: false
 
-  /babel-plugin-import-bkui-vue@0.0.7:
-    resolution: {integrity: sha512-y63eKvbPu3tlwXIY6w+QObLQBsEv3d8wlwwLhJPizHm9c2ZIUg4y0N6X3xpXPoVBNxarh6JX04qIqwcyfC7aEw==}
+  /babel-plugin-import-bkui-vue@0.0.9-beta.0:
+    resolution: {integrity: sha512-P+IHecIjjQfMfsdodTwCn2Hm2zT+sWjlPRwIwE95jXP3zQ0IjLOPQO6ds8U98tot6yeH+R+NGxL1GYNUoZXtXQ==}
     engines: {node: '>=14.18.1'}
     dependencies:
       '@babel/types': 7.23.3
@@ -5072,8 +5072,9 @@ packages:
       tinycolor2: 1.6.0
       vue: 2.7.14
 
-  /bkui-vue@0.0.2-beta.24(highlight.js@11.5.1)(vue@3.2.33):
-    resolution: {integrity: sha512-d0BKtfTlTZHl2glyhKSms/ybWTcJ3SA/HTeI1ZL+bydxZCNzlwp/3FhlfzegoZ6rLyDS2LyKX9TPhGwKGxkpwg==}
+  /bkui-vue@0.0.2-beta.86(highlight.js@11.5.1)(vue@3.2.33):
+    resolution: {integrity: sha512-uxbSFCJSFV/x2Dt/mX2n5sds4JmpfD9EkPXoYf4c1H7949R+juTBqwpQ8oQ39YLe2dZs81PlxsZ9JlqDDlbxGQ==}
+    engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
       vue: ^3.2.0

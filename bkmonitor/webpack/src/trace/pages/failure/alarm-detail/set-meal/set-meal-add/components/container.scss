@@ -1,0 +1,20 @@
+.form-container-wrap {
+  min-width: 100px;
+  min-height: 80px;
+  border: 1px solid #dcdee5;
+  .form-container-header {
+    height: 36px;
+    line-height: 36px;
+    padding: 0 20px;
+    font-size: 12px;
+    color: #63656e;
+    font-weight: 700;
+    background: #f0f1f5;
+    border-bottom: 1px solid #dcdee5;
+  }
+  .form-container-content {
+    padding: 16px 20px;
+    background-color: #fff;
+    overflow: hidden;
+  }
+}

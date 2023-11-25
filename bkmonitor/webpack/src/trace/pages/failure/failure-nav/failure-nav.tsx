@@ -26,6 +26,7 @@
 import { defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import AlarmProcess from '../alarm-process/alarm-process';
 import FailureMenu from '../failure-menu/failure-menu';
 
 import './failure-nav.scss';
@@ -54,6 +55,7 @@ export default defineComponent({
           tabList={this.tabList}
           active='DealWith'
         ></FailureMenu>
+        <AlarmProcess></AlarmProcess>
       </div>
     );
   }
