@@ -60,7 +60,7 @@ class ProfileViewSet(ViewSet):
         validated_data = serializer.validated_data
 
         bk_biz_id = validated_data["bk_biz_id"]
-        app_name = validated_data["application_id"]
+        app_name = validated_data["app_name"]
         try:
             application_id = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id).pk
         except Exception:  # pylint: disable=broad-except
@@ -110,7 +110,7 @@ class ProfileViewSet(ViewSet):
         if p is None:
             raise ValueError(_("无法转换 profiling 数据"))
 
-        return get_diagrammer(validated_data["diagram_type"]).draw(c)
+        return Response(data=get_diagrammer(validated_data["diagram_type"]).draw(c))
 
     def upload(self, request: Request):
         """上传 profiling 文件"""
