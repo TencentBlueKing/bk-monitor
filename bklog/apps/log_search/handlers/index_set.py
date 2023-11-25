@@ -23,6 +23,11 @@ import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Q
+from django.utils.translation import ugettext as _
+
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -52,6 +57,7 @@ from apps.log_search.constants import (
     DEFAULT_TIME_FIELD,
     EsHealthStatus,
     GlobalCategoriesEnum,
+    InnerTag,
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
@@ -65,7 +71,10 @@ from apps.log_search.exceptions import (
     IndexSetDoseNotExistException,
     IndexSetFieldsConfigAlreadyExistException,
     IndexSetFieldsConfigNotExistException,
+    IndexSetInnerTagOperatorException,
     IndexSetSourceException,
+    IndexSetTagNameExistException,
+    IndexSetTagNotExistException,
     IndexTraceNotAcceptException,
     ResultTableIdDuplicateException,
     ScenarioNotSupportedException,
@@ -75,10 +84,12 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
     IndexSetFieldsConfig,
+    IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
     Space,
+    StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
@@ -87,16 +98,16 @@ from apps.models import model_to_dict
 from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
 from apps.utils.db import array_hash
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import (
+    get_request_app_code,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
-from django.conf import settings
-from django.db import transaction
-from django.db.models import Q
-from django.utils.translation import ugettext as _
 
 
 class IndexSetHandler(APIModel):
@@ -112,7 +123,10 @@ class IndexSetHandler(APIModel):
         """修改用户当前索引集的配置"""
         username = get_request_username()
         UserIndexSetFieldsConfig.objects.update_or_create(
-            index_set_id=self.index_set_id, username=username, defaults={"config_id": config_id}
+            index_set_id=self.index_set_id,
+            username=username,
+            source_app_code=get_request_app_code(),
+            defaults={"config_id": config_id},
         )
         # add user_operation_record
         try:
@@ -754,6 +768,94 @@ class IndexSetHandler(APIModel):
         DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
         DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
 
+    def add_tag(self, tag_id: int):
+        """
+        索引集添加标签
+        """
+        # 校验标签是否存在
+        if not IndexSetTag.objects.filter(tag_id=tag_id).exists():
+            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
+
+        # 校验是否为内置标签
+        if tag_id in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        tag_ids.append(str(tag_id))
+
+        index_set_obj.tag_ids = list(set(tag_ids))
+
+        index_set_obj.save()
+
+        return
+
+    def delete_tag(self, tag_id: int):
+        """
+        索引集删除标签
+        """
+        # 校验是否为内置标签
+        if tag_id in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        if tag_ids and str(tag_id) in tag_ids:
+            tag_ids.remove(str(tag_id))
+            index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.save()
+
+        return
+
+    @staticmethod
+    def create_tag(params: dict):
+        """
+        创建标签
+        """
+        # 名称校验
+        if (
+            params["name"] in list(InnerTag.get_dict_choices().keys())
+            or IndexSetTag.objects.filter(name=params["name"]).exists()
+        ):
+            raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
+
+        obj = IndexSetTag.objects.create(name=params["name"], color=params["color"])
+
+        return model_to_dict(obj)
+
+    @staticmethod
+    def tag_list():
+        """
+        标签列表
+        """
+        objs = IndexSetTag.objects.all()
+
+        ret = list()
+
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        for obj in objs:
+            _data = model_to_dict(obj)
+            if _data["name"] in inner_tag_names:
+                _data["is_built_in"] = True
+            else:
+                _data["is_built_in"] = False
+            ret.append(_data)
+
+        return ret
+
+    @staticmethod
+    def _get_inner_tag_ids():
+        """
+        获取内置标签ID列表
+        """
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        inner_tag_ids = list(IndexSetTag.objects.filter(name__in=inner_tag_names).values_list("tag_id", flat=True))
+        return inner_tag_ids
+
     @staticmethod
     def get_desensitize_config_state(index_set_ids: list):
         """
@@ -1387,6 +1489,11 @@ class BaseIndexSetHandler(object):
         if self.category_id:
             self.index_set_obj.category_id = self.category_id
 
+        if self.index_set_obj.storage_cluster_id == self.storage_cluster_id:
+            old_storage_cluster_id = None
+        else:
+            old_storage_cluster_id = self.index_set_obj.storage_cluster_id
+
         self.index_set_obj.index_set_name = self.index_set_name
         self.index_set_obj.view_roles = self.view_roles
         self.index_set_obj.storage_cluster_id = self.storage_cluster_id
@@ -1400,6 +1507,12 @@ class BaseIndexSetHandler(object):
         self.index_set_obj.time_field_type = self.time_field_type
         self.index_set_obj.time_field_unit = self.time_field_unit
         self.index_set_obj.save()
+
+        if old_storage_cluster_id:
+            # 保存旧的存储集群记录
+            StorageClusterRecord.objects.create(
+                index_set_id=self.index_set_obj.index_set_id, storage_cluster_id=old_storage_cluster_id
+            )
 
         # 需移除的索引
         to_delete_indexes = [
@@ -1440,6 +1553,7 @@ class BaseIndexSetHandler(object):
 
     def delete(self):
         self.index_set_obj.delete()
+        StorageClusterRecord.objects.filter(index_set_id=self.index_set_obj.index_set_id).delete()
 
     def post_delete(self, index_set):
         # @TODO 调用auth模块删除权限
@@ -1609,10 +1723,16 @@ class IndexSetFieldsConfigHandler(object):
 
     data: Optional[IndexSetFieldsConfig] = None
 
-    def __init__(self, config_id: int = None, index_set_id: int = None, scope: str = SearchScopeEnum.DEFAULT.value):
+    def __init__(
+        self,
+        config_id: int = None,
+        index_set_id: int = None,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ):
         self.config_id = config_id
         self.index_set_id = index_set_id
         self.scope = scope
+        self.source_app_code = get_request_app_code()
         if config_id:
             try:
                 self.data = IndexSetFieldsConfig.objects.get(pk=config_id)
@@ -1627,16 +1747,20 @@ class IndexSetFieldsConfigHandler(object):
     def list(self, scope: str = SearchScopeEnum.DEFAULT.value) -> list:
         config_list = [
             model_to_dict(i)
-            for i in IndexSetFieldsConfig.objects.filter(index_set_id=self.index_set_id, scope=scope).all()
+            for i in IndexSetFieldsConfig.objects.filter(
+                index_set_id=self.index_set_id, scope=scope, source_app_code=self.source_app_code
+            ).all()
         ]
         config_list.sort(key=lambda c: c["name"] == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME, reverse=True)
         return config_list
 
     def create_or_update(self, name: str, display_fields: list, sort_list: list):
-        username = get_request_username()
+        username = get_request_external_username() or get_request_username()
         # 校验配置需要修改名称时, 名称是否可用
         if self.data and self.data.name != name or not self.data:
-            if IndexSetFieldsConfig.objects.filter(name=name, index_set_id=self.index_set_id).exists():
+            if IndexSetFieldsConfig.objects.filter(
+                name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
+            ).exists():
                 raise IndexSetFieldsConfigAlreadyExistException()
 
         if self.data:
@@ -1654,7 +1778,10 @@ class IndexSetFieldsConfigHandler(object):
                 display_fields=display_fields,
                 sort_list=sort_list,
                 scope=self.scope,
+                source_app_code=self.source_app_code,
             )
+            self.data.created_by = username
+            self.data.save()
 
         # add user_operation_record
         try:
@@ -1671,6 +1798,7 @@ class IndexSetFieldsConfigHandler(object):
                     "index_set_id": self.index_set_id,
                     "display_fields": display_fields,
                     "sort_list": sort_list,
+                    "source_app_code": self.source_app_code,
                 },
             }
         except LogIndexSet.DoesNotExist:

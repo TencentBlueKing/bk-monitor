@@ -321,12 +321,13 @@ export default class AuthorizationList extends tsc<{}, {}> {
       // 关键字匹配
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { status, expire_time, ...searchKey } = TableColumnEnum;
+      // 可以匹配的字段
       return Object.keys(searchKey).some(key => {
         if (!item[key]) return false;
         const val = Array.isArray(item[key]) ? item[key] : [item[key]];
         if (key === TableColumnEnum.resources || key === TableColumnEnum.resource_id) {
           return val.some(id => {
-            const { text } = this.resourceList.find(item => item.id === id);
+            const { text } = this.resourceList.find(item => item.uid === id);
             return text.includes(this.searchValue);
           });
         }
@@ -441,7 +442,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     const [isSuccess, data] = res;
     if (isSuccess) {
       this.totalListData = data;
-      this.pagination.count = data.length;
+      this.pagination.count = this.totalListData.length;
       this.getResources();
       this.emptyStatusType = 'empty';
       this.changeEmptyStatusType();
@@ -504,6 +505,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     this.pagination.current = page;
   }
   handlePageLimitChange(limit: number) {
+    this.pagination.current = 1;
     this.pagination.limit = limit;
   }
 
@@ -859,7 +861,6 @@ export default class AuthorizationList extends tsc<{}, {}> {
             <div class='table-wrapper'>
               <bk-table
                 v-bkloading={{ isLoading: this.loading }}
-                max-height={600}
                 row-auto-height
                 data={this.listData}
                 pagination={this.pagination}

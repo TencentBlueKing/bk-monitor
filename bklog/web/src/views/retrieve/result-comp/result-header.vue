@@ -98,6 +98,7 @@
         </div>
       </bk-popover>
       <bk-popover
+        v-if="!isExternal"
         trigger="click"
         placement="bottom-end"
         theme="light bk-select-dropdown"
@@ -254,6 +255,10 @@ export default {
     ...mapState({
       bkBizId: state => state.bkBizId,
       userGuideData: state => state.userGuideData,
+      isExternal: state => state.isExternal,
+    }),
+    ...mapGetters({
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     ...mapGetters({
       isShowMaskingTemplate: 'isShowMaskingTemplate',

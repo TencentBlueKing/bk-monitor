@@ -153,7 +153,7 @@ def check_update_ts_metric():
     if count == 0:
         return
     # 限制多进程任务数量
-    max_worker = getattr(settings, "MAX_TASK_PROCESS_NUM", 1)
+    max_worker = getattr(settings, "MAX_TS_METRIC_TASK_PROCESS_NUM", 1)
     # 每一组最大任务数量
     chunk_size = count // max_worker + 1 if count % max_worker != 0 else int(count / max_worker)
     # 按数量分组，最多分为max_worker组

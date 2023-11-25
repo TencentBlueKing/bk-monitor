@@ -13,16 +13,17 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from django.shortcuts import render
+from blueapps.account.decorators import login_exempt
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.utils.translation import ugettext_lazy as _
-
 from version_log import config
-from version_log.utils import get_version_list, get_parsed_html
+from version_log.utils import get_parsed_html, get_version_list
 
 logger = logging.getLogger()
 
 
+@login_exempt
 def version_logs_page(request):
     """版本日志页面"""
     version_list = get_version_list()
@@ -43,11 +44,13 @@ def version_logs_page(request):
         return render(request, "version_log/version_logs_page.html", context)
 
 
+@login_exempt
 def version_logs_block(request):
     """版本日志数据块"""
     return render(request, "version_log/version_logs_block.html")
 
 
+@login_exempt
 def version_logs_list(request):
     """获取版本日志列表"""
     version_list = get_version_list()
@@ -58,6 +61,7 @@ def version_logs_list(request):
     return JsonResponse(response)
 
 
+@login_exempt
 def get_version_log_detail(request):
     """获取单条版本日志转换结果"""
     log_version = request.GET.get("log_version")

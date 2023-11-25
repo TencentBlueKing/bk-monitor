@@ -33,6 +33,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import alertImg from '../../../../static/images/png/alert.png';
 import eventImg from '../../../../static/images/png/event.png';
+import intelligentImg from '../../../../static/images/png/intelligent.png';
 import logImg from '../../../../static/images/png/log.png';
 import metricImg from '../../../../static/images/png/metric.png';
 import { MetricType, strategyType } from '../typings/index';
@@ -59,6 +60,11 @@ const addLabelItems = {
     name: window.i18n.tc('关联告警'),
     icon: alertImg,
     displayName: window.i18n.tc('关联多个策略判断')
+  },
+  [MetricType.MultivariateAnomalyDetection]: {
+    name: window.i18n.tc('场景智能检测'),
+    icon: intelligentImg,
+    displayName: `${window.i18n.tc('主机')}、${window.i18n.tc('拨测')}、K8s、APM`
   }
 };
 interface IMonitorDataEmptyEvent {
@@ -93,6 +99,11 @@ export default class MonitorDataEmpty extends tsc<{}, IMonitorDataEmptyEvent> {
       {
         name: this.$t('关联告警'),
         id: MetricType.ALERT,
+        show: true
+      },
+      {
+        name: this.$t('场景智能检测'),
+        id: MetricType.MultivariateAnomalyDetection,
         show: true
       }
     ].filter(item => item.show);

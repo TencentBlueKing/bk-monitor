@@ -28,11 +28,15 @@ from bk_monitor.utils.metric import register_metric
 class EsPShard:
     @staticmethod
     @register_metric(
-        "es_monitor", description=_("es 索引集信息"), data_name="pshard_stats", time_filter=TimeFilterEnum.MINUTE5
+        "es_monitor",
+        sub_type="es_pshard",
+        description=_("es 索引集信息"),
+        data_name="es_monitor",
+        time_filter=TimeFilterEnum.MINUTE5,
     )
     def elastic_pshard_stats():
         """
         elastic indices
         @return:
         """
-        return get_es_metrics("pshard_stats")
+        return get_es_metrics("es_pshard")

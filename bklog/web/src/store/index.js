@@ -91,6 +91,7 @@ const store = new Vuex.Store({
     spaceBgColor: '', // 空间颜色
     isEnLanguage: false,
     chartSizeNum: 0, // 自定义上报详情拖拽后 表格chart需要自适应新宽度
+    isExternal: false, // 外部版
     /** 是否展示全局脱敏弹窗 */
     isShowGlobalDialog: false,
     /** 当前全局设置弹窗的活跃id */
@@ -102,6 +103,9 @@ const store = new Vuex.Store({
       toggleString: 'off',
       toggleList: [],
     },
+    /** 外部版路由菜单 */
+    externalMenu: [],
+    isAppFirstLoad: true,
   },
   // 公共 getters
   getters: {
@@ -258,6 +262,9 @@ const store = new Vuex.Store({
     },
     updateMaskingToggle(state, val) {
       state.maskingToggle = val;
+    },
+    updateExternalMenu(state, val) {
+      state.externalMenu = val;
     },
   },
   actions: {

@@ -51,6 +51,7 @@
     <bk-dialog
       v-model="isShowExportDialog"
       theme="primary"
+      width="440"
       header-position="left"
       ext-cls="async-export-dialog"
       :title="getDialogTitle"
@@ -185,6 +186,7 @@ export default {
   computed: {
     ...mapGetters({
       bkBizId: 'bkBizId',
+      spaceUid: 'spaceUid',
       isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     getAsyncText() { // 异步下载按钮前的文案
@@ -262,7 +264,7 @@ export default {
         is_desensitize: this.desensitizeRadioType === 'desensitize',
       }));
       // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?export_dict=${exportParams}`;
+      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?space_uid=${this.spaceUid}&export_dict=${exportParams}`;
       this.selectFiledList = [];
       this.isShowExportDialog = false;
       window.open(targetUrl);
@@ -474,6 +476,7 @@ export default {
 
       .bk-button {
         margin-left: auto;
+        min-width: auto;
       }
     }
   }

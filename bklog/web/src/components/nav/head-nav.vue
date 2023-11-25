@@ -50,6 +50,7 @@
     <div class="nav-right fr" v-show="usernameRequested">
       <!-- 全局设置 -->
       <bk-dropdown-menu
+        v-if="!isExternal"
         align="center"
         trigger="click"
         @show="dropdownGlobalShow"
@@ -126,6 +127,7 @@
               {{ $t('产品文档') }}
             </a>
             <a
+              v-if="!isExternal"
               href="javascript:;"
               @click.stop="dropdownHelpTriggerHandler('logVersion')">
               {{ $t('版本日志') }}
@@ -203,6 +205,7 @@ export default {
       errorPage: state => state.errorPage,
       asIframe: state => state.asIframe,
       iframeQuery: state => state.iframeQuery,
+      isExternal: state => state.isExternal,
       isShowGlobalDialog: state => state.isShowGlobalDialog,
       globalSettingList: state => state.globalSettingList,
     }),
@@ -229,7 +232,9 @@ export default {
       return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
     },
     menuList() {
-      return this.topMenu.filter(menu => menu.feature === 'on');
+      return this.topMenu.filter((menu) => {
+        return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
+      });
     },
   },
   async created() {
@@ -383,8 +388,10 @@ export default {
       jsCookie.remove('blueking_language', { path: '' });
       jsCookie.set('blueking_language', value, {
         expires: 3600,
-        domain: this.envConfig.bkDomain || location.host,
-        domain: this.envConfig.bkDomain,
+        domain: this.envConfig.bkDomain
+                  || location.host.split('.').slice(-2)
+                    .join('.')
+                    .replace(`:${location.port}`, ''),
       });
       await jsonp(
         `${this.envConfig.host}/api/c/compapi/v2/usermanage/fe_update_user_language/?language=${value}`,
@@ -468,14 +475,13 @@ export default {
         cursor: pointer;
 
         .logo-text {
-          font-size: 18px;
+          font-size: 16px;
+          color: #96a2b9;
         }
 
         .logo-image {
-          margin-right: 10px;
-        }
-
-        .logo-image {
+          width: 32px;
+          height: 32px;
           margin-right: 10px;
         }
       }

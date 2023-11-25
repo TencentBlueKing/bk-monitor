@@ -530,5 +530,5 @@ export function getRouteConfigById(id: string) {
     }
     return config;
   });
-  return flatConfig.find(item => item.id === id);
+  return flatConfig.find(item => item.id === id) || routeConfig.find(item => item.route === id);
 }

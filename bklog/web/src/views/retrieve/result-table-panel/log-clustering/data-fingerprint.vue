@@ -185,7 +185,7 @@
       </template>
 
       <bk-table-column
-        width="160"
+        width="200"
         align="center"
         :label="$t('责任人')"
         :render-header="$renderHeader">
@@ -699,10 +699,12 @@ export default {
     },
     handleHoverRemarkIcon(e, row, index) {
       if (!this.popoverInstance) {
-        this.currentRemarkList = row.remark.map(item => ({
-          ...item,
-          create_time: item.create_time > 0 ? formatDate(item.create_time) : '',
-        }));
+        this.currentRemarkList = row.remark
+          .sort((a, b) => (b.create_time - a.create_time))
+          .map(item => ({
+            ...item,
+            create_time: item.create_time > 0 ? formatDate(item.create_time) : '',
+          }));
         this.popoverInstance = this.$bkPopover(event.target, {
           content: this.$refs.remarkTips,
           allowHTML: true,
@@ -775,6 +777,8 @@ export default {
   }
 
   .finger-cluster-table {
+    color: #313238;
+
     :deep(.bk-table-body-wrapper) {
       margin-top: 32px;
       min-height: calc(100vh - 570px);

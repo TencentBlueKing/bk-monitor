@@ -97,12 +97,14 @@ export interface IMetricDetail {
   index_set_name?: string;
   metric_type?: MetricType;
   logMetricList?: IMetricDetail[];
+  sceneConfig?: ISceneConfig;
 }
 export enum MetricType {
   TimeSeries = 'time_series',
   LOG = 'log',
   EVENT = 'event',
-  ALERT = 'alert'
+  ALERT = 'alert',
+  MultivariateAnomalyDetection = 'MultivariateAnomalyDetection'
 }
 export class MetricDetail {
   alias?: string = '';
@@ -163,6 +165,7 @@ export class MetricDetail {
   readable_name = '';
   metric_type = null;
   logMetricList: IMetricDetail[] = null;
+  sceneConfig?: ISceneConfig = null;
   constructor(public metricDetail?: IMetricDetail) {
     if (!metricDetail) return;
     Object.keys(metricDetail).forEach(key => {
@@ -516,4 +519,11 @@ export interface ISourceData {
   sourceCodeCache?: string;
   promqlError?: boolean;
   errorMsg?: string;
+}
+
+/* 场景异常检测类型 此类型数据结构与其他几项数据结构不同 */
+export interface ISceneConfig {
+  query_configs: any[];
+  algorithms: any[];
+  scene_name?: string;
 }

@@ -1097,9 +1097,9 @@ def process_cat_allocation_data(metrics, get, version, base_dimensions):
 
 
 ES_COLLECT_METHOD_MAP = {
-    "stats": [process_stats_data],
-    "pshard_stats": [process_pshard_stats_data],
-    "indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
+    "es_stats": [process_stats_data],
+    "es_pshard": [process_pshard_stats_data],
+    "es_indices": [process_health_data, process_pending_tasks_data, get_index_metrics, process_cat_allocation_data],
 }
 
 

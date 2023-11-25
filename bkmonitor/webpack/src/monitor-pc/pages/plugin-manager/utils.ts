@@ -24,16 +24,7 @@
  * IN THE SOFTWARE.
  */
 /* 指标名称转换 */
-export function metricNameTransFrom(value: string, keywords: string[]) {
-  const strFn = value_ => {
-    if (['name', 'field'].includes(value_.toLowerCase())) {
-      return `__${value_}`;
-    }
-    return `_${value_}`;
-  };
-  if (judgeIsKeywords(value, keywords)) {
-    return strFn(value);
-  }
+export function metricNameTransFrom(value: string) {
   if (!judgeIsIllegalNew(value)) {
     let str = value.replace(/[^_a-zA-Z0-9]/g, '_');
     if (!judgeIsIllegalNew(str)) {
@@ -46,16 +37,9 @@ export function metricNameTransFrom(value: string, keywords: string[]) {
         }
       }
     }
-    if (judgeIsKeywords(str, keywords)) {
-      return strFn(str);
-    }
     return str;
   }
   return value;
-}
-/* 判断是否为关键字 */
-export function judgeIsKeywords(value: string, keywords: string[]) {
-  return keywords.some(k => k === value.toLocaleUpperCase());
 }
 /* 判断是否为非法字符串 */
 export function judgeIsIllegal(value: string) {

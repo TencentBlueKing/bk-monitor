@@ -24,13 +24,13 @@
   <div class="kv-list-wrapper">
     <div class="kv-content">
       <div class="log-item" v-for="(field, index) in fieldKeyMap" :key="index">
-        <div class="field-label">
+        <div class="field-label" :style="`max-width: ${getMaxWidth}px; width: ${getMaxWidth}px;`">
           <span
             class="field-type-icon mr5"
             :class="getFieldIcon(field)"
             v-bk-tooltips="fieldTypePopover(field)"
           ></span>
-          <span :title="field">{{ field }}</span>
+          <span class="field-text" :title="field">{{ field }}</span>
         </div>
         <div class="handle-option-list">
           <span
@@ -63,6 +63,7 @@
 
 <script>
 import { mapState } from 'vuex';
+import { getTextPxWidth } from '@/common/util';
 import TextSegmentation from './text-segmentation';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
@@ -140,6 +141,11 @@ export default {
     },
     fieldKeyMap() {
       return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name)).map(el => el.field_name);
+    },
+    /** 获取字段里最大的字段宽度 */
+    getMaxWidth() {
+      const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item));
+      return Math.max(...fieldWidthList) + 18; // 18是icon的宽度
     },
     hiddenFields() {
       return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
@@ -294,6 +300,9 @@ export default {
      * @param { string } field
      */
     getRelationMonitorField(field) {
+      // 外部版不提供外链跳转
+      if (this.$store.state.isExternal) return false;
+
       const key = field.toLowerCase();
       switch (key) {
         // trace检索
@@ -344,11 +353,20 @@ export default {
       align-items: baseline;
 
       .field-label {
-        width: 160px;
-        min-width: 160px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        flex-shrink: 0;
+        height: 100%;
+        display: flex;
+        align-items: baseline;
+        flex-wrap: nowrap;
+
+        .field-text {
+          word-break: normal;
+          width: auto;
+          display: block;
+          white-space: pre-wrap;
+          word-wrap: break-word ;
+          overflow: hidden;
+        }
 
         :deep(.icon-ext) {
           width: 13px;

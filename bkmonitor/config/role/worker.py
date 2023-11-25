@@ -131,7 +131,8 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.shield", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
-    ("alarm_backends.core.cache.action_config", "* * * * *", "global"),
+    ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
+    ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
     # api cache
@@ -159,8 +160,10 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
-    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每分钟触发-每次处理1/10业务
-    ("apm_ebpf.task.tasks.ebpf_discover_cron", "* * * * *", "global"),
+    # apm_ebpf 定时检查业务集群是否安装DeepFlow 每十分钟触发
+    ("apm_ebpf.task.tasks.ebpf_discover_cron", "*/10 * * * *", "global"),
+    # apm_ebpf 定时检查集群和业务绑定关系 每十分钟触发
+    ("apm_ebpf.task.tasks.cluster_discover_cron", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
@@ -253,10 +256,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.config_refresh.refresh_influxdb_route", "*/10 * * * *", "global"),
         # 刷新空间信息，业务、BCS的关联资源
         ("metadata.task.sync_space.refresh_cluster_resource", "*/30 * * * *", "global"),
-        ("metadata.task.sync_space.refresh_redis_data", "*/30 * * * *", "global"),
         ("metadata.task.sync_space.sync_bkcc_space_data_source", "*/10 * * * *", "global"),
-        ("metadata.task.sync_space.refresh_not_biz_space_data_source", "*/10 * * * *", "global"),
-        # ("metadata.task.sync_space.push_and_publish_space_router_task", "* */3 * * *", "global"),
         # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
         ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
         # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
@@ -267,6 +267,8 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
         # 删除数据库中已经不存在的数据源
         ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
+        # 每天同步一次蓝鲸应用的使用的集群
+        ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
     ]
 
 # Timeout for image exporter service, default set to 10 seconds
@@ -495,6 +497,7 @@ if USE_DJANGO_CACHE_REDIS:
         },
     }
     CACHES["default"] = CACHES["redis"]
+    CACHES["login_db"] = CACHES["redis"]
 
 # 全局告警屏蔽开关
 GLOBAL_SHIELD_ENABLED = False

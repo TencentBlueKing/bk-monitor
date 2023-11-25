@@ -22,14 +22,15 @@ the project delivered to anyone in the future.
 import functools
 import time
 
+from apps.log_search.constants import IndexSetType
 from apps.log_search.models import UserIndexSetSearchHistory
+from apps.utils.local import get_request_external_username
 
 
 # 接口耗时装饰器
 def search_history_record(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-
         # 接口耗时
         start_time = time.time()
         result = func(*args, **kwargs)
@@ -39,14 +40,31 @@ def search_history_record(func):
         # 更新查询耗时和记录history
         result.data["took"] = time_consume
         history_obj = result.data.get("history_obj")
+        union_search_history_obj = result.data.get("union_search_history_obj")
         if history_obj:
-            UserIndexSetSearchHistory.objects.create(
+            obj = UserIndexSetSearchHistory.objects.create(
                 index_set_id=history_obj["index_set_id"],
                 params=history_obj["params"],
                 search_type=history_obj["search_type"],
                 duration=time_consume,
             )
+            # 当外部用户检索的时候, 将记录设置为外部用户
+            external_username = get_request_external_username()
+            if external_username:
+                obj.created_by = external_username
+                obj.save()
             del result.data["history_obj"]
+
+        if union_search_history_obj:
+            UserIndexSetSearchHistory.objects.create(
+                index_set_ids=union_search_history_obj["index_set_ids"],
+                params=union_search_history_obj["params"],
+                search_type=union_search_history_obj["search_type"],
+                duration=time_consume,
+                index_set_type=IndexSetType.UNION.value,
+            )
+            del result.data["union_search_history_obj"]
+
         return result
 
     return wrapper
