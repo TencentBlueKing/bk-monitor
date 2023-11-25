@@ -483,6 +483,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
   beforeRouteLeave(to, from, next) {
     this.detailInfo.isShow = false;
+    destroyTimezone();
     next();
   }
 
@@ -492,7 +493,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
 
   beforeDestroy() {
-    destroyTimezone();
     this.routeStateKeyList = [];
     window.removeEventListener('popstate', this.handlePopstate);
     const { contentWrap } = this.$refs as any;

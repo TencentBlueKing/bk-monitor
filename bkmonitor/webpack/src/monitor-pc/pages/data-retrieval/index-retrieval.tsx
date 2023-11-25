@@ -33,7 +33,7 @@ import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-
 import * as dataRetrievalAuthMap from './authority-map';
 import DataRetrieval from './data-retrieval';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const authMap = {
   ...dataRetrievalAuthMap,
   GRAFANA_MANAGE_AUTH
@@ -51,8 +51,9 @@ export default class IndexRetrieval extends Mixins(authorityMixinCreate(authMap)
       vm.dataRetrieval.handleBeforeRouteEnter(to, from);
     });
   }
-  beforeDestroy() {
+  beforeRouteLeave(to, from, next) {
     destroyTimezone();
+    next();
   }
   render() {
     return <DataRetrieval ref='dataRetrieval' />;

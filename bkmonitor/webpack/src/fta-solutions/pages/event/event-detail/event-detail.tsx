@@ -67,6 +67,7 @@ const authMap = ['manage_rule_v2', 'manage_event_v2', 'manage_downtime_v2'];
 //   onCloseSlider?: boolean;
 //   onInfo?: (v: IDetail) => void;
 // }
+Component.registerHooks(['beforeRouteLeave']);
 @Component({
   name: 'EventDetail'
 })
@@ -181,7 +182,11 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.scrollInit();
     this.logRetrieval.isMounted = true;
   }
-
+  beforeRouteLeave(to, from, next) {
+    next(() => {
+      destroyTimezone();
+    });
+  }
   beforeDestroy() {
     destroyTimezone();
     this.scrollEl?.removeEventListener('scroll', this.throttledScroll);

@@ -66,7 +66,7 @@ import {
   handleTransformToTimestamp,
   timestampTransformStr
 } from '../../components/time-range/utils';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
@@ -529,7 +529,6 @@ export default class DataRetrieval extends tsc<{}> {
   }
 
   beforeDestroy() {
-    destroyTimezone();
     window.removeEventListener('message', this.handleMessage, false);
   }
   /** 非路由组件无法触发 BeforeRouteEnter 钩子 在其父组件触发后跳用此方法 */
@@ -543,6 +542,8 @@ export default class DataRetrieval extends tsc<{}> {
     } = this.$route.query.targets ? this.$route.query : this.$route.params;
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
+    this.compareValue.tools.timezone = getDefautTimezone();
+    console.info(this.compareValue.tools.timezone, '----------');
     if (timezone) {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);

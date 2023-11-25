@@ -31,7 +31,7 @@ import { destroyTimezone } from '../../i18n/dayjs';
 
 import DataRetrieval from './data-retrieval';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
 export default class EventRetrieval extends tsc<{}> {
@@ -42,7 +42,7 @@ export default class EventRetrieval extends tsc<{}> {
       vm.eventRetrieval.handleBeforeRouteEnter(to, from);
     });
   }
-  beforeDestroy() {
+  beforeRouteLeave() {
     destroyTimezone();
   }
   render() {
