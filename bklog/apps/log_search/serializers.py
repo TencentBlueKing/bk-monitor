@@ -693,12 +693,19 @@ class GenerateQuerySerializer(KeywordSerializer):
     params = serializers.ListField(required=False, default=[], label=_("替换Query请求参数"), child=GenerateQueryParam())
 
 
+class InspectFieldSerializer(serializers.Serializer):
+    field_name = serializers.CharField(label=_("字段名称"), required=False, allow_null=True, allow_blank=True)
+    field_alias = serializers.CharField(label=_("别名"), required=False, allow_blank=True, allow_null=True)
+    field_type = serializers.CharField(label=_("类型"), required=False, allow_null=True, allow_blank=True)
+    is_analyzed = serializers.BooleanField(label=_("是否分词"), required=False, default=False)
+
+
 class InspectSerializer(KeywordSerializer):
     """
     语法检查以及转换序列化
     """
 
-    pass
+    fields = serializers.ListField(required=False, default=[], label=_("字段列表"), child=InspectFieldSerializer())
 
 
 class FavoriteGroupListSerializer(serializers.Serializer):

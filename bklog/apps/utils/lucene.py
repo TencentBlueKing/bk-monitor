@@ -16,8 +16,11 @@ from apps.constants import (
     DEFAULT_FIELD_OPERATOR,
     FIELD_GROUP_OPERATOR,
     FULL_TEXT_SEARCH_FIELD_NAME,
+    FULL_WIDTH_CHAR_MAP,
     HIGH_CHAR,
     LOW_CHAR,
+    LUCENE_RESERVED_CHARS,
+    LUCENE_RESERVED_OPERATORS,
     MAX_RESOLVE_TIMES,
     NOT_OPERATOR,
     PLUS_OPERATOR,
@@ -42,6 +45,8 @@ class LuceneField(object):
     """Lucene解析出的Field类"""
 
     pos: int = 0
+    # field为原始字段名, name为带重复次数的字段名
+    field_name: str = ""
     name: str = ""
     # 此处type为Lucene语法的type
     type: str = ""
@@ -51,6 +56,9 @@ class LuceneField(object):
     is_full_text_field: bool = False
     # 标识同名字段出现的次数
     repeat_count: int = 0
+
+    def __post_init__(self):
+        self.field_name = self.name
 
 
 class LuceneParser(object):
@@ -836,16 +844,56 @@ class LuceneCheckerBase(object):
     # prompt message
     prompt_template = _("{error}, {suggestion}")
 
-    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None, force_check: bool = False):
+        """
+        初始化
+        :param query_string: 查询字符串
+        :param fields: 字段列表
+        :param force_check: 是否强制检查, 强制检查即LuceneParser解析成功时候也检查
+        """
         self.query_string = query_string
+        self.force_check = force_check
         self.fields = fields or []
         self.check_result = LuceneCheckResult(fixed_query_string=query_string)
+        # 子查询列表
+        self.sub_query_list: List[str] = []
+        self.field_name_list: List[str] = []
+        self.analyzed_field_list: List[str] = []
+        # LuceneParser解析后的字段列表
+        self.parsed_fields: List[LuceneField] = []
+        self.prepare()
+
+    def prepare(self):
+        """
+        准备工作, 将query_string分割成子查询, 以便于后续检查
+        如果后续要在prepare里面做一些额外的工作, 需要在子类中重写这个方法, 最后返回super().prepare()即可
+        """
+        # 构造模式字符串，其中的(?:...)用于标记一个子表达式开始和结束的位置，匹配满足这个子表达式规则的字符串
+        pattern = '|'.join(r'\b{}\b'.format(x) for x in LUCENE_RESERVED_OPERATORS)
+        # 使用正则来分割字符串，但是保持分割引号的存在
+        result = re.split('(' + pattern + ')', self.query_string)
+        # 去除结果中的空格部分，这样就不会有头尾空格了
+        self.sub_query_list = [x.strip() for x in result if x.strip() != ""]
+        if not self.fields:
+            return
+        for field in self.fields:
+            field_name = field.get("field_name") if field.get("field_name") else field.get("field_alias")
+            if field.get("is_analyzed"):
+                self.analyzed_field_list.append(field_name)
+            self.field_name_list.append(field_name)
 
     def check(self):
         """
         检查语法是否正确, 如果不正确, 则设置error
         """
         self.check_result.checked = True
+        try:
+            self.parsed_fields = LuceneParser(keyword=self.query_string).parsing()
+            if not self.force_check:
+                self.check_result.legal = True
+                return
+        except Exception:
+            pass
         self.check_result.legal = self._check()
 
     def _check(self):
@@ -884,7 +932,7 @@ class LuceneCheckerBase(object):
         修复语法错误, 实际需要实现的方法
         返回修复后的query_string
         """
-        raise NotImplementedError
+        return self.query_string
 
 
 class LuceneParenthesesChecker(LuceneCheckerBase):
@@ -895,8 +943,8 @@ class LuceneParenthesesChecker(LuceneCheckerBase):
     PAIR_LEFT = '('
     PAIR_RIGHT = ')'
 
-    def __init__(self, query_string: str):
-        super().__init__(query_string=query_string)
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields)
         # 检查是否多了左括号或者右括号, 如果多了, 则为True, 否则为False
         self.more_or_less: Optional[bool] = None
 
@@ -953,12 +1001,36 @@ class LuceneQuotesChecker(LuceneCheckerBase):
     DOUBLE_QUOTE = '"'
     CHARACTER_WHITESPACE = " "
 
-    def __init__(self, query_string: str):
-        super().__init__(query_string=query_string)
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields, force_check=True)
+
+    @staticmethod
+    def check_quotes(s: str) -> bool:
+        """
+        检查字符串中的引号是否匹配, 要么左右都有, 要么左右都没有
+        :param s: 字符串
+        :return: 是否匹配
+        """
+        left_single_quote = s.startswith("'")
+        left_double_quote = s.startswith('"')
+        right_single_quote = s.endswith("'")
+        right_double_quote = s.endswith('"')
+
+        if (
+            (left_single_quote and right_single_quote)
+            or (left_double_quote and right_double_quote)
+            or (not left_single_quote and not left_double_quote and not right_single_quote and not right_double_quote)
+        ):
+            return True
+        else:
+            return False
 
     def _fix(self):
         words = []
         for word in self.query_string.split(self.CHARACTER_WHITESPACE):
+            if word.startswith("(") or word.endswith(")"):
+                words.append(word)
+                continue
             if (
                 # 先判断 ' 和 " 是否同时出现
                 word.startswith(self.SINGLE_QUOTE)
@@ -980,39 +1052,32 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         return self.CHARACTER_WHITESPACE.join(words)
 
     def _check(self):
-        for word in self.query_string.split(self.CHARACTER_WHITESPACE):
-            if (
-                (word.startswith(self.SINGLE_QUOTE) and not word.endswith(self.SINGLE_QUOTE))
-                or (word.startswith(self.DOUBLE_QUOTE) and not word.endswith(self.DOUBLE_QUOTE))
-                or (word.endswith(self.SINGLE_QUOTE) and not word.startswith(self.SINGLE_QUOTE))
-                or (word.endswith(self.DOUBLE_QUOTE) and not word.startswith(self.DOUBLE_QUOTE))
-                or (word.startswith(self.SINGLE_QUOTE) and word.endswith(self.DOUBLE_QUOTE))
-                or (word.startswith(self.DOUBLE_QUOTE) and word.endswith(self.SINGLE_QUOTE))
-            ):
+        try:
+            fields = LuceneParser(keyword=self.query_string).parsing()
+            for field in fields:
+                if self.check_quotes(field.value):
+                    continue
                 self.check_result.error = _("引号不匹配")
                 return False
+        except Exception:  # pylint: disable=broad-except
+            for sub_query in self.sub_query_list:
+                if ':' not in sub_query:
+                    continue
+                __, field_expr = sub_query.split(':')
+                field_expr = field_expr.strip()
+                if field_expr and not self.check_quotes(field_expr):
+                    self.check_result.error = _("引号不匹配")
+                    return False
         return True
 
 
 class LuceneRangeChecker(LuceneCheckerBase):
-    RESERVED_OPERATORS = ['AND', 'OR', 'NOT']
-
-    def __init__(self, query_string: str):
-        super().__init__(query_string)
-        self.sub_query_list = self.prepare()
-
-    def prepare(self):
-        # 构造模式字符串，其中的(?:...)用于标记一个子表达式开始和结束的位置，匹配满足这个子表达式规则的字符串
-        pattern = '|'.join(r'\b{}\b'.format(x) for x in self.RESERVED_OPERATORS)
-        # 使用正则来分割字符串，但是保持分割引号的存在
-        result = re.split('(' + pattern + ')', self.query_string)
-        # 去除结果中的空格部分，这样就不会有头尾空格了
-        result = [x.strip() for x in result if x.strip() != ""]
-        return result
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields)
 
     def _check(self):
         """
-        Checking logic for minimum sub queries with 'TO'.
+        在最小化子语句中按TO拆分, 检查左边和右边是否缺失边界以及边界符号
         """
         for sub_query in self.sub_query_list:
             if 'TO' in sub_query:
@@ -1024,7 +1089,7 @@ class LuceneRangeChecker(LuceneCheckerBase):
                 __, start = parts[0].split(':')
                 start = start.strip()
                 end = parts[1].strip()
-                if not (re.match(r"\[\d+|\{\d+|\{.\*", start) and re.match(r"\d+\}|\d+\]|.\*\}", end)):
+                if not (re.match(r"\[\d+|\{\d+|\{.\*", start) and re.match(r"\d+}|\d+]|.\*}", end)):
                     self.check_result.error = _("RANGE语法异常, 格式错误")
                     return False
 
@@ -1032,7 +1097,7 @@ class LuceneRangeChecker(LuceneCheckerBase):
 
     def _fix(self):
         """
-        按'TO'拆分, 依次检查左边和右边是否缺失边界以及边界符号
+        按'TO'拆分, 依次修复左边和右边的边界和边界符号
         """
         fixed_sub_query_list = []
         for sub_query in self.sub_query_list:
@@ -1061,3 +1126,216 @@ class LuceneRangeChecker(LuceneCheckerBase):
             else:
                 fixed_sub_query_list.append(original_sub_query)
         return ' '.join(fixed_sub_query_list)
+
+
+class LuceneFieldExprChecker(LuceneCheckerBase):
+    """
+    检查字段查询内容是否存在, 该类的所有场景均无法修复, 即针对 "log: "这种场景
+    """
+
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields)
+
+    def _check(self):
+        for sub_query in self.sub_query_list:
+            if ':' not in sub_query:
+                continue
+            field_name, field_expr = sub_query.split(':')
+            if "(" in field_name:
+                field_name = field_name.split("(")[0]
+            field_name = field_name.strip()
+            field_expr = field_expr.strip()
+            if not field_name:
+                self.check_result.error = _("缺少字段").format(field_name=field_name)
+                self.check_result.suggestion = _("请补充字段")
+            elif not field_expr:
+                self.check_result.error = _("字段{field_name}无查询内容").format(field_name=field_name)
+                self.check_result.suggestion = _("请补齐查询内容").format(field_expr=field_expr)
+            else:
+                continue
+            self.check_result.fixable = False
+            return False
+        return True
+
+
+class LuceneFieldExistChecker(LuceneCheckerBase):
+    """
+    检查字段是否存在, 该类的所有场景均无法修复
+    """
+
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields, force_check=True)
+
+    def _check(self):
+        try:
+            fields = LuceneParser(keyword=self.query_string).parsing()
+            for field in fields:
+                if field.is_full_text_field:
+                    continue
+                if self.field_name_list and field.field_name not in self.field_name_list:
+                    self.check_result.error = _("字段{field_name}不存在").format(field_name=field.field_name)
+                    self.check_result.suggestion = _("请核对字段配置").format(field_name=field.field_name)
+                    self.check_result.fixable = False
+                    return False
+        except Exception:  # pylint: disable=broad-except
+            for sub_query in self.sub_query_list:
+                if ':' not in sub_query:
+                    continue
+                field_name, field_expr = sub_query.split(':')
+                if "(" in field_name:
+                    field_name = field_name.split("(")[0]
+                field_name = field_name.strip()
+                if field_name and field_name not in self.field_name_list:
+                    self.check_result.error = _("字段{field_name}不存在").format(field_name=field_name)
+                    self.check_result.suggestion = _("请核对字段配置").format(field_name=field_name)
+                    self.check_result.fixable = False
+                    return False
+        return True
+
+
+class LuceneReservedCharChecker(LuceneCheckerBase):
+    """
+    检查是否有保留字符, 该类的所有场景均无法修复
+    """
+
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        self.analyzed_field_list: List[str] = []
+        super().__init__(query_string=query_string, fields=fields, force_check=True)
+
+    def _check(self):
+        try:
+            fields = LuceneParser(keyword=self.query_string).parsing()
+            for field in fields:
+                if field.value in LUCENE_RESERVED_CHARS and field.field_name in self.analyzed_field_list:
+                    self.check_result.error = _("该字段{field_name}已分词, 已自动忽略该符号'{field_expr}'").format(
+                        field_name=field.field_name, field_expr=field.value
+                    )
+                    self.check_result.suggestion = _("""参考案例: content: "id=11" 和 content: id=11, 结果不同""")
+                    self.check_result.fixable = False
+                    return False
+            return True
+        except Exception:  # pylint: disable=broad-except
+            for sub_query in self.sub_query_list:
+                if ':' not in sub_query:
+                    if sub_query.strip() in LUCENE_RESERVED_CHARS:
+                        self.check_result.error = _("未检测到查询内容")
+                        self.check_result.suggestion = _("请核对查询内容")
+                        self.check_result.fixable = False
+                        return False
+                    continue
+                field_name, field_expr = sub_query.split(':')
+                field_name = field_name.strip()
+                field_expr = field_expr.strip()
+                if field_expr and field_expr in LUCENE_RESERVED_CHARS and field_name in self.analyzed_field_list:
+                    self.check_result.error = _("该字段{field_name}已分词, 已自动忽略该符号'{field_expr}'").format(
+                        field_name=field_name, field_expr=field_expr
+                    )
+                    self.check_result.suggestion = _("""参考案例: content: "id=11" 和 content: id=11, 结果不同""")
+                else:
+                    continue
+
+                self.check_result.fixable = False
+                return False
+        return True
+
+
+class LuceneFullWidthChecker(LuceneCheckerBase):
+    """
+    检查是否有全角字符
+    """
+
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields, force_check=True)
+        self.full_width_char_list: List[str] = []
+
+    def extract_full_width_char(self, s: str):
+        """提取全角字符"""
+        for char in s:
+            if char in FULL_WIDTH_CHAR_MAP and char not in self.full_width_char_list:
+                self.full_width_char_list.append(char)
+
+    @staticmethod
+    def full_width_to_half_width(s: str) -> str:
+        """全角转半角"""
+        result = ''
+        for char in s:
+            if char in FULL_WIDTH_CHAR_MAP:
+                char = FULL_WIDTH_CHAR_MAP[char]
+            result += char
+        return result
+
+    def _check(self):
+        try:
+            fields = LuceneParser(keyword=self.query_string).parsing()
+            for field in fields:
+                if field.is_full_text_field:
+                    continue
+                if field.field_name in self.analyzed_field_list:
+                    self.extract_full_width_char(field.value)
+        except Exception:  # pylint: disable=broad-except
+            for sub_query in self.sub_query_list:
+                if ':' not in sub_query:
+                    continue
+                field_name, field_expr = sub_query.split(':')
+                if "(" in field_name:
+                    field_name = field_name.split("(")[0]
+                field_name = field_name.strip()
+                field_expr = field_expr.strip()
+                if field_name and field_name in self.analyzed_field_list:
+                    self.extract_full_width_char(field_expr)
+        finally:
+            if self.full_width_char_list:
+                self.check_result.error = _("检测到使用了全角字符{char}").format(char=",".join(self.full_width_char_list))
+                return False
+
+        return True
+
+    def _fix(self):
+        return self.full_width_to_half_width(self.query_string)
+
+
+class LuceneChecker(object):
+    """
+    Lucene语法检查器
+    依次检查是否满足需要兼容的语法类型, 并转换成lucene支持的语法
+    REGISTERED_CHECKERS中的顺序决定了检查的顺序
+    """
+
+    REGISTERED_CHECKERS = LuceneCheckerBase.__subclasses__()
+
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        # 原始的query_string, 用于日志记录, 前端回显
+        self.origin_query_string: str = query_string
+        self.query_string: str = query_string
+        self.fields: List[Dict[str, Any]] = fields or []
+        self.messages: List[str] = []
+
+    def inspect(self):
+        messages: List[str] = []
+        for checker_class in self.REGISTERED_CHECKERS:
+            checker = checker_class(query_string=self.query_string, fields=self.fields)
+            checker.check()
+            if not checker.check_result.legal:
+                if checker.check_result.fixable:
+                    checker.fix()
+                    if checker.check_result.fixed:
+                        self.query_string = checker.check_result.fixed_query_string
+                messages.append(str(checker.check_result.error))
+        if not messages:
+            return True
+        self.messages.extend(messages)
+        return False
+
+    def resolve(self):
+        is_resolved = False
+        for __ in range(MAX_RESOLVE_TIMES):
+            if self.inspect():
+                is_resolved = True
+                break
+        self.messages = list(set(self.messages))
+        return {
+            "is_legal": False if self.messages else True,
+            "is_resolved": is_resolved,
+            "message": ",".join(sorted(self.messages)),
+            "keyword": self.query_string,
+        }

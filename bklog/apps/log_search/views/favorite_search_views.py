@@ -575,7 +575,7 @@ class FavoriteViewSet(APIViewSet):
         }
         """
         data = self.params_valid(InspectSerializer)
-        return Response(FavoriteHandler().inspect(keyword=data["keyword"]))
+        return Response(FavoriteHandler().inspect(keyword=data["keyword"], fields=data["fields"]))
 
 
 class FavoriteGroupViewSet(APIViewSet):

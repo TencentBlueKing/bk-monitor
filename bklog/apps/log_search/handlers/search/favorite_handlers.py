@@ -49,8 +49,8 @@ from apps.utils.local import (
     get_request_username,
 )
 from apps.utils.lucene import (
+    LuceneChecker,
     LuceneParser,
-    LuceneSyntaxResolver,
     LuceneTransformer,
     generate_query_string,
 )
@@ -271,8 +271,8 @@ class FavoriteHandler(object):
         return LuceneTransformer().transform(keyword=keyword, params=params)
 
     @staticmethod
-    def inspect(keyword) -> dict:
-        return LuceneSyntaxResolver(keyword=keyword).resolve()
+    def inspect(keyword: str, fields: List[Dict[str, Any]] = None) -> dict:
+        return LuceneChecker(query_string=keyword, fields=fields).resolve()
 
 
 class FavoriteGroupHandler(object):

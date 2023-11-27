@@ -6,14 +6,18 @@ from apps.log_search.handlers.search.favorite_handlers import FavoriteHandler
 from apps.log_search.serializers import (
     GenerateQuerySerializer,
     GetSearchFieldsSerializer,
-    InspectSerializer,
 )
 from apps.utils.lucene import (
     CaseInsensitiveLogicalEnhanceLucene,
     EnhanceLuceneAdapter,
+    LuceneChecker,
+    LuceneFieldExistChecker,
+    LuceneFieldExprChecker,
+    LuceneFullWidthChecker,
     LuceneParenthesesChecker,
     LuceneQuotesChecker,
     LuceneRangeChecker,
+    LuceneReservedCharChecker,
     LuceneSyntaxResolver,
     OperatorEnhanceLucene,
     ReservedLogicalEnhanceLucene,
@@ -26,6 +30,7 @@ AND log: blue~ AND time: /[L-N].*z*l{2}a/ AND a: b AND c: d OR (a: (b OR c AND d
 KEYWORD_FIELDS = [
     {
         "pos": 0,
+        "field_name": "number",
         "name": "number",
         "type": "Word",
         "operator": ">=",
@@ -35,6 +40,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 19,
+        "field_name": "title",
         "name": "title",
         "type": "Phrase",
         "operator": "=",
@@ -44,6 +50,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 46,
+        "field_name": "text",
         "name": "text",
         "type": "Word",
         "operator": "~=",
@@ -53,6 +60,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 58,
+        "field_name": "gseIndex",
         "name": "gseIndex",
         "type": "Range",
         "operator": "[]",
@@ -62,6 +70,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 87,
+        "field_name": "log",
         "name": "log",
         "type": "Fuzzy",
         "operator": "~=",
@@ -71,6 +80,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 102,
+        "field_name": "time",
         "name": "time",
         "type": "Regex",
         "operator": "~=",
@@ -80,6 +90,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 129,
+        "field_name": "a",
         "name": "a(1)",
         "operator": "~=",
         "type": "Word",
@@ -89,6 +100,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 138,
+        "field_name": "c",
         "name": "c",
         "operator": "~=",
         "type": "Word",
@@ -98,6 +110,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 147,
+        "field_name": "a",
         "name": "a(2)",
         "operator": "()",
         "type": "FieldGroup",
@@ -107,6 +120,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 168,
+        "field_name": "x",
         "name": "x",
         "operator": "~=",
         "type": "Word",
@@ -116,6 +130,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 179,
+        "field_name": "全文检索",
         "name": "全文检索(1)",
         "operator": "~=",
         "type": "Word",
@@ -125,6 +140,7 @@ KEYWORD_FIELDS = [
     },
     {
         "pos": 188,
+        "field_name": "全文检索",
         "name": "全文检索(2)",
         "operator": "~=",
         "type": "Word",
@@ -215,6 +231,7 @@ ENHANCE_KEYWORD_INSPECT_RESULT = {
 ENHANCE_KEYWORD_FIELDS = [
     {
         'pos': 0,
+        "field_name": "number",
         'name': 'number',
         'type': 'Word',
         'operator': '>=',
@@ -224,6 +241,7 @@ ENHANCE_KEYWORD_FIELDS = [
     },
     {
         'pos': 19,
+        "field_name": "title",
         'name': 'title',
         'type': 'Phrase',
         'operator': '=',
@@ -234,6 +252,7 @@ ENHANCE_KEYWORD_FIELDS = [
     {
         'pos': 46,
         'name': 'log',
+        'field_name': 'log',
         'type': 'Phrase',
         'operator': '=',
         'value': '"and"',
@@ -261,31 +280,49 @@ ENHANCE_UPDATE_QUERY_PARAMS = [
 ENHANCE_EXPECT_NEW_QUERY = """number: >=100000 OR title: "hello" AND log: \"not\""""
 
 # =================================== TEST LUCENE CHECKER =================================== #
-PARENTHESES_CHECK_TEST_CASES = [
+FIELDS = [
     {
-        "keyword": """log: ("INFO" and (a or b""",
+        "field_name": "log",
+        "field_type": "text",
+        "is_analyzed": True,
+    },
+    {"field_name": "id", "field_type": "int", "is_analyzed": False},
+    {"field_name": "number", "field_type": "int", "is_analyzed": False},
+    {"field_name": "title", "field_type": "text", "is_analyzed": True},
+    {"field_name": "text", "field_type": "text", "is_analyzed": True},
+    {"field_name": "gseIndex", "field_type": "int", "is_analyzed": False},
+    {"field_name": "time", "field_type": "text", "is_analyzed": True},
+    {"field_name": "a", "field_type": "text", "is_analyzed": True},
+    {"field_name": "c", "field_type": "text", "is_analyzed": True},
+    {"field_name": "x", "field_type": "text", "is_analyzed": True},
+]
+LEGAL_CASE = {
+    "keyword": KEYWORD,
+    "fields": FIELDS,
+    "check_result": True,
+    "prompt": "",
+}
+
+PARENTHESES_CHECK_TEST_CASES = [LEGAL_CASE] + [
+    {
+        "keyword": """log: ("INFO" AND (a OR b""",
         "check_result": False,
-        "prompt": """缺少 ), 你可能想输入: log: ("INFO" and (a or b))""",
+        "prompt": """缺少 ), 你可能想输入: log: ("INFO" AND (a OR b))""",
     },
     {
-        "keyword": """log: "INFO" and a or b)""",
+        "keyword": """log: "INFO" AND a OR b)""",
         "check_result": False,
-        "prompt": """多了 ), 你可能想输入: log: "INFO" and a or b""",
+        "prompt": """多了 ), 你可能想输入: log: "INFO" AND a OR b""",
     },
 ]
-QUOTE_CHECK_TEST_CASES = [
+QUOTE_CHECK_TEST_CASES = [LEGAL_CASE] + [
     {
-        "keyword": """log: "INFO' and a or 'b" """,
+        "keyword": """log: INFO' AND a OR b" """,
         "check_result": False,
-        "prompt": """引号不匹配, 你可能想输入: log: "INFO" and a or "b" """,
-    },
-    {
-        "keyword": """log: INFO' and a or b" """,
-        "check_result": False,
-        "prompt": """引号不匹配, 你可能想输入: log: 'INFO' and a or "b" """,
+        "prompt": """引号不匹配, 你可能想输入: log: 'INFO' AND a OR "b" """,
     },
 ]
-RANGE_CHECK_TEST_CASES = [
+RANGE_CHECK_TEST_CASES = [LEGAL_CASE] + [
     {
         "keyword": """log: [100 TO 200 OR time: [100 TO 200] AND id: TO 100""",
         "check_result": False,
@@ -296,10 +333,72 @@ RANGE_CHECK_TEST_CASES = [
         "check_result": False,
         "prompt": """RANGE语法异常, 格式错误, 你可能想输入: log: [100 TO 200] OR time: [100 TO 200]""",
     },
+]
+FIELD_EXPR_TEST_CASES = [LEGAL_CASE] + [
     {
-        "keyword": """log: [100 TO 200]""",
-        "check_result": True,
-        "prompt": "",
+        "keyword": """log: [100 TO 200] AND : 100""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": "缺少字段, 请补充字段",
+    },
+    {
+        "keyword": """log: [100 TO 200] AND id: """,
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": "字段id无查询内容, 请补齐查询内容",
+    },
+]
+FIELD_EXIST_TEST_CASES = [LEGAL_CASE] + [
+    {
+        "keyword": """log: [100 TO 200] AND id_1: 1""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": "字段id_1不存在, 请核对字段配置",
+    }
+]
+RESERVED_CHAR_CHECK_TEST_CASES = [LEGAL_CASE] + [
+    {
+        "keyword": """+""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": "未检测到查询内容, 请核对查询内容",
+    },
+    {
+        "keyword": """log: &""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": """该字段log已分词, 已自动忽略该符号'&', 参考案例: content: "id=11" 和 content: id=11, 结果不同""",
+    },
+]
+FULL_WIDTH_CHAR_CHECK_TEST_CASES = [LEGAL_CASE] + [
+    {
+        "keyword": """log: 【 20 TO 100 】""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": """检测到使用了全角字符【,】, 你可能想输入: log: [ 20 TO 100 ]""",
+    },
+]
+
+FULL_CHECK_TEST_CASES = [
+    {
+        "keyword": KEYWORD,
+        "fields": FIELDS,
+        "check_result": {
+            "is_legal": True,
+            "is_resolved": True,
+            "message": "",
+            "keyword": KEYWORD,
+        },
+    },
+    {
+        "keyword": """log: ("INFO" AND (a OR b AND c OR d" AND id: AND id_1: 1""",
+        "fields": FIELDS,
+        "check_result": {
+            "is_legal": False,
+            "is_resolved": False,
+            "message": """字段id_1不存在,字段id无查询内容,引号不匹配,缺少 )""",
+            "keyword": """log: ("INFO" AND (a OR b AND c OR "d" AND id: AND id_1: 1))""",
+        },
     },
 ]
 
@@ -375,16 +474,6 @@ class TestFavoriteWithEnhanceLucene(TestCase):
     def setUp(self) -> None:  # pylint: disable=invalid-name
         self.maxDiff = None  # pylint: disable=invalid-name
 
-    def test_inspect(self):
-        """测试解析关键字"""
-        slz = InspectSerializer(data={"keyword": ENHANCE_KEYWORD_TEST_CASES[0]["keyword"]})
-        slz.is_valid(raise_exception=True)
-        inspect_result = FavoriteHandler().inspect(keyword=slz.validated_data["keyword"])
-        self.assertEqual(inspect_result["is_legal"], True)
-        self.assertEqual(inspect_result["is_resolved"], True)
-        self.assertEqual(inspect_result["keyword"], ENHANCE_KEYWORD_TEST_CASES[0]["expect"])
-        self.assertEqual(inspect_result["message"], "")
-
     def test_get_search_fields(self):
         """测试获取Lucene Query字段"""
         slz = GetSearchFieldsSerializer(data={"keyword": ENHANCE_KEYWORD_TEST_CASES[0]["keyword"]})
@@ -413,15 +502,13 @@ class TestLuceneChecker(TestCase):
 
     def test_pair_checker(self):
         for case in PARENTHESES_CHECK_TEST_CASES:
-            keyword = case["keyword"]
-            checker = LuceneParenthesesChecker(keyword)
+            checker = LuceneParenthesesChecker(case["keyword"], case.get("fields", []))
             checker.check()
             self.assertEqual(checker.check_result.legal, case["check_result"])
             self.assertEqual(checker.prompt(), case["prompt"])
 
         for case in QUOTE_CHECK_TEST_CASES:
-            keyword = case["keyword"]
-            checker = LuceneQuotesChecker(keyword)
+            checker = LuceneQuotesChecker(case["keyword"], case.get("fields", []))
             checker.check()
             self.assertEqual(checker.check_result.legal, case["check_result"])
             checker.fix()
@@ -429,9 +516,45 @@ class TestLuceneChecker(TestCase):
 
     def test_range_checker(self):
         for case in RANGE_CHECK_TEST_CASES:
-            keyword = case["keyword"]
-            checker = LuceneRangeChecker(keyword)
+            checker = LuceneRangeChecker(case["keyword"], case.get("fields", []))
             checker.check()
             self.assertEqual(checker.check_result.legal, case["check_result"])
             checker.fix()
             self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_lucene_field_checker(self):
+        for case in FIELD_EXPR_TEST_CASES:
+            checker = LuceneFieldExprChecker(case["keyword"], case.get("fields", []))
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
+
+        for case in FIELD_EXIST_TEST_CASES:
+            checker = LuceneFieldExistChecker(case["keyword"], case.get("fields", []))
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_reserved_char_checker(self):
+        for case in RESERVED_CHAR_CHECK_TEST_CASES:
+            checker = LuceneReservedCharChecker(case["keyword"], case.get("fields", []))
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_full_width_char_checker(self):
+        for case in FULL_WIDTH_CHAR_CHECK_TEST_CASES:
+            checker = LuceneFullWidthChecker(case["keyword"], case.get("fields", []))
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_full_checker(self):
+        for case in FULL_CHECK_TEST_CASES:
+            checker = LuceneChecker(case["keyword"], case.get("fields", []))
+            result = checker.resolve()
+            self.assertDictEqual(result, case["check_result"])
