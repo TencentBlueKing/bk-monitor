@@ -1230,7 +1230,7 @@ class DutyRuleParser(BaseConfigParser):
                 time_type = time_item.get("work_time_type", "time_range")
                 work = {
                     "days": time_item.get("work_days", []),
-                    "date_range": time_item.get("work_date_range", ""),
+                    "date_range": time_item.get("work_date_range", []),
                     time_type: time_item.get(time_type, ""),
                 }
                 arrange_time = {"type": time_type, "work": work}
