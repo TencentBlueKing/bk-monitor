@@ -38,7 +38,9 @@ from apps.utils.local import (
 
 
 class FuncThread:
-    def __init__(self, func, params, result_key, results, use_request=True, multi_func_params=False):
+    def __init__(
+        self, func, params, result_key, results, use_request=True, multi_func_params=False, is_exception=False
+    ):
         self.func = func
         self.params = params
         self.result_key = result_key
@@ -50,6 +52,7 @@ class FuncThread:
         self.trace_context = get_current()
         self.timezone = get_local_param("time_zone")
         self.multi_func_params = multi_func_params
+        self.is_exception = is_exception
 
     def _init_context(self):
         with ignored(Exception):
@@ -60,16 +63,20 @@ class FuncThread:
                 timezone.activate(pytz.timezone(self.timezone))
 
     def run(self):
-        self._init_context()
-        if self.use_request and self.requests:
-            activate_request(self.requests)
-        if self.params:
-            if not self.multi_func_params:
-                self.results[self.result_key] = self.func(self.params)
+        try:
+            self._init_context()
+            if self.use_request and self.requests:
+                activate_request(self.requests)
+            if self.params:
+                if not self.multi_func_params:
+                    self.results[self.result_key] = self.func(self.params)
+                else:
+                    self.results[self.result_key] = self.func(**self.params)
             else:
-                self.results[self.result_key] = self.func(**self.params)
-        else:
-            self.results[self.result_key] = self.func()
+                self.results[self.result_key] = self.func()
+
+        except Exception as e:
+            self.results[self.result_key] = {} if not self.is_exception else {"is_exception": True, "exception": e}
 
 
 def executor_wrap(func_thread):
@@ -86,7 +93,7 @@ class MultiExecuteFunc(object):
         self.task_list = []
         self.max_workers = max_workers
 
-    def append(self, result_key, func, params=None, use_request=True, multi_func_params=False):
+    def append(self, result_key, func, params=None, use_request=True, multi_func_params=False, is_exception=False):
         if result_key in self.results:
             raise ValueError(f"result_key: {result_key} is duplicate. Please rename it.")
         task = FuncThread(
@@ -96,6 +103,7 @@ class MultiExecuteFunc(object):
             results=self.results,
             use_request=use_request,
             multi_func_params=multi_func_params,
+            is_exception=is_exception,
         )
         self.task_list.append(task)
 
