@@ -211,8 +211,8 @@ export default {
     'You can meet the needs of data collection by making various monitoring plug-ins. This function relies on the server to install the bkmonitorbeat collector. ',
   '可批量导入, 导入策略请上传yaml配置，导入仪表盘请上传json配置':
     'can be imported in batches, please upload yaml configuration for import rule, and upload json configuration for dashboard import',
-  '日志关键字即通过日志关键字匹配的数量进行告警，主要有两种':
-    'The log keyword is used to alert based on the number of log keyword matches. There are two main types',
+  '日志即通过日志关键字匹配的数量进行告警，主要有两种':
+    'The log is used to alert based on the number of log keyword matches. There are two main types',
   '日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。':
     'Log keyword plug-in counts the key matches of log files , and store the latest original log content. ',
   '日志关键字：日志关键字能力有两种，日志平台基于ES存储判断的日志关键字和基于Agent端进行日志关键字匹配的事件。':
