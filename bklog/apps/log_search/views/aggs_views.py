@@ -23,12 +23,12 @@ the project delivered to anyone in the future.
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.utils.drf import detail_route
+from apps.utils.drf import detail_route, list_route
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
-from apps.log_trace.serializers import AggsTermsSerializer, DateHistogramSerializer
+from apps.log_trace.serializers import AggsTermsSerializer, DateHistogramSerializer, UnionSearchDateHistogramSerializer
 
 
 class AggsViewSet(APIViewSet):
@@ -171,3 +171,80 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(DateHistogramSerializer)
         return Response(AggsViewAdapter().date_histogram(index_set_id, data))
+
+    @list_route(methods=["POST"], url_path="aggs/union_search/date_histogram")
+    def union_search_date_histogram(self, request, *args, **kwargs):
+        """
+        @api {post} /search/index_set/aggs/union_search/date_histogram/ 04_Trace-按照时间聚合
+        @apiName date_agg_trace_log
+        @apiDescription 联合检索生成时间线曲线图
+        @apiGroup 17_Trace
+        @apiParam {String} start_time 开始时间
+        @apiParam {String} end_time 结束时间
+        @apiParam {String} time_range 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]
+        @apiParam {List} fields  需要聚合字段 需要请求的聚合字段doc_count [{"term_filed": "tags.result_code"},
+                        {"term_filed": "tags.local_service", "metric_type": "avg", "metric_field": "duration"}]
+        @apiParam {String} interval 聚合周期，默认为"auto"，后台会具体调整
+        @apiParam {String} keyword 搜索关键字
+        @apiParam {Json} addition 搜索条件
+        @apiParamExample {Json} 请求参数
+        {
+            "keyword": "*",
+            "time_range": "customized",
+            "start_time": "2023-07-31 16:02:13",
+            "end_time": "2023-07-31 16:17:13",
+            "host_scopes": {
+                "modules": [],
+                "ips": "",
+                "target_nodes": [],
+                "target_node_type": ""
+            },
+            "ip_chooser": {},
+            "addition": [],
+            "begin": 0,
+            "size": 500,
+            "interval": "1m",
+            "pickerTimeRange": [
+                "now-30m",
+                "now"
+            ],
+            "index_set_ids": [146,147]
+        }
+
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "aggs": {
+                    "group_by_histogram": {
+                        "buckets": [
+                            {
+                                "key_as_string": "16:05",
+                                "key": 1690790700000,
+                                "doc_count": 6
+                            },
+                            {
+                                "key_as_string": "16:06",
+                                "key": 1690790760000,
+                                "doc_count": 3
+                            },
+                            {
+                                "key_as_string": "16:07",
+                                "key": 1690790820000,
+                                "doc_count": 3
+                            },
+                            {
+                                "key_as_string": "16:08",
+                                "key": 1690790880000,
+                                "doc_count": 3
+                            }
+                        ]
+                    }
+                }
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UnionSearchDateHistogramSerializer)
+        return Response(AggsViewAdapter().union_search_date_histogram(data))

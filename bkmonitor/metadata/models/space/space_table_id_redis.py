@@ -38,6 +38,7 @@ from metadata.models.space.constants import (
 from metadata.models.space.ds_rt import (
     get_cluster_data_ids,
     get_measurement_type_by_table_id,
+    get_platform_data_ids,
     get_result_tables_by_data_ids,
     get_space_table_id_data_id,
     get_table_id_cluster_id,
@@ -253,6 +254,7 @@ class SpaceTableIDRedis:
         logger.info("start to push biz of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_bcs_space_biz_table_ids(space_type, space_id)
         _values.update(self._compose_bcs_space_cluster_table_ids(space_type, space_id))
+        _values.update(self._compose_bkci_level_table_ids(space_type, space_id))
         _values.update(self._compose_bkci_other_table_ids(space_type, space_id))
         # 追加跨空间类型的数据源授权
         _values.update(self._compose_bkci_cross_table_ids(space_type, space_id))
@@ -362,11 +364,36 @@ class SpaceTableIDRedis:
 
         return _values
 
+    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str) -> Dict:
+        """组装 bkci 全局下的结果表"""
+        logger.info("start to push bkci level table_id, space_type: %s, space_id: %s", space_type, space_id)
+        # 过滤空间级的数据源
+        data_ids = get_platform_data_ids(space_type=space_type)
+        table_is_list = list(
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids.keys()).values_list(
+                "table_id", flat=True
+            )
+        )
+        _values = {}
+        if not table_is_list:
+            return _values
+        # 过滤仅写入influxdb和vm的数据
+        table_ids = self._refine_table_ids(table_is_list)
+        # 组装数据
+        for tid in table_ids:
+            _values[tid] = {"filters": [{"projectId": space_id}]}
+
+        return _values
+
     def _compose_bkci_other_table_ids(self, space_type: str, space_id: str) -> Dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         table_id_data_id = get_space_table_id_data_id(
-            space_type, space_id, exclude_data_id_list=exclude_data_id_list, from_authorization=False
+            space_type,
+            space_id,
+            exclude_data_id_list=exclude_data_id_list,
+            include_platform_data_id=False,
+            from_authorization=False,
         )
         _values = {}
         if not table_id_data_id:
