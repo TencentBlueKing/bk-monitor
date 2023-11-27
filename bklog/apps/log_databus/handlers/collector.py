@@ -144,7 +144,13 @@ from apps.log_search.constants import (
 )
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, Space
+from apps.log_search.models import (
+    LogIndexSet,
+    LogIndexSetData,
+    Scenario,
+    Space,
+    StorageClusterRecord,
+)
 from apps.models import model_to_dict
 from apps.utils.bcs import Bcs
 from apps.utils.cache import caches_one_hour
@@ -2986,41 +2992,6 @@ class CollectorHandler(object):
             result.append(rule)
         return result
 
-    def list_storage_cluster(self, bk_biz_id: int):
-        return StorageHandler().list(bk_biz_id=bk_biz_id, enable_archive=False)
-
-    def switch_storage_cluster(self, data: Dict[str, Any], bk_app_code="bk_bcs"):
-        queryset = CollectorConfig.objects.filter(bcs_cluster_id=data["bcs_cluster_id"], bk_app_code=bk_app_code)
-        if data["bk_biz_id"]:
-            queryset = queryset.filter(bk_biz_id=data["bk_biz_id"])
-        collectors = queryset.exclude(bk_app_code="bk_log_search").order_by("-updated_at")
-        # 新增bcs采集存储集群全局配置更新
-        BcsStorageClusterConfig.objects.update_or_create(**data)
-        # 存量索引集存储集群更新
-        self.update_bcs_project_index_set(
-            bcs_cluster_id=data["bcs_cluster_id"],
-            bk_biz_id=data["bk_biz_id"],
-            storage_cluster_id=data["storage_cluster_id"],
-        )
-
-        # 存量bcs采集存储集群更新
-        from apps.log_databus.handlers.etl import EtlHandler
-
-        for collector in collectors:
-            custom_config = get_custom(collector.custom_type)
-            etl_handler = EtlHandler(collector.collector_config_id)
-            etl_params = {
-                "table_id": collector.collector_config_name_en,
-                "storage_cluster_id": data["storage_cluster_id"],
-                "retention": DEFAULT_RETENTION,
-                "allocation_min_days": 0,
-                "storage_replies": 0,
-                "etl_params": custom_config.etl_params,
-                "etl_config": custom_config.etl_config,
-                "fields": custom_config.fields,
-            }
-            etl_handler.update_or_create(**etl_params)
-
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
         conf = self.get_bcs_config(
@@ -3224,12 +3195,21 @@ class CollectorHandler(object):
         std_index_set = src_index_list.filter(index_set_name=std_index_set_name).first()
         path_index_set_name = f"{bcs_cluster_id}_path"
         path_index_set = src_index_list.filter(index_set_name=path_index_set_name).first()
+        # 更新索引集当前存储集群配置，并创建该索引集存储集群切换记录
         if path_index_set:
+            old_storage_cluster_id = copy.deepcopy(path_index_set.storage_cluster_id)
             path_index_set.storage_cluster_id = storage_cluster_id
             path_index_set.save()
+            StorageClusterRecord.objects.create(
+                index_set_id=path_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
+            )
         if std_index_set:
+            old_storage_cluster_id = copy.deepcopy(std_index_set.storage_cluster_id)
             std_index_set.storage_cluster_id = storage_cluster_id
             std_index_set.save()
+            StorageClusterRecord.objects.create(
+                index_set_id=std_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
+            )
 
     @classmethod
     def generate_collector_config_name(cls, bcs_cluster_id, collector_config_name, collector_config_name_en):

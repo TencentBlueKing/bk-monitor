@@ -40,6 +40,7 @@ from apps.log_databus.constants import Environment, EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import (
     BatchSubscriptionStatusSerializer,
@@ -68,6 +69,7 @@ from apps.log_databus.serializers import (
     PreviewContainersSerializer,
     RetrySerializer,
     RunSubscriptionSerializer,
+    SwitchStorageClusterSerializer,
     TaskDetailSerializer,
     TaskStatusSerializer,
     UpdateContainerCollectorSerializer,
@@ -2022,8 +2024,11 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} bk_biz_id 所属业务ID
         @apiParam {Int} space_uid 所属空间唯一标识
         """
+        # auth_info = Permission.get_auth_info(request, raise_exception=False)
+        # if not auth_info:
+        #     raise BkJwtVerifyException()
         data = self.params_valid(ListStorageClusterSerializer)
-        return Response(CollectorHandler().list_storage_cluster(bk_biz_id=data["bk_biz_id"]))
+        return Response(StorageHandler().get_cluster_groups_filter(bk_biz_id=data["bk_biz_id"], enable_archive=False))
 
     @list_route(methods=["POST"], url_path="switch_storage_cluster")
     def switch_storage_cluster(self, request):
@@ -2039,9 +2044,11 @@ class CollectorViewSet(ModelViewSet):
         auth_info = Permission.get_auth_info(request, raise_exception=False)
         if not auth_info:
             raise BkJwtVerifyException()
-        data = self.params_valid(BCSCollectorSerializer)
-        result = CollectorHandler().switch_storage_cluster(data=data, bk_app_code=auth_info["bk_app_code"])
-        return Response(result)
+        data = self.params_valid(SwitchStorageClusterSerializer)
+        from apps.log_databus.tasks.collector import switch_storage_cluster
+
+        switch_storage_cluster.delay(data=data, bk_app_code=auth_info["bk_app_code"])
+        return Response({"status": "switching"})
 
     @list_route(methods=["GET"], url_path="list_bcs_collector")
     def list_bcs_collector(self, request):
