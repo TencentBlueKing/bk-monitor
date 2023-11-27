@@ -14,8 +14,6 @@ import logging
 import traceback
 
 import pytz
-from apm_web.constants import ServiceRelationLogTypeChoices
-from apm_web.models import LogServiceRelation
 from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
@@ -49,6 +47,8 @@ from apm.models import (
     TopoRelation,
     TraceDataSource,
 )
+from apm_web.constants import ServiceRelationLogTypeChoices
+from apm_web.models import LogServiceRelation
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import TraceListQueryMode
@@ -81,6 +81,8 @@ class CreateApplicationResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
         app_alias = serializers.CharField(label="应用别名", max_length=255)
+        # enable profiling as default for debugging
+        enabled_profiling = serializers.BooleanField(label="是否开启性能分析", default=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置")
 
@@ -96,6 +98,7 @@ class CreateApplicationResource(Resource):
             app_alias=validated_request_data["app_alias"],
             description=validated_request_data["description"],
             es_storage_config=validated_request_data["es_storage_config"],
+            options={"enabled_profiling": validated_request_data["enabled_profiling"]},
         )
 
 
@@ -231,6 +234,8 @@ class ListApplicationResources(Resource):
                 data["metric_config"] = instance.metric_datasource.to_json()
             if instance.trace_datasource:
                 data["trace_config"] = instance.trace_datasource.to_json()
+            if instance.profile_datasource:
+                data["profiling_config"] = instance.profile_datasource.to_json()
             return data
 
     many_response_data = True
@@ -255,6 +260,8 @@ class ApplicationInfoResource(Resource):
                 data["metric_config"] = instance.metric_datasource.to_json()
             if instance.trace_datasource:
                 data["trace_config"] = instance.trace_datasource.to_json()
+            if instance.profile_datasource:
+                data["profiling_config"] = instance.profile_datasource.to_json()
             return data
 
     def perform_request(self, validated_request_data):

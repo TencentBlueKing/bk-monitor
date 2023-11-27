@@ -35,7 +35,17 @@ import { curveCatmullRom, line } from 'd3-shape';
 import { getValueFormat } from '../../../../monitor-ui/monitor-echarts/valueFormats';
 import traceIcons from '../../utls/icons';
 
-import { BaseDataType, BaseRect, ColorTypes, IFlameData, ILineData, IOtherData, RootId, ThreadPos } from './types';
+import {
+  BaseDataType,
+  BaseRect,
+  ColorTypes,
+  IFlameChartOptions,
+  IFlameData,
+  ILineData,
+  IOtherData,
+  RootId,
+  ThreadPos
+} from './types';
 
 const usFormat = getValueFormat('µs');
 export class FlameChart<D extends BaseDataType> {
@@ -62,7 +72,11 @@ export class FlameChart<D extends BaseDataType> {
   threadsData: D[] = [];
   lineMap: Map<string, ILineData<D>> = new Map();
   maxDepth = 0;
-  constructor(d: IFlameData<D>, options: IFlameChartOptions, public chartDom: HTMLElement) {
+  constructor(
+    d: IFlameData<D>,
+    options: IFlameChartOptions,
+    public chartDom: HTMLElement
+  ) {
     Object.assign(this, options);
     this.render(d);
   }

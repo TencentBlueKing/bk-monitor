@@ -1,4 +1,5 @@
 import pytest
+
 from apm_web.trace.diagram.diff import DiffMark, TraceDiffer
 
 from .utils import dynamic_make_trace_list, read_trace_list

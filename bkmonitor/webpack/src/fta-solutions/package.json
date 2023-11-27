@@ -10,7 +10,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.22",
+    "@blueking/bk-weweb": "0.0.23",
     "async-validator": "^3.5.2",
     "bk-magic-vue": "^2.5.8-beta.5",
     "deepmerge": "^4.2.2",
