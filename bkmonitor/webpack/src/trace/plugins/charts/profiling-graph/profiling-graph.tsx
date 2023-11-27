@@ -230,9 +230,7 @@ export default defineComponent({
                   axisRect.value = { left: 0, title: '', visibility: 'hidden' };
                   tipDetail.value = {};
                 },
-                onMouseDown: () =>
-                  // event: MouseEvent
-                  {
+                onMouseDown: () => {
                     // function mousemove(e: MouseEvent) {
                     //   const width = e.pageX - event.pageX;
                     //   if (width > 0) {
