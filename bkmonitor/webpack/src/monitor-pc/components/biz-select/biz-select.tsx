@@ -528,7 +528,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 />
               </div>
               {this.spaceTypeIdList.length > 1 && (
-                <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }]}>
+                <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }, this.theme]}>
                   <ul
                     class={'space-type-list'}
                     ref='typeList'
