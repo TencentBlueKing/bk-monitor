@@ -15,9 +15,11 @@ import logging
 
 import six
 from django.conf import settings
+from requests.exceptions import HTTPError, ReadTimeout
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -35,29 +37,29 @@ class BkPaaSAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     def get_request_url(self, validated_request_data):
         return super(BkPaaSAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
 
-    def get_headers(self):
-        headers = super(BkPaaSAPIGWResource, self).get_headers()
-        headers.update(
-            {
-                "x-bkapi-authorization": json.dumps(
-                    {"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.APP_TOKEN}
-                )
-            }
-        )
-        return headers
+    def perform_request(self, validated_request_data):
+        request_url = self.get_request_url(validated_request_data)
+        headers = {
+            "x-bkapi-authorization": json.dumps({"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.APP_TOKEN})
+        }
+        try:
+            result = self.session.get(
+                params=validated_request_data,
+                url=request_url,
+                headers=headers,
+                verify=False,
+                timeout=self.TIMEOUT,
+            )
+        except ReadTimeout:
+            raise BKAPIError(system_name=self.module_name, url=self.action, result="request timeout")
 
+        try:
+            result.raise_for_status()
+        except HTTPError as err:
+            logger.exception("【模块：{}】请求错误：{}，请求url: {} ".format(self.module_name, err, request_url))
+            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
 
-class GetAppInfoResource(BkPaaSAPIGWResource):
-    """
-    获取用户信息
-    """
-
-    action = "/get_app_info/"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        target_app_code = serializers.CharField(required=False, label="目标应用")
-        fields = serializers.CharField(required=False, label="目标字段")
+        return result.json()
 
 
 class GetAppClusterNamespaceResource(BkPaaSAPIGWResource):
