@@ -57,6 +57,7 @@ from apps.log_search.constants import (
     DEFAULT_TIME_FIELD,
     EsHealthStatus,
     GlobalCategoriesEnum,
+    InnerTag,
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
@@ -70,7 +71,10 @@ from apps.log_search.exceptions import (
     IndexSetDoseNotExistException,
     IndexSetFieldsConfigAlreadyExistException,
     IndexSetFieldsConfigNotExistException,
+    IndexSetInnerTagOperatorException,
     IndexSetSourceException,
+    IndexSetTagNameExistException,
+    IndexSetTagNotExistException,
     IndexTraceNotAcceptException,
     ResultTableIdDuplicateException,
     ScenarioNotSupportedException,
@@ -80,10 +84,12 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
     IndexSetFieldsConfig,
+    IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
     Space,
+    StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
@@ -762,6 +768,94 @@ class IndexSetHandler(APIModel):
         DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
         DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
 
+    def add_tag(self, tag_id: int):
+        """
+        索引集添加标签
+        """
+        # 校验标签是否存在
+        if not IndexSetTag.objects.filter(tag_id=tag_id).exists():
+            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
+
+        # 校验是否为内置标签
+        if tag_id in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        tag_ids.append(str(tag_id))
+
+        index_set_obj.tag_ids = list(set(tag_ids))
+
+        index_set_obj.save()
+
+        return
+
+    def delete_tag(self, tag_id: int):
+        """
+        索引集删除标签
+        """
+        # 校验是否为内置标签
+        if tag_id in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        if tag_ids and str(tag_id) in tag_ids:
+            tag_ids.remove(str(tag_id))
+            index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.save()
+
+        return
+
+    @staticmethod
+    def create_tag(params: dict):
+        """
+        创建标签
+        """
+        # 名称校验
+        if (
+            params["name"] in list(InnerTag.get_dict_choices().keys())
+            or IndexSetTag.objects.filter(name=params["name"]).exists()
+        ):
+            raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
+
+        obj = IndexSetTag.objects.create(name=params["name"], color=params["color"])
+
+        return model_to_dict(obj)
+
+    @staticmethod
+    def tag_list():
+        """
+        标签列表
+        """
+        objs = IndexSetTag.objects.all()
+
+        ret = list()
+
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        for obj in objs:
+            _data = model_to_dict(obj)
+            if _data["name"] in inner_tag_names:
+                _data["is_built_in"] = True
+            else:
+                _data["is_built_in"] = False
+            ret.append(_data)
+
+        return ret
+
+    @staticmethod
+    def _get_inner_tag_ids():
+        """
+        获取内置标签ID列表
+        """
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        inner_tag_ids = list(IndexSetTag.objects.filter(name__in=inner_tag_names).values_list("tag_id", flat=True))
+        return inner_tag_ids
+
     @staticmethod
     def get_desensitize_config_state(index_set_ids: list):
         """
@@ -1395,6 +1489,11 @@ class BaseIndexSetHandler(object):
         if self.category_id:
             self.index_set_obj.category_id = self.category_id
 
+        if self.index_set_obj.storage_cluster_id == self.storage_cluster_id:
+            old_storage_cluster_id = None
+        else:
+            old_storage_cluster_id = self.index_set_obj.storage_cluster_id
+
         self.index_set_obj.index_set_name = self.index_set_name
         self.index_set_obj.view_roles = self.view_roles
         self.index_set_obj.storage_cluster_id = self.storage_cluster_id
@@ -1408,6 +1507,12 @@ class BaseIndexSetHandler(object):
         self.index_set_obj.time_field_type = self.time_field_type
         self.index_set_obj.time_field_unit = self.time_field_unit
         self.index_set_obj.save()
+
+        if old_storage_cluster_id:
+            # 保存旧的存储集群记录
+            StorageClusterRecord.objects.create(
+                index_set_id=self.index_set_obj.index_set_id, storage_cluster_id=old_storage_cluster_id
+            )
 
         # 需移除的索引
         to_delete_indexes = [
@@ -1448,6 +1553,7 @@ class BaseIndexSetHandler(object):
 
     def delete(self):
         self.index_set_obj.delete()
+        StorageClusterRecord.objects.filter(index_set_id=self.index_set_obj.index_set_id).delete()
 
     def post_delete(self, index_set):
         # @TODO 调用auth模块删除权限
