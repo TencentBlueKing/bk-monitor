@@ -46,7 +46,6 @@ from bkmonitor.utils.user import set_local_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
-from core.errors.api import BKAPIError
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.constants import (
@@ -123,11 +122,7 @@ def update_metric_list():
         "LOGTIMESERIES": "bk_log_search",
     }
 
-    try:
-        apps = api.bk_paas.get_app_info(target_app_code="bk_dataweb,bk_log_search")
-        apps = [app["bk_app_code"] for app in apps]
-    except BKAPIError:
-        apps = list(source_type_to_app_code.values())
+    apps = list(source_type_to_app_code.values())
 
     # 获取上次执行分发任务时间戳
     metric_cache_task_last_timestamp, _ = GlobalConfig.objects.get_or_create(
@@ -207,11 +202,7 @@ def update_metric_list_by_biz(bk_biz_id):
         "LOGTIMESERIES": "bk_log_search",
     }
 
-    try:
-        apps = api.bk_paas.get_app_info(target_app_code="bk_dataweb,bk_log_search")
-        apps = [app["bk_app_code"] for app in apps]
-    except BKAPIError:
-        apps = list(source_type_to_app_code.values())
+    apps = list(source_type_to_app_code.values())
 
     source_type_use_biz = [
         "BKDATA",
