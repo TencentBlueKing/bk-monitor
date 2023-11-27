@@ -1208,6 +1208,15 @@ class DutyRuleParser(BaseConfigParser):
 
     def unparse(self, config: Dict) -> Dict:
         # config -> yaml
+        parsed_config = {
+            "category": config["category"],
+            "effective_time": config["effective_time"],
+            "end_time": config["end_time"],
+            "enabled": config["enabled"],
+            "labels": config["labels"],
+            "name": config["name"],
+            "arranges": [],
+        }
         config["arranges"] = []
         for duty_arrange in config.pop("duty_arranges", []):
             #     反向解析
@@ -1234,8 +1243,8 @@ class DutyRuleParser(BaseConfigParser):
             arrange["group"] = {"type": duty_arrange.pop("group_type", DutyGroupType.SPECIFIED)}
             if duty_arrange.get("group_number", 0) > 0:
                 arrange["group"]["number"] = duty_arrange.pop("group_number")
-            config["arranges"].append(arrange)
-        return config
+            parsed_config["arranges"].append(arrange)
+        return parsed_config
 
     def check(self, config: Dict) -> Dict:
         return DutyRuleSchema.validate(config)

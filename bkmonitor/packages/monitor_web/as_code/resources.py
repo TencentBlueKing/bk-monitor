@@ -49,6 +49,7 @@ from bkmonitor.models import (
     AlertAssignGroup,
     AlertAssignRule,
     DutyRule,
+    DutyRuleRelation,
     StrategyActionConfigRelation,
     StrategyModel,
     UserGroup,
@@ -203,12 +204,18 @@ class ExportConfigResource(Resource):
             yield path, filename, yaml.dump(parser.unparse(user_group_config), allow_unicode=True)
 
     @classmethod
-    def export_duties(cls, bk_biz_id: int):
+    def export_duties(cls, bk_biz_id: int, duty_rules: Optional[List[int]]):
         """
         导出告警组配置
         """
         # 如果action_ids是None就查询全量数据，如果是空就不查询，否则按列表过滤
         duty_rule_queryset = DutyRule.objects.filter(bk_biz_id=bk_biz_id)
+        if duty_rules is []:
+            # 如果duty rule为一个空列表，表示没有需要导出的
+            return
+        if duty_rules:
+            duty_rule_queryset = duty_rule_queryset.filter(id__in=duty_rule_queryset)
+
         # 配置生成
         duty_configs = []
         for duty_rule in duty_rule_queryset:
@@ -419,12 +426,14 @@ class ExportConfigFileResource(ExportConfigResource):
         action_ids = None
         dashboard_uids = None
         assign_group_ids = None
+        duty_rules = None
 
         if rule_ids:
             notice_group_ids = []
             action_ids = []
             dashboard_uids = []
             assign_group_ids = []
+            duty_rules = []
 
         # 查询关联配置
         if all([rule_ids, assign_group_ids, params.get("with_related_config")]):
@@ -442,6 +451,12 @@ class ExportConfigFileResource(ExportConfigResource):
 
             notice_group_ids = list(set(notice_group_ids))
             action_ids = list(set(action_ids))
+            if notice_group_ids:
+                duty_rules = list(
+                    DutyRuleRelation.objects.filter(user_group_id__in=notice_group_ids).values_list(
+                        "duty_rule_id", flat=True
+                    )
+                )
 
         configs = {
             "rule": self.export_rules(bk_biz_id, rule_ids),
@@ -449,7 +464,7 @@ class ExportConfigFileResource(ExportConfigResource):
             "action": self.export_actions(bk_biz_id, action_ids),
             "grafana": self.export_dashboard(bk_biz_id, dashboard_uids, params["dashboard_for_external"]),
             "assign_group": self.export_assign_groups(bk_biz_id, assign_group_ids),
-            "duty": self.export_duties(bk_biz_id),
+            "duty": self.export_duties(bk_biz_id, duty_rules),
         }
 
         # 压缩包制作
