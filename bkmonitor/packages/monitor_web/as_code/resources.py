@@ -203,17 +203,12 @@ class ExportConfigResource(Resource):
             yield path, filename, yaml.dump(parser.unparse(user_group_config), allow_unicode=True)
 
     @classmethod
-    def export_duties(cls, bk_biz_id: int, duty_rules: Optional[List[int]]):
+    def export_duties(cls, bk_biz_id: int):
         """
         导出告警组配置
         """
         # 如果action_ids是None就查询全量数据，如果是空就不查询，否则按列表过滤
         duty_rule_queryset = DutyRule.objects.filter(bk_biz_id=bk_biz_id)
-        if duty_rules is not None:
-            if not duty_rules:
-                return
-            duty_rule_queryset = duty_rule_queryset.filter(id__in=duty_rules)
-
         # 配置生成
         duty_configs = []
         for duty_rule in duty_rule_queryset:
