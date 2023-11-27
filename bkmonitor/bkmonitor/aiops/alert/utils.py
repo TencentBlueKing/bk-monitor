@@ -26,6 +26,7 @@ from constants.strategy import SPLIT_DIMENSIONS
 from core.drf_resource import api
 from core.errors.alert import AIOpsFunctionAccessedError, AIOpsResultError
 from core.errors.api import BKAPIError
+from core.unit import load_unit
 
 logger = logging.getLogger("bkmonitor")
 
@@ -127,8 +128,8 @@ class AIOPSManager(object):
         }
 
         if (
-                query_config["data_source_label"],
-                query_config["data_type_label"],
+            query_config["data_source_label"],
+            query_config["data_type_label"],
         ) in cls.AVAILABLE_DATA_LABEL:
             for query_config in item["query_configs"]:
                 raw_query_config = query_config.get("raw_query_config", {})
@@ -317,7 +318,7 @@ class DimensionDrillManager(AIOPSManager):
             for dimension in metric.dimensions:
                 # 如果某个维度在过滤条件里，则不对该维度进行下钻
                 if dimension.get("is_dimension", True) and dimension["id"] not in chain(
-                        src_group_bys, SPLIT_DIMENSIONS
+                    src_group_bys, SPLIT_DIMENSIONS
                 ):
                     group_bys.append(dimension["id"])
 
@@ -447,7 +448,7 @@ class RecommendMetricManager(AIOPSManager):
         }
 
     def generate_recommended_metric_panels(
-            self, alert: AlertDocument, graph_panel: Dict, recommended_results: Dict
+        self, alert: AlertDocument, graph_panel: Dict, recommended_results: Dict
     ) -> List[Dict]:
         """生成推荐指标的图表配置.
 
@@ -585,3 +586,40 @@ class RecommendMetricManager(AIOPSManager):
         recommended_metrics = list(recommended_metrics.values())
 
         return recommended_metrics
+
+
+def parse_anomaly(anomaly_str, config):
+    """
+    解析异常数据，数据源格式：
+    [[指标名, 数值, 异常得分]]
+    [["system__net__speed_recv", 2812154.0, 0.979932],...]
+    """
+
+    def setup_metric_info(metric_name):
+        return {"name": metric_name, "metric_id": metric_name, "unit": ""}
+
+    anomalies = json.loads(anomaly_str)
+    # 策略配置信息转字典
+    metric_map = {m["metric_name"]: m for m in config["metrics"]} if config and "metrics" in config else {}
+    result = []
+    # 获取指标中文名称
+    for item in anomalies:
+        metric_name = item[0].replace("__", ".")
+        metric_info = metric_map[metric_name] if metric_name in metric_map else setup_metric_info(metric_name)
+        # 转为标准metric_id
+        item[0] = metric_info["metric_id"]
+        # 异常得分只保留标准小数位
+        item[2] = round(item[2], settings.POINT_PRECISION)
+        # 数据单位转化
+        unit = load_unit(metric_info["unit"])
+        value, suffix = unit.fn.auto_convert(item[1], decimal=settings.POINT_PRECISION)
+        item.append(f"{value}{suffix}")
+        # 添加指标名
+        item.append(metric_info["name"])
+        """
+        转化后格式：
+        [[指标名, 数值, 异常得分, 带单位的数值, 指标中文名]]
+        [["bk_monitor.system.net.speed_recv", 2812154.0, 0.9799, "2812154.0Kbs", "网卡入流量"],...]
+        """
+        result.append(item)
+    return result
