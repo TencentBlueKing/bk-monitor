@@ -18,7 +18,6 @@ import json
 from alarm_backends.core.cache.base import CacheManager
 from constants.data_source import DataSourceLabel
 from core.drf_resource import api
-from core.errors.api import BKAPIError
 
 
 class ResultTableCacheManager(CacheManager):
@@ -201,19 +200,11 @@ class ResultTableCacheManager(CacheManager):
 
     @classmethod
     def refresh(cls):
-        try:
-            apps = api.bk_paas.get_app_info(target_app_code="bk_dataweb,bk_log_search")
-            apps = [app["bk_app_code"] for app in apps]
-        except BKAPIError:
-            apps = ["bk_dataweb", "bk_log_search"]
-
         cls.refresh_metadata()
 
-        if "bk_dataweb" in apps:
-            cls.refresh_bkdata()
+        cls.refresh_bkdata()
 
-        if "bk_log_search" in apps:
-            cls.refresh_bklog()
+        cls.refresh_bklog()
 
 
 def main():

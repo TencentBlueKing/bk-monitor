@@ -127,6 +127,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               data: {
                 space_uid: this.spaceUid,
                 ...rest,
+                authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '')),
                 // eslint-disable-next-line camelcase
                 ...(expire_time ? { expire_time } : {}),
                 authorizer: this.authorizer,

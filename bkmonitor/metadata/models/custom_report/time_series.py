@@ -854,10 +854,20 @@ class TimeSeriesMetric(models.Model):
                         metric_obj.last_modify_time = datetime.datetime(1970, 1, 1)
                     else:
                         white_list_disabled_metric.append(metric_obj.field_id)
+
                 # 有效期内的维度直接覆盖
-                metric_obj.tag_list = tag_list
-                metric_obj.last_modify_time = last_modify_time
-                metric_obj.save()
+                # 判断是否需要保存操作
+                need_save_op = False
+                if set(metric_obj.tag_list or []) != set(tag_list):
+                    metric_obj.tag_list = tag_list
+                    need_save_op = True
+                # TODO: 还需要继续优化，先设置最后更新时间 1 天更新一次，减少对 db 的操作
+                if (last_modify_time - metric_obj.last_modify_time).days >= 1:
+                    metric_obj.last_modify_time = last_modify_time
+                    need_save_op = True
+                if need_save_op:
+                    metric_obj.save()
+
                 # 后续可以在此处追加其他修改内容
                 logger.info(
                     "time_series_group_id->[{}] has update field_name->[{}] all tags->[{}]".format(
@@ -867,16 +877,6 @@ class TimeSeriesMetric(models.Model):
 
         if white_list_disabled_metric:
             cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
-
-        # 判断是否存在需要删除的字段，仅在自动发现模式下需要
-        if is_auto_discovery:
-            need_delete_query = cls.objects.filter(group_id=group_id).exclude(field_name__in=field_name_list)
-            if need_delete_query.exists():
-                deleted_field_list = list(need_delete_query.values_list("field_name", flat=True))
-                need_delete_query.update(last_modify_time=datetime.datetime(1970, 1, 1))
-                logger.info(
-                    "time_series_group_id->[{}] has delete field_name->[{}]".format(group_id, deleted_field_list)
-                )
 
         return is_updated
 
