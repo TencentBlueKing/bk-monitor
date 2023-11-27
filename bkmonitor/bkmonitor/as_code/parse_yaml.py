@@ -934,6 +934,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
             "version": MaxVersion.USER_GROUP,
             "action": {},
             "alert": {},
+            "duty_rules": [],
         }
 
         if config["mention_list"]:
@@ -1000,6 +1001,9 @@ class NoticeGroupConfigParser(BaseConfigParser):
             notice_group["users"] = []
             for user in config["duty_arranges"][0]["users"]:
                 notice_group["users"].append(f"group#{user['id']}" if user["type"] == "group" else user["id"])
+        notice_group["duty_rules"] = [
+            self.reverse_duty_rules[duty_id] for duty_id in config["duty_rules"] if duty_id in self.reverse_duty_rules
+        ]
         return notice_group
 
     def check(self, config: Dict) -> Dict:
