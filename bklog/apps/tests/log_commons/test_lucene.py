@@ -396,7 +396,10 @@ FULL_CHECK_TEST_CASES = [
         "check_result": {
             "is_legal": False,
             "is_resolved": False,
-            "message": """字段id_1不存在,字段id无查询内容,引号不匹配,缺少 )""",
+            "message": (
+                """字段id_1不存在,字段id无查询内容,引号不匹配,缺少 ), 你可能想输入: log: ("INFO" AND (a OR b """
+                """AND c OR "d" AND id: AND id_1: 1))"""
+            ),
             "keyword": """log: ("INFO" AND (a OR b AND c OR "d" AND id: AND id_1: 1))""",
         },
     },

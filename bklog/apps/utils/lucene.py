@@ -1327,15 +1327,20 @@ class LuceneChecker(object):
         return False
 
     def resolve(self):
+        is_legal = True
         is_resolved = False
         for __ in range(MAX_RESOLVE_TIMES):
             if self.inspect():
                 is_resolved = True
                 break
-        self.messages = list(set(self.messages))
+        if self.messages:
+            is_legal = False
+        self.messages = ",".join(sorted(list(set(self.messages))))
+        if not is_legal:
+            self.messages = self.messages + _(", 你可能想输入: ") + self.query_string
         return {
-            "is_legal": False if self.messages else True,
+            "is_legal": is_legal,
             "is_resolved": is_resolved,
-            "message": ",".join(sorted(self.messages)),
+            "message": self.messages,
             "keyword": self.query_string,
         }
