@@ -1215,17 +1215,17 @@ class DutyRuleParser(BaseConfigParser):
         parsed_config = {
             "category": config["category"],
             "effective_time": config["effective_time"],
-            "end_time": config["end_time"],
             "enabled": config["enabled"],
             "labels": config["labels"],
             "name": config["name"],
             "arranges": [],
         }
+        if config["end_time"]:
+            parsed_config["end_time"] = config["end_time"]
         config["arranges"] = []
         for duty_arrange in config.pop("duty_arranges", []):
             #     反向解析
-            arrange = {}
-            arrange["time"] = []
+            arrange = {"time": [], "users": []}
             for time_item in duty_arrange.pop("duty_time", []):
                 time_type = time_item.get("work_time_type", "time_range")
                 work = {
