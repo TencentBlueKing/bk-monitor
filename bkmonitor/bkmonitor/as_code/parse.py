@@ -569,12 +569,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: Dict[str, str], overwr
     # 配置转换及检查
     # 轮值规则
     duty_records = convert_duty_rules(
-        bk_biz_id=bk_biz_id,
-        app=app,
-        snippets=duty_snippets,
-        configs=duty_configs,
-        overwrite=overwrite,
-        notice_configs=notice_configs,
+        bk_biz_id=bk_biz_id, app=app, snippets=duty_snippets, configs=duty_configs, overwrite=overwrite
     )
     errors: Dict[str, str] = get_errors(duty_records)
     if errors:
