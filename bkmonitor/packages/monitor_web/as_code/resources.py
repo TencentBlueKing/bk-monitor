@@ -26,12 +26,12 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
-from monitor_web.grafana.utils import get_org_id
 
 from api.grafana.exporter import DashboardExporter
 from bkmonitor.action.serializers import (
     ActionConfigDetailSlz,
     AssignRuleSlz,
+    DutyRuleDetailSlz,
     UserGroupDetailSlz,
 )
 from bkmonitor.action.utils import get_assign_rule_related_resource_dict
@@ -39,6 +39,7 @@ from bkmonitor.as_code.parse import import_code_config
 from bkmonitor.as_code.parse_yaml import (
     ActionConfigParser,
     AssignGroupRuleParser,
+    DutyRuleParser,
     NoticeGroupConfigParser,
     StrategyConfigParser,
 )
@@ -47,6 +48,7 @@ from bkmonitor.models import (
     ActionPlugin,
     AlertAssignGroup,
     AlertAssignRule,
+    DutyRule,
     StrategyActionConfigRelation,
     StrategyModel,
     UserGroup,
@@ -56,6 +58,7 @@ from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
+from monitor_web.grafana.utils import get_org_id
 
 logger = logging.getLogger("monitor_web")
 
@@ -198,6 +201,36 @@ class ExportConfigResource(Resource):
                 filename = f"{name}.yaml"
 
             yield path, filename, yaml.dump(parser.unparse(user_group_config), allow_unicode=True)
+
+    @classmethod
+    def export_duties(cls, bk_biz_id: int, duty_rules: Optional[List[int]]):
+        """
+        导出告警组配置
+        """
+        # 如果action_ids是None就查询全量数据，如果是空就不查询，否则按列表过滤
+        duty_rule_queryset = DutyRule.objects.filter(bk_biz_id=bk_biz_id)
+        if duty_rules is not None:
+            if not duty_rules:
+                return
+            duty_rule_queryset = duty_rule_queryset.filter(id__in=duty_rules)
+
+        # 配置生成
+        duty_configs = []
+        for duty_rule in duty_rule_queryset:
+            duty_configs.append(DutyRuleDetailSlz(duty_rule).data)
+
+        # 转换为AsCode配置
+        parser = DutyRuleParser(bk_biz_id=bk_biz_id)
+        for config in duty_configs:
+            name = config["name"].replace("/", "-")
+
+            if config["path"]:
+                path, filename = os.path.split(config["path"])
+            else:
+                path = ""
+                filename = f"{name}.yaml"
+
+            yield path, filename, yaml.dump(parser.unparse(config), allow_unicode=True)
 
     @classmethod
     def export_actions(cls, bk_biz_id: int, action_ids: Optional[List[int]]):
@@ -421,6 +454,7 @@ class ExportConfigFileResource(ExportConfigResource):
             "action": self.export_actions(bk_biz_id, action_ids),
             "grafana": self.export_dashboard(bk_biz_id, dashboard_uids, params["dashboard_for_external"]),
             "assign_group": self.export_assign_groups(bk_biz_id, assign_group_ids),
+            "duty": self.export_duties(bk_biz_id),
         }
 
         # 压缩包制作
