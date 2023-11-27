@@ -36,10 +36,12 @@ import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exc
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
+import ProfilingGraph from '../../plugins/charts/profiling-graph/profiling-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
+import { useAppStore } from '../../store/modules/app';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
@@ -69,7 +71,7 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Index: {}
 };
 
-type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index';
+type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index' | 'Profiling';
 export default defineComponent({
   name: 'SpanDetails',
   props: {
@@ -105,6 +107,10 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
+
+    const ellipsisDirection = computed(() => store.ellipsisDirection);
+
+    const bizId = computed(() => useAppStore().bizId || 0);
 
     const countOfInfo = ref<Record<TabName, number> | {}>({});
 
@@ -816,6 +822,10 @@ export default defineComponent({
       {
         label: window.i18n.t('主机'),
         name: 'Host'
+      },
+      {
+        label: window.i18n.t('性能分析'),
+        name: 'Profiling'
       }
       // 20230525 这期暂时不需要
       // {
@@ -1137,6 +1147,25 @@ export default defineComponent({
                             ></FlexDashboardPanel>
                           </div>
                         )}
+                      </Loading>
+                    )
+                  }
+                  {
+                    // 火焰图 部分
+                    activeTab.value === 'Profiling' && (
+                      <Loading
+                        loading={isTabPanelLoading.value}
+                        style='height: 100%;'
+                      >
+                        <ProfilingGraph
+                          appName={appName.value}
+                          profileId={originalData.value.span_id}
+                          start={originalData.value.start_time}
+                          end={originalData.value.end_time}
+                          bizId={bizId.value}
+                          textDirection={ellipsisDirection.value}
+                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                        />
                       </Loading>
                     )
                   }
