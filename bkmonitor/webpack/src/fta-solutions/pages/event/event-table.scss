@@ -274,6 +274,35 @@ $statusColors: #ea3635 #ff9c00 #699df4;
     color: #3a84ff;
     cursor: pointer;
   }
+
+  .bk-table-body-wrapper {
+    &::-webkit-scrollbar {
+      height: 0;
+    }
+
+    &:hover {
+      &::-webkit-scrollbar {
+        height: 8px;
+      }
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: #979ba5; 
+      background-clip: padding-box;
+      border-color: transparent;
+      border-style: dashed;
+      border-width: 2px;
+      border-radius: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: #979ba5;
+    }
+
+    &::-webkit-scrollbar-track:hover {
+      background: #f1f0f5;
+    }
+  }
 }
 
 .event-table-setting {
