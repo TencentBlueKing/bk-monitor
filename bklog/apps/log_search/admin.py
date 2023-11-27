@@ -35,6 +35,7 @@ from apps.log_search.models import (
     UserMetaConf,
     Space,
     SpaceType,
+    StorageClusterRecord,
 )
 
 
@@ -207,3 +208,9 @@ class EmailTemplateAdmin(AppModelAdmin):
 class UserMetaConfAdmin(AppModelAdmin):
     list_display = ["username", "conf", "type"]
     search_fields = ["username"]
+
+
+@admin.register(StorageClusterRecord)
+class StorageClusterRecordAdmin(AppModelAdmin):
+    list_display = ["index_set_id", "storage_cluster_id"]
+    search_fields = ["index_set_id", "created_by"]

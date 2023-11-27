@@ -30,6 +30,7 @@ from apps.log_search.constants import (
     FavoriteGroupType,
     FavoriteListOrderType,
     FavoriteVisibleType,
+    IndexSetType,
 )
 from apps.log_search.exceptions import (
     FavoriteAlreadyExistException,
@@ -75,25 +76,48 @@ class FavoriteHandler(object):
     def retrieve(self) -> dict:
         """收藏详情"""
         result = model_to_dict(self.data)
-        if LogIndexSet.objects.filter(index_set_id=result["index_set_id"]).exists():
-            result["is_active"] = True
-            result["index_set_name"] = LogIndexSet.objects.get(index_set_id=result["index_set_id"]).index_set_name
+        if result["index_set_type"] == IndexSetType.UNION.value:
+            active_index_set_id_dict = {
+                i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
+                for i in LogIndexSet.objects.filter(index_set_id__in=result["index_set_ids"]).values(
+                    "index_set_id", "index_set_name", "is_active"
+                )
+            }
+            is_actives = []
+            index_set_names = []
+            for index_set_id in result["index_set_ids"]:
+                if active_index_set_id_dict.get(index_set_id):
+                    is_actives.append(active_index_set_id_dict[index_set_id]["is_active"])
+                    index_set_names.append(active_index_set_id_dict[index_set_id]["index_set_name"])
+                else:
+                    is_actives.append(False)
+                    index_set_names.append(INDEX_SET_NOT_EXISTED)
+            result["is_actives"] = is_actives
+            result["index_set_names"] = index_set_names
         else:
-            result["is_active"] = False
-            result["index_set_name"] = INDEX_SET_NOT_EXISTED
+            if LogIndexSet.objects.filter(index_set_id=result["index_set_id"]).exists():
+                result["is_active"] = True
+                result["index_set_name"] = LogIndexSet.objects.get(index_set_id=result["index_set_id"]).index_set_name
+            else:
+                result["is_active"] = False
+                result["index_set_name"] = INDEX_SET_NOT_EXISTED
 
         result["query_string"] = generate_query_string(self.data.params)
         result["created_at"] = result["created_at"]
         result["updated_at"] = result["updated_at"]
         return result
 
-    def list_group_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
+    def list_group_favorites(
+        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
+    ) -> list:
         """收藏栏分组后且排序后的收藏列表"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
         # 将收藏分组
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
+        )
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
             favorites_by_group[favorite["group_id"]].append(favorite)
@@ -107,12 +131,16 @@ class FavoriteHandler(object):
             for group in groups
         ]
 
-    def list_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
+    def list_favorites(
+        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
+    ) -> list:
         """管理界面列出根据name A-Z排序的所有收藏"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
+        )
         return [
             {
                 "id": fi["id"],
@@ -148,6 +176,8 @@ class FavoriteHandler(object):
         display_fields: list,
         index_set_id: int = None,
         group_id: int = None,
+        index_set_ids: list = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ) -> dict:
         # 构建params
         params = {"ip_chooser": ip_chooser, "addition": addition, "keyword": keyword, "search_fields": search_fields}
@@ -199,6 +229,8 @@ class FavoriteHandler(object):
                 visible_type=visible_type,
                 is_enable_display_fields=is_enable_display_fields,
                 display_fields=display_fields,
+                index_set_ids=index_set_ids,
+                index_set_type=index_set_type,
             )
 
         return model_to_dict(self.data)

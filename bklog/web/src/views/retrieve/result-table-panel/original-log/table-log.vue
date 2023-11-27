@@ -309,11 +309,6 @@ export default {
 
       .original-str,
       .visiable-field {
-        .cell {
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 12px 14px 0 14px;
-        }
-
         .str-content {
           position: relative;
           line-height: 20px;
@@ -324,10 +319,6 @@ export default {
         }
 
         &.is-wrap {
-          .cell {
-            padding: 12px 14px 8px;
-          }
-
           .str-content {
             display: block;
             overflow: hidden;
@@ -381,6 +372,14 @@ export default {
         .hide-whole-btn {
           margin-top: 4px;
         }
+
+        .cell {
+          padding: 10px 14px 0 14px;
+        }
+
+        &.is-wrap .cell {
+          padding: 10px 14px 8px;
+        }
       }
 
       td.bk-table-expanded-cell {
@@ -405,6 +404,10 @@ export default {
           &.is-limit {
             max-height: 74px;
           }
+        }
+
+        .cell {
+          padding: 12px 14px 0 14px;
         }
 
         &.is-wrap .cell {
