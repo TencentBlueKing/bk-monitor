@@ -190,8 +190,14 @@ class ExportConfigResource(Resource):
         for user_group in user_groups:
             user_group_configs.append(UserGroupDetailSlz(user_group).data)
 
+        # 查询关联告警组相关的轮值规则
+        duty_rules_ids = {}
+        duty_rules = DutyRule.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
+        for duty_rule in duty_rules:
+            duty_rules_ids[duty_rule.name] = duty_rule.id
+
         # 转换为AsCode配置
-        parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id)
+        parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules_ids)
         for user_group_config in user_group_configs:
             name = user_group_config["name"].replace("/", "-")
 
