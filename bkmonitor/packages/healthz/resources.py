@@ -16,12 +16,12 @@ import arrow
 from django.conf import settings
 from django.forms.models import model_to_dict
 from django.utils.translation import ugettext as _
-from healthz.utils import deep_parsing_metric_info, get_saas_healthz
 
 from bkmonitor.models import GlobalConfig, HealthzMetricConfig, HealthzMetricRecord
 from bkmonitor.views import serializers
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
+from healthz.utils import deep_parsing_metric_info, get_saas_healthz
 
 from .utils import (
     BkdataHealthzChecker,
@@ -260,13 +260,8 @@ class BkDataTestRootApiResource(ApiTestRootApiResource):
 
     def perform_request(self, validated_request_data):
         api_name = validated_request_data["api_name"]
-        try:
-            apps = api.bk_paas.get_app_info(target_app_code="bk_dataweb")
-        except Exception:
-            apps = []
-        apps = [app["bk_app_code"] for app in apps]
-        status, message, args, result = (True, "OK", {}, {"data": _("计算平台未安装")})
-        if "bk_dataweb" in apps or settings.IS_ACCESS_BK_DATA:
+        status, message, args, result = (True, "OK", {}, {"data": _("计算平台未接入")})
+        if settings.IS_ACCESS_BK_DATA:
             status, api_name, message, args, result = self._healthz_checker.test_root_api(api_name)
         return {"status": status, "api_name": api_name, "message": message, "args": args, "result": result}
 
