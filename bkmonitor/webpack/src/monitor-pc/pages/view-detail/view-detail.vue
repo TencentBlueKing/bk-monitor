@@ -159,11 +159,11 @@
                           class="table-item"
                           :style="tdIndex === 0 ? 'text-align: left' : ''"
                         >
-                          {{ item.value === null ? '--' : item.value }}
+                          {{ item?.value === null ? '--' : item.value }}
                           <img
-                            v-if="tdIndex > 0 && (item.max || item.min)"
+                            v-if="tdIndex > 0 && (item?.max || item?.min)"
                             class="item-max-min"
-                            :src="require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)"
+                            :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
                           >
                         </div>
                       </td>
@@ -684,8 +684,9 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
    * 导出csv文件
    */
   handleExportCsv() {
-    const csvString = transformTableDataToCsvStr(this.tableThArr.map(item => item.name), this.tableTdArr);
-    downCsvFile(csvString, this.viewConfig?.config?.title);
+    const csvList = this.tableTdArr.map(item => item.map(i => i.value).join(','))
+    csvList.unshift(this.tableThArr.map(item => item.name.replace(/,/gmi, '_')).join(','));
+    downCsvFile(csvList.join('\n'), this.viewConfig?.config?.title);
   }
   /**
    * 表格排序

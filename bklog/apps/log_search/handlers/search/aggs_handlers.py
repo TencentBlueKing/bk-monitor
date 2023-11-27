@@ -32,6 +32,7 @@ from apps.log_search.handlers.search.search_handlers_esquery import (
 )
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
+from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import (
     DTEVENTTIMESTAMP_MULTIPLICATOR,
     generate_time_range,
@@ -384,6 +385,45 @@ class AggsViewAdapter(object):
                 )
         return_data["aggs"] = self._del_empty_histogram(return_data["aggs"])
         return return_data
+
+    @staticmethod
+    def union_search_date_histogram(query_data: dict):
+        index_set_ids = query_data.get("index_set_ids", [])
+
+        # 多线程请求数据
+        multi_execute_func = MultiExecuteFunc()
+
+        for index_set_id in index_set_ids:
+            params = {"index_set_id": index_set_id, "query_data": query_data}
+            multi_execute_func.append(
+                result_key=f"union_search_date_histogram_{index_set_id}",
+                func=AggsViewAdapter().date_histogram,
+                params=params,
+                multi_func_params=True,
+            )
+
+        multi_result = multi_execute_func.run()
+
+        buckets_info = dict()
+        # 处理返回结果
+        for index_set_id in index_set_ids:
+            result = multi_result.get(f"union_search_date_histogram_{index_set_id}", {})
+            aggs = result.get("aggs", {})
+            if not aggs:
+                continue
+            buckets = aggs["group_by_histogram"]["buckets"]
+            for bucket in buckets:
+                key_as_string = bucket["key_as_string"]
+                if key_as_string not in buckets_info:
+                    buckets_info[key_as_string] = bucket
+                else:
+                    buckets_info[key_as_string]["doc_count"] += bucket["doc_count"]
+
+        ret_data = (
+            {"aggs": {"group_by_histogram": {"buckets": buckets_info.values()}}} if buckets_info else {"aggs": {}}
+        )
+
+        return ret_data
 
     def _del_empty_histogram(self, aggs):
         """
