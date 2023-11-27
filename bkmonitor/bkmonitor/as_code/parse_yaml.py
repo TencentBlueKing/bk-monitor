@@ -1231,9 +1231,9 @@ class DutyRuleParser(BaseConfigParser):
                 work = {
                     "days": time_item.get("work_days", []),
                     "date_range": time_item.get("work_date_range", []),
-                    time_type: time_item.get(time_type, ""),
+                    time_type: time_item.get("work_time", []),
                 }
-                arrange_time = {"type": time_type, "work": work}
+                arrange_time = {"type": time_item.get("work_type", "daily"), "work": work}
                 if time_item.get("is_custom"):
                     arrange_time["is_custom"] = True
                 if time_item.get("period_settings"):
