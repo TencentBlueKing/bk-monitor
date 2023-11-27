@@ -1240,7 +1240,7 @@ class DutyRuleParser(BaseConfigParser):
                     arrange_time["period_settings"] = time_item["period_settings"]
                 arrange["time"].append(arrange_time)
             arrange["users"] = []
-            for user_list in duty_arrange.pop("users", []):
+            for user_list in duty_arrange.pop("duty_users", []):
                 arrange["users"].append(
                     [f"group#{user['id']}" if user["type"] == "group" else user["id"] for user in user_list]
                 )
