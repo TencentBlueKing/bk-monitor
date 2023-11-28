@@ -1489,9 +1489,17 @@ class DataFlowHandler(BaseAiopsHandler):
         filter_rule, not_clustering_rule = self._init_filter_rule(
             clustering_config.filter_rules, all_fields_dict, clustering_config.clustering_fields
         )
-        _, format_transform_fields = self._generate_fields(
-            [i.replace("`", "") for i in dst_transform_fields], clustering_field=clustering_fields
-        )
+
+        # alias_name ==> field_name
+        converted_fields = []
+        for field in dst_transform_fields:
+            for key, value in all_fields_dict.items():
+                if field == value:
+                    converted_fields.append(key)
+                    break
+        if DEFAULT_CLUSTERING_FIELD not in converted_fields:
+            converted_fields.append(DEFAULT_CLUSTERING_FIELD)
+        _, format_transform_fields = self._generate_fields(converted_fields, clustering_field=clustering_fields)
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
 
