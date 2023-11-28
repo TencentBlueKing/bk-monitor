@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const nodeCount = 20;
-const comboCount = 6;
+const nodeCount = 40;
+const comboCount = 3;
 export const enum NodeStatus {
   Normal = 'normal',
   Error = 'error',
@@ -101,7 +101,7 @@ const createCombos = () => {
     }
     return {
       id: `combo_${i}`,
-      label: `${status} ${i}`,
+      // label: `${status} ${i}`,
       status
     };
   });

@@ -1,3 +1,4 @@
+/* eslint-disable no-loop-func */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,9 +25,11 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
-import { Arrow, Graph, registerEdge, registerLayout, registerNode } from '@antv/g6';
+import { Arrow, Graph, registerCombo, registerEdge, registerLayout, registerNode } from '@antv/g6';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
+
+import ResourceGraph from '../resource-graph/resource-graph';
 
 import dbsvg from './db.svg';
 import httpSvg from './http.svg';
@@ -89,6 +92,7 @@ export default defineComponent({
   },
   setup() {
     const topoGraphRef = ref<HTMLDivElement>(null);
+    const graphRef = ref<HTMLDivElement>(null);
     let graph: Graph;
     const registerCustomNode = () => {
       registerNode('topo-node', {
@@ -270,15 +274,47 @@ export default defineComponent({
     };
     const registerCustomLayout = () => {
       registerLayout('topo-layout', {
+        executeX() {
+          // console.info('execute', this);
+          const { nodes, combos } = this;
+          const width = graph.getWidth();
+          const nodeSize = 52;
+          // const comboLableHeight = 40;
+          // const begin = nodeSize / 2 + comboLableHeight;
+          // const indexStep = Math.ceil(width / 500);
+          const nodeMargin = 30;
+          // const comboStatusValues = Object.values(ComboStatus);
+          const instanceCombos = combos.filter(item => item.status === ComboStatus.Instance);
+          let xCount = 0;
+          const yBegin = nodeSize / 2;
+          const xBegin = nodeSize / 2;
+          const padding = 16 * 2;
+          let totalWidth = 0;
+          instanceCombos.forEach(combo => {
+            const comboNodes = nodes.filter(node => node.comboId === combo.id);
+            const comboWidth = xBegin + comboNodes.length * (nodeSize + nodeMargin) + padding;
+            totalWidth += comboWidth;
+            if (totalWidth <= width) {
+              comboNodes.forEach((node, index) => {
+                node.x = xBegin + index * (nodeSize + nodeMargin);
+                node.y = yBegin + (xCount % 3) * (nodeSize + nodeMargin);
+                xCount += 1;
+              });
+              return;
+            }
+            xCount = 0;
+          });
+          debugger;
+        },
         execute() {
-          console.info('execute', this);
+          // console.info('execute', this);
           const { nodes, edges, combos } = this;
           const width = graph.getWidth();
-          const begin = 60;
+          const nodeSize = 46;
+          const comboLableHeight = 40;
+          const begin = nodeSize / 2 + comboLableHeight;
           const indexStep = Math.ceil(width / 500);
-          const comboMargin = 40;
           const nodeMargin = 40;
-          const nodeSize = 30;
           const comboStatusValues = Object.values(ComboStatus);
           combos.sort((a, b) => {
             const aStatus = comboStatusValues.indexOf(a.status);
@@ -313,23 +349,24 @@ export default defineComponent({
     };
     const handleResize = () => {
       if (!graph || graph.get('destroyed')) return;
-      const { width, height } = topoGraphRef.value.getBoundingClientRect();
+      const { width, height } = graphRef.value.getBoundingClientRect();
       graph.changeSize(width, Math.max(160 * topoData.combos.length, height));
       graph.render();
     };
     const onResize = debounce(300, handleResize);
     onMounted(() => {
-      const { width, height } = topoGraphRef.value.getBoundingClientRect();
-      registerCustomLayout();
+      const { width, height } = graphRef.value.getBoundingClientRect();
+      console.info('topo graph', width, height);
       registerCustomNode();
       registerCustomEdge();
+      registerCustomLayout();
       graph = new Graph({
-        container: 'topo-graph',
+        container: graphRef.value,
         width,
         height: Math.max(160 * topoData.combos.length, height),
-        // fitView: [20, 20] as any,
-        // fitView: false,
-        fitViewPadding: 16,
+        fitViewPadding: 0,
+        fitCenter: false,
+        fitView: false,
         minZoom: 0.00000001,
         groupByTypes: false,
         layout: {
@@ -371,12 +408,12 @@ export default defineComponent({
         },
         defaultCombo: {
           type: 'rect',
+          // padding: [8, 12],
           style: {
             fill: '#3A3B3D',
             radius: 6,
             stroke: '#3A3B3D'
           },
-          // size: [200, 100],
           labelCfg: {
             style: {
               fill: '#979BA5',
@@ -423,26 +460,6 @@ export default defineComponent({
       });
       graph.data(topoData);
       graph.render();
-      // setTimeout(() => {
-      //   // topoData.nodes.forEach((node, index) => {
-      //   //   node.x += Math.random() * 50 - 25;
-      //   //   node.y += Math.random() * 50 - 25;
-      //   // })
-      //   topoData.combos.forEach((node, index) => {
-      //     node.x += Math.random() * 50 - 25;
-      //     node.y += Math.random() * 50 - 25;
-      //   });
-      //   graph.updateCombos();
-      //   graph.changeData(topoData);
-      // }, 2000);
-      // graph.combo(combo => {
-      //   const { id } = combo;
-      //   const nodes = graph.findAll('node', node => {
-      //    return node.getModel().comboId === id
-      //   })
-      //   console.info(nodes, '--------')
-      //   // const nodes = combo.;
-      // })
       graph.on('node:mouseenter', e => {
         const nodeItem = e.item;
         graph.setItemState(nodeItem, 'hover', true);
@@ -461,13 +478,59 @@ export default defineComponent({
           return;
         }
       });
+      graph.on('afterlayout', () => {
+        // const combos = graph.getCombos();
+        // const instanceCombos = combos.filter(combo => combo.get('model').status === ComboStatus.Instance);
+        // let i = 0;
+        // while (i < instanceCombos.length) {
+        //   const combo = instanceCombos[i];
+        //   const { y } = combo.getModel();
+        //   const height = graph.getHeight();
+        //   const bbox = combo.getBBox();
+        //   const comboxHeight = height / combos.length;
+        //   const h = bbox.maxY - bbox.minY;
+        //   const sameRowCombo = instanceCombos.filter(combo => combo.getModel().y === y);
+        //   const w = graph.getWidth();
+        //   const totalWidth = instanceCombos.reduce((total, combo) => {
+        //     return total + combo.getBBox().width;
+        //   }, 0);
+        //   let totalX = 0;
+        //   sameRowCombo.forEach((instanceCombo, index) => {
+        //     const { width } = instanceCombo.getBBox();
+        //     const realWidth = (+width / totalWidth) * w;
+        //     graph.updateItem(instanceCombo, {
+        //       size: [realWidth, h],
+        //       x: totalX + 20
+        //     });
+        //     totalX += realWidth + 12;
+        //   });
+        //   debugger;
+        //   i += instanceCombos.length;
+        // }
+        // combos.forEach(combo => {
+        //   // 获取 Combo 中包含的节点和边的范围
+        //   const bbox = combo.getBBox();
+        //   const height = graph.getHeight();
+        //   const comboxHeight = height / combos.length;
+        //   const h = bbox.maxY - bbox.minY;
+        //   const w = graph.getWidth();
+        //   if (combo.get('model').status === ComboStatus.Instance) {
+        //     graph.updateItem(combo, {
+        //       size: [w, h],
+        //       x: w / 2
+        //     });
+        //     return;
+        //   }
+        // });
+      });
       addListener(topoGraphRef.value, onResize);
     });
     onUnmounted(() => {
       removeListener(topoGraphRef.value, onResize);
     });
     return {
-      topoGraphRef
+      topoGraphRef,
+      graphRef
     };
   },
   render() {
@@ -479,9 +542,11 @@ export default defineComponent({
           ref='topoGraphRef'
         >
           <div
+            ref='graphRef'
             class='topo-graph'
             id='topo-graph'
           />
+          <ResourceGraph />
         </div>
       </div>
     );
