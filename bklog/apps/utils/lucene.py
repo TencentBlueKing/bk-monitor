@@ -877,7 +877,7 @@ class LuceneCheckerBase(object):
         if not self.fields:
             return
         for field in self.fields:
-            field_name = field.get("field_name") if field.get("field_name") else field.get("field_alias")
+            field_name = field.get("field_name")
             if field.get("is_analyzed"):
                 self.analyzed_field_list.append(field_name)
             self.field_name_list.append(field_name)

@@ -695,8 +695,6 @@ class GenerateQuerySerializer(KeywordSerializer):
 
 class InspectFieldSerializer(serializers.Serializer):
     field_name = serializers.CharField(label=_("字段名称"), required=False, allow_null=True, allow_blank=True)
-    field_alias = serializers.CharField(label=_("别名"), required=False, allow_blank=True, allow_null=True)
-    field_type = serializers.CharField(label=_("类型"), required=False, allow_null=True, allow_blank=True)
     is_analyzed = serializers.BooleanField(label=_("是否分词"), required=False, default=False)
 
 
