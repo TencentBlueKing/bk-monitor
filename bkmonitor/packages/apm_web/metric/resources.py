@@ -141,7 +141,6 @@ class DynamicUnifyQueryResource(Resource):
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
 
     def perform_request(self, validate_data):
-
         unify_query_params = {
             **validate_data["unify_query_param"],
             "start_time": validate_data["start_time"],
@@ -856,7 +855,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             }
 
     def parse_errors(self, bk_biz_id, error_spans):
-
         # 获取service
         service_mappings = {
             i["topo_key"]: i for i in api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": self.app_name})
@@ -903,7 +901,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         filter_from_status = validated_data.get("status") == "has_stack"
 
         if filter_from_filter_dict or filter_from_status:
-
             res = []
             for item in data:
                 if True if item["message"]["is_stack"] == _lazy("有Stack") else False:
@@ -1083,7 +1080,6 @@ class EndpointDetailListResource(Resource):
         duration_all_count = sum([i.get("avg_duration") for i in endpoints_metric.values()])
 
         if validated_request_data["show_type"] == "topo":
-
             res = []
             for endpoint in endpoints:
                 service_name = endpoint["service_name"]
@@ -1359,6 +1355,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 id="error_rate",
                 name=_lazy("错误率"),
                 overview_calculate_handler=EndpointListResource.overview_error_rate,
+                color_getter=lambda _: "FAILED",
                 min_width=120,
             ),
             NumberTableFormat(
@@ -1804,7 +1801,6 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
         return ["instance_id"]
 
     def perform_request(self, validated_request_data):
-
         application = Application.objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         ).first()
