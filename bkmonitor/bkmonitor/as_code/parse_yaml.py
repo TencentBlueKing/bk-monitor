@@ -1109,6 +1109,8 @@ class AssignGroupRuleParser(BaseConfigParser):
 
     def unparse(self, config: Dict) -> Dict:
         # config -> yaml
+        # 原参数需要的path剔除
+        config.pop("path", "")
         for rule in config["rules"]:
             rule["user_groups"] = self.get_notice_group_names(rule["user_groups"])
             rule["enabled"] = rule.pop("is_enabled", False)
