@@ -308,8 +308,8 @@ def create_custom_log_group():
 
 
 @high_priority_task(ignore_result=True)
-def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id):
-    queryset = CollectorConfig.objects.filter(bcs_cluster_id=bcs_cluster_id, bk_app_code="")
+def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app_code="bk_bcs"):
+    queryset = CollectorConfig.objects.filter(bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code)
     if bk_biz_id:
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
     collectors = queryset.exclude(bk_app_code="bk_log_search").order_by("-updated_at")

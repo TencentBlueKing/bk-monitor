@@ -2024,9 +2024,9 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} bk_biz_id 所属业务ID
         @apiParam {Int} space_uid 所属空间唯一标识
         """
-        # auth_info = Permission.get_auth_info(request, raise_exception=False)
-        # if not auth_info:
-        #     raise BkJwtVerifyException()
+        auth_info = Permission.get_auth_info(request, raise_exception=False)
+        if not auth_info:
+            raise BkJwtVerifyException()
         data = self.params_valid(ListStorageClusterSerializer)
         return Response(StorageHandler().get_cluster_groups_filter(bk_biz_id=data["bk_biz_id"], enable_archive=False))
 
@@ -2048,7 +2048,7 @@ class CollectorViewSet(ModelViewSet):
         from apps.log_databus.tasks.collector import switch_storage_cluster
 
         switch_storage_cluster.delay(data=data, bk_app_code=auth_info["bk_app_code"])
-        return Response({"status": "switching"})
+        return Response({"status": "success"})
 
     @list_route(methods=["GET"], url_path="list_bcs_collector")
     def list_bcs_collector(self, request):
