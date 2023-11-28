@@ -93,7 +93,7 @@ class MultiExecuteFunc(object):
         self.task_list = []
         self.max_workers = max_workers
 
-    def append(self, result_key, func, params=None, use_request=True, multi_func_params=False, return_exception=False):
+    def append(self, result_key, func, params=None, use_request=True, multi_func_params=False):
         if result_key in self.results:
             raise ValueError(f"result_key: {result_key} is duplicate. Please rename it.")
         task = FuncThread(
@@ -104,11 +104,12 @@ class MultiExecuteFunc(object):
             use_request=use_request,
             multi_func_params=multi_func_params,
         )
-        self.task_list.append((task, return_exception))
+        self.task_list.append(task)
 
-    def run(self):
+    def run(self, return_exception=False):
+        params = [(task, return_exception) for task in self.task_list]
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            executor.map(executor_wrap, self.task_list)
+            executor.map(executor_wrap, params)
         return self.results
 
 

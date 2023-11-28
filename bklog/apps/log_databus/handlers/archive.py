@@ -287,10 +287,9 @@ class ArchiveHandler:
                     result_key=f"restore_{table_id}",
                     func=TransferApi.restore_result_table_snapshot,
                     params=params,
-                    return_exception=True,
                 )
 
-            multi_result = multi_execute_func.run()
+            multi_result = multi_execute_func.run(return_exception=True)
             # 构建批量创建参数列表
             bulk_create_params = list()
             for table_id in table_ids:
@@ -490,9 +489,8 @@ class ArchiveHandler:
                     result_key=f"modify_restore_result_table_snapshot_{meta_restore_id}",
                     func=TransferApi.modify_restore_result_table_snapshot,
                     params=params,
-                    return_exception=True,
                 )
-            multi_execute_result = multi_execute_func.run()
+            multi_execute_result = multi_execute_func.run(return_exception=True)
             for meta_restore_id in meta_restore_ids:
                 multi_result = multi_execute_result.get(f"modify_restore_result_table_snapshot_{meta_restore_id}", {})
                 if isinstance(multi_result, Exception):
