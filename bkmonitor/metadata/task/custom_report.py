@@ -142,7 +142,7 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
         logger.exception("refresh custom report config to colletor error: %s" % e)
 
 
-@share_lock(identify="metadata_refreshTimeSeriesMetrics")
+@share_lock(ttl=7200, identify="metadata_refreshTimeSeriesMetrics")
 def check_update_ts_metric():
     logger.info("check_update_ts_metric:start")
     s_time = time.time()
