@@ -84,7 +84,7 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
 )
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_username
+from apps.utils.local import get_request_external_username, get_request_username
 
 
 class SearchViewSet(APIViewSet):
@@ -475,7 +475,7 @@ class SearchViewSet(APIViewSet):
         {"a": "good", "b": {"c": ["d", "e"]}}
         {"a": "good", "b": {"c": ["d", "e"]}}
         """
-
+        request_user = get_request_external_username() or get_request_username()
         params = self.params_valid(SearchExportSerializer).get("export_dict")
         data = json.loads(params)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
@@ -522,6 +522,7 @@ class SearchViewSet(APIViewSet):
             end_time=data["end_time"],
             export_type=ExportType.SYNC,
             bk_biz_id=data["bk_biz_id"],
+            created_by=request_user,
         )
 
         # add user_operation_record

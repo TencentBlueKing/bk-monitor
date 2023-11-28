@@ -307,6 +307,9 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_EXPORT = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="export"
     )
+    SEARCH_VIEWSET_ASYNC_EXPORT = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="async_export"
+    )
     SEARCH_VIEWSET_GET_EXPORT_HISTORY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="SearchViewSet",
@@ -444,6 +447,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_CONTEXT,
         SEARCH_VIEWSET_TAILF,
         SEARCH_VIEWSET_EXPORT,
+        SEARCH_VIEWSET_ASYNC_EXPORT,
         SEARCH_VIEWSET_HISTORY,
         SEARCH_VIEWSET_GET_EXPORT_HISTORY,
         SEARCH_VIEWSET_CONFIG,

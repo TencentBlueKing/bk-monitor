@@ -1044,6 +1044,7 @@ class AsyncTask(OperateRecordModel):
     export_type = models.CharField(_("导出类型"), max_length=64, null=True, blank=True)
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
     completed_at = models.DateTimeField(_("任务完成时间"), null=True, blank=True)
+    source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
