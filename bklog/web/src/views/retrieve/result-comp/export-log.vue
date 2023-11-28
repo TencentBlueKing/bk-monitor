@@ -53,6 +53,7 @@
       theme="primary"
       header-position="left"
       ext-cls="async-export-dialog"
+      :width="getDialogWidth"
       :title="getDialogTitle"
       :mask-close="false"
       :ok-text="$t('下载')"
@@ -206,6 +207,9 @@ export default {
       if (this.selectFiledType === 'specify') return this.selectFiledList;
       if (this.selectFiledType === 'show') return this.visibleFields.map(item => item.field_name);
       return [];
+    },
+    getDialogWidth() {
+      return this.$store.getters.isEnLanguage ? '470' : '440';
     },
   },
   beforeDestroy() {
@@ -475,6 +479,11 @@ export default {
 
       .bk-button {
         margin-left: auto;
+        min-width: auto;
+      }
+
+      .bk-icon {
+        margin-top: 2px;
       }
     }
   }

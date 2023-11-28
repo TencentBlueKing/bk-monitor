@@ -949,8 +949,13 @@ export default {
           'activeTableTab', // 表格活跃的lab
           'clusterRouteParams', // 日志聚类参数
         ];
+        // 判断路由是否带有下载历史的检索的数据 如果有 则使用路由里的数据初始化
+        const routerQuery = this.$route.query;
+        const initRetrieveParams = routerQuery.routeParams
+          ? JSON.parse(decodeURIComponent(routerQuery.routeParams))
+          : routerQuery;
         for (const field of shouldCoverParamFields) {
-          const param = this.$route.query[field]; // 指定查询参数
+          const param = initRetrieveParams[field]; // 指定查询参数
           if (this.isInitPage) {
             if (param) {
               switch (field) {
@@ -1232,6 +1237,8 @@ export default {
           }
         }
       }).filter(Boolean);
+      this.isSetDefaultTableColumn = false;
+      this.setDefaultTableColumn();
     },
     sessionShowFieldObj() { // 显示字段缓存
       const showFieldStr = sessionStorage.getItem('showFieldSession');
@@ -1245,7 +1252,8 @@ export default {
      */
     async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
       this.$store.commit('updateClearTableWidth', 1);
-      this.initVisibleFields(displayFieldNames);
+      // requestFields已经更新过一次了展示了 不需要再更新
+      if (!isRequestFields) this.initVisibleFields(displayFieldNames);
       // 缓存展示字段
       const showFieldObj = this.sessionShowFieldObj();
       Object.assign(showFieldObj, { [this.indexId]: displayFieldNames });
