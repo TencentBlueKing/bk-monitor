@@ -1,3 +1,4 @@
+/* eslint-disable no-loop-func */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,12 +24,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, ref } from 'vue';
-import { Arrow, Graph, registerEdge, registerNode } from '@antv/g6';
+import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { Arrow, Graph, registerEdge, registerLayout, registerNode } from '@antv/g6';
+import { addListener, removeListener } from 'resize-detector';
+import { debounce } from 'throttle-debounce';
+
+import ResourceGraph from '../resource-graph/resource-graph';
 
 import dbsvg from './db.svg';
 import httpSvg from './http.svg';
-import topoData, { EdgeStatus, NodeStatus } from './topo-data';
+import topoData, { ComboStatus, EdgeStatus, NodeStatus } from './topo-data';
 import TopoTools from './topo-tools';
 
 import './failure-topo.scss';
@@ -87,6 +92,8 @@ export default defineComponent({
   },
   setup() {
     const topoGraphRef = ref<HTMLDivElement>(null);
+    const graphRef = ref<HTMLDivElement>(null);
+    let graph: Graph;
     const registerCustomNode = () => {
       registerNode('topo-node', {
         afterDraw(cfg, group) {
@@ -265,18 +272,104 @@ export default defineComponent({
         'line'
       );
     };
+    const registerCustomLayout = () => {
+      registerLayout('topo-layout', {
+        executeX() {
+          // console.info('execute', this);
+          const { nodes, combos } = this;
+          const width = graph.getWidth();
+          const nodeSize = 52;
+          // const comboLableHeight = 40;
+          // const begin = nodeSize / 2 + comboLableHeight;
+          // const indexStep = Math.ceil(width / 500);
+          const nodeMargin = 30;
+          // const comboStatusValues = Object.values(ComboStatus);
+          const instanceCombos = combos.filter(item => item.status === ComboStatus.Instance);
+          let xCount = 0;
+          const yBegin = nodeSize / 2;
+          const xBegin = nodeSize / 2;
+          const padding = 16 * 2;
+          let totalWidth = 0;
+          instanceCombos.forEach(combo => {
+            const comboNodes = nodes.filter(node => node.comboId === combo.id);
+            const comboWidth = xBegin + comboNodes.length * (nodeSize + nodeMargin) + padding;
+            totalWidth += comboWidth;
+            if (totalWidth <= width) {
+              comboNodes.forEach((node, index) => {
+                node.x = xBegin + index * (nodeSize + nodeMargin);
+                node.y = yBegin + (xCount % 3) * (nodeSize + nodeMargin);
+                xCount += 1;
+              });
+              return;
+            }
+            xCount = 0;
+          });
+          debugger;
+        },
+        execute() {
+          const { nodes, combos } = this;
+          const width = graph.getWidth();
+          const nodeSize = 46;
+          const comboLableHeight = 40;
+          const begin = nodeSize / 2 + comboLableHeight;
+          let totalWidth = 0;
+          let totalHeight = 0;
+          const nodeMargin = 40;
+          const maxColumnCount = 2;
+          const minComboHeight = 66 * maxColumnCount;
+          console.info('minComboHeight', minComboHeight);
+          const comboStatusValues = Object.values(ComboStatus);
+          combos.sort((a, b) => {
+            const aStatus = comboStatusValues.indexOf(a.status);
+            const bStatus = comboStatusValues.indexOf(b.status);
+            return aStatus - bStatus;
+          });
+          combos.forEach((combo, index) => {
+            const comboNodes = nodes.filter(node => node.comboId === combo.id);
+            const comboWidth = comboNodes.length * (nodeSize + nodeMargin) + 6;
+            const needNewRow = totalWidth !== 0 && totalWidth + comboWidth > width;
+            let xBegin = needNewRow ? 0 : totalWidth;
+            let yBegin = needNewRow ? totalHeight + minComboHeight : totalHeight;
+            let nodeStep = nodeMargin + nodeSize;
+            let yStep = nodeMargin;
+            const isSpecial = [ComboStatus.Host, ComboStatus.DataCenter].includes(combo.status);
+            if (isSpecial) {
+              yBegin = totalHeight + minComboHeight;
+              xBegin = 0;
+              nodeStep = width / comboNodes.length;
+              yStep = nodeMargin;
+            }
+            comboNodes.forEach((node, index) => {
+              node.x = xBegin + index * nodeStep + begin;
+              node.y = yBegin + (index % maxColumnCount) * yStep + begin;
+            });
+            totalWidth = needNewRow ? comboWidth : totalWidth + comboWidth;
+            totalHeight = yBegin;
+          });
+        }
+      });
+    };
+    const handleResize = () => {
+      if (!graph || graph.get('destroyed')) return;
+      const { width, height } = graphRef.value.getBoundingClientRect();
+      graph.changeSize(width, Math.max(160 * topoData.combos.length, height));
+      graph.render();
+    };
+    const onResize = debounce(300, handleResize);
     onMounted(() => {
-      const { width, height } = topoGraphRef.value.getBoundingClientRect();
+      const { width, height } = graphRef.value.getBoundingClientRect();
+      console.info('topo graph', width, height);
       registerCustomNode();
       registerCustomEdge();
-      const graph = new Graph({
-        container: 'topo-graph',
+      registerCustomLayout();
+      graph = new Graph({
+        container: graphRef.value,
         width,
         height: Math.max(160 * topoData.combos.length, height),
-        // fitView: [20, 20] as any,
-        fitView: true,
-        fitViewPadding: 16,
-        // minZoom: 1,
+        fitViewPadding: 0,
+        fitCenter: false,
+        fitView: false,
+        minZoom: 0.00000001,
         groupByTypes: false,
         layout: {
           // type: 'comboForce',
@@ -286,7 +379,7 @@ export default defineComponent({
           // // collideStrength: 1,
           // comboSpacing: () => 100,
           // preventComboOverlap: true,
-          // preventNodeOverlap: true
+          // preventNodeOverlap: true,
 
           // // center: [ 0, 0 ],     // 可选，默认为图的中心
           // // linkDistance: 1050,         // 可选，边长
@@ -299,12 +392,13 @@ export default defineComponent({
           // gpuEnabled: true,
           // type: 'grid',
 
-          type: 'dagre',
-          rankdir: 'LR',
-          align: 'UL',
-          nodesep: 10,
-          ranksep: 10,
-          sortByCombo: true
+          // type: 'dagre',
+          type: 'topo-layout'
+          // rankdir: 'LR',
+          // align: 'UL',
+          // nodesep: 10,
+          // ranksep: 10,
+          // sortByCombo: true
         },
         defaultNode: {
           type: 'circle',
@@ -316,12 +410,12 @@ export default defineComponent({
         },
         defaultCombo: {
           type: 'rect',
+          // padding: [10, 10],
           style: {
             fill: '#3A3B3D',
             radius: 6,
             stroke: '#3A3B3D'
           },
-          // size: [200, 100],
           labelCfg: {
             style: {
               fill: '#979BA5',
@@ -330,7 +424,7 @@ export default defineComponent({
           }
         },
         modes: {
-          default: ['drag-combo', 'drag-node', 'drag-canvas']
+          default: ['drag-combo', 'drag-node', 'drag-canvas', 'zoom-canvas']
         }
       });
       graph.node(node => {
@@ -367,30 +461,6 @@ export default defineComponent({
         };
       });
       graph.data(topoData);
-      // graph.on('afterlayout', () => {
-      //   graph.getCombos().forEach(combo => {
-      //     const comboModel = combo.getModel();
-      //     const nodeList = combo.getNodes();
-      //     nodeList.sort((a, b) => a.getModel().x - b.getModel().x);
-      //     const minX = nodeList[0].getModel().x;
-      //     const diffX = minX - 20;
-      //     nodeList.forEach(node => {
-      //       const nodeModel = node.getModel();
-      //       graph.updateItem(node, {
-      //         ...nodeModel,
-      //         x: nodeModel.x - diffX,
-      //         y: nodeModel.y
-      //       });
-      //     });
-      //     combo.updatePosition({
-      //       x: comboModel.x - diffX,
-      //       y: comboModel.y
-      //     });
-      //   });
-      //   setTimeout(() => {
-      //     graph.refreshPositions();
-      //   }, 100);
-      // });
       graph.render();
       graph.on('node:mouseenter', e => {
         const nodeItem = e.item;
@@ -410,10 +480,60 @@ export default defineComponent({
           return;
         }
       });
+      graph.on('afterlayout', () => {
+        const combos = graph.getCombos();
+        const instanceCombos = combos.filter(combo => combo.get('model').status === ComboStatus.Instance);
+        let i = 0;
+        let w = 0;
+        let minX = 0;
+        let maxX = 0;
+        while (i < instanceCombos.length) {
+          const combo = instanceCombos[i];
+          const bbox = combo.getBBox();
+          let totalWidth = 0;
+          const sameRowCombo = instanceCombos.filter(c => {
+            const model = c.getBBox();
+            if (model.y === bbox.y) {
+              totalWidth += model.width;
+              return true;
+            }
+            minX = !minX ? model.minX : Math.min(minX, model.minX);
+            maxX = !maxX ? model.maxX : Math.max(maxX, model.maxX);
+            return false;
+          });
+          w = Math.max(maxX, graph.getWidth());
+          let totalDiffX = 0;
+          //
+          sameRowCombo.forEach(instanceCombo => {
+            const { width } = instanceCombo.getBBox();
+            const realWidth = Math.min(w - 80, (width / totalWidth) * w - 22 * 3 + (sameRowCombo.length - 1) * 2);
+            graph.updateItem(instanceCombo, {
+              fixSize: [realWidth, 80],
+              x: realWidth / 2 + totalDiffX + Math.max(minX, 20) * 2
+            });
+            totalDiffX += realWidth + 52;
+          });
+          console.info('------------', w - 80, minX, maxX, totalDiffX);
+          i += Math.max(sameRowCombo.length, 1);
+        }
+        combos.forEach(combo => {
+          if ([ComboStatus.Host, ComboStatus.DataCenter].includes(combo.get('model').status)) {
+            graph.updateItem(combo, {
+              fixSize: [w - 80, 80],
+              x: w / 2 + minX / 4
+            });
+            return;
+          }
+        });
+      });
+      addListener(topoGraphRef.value, onResize);
     });
-
+    onUnmounted(() => {
+      removeListener(topoGraphRef.value, onResize);
+    });
     return {
-      topoGraphRef
+      topoGraphRef,
+      graphRef
     };
   },
   render() {
@@ -425,9 +545,11 @@ export default defineComponent({
           ref='topoGraphRef'
         >
           <div
+            ref='graphRef'
             class='topo-graph'
             id='topo-graph'
           />
+          <ResourceGraph />
         </div>
       </div>
     );

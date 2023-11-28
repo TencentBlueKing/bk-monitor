@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const nodeCount = 10;
-const comboCount = 5;
+const nodeCount = 36;
+const comboCount = 12;
 export const enum NodeStatus {
   Normal = 'normal',
   Error = 'error',
@@ -35,10 +35,10 @@ export const enum EdgeStatus {
   Include = 'include',
   Invoke = 'invoke'
 }
-export const enum ComboType {
-  Host = 'host',
-  Service = 'service',
-  Data = 'data'
+export const enum ComboStatus {
+  Instance = '服务',
+  Host = '主机',
+  DataCenter = '数据中心'
 }
 const createNodes = () => {
   return new Array(nodeCount).fill(0).map((_, i) => {
@@ -93,17 +93,16 @@ const createEdges = () => {
 };
 const createCombos = () => {
   return new Array(comboCount).fill(0).map((_, i) => {
-    if (i % 2 === 0) {
-      return {
-        id: `combo_${i}`,
-        label: `主机模块 ${i}`,
-        dataType: ComboType.Host
-      };
+    let status = ComboStatus.Instance;
+    if (i === comboCount - 2) {
+      status = ComboStatus.Host;
+    } else if (i === comboCount - 1) {
+      status = ComboStatus.DataCenter;
     }
     return {
       id: `combo_${i}`,
-      label: `服务模块 ${i}`,
-      dataType: ComboType.Service
+      label: `${status} ${i}`,
+      status
     };
   });
 };
