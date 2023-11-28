@@ -28,7 +28,7 @@ import { MetricType } from '../../strategy-config-set-new/typings';
 
 export const allDescription = [
   {
-    type: 'common',
+    type: 'time_series',
     title: window.i18n.tc('指标'),
     description: `${window.i18n.tc(
       '指标数据即时序数据。数据来源有：蓝鲸监控采集，自定义上报，计算平台，日志平台。'
@@ -45,8 +45,8 @@ export const allDescription = [
   },
   {
     type: 'log',
-    title: window.i18n.tc('日志关键字'),
-    description: `${window.i18n.tc('日志关键字即通过日志关键字匹配的数量进行告警，主要有两种')}\n${window.i18n.tc(
+    title: window.i18n.tc('日志'),
+    description: `${window.i18n.tc('日志即通过日志关键字匹配的数量进行告警，主要有两种')}\n${window.i18n.tc(
       '1） 来自日志平台的日志数据，通过ES Query语法查询的日志关键字告警能力。'
     )}\n${window.i18n.tc('2） 通过插件采集，在Client端进行日志关键字匹配产生事件进行上报。')}\n`
   },

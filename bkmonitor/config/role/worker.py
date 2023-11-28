@@ -148,7 +148,6 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.service.fta_action.tasks.check_timeout_actions", "* * * * *", "global"),
     # 定期清理mysql内半个月前的数据
     ("alarm_backends.service.fta_action.tasks.clear_mysql_action_data", "* * * * *", "global"),
-    ("bkmonitor.documents.tasks.rollover_indices", "*/10 * * * *", "global"),
     # mail_report 配置管理和告警接收人信息缓存
     ("alarm_backends.core.cache.mail_report", "*/30 * * * *", "global"),
     # apm topo discover: 每分钟触发，每次分片处理1/10应用
@@ -203,6 +202,8 @@ ACTION_TASK_CRONTAB = [
     ("alarm_backends.service.fta_action.tasks.generate_duty_plan_task", "* * * * *", "global"),
     # 定期处理demo任务
     ("alarm_backends.service.fta_action.tasks.dispatch_demo_action_tasks", "* * * * *", "global"),
+    # 定期进行告警索引轮转 隔天创建，时间稍微拉长一点，避免短时间任务堵塞的时候容易过期，导致创建不成功
+    ("bkmonitor.documents.tasks.rollover_indices", "*/24 * * * *", "global"),
 ]
 
 if os.getenv("DISABLE_METADATA_TASK") != "True":
