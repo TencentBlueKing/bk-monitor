@@ -370,8 +370,28 @@ export default {
     handleRetrieve($row) {
       const spaceUid = this.$store.state.spaceUid;
       const { log_index_set_id: indexSetID, search_dict: dict } = $row;
-      const params = encodeURIComponent(JSON.stringify({ ...dict }));
-      const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&retrieveParams=${params}`;
+      // 检索数据回填
+      const queryParamsStr = {};
+      for (const key in dict) {
+        switch (key) {
+          case 'keyword':
+          case 'start_time':
+          case 'end_time':
+          case 'time_range':
+            if (dict[key] !== '') {
+              queryParamsStr[key] = encodeURIComponent(dict[key]);
+            }
+            break;
+          case 'ip_chooser':
+          case 'addition':
+            queryParamsStr[key] = JSON.stringify(dict[key]);
+            break;
+          default:
+            break;
+        }
+      }
+      const params = encodeURIComponent(JSON.stringify(queryParamsStr));
+      const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&routeParams=${params}`;
       window.open(jumpUrl, '_blank');
     },
     /**
