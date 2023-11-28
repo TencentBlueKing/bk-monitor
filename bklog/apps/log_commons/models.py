@@ -412,8 +412,10 @@ class ExternalPermission(OperateRecordModel):
         if space_uid:
             permission_qs = permission_qs.filter(space_uid=space_uid)
         if view_type != ViewTypeEnum.RESOURCE.value:
+            permission_qs = permission_qs.order_by("-updated_at")
             permission_list = [
                 {
+                    "updated_at": permission.updated_at,
                     "authorized_user": permission.authorized_user,
                     "action_id": permission.action_id,
                     "resources": permission.resources,

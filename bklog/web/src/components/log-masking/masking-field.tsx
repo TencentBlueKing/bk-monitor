@@ -80,7 +80,10 @@ export default class MaskingField extends tsc<IProps> {
   @Prop({ type: Object, required: true }) collectData: any;
   /** 是否是采集项脱敏 */
   @Prop({ type: Boolean, default: true }) isIndexSetMasking: boolean;
-  @Prop({ type: String, required: true }) operateType: string;
+  /** 当前采集的操作类型 */
+  @Prop({ type: String, default: '' }) operateType: string;
+  /** 是否隐藏 原始日志的已同步条数 */
+  @Prop({ type: Boolean, default: false }) isHiddenSyncNum: boolean;
   @Ref('syncRuleTable') private readonly syncRuleTableRef: HTMLElement;
 
   /** 日志查询字符串 */
@@ -327,7 +330,7 @@ export default class MaskingField extends tsc<IProps> {
   /** 获取字段列表样式 */
   getFieldItemStyle(fieldItem: IFieldItem) {
     let heightNum = fieldItem.rules.length || 1;
-    if (fieldItem?.is_origin) heightNum += 1;
+    if (fieldItem?.is_origin && !this.isHiddenSyncNum) heightNum += 1;
     const backgroundColor = this.hoverFieldName === fieldItem.field_name ? '#F5F7FA' : '#FFF' ;
     return `height:${heightNum * 30 + 12}px; background: ${backgroundColor}`;
   }
@@ -1028,7 +1031,9 @@ export default class MaskingField extends tsc<IProps> {
         data: {
           logs: this.jsonParseList,
           field_configs: fieldConfigs,
-          text_fields: this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name),
+          text_fields: !this.isHiddenSyncNum
+            ? this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name)
+            : [],
         },
       });
       return res.data;
@@ -1120,7 +1125,9 @@ export default class MaskingField extends tsc<IProps> {
     return {
       space_uid: this.spaceUid,
       field_configs: fieldConfigs,
-      text_fields: this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name),
+      text_fields: !this.isHiddenSyncNum
+        ? this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name)
+        : [],
     };
   }
 
@@ -1348,7 +1355,7 @@ export default class MaskingField extends tsc<IProps> {
     };
 
     const getSyncNumDom = (fieldItem: IFieldItem) => {
-      if (fieldItem?.is_origin) {
+      if (fieldItem?.is_origin && !this.isHiddenSyncNum) {
         return <div class="preview-result sync-num">
                 <i18n class="sync-i18n" path="已同步 {0} 个脱敏结果"><span>{this.getSyncNum}</span></i18n>
                 <i class="bk-icon icon-info-circle-shape" v-bk-tooltips={{ content: this.$t('该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果'), width: 260 }}></i>
