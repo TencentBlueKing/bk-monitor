@@ -62,19 +62,6 @@ class BkPaaSAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return result.json()
 
 
-class GetAppInfoResource(BkPaaSAPIGWResource):
-    """
-    获取用户信息
-    """
-
-    action = "/get_app_info/"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        target_app_code = serializers.CharField(required=False, label="目标应用")
-        fields = serializers.CharField(required=False, label="目标字段")
-
-
 class GetAppClusterNamespaceResource(BkPaaSAPIGWResource):
     """获取蓝鲸应用对应的集群数据"""
 
