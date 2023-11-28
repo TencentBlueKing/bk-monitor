@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@blueking/bk-weweb": "0.0.22",
-    "@blueking/date-picker": "^0.0.64",
+    "@blueking/date-picker": "^0.0.66",
     "@blueking/ip-selector": "0.0.1-beta.134",
     "@blueking/paas-login": "0.0.6",
     "@blueking/user-selector": "^1.0.5-beta.2",
