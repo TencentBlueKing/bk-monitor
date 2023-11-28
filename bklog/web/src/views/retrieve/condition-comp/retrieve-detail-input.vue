@@ -245,6 +245,13 @@ export default {
         .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
         .map(item => item.field_name);
     },
+    /** 语法检查需要的字段信息 */
+    getCheckKeywordsFields() {
+      return this.totalFields.map(item => ({
+        field_name: item.field_name,
+        is_analyzed: item.is_analyzed,
+      }));
+    },
   },
   watch: {
     showDropdown(val) {
@@ -416,7 +423,10 @@ export default {
       if (keyword === '') keyword = '*';
       try {
         const { data } = await this.$http.request('favorite/checkKeywords', {
-          data: { keyword },
+          data: {
+            keyword,
+            fields: this.getCheckKeywordsFields,
+          },
         });
         this.isKeywordsError = !data.is_legal;
         this.keywordIsResolved = data.is_resolved;
