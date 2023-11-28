@@ -16,6 +16,7 @@ from django.db.models import Q
 
 from metadata import models
 from metadata.models.space.constants import EtlConfigs, MeasurementType, SpaceTypes
+from metadata.utils.db import filter_model_by_in_page
 
 
 def get_result_tables_by_data_ids(data_id_list: Optional[List] = None, table_id_list: Optional[List] = None) -> Dict:
@@ -129,12 +130,15 @@ def get_space_table_id_data_id(
         data_ids = data_ids - set(exclude_data_id_list)
 
     # 组装数据
-    return {
-        data["table_id"]: data["bk_data_id"]
-        for data in models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids).values(
-            "bk_data_id", "table_id"
-        )
-    }
+    # 采用分页过滤数据
+    _filter_data = filter_model_by_in_page(
+        model=models.DataSourceResultTable,
+        field_op="bk_data_id__in",
+        filter_data=data_ids,
+        value_func="values",
+        value_field_list=["bk_data_id", "table_id"],
+    )
+    return {data["table_id"]: data["bk_data_id"] for data in _filter_data}
 
 
 def get_measurement_type_by_table_id(table_ids: Set, table_list: List, table_id_data_id: Dict) -> Dict:
