@@ -15,7 +15,7 @@ LABEL = "application_check"
 NOT_EXIST_MSG = "query does not exist"
 
 # custom_report 限制上报大小
-BATCH_SIZE = 100
+BATCH_SIZE = 5000
 
 
 class ErrorEnum:
