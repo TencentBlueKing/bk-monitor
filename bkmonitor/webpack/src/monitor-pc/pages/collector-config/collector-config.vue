@@ -1014,9 +1014,15 @@ export default {
         update.data = data;
       }
     },
-    handleShowDetail({ id, name, status }) {
-      this.side.data = { id, name, status };
-      this.side.show = true;
+    handleShowDetail({ id /*  name, status */ }) {
+      // this.side.data = { id, name, status };
+      // this.side.show = true;
+      this.$router.push({
+        name: 'collect-config-detail',
+        params: {
+          id
+        }
+      });
     },
     handleChangeCollectName(id, name) {
       const curCollect = this.table.data.find(item => item.id === id);

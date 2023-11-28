@@ -44,6 +44,7 @@ interface IProps {
   value: TimeRangeType;
   type?: TimeRangeDisplayType;
   placement?: String;
+  defaultShortcuts?: typeof shortcuts;
 }
 interface IEvents {
   onChange: TimeRangeType;
@@ -54,6 +55,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'normal', type: String }) type: TimeRangeDisplayType; // 组件的样式类型
   @Prop({ default: 'bottom-end', type: String }) placement: String; // 参照组件库的date-picker
+  @Prop({ default: () => shortcuts, type: Array }) defaultShortcuts: IProps['defaultShortcuts']; // 默认时间快捷选项
 
   /** 本地值存储 */
   localValue: TimeRangeType = DEFAULT_TIME_RANGE;
@@ -71,7 +73,9 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   isPanelTimeRange = false;
 
   /** 时间快捷选项 */
-  shortcuts = shortcuts;
+  get shortcuts() {
+    return this.defaultShortcuts;
+  }
 
   /** 快捷选项映射表 */
   get shortcutsMap() {
@@ -257,43 +261,46 @@ export default class TimeRange extends tsc<IProps, IEvents> {
               <div>{this.timestamp[1]}</div>
             </div>
           </bk-popover>
-          <div
-            slot='header'
-            class='time-range-custom'
-            onMousedown={modifiers.stop(() => {})}
-          >
-            {customDescTpl('time-range-desc-left')}
-            {customDescTpl('time-range-desc-right')}
-            <i18n
-              path='从 {0} 至 {1}'
-              tag={false}
+          {this.$slots.header || (
+            <div
+              slot='header'
+              class='time-range-custom'
+              onMousedown={modifiers.stop(() => {})}
             >
-              <bk-input
-                class='custom-input'
-                v-model={this.localValue[0]}
-                v-bk-tooltips={{
-                  allowHtml: true,
-                  theme: 'light',
-                  content: '#time-range-desc-left',
-                  placement: 'bottom'
-                }}
-                onInput={() => this.handleCustomInput(0)}
-                clearable
-              />
-              <bk-input
-                class='custom-input'
-                v-model={this.localValue[1]}
-                v-bk-tooltips={{
-                  allowHtml: true,
-                  theme: 'light',
-                  content: '#time-range-desc-right',
-                  placement: 'bottom'
-                }}
-                onInput={() => this.handleCustomInput(1)}
-                clearable
-              />
-            </i18n>
-          </div>
+              {customDescTpl('time-range-desc-left')}
+              {customDescTpl('time-range-desc-right')}
+              <i18n
+                path='从 {0} 至 {1}'
+                tag={false}
+              >
+                <bk-input
+                  class='custom-input'
+                  v-model={this.localValue[0]}
+                  v-bk-tooltips={{
+                    allowHtml: true,
+                    theme: 'light',
+                    content: '#time-range-desc-left',
+                    placement: 'bottom'
+                  }}
+                  onInput={() => this.handleCustomInput(0)}
+                  clearable
+                />
+                <bk-input
+                  class='custom-input'
+                  v-model={this.localValue[1]}
+                  v-bk-tooltips={{
+                    allowHtml: true,
+                    theme: 'light',
+                    content: '#time-range-desc-right',
+                    placement: 'bottom'
+                  }}
+                  onInput={() => this.handleCustomInput(1)}
+                  clearable
+                />
+              </i18n>
+            </div>
+          )}
+
           <div
             slot='footer'
             class='time-range-footer'

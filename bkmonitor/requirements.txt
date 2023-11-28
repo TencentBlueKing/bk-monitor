@@ -115,6 +115,7 @@ jmespath==0.10.0
 typing-extensions==3.7.4.3
 pycryptodome==3.17
 python-magic==0.4.27
+attrdict==2.0.1
 betterproto==1.2.5
 
 # bk-dataview
