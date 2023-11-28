@@ -18,18 +18,21 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.db.transaction import atomic
+from django.forms import model_to_dict
 from django.utils import timezone
+from django.utils.translation import ugettext as _
 
 from apps.api import TransferApi
 from apps.log_databus.constants import RESTORE_INDEX_SET_PREFIX, ArchiveInstanceType
 from apps.log_databus.exceptions import (
+    ArchiveIndexSetInfoNotFound,
+    ArchiveIndexSetStatusError,
     ArchiveNotFound,
     CollectorActiveException,
     CollectorConfigNotExistException,
     RestoreExpired,
     RestoreNotFound,
-    ArchiveIndexSetInfoNotFound,
-    ArchiveIndexSetStatusError,
 )
 from apps.log_databus.models import ArchiveConfig, CollectorConfig, RestoreConfig
 from apps.log_search.constants import (
@@ -39,7 +42,7 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
 )
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import Scenario, LogIndexSetData
+from apps.log_search.models import LogIndexSetData, Scenario
 from apps.utils.db import array_group, array_hash
 from apps.utils.function import ignored
 from apps.utils.local import get_local_param, get_request_username
@@ -49,9 +52,6 @@ from apps.utils.time_handler import (
     format_user_time_zone_humanize,
 )
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.db.transaction import atomic
-from django.forms import model_to_dict
-from django.utils.translation import ugettext as _
 
 
 class ArchiveHandler:
@@ -124,8 +124,10 @@ class ArchiveHandler:
         @return:
         """
         if self.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
-            table_ids = list(LogIndexSetData.objects.filter(
-                index_set_id=self.archive.instance_id).values_list("result_table_id", flat=True)
+            table_ids = list(
+                LogIndexSetData.objects.filter(index_set_id=self.archive.instance_id).values_list(
+                    "result_table_id", flat=True
+                )
             )
         else:
             table_ids = [self.archive.table_id]
@@ -134,17 +136,20 @@ class ArchiveHandler:
         indices = []
         for snapshot in snapshot_info:
             for _snapshot in snapshot:
-                indices.extend([
-                    {
-                        **indice,
-                        "start_time": self.to_user_time_format(indice.get("start_time")),
-                        "end_time": self.to_user_time_format(indice.get("end_time")),
-                        "expired_time": format_user_time_zone_humanize(
-                            _snapshot.get("expired_time"), get_local_param("time_zone")
-                        ),
-                        "state": _snapshot.get("state"),
-                    } for indice in _snapshot.get("indices", [])
-                ])
+                indices.extend(
+                    [
+                        {
+                            **indice,
+                            "start_time": self.to_user_time_format(indice.get("start_time")),
+                            "end_time": self.to_user_time_format(indice.get("end_time")),
+                            "expired_time": format_user_time_zone_humanize(
+                                _snapshot.get("expired_time"), get_local_param("time_zone")
+                            ),
+                            "state": _snapshot.get("state"),
+                        }
+                        for indice in _snapshot.get("indices", [])
+                    ]
+                )
         archive["indices"] = indices[page * pagesize : (page + 1) * pagesize]
         return archive
 
@@ -171,14 +176,11 @@ class ArchiveHandler:
 
                 multi_execute_func = MultiExecuteFunc()
                 for table_id in table_ids:
-                    multi_params = {
-                        "table_id": table_id,
-                        "snapshot_days": self.archive.snapshot_days
-                    }
+                    multi_params = {"table_id": table_id, "snapshot_days": self.archive.snapshot_days}
                     multi_execute_func.append(
                         result_key=f"modify_result_table_snapshot_{table_id}",
                         func=TransferApi.modify_result_table_snapshot,
-                        params=multi_params
+                        params=multi_params,
                     )
 
                 multi_execute_func.run()
@@ -212,12 +214,12 @@ class ArchiveHandler:
                 multi_params = {
                     "table_id": table_id,
                     "target_snapshot_repository_name": create_obj.target_snapshot_repository_name,
-                    "snapshot_days": create_obj.snapshot_days
+                    "snapshot_days": create_obj.snapshot_days,
                 }
                 multi_execute_func.append(
                     result_key=f"create_result_table_snapshot_{table_id}",
                     func=TransferApi.create_result_table_snapshot,
-                    params=multi_params
+                    params=multi_params,
                 )
 
             multi_execute_func.run()
@@ -237,15 +239,18 @@ class ArchiveHandler:
         if self.archive.instance_type != ArchiveInstanceType.INDEX_SET.value:
             TransferApi.delete_result_table_snapshot({"table_id": self.archive.table_id})
         else:
-            table_ids = list(LogIndexSetData.objects.filter(
-                index_set_id=self.archive.instance_id).values_list("result_table_id", flat=True))
+            table_ids = list(
+                LogIndexSetData.objects.filter(index_set_id=self.archive.instance_id).values_list(
+                    "result_table_id", flat=True
+                )
+            )
             multi_execute_func = MultiExecuteFunc()
             for table_id in table_ids:
                 params = {"table_id": table_id}
                 multi_execute_func.append(
                     result_key=f"delete_result_table_snapshot_{table_id}",
                     func=TransferApi.delete_result_table_snapshot,
-                    params=params
+                    params=params,
                 )
 
             multi_execute_func.run()
@@ -263,9 +268,13 @@ class ArchiveHandler:
         @return:
         """
         index_set = self._create_index_set(index_set_name)
+        result_errors = list()
         if self.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
-            table_ids = list(LogIndexSetData.objects.filter(
-                index_set_id=self.archive.instance_id).values_list("result_table_id", flat=True))
+            table_ids = list(
+                LogIndexSetData.objects.filter(index_set_id=self.archive.instance_id).values_list(
+                    "result_table_id", flat=True
+                )
+            )
             multi_execute_func = MultiExecuteFunc()
             for table_id in table_ids:
                 params = {
@@ -277,14 +286,17 @@ class ArchiveHandler:
                 multi_execute_func.append(
                     result_key=f"restore_{table_id}",
                     func=TransferApi.restore_result_table_snapshot,
-                    params=params
+                    params=params,
                 )
 
-            multi_result = multi_execute_func.run()
+            multi_result = multi_execute_func.run(return_exception=True)
             # 构建批量创建参数列表
             bulk_create_params = list()
             for table_id in table_ids:
-                meta_restore_result = multi_result.get(f"restore_{table_id}")
+                meta_restore_result = multi_result.get(f"restore_{table_id}", {})
+                if isinstance(meta_restore_result, Exception):
+                    result_errors.append({"table_id": table_id, "reason": meta_restore_result})
+                    continue
                 params = {
                     "bk_biz_id": bk_biz_id,
                     "archive_config_id": self.archive.archive_config_id,
@@ -298,15 +310,17 @@ class ArchiveHandler:
                     "total_store_size": meta_restore_result.get("total_store_size"),
                     "total_doc_count": meta_restore_result.get("total_doc_count"),
                     "created_at": timezone.now(),
-                    "created_by": get_request_username()
+                    "created_by": get_request_username(),
                 }
                 bulk_create_params.append(RestoreConfig(**params))
-            RestoreConfig.objects.bulk_create(bulk_create_params)
-            objs = RestoreConfig.objects.filter(
-                archive_config_id=self.archive.archive_config_id,
-                index_set_name=index_set_name
-            )
-            restore_config_info = [model_to_dict(obj) for obj in objs]
+            if bulk_create_params:
+                RestoreConfig.objects.bulk_create(bulk_create_params)
+                objs = RestoreConfig.objects.filter(
+                    archive_config_id=self.archive.archive_config_id, index_set_name=index_set_name
+                )
+                restore_config_info = [model_to_dict(obj) for obj in objs]
+            else:
+                restore_config_info = list()
         else:
             create_restore_config = RestoreConfig.objects.create(
                 **{
@@ -338,7 +352,8 @@ class ArchiveHandler:
         res = {
             "index_set_id": index_set.index_set_id,
             "index_set_name": index_set.index_set_name,
-            "restore_config_info": restore_config_info
+            "restore_config_info": restore_config_info,
+            "errors": result_errors,
         }
 
         return res
@@ -346,15 +361,19 @@ class ArchiveHandler:
     def _create_index_set(self, index_set_name):
         index_set_name = _("[回溯]") + index_set_name
         if self.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
-            table_ids = list(LogIndexSetData.objects.filter(
-                index_set_id=self.archive.instance_id).values_list("result_table_id", flat=True))
+            table_ids = list(
+                LogIndexSetData.objects.filter(index_set_id=self.archive.instance_id).values_list(
+                    "result_table_id", flat=True
+                )
+            )
             indexes = [
                 {
                     "bk_biz_id": self.archive.bk_biz_id,
                     "result_table_id": f"{RESTORE_INDEX_SET_PREFIX}*{table_id.replace('.', '_')}_*",
                     "result_table_name": self.archive.instance_name,
                     "time_field": DEFAULT_TIME_FIELD,
-                } for table_id in table_ids
+                }
+                for table_id in table_ids
             ]
             # 索引集下所包含的物理索引一定存在一个集群 所以取第一个result_table_id去获取集群信息
             cluster_infos = TransferApi.get_result_table_storage(
@@ -458,6 +477,7 @@ class ArchiveHandler:
             raise RestoreExpired
 
         # 归档任务是索引集的场景下 会存在多个归档回溯
+        result_errors = list()
         if restore.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
             restore_objs = RestoreConfig.objects.filter(archive_config_id=restore.archive_config_id)
             restore_objs.update(expired_time=expired_time)
@@ -468,9 +488,14 @@ class ArchiveHandler:
                 multi_execute_func.append(
                     result_key=f"modify_restore_result_table_snapshot_{meta_restore_id}",
                     func=TransferApi.modify_restore_result_table_snapshot,
-                    params=params
+                    params=params,
                 )
-            multi_execute_func.run()
+            multi_execute_result = multi_execute_func.run(return_exception=True)
+            for meta_restore_id in meta_restore_ids:
+                multi_result = multi_execute_result.get(f"modify_restore_result_table_snapshot_{meta_restore_id}", {})
+                if isinstance(multi_result, Exception):
+                    result_errors.append({"meta_restore_id": meta_restore_id, "reason": multi_result})
+
             restore_config_info = [model_to_dict(obj) for obj in restore_objs]
         else:
             restore.expired_time = expired_time
@@ -481,7 +506,7 @@ class ArchiveHandler:
 
             restore_config_info = [model_to_dict(restore)]
 
-        return {"restore_config_info": restore_config_info}
+        return {"restore_config_info": restore_config_info, "errors": result_errors}
 
     @classmethod
     @atomic
@@ -508,7 +533,7 @@ class ArchiveHandler:
                 multi_execute_func.append(
                     result_key=f"delete_restore_result_table_snapshot_{meta_restore_id}",
                     func=TransferApi.delete_restore_result_table_snapshot,
-                    params=params
+                    params=params,
                 )
             multi_execute_func.run()
         else:
@@ -517,8 +542,11 @@ class ArchiveHandler:
 
     def archive_state(self):
         if self.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
-            table_ids = list(LogIndexSetData.objects.filter(
-                index_set_id=self.archive.instance_id).values_list("result_table_id", flat=True))
+            table_ids = list(
+                LogIndexSetData.objects.filter(index_set_id=self.archive.instance_id).values_list(
+                    "result_table_id", flat=True
+                )
+            )
         else:
             table_ids = [self.archive.table_id]
         return TransferApi.get_result_table_snapshot_state({"table_ids": table_ids})
