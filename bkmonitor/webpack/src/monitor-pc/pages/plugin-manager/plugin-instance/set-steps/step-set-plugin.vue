@@ -126,8 +126,7 @@
           <span
             class="doc-link"
             @click="handleGotoLink(pluginBasicInfo.type.value)"
-            >{{ $t('前往文档中心') }} <span class="icon-monitor icon-mc-link"
-          /></span>
+          >{{ $t('前往文档中心') }} <span class="icon-monitor icon-mc-link" /></span>
         </div>
       </div>
     </div>
@@ -520,10 +519,9 @@ export default {
     }
   },
   data() {
-    const url =
-      process.env.NODE_ENV === 'development'
-        ? process.env.proxyUrl + window.static_url
-        : location.origin + window.static_url;
+    const url =      process.env.NODE_ENV === 'development'
+      ? process.env.proxyUrl + window.static_url
+      : location.origin + window.static_url;
     return {
       pluginManageAuth,
       testSystemList: [],
@@ -962,9 +960,8 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     this.bizList.list = this.$store.getters.bizList.slice();
     this.bizList.list.unshift({ id: 0, text: this.$t('全业务') });
     this.pluginLoading = true;
-    const resultList = await Promise.all([this.getOsList(), this.getLabels(), this.getReservedWords()]).catch(
-      () => false
-    );
+    const list = [this.getOsList(), this.getLabels(), this.getReservedWords()];
+    const resultList = await Promise.all(list).catch(() => false);
     if (resultList) {
       this.getSystemTabs(resultList[0]);
       this.getLabelList(resultList[1]);
@@ -1077,9 +1074,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         this.pluginBasicInfo.isNameLegal = !res.result;
         this.pluginBasicInfo.nameErrorMsg = this.$t(res.message);
       } else if (!this.pluginBasicInfo.name) {
-        this.pluginBasicInfo.nameErrorMsg = this.$t(
-          '输入插件名称，仅以字母开头，仅支持字母、下划线和数字, 长度不能超过30个字符'
-        );
+        this.pluginBasicInfo.nameErrorMsg = this.$t('输入插件名称，仅以字母开头，仅支持字母、下划线和数字, 长度不能超过30个字符');
         this.pluginBasicInfo.isNameLegal = true;
       }
       return !this.pluginBasicInfo.isNameLegal;
@@ -1109,7 +1104,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       if (this.pluginBasicInfo.type.value === 'DataDog') {
         this.pluginMonaco[system] = yaml;
         let text = '';
-        this.systemTabs.list.forEach(sys => {
+        this.systemTabs.list.forEach((sys) => {
           text += `\n${this.pluginMonaco[sys.name] || ''}`;
         });
         this.$set(this.pluginMonaco.defaultValue, 'DataDog', { text, lang: 'yaml' });
@@ -1168,10 +1163,9 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       this.pluginBasicInfo.type.value = plugin.plugin_type;
       this.pluginBasicInfo.desc = plugin.description_md;
       this.pluginBasicInfo.label.value = plugin.label;
-      this.bizList.value =
-        plugin.bk_biz_id === undefined || !this.$store.getters.isSuperUser
-          ? this.$store.getters.bizId
-          : plugin.bk_biz_id;
+      this.bizList.value =        plugin.bk_biz_id === undefined || !this.$store.getters.isSuperUser
+        ? this.$store.getters.bizId
+        : plugin.bk_biz_id;
       this.pluginBasicInfo.configVersion = plugin.config_version;
       this.pluginBasicInfo.metricJson = plugin.metric_json;
       this.pluginBasicInfo.infoVersion = plugin.info_version;
@@ -1182,10 +1176,10 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       this.pluginChangeMsg.msg = plugin.version_log;
       this.isImport = this.data.type === 'import';
       this.pluginBasicInfo.relatedConfCount = plugin.related_conf_count; // 插件关联的配置数量
-      this.pluginBasicInfo.label.list.forEach(item => {
+      this.pluginBasicInfo.label.list.forEach((item) => {
         // eslint-disable-next-line no-unused-vars
         const hasLabel = item.children.some(child => child.id === plugin.label);
-        item.children.forEach(child => {
+        item.children.forEach((child) => {
           if (plugin.related_conf_count && this.data.isEdit) {
             child.disabled = !hasLabel;
           } else {
@@ -1199,10 +1193,9 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       if (plugin.plugin_type === 'Exporter') {
         this.pluginBasicInfo.exporterCollector = plugin.collector_json;
       } else if (plugin.plugin_type === 'Script') {
-        this.pluginMonaco.selectedSystemList = Object.keys(plugin.collector_json).filter(item =>
-          this.systemTabs.list.some(sys => sys.name === item)
-        );
-        this.pluginMonaco.selectedSystemList.forEach(key => {
+        const keys = Object.keys(plugin.collector_json);
+        this.pluginMonaco.selectedSystemList = keys.filter(item => this.systemTabs.list.some(sys => sys.name === item));
+        this.pluginMonaco.selectedSystemList.forEach((key) => {
           const jsonObj = plugin.collector_json[key];
           this.pluginMonaco.defaultValue[key] = {
             text: window.decodeURIComponent(window.escape(window.atob(jsonObj.script_content_base64 || ''))),
@@ -1221,11 +1214,11 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         this.pluginBasicInfo.snmpConfig.name = plugin.collector_json.filename;
         this.pluginBasicInfo.snmpConfig.content = plugin.collector_json.config_yaml;
       }
-      plugin.config_json.forEach(item => {
+      plugin.config_json.forEach((item) => {
         if (
-          typeof item.visible === 'undefined' &&
-          (plugin.plugin_type !== 'DataDog' || item.name !== 'python_path') &&
-          item.mode !== 'collector'
+          typeof item.visible === 'undefined'
+          && (plugin.plugin_type !== 'DataDog' || item.name !== 'python_path')
+          && item.mode !== 'collector'
         ) {
           this.pluginBasicInfo.params.push(item);
         } else if (item.name === 'port') {
@@ -1298,7 +1291,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
      * @param { Object } params
      */
     deleteDisabled(params) {
-      return params.map(item => {
+      return params.map((item) => {
         delete item.disabled;
         return item;
       });
@@ -1315,7 +1308,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         if (contents) {
           if (params.plugin_type === 'Script') {
             params.collector_json = {};
-            contents.forEach(item => {
+            contents.forEach((item) => {
               const { system } = item;
               this.pluginMonaco.selectedSystemList.push(item.system);
               const { lang } = item;
@@ -1348,7 +1341,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
      * @param { Array } data
      */
     getSystemTabs(data) {
-      data.forEach(os => {
+      data.forEach((os) => {
         const osObj = {
           name: os.os_type,
           val: os.os_type,
@@ -1403,7 +1396,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       const pluginStatus = typeof this.pluginBasicInfo.stage === 'undefined' ? false : data.stage === 'release';
       const polling = (params, callBack) => {
         queryAsyncTaskResult(params)
-          .then(data => {
+          .then((data) => {
             if (!data.is_completed) {
               const timer = setTimeout(() => {
                 polling(params, callBack);
@@ -1412,7 +1405,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
             }
             callBack(data);
           })
-          .catch(err => {
+          .catch((err) => {
             const result = {
               is_completed: true,
               state: 'FAILURE',
@@ -1432,8 +1425,8 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
             info_version: this.pluginData.info_version
           };
           pluginRegister(params, { isAsync: true })
-            .then(data => {
-              polling(data, data => {
+            .then((data) => {
+              polling(data, (data) => {
                 if (data.is_completed && data.state === 'SUCCESS') {
                   this.pluginData.is_completed = data.is_completed;
                   if (data.data?.token?.length) {
@@ -1452,7 +1445,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
                 }
               });
             })
-            .catch(err => {
+            .catch((err) => {
               this.registerDialog.status.msg = this.$t('生成插件包失败');
               this.registerDialog.status.failMsg = err.message || this.$t('生成插件包失败');
               reject(err);
@@ -1518,33 +1511,32 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       if (this.$route.params.isImportPlugin) {
         importPluginMetricJson = this.pluginConfigCache.metric_json;
       }
-      const params =
-        isEdit || this.data.back
-          ? [
-              this.pluginBasicInfo.name,
-              {
-                ...this.pluginData,
-                import_plugin_config: importPluginConfig,
-                import_plugin_metric_json: importPluginMetricJson || []
-              }
-            ]
-          : [
-              {
-                ...this.pluginData,
-                import_plugin_config: importPluginConfig,
-                import_plugin_metric_json: importPluginMetricJson || []
-              }
-            ];
+      const params =        isEdit || this.data.back
+        ? [
+          this.pluginBasicInfo.name,
+          {
+            ...this.pluginData,
+            import_plugin_config: importPluginConfig,
+            import_plugin_metric_json: importPluginMetricJson || []
+          }
+        ]
+        : [
+          {
+            ...this.pluginData,
+            import_plugin_config: importPluginConfig,
+            import_plugin_metric_json: importPluginMetricJson || []
+          }
+        ];
       const ajax = isEdit || this.data.back ? editCollectorPlugin : createCollectorPlugin;
       this.registerDialog.status.failMsg = '';
       return ajax(...params)
-        .then(data => {
+        .then((data) => {
           this.addPluginDataProp(data);
           if (
-            this.data.isEdit &&
-            (!this.pluginData.sameConfig || !this.pluginData.sameInfo) &&
-            this.pluginBasicInfo.stage === 'release' &&
-            this.pluginChangeMsg.isChange
+            this.data.isEdit
+            && (!this.pluginData.sameConfig || !this.pluginData.sameInfo)
+            && this.pluginBasicInfo.stage === 'release'
+            && this.pluginChangeMsg.isChange
           ) {
             this.pluginChangeMsg.show = true;
             // 编辑关键选项，返回reject，阻止注册，让用户选填修改信息，等再次确认时注册插件
@@ -1587,7 +1579,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       this.pluginData.need_debug = data.need_debug;
       this.pluginData.metric_json = this.pluginBasicInfo.metricJson;
       this.getPluginVersion();
-      this.systemTabs.list.forEach(system => {
+      this.systemTabs.list.forEach((system) => {
         if (['JMX', 'DataDog', 'Pushgateway', 'SNMP'].includes(this.pluginBasicInfo.type.value)) {
           if (data.os_type_list.some(os => os === system.name)) {
             this.pluginData.systemList.push({
@@ -1673,7 +1665,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     validateExporterParam() {
       let hasHost = false;
       let hasPort = false;
-      this.params.forEach(item => {
+      this.params.forEach((item) => {
         if (typeof item.default === 'string' && item.default.includes('${host}')) {
           hasHost = true;
         }
@@ -1758,7 +1750,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         index > -1 && noTypeList.splice(index, 1);
         this.pluginBasicInfo.type.notShowType = noTypeList;
       }
-      if (!this.data.isEdit) {
+      if (!this.data.isEdit && !this.pluginBasicInfo.label.value) {
         this.pluginBasicInfo.label.value = 'os';
       }
     },
@@ -1769,10 +1761,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
   }
 };
 </script>
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 @import '../../../home/common/mixins';
 
 .auth-disabled {
