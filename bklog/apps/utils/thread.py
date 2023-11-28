@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from concurrent.futures import ThreadPoolExecutor
+from typing import List, Tuple
 
 import pytz
 from django.utils import timezone
@@ -38,9 +39,7 @@ from apps.utils.local import (
 
 
 class FuncThread:
-    def __init__(
-        self, func, params, result_key, results, use_request=True, multi_func_params=False, is_exception=False
-    ):
+    def __init__(self, func, params, result_key, results, use_request=True, multi_func_params=False):
         self.func = func
         self.params = params
         self.result_key = result_key
@@ -52,7 +51,6 @@ class FuncThread:
         self.trace_context = get_current()
         self.timezone = get_local_param("time_zone")
         self.multi_func_params = multi_func_params
-        self.is_exception = is_exception
 
     def _init_context(self):
         with ignored(Exception):
@@ -62,7 +60,7 @@ class FuncThread:
                 set_local_param("time_zone", self.timezone)
                 timezone.activate(pytz.timezone(self.timezone))
 
-    def run(self):
+    def run(self, return_exception=False):
         try:
             self._init_context()
             if self.use_request and self.requests:
@@ -76,11 +74,13 @@ class FuncThread:
                 self.results[self.result_key] = self.func()
 
         except Exception as e:
-            self.results[self.result_key] = {} if not self.is_exception else {"is_exception": True, "exception": e}
+            if return_exception:
+                self.results[self.result_key] = e
 
 
-def executor_wrap(func_thread):
-    func_thread.run()
+def executor_wrap(params: List[Tuple[FuncThread, bool]]):
+    func_thread, return_exception = params
+    func_thread.run(return_exception)
 
 
 class MultiExecuteFunc(object):
@@ -93,7 +93,7 @@ class MultiExecuteFunc(object):
         self.task_list = []
         self.max_workers = max_workers
 
-    def append(self, result_key, func, params=None, use_request=True, multi_func_params=False, is_exception=False):
+    def append(self, result_key, func, params=None, use_request=True, multi_func_params=False, return_exception=False):
         if result_key in self.results:
             raise ValueError(f"result_key: {result_key} is duplicate. Please rename it.")
         task = FuncThread(
@@ -103,9 +103,8 @@ class MultiExecuteFunc(object):
             results=self.results,
             use_request=use_request,
             multi_func_params=multi_func_params,
-            is_exception=is_exception,
         )
-        self.task_list.append(task)
+        self.task_list.append((task, return_exception))
 
     def run(self):
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:

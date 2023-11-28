@@ -287,7 +287,7 @@ class ArchiveHandler:
                     result_key=f"restore_{table_id}",
                     func=TransferApi.restore_result_table_snapshot,
                     params=params,
-                    is_exception=True,
+                    return_exception=True,
                 )
 
             multi_result = multi_execute_func.run()
@@ -295,8 +295,8 @@ class ArchiveHandler:
             bulk_create_params = list()
             for table_id in table_ids:
                 meta_restore_result = multi_result.get(f"restore_{table_id}", {})
-                if meta_restore_result.get("is_exception", False):
-                    result_errors.append({"table_id": table_id, "reason": meta_restore_result.get("exception", {})})
+                if isinstance(meta_restore_result, Exception):
+                    result_errors.append({"table_id": table_id, "reason": meta_restore_result})
                     continue
                 params = {
                     "bk_biz_id": bk_biz_id,
@@ -490,15 +490,13 @@ class ArchiveHandler:
                     result_key=f"modify_restore_result_table_snapshot_{meta_restore_id}",
                     func=TransferApi.modify_restore_result_table_snapshot,
                     params=params,
-                    is_exception=True,
+                    return_exception=True,
                 )
             multi_execute_result = multi_execute_func.run()
             for meta_restore_id in meta_restore_ids:
                 multi_result = multi_execute_result.get(f"modify_restore_result_table_snapshot_{meta_restore_id}", {})
-                if multi_result.get("is_exception", False):
-                    result_errors.append(
-                        {"meta_restore_id": meta_restore_id, "reason": multi_result.get("exception", {})}
-                    )
+                if isinstance(multi_result, Exception):
+                    result_errors.append({"meta_restore_id": meta_restore_id, "reason": multi_result})
 
             restore_config_info = [model_to_dict(obj) for obj in restore_objs]
         else:
