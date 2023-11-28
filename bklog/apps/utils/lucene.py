@@ -1011,6 +1011,9 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         :param s: 字符串
         :return: 是否匹配
         """
+        if ":" in s:
+            __, s = s.split(":")
+
         left_single_quote = s.startswith("'")
         left_double_quote = s.startswith('"')
         right_single_quote = s.endswith("'")
@@ -1031,6 +1034,11 @@ class LuceneQuotesChecker(LuceneCheckerBase):
             if word.startswith("(") or word.endswith(")"):
                 words.append(word)
                 continue
+            if ":" in word:
+                word_prefix, word = word.split(":")
+                word_prefix += ":"
+            else:
+                word_prefix = ""
             if (
                 # 先判断 ' 和 " 是否同时出现
                 word.startswith(self.SINGLE_QUOTE)
@@ -1047,6 +1055,7 @@ class LuceneQuotesChecker(LuceneCheckerBase):
                 word = self.SINGLE_QUOTE + word
             elif word.endswith(self.DOUBLE_QUOTE) and not word.startswith(self.DOUBLE_QUOTE):
                 word = self.DOUBLE_QUOTE + word
+            word = word_prefix + word
             words.append(word)
 
         return self.CHARACTER_WHITESPACE.join(words)
@@ -1095,6 +1104,54 @@ class LuceneRangeChecker(LuceneCheckerBase):
 
         return True
 
+    @staticmethod
+    def _fix_range(sub_query: str) -> str:
+        def process_left_part(_left_part: str):
+            field_name, upper_bound = _left_part.split(':')
+            field_name = field_name.strip()
+            upper_bound = upper_bound.strip()
+            # 兼容 1 [ 这种情况
+            if upper_bound and upper_bound[-1] in ('[', '{'):
+                upper_bound = upper_bound[-1] + upper_bound[:-1].strip()
+            if not upper_bound:
+                upper_bound = '{*'
+            else:
+                if upper_bound[0] not in ('[', '{'):
+                    if upper_bound[-1].isdigit():
+                        upper_bound = '[' + upper_bound
+                    else:
+                        upper_bound = '{' + upper_bound
+                if not upper_bound[-1].isdigit() and upper_bound[-1] != '*':
+                    upper_bound += '*'
+                if upper_bound == "[*":
+                    upper_bound = "{*"
+            return field_name, upper_bound
+
+        def process_right_part(_right_part: str):
+            # 兼容 [ 1 这种情况
+            if _right_part and _right_part[0] in (']', '}'):
+                _right_part = _right_part[1:].strip() + _right_part[0]
+            if not _right_part:
+                lower_bound = '*}'
+            else:
+                if _right_part[-1] not in (']', '}'):
+                    if _right_part[0].isdigit():
+                        lower_bound = _right_part + ']'
+                    else:
+                        lower_bound = _right_part + '}'
+                else:
+                    lower_bound = _right_part
+                if not lower_bound[0].isdigit() and lower_bound[0] != '*':
+                    lower_bound = '*' + lower_bound
+            if lower_bound == "*]":
+                lower_bound = "*}"
+            return lower_bound
+
+        left_part, right_part = sub_query.split('TO')
+        left_result = process_left_part(left_part.strip())
+        right_result = process_right_part(right_part.strip())
+        return f"{left_result[0]}: {left_result[1]} TO {right_result}"
+
     def _fix(self):
         """
         按'TO'拆分, 依次修复左边和右边的边界和边界符号
@@ -1103,26 +1160,7 @@ class LuceneRangeChecker(LuceneCheckerBase):
         for sub_query in self.sub_query_list:
             original_sub_query = copy.deepcopy(sub_query)
             if 'TO' in sub_query:
-                start, end = map(lambda x: x.strip(), sub_query.split('TO'))
-                field, start = start.split(':')
-                start = start.strip()
-                # 兼容 1 [ TO 2] 和 [ 1 TO ] 2 这种情况
-                if start.endswith('['):
-                    start = "[" + start[:-1].strip()
-                if end.startswith(']'):
-                    end = end[1:].strip() + "]"
-
-                if start.isdigit():
-                    start = '[' + start
-                if not start.split("[")[-1].isdigit() or not start:
-                    start = '{*'
-
-                if end.isdigit():
-                    end = end + ']'
-                elif not end:
-                    end = '*}'
-
-                fixed_sub_query_list.append(f'{field}: {start} TO {end}')
+                fixed_sub_query_list.append(self._fix_range(sub_query))
             else:
                 fixed_sub_query_list.append(original_sub_query)
         return ' '.join(fixed_sub_query_list)

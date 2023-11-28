@@ -317,9 +317,9 @@ PARENTHESES_CHECK_TEST_CASES = [LEGAL_CASE] + [
 ]
 QUOTE_CHECK_TEST_CASES = [LEGAL_CASE] + [
     {
-        "keyword": """log: INFO' AND a OR b" """,
+        "keyword": """log:INFO' AND a OR b" """,
         "check_result": False,
-        "prompt": """引号不匹配, 你可能想输入: log: 'INFO' AND a OR "b" """,
+        "prompt": """引号不匹配, 你可能想输入: log:'INFO' AND a OR "b" """,
     },
 ]
 RANGE_CHECK_TEST_CASES = [LEGAL_CASE] + [
@@ -329,9 +329,14 @@ RANGE_CHECK_TEST_CASES = [LEGAL_CASE] + [
         "prompt": """RANGE语法异常, 格式错误, 你可能想输入: log: [100 TO 200] OR time: [100 TO 200] AND id: {* TO 100]""",
     },
     {
-        "keyword": """log: [100 TO ] 200 OR time: [100 TO 200]""",
+        "keyword": """log: [100 TO ] 200 OR time: [100 TO *]""",
         "check_result": False,
-        "prompt": """RANGE语法异常, 格式错误, 你可能想输入: log: [100 TO 200] OR time: [100 TO 200]""",
+        "prompt": """RANGE语法异常, 格式错误, 你可能想输入: log: [100 TO 200] OR time: [100 TO *}""",
+    },
+    {
+        "keyword": """gseindex: { 137677266 TO ]""",
+        "check_result": False,
+        "prompt": """RANGE语法异常, 格式错误, 你可能想输入: gseindex: { 137677266 TO *}""",
     },
 ]
 FIELD_EXPR_TEST_CASES = [LEGAL_CASE] + [
