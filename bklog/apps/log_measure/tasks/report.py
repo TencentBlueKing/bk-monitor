@@ -33,6 +33,7 @@ from apps.feature_toggle.models import FeatureToggle
 from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS, LOG_MEASURE_METRIC_TOGGLE
 from apps.log_measure.models import MetricDataHistory
 from apps.log_measure.utils.metric import MetricUtils
+from apps.utils.task import high_priority_periodic_task
 from bk_monitor.handler.monitor import BKMonitor
 from bk_monitor.utils.collector import MetricCollector
 from bk_monitor.utils.metric import (
@@ -42,7 +43,7 @@ from bk_monitor.utils.metric import (
 )
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
-logger = logging.getLogger("log_measure")
+logger = logging.getLogger("app")
 
 
 @periodic_task(run_every=crontab(minute="*/1"))
@@ -86,7 +87,7 @@ def bk_monitor_report():
     clear_registered_metrics()
 
 
-@periodic_task(run_every=crontab(minute="*/1"))
+@high_priority_periodic_task(run_every=crontab(minute="*/1"))
 def bk_monitor_collect():
     # todo 由于与菜单修改有相关性 暂时先改成跟原本monitor开关做联动
     if settings.FEATURE_TOGGLE["monitor_report"] == "off":
@@ -103,7 +104,6 @@ def bk_monitor_collect():
         },
     )
     if not feature_toggle_obj.status == "on":
-        logger.info("[statistics_data] toggle is close, stop collecting")
         return
 
     # 这里是为了兼容调度器由于beat与worker时间差异导致的微小调度异常
@@ -116,14 +116,23 @@ def bk_monitor_collect():
     execute_metrics = copy.deepcopy(REGISTERED_METRICS)
     for metric_id, metric in execute_metrics.items():
         if not time_now_minute % metric["time_filter"]:
-            logger.info(f"[statistics_data] start collecting {metric_id}")
-            collect_metrics.delay(import_paths, [metric["namespace"]], [metric["data_name"]])
+            collect_params = {
+                "namespaces": [metric["namespace"]],
+                "data_names": [metric["data_name"]],
+                "sub_types": [metric["sub_type"]] if metric["sub_type"] else None,
+            }
+            logger.info("[statistics_data] metric->{} receive collection task.".format(metric_id))
+            collect_metrics(
+                import_paths, collect_params["namespaces"], collect_params["data_names"], collect_params["sub_types"]
+            )
     # 清理注册表里的内容，下一次运行的时候重新注册
     clear_registered_metrics()
 
 
 @task(ignore_result=True)
-def collect_metrics(collector_import_paths: list, namespaces: list = None, data_names: list = None):
+def collect_metrics(
+    collector_import_paths: list, namespaces: list = None, data_names: list = None, sub_types: list = None
+):
     """
     将已通过 register_metric 注册的对应metric收集存入数据库
     Attributes:
@@ -131,7 +140,7 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
         namespaces: 允许上报namespace列表
     """
     metric_groups = MetricCollector(collector_import_paths=collector_import_paths).collect(
-        namespaces=namespaces, data_names=data_names
+        namespaces=namespaces, data_names=data_names, sub_types=sub_types
     )
     try:
         for group in metric_groups:
@@ -149,7 +158,7 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
                     "updated_at": MetricUtils.get_instance().report_ts,
                 },
             )
-            logger.info(f"save metric_data[{metric_id}] successfully")
+            logger.info(f"[statistics_data] save metric_data[{metric_id}] successfully")
 
         # 此处是为了释放对应util资源 非必须
         MetricUtils.del_instance()
@@ -158,4 +167,4 @@ def collect_metrics(collector_import_paths: list, namespaces: list = None, data_
         clear_registered_metrics()
 
     except Exception as ex:
-        logger.exception(f"Failed to save metric_data, msg: {ex}")
+        logger.exception(f"[statistics_data] Failed to save metric_data, msg: {ex}")
