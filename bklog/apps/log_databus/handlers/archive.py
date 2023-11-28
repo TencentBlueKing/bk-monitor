@@ -295,7 +295,7 @@ class ArchiveHandler:
             for table_id in table_ids:
                 meta_restore_result = multi_result.get(f"restore_{table_id}", {})
                 if isinstance(meta_restore_result, Exception):
-                    result_errors.append({"table_id": table_id, "reason": meta_restore_result})
+                    result_errors.append({"table_id": table_id, "reason": str(meta_restore_result)})
                     continue
                 params = {
                     "bk_biz_id": bk_biz_id,
@@ -494,7 +494,7 @@ class ArchiveHandler:
             for meta_restore_id in meta_restore_ids:
                 multi_result = multi_execute_result.get(f"modify_restore_result_table_snapshot_{meta_restore_id}", {})
                 if isinstance(multi_result, Exception):
-                    result_errors.append({"meta_restore_id": meta_restore_id, "reason": multi_result})
+                    result_errors.append({"meta_restore_id": meta_restore_id, "reason": str(multi_result)})
 
             restore_config_info = [model_to_dict(obj) for obj in restore_objs]
         else:
@@ -525,7 +525,7 @@ class ArchiveHandler:
         # 归档任务是索引集的场景下 会存在多个归档回溯
         if restore.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
             restore_objs = RestoreConfig.objects.filter(archive_config_id=restore.archive_config_id)
-            meta_restore_ids = list(restore_objs.values_list("meta_restore_ids", flat=True))
+            meta_restore_ids = list(restore_objs.values_list("meta_restore_id", flat=True))
             restore_objs.delete()
             multi_execute_func = MultiExecuteFunc()
             for meta_restore_id in meta_restore_ids:
