@@ -307,7 +307,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       if (queryConfig.extendMetricFields?.some(item => item.includes('is_anomaly'))) {
         queryConfig.function = { ...queryConfig.function, max_point_number: 0 };
       }
-      const chartQueryConfig = transformDataKey(queryConfig, true);
+      const chartQueryConfig = transformDataKey(queryConfig, true, ['filter_dict', 'query_configs']);
       this.errorMsg = '';
       const res = await alertGraphQuery(
         { ...chartQueryConfig, ...params },
