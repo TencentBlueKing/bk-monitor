@@ -297,7 +297,6 @@ def authorize_data_id_list(space_type: str, space_id: str, data_id_list: List):
         space_id,
         json.dumps(data_id_list),
     )
-    # bkpaas_data_id_list = settings.BKPAAS_DATA_ID_LIST
     if not data_id_list:
         return
     used_data_ids = SpaceDataSource.objects.filter(
