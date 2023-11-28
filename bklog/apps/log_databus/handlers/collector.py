@@ -143,7 +143,13 @@ from apps.log_search.constants import (
 )
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, Space
+from apps.log_search.models import (
+    IndexSetTag,
+    LogIndexSet,
+    LogIndexSetData,
+    Scenario,
+    Space,
+)
 from apps.models import model_to_dict
 from apps.utils.bcs import Bcs
 from apps.utils.cache import caches_one_hour
@@ -481,7 +487,7 @@ class CollectorHandler(object):
         @return:
         """
         result_table_list = [_data["table_id"] for _data in data if _data.get("table_id")]
-        cluster_infos = {}
+
         try:
             cluster_infos = cls.bulk_cluster_infos(result_table_list=result_table_list)
         except ApiError as error:
@@ -529,6 +535,26 @@ class CollectorHandler(object):
                 )
             else:
                 _data["is_search"] = False
+
+        return data
+
+    @classmethod
+    def add_tags_info(cls, data):
+        """添加标签信息"""
+        index_set_ids = [_data.get("index_set_id") for _data in data if _data.get("index_set_id")]
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+        tag_ids_mapping = {_obj.index_set_id: _obj.tag_ids for _obj in index_set_objs}
+
+        for _data in data:
+            _index_set_id = _data.get("index_set_id", None)
+            if not _index_set_id:
+                _data["tags"] = list()
+                continue
+            _tag_ids = tag_ids_mapping.get(int(_index_set_id), [])
+            if not _tag_ids:
+                _data["tags"] = list()
+                continue
+            _data["tags"] = IndexSetTag.batch_get_tags(_tag_ids)
 
         return data
 
