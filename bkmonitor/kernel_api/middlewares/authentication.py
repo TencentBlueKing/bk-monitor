@@ -32,7 +32,6 @@ class KernelSessionAuthentication(SessionAuthentication):
 
 
 class AppWhiteListModelBackend(ModelBackend):
-
     # 经过esb 鉴权， bktoken已经丢失，因此不再对用户名进行校验。
     def authenticate(self, request=None, username=None, password=None, **kwargs):
         try:
@@ -97,7 +96,11 @@ class AESVerification(object):
 
 
 class ESBAuthenticationMiddleware(LoginRequiredMiddleware):
-    def process_view(self, request, *args, **kwargs):
+    def process_view(self, request, view, *args, **kwargs):
+        # 登录豁免
+        if getattr(view, "login_exempt", False):
+            return None
+
         if "/grafana/" in request.path:
             app_code = settings.APP_CODE
             username = "admin"
@@ -123,7 +126,11 @@ class ESBAuthenticationMiddleware(LoginRequiredMiddleware):
 
 
 class JWTAuthenticationMiddleware(LoginRequiredMiddleware):
-    def process_view(self, request, *args, **kwargs):
+    def process_view(self, request, view, *args, **kwargs):
+        # 登录豁免
+        if getattr(view, "login_exempt", False):
+            return None
+
         user = None
         if "/grafana/" in request.path:
             user = auth.authenticate(username="admin")

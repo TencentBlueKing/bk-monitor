@@ -24,7 +24,7 @@
   <div class="kv-list-wrapper">
     <div class="kv-content">
       <div class="log-item" v-for="(field, index) in fieldKeyMap" :key="index">
-        <div class="field-label">
+        <div class="field-label" :style="`max-width: ${getMaxWidth}px; width: ${getMaxWidth}px;`">
           <span
             class="field-type-icon mr5"
             :class="getFieldIcon(field)"
@@ -63,6 +63,7 @@
 
 <script>
 import { mapState } from 'vuex';
+import { getTextPxWidth } from '@/common/util';
 import TextSegmentation from './text-segmentation';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
@@ -140,6 +141,11 @@ export default {
     },
     fieldKeyMap() {
       return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name)).map(el => el.field_name);
+    },
+    /** 获取字段里最大的字段宽度 */
+    getMaxWidth() {
+      const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item));
+      return Math.max(...fieldWidthList) + 18; // 18是icon的宽度
     },
     hiddenFields() {
       return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
@@ -347,9 +353,8 @@ export default {
       align-items: baseline;
 
       .field-label {
-        width: 260px;
+        flex-shrink: 0;
         height: 100%;
-        min-width: 260px;
         display: flex;
         align-items: baseline;
         flex-wrap: nowrap;
