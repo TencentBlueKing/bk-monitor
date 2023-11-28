@@ -155,6 +155,9 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     def before_request(self, kwargs):
         return kwargs
 
+    def get_headers(self):
+        return get_common_headers()
+
     def perform_request(self, validated_request_data):
         """
         发起http请求
@@ -167,7 +170,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         logger.debug("request: {}".format(request_url))
 
         try:
-            headers = get_common_headers()
+            headers = self.get_headers()
             kwargs = {
                 "method": self.method,
                 "url": request_url,
@@ -189,7 +192,6 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                     timeout=validated_request_data.get("timeout") or self.TIMEOUT,
                 )
             else:
-
                 non_file_data, file_data = self.split_request_data(validated_request_data)
 
                 if not file_data:

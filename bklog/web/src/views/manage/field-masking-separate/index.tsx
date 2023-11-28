@@ -51,6 +51,11 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
     };
   }
 
+  /** 是否不显示 已同步 X 个脱敏结果 */
+  get isHiddenSyncNum() {
+    return ['bkdata-index-set-masking', 'es-index-set-masking'].includes(this.$route.name);
+  }
+
   /** 进入路由前判断是否是灰度业务 */
   beforeRouteEnter(from, to, next) {
     next((vm) => {
@@ -102,6 +107,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
             ref="maskingField"
             collect-data={this.curCollect}
             is-index-set-masking={false}
+            is-hidden-sync-num={this.isHiddenSyncNum}
             onChangeData={() => this.submitSelectRule()} />
         </div>
         <div class="submit-content">
