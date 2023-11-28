@@ -80,7 +80,12 @@ class BaseProvisioning:
         raise NotImplementedError("._generate_default_dashboards() must be overridden.")
 
 
-_FILE_CACHE = {}
+class FileCache:
+    def __init__(self):
+        self.cache = {}
+
+
+_FILE_CACHE = FileCache().cache
 
 
 class SimpleProvisioning(BaseProvisioning):
@@ -103,7 +108,7 @@ class SimpleProvisioning(BaseProvisioning):
                 expand_conf = os.path.expandvars(conf)
                 ds = yaml.load(expand_conf, Loader=yaml.FullLoader)
                 _FILE_CACHE[f"{name}.{suffix}"].append(ds)
-                yield ds
+        return _FILE_CACHE[f"{name}.{suffix}"]
 
     def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
         """不注入数据源"""
