@@ -104,10 +104,7 @@ if (
 
     def add_app_info_before_request(params):
         params["bk_app_code"] = settings.APP_CODE
-        params["bk_app_secret"] = settings.SECRET_KEY
-
         params["X-Bk-App-Code"] = settings.APP_CODE
-        params["X-Bk-App-Secret"] = settings.SECRET_KEY
         return params
 
     def add_esb_info_before_request(params):
@@ -137,13 +134,8 @@ else:
 
     def add_app_info_before_request(params):
         params["bk_app_code"] = settings.APP_CODE
-        params["bk_app_secret"] = settings.SECRET_KEY
-
         params["app_code"] = settings.APP_CODE
-        params["app_secret"] = settings.SECRET_KEY
-
         params["X-Bk-App-Code"] = settings.APP_CODE
-        params["X-Bk-App-Secret"] = settings.SECRET_KEY
         return params
 
     def add_esb_info_before_request(params):
