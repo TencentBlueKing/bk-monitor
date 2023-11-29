@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 const nodeCount = 36;
-const comboCount = 12;
+const comboCount = 10;
 export const enum NodeStatus {
   Normal = 'normal',
   Error = 'error',

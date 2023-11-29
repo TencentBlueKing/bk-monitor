@@ -24,14 +24,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
-import { Arrow, Graph, registerEdge, registerLayout, registerNode } from '@antv/g6';
+import { defineComponent, onMounted, onUnmounted, ref, shallowRef } from 'vue';
+import { Arrow, Graph, registerEdge, registerLayout, registerNode, Tooltip } from '@antv/g6';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import ResourceGraph from '../resource-graph/resource-graph';
 
 import dbsvg from './db.svg';
+import FailureTopoTooltips from './failure-topo-tooltips';
 import httpSvg from './http.svg';
 import topoData, { ComboStatus, EdgeStatus, NodeStatus } from './topo-data';
 import TopoTools from './topo-tools';
@@ -94,6 +95,10 @@ export default defineComponent({
     const topoGraphRef = ref<HTMLDivElement>(null);
     const graphRef = ref<HTMLDivElement>(null);
     let graph: Graph;
+    let toolTip: Tooltip = null;
+    const tooltipsModel = shallowRef();
+    const tooltipsType = ref('node');
+    const tooltipsRef = ref<InstanceType<typeof FailureTopoTooltips>>();
     const registerCustomNode = () => {
       registerNode('topo-node', {
         afterDraw(cfg, group) {
@@ -349,6 +354,26 @@ export default defineComponent({
         }
       });
     };
+    const registerCustomTooltip = () => {
+      toolTip = new Tooltip({
+        offsetX: 10,
+        offsetY: 10,
+        // v4.2.1 起支持配置 trigger，click 代表点击后出现 tooltip。默认为 mouseenter
+        trigger: 'click',
+        // the types of items that allow the tooltip show up
+        // 允许出现 tooltip 的 item 类型
+        itemTypes: ['node', 'edge'],
+        // custom the tooltip's content
+        // 自定义 tooltip 内容
+        getContent: e => {
+          const type = e.item.getType();
+          const model = e.item.getModel();
+          tooltipsModel.value = model;
+          tooltipsType.value = type;
+          return tooltipsRef.value.$el;
+        }
+      });
+    };
     const handleResize = () => {
       if (!graph || graph.get('destroyed')) return;
       const { width, height } = graphRef.value.getBoundingClientRect();
@@ -362,6 +387,7 @@ export default defineComponent({
       registerCustomNode();
       registerCustomEdge();
       registerCustomLayout();
+      registerCustomTooltip();
       graph = new Graph({
         container: graphRef.value,
         width,
@@ -371,6 +397,7 @@ export default defineComponent({
         fitView: false,
         minZoom: 0.00000001,
         groupByTypes: false,
+        plugins: [toolTip],
         layout: {
           // type: 'comboForce',
           // maxIteration: 1000,
@@ -513,14 +540,13 @@ export default defineComponent({
             });
             totalDiffX += realWidth + 52;
           });
-          console.info('------------', w - 80, minX, maxX, totalDiffX);
           i += Math.max(sameRowCombo.length, 1);
         }
         combos.forEach(combo => {
           if ([ComboStatus.Host, ComboStatus.DataCenter].includes(combo.get('model').status)) {
             graph.updateItem(combo, {
               fixSize: [w - 80, 80],
-              x: w / 2 + minX / 4
+              x: w / 2 + 0
             });
             return;
           }
@@ -533,7 +559,10 @@ export default defineComponent({
     });
     return {
       topoGraphRef,
-      graphRef
+      graphRef,
+      tooltipsRef,
+      tooltipsModel,
+      tooltipsType
     };
   },
   render() {
@@ -550,6 +579,13 @@ export default defineComponent({
             id='topo-graph'
           />
           <ResourceGraph />
+        </div>
+        <div style='display: none'>
+          <FailureTopoTooltips
+            ref='tooltipsRef'
+            model={this.tooltipsModel}
+            type={this.tooltipsType}
+          />
         </div>
       </div>
     );
