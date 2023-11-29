@@ -79,7 +79,7 @@ class AsyncExportHandlers(object):
                 export_log=True,
             )
         self.request_user = get_request_external_username() or get_request_username()
-        self.is_external = True if get_request_external_username() else False
+        self.is_external = bool(get_request_external_username())
 
     def async_export(self):
         # 判断fields是否支持
