@@ -21,15 +21,15 @@ from apm_web.constants import (
     CustomServiceMatchType,
     TopoNodeKind,
 )
-from apm_web.metrics import APPLICATION_LIST
+from apm_web.metrics import APPLICATION_LIST_REFRESH
 from apm_web.models import ApdexServiceRelation, ApplicationCustomService
 from apm_web.utils import group_by
+from core.drf_resource import api
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext_lazy as _
 
 from bkmonitor.utils.thread_backend import ThreadPool
-from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class ServiceHandler:
     def refresh_application_cache_data(cls, applications):
 
         service_count_mapping = cls.batch_query_service_count(applications)
-        metric_data = APPLICATION_LIST(applications)
+        metric_data = APPLICATION_LIST_REFRESH(applications)
 
         data_map = {}
         for app in applications:
