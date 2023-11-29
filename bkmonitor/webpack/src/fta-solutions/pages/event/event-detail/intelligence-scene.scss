@@ -1,4 +1,6 @@
 .intelligence-scene-view-component {
+  padding: 0 20px;
+
   .intelligenc-scene-item {
     height: 200px;
     padding-right: 8px;
@@ -9,6 +11,10 @@
 
     .chart-wrapper .is-error {
       left: -18px;
+    }
+
+    .title-wrapper .chart-title .main-title .alarm-icon {
+      display: none;
     }
   }
 }
