@@ -563,17 +563,17 @@ class CollectorHandler(object):
             for obj in index_set_tag_objs
         }
 
-        for _data in data:
-            _index_set_id = _data.get("index_set_id", None)
-            if not _index_set_id:
-                _data["tags"] = list()
+        for data_info in data:
+            index_set_id = data_info.get("index_set_id", None)
+            if not index_set_id:
+                data_info["tags"] = list()
                 continue
-            _tag_ids = tag_ids_mapping.get(int(_index_set_id), [])
-            if not _tag_ids:
-                _data["tags"] = list()
+            tag_ids = tag_ids_mapping.get(int(index_set_id), [])
+            if not tag_ids:
+                data_info["tags"] = list()
                 continue
-            _data["tags"] = [
-                index_set_tag_mapping.get(int(tag_id)) for tag_id in _tag_ids if index_set_tag_mapping.get(int(tag_id))
+            data_info["tags"] = [
+                index_set_tag_mapping.get(int(tag_id)) for tag_id in tag_ids if index_set_tag_mapping.get(int(tag_id))
             ]
 
         return data
