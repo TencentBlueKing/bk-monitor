@@ -361,13 +361,17 @@ def cache_batch_metric_query(
     iteritems,
     period: str = None,
     distance: int = None,
+    start_time=None,
+    end_time=None,
     metric_handler_cls: list = None,
     id_get=lambda x: x,
     filter_dict_build=lambda x: None,
     get_application=lambda x: x,
 ):
-    start_time, end_time = get_datetime_range(period, distance)
-    start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+    if not start_time or not end_time:
+        # start_time/end_time 和 period/distance 二选一填写
+        start_time, end_time = get_datetime_range(period, distance)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
     return batch_metric_query(
         start_time,
         end_time,
