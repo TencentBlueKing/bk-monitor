@@ -8,16 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from alarm_backends.service.subscription.handler.base import BaseSubscriptionHandler
 
 
-class SceneSubscriptionHandler(BaseSubscriptionHandler):
-    """
-    观测场景订阅管理器
-    """
+from django.conf.urls import include, url
 
-    def render_subscription(self):
-        """
-        渲染订阅内容
-        """
-        pass
+from core.drf_resource.routers import ResourceRouter
+from monitor_web.email_subscription import views
+
+router = ResourceRouter()
+router.register_module(views)
+
+urlpatterns = [
+    url(r"^", include(router.urls)),
+]

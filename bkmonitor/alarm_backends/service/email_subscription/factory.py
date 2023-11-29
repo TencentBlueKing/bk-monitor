@@ -8,14 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from alarm_backends.service.subscription.handler.clustering import (
+from alarm_backends.service.email_subscription.handler.clustering import (
     ClusteringSubscriptionHandler,
 )
-from alarm_backends.service.subscription.handler.dashboard import (
+from alarm_backends.service.email_subscription.handler.dashboard import (
     DashboardSubscriptionHandler,
 )
-from alarm_backends.service.subscription.handler.scene import SceneSubscriptionHandler
-from bkmonitor.models.email_subscription import EmailSubscription, ScenarioEnum
+from alarm_backends.service.email_subscription.handler.scene import (
+    SceneSubscriptionHandler,
+)
+from bkmonitor.models.email_subscription import ScenarioEnum
 
 SUPPORTED_SCENARIO = {
     ScenarioEnum.CLUSTERING: ClusteringSubscriptionHandler,
@@ -25,19 +27,7 @@ SUPPORTED_SCENARIO = {
 
 
 class SubscriptionFactory(object):
-    def __init__(self, susbcription_ids=None):
-        if susbcription_ids:
-            self.subscriptions = EmailSubscription.objects.filter(id__in=susbcription_ids)
-        else:
-            self.subscriptions = list(EmailSubscription.objects.filter(is_enabled=True))
-
-    def get_handler(self, subscription):
+    @classmethod
+    def get_handler(cls, subscription):
         subscription_handler_cls = SUPPORTED_SCENARIO[subscription.scenario]
         return subscription_handler_cls(subscription)
-
-    def detect_run_time(self):
-        pass
-
-    def detect_current_period_subscriptions(self):
-        for subscription in self.subscriptions:
-            pass

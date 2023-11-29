@@ -11,8 +11,8 @@ specific language governing permissions and limitations under the License.
 from django.db import models
 from django.utils.translation import ugettext_lazy as _lazy
 
-from apps.utils import ChoicesEnum
 from bkmonitor.models.external_iam import STATUS_CHOICES
+from bkmonitor.utils.enum import ChoicesEnum
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
 
 

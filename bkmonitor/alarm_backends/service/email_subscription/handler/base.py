@@ -45,19 +45,19 @@ class BaseSubscriptionHandler(object):
         """
         pass
 
-    def send_subscription(self):
+    def send(self):
         """
         发送订阅
         """
         pass
 
-    def render_subscription(self):
+    def render(self):
         """
         渲染订阅
         """
         pass
 
-    def cancel_subscription(self):
+    def cancel(self):
         """
         取消订阅
         """
