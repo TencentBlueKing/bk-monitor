@@ -73,41 +73,8 @@ export default class IntelligenceScene extends tsc<IProps> {
             ...target.data,
             id: this.params.id,
             bk_biz_id: this.params.bk_biz_id
-          },
-          datasource: 'time_series',
-          data_type: 'time_series'
-          // api: 'alert.alertGraphQuery'
-        })),
-        options: {
-          time_series: {
-            markLine: {
-              symbol: [],
-              label: {
-                show: true,
-                position: 'insideStartTop'
-              },
-              lineStyle: {
-                color: '#FD9C9C',
-                type: 'dashed',
-                distance: 3,
-                width: 1
-              },
-              emphasis: {
-                label: {
-                  show: true,
-                  formatter(v: any) {
-                    return `${v.name || ''}: ${v.value}`;
-                  }
-                }
-              },
-              data: [
-                {
-                  yAxis: item.anomaly_info.anomaly_point
-                }
-              ]
-            }
           }
-        }
+        }))
       };
     });
     this.panels = result.map(item => new PanelModel(item));

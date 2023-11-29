@@ -104,7 +104,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   errorMsg = '';
 
   /* 是否为智能场景检测视图 */
-  isMultivariateAnomalyDetection = true;
+  isMultivariateAnomalyDetection = false;
 
   @Watch('detail', { immediate: true })
   handleDetailChange() {
@@ -529,7 +529,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
 
   // 事件及日志来源告警视图
   getSeriesViewComponent() {
-    if (!this.isMultivariateAnomalyDetection) {
+    if (this.isMultivariateAnomalyDetection) {
       return <IntelligenceScene params={this.detail}></IntelligenceScene>;
     }
     /** 智能检测算法图表 */
