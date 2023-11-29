@@ -34,14 +34,12 @@ from apps.api.modules.bkdata_databus import BkDataDatabusApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_BKDATA_DATAID
 from apps.log_databus.constants import (
-    DEFAULT_RETENTION,
     REGISTERED_SYSTEM_DEFAULT,
     STORAGE_CLUSTER_TYPE,
     CollectItsmStatus,
     ContainerCollectStatus,
 )
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.models import (
     BcsStorageClusterConfig,
     CollectorConfig,
@@ -309,16 +307,15 @@ def create_custom_log_group():
 
 @high_priority_task(ignore_result=True)
 def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app_code="bk_bcs"):
-    queryset = CollectorConfig.objects.filter(bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code)
-    if bk_biz_id:
-        queryset = queryset.filter(bk_biz_id=bk_biz_id)
-    collectors = queryset.exclude(bk_app_code="bk_log_search").order_by("-updated_at")
+    collectors = CollectorConfig.objects.filter(
+        bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code
+    )
     # 新增bcs采集存储集群全局配置更新
     BcsStorageClusterConfig.objects.update_or_create(
-        bcs_cluster_id=bcs_cluster_id, bk_biz_id=bk_biz_id, storage_cluster_id=storage_cluster_id
+        bcs_cluster_id=bcs_cluster_id, bk_biz_id=bk_biz_id, defaults={"storage_cluster_id": "storage_cluster_id"}
     )
     # 存量索引集存储集群更新
-    CollectorHandler().update_bcs_project_index_set(
+    CollectorHandler().update_bcs_project_index_set_storage(
         bcs_cluster_id=bcs_cluster_id,
         bk_biz_id=bk_biz_id,
         storage_cluster_id=storage_cluster_id,
@@ -328,16 +325,21 @@ def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app
     from apps.log_databus.handlers.etl import EtlHandler
 
     for collector in collectors:
-        custom_config = get_custom(collector.custom_type)
-        etl_handler = EtlHandler(collector.collector_config_id)
-        etl_params = {
-            "table_id": collector.collector_config_name_en,
-            "storage_cluster_id": storage_cluster_id,
-            "retention": DEFAULT_RETENTION,
-            "allocation_min_days": 0,
-            "storage_replies": 0,
-            "etl_params": custom_config.etl_params,
-            "etl_config": custom_config.etl_config,
-            "fields": custom_config.fields,
-        }
-        etl_handler.update_or_create(**etl_params)
+        try:
+            collect_config = CollectorHandler(collector.collector_config_id).retrieve()
+            etl_params = {
+                "table_id": collector.collector_config_name_en,
+                "storage_cluster_id": storage_cluster_id,
+                "retention": collect_config["retention"],
+                "allocation_min_days": collect_config["allocation_min_days"],
+                "storage_replies": collect_config["storage_replies"],
+                "etl_params": collect_config["etl_params"],
+                "etl_config": collect_config["etl_config"],
+                "fields": collect_config["fields"],
+            }
+            etl_handler = EtlHandler(collector.collector_config_id)
+            etl_handler.update_or_create(**etl_params)
+        except Exception as e:
+            logger.exception(
+                "switch collector->[{}] storage cluster error: {}".format(collector.collector_config_id, e)
+            )

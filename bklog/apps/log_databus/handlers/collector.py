@@ -3184,7 +3184,7 @@ class CollectorHandler(object):
         return path_index_set, std_index_set
 
     @staticmethod
-    def update_bcs_project_index_set(bcs_cluster_id, bk_biz_id, storage_cluster_id):
+    def update_bcs_project_index_set_storage(bcs_cluster_id, bk_biz_id, storage_cluster_id):
         """
         更新BCS项目索引集的存储集群配置
         """
@@ -3197,19 +3197,21 @@ class CollectorHandler(object):
         path_index_set = src_index_list.filter(index_set_name=path_index_set_name).first()
         # 更新索引集当前存储集群配置，并创建该索引集存储集群切换记录
         if path_index_set:
-            old_storage_cluster_id = copy.deepcopy(path_index_set.storage_cluster_id)
-            path_index_set.storage_cluster_id = storage_cluster_id
-            path_index_set.save()
-            StorageClusterRecord.objects.create(
-                index_set_id=path_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
-            )
+            old_storage_cluster_id = path_index_set.storage_cluster_id
+            if old_storage_cluster_id != storage_cluster_id:
+                path_index_set.storage_cluster_id = storage_cluster_id
+                path_index_set.save()
+                StorageClusterRecord.objects.create(
+                    index_set_id=path_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
+                )
         if std_index_set:
-            old_storage_cluster_id = copy.deepcopy(std_index_set.storage_cluster_id)
-            std_index_set.storage_cluster_id = storage_cluster_id
-            std_index_set.save()
-            StorageClusterRecord.objects.create(
-                index_set_id=std_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
-            )
+            old_storage_cluster_id = std_index_set.storage_cluster_id
+            if old_storage_cluster_id != storage_cluster_id:
+                std_index_set.storage_cluster_id = storage_cluster_id
+                std_index_set.save()
+                StorageClusterRecord.objects.create(
+                    index_set_id=std_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
+                )
 
     @classmethod
     def generate_collector_config_name(cls, bcs_cluster_id, collector_config_name, collector_config_name_en):
