@@ -140,6 +140,7 @@ from apps.log_search.constants import (
     CollectorScenarioEnum,
     CustomTypeEnum,
     GlobalCategoriesEnum,
+    InnerTag,
 )
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
@@ -541,9 +542,26 @@ class CollectorHandler(object):
     @classmethod
     def add_tags_info(cls, data):
         """添加标签信息"""
-        index_set_ids = [_data.get("index_set_id") for _data in data if _data.get("index_set_id")]
+        index_set_ids = [data_info.get("index_set_id") for data_info in data if data_info.get("index_set_id")]
         index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
-        tag_ids_mapping = {_obj.index_set_id: _obj.tag_ids for _obj in index_set_objs}
+
+        tag_ids_mapping = dict()
+        tag_ids_all = list()
+
+        for obj in index_set_objs:
+            tag_ids_mapping[obj.index_set_id] = obj.tag_ids
+            tag_ids_all.extend(obj.tag_ids)
+
+        # 查询出所有的tag信息
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        index_set_tag_mapping = {
+            obj.tag_id: {
+                "name": InnerTag.get_choice_label(obj.name),
+                "color": obj.color,
+                "tag_id": obj.tag_id,
+            }
+            for obj in index_set_tag_objs
+        }
 
         for _data in data:
             _index_set_id = _data.get("index_set_id", None)
@@ -554,7 +572,9 @@ class CollectorHandler(object):
             if not _tag_ids:
                 _data["tags"] = list()
                 continue
-            _data["tags"] = IndexSetTag.batch_get_tags(_tag_ids)
+            _data["tags"] = [
+                index_set_tag_mapping.get(int(tag_id)) for tag_id in _tag_ids if index_set_tag_mapping.get(int(tag_id))
+            ]
 
         return data
 
