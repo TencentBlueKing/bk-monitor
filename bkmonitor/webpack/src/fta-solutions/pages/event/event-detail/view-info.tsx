@@ -40,8 +40,8 @@ import {
 } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import MonitorEchart from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import IntelligenceScene from './intelligence-scene/intelligence-scene';
 import AiopsChartEvent, { createAutoTimerange } from './aiops-chart';
+import IntelligenceScene from './intelligence-scene';
 import LoadingBox from './loading-box';
 import OutlierDetectionChart from './outlier-detection-chart';
 import TimeSeriesForecastingChart from './time-series-forecasting-chart';
