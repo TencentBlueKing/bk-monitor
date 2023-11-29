@@ -278,6 +278,8 @@ class SearchAttrSerializer(serializers.Serializer):
 
     is_return_doc_id = serializers.BooleanField(label=_("是否返回文档ID"), required=False, default=False)
 
+    is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
