@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ('deleted_at', models.DateTimeField(blank=True, null=True, verbose_name='删除时间')),
                 ('deleted_by', models.CharField(blank=True, max_length=32, null=True, verbose_name='删除者')),
                 ('bk_biz_id', models.IntegerField(verbose_name='业务id')),
-                ('bcs_cluster_id', models.CharField(blank=True, max_length=128, null=True, verbose_name='bcs集群ID')),
+                ('bcs_cluster_id', models.CharField(max_length=128, verbose_name='bcs集群ID')),
                 ('storage_cluster_id', models.CharField(default='', max_length=64, verbose_name='存储集群ID')),
             ],
             options={
