@@ -1258,7 +1258,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             for i in data
         )
 
-        return round((error_count / request_count_sum) * 100, 2) if request_count_sum else 0
+        return round((error_count / request_count_sum) * 100, 2) if request_count_sum else None
 
     def get_columns(self, column_type=None):
         service_format = LinkTableFormat(
@@ -1564,8 +1564,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
 
         # 获取时间范围内endpoint的指标
-        distance, period = get_time_period(data["start_time"], data["end_time"])
-        endpoints_metric = ENDPOINT_LIST(application, distance=distance, period=period)
+        endpoints_metric = ENDPOINT_LIST(application, start_time=data["start_time"], end_time=data["end_time"])
 
         request_all_count = 0
         error_all_count = 0
