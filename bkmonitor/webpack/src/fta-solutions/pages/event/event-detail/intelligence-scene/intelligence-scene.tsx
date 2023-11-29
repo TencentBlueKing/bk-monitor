@@ -53,12 +53,14 @@ export default class IntelligenceScene extends tsc<IProps> {
 
   panels: PanelModel[] = [];
   dashboardId = random(10);
+  loading = false;
 
   async created() {
+    this.loading = true;
     const data = await multiAnomalyDetectGraph({
       alert_id: this.params.id,
       bk_biz_id: this.params.bk_biz_id
-    });
+    }).catch(() => []);
     const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
     const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
     this.timeRange = [startTime, endTime];
@@ -73,16 +75,23 @@ export default class IntelligenceScene extends tsc<IProps> {
             ...target.data,
             id: this.params.id,
             bk_biz_id: this.params.bk_biz_id
-          }
+          },
+          datasource: 'time_series'
         }))
       };
     });
     this.panels = result.map(item => new PanelModel(item));
+    this.loading = false;
   }
 
   render() {
     return (
-      <div class='intelligence-scene-view-component'>
+      <div
+        class='intelligence-scene-view-component'
+        v-bkloading={{
+          isLoading: this.loading
+        }}
+      >
         {this.panels.map(panel => (
           <div class='intelligenc-scene-item'>
             <ChartWrapper
