@@ -33,7 +33,7 @@ class VisibleEnum:
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 # 获取需要增加事务的DB链接名
-DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "monitor_api")
+DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "metadata")
 
 
 ############################################################################

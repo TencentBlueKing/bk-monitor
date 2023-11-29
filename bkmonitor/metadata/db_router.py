@@ -9,22 +9,31 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf import settings
 
+class DBRouter:
+    """django db 路由"""
 
-class KernelAPIRouter(object):
-    routers = {"monitor_api": settings.BACKEND_DATABASE_NAME, "metadata": settings.METADATA_DATABASE_NAME}
+    app_labels = {
+        "metadata",
+    }
+    db_name = "metadata"
 
     def db_for_read(self, model, **hints):
-        return self.routers.get(model._meta.app_label, "default")
+        if model._meta.app_label in self.app_labels:
+            return self.db_name
+        return None
 
     def db_for_write(self, model, **hints):
-        return self.routers.get(model._meta.app_label, "default")
+        if model._meta.app_label in self.app_labels:
+            return self.db_name
+        return None
 
     def allow_relation(self, obj1, obj2, **hints):
-        db1 = self.routers.get(obj1._meta.app_label, "default")
-        db2 = self.routers.get(obj2._meta.app_label, "default")
-        return db1 == db2
+        if obj1._meta.app_label in self.app_labels or obj2._meta.app_label in self.app_labels:
+            return True
+        return None
 
-    def allow_migrate(self, db, app_label, model_name=None, model=None, **hints):
-        return app_label not in self.routers
+    def allow_migrate(self, db, app_label, model_name=None, **hints):
+        if app_label in self.app_labels:
+            return db == self.db_name
+        return None

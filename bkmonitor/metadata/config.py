@@ -85,7 +85,7 @@ RT_CMDB_LEVEL_ETL_CONFIG = "bk_cmdb_level_split"
 RT_CMDB_LEVEL_RT_NAME = "{}_cmdb_level"
 
 # 获取需要增加事务的DB链接名
-DATABASE_CONNECTION_NAME = getattr(settings, "BACKEND_DATABASE_NAME", "monitor_api")
+DATABASE_CONNECTION_NAME = getattr(settings, "BACKEND_DATABASE_NAME", "metadata")
 
 # ES存储默认版本
 ES_CLUSTER_VERSION_DEFAULT = 7

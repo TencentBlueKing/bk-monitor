@@ -76,3 +76,13 @@ def get_grafana_mysql_settings():
     host = os.getenv("BKAPP_GRAFANA_DB_HOST")
     port = int(os.getenv("BKAPP_GRAFANA_DB_PORT") or 0)
     return name, host, port, user, password
+
+
+def get_metadata_mysql_settings():
+    """获取 metadata 模块 mysql 配置"""
+    name = os.getenv("BKAPP_METADATA_DB_NAME")
+    user = os.getenv("BKAPP_METADATA_DB_USER")
+    password = os.getenv("BKAPP_METADATA_DB_PASSWORD")
+    host = os.getenv("BKAPP_METADATA_DB_HOST")
+    port = int(os.getenv("BKAPP_METADATA_DB_PORT") or "3306")
+    return name, host, port, user, password

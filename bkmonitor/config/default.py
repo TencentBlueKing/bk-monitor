@@ -35,6 +35,7 @@ from .tools.environment import (
 from .tools.mysql import (
     get_backend_mysql_settings,
     get_grafana_mysql_settings,
+    get_metadata_mysql_settings,
     get_saas_mysql_settings,
 )
 from .tools.service import get_service_url
@@ -758,7 +759,7 @@ ACCESS_DATA_TIME_DELAY = 10
 KAFKA_AUTO_COMMIT = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-DATABASE_ROUTERS = ["bk_dataview.router.DBRouter"]
+DATABASE_ROUTERS = ["bk_dataview.router.DBRouter", "metadata.db_router.DBRouter"]
 
 # 数据库配置
 (
@@ -787,6 +788,16 @@ else:
     GRAFANA_MYSQL_PASSWORD,
 ) = get_grafana_mysql_settings()
 
+# 获取 metadata 模块依赖的 mysql 配置
+(
+    METADATA_MYSQL_NAME,
+    METADATA_MYSQL_HOST,
+    METADATA_MYSQL_PORT,
+    METADATA_MYSQL_USER,
+    METADATA_MYSQL_PASSWORD,
+) = get_metadata_mysql_settings()
+METADATA_DATABASE_NAME = "metadata"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
@@ -811,6 +822,15 @@ DATABASES = {
         "PASSWORD": GRAFANA_MYSQL_PASSWORD or BACKEND_MYSQL_PASSWORD,
         "HOST": GRAFANA_MYSQL_HOST or BACKEND_MYSQL_HOST,
         "PORT": GRAFANA_MYSQL_PORT or BACKEND_MYSQL_PORT,
+        "OPTIONS": {"charset": "utf8mb4"},
+    },
+    "metadata": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": METADATA_MYSQL_NAME,
+        "USER": METADATA_MYSQL_USER,
+        "PASSWORD": METADATA_MYSQL_PASSWORD,
+        "HOST": METADATA_MYSQL_HOST,
+        "PORT": METADATA_MYSQL_PORT,
         "OPTIONS": {"charset": "utf8mb4"},
     },
 }
