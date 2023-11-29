@@ -29,6 +29,7 @@ import { Button, Checkbox, Popover, Tab, TabPanel } from 'bk-magic-vue';
 
 import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
+import { MetricType } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import AiopsContainer from './aiops/aiops-container';
 import CirculationRecord from './circulation-record';
@@ -254,6 +255,15 @@ export default class TabContainer extends tsc<ITabContainerProps> {
     });
   }
 
+  /**
+   * @description 是否为智能异常检测
+   */
+  get isMultivariateAnomalyDetection() {
+    return (
+      this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.MultivariateAnomalyDetection
+    );
+  }
+
   @Watch('show')
   handleShow(v) {
     if (v) {
@@ -379,7 +389,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
           isScrollEnd={this.isScrollEnd}
           detail={this.detail}
         ></ViewInfo>
-        {!!(window as any).enable_aiops && (
+        {!!(window as any).enable_aiops && !this.isMultivariateAnomalyDetection && (
           <AiopsContainer
             show={this.active === EPanelsNames.viewInfo}
             detail={this.detail}
