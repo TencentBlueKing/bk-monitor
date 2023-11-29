@@ -93,8 +93,11 @@ export default class IntelligenceScene extends tsc<IProps> {
           isLoading: this.loading
         }}
       >
-        {this.panels.map(panel => (
-          <div class='intelligenc-scene-item'>
+        {this.panels.map((panel, index) => (
+          <div
+            class='intelligenc-scene-item'
+            key={index}
+          >
             <ChartWrapper
               panel={panel}
               needCheck={false}
