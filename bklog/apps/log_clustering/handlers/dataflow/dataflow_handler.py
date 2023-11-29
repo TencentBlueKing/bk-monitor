@@ -41,6 +41,7 @@ from apps.api.base import DataApiRetryClass, check_result_is_true
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
+    DEFAULT_TIME_FIELD,
     MAX_FAILED_REQUEST_RETRY,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
@@ -1498,6 +1499,9 @@ class DataFlowHandler(BaseAiopsHandler):
                 if field == value:
                     converted_fields.append(key)
                     break
+        # 时间字段已定义，可以不添加到查询字段
+        if DEFAULT_TIME_FIELD in converted_fields:
+            converted_fields.remove(DEFAULT_TIME_FIELD)
         if DEFAULT_CLUSTERING_FIELD not in converted_fields:
             converted_fields.append(DEFAULT_CLUSTERING_FIELD)
         _, format_transform_fields = self._generate_fields(converted_fields, clustering_field=clustering_fields)
