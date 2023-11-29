@@ -41,7 +41,6 @@ from apps.api.base import DataApiRetryClass, check_result_is_true
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
-    DEFAULT_TIME_FIELD,
     MAX_FAILED_REQUEST_RETRY,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
@@ -1492,19 +1491,16 @@ class DataFlowHandler(BaseAiopsHandler):
         )
 
         # alias_name ==> field_name
-        converted_fields = []
-        dst_transform_fields = [i.replace("`", "") for i in dst_transform_fields]
+        format_transform_fields = []
+        mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
         for field in dst_transform_fields:
-            for key, value in all_fields_dict.items():
-                if field == value:
-                    converted_fields.append(key)
-                    break
-        # 时间字段已定义，可以不添加到查询字段
-        if DEFAULT_TIME_FIELD in converted_fields:
-            converted_fields.remove(DEFAULT_TIME_FIELD)
-        if DEFAULT_CLUSTERING_FIELD not in converted_fields:
-            converted_fields.append(DEFAULT_CLUSTERING_FIELD)
-        _, format_transform_fields = self._generate_fields(converted_fields, clustering_field=clustering_fields)
+            if field in mapping_all_fields_dict.keys():
+                format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
+            if field == DEFAULT_CLUSTERING_FIELD:
+                format_transform_fields.append(
+                    "`{}` as `{}`".format(field, all_fields_dict.get(clustering_config.clustering_fields))
+                )
+
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
 
