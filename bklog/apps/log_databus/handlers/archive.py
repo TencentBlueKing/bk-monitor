@@ -479,7 +479,7 @@ class ArchiveHandler:
         # 归档任务是索引集的场景下 会存在多个归档回溯
         result_errors = list()
         if restore.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
-            restore_objs = RestoreConfig.objects.filter(archive_config_id=restore.archive_config_id)
+            restore_objs = RestoreConfig.objects.filter(index_set_id=restore.index_set_id)
             restore_objs.update(expired_time=expired_time)
             meta_restore_ids = list(restore_objs.values_list("meta_restore_ids", flat=True))
             multi_execute_func = MultiExecuteFunc()
@@ -524,7 +524,7 @@ class ArchiveHandler:
         index_set_handler.stop()
         # 归档任务是索引集的场景下 会存在多个归档回溯
         if restore.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
-            restore_objs = RestoreConfig.objects.filter(archive_config_id=restore.archive_config_id)
+            restore_objs = RestoreConfig.objects.filter(index_set_id=restore.index_set_id)
             meta_restore_ids = list(restore_objs.values_list("meta_restore_id", flat=True))
             restore_objs.delete()
             multi_execute_func = MultiExecuteFunc()
