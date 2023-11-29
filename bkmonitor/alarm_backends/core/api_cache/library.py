@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import sys
 
 """
 celery api任务
@@ -16,7 +17,6 @@ import datetime
 import gc
 import logging
 import os
-import socket
 import time
 
 import psutil
@@ -29,7 +29,6 @@ from six.moves import range
 from alarm_backends.constants import CONST_MINUTES, CONST_ONE_HOUR
 from alarm_backends.core.lock.service_lock import share_lock
 from alarm_backends.management.hashring import HashRing
-from alarm_backends.service.scheduler.app import app
 from api.cmdb import client
 from api.cmdb.define import Host
 from bkmonitor.models import StrategyModel
@@ -131,16 +130,15 @@ def cache_cmdb_resource():
 
 @share_lock()
 def term_api_cron(immediately=False):
-
     if settings.IS_CONTAINER_MODE:
         self_p = psutil.Process(os.getpid())
         run_time = time.time() - self_p.create_time()
         logger.info(f"[api cache] scheduler:celery_worker_api_cron now running {run_time}s")
-        if (immediately and run_time > 5 * CONST_MINUTES) or run_time > CONST_ONE_HOUR:
+        if (immediately and run_time > 30 * CONST_MINUTES) or run_time > CONST_ONE_HOUR:
             logger.info("[api cache] term_api_cron now")
-            # celery 自杀
-            hostname = socket.gethostname()
-            app.control.broadcast("shutdown", destination=[f"celery@{hostname}"])
+            # celery 自杀，通过广播shutdown信号退出码非0，会导致k8s判定为crash
+            # 当前 gevent 模式，没有子进程，因此可以直接退出
+            sys.exit(0)
         return
 
     # 二进制部署，用supervisor管理
