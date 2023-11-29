@@ -1492,6 +1492,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
         # alias_name ==> field_name
         format_transform_fields = []
+        dst_transform_fields = [i.replace("`", "") for i in dst_transform_fields]
         mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
         for field in dst_transform_fields:
             if field in mapping_all_fields_dict.keys():
