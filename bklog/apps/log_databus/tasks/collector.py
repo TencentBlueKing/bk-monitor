@@ -306,7 +306,7 @@ def create_custom_log_group():
 
 
 @high_priority_task(ignore_result=True)
-def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app_code="bk_bcs"):
+def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app_code):
     collectors = CollectorConfig.objects.filter(
         bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code
     )
@@ -327,6 +327,13 @@ def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app
     for collector in collectors:
         try:
             collect_config = CollectorHandler(collector.collector_config_id).retrieve()
+            if collect_config["storage_cluster_id"] == storage_cluster_id:
+                logger.info(
+                    "switch collector->[{}] old storage cluster is the same: {}, skip it.".format(
+                        collector.collector_config_id, storage_cluster_id
+                    )
+                )
+                continue
             etl_params = {
                 "table_id": collector.collector_config_name_en,
                 "storage_cluster_id": storage_cluster_id,
@@ -339,6 +346,11 @@ def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app
             }
             etl_handler = EtlHandler(collector.collector_config_id)
             etl_handler.update_or_create(**etl_params)
+            logger.info(
+                "switch collector->[{}] storage cluster success: {} -> {}".format(
+                    collector.collector_config_id, collect_config["storage_cluster_id"], storage_cluster_id
+                )
+            )
         except Exception as e:
             logger.exception(
                 "switch collector->[{}] storage cluster error: {}".format(collector.collector_config_id, e)
