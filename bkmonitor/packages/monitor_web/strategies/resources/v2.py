@@ -415,10 +415,12 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_list.append(uptime_check_strategy_ids)
 
     @classmethod
-    def filter_strategy_ids_by_level(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_level(cls, filter_dict: dict, filter_strategy_ids_list: list, strategies: QuerySet):
         """过滤告警级别"""
         if filter_dict["level"]:
+            strategy_ids = strategies.values_list("id", flat=True)
             level_strategy_ids = DetectModel.objects.filter(
+                strategy_id__in=strategy_ids,
                 level__in=filter_dict["level"]
             ).values_list('strategy_id', flat=True)
             filter_strategy_ids_list.append(level_strategy_ids)
@@ -509,7 +511,7 @@ class GetStrategyListV2Resource(Resource):
 
         cls.filter_strategy_ids_by_uct_id(filter_dict, filter_strategy_ids_list)
         # 告警级别过滤
-        cls.filter_strategy_ids_by_level(filter_dict, filter_strategy_ids_list)
+        cls.filter_strategy_ids_by_level(filter_dict, filter_strategy_ids_list, strategies)
 
         # 各种过滤条件获得的策略ID取交集
         if filter_strategy_ids_list:
