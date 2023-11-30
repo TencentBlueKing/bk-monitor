@@ -400,7 +400,7 @@ class BcsRule(SoftDeleteModel):
 class BcsStorageClusterConfig(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务id"))
     bcs_cluster_id = models.CharField(_("bcs集群ID"), max_length=128)
-    storage_cluster_id = models.IntegerField(_("集群ID"))
+    storage_cluster_id = models.IntegerField(_("存储集群ID"))
 
 
 class ItsmEtlConfig(SoftDeleteModel):

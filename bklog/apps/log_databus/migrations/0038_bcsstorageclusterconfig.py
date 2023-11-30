@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 ('deleted_by', models.CharField(blank=True, max_length=32, null=True, verbose_name='删除者')),
                 ('bk_biz_id', models.IntegerField(verbose_name='业务id')),
                 ('bcs_cluster_id', models.CharField(max_length=128, verbose_name='bcs集群ID')),
-                ('storage_cluster_id', models.IntegerField(max_length=64, verbose_name='存储集群ID')),
+                ('storage_cluster_id', models.IntegerField(verbose_name='存储集群ID')),
             ],
             options={
                 'abstract': False,
