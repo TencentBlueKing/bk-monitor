@@ -273,6 +273,9 @@ def sync_actions_sharding_task(action_ids):
 
 
 def sync_updated_parent_actions(updated_parent_actions, alert_docs, current_sync_time):
+    """
+    同步需要更新的主任务状态
+    """
     if not updated_parent_actions:
         return
     failed_actions = []
