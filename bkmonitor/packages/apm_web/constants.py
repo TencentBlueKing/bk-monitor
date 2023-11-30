@@ -847,3 +847,7 @@ OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not e
 DEFAULT_MAX_VALUE = 10000
 
 DEFAULT_SPLIT_SYMBOL = "--"
+
+# apm_ebpf_{bk_biz_id}_metric, bk_biz_id 为负值时, apm_ebpf_negative_{abs(bk_biz_id)}_metric
+APM_EBPF_METRIC_DEFAULT_PREFIX = "apm_ebpf"
+APM_EBPF_METRIC_DEFAULT_NEGATIVE_PREFIX = "apm_ebpf_negative"
