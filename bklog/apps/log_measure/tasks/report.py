@@ -166,5 +166,5 @@ def collect_metrics(
         # 清理注册表里的内容，下一次运行的时候重新注册
         clear_registered_metrics()
 
-    except Exception as ex:
+    except Exception as ex:  # pylint:disable=broad-except
         logger.exception(f"[statistics_data] Failed to save metric_data, msg: {ex}")
