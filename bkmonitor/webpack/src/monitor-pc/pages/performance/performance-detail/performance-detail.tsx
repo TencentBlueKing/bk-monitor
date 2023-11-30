@@ -107,7 +107,7 @@ export default class PerformanceDetail extends tsc<{}> {
         vm.routeList = [
           {
             id: '',
-            name: (isOldIpv4 ? params?.ip : params?.bk_host_id) || ''
+            name: ''
           }
         ];
       }
