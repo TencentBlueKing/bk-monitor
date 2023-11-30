@@ -114,15 +114,13 @@ class DutyRuleManager:
         if end_time:
             self.end_time = time_tools.str2datetime(end_time)
         else:
-            if not duty_rule["end_time"] and not days:
-                # 如果本来没有设置结束时间，和预览天数，默认用30天
-                days = 30
-            if days:
-                # 如果指定的预览天数，结束时间按照预览天数来计算
-                self.end_time = self.begin_time + timedelta(days=days)
-            else:
-                # 其他情况直接按照
-                self.end_time = time_tools.str2datetime(duty_rule["end_time"])
+            # 如果本来没有设置结束时间，和预览天数，默认用30天
+            days = days or 30
+            self.end_time = self.begin_time + timedelta(days=days)
+
+        if duty_rule.get("end_time"):
+            # 真实的结束时间，以配置时间和预览结束时间的最小值为准
+            self.end_time = min(time_tools.str2datetime(duty_rule["end_time"]), self.end_time)
 
     def get_duty_plan(self):
         """
