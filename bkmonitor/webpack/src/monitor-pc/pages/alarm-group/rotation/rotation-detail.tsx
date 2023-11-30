@@ -154,7 +154,7 @@ export default class RotationDetail extends tsc<IProps> {
           slot='content'
           class='rotation-detail-side-content'
         >
-          {formItem(this.$t('规则名称'), <span class='detail-text'>{this.detailData?.name || '--'}</span>)}
+          {formItem(this.$t('规则名称'), <span class='detail-text text-wrap'>{this.detailData?.name || '--'}</span>)}
           {formItem(this.$t('标签'), <span class='detail-text'>{this.detailData?.labels?.join(', ') || '--'}</span>)}
           {formItem(
             this.$t('轮值类型'),
