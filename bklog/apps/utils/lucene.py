@@ -19,8 +19,10 @@ from apps.constants import (
     FULL_WIDTH_CHAR_MAP,
     HIGH_CHAR,
     LOW_CHAR,
+    LUCENE_NUMERIC_OPERATORS,
+    LUCENE_NUMERIC_TYPES,
     LUCENE_RESERVED_CHARS,
-    LUCENE_RESERVED_OPERATORS,
+    LUCENE_RESERVED_LOGIC_OPERATORS,
     MAX_RESOLVE_TIMES,
     NOT_OPERATOR,
     PLUS_OPERATOR,
@@ -858,7 +860,10 @@ class LuceneCheckerBase(object):
         # 子查询列表
         self.sub_query_list: List[str] = []
         self.field_name_list: List[str] = []
+        # 分词字段列表
         self.analyzed_field_list: List[str] = []
+        # 数值字段列表
+        self.numeric_field_list: List[str] = []
         # LuceneParser解析后的字段列表
         self.parsed_fields: List[LuceneField] = []
         self.prepare()
@@ -869,7 +874,7 @@ class LuceneCheckerBase(object):
         如果后续要在prepare里面做一些额外的工作, 需要在子类中重写这个方法, 最后返回super().prepare()即可
         """
         # 构造模式字符串，其中的(?:...)用于标记一个子表达式开始和结束的位置，匹配满足这个子表达式规则的字符串
-        pattern = '|'.join(r'\b{}\b'.format(x) for x in LUCENE_RESERVED_OPERATORS)
+        pattern = '|'.join(r'\b{}\b'.format(x) for x in LUCENE_RESERVED_LOGIC_OPERATORS)
         # 使用正则来分割字符串，但是保持分割引号的存在
         result = re.split('(' + pattern + ')', self.query_string)
         # 去除结果中的空格部分，这样就不会有头尾空格了
@@ -880,6 +885,8 @@ class LuceneCheckerBase(object):
             field_name = field.get("field_name")
             if field.get("is_analyzed"):
                 self.analyzed_field_list.append(field_name)
+            if field.get("field_type") in LUCENE_NUMERIC_TYPES:
+                self.numeric_field_list.append(field_name)
             self.field_name_list.append(field_name)
 
     def check(self):
@@ -1330,6 +1337,64 @@ class LuceneFullWidthChecker(LuceneCheckerBase):
 
     def _fix(self):
         return self.full_width_to_half_width(self.query_string)
+
+
+class LuceneNumericOperatorChecker(LuceneCheckerBase):
+    """
+    检查数值类型的运算符, 数值类型只支持LUCENE_NUMERIC_OPERATORS内定义的, 该类的所有场景均无法修复
+    """
+
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields, force_check=True)
+
+    @staticmethod
+    def _extract_illegal_numeric_operator(sub_query: str) -> Optional[str]:
+        pattern = r'[<>=]+'
+        matches = re.findall(pattern, sub_query)
+        for match in matches:
+            if match not in LUCENE_NUMERIC_OPERATORS:
+                return match
+        return None
+
+    def _check(self):
+        try:
+            fields = LuceneParser(keyword=self.query_string).parsing()
+            for field in fields:
+                if field.is_full_text_field:
+                    continue
+                if field.field_name in self.numeric_field_list:
+                    numeric_operator = self._extract_illegal_numeric_operator(field.value)
+                    if numeric_operator:
+                        self.check_result.error = _("该字段{field_name}为数值类型, 不支持运算符'{numeric_operator}'").format(
+                            field_name=field.field_name, numeric_operator=numeric_operator
+                        )
+                        self.check_result.suggestion = _("请使用以下运算符: {numeric_operators}").format(
+                            numeric_operators=",".join(LUCENE_NUMERIC_OPERATORS)
+                        )
+                        self.check_result.fixable = False
+                        return False
+        except Exception:  # pylint: disable=broad-except
+            for sub_query in self.sub_query_list:
+                if ':' not in sub_query:
+                    continue
+                field_name, field_expr = sub_query.split(':')
+                if "(" in field_name:
+                    field_name = field_name.split("(")[0]
+                field_name = field_name.strip()
+                field_expr = field_expr.strip()
+                if field_name and field_name in self.numeric_field_list:
+                    numeric_operator = self._extract_illegal_numeric_operator(field_expr)
+                    if numeric_operator:
+                        self.check_result.error = _("该字段{field_name}为数值类型, 不支持运算符'{numeric_operator}'").format(
+                            field_name=field_name, numeric_operator=numeric_operator
+                        )
+                        self.check_result.suggestion = _("请使用以下运算符: {numeric_operators}").format(
+                            numeric_operators=",".join(LUCENE_NUMERIC_OPERATORS)
+                        )
+                        self.check_result.fixable = False
+                        return False
+
+        return True
 
 
 class LuceneChecker(object):

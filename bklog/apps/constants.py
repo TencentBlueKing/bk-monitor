@@ -153,7 +153,12 @@ BRACKET_DICT = {"[": "]", "(": ")", "{": "}"}
 # 最大语法修复次数
 MAX_RESOLVE_TIMES = 10
 
-LUCENE_RESERVED_OPERATORS = ['AND', 'OR', 'NOT']
+# Lucene数值类字段操作符
+LUCENE_NUMERIC_OPERATORS = ["<", "<=", ">", ">=", "="]
+# Lucene数值类类型列表
+LUCENE_NUMERIC_TYPES = ["long", "integer", "short", "byte", "double", "float"]
+# Lucene保留字符
+LUCENE_RESERVED_LOGIC_OPERATORS = ['AND', 'OR', 'NOT']
 LUCENE_RESERVED_CHARS = ["+", "-", "=", "&", "&&", ">", "<", "!", "(", ")", "}", "[", "]", '"', "~", "*", "?", ":", "/"]
 # 全角字符转半角字符
 FULL_WIDTH_CHAR_MAP = {

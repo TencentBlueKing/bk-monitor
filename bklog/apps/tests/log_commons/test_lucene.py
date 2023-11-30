@@ -14,6 +14,7 @@ from apps.utils.lucene import (
     LuceneFieldExistChecker,
     LuceneFieldExprChecker,
     LuceneFullWidthChecker,
+    LuceneNumericOperatorChecker,
     LuceneParenthesesChecker,
     LuceneQuotesChecker,
     LuceneRangeChecker,
@@ -286,11 +287,11 @@ FIELDS = [
         "field_type": "text",
         "is_analyzed": True,
     },
-    {"field_name": "id", "field_type": "int", "is_analyzed": False},
-    {"field_name": "number", "field_type": "int", "is_analyzed": False},
+    {"field_name": "id", "field_type": "integer", "is_analyzed": False},
+    {"field_name": "number", "field_type": "integer", "is_analyzed": False},
     {"field_name": "title", "field_type": "text", "is_analyzed": True},
     {"field_name": "text", "field_type": "text", "is_analyzed": True},
-    {"field_name": "gseIndex", "field_type": "int", "is_analyzed": False},
+    {"field_name": "gseIndex", "field_type": "integer", "is_analyzed": False},
     {"field_name": "time", "field_type": "text", "is_analyzed": True},
     {"field_name": "a", "field_type": "text", "is_analyzed": True},
     {"field_name": "c", "field_type": "text", "is_analyzed": True},
@@ -382,6 +383,15 @@ FULL_WIDTH_CHAR_CHECK_TEST_CASES = [LEGAL_CASE] + [
         "check_result": False,
         "prompt": """检测到使用了全角字符【,】, 你可能想输入: log: [ 20 TO 100 ]""",
     },
+]
+
+NUMERIC_OPERATOR_CHECK_TEST_CASES = [LEGAL_CASE] + [
+    {
+        "keyword": """id: >>>>>>======<<<<<< 100""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": """该字段id为数值类型, 不支持运算符'>>>>>>======<<<<<<', 请使用以下运算符: <,<=,>,>=,=""",
+    }
 ]
 
 FULL_CHECK_TEST_CASES = [
@@ -556,6 +566,14 @@ class TestLuceneChecker(TestCase):
     def test_full_width_char_checker(self):
         for case in FULL_WIDTH_CHAR_CHECK_TEST_CASES:
             checker = LuceneFullWidthChecker(case["keyword"], case.get("fields", []))
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_numeric_operator_checker(self):
+        for case in NUMERIC_OPERATOR_CHECK_TEST_CASES:
+            checker = LuceneNumericOperatorChecker(case["keyword"], case.get("fields", []))
             checker.check()
             self.assertEqual(checker.check_result.legal, case["check_result"])
             checker.fix()
