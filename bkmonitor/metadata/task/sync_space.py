@@ -23,7 +23,6 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SKIP_DATA_ID_LIST_FOR_BKCC,
-    SPACE_REDIS_KEY,
     SYSTEM_USERNAME,
     BCSClusterTypes,
     SpaceTypes,
@@ -281,17 +280,6 @@ def refresh_bcs_project_biz():
     if add_resource_list:
         SpaceResource.objects.bulk_create(add_resource_list)
         logger.info("create bcs space resource successfully, space: %s", json.dumps(space_id_list))
-
-    if space_id_list:
-        for space_id in space_id_list:
-            SpaceRedis().push_bcs_type_space(space_id=space_id, push_bcs_type=False)
-        logger.info(
-            "the biz of bcs project changed, push updated bcs space to redis successfully, space: %s",
-            json.dumps(space_id_list),
-        )
-        # NOTE: 仅推送 redis，由使用方拉取使用
-        RedisTools.push_space_to_redis(SPACE_REDIS_KEY, changed_space_for_redis)
-        logger.info("push updated bcs space to redis successfully, space: %s", json.dumps(changed_space_for_redis))
 
 
 def get_cluster_data_id(space_id, cluster_id_list, space_data_id_map):
