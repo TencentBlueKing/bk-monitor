@@ -13,7 +13,7 @@ import logging
 import time
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 from importlib import import_module
 
 import jmespath
@@ -342,70 +342,6 @@ class ActionInstance(AbstractRecordModel):
         if self.signal == ActionSignal.COLLECT:
             return {key: value[0] if isinstance(value, list) else value for key, value in self.inputs.items()}
         return self.inputs
-
-    @classmethod
-    def update_parent_action_status(cls, sub_actions):
-        """
-        更新主任务状态
-        :param sub_actions:
-        :return:
-        """
-        failed_actions = []
-        succeed_actions = []
-        partial_failed_actions = []
-        ignore_status = {ActionStatus.RUNNING, ActionStatus.SLEEP, ActionStatus.SKIPPED, ActionStatus.SHIELD}
-
-        parent_action_ids = {}
-        for sub_action in cls.objects.filter(id__in=sub_actions).only(
-            "parent_action_id", "generate_uuid", "real_status", "status"
-        ):
-            if (
-                not sub_action.parent_action_id
-                or not sub_action.generate_uuid
-                or sub_action.real_status in ignore_status
-                or (sub_action.status in ignore_status and not sub_action.real_status)
-            ):
-                continue
-
-            parent_action_ids.update({sub_action.parent_action_id: sub_action.generate_uuid})
-
-        if not parent_action_ids:
-            return
-
-        all_sub_actions = cls.objects.filter(
-            generate_uuid__in=list(parent_action_ids.values()), parent_action_id__in=list(parent_action_ids.keys())
-        ).values("status", "id", "real_status", "parent_action_id")
-
-        sub_action_status = defaultdict(list)
-        for sub_action in all_sub_actions:
-            action_status = sub_action["real_status"] or sub_action["status"]
-            sub_action_status[sub_action["parent_action_id"]].append(action_status)
-
-        for parent_action_id, sub_action_status in sub_action_status.items():
-            priority_status = set(sub_action_status) - ignore_status
-            if priority_status == {ActionStatus.FAILURE}:
-                # 子任务失败，默认为失败
-                failed_actions.append(parent_action_id)
-            elif priority_status == {ActionStatus.SUCCESS}:
-                succeed_actions.append(parent_action_id)
-            elif ActionStatus.FAILURE in priority_status:
-                # 存在执行中且有失败情况下
-                partial_failed_actions.append(parent_action_id)
-
-        if succeed_actions:
-            cls.objects.filter(id__in=succeed_actions).update(
-                status=ActionStatus.SUCCESS, update_time=datetime.now(tz=timezone.utc)
-            )
-
-        if failed_actions:
-            cls.objects.filter(id__in=failed_actions).update(
-                status=ActionStatus.FAILURE, update_time=datetime.now(tz=timezone.utc)
-            )
-
-        if partial_failed_actions:
-            cls.objects.filter(id__in=partial_failed_actions).update(
-                status=ActionStatus.PARTIAL_FAILURE, update_time=datetime.now(tz=timezone.utc)
-            )
 
     def create_sub_actions(self, need_create=True):
         """
