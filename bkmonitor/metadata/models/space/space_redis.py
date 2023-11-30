@@ -611,7 +611,10 @@ def push_redis_data(
     space_code: Optional[str] = None,
     table_id: Optional[str] = None,
 ):
-    """推送 redis 数据"""
+    """推送 redis 数据
+
+    TODO: 待移除
+    """
     space_redis = SpaceRedis()
     if space_type_id == SpaceTypes.BKCC.value:
         space_redis.push_bkcc_type_space(space_id, table_id=table_id)
@@ -636,7 +639,10 @@ def push_redis_data(
 def push_and_publish_all_space(
     space_type_id: Optional[str] = None, space_id: Optional[str] = None, is_publish: Optional[bool] = True
 ):
-    """推送redis数据并发布通知"""
+    """推送redis数据并发布通知
+
+    TODO: 待移除
+    """
     # 根据参数过滤出要更新的空间信息
     all_spaces = Space.objects.all()
     if space_type_id:

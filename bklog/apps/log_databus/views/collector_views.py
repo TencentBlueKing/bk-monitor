@@ -326,6 +326,7 @@ class CollectorViewSet(ModelViewSet):
 
         response = super().list(request, *args, **kwargs)
         response.data["list"] = CollectorHandler.add_cluster_info(response.data["list"])
+        response.data["list"] = CollectorHandler.add_tags_info(response.data["list"])
 
         return response
 

@@ -141,10 +141,12 @@ from apps.log_search.constants import (
     CollectorScenarioEnum,
     CustomTypeEnum,
     GlobalCategoriesEnum,
+    InnerTag,
 )
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import (
+    IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -488,7 +490,7 @@ class CollectorHandler(object):
         @return:
         """
         result_table_list = [_data["table_id"] for _data in data if _data.get("table_id")]
-        cluster_infos = {}
+
         try:
             cluster_infos = cls.bulk_cluster_infos(result_table_list=result_table_list)
         except ApiError as error:
@@ -536,6 +538,45 @@ class CollectorHandler(object):
                 )
             else:
                 _data["is_search"] = False
+
+        return data
+
+    @classmethod
+    def add_tags_info(cls, data):
+        """添加标签信息"""
+        index_set_ids = [data_info.get("index_set_id") for data_info in data if data_info.get("index_set_id")]
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+
+        tag_ids_mapping = dict()
+        tag_ids_all = list()
+
+        for obj in index_set_objs:
+            tag_ids_mapping[obj.index_set_id] = obj.tag_ids
+            tag_ids_all.extend(obj.tag_ids)
+
+        # 查询出所有的tag信息
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        index_set_tag_mapping = {
+            obj.tag_id: {
+                "name": InnerTag.get_choice_label(obj.name),
+                "color": obj.color,
+                "tag_id": obj.tag_id,
+            }
+            for obj in index_set_tag_objs
+        }
+
+        for data_info in data:
+            index_set_id = data_info.get("index_set_id", None)
+            if not index_set_id:
+                data_info["tags"] = list()
+                continue
+            tag_ids = tag_ids_mapping.get(int(index_set_id), [])
+            if not tag_ids:
+                data_info["tags"] = list()
+                continue
+            data_info["tags"] = [
+                index_set_tag_mapping.get(int(tag_id)) for tag_id in tag_ids if index_set_tag_mapping.get(int(tag_id))
+            ]
 
         return data
 

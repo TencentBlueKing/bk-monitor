@@ -133,14 +133,14 @@
   dest_http_method: POST
   is_hidden: True
 
-- path: /v2/bk_log/search_index_set/{index_set_id}/tailf/
+- path: /v2/bk_log/search_index_set/{index_set_id}/tail_f/
   name: search_tailf
   label: 日志平台-检索-实时日志
   label_en: bk_log search tail
   method: POST
   api_type: query
   comp_codename: generic.v2.bk_log.bk_log_component
-  dest_path: /api/v1/search/index_set/{index_set_id}/tailf/
+  dest_path: /api/v1/search/index_set/{index_set_id}/tail_f/
   dest_http_method: POST
   is_hidden: True
 
@@ -1212,3 +1212,180 @@
   dest_path: /api/v1/databus/collectors/preview_containers/
   dest_http_method: POST
   is_hidden: True
+
+- path: /v2/bk_log/databus/create_es_snapshot_repository/
+  name: create_es_snapshot_repository
+  label: 日志平台-日志归档-新建归档仓库
+  label_en: bk_log create es snapshot repository
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/meta/esb/create_es_snapshot_repository/
+  dest_http_method: POST
+  is_hidden: True
+  
+- path: /v2/bk_log/databus/delete_es_snapshot_repository/
+  name: delete_es_snapshot_repository
+  label: 日志平台-日志归档-删除归档仓库
+  label_en: bk_log delete es snapshot repository
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/meta/esb/delete_es_snapshot_repository/
+  dest_http_method: POST
+  is_hidden: True
+
+- path: /v2/bk_log/databus/storage/list_repository/
+  name: list_repository
+  label: 日志平台-日志归档-归档仓库列表
+  label_en: bk_log create es snapshot repository
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/storage/list_repository/
+  dest_http_method: GET
+  is_hidden: True
+
+- path: /v2/bk_log/databus/storage/{cluster_id}/repository/
+  name: list_repository
+  label: 日志平台-日志归档-集群快照仓库列表
+  label_en: bk_log repository list
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/storage/{cluster_id}/repository/
+  dest_http_method: GET
+  is_hidden: True
+
+- path: /v2/bk_log/databus/archive/
+  name: create_archive
+  label: 日志平台-日志归档-创建归档
+  label_en: bk_log create archive
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/archive/
+  dest_http_method: POST
+  is_hidden: True
+
+- path: /v2/bk_log/databus/archive/{archive_config_id}/
+  name: update_archive
+  label: 日志平台-日志归档-更新归档
+  label_en: bk_log update archive
+  method: PUT
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/archive/{archive_config_id}/
+  dest_http_method: PUT
+  is_hidden: True
+
+- path: /v2/bk_log/databus/archive/
+  name: list_archive
+  label: 日志平台-日志归档-归档列表
+  label_en: bk_log archive list
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/archive/
+  dest_http_method: GET
+  is_hidden: True
+
+- path: /v2/bk_log/databus/archive/{archive_config_id}/
+  name: retrieve_archive
+  label: 日志平台-日志归档-归档配置详情
+  label_en: bk_log archive retrieve
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/archive/{archive_config_id}/
+  dest_http_method: GET
+  is_hidden: True
+
+- path: /v2/bk_log/databus/archive/{archive_config_id}/
+  name: delete_archive
+  label: 日志平台-日志归档-归档删除
+  label_en: bk_log archive delete
+  method: DELETE
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/archive/{archive_config_id}/
+  dest_http_method: DELETE
+  is_hidden: True
+
+- path: /v2/bk_log/databus/archive/list_archive/
+  name: list_archive_switch
+  label: 日志平台-日志归档-归档下拉列表
+  label_en: bk_log archive switch list
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/archive/list_archive/
+  dest_http_method: GET
+  is_hidden: True
+
+- path: /v2/bk_log/databus/archive/{archive_config_id}/state/
+  name: archive_state
+  label: 日志平台-日志归档-归档状态查询
+  label_en: bk_log archive state
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/archive/{archive_config_id}/state/
+  dest_http_method: GET
+  is_hidden: True
+
+- path: /v2/bk_log/databus/restore/
+  name: create_archive_restore
+  label: 日志平台-日志归档-创建归档回溯
+  label_en: bk_log create archive restore
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/restore/
+  dest_http_method: POST
+  is_hidden: True
+
+- path: /v2/bk_log/databus/restore/{restore_config_id}/
+  name: update_archive_restore
+  label: 日志平台-日志归档-更新归档回溯
+  label_en: bk_log update archive restore
+  method: PUT
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/restore/{restore_config_id}/
+  dest_http_method: PUT
+  is_hidden: True
+
+- path: /v2/bk_log/databus/restore/
+  name: list_archive_restore
+  label: 日志平台-日志归档-归档回溯列表
+  label_en: bk_log archive restore list
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/restore/
+  dest_http_method: GET
+  is_hidden: True
+
+- path: /v2/bk_log/databus/restore/{restore_config_id}/
+  name: delete_archive_restore
+  label: 日志平台-日志归档-删除归档回溯
+  label_en: bk_log delete archive restore
+  method: DELETE
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/restore/{restore_config_id}/
+  dest_http_method: DELETE
+  is_hidden: True
+
+- path: /v2/bk_log/databus/restore/batch_get_state/
+  name: restore_batch_get_state
+  label: 日志平台-日志归档-回溯状态查询
+  label_en: bk_log archive restore batch_get_state
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/databus/restore/batch_get_state/
+  dest_http_method: POST
+  is_hidden: True
+

@@ -79,6 +79,7 @@ class AsyncExportHandlers(object):
                 export_log=True,
             )
         self.request_user = get_request_external_username() or get_request_username()
+        self.is_external = bool(get_request_external_username())
 
     def async_export(self):
         # 判断fields是否支持
@@ -118,6 +119,7 @@ class AsyncExportHandlers(object):
             url_path=url,
             search_url_path=search_url,
             language=get_request_language_code(),
+            is_external=self.is_external,
         )
         return async_task.id, self.search_handler.size
 

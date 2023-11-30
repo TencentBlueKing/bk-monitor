@@ -12,7 +12,7 @@ def read_trace_list(name: str = "simple", category: str = "") -> list:
     if (name, category) in _CACHE:
         return _CACHE[(name, category)]
 
-    cases_prefix = "packages/apm_web/tests/diagram/cases"
+    cases_prefix = "packages/apm_web/tests/trace/cases"
     if category:
         cases_prefix += f"/{category}"
 

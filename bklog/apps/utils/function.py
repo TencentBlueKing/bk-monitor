@@ -20,7 +20,7 @@ the project delivered to anyone in the future.
 """
 import traceback
 from contextlib import contextmanager
-from typing import List, Callable, Any
+from typing import Any, Callable, List
 
 from apps.utils.log import logger
 
@@ -34,6 +34,6 @@ def ignored(*exceptions, **kwargs):
     try:
         yield
     except exceptions:
-        if kwargs.get("log_exception", True):
+        if kwargs.get("log_exception", False):
             logger.warning(traceback.format_exc())
         pass

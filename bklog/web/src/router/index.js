@@ -1005,7 +1005,7 @@ const routes = [
   //   component: page403,
   // },
   {
-    path: '/external-auth',
+    path: '/external-auth/:activeNav?',
     name: 'externalAuth',
     component: externalAuth,
     meta: {

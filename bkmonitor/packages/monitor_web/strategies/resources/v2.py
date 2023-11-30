@@ -39,6 +39,7 @@ from bkmonitor.models import (
     StrategyLabel,
     StrategyModel,
     UserGroup,
+    DetectModel,
 )
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
@@ -414,6 +415,15 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_list.append(uptime_check_strategy_ids)
 
     @classmethod
+    def filter_strategy_ids_by_level(cls, filter_dict: dict, filter_strategy_ids_list: list):
+        """过滤告警级别"""
+        if filter_dict["level"]:
+            level_strategy_ids = DetectModel.objects.filter(
+                level__in=filter_dict["level"]
+            ).values_list('strategy_id', flat=True)
+            filter_strategy_ids_list.append(level_strategy_ids)
+
+    @classmethod
     def filter_by_conditions(cls, conditions: List[Dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
         """
         按条件进行过滤
@@ -498,6 +508,8 @@ class GetStrategyListV2Resource(Resource):
         cls.filter_strategy_ids_by_metric_id(filter_dict, filter_strategy_ids_list)
 
         cls.filter_strategy_ids_by_uct_id(filter_dict, filter_strategy_ids_list)
+        # 告警级别过滤
+        cls.filter_strategy_ids_by_level(filter_dict, filter_strategy_ids_list)
 
         # 各种过滤条件获得的策略ID取交集
         if filter_strategy_ids_list:
