@@ -384,11 +384,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = request.data
-        # data.update({
-        #     "size": 30
-        # })
         data.update({"search_type_tag": "context"})
-        # search_handler = SearchHandler(index_set_id, data)
         search_handler = SearchHandlerEsquery(index_set_id, data)
         return Response(search_handler.search_context())
 
