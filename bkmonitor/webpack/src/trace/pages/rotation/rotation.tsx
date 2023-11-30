@@ -401,6 +401,12 @@ export default defineComponent({
                           });
                         }
                       });
+                      if (item.id === row.id) {
+                        const cur = tableData.data.find(t => t.id === row.id);
+                        if (cur) {
+                          cur.status = getEffectiveStatus([item.effective_time, item.end_time], item.enabled);
+                        }
+                      }
                       return {
                         ...item,
                         status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)

@@ -91,6 +91,12 @@
           justify-content: center;
           height: 64px;
 
+          & > span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
           &::before {
             position: absolute;
             top: 0;

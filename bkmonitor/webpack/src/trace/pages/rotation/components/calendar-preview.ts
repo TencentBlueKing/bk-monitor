@@ -112,6 +112,79 @@ export function getCalendar() {
   return calendar;
 }
 
+/**
+ * @description 以当前周为起始周查询最近一个月的日期
+ */
+export function getCalendarNew() {
+  const today = new Date(); // 获取当前日期
+  const month = today.getMonth(); // 获取当前月份
+  const min = 31; /* 最小展示天数31 */
+  let startDate = new Date();
+  let endDate = new Date(today.getTime() + min * 86400000);
+  startDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() - startDate.getDay());
+  endDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + (6 - endDate.getDay()));
+  const calendar = []; // 存放日历表的二维数组
+  let week = []; // 存放一周的日期
+
+  const currentDate = new Date(startDate); // 当前遍历的日期，初始为开始日期
+
+  // 遍历日期范围，生成日历表
+  while (currentDate <= endDate) {
+    // 获取日期的年、月、日
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentDay = currentDate.getDate();
+
+    // 添加日期到一周数组
+    week.push({
+      year: currentYear,
+      month: currentMonth,
+      day: currentDay,
+      isOtherMonth: currentMonth !== month,
+      isCurDay: currentDay === today.getDate() && currentMonth === month
+    });
+
+    // 每周有7天，将一周的日期添加到日历表，并重置一周数组
+    if (week.length === 7) {
+      calendar.push(week);
+      week = [];
+    }
+
+    // 增加一天
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  return calendar;
+}
+
+/* 获取预览接口的生效时间及查询天数 */
+export function getPreviewParams(effectiveTime: string) {
+  const list = getCalendarNew();
+  const startDate = list[0][0];
+  let beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
+  const effectiveDate = new Date(effectiveTime);
+  if (effectiveDate.getTime() > new Date(beginTime).getTime()) {
+    beginTime = effectiveTime;
+  }
+  const max = list.length * 7;
+  const beginTimeDate = new Date(beginTime);
+  let indexNum = 0;
+  list.forEach((item, index) => {
+    item.forEach((itemItem, itemIndex) => {
+      if (
+        beginTimeDate.getFullYear() === itemItem.year &&
+        beginTimeDate.getMonth() === itemItem.month &&
+        beginTimeDate.getDate() === itemItem.day
+      ) {
+        indexNum = index * 7 + itemIndex;
+      }
+    });
+  });
+  return {
+    begin_time: beginTime,
+    days: max - indexNum
+  };
+}
+
 /* 将时间戳转为字符串格式 */
 function timeStampToTimeStr(num: number) {
   const date = new Date(num);

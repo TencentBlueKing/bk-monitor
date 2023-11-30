@@ -250,7 +250,7 @@ export default class RotationPreview extends tsc<IProps> {
                   }}
                   key={index}
                 >
-                  {item.name}
+                  <span>{item.name}</span>
                 </div>
               ))}
             </div>
