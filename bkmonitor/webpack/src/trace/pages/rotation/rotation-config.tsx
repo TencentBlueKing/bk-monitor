@@ -346,6 +346,7 @@ export default defineComponent({
             <Input
               class='width-508'
               v-model={this.formData.name}
+              showOverflowTooltips={false}
               onBlur={this.handleNameBlur}
             ></Input>
           </FormItem>

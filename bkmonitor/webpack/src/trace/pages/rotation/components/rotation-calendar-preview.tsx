@@ -138,6 +138,7 @@ export default defineComponent({
                   theme='light'
                   placement='top'
                   width={160}
+                  popoverDelay={[200, 0]}
                   arrow={true}
                   extCls={'rotation-calendar-preview-component-user-item-pop'}
                   trigger={'hover'}
