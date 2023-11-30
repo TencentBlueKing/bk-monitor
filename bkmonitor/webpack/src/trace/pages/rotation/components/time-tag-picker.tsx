@@ -106,7 +106,7 @@ export default defineComponent({
     function handleShowTime(time?: string[], ind?: number) {
       currentTime.index = ind ?? -1;
       currentTime.value = time ? [...time] : [];
-      currentTime.show = !currentTime.show;
+      currentTime.show = true;
       currentTime.showInput = !time;
       currentTime.inputValue = '';
       if (currentTime.showInput) {

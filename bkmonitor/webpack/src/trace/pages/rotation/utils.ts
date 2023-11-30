@@ -148,7 +148,6 @@ export function replaceRotationTransform(originData, type) {
         id: data.id,
         date,
         users: {
-          type: data.group_type,
           groupNumber: data.group_number,
           value: data.duty_users.map(item => ({
             key: random(8, true),
@@ -164,7 +163,6 @@ export function replaceRotationTransform(originData, type) {
       data: res
     };
   }
-
   return originData.data.map((item: ItemDataModel) => {
     const data = item.date;
     const rotationType: RotationSelectTypeEnum = data.isCustom ? RotationSelectTypeEnum.Custom : data.type;
@@ -229,7 +227,7 @@ export function replaceRotationTransform(originData, type) {
       id: item.id,
       duty_time: dutyTime,
       duty_users: item.users.value.filter(item => item.value.length).map(item => item.value),
-      group_type: item.users.type,
+      group_type: originData.userGroupType,
       group_number: item.users.groupNumber
     };
   });

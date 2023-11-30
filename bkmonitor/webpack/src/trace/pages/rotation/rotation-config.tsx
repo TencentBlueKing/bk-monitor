@@ -82,7 +82,11 @@ export default defineComponent({
 
     function handleEffectiveChange(val: string, type: 'startTime' | 'endTime') {
       formData.effective[type] = val;
+      errMsg.effective = validEffective().msg;
       getPreviewData();
+    }
+    function handleNameBlur() {
+      errMsg.name = validName().msg;
     }
 
     // --------------轮值类型-------------------
@@ -126,22 +130,24 @@ export default defineComponent({
      */
     function validate() {
       let valid = true;
-      const rotationValid = validRotationRule();
       // 清空错误信息
       Object.keys(errMsg).forEach(key => (errMsg[key] = ''));
       // 轮值类型
+      const rotationValid = validRotationRule();
       if (rotationValid.err) {
         errMsg.rotationType = rotationValid.msg;
         valid = false;
       }
       // 生效时间范围
-      if (!formData.effective.startTime) {
-        errMsg.effective = t('生效起始时间必填');
+      const effectiveValid = validEffective();
+      if (effectiveValid.err) {
+        errMsg.effective = effectiveValid.msg;
         valid = false;
       }
       // 规则名称
-      if (!formData.name) {
-        errMsg.name = t('必填项');
+      const nameValid = validName();
+      if (nameValid.err) {
+        errMsg.name = nameValid.msg;
         valid = false;
       }
       return valid;
@@ -189,6 +195,20 @@ export default defineComponent({
         });
       }
       return res;
+    }
+
+    function validName() {
+      if (!formData.name) return { err: true, msg: t('必填项') };
+      if (formData.name.length > 128) return { err: true, msg: t('轮值规则名称长度不能超过128个字符') };
+      return { err: false, msg: '' };
+    }
+
+    function validEffective() {
+      const { startTime, endTime } = formData.effective;
+      if (!startTime) return { err: true, msg: t('生效起始时间必填') };
+      if (endTime && new Date(endTime).getTime() < new Date(startTime).getTime())
+        return { err: true, msg: t('生效结束时间不能小于生效起始时间') };
+      return { err: false, msg: '' };
     }
 
     function getParams() {
@@ -296,6 +316,7 @@ export default defineComponent({
       navList,
       formData,
       errMsg,
+      handleNameBlur,
       handleEffectiveChange,
       rotationType,
       fixedRotationTabRef,
@@ -329,6 +350,7 @@ export default defineComponent({
             <Input
               class='width-508'
               v-model={this.formData.name}
+              onBlur={this.handleNameBlur}
             ></Input>
           </FormItem>
           <FormItem

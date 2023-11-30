@@ -100,7 +100,6 @@ export default defineComponent({
           ]
         },
         users: {
-          type: localValue.userGroupType,
           groupNumber: 1,
           value: [{ key: random(8, true), value: [] }]
         }
@@ -111,9 +110,6 @@ export default defineComponent({
     function handleGroupTabChange(val: ReplaceDataModel['userGroupType']) {
       if (localValue.userGroupType === val) return;
       localValue.userGroupType = val;
-      localValue.data.forEach(item => {
-        item.users.type = val;
-      });
       // 切换成自动分组需要把所有的用户组删除
       if (val === 'auto') {
         localValue.data.forEach(item => {
@@ -209,6 +205,7 @@ export default defineComponent({
             class='table-item'
             data={item}
             key={item.key}
+            userGroupType={this.localValue.userGroupType}
             onChange={(val, hasPreview) => this.handleDataChange(val, index, hasPreview)}
             onDrop={this.handleEmitDrop}
           >
