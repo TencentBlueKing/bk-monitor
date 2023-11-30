@@ -41,6 +41,7 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import (
+    BcsStorageClusterConfig,
     CollectorConfig,
     ContainerCollectorConfig,
     StorageUsed,
@@ -301,4 +302,56 @@ def create_custom_log_group():
                 log.collector_config_id,
                 str(err),
                 msg,
+            )
+
+
+@high_priority_task(ignore_result=True)
+def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app_code):
+    collectors = CollectorConfig.objects.filter(
+        bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code
+    )
+    # 新增bcs采集存储集群全局配置更新
+    BcsStorageClusterConfig.objects.update_or_create(
+        bcs_cluster_id=bcs_cluster_id, bk_biz_id=bk_biz_id, defaults={"storage_cluster_id": storage_cluster_id}
+    )
+    # 存量索引集存储集群更新
+    CollectorHandler().update_bcs_project_index_set_storage(
+        bcs_cluster_id=bcs_cluster_id,
+        bk_biz_id=bk_biz_id,
+        storage_cluster_id=storage_cluster_id,
+    )
+
+    # 存量bcs采集存储集群更新
+    from apps.log_databus.handlers.etl import EtlHandler
+
+    for collector in collectors:
+        try:
+            collect_config = CollectorHandler(collector.collector_config_id).retrieve()
+            if collect_config["storage_cluster_id"] == storage_cluster_id:
+                logger.info(
+                    "switch collector->[{}] old storage cluster is the same: {}, skip it.".format(
+                        collector.collector_config_id, storage_cluster_id
+                    )
+                )
+                continue
+            etl_params = {
+                "table_id": collector.collector_config_name_en,
+                "storage_cluster_id": storage_cluster_id,
+                "retention": collect_config["retention"],
+                "allocation_min_days": collect_config["allocation_min_days"],
+                "storage_replies": collect_config["storage_replies"],
+                "etl_params": collect_config["etl_params"],
+                "etl_config": collect_config["etl_config"],
+                "fields": [field for field in collect_config["fields"] if not field["is_built_in"]],
+            }
+            etl_handler = EtlHandler(collector.collector_config_id)
+            etl_handler.update_or_create(**etl_params)
+            logger.info(
+                "switch collector->[{}] storage cluster success: {} -> {}".format(
+                    collector.collector_config_id, collect_config["storage_cluster_id"], storage_cluster_id
+                )
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                "switch collector->[{}] storage cluster error: {}".format(collector.collector_config_id, e)
             )

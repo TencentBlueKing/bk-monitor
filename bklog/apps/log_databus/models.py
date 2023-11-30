@@ -38,6 +38,14 @@ databus
 3. 入库
 """
 
+from django.db import models, transaction  # noqa
+from django.utils import timezone  # noqa
+from django.utils.functional import cached_property  # noqa
+from django.utils.translation import ugettext_lazy as _  # noqa
+from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-import
+    JSONField,
+)
+
 from apps.api import CmsiApi, TransferApi  # noqa
 from apps.log_databus.constants import CollectItsmStatus  # noqa
 from apps.log_databus.constants import EtlConfig  # noqa
@@ -64,13 +72,6 @@ from apps.models import (  # noqa
     MultiStrSplitByCommaField,
     OperateRecordModel,
     SoftDeleteModel,
-)
-from django.db import models, transaction  # noqa
-from django.utils import timezone  # noqa
-from django.utils.functional import cached_property  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
-from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-import
-    JSONField,
 )
 
 
@@ -394,6 +395,12 @@ class ContainerCollectorConfig(SoftDeleteModel):
 class BcsRule(SoftDeleteModel):
     rule_name = models.CharField(_("采集配置名称"), max_length=64)
     bcs_project_id = models.CharField(_("项目ID"), max_length=64, default="")
+
+
+class BcsStorageClusterConfig(SoftDeleteModel):
+    bk_biz_id = models.IntegerField(_("业务id"))
+    bcs_cluster_id = models.CharField(_("bcs集群ID"), max_length=128)
+    storage_cluster_id = models.IntegerField(_("存储集群ID"))
 
 
 class ItsmEtlConfig(SoftDeleteModel):
