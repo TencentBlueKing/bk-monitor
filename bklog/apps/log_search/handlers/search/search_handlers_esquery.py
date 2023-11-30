@@ -1095,11 +1095,7 @@ class SearchHandler(object):
 
         tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
 
-        timestamp_format = datetime.datetime.fromtimestamp(int(self.dtEventTimeStamp) / 100).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-
-        timestamp_datetime = datetime.datetime.strptime(timestamp_format, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_info)
+        timestamp_datetime = datetime.datetime.fromtimestamp(int(self.dtEventTimeStamp) / 1000, tz_info)
 
         record_obj = (
             StorageClusterRecord.objects.filter(index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime)
