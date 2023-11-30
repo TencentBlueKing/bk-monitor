@@ -126,6 +126,7 @@ export default defineComponent({
         } else {
           localValue.date.isCustom = false;
           localValue.date.type = val;
+          localValue.date.customWorkDays = [];
         }
         localValue.date.value = [createDefaultDate(val)];
         handleEmitData(false);
@@ -554,6 +555,9 @@ export default defineComponent({
       emit('drop');
     }
 
+    /**
+     * @param hasPreview 是否需要请求预览轮值接口
+     */
     function handleEmitData(hasPreview = true) {
       emit('change', localValue, hasPreview);
     }

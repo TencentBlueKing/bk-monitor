@@ -96,8 +96,10 @@ export function replaceRotationTransform(originData, type) {
             pre.isCustom = cur.is_custom || false;
             pre.type = cur.work_type;
             pre.workTimeType = cur.work_time_type || 'time_range';
-            pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
-            pre.customWorkDays = cur.work_days;
+            if (pre.isCustom) {
+              pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
+              pre.customWorkDays = cur.work_days;
+            }
             pre.periodSettings = cur.period_settings || {
               unit: 'day',
               duration: 1
@@ -140,6 +142,7 @@ export function replaceRotationTransform(originData, type) {
           type: RotationSelectTypeEnum.WorkDay,
           workTimeType: 'time_range',
           isCustom: false,
+          customWorkDays: [],
           customTab: 'duration',
           value: []
         }
