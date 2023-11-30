@@ -10,8 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
-import threading
-from typing import Dict, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from django.conf import settings
 from django.db.models import Q
@@ -24,7 +23,6 @@ from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SKIP_DATA_ID_LIST_FOR_BKCC,
-    SPACE_REDIS_KEY,
     SYSTEM_USERNAME,
     BCSClusterTypes,
     SpaceTypes,
@@ -44,6 +42,7 @@ from metadata.models.space.utils import (
     get_shared_cluster_namespaces,
     get_valid_bcs_projects,
 )
+from metadata.task.utils import bulk_handle
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -54,7 +53,7 @@ def sync_bkcc_space(allow_deleted=False):
     """同步 bkcc 的业务，自动创建对应的空间
 
     TODO: 是否由服务方调用接口创建或者服务方可以被 watch
-    NOTE: 现阶段删除后，没有同步到redis数据
+    NOTE: 空间创建后，不需要单独推送
     """
     logger.info("start sync bkcc space task")
     bkcc_type_id = SpaceTypes.BKCC.value
@@ -73,6 +72,7 @@ def sync_bkcc_space(allow_deleted=False):
     if not (diff or diff_delete):
         logger.info("bkcc space not need add or delete!")
         return
+
     # 针对删除的业务
     # 当业务在 cmdb 删除业务，并且允许删除为 True 时，才进行删除；避免因为接口返回不正确，误删除的场景
     if diff_delete and allow_deleted:
@@ -92,27 +92,15 @@ def sync_bkcc_space(allow_deleted=False):
 
     if diff:
         # 针对添加的业务
-        diff_biz_list, redis_space_id_list = [], []
-        for biz_id in diff:
-            diff_biz_list.append({"bk_biz_id": biz_id, "bk_biz_name": biz_id_name_dict[biz_id]})
-            redis_space_id_list.append(f"{bkcc_type_id}__{biz_id}")
+        diff_biz_list = [{"bk_biz_id": biz_id, "bk_biz_name": biz_id_name_dict[biz_id]} for biz_id in diff]
+
         # 创建空间
-        is_created = True
         try:
             create_bkcc_spaces(diff_biz_list)
         except Exception:
             logger.exception("create bkcc biz space error")
-            is_created = False
+            return
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
-
-        if is_created:
-            # 推送空间详情
-            for biz_id in diff:
-                SpaceRedis().push_bkcc_type_space(str(biz_id))
-            logger.info("push bkcc type space detail to redis successfully, space: %s", json.dumps(diff))
-            # NOTE: 仅推送 redis，由使用方拉取使用
-            RedisTools.push_space_to_redis(SPACE_REDIS_KEY, redis_space_id_list)
-            logger.info("push bkcc type space to redis successfully, space: %s", json.dumps(redis_space_id_list))
 
 
 @share_lock(identify="metadata__refresh_bkcc_space_name")
@@ -185,21 +173,11 @@ def sync_bkcc_space_data_source():
     biz_id_list = list(biz_data_id_dict.keys())
     biz_id_list.extend(real_biz_data_id_dict.keys())
 
-    # 直接推送一次
-    space_id_list = []
-    for biz_id in biz_id_list:
-        # 暂不推送 0 业务
-        if str(biz_id) == "0":
-            continue
-        SpaceRedis().push_bkcc_type_space(str(biz_id))
-        logger.info("push bkcc type data source to redis successfully, space: %s", biz_id)
+    # 组装数据，推送 redis 功能
+    space_id_list = [str(biz_id) for biz_id in biz_id_list if str(biz_id) != "0"]
+    push_and_publish_space_router(space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list)
 
-        space_id_list.append(f"{SpaceTypes.BKCC.value}__{biz_id}")
-
-    # 避免业务不通知，添加一次推送通知
-    if space_id_list:
-        RedisTools.push_space_to_redis(SPACE_REDIS_KEY, space_id_list)
-        logger.info("push bkcc type data source to redis successfully, space: %s", json.dumps(space_id_list))
+    logger.info("push bkcc type space to redis successfully, space: %s", json.dumps(space_id_list))
 
 
 @share_lock(identify="metadata__sync_bcs_space")
@@ -225,7 +203,6 @@ def sync_bcs_space():
         return
     diff_project_list, redis_space_id_list = [], []
     # 更新 space_code
-    # TODO: 更新资源再另一个任务处理，是否可以直接出发
     for project_id in update_projects:
         Space.objects.filter(space_type_id=bcs_type_id, space_id=project_id).update(
             space_code=project_id_dict[project_id]["project_id"],
@@ -243,16 +220,6 @@ def sync_bcs_space():
     except Exception:
         logger.exception("create bcs project space error")
     logger.info("create bcs space successfully, space: %s", json.dumps(diff_project_list))
-    # 创建成功，才会发布
-    if redis_space_id_list:
-        # 推送空间详情
-        union_space = diff.union(update_projects)
-        for project_id in union_space:
-            SpaceRedis().push_bcs_type_space(project_id)
-        logger.info("push bcs type space to redis successfully, space: %s", json.dumps(union_space))
-        # NOTE: 仅推送 redis，由使用方拉取使用
-        RedisTools.push_space_to_redis(SPACE_REDIS_KEY, redis_space_id_list)
-        logger.info("push bcs type space to redis successfully, space: %s", json.dumps(redis_space_id_list))
 
 
 @share_lock(identify="metadata_refresh_bcs_project_biz")
@@ -313,17 +280,6 @@ def refresh_bcs_project_biz():
     if add_resource_list:
         SpaceResource.objects.bulk_create(add_resource_list)
         logger.info("create bcs space resource successfully, space: %s", json.dumps(space_id_list))
-
-    if space_id_list:
-        for space_id in space_id_list:
-            SpaceRedis().push_bcs_type_space(space_id=space_id, push_bcs_type=False)
-        logger.info(
-            "the biz of bcs project changed, push updated bcs space to redis successfully, space: %s",
-            json.dumps(space_id_list),
-        )
-        # NOTE: 仅推送 redis，由使用方拉取使用
-        RedisTools.push_space_to_redis(SPACE_REDIS_KEY, changed_space_for_redis)
-        logger.info("push updated bcs space to redis successfully, space: %s", json.dumps(changed_space_for_redis))
 
 
 def get_cluster_data_id(space_id, cluster_id_list, space_data_id_map):
@@ -396,6 +352,7 @@ def refresh_cluster_resource():
     space_data_id_map, shared_space_data_id_map = {}, {}
     # 获取存储在metadata中的集群数据
     metadata_clusters = get_metadata_cluster_list()
+
     for s_id, s_code in space_id_code_map.items():
         clusters = api.bcs_cluster_manager.get_project_clusters(project_id=s_code)
         dimension_values = []
@@ -410,7 +367,7 @@ def refresh_cluster_resource():
             if c["is_shared"]:
                 ns_list = [
                     ns["namespace"]
-                    for ns in get_shared_cluster_namespaces(cluster_id=cluster_id, project_id=s_code)
+                    for ns in get_shared_cluster_namespaces(cluster_id=cluster_id, project_code=s_id)
                     if cluster_id == ns["cluster_id"]
                 ]
                 dimension_values.append({"cluster_id": cluster_id, "namespace": ns_list, "cluster_type": "shared"})
@@ -471,20 +428,18 @@ def refresh_cluster_resource():
     logger.info("bulk create space data_id record")
 
     if space_id_list:
-        for space_id in set(space_id_list):
-            SpaceRedis().push_bcs_type_space(space_id=space_id, push_bcs_type=True)
-        logger.info(
-            "push updated bcs space resource to redis successfully, space: %s",
-            json.dumps(space_id_list),
-        )
-        # NOTE: 仅推送 redis，由使用方拉取使用
-        RedisTools.push_space_to_redis(SPACE_REDIS_KEY, changed_space_list)
-        logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(changed_space_list))
+        # 推送 redis 功能, 包含空间到结果表，数据标签到结果表，结果表详情
+        push_and_publish_space_router(space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list)
+
+        logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
 
 
 @share_lock(identify="metadata__refresh_redis_data")
 def refresh_redis_data():
-    """刷新 redis 数据，以保证数据一致性"""
+    """刷新 redis 数据，以保证数据一致性
+
+    TODO: 待移除
+    """
     logger.info("start refresh redis data task")
     # 获取所有数据，然后更新一遍 redis 数据
     push_and_publish_all_space(is_publish=False)
@@ -526,6 +481,9 @@ def refresh_bkci_space_name():
 
 @share_lock(identify="metadata_refresh_bksaas_space")
 def refresh_not_biz_space_data_source():
+    """
+    TODO: 待移除
+    """
     logger.info("start to refresh not biz space data source")
 
     # 过滤使用的 table_id
@@ -606,7 +564,10 @@ def refresh_not_biz_space_data_source():
 
 
 def push_and_publish_space_router(
-    space_type: Optional[str] = None, space_id: Optional[str] = None, is_publish: Optional[bool] = True
+    space_type: Optional[str] = None,
+    space_id: Optional[str] = None,
+    space_id_list: Optional[List[str]] = None,
+    is_publish: Optional[bool] = True,
 ):
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
@@ -619,27 +580,15 @@ def push_and_publish_space_router(
         spaces = spaces.filter(space_type_id=space_type)
     if space_id:
         spaces = spaces.filter(space_id=space_id)
+    # 这里不应该会有太多空间 ID 的输入
+    if space_id_list:
+        spaces = spaces.filter(space_id_in=space_id_list)
+
     # 拼装数据
     space_list = [{"space_type": space["space_type_id"], "space_id": space["space_id"]} for space in spaces]
 
-    # 设置线程数为 30，使用线程处理，暂不允许变动
-    MAX_TASK_THREAD_NUM = 30
-    count = len(space_list)
-    chunk_size = (
-        count // MAX_TASK_THREAD_NUM + 1 if count % MAX_TASK_THREAD_NUM != 0 else int(count / MAX_TASK_THREAD_NUM)
-    )
-    # 分组
-    chunks = [space_list[i : i + chunk_size] for i in range(0, count, chunk_size)]
-    threads = []
-
-    for chunk in chunks:
-        t = threading.Thread(target=multi_push_space_table_ids, args=(chunk,))
-        t.start()
-        threads.append(t)
-
-    # 等待所有线程完成
-    for t in threads:
-        t.join()
+    # 批量处理
+    bulk_handle(multi_push_space_table_ids, space_list)
 
     # 通知到使用方
     if is_publish:
@@ -657,7 +606,6 @@ def push_and_publish_space_router(
             table_id_list.extend(tid_ds.keys())
 
     space_client = SpaceTableIDRedis()
-    space_client.push_field_table_ids(table_id_list=table_id_list, is_publish=is_publish)
     space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
     space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish)
 
@@ -845,5 +793,12 @@ def refresh_bksaas_space_resouce():
     create_and_update_paas_space_resource(space_cluster_namespaces)
     # 重新授权
     authorize_paas_space_cluster_data_source(space_cluster)
+
+    # 批量进行推送数据
+    from metadata.task.tasks import multi_push_space_table_ids
+
+    space_ids = [{"space_type": space_type, "space_id": space["space_id"]} for space in space_id_list]
+    # NOTE: 此时集群或者公共插件相关的信息已经存在了，不需要再进行指标或 data_label 的映射
+    bulk_handle(multi_push_space_table_ids, space_ids)
 
     logger.info("refresh bksaas space resource successfully")
