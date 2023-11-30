@@ -2047,7 +2047,12 @@ class CollectorViewSet(ModelViewSet):
         data = self.params_valid(SwitchStorageClusterSerializer)
         from apps.log_databus.tasks.collector import switch_storage_cluster
 
-        switch_storage_cluster.delay(data=data, bk_app_code=auth_info["bk_app_code"])
+        switch_storage_cluster.delay(
+            bk_biz_id=data["bk_biz_id"],
+            bcs_cluster_id=data["bcs_cluster_id"],
+            storage_cluster_id=data["storage_cluster_id"],
+            bk_app_code=auth_info["bk_app_code"],
+        )
         return Response({"status": "success"})
 
     @list_route(methods=["GET"], url_path="list_bcs_collector")
