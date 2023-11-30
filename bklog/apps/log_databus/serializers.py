@@ -1124,11 +1124,7 @@ class ListBCSCollectorSerializer(serializers.Serializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
 
 
-class ListStorageClusterSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
-
-
-class SwitchStorageClusterSerializer(serializers.Serializer):
+class SwitchBCSCollectorStorageSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
     storage_cluster_id = serializers.IntegerField(label=_("存储集群id"), required=True)

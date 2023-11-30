@@ -306,7 +306,7 @@ def create_custom_log_group():
 
 
 @high_priority_task(ignore_result=True)
-def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app_code):
+def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app_code):
     collectors = CollectorConfig.objects.filter(
         bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code
     )
@@ -351,7 +351,7 @@ def switch_storage_cluster(bk_biz_id, bcs_cluster_id, storage_cluster_id, bk_app
                     collector.collector_config_id, collect_config["storage_cluster_id"], storage_cluster_id
                 )
             )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "switch collector->[{}] storage cluster error: {}".format(collector.collector_config_id, e)
             )
