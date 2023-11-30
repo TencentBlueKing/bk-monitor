@@ -75,32 +75,35 @@ export default class PerformanceDetail extends tsc<{}> {
         params = { bk_host_id: vm.id };
       }
       vm.loading = true;
-      const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = await getHostInfo(params).catch(() => ({
+      const hostInfo = await getHostInfo(params).catch(() => ({
         bk_os_type: ''
       }));
-      vm.routeList = [
-        {
-          id: '',
-          name: display_name || ip
-        }
-      ];
-      vm.viewOptions = {
-        filters: {
-          bk_target_cloud_id: bk_cloud_id,
-          bk_target_ip: ip,
-          bk_host_id
-        },
-        variables: vm.process
-          ? {
-              display_name: vm.process
-            }
-          : {},
-        matchFields: !vm.process
-          ? {
-              os_type: bk_os_type
-            }
-          : {}
-      };
+      if (!!hostInfo) {
+        const { bk_os_type, bk_cloud_id, ip, bk_host_id, display_name } = hostInfo;
+        vm.routeList = [
+          {
+            id: '',
+            name: display_name || ip
+          }
+        ];
+        vm.viewOptions = {
+          filters: {
+            bk_target_cloud_id: bk_cloud_id,
+            bk_target_ip: ip,
+            bk_host_id
+          },
+          variables: vm.process
+            ? {
+                display_name: vm.process
+              }
+            : {},
+          matchFields: !vm.process
+            ? {
+                os_type: bk_os_type
+              }
+            : {}
+        };
+      }
       vm.loading = false;
     });
   }
