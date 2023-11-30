@@ -21,9 +21,9 @@ the project delivered to anyone in the future.
 """
 from abc import ABC, abstractmethod
 
+from apps.api import CmsiApi
 from apps.constants import NotifyType as NotifyTypeChoice
 from apps.log_search.models import EmailTemplate
-from apps.api import CmsiApi
 
 
 class NotifyBase(ABC):
@@ -47,8 +47,14 @@ class EmailNotify(NotifyBase):
     def content(self, name, language, **kwargs):
         return EmailTemplate.get_content(name=name, language=language, **kwargs)
 
-    def send(self, receivers, title, content):
-        CmsiApi.send_mail({"receiver__username": receivers, "title": title, "content": content})
+    def send(self, receivers, title, content, is_external: bool = False):
+        """
+        发送邮件, is_external 为 True 时，表示发送给外部用户, receivers 为邮箱地址
+        """
+        if is_external:
+            CmsiApi.send_mail({"receiver": receivers, "title": title, "content": content})
+        else:
+            CmsiApi.send_mail({"receiver__username": receivers, "title": title, "content": content})
 
 
 class NotifyType(object):

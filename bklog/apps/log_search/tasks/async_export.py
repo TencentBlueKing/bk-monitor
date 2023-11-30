@@ -53,6 +53,7 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
+from apps.utils.local import get_request_external_user_email
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 from apps.utils.remote_storage import StorageType
@@ -308,7 +309,8 @@ class AsyncExportUtils(object):
             },
             language=language,
         )
-        self.notify.send(receivers=async_task.created_by, title=title, content=content)
+        receivers = get_request_external_user_email() if self.is_external else async_task.created_by
+        self.notify.send(receivers=receivers, title=title, content=content, is_external=self.is_external)
 
     @classmethod
     def generate_title_template(cls, title_model):
