@@ -250,6 +250,7 @@ export default {
       return this.totalFields.map(item => ({
         field_name: item.field_name,
         is_analyzed: item.is_analyzed,
+        field_type: item.field_type,
       }));
     },
   },
@@ -583,7 +584,7 @@ export default {
      */
     handleClickValue(value) {
       // 当前输入值可能的情况 【name:"a】【age:】
-      this.$emit('change', this.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (matchOperator) => {
+      this.$emit('change', this.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
         return `${matchOperator} ${value} `;
       }));
       this.showWhichDropdown('Continue');

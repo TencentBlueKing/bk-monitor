@@ -99,7 +99,9 @@ export default class UiQuery extends Mixins(classDragMixin) {
     this.editor.setPosition(model.getPositionAt(model.getValueLength() + 1));
   }
   blur() {
+    const model = this.editor.getModel();
     this.editor.blur();
+    this.editor.setPosition(model.getPositionAt(model.getValueLength() + 1));
   }
   /** 语法初始化 */
   initMonacoBeforeFun(monaco) {
@@ -153,7 +155,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
           onChange={this.emitInput}
           onFocus={this.emitFocus}
           onBlur={this.emitBlur}
-          onKeyDown={this.emitKeyDown}
+          onKeydown={this.emitKeyDown}
           onEditorDidMount={editor => this.getEditorInstance(editor)}
         />
         <div
