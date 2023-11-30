@@ -33,6 +33,8 @@ from apps.log_databus.serializers import (
     BatchGetStateSerlalizer,
 )
 from apps.utils.drf import list_route
+from apps.log_databus.exceptions import ArchiveNotFound, RestoreNotFound
+from apps.log_databus.constants import ArchiveInstanceType
 
 
 class RestoreViewSet(ModelViewSet):
@@ -43,6 +45,19 @@ class RestoreViewSet(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create"]:
+            archive_config_id = self.request.data.get("archive_config_id") or 0
+            archive_obj = ArchiveConfig.objects.filter(archive_config_id=int(archive_config_id)).first()
+            if not archive_obj:
+                raise ArchiveNotFound
+            if archive_obj.instance_type == ArchiveInstanceType.INDEX_SET.value:
+                return [
+                    InstanceActionForDataPermission(
+                        "archive_config_id",
+                        [ActionEnum.MANAGE_INDICES],
+                        ResourceEnum.INDICES,
+                        get_instance_id=ArchiveConfig.get_index_set_id,
+                    )
+                ]
             return [
                 InstanceActionForDataPermission(
                     "archive_config_id",
@@ -52,6 +67,18 @@ class RestoreViewSet(ModelViewSet):
                 )
             ]
         if self.action in ["destroy", "update"]:
+            restore_obj = RestoreConfig.objects.filter(restore_config_id=int(self.kwargs[self.lookup_field])).first()
+            if not restore_obj:
+                raise RestoreNotFound
+            if restore_obj.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
+                return [
+                    InstanceActionForDataPermission(
+                        "restore_config_id",
+                        [ActionEnum.MANAGE_COLLECTION],
+                        ResourceEnum.COLLECTION,
+                        get_instance_id=RestoreConfig.get_index_set_id,
+                    )
+                ]
             return [
                 InstanceActionForDataPermission(
                     "restore_config_id",
