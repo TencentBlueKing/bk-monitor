@@ -264,18 +264,25 @@ class LinkListTableFormat(TableFormat):
 class ProgressTableFormat(TableFormat):
     column_type = "progress"
 
-    def __init__(self, *args, clear_if_not_sorted=False, **kwargs):
+    def __init__(self, *args, clear_if_not_sorted=False, color_getter=None, **kwargs):
         super(ProgressTableFormat, self).__init__(*args, **kwargs)
         self.clear_if_not_sorted = clear_if_not_sorted
+        self.color_getter = color_getter
 
     def format(self, row):
         data = row[self.id]
-        if data == 0:
-            color = "SUCCESS"
-        elif 0 < data < 30:
-            color = "NORMAL"
+        if data is None:
+            return {"value": None, "label": None, "status": None}
+
+        if self.color_getter:
+            color = self.color_getter(data)
         else:
-            color = "FAILED"
+            if data == 0:
+                color = "SUCCESS"
+            elif 0 < data < 30:
+                color = "NORMAL"
+            else:
+                color = "FAILED"
 
         return {"value": data, "label": f"{round(data, 2)}%", "status": color}
 
@@ -358,7 +365,11 @@ class NumberTableFormat(TableFormat):
         self.decimal = decimal
 
     def format(self, row):
-        value, unit = load_unit(self.unit).auto_convert(row[self.id], decimal=self.decimal)
+        v = row[self.id]
+        if v is None:
+            return {"value": "--", "unit": ""}
+
+        value, unit = load_unit(self.unit).auto_convert(v, decimal=self.decimal)
         return {
             "value": value,
             "unit": unit,

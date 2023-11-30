@@ -133,14 +133,14 @@
   dest_http_method: POST
   is_hidden: True
 
-- path: /v2/bk_log/search_index_set/{index_set_id}/tailf/
+- path: /v2/bk_log/search_index_set/{index_set_id}/tail_f/
   name: search_tailf
   label: 日志平台-检索-实时日志
   label_en: bk_log search tail
   method: POST
   api_type: query
   comp_codename: generic.v2.bk_log.bk_log_component
-  dest_path: /api/v1/search/index_set/{index_set_id}/tailf/
+  dest_path: /api/v1/search/index_set/{index_set_id}/tail_f/
   dest_http_method: POST
   is_hidden: True
 
