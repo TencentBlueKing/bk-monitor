@@ -9,7 +9,7 @@ def forwards_func(apps, schema_editor):
     tag_model = apps.get_model("log_search", "IndexSetTag")
     create_objs = [
         tag_model(
-            name=InnerTag.CLUSTERING,
+            name=InnerTag.CLUSTERING.value,
             color=TagColor.GREEN.value,
         ),
     ]
@@ -17,7 +17,6 @@ def forwards_func(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("log_search", "0041_auto_20211213_1705"),
     ]

@@ -38,14 +38,6 @@ class ResultTableCacheManager(CacheManager):
         for result_table in result_tables:
             i18n.set_biz(result_table["bk_biz_id"])
             table_id = result_table["table_id"]
-
-            storage_info = {}
-            try:
-                storage_info = api.metadata.get_result_table_storage(result_table_list=table_id, storage_type="kafka")
-                storage_info = storage_info[table_id] if storage_info else {}
-            except:  # noqa
-                pass
-
             data = {
                 "table_id": table_id,
                 "table_name": result_table["table_name_zh"],
@@ -58,7 +50,6 @@ class ResultTableCacheManager(CacheManager):
                     }
                     for field in result_table["field_list"]
                 ],
-                "storage_info": storage_info,
             }
 
             pipeline.set(
@@ -94,7 +85,6 @@ class ResultTableCacheManager(CacheManager):
                             }
                             for field in result_table["fields"]
                         ],
-                        "storage_info": {},
                     }
 
                     pipeline.set(
@@ -143,7 +133,6 @@ class ResultTableCacheManager(CacheManager):
                             }
                             for field in fields["fields"]
                         ],
-                        "storage_info": {},
                     }
 
                     pipeline.set(

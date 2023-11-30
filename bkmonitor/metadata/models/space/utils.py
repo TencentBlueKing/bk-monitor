@@ -297,7 +297,6 @@ def authorize_data_id_list(space_type: str, space_id: str, data_id_list: List):
         space_id,
         json.dumps(data_id_list),
     )
-    # bkpaas_data_id_list = settings.BKPAAS_DATA_ID_LIST
     if not data_id_list:
         return
     used_data_ids = SpaceDataSource.objects.filter(
@@ -637,26 +636,23 @@ def get_data_id_by_cluster(cluster_id: Optional[str] = None, desire_all_data: Op
     return cluster_data_id_dict
 
 
-def get_shared_cluster_namespaces(cluster_id: str, project_id: str) -> List:
+def get_shared_cluster_namespaces(cluster_id: str, project_code: str) -> List:
     """获取共享集群的命名空间信息"""
-    # TODO: 通过 bcs_cc 的接口后续迁移至 project manager api
+    # 通过 project manager api 项目使用获取共享集群的命名空间
     try:
-        return api.bcs_cc.get_shared_cluster_namespaces(cluster_id=cluster_id, project_id=project_id)
+        return api.bcs.fetch_shared_cluster_namespaces(cluster_id=cluster_id, project_code=project_code)
     except Exception as e:
         logging.error("request shared cluster namespace error, err: %s", e)
         return []
 
 
-def get_space_shared_namespaces(space_code: str):
-    """获取共享命名空间信息
-
-    NOTE: 针对 bcs 的空间 code 为项目32为 ID
-    """
+def get_space_shared_namespaces(space_id: str):
+    """获取共享命名空间信息"""
     shared_clusters = api.bcs_cluster_manager.get_shared_clusters()
     shared_cluster_namespaces = []
     for cluster in shared_clusters:
         shared_cluster_namespaces.extend(
-            get_shared_cluster_namespaces(cluster_id=cluster["cluster_id"], project_id=space_code)
+            get_shared_cluster_namespaces(cluster_id=cluster["cluster_id"], project_code=space_id)
         )
 
     cluster_namespace_dict = {}
@@ -859,7 +855,7 @@ def create_bcs_spaces(project_list: List) -> bool:
                 shared_cluster_data_id_list.extend(cluster_data_id_list)
                 ns_list = [
                     ns["namespace"]
-                    for ns in get_shared_cluster_namespaces(cluster_id=c["cluster_id"], project_id=p["project_id"])
+                    for ns in get_shared_cluster_namespaces(cluster_id=c["cluster_id"], project_code=p["project_code"])
                 ]
                 project_cluster_ns_list.append(
                     {"cluster_id": c["cluster_id"], "namespace": ns_list, "cluster_type": "shared"}

@@ -875,7 +875,11 @@ BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
 BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
 TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
 
+# ===============================================================================
 # 前端上报
+# ===============================================================================
+# 环境代号
+ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or APP_CODE
 FRONTEND_REPORT_DATA_ID = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_ID")
 FRONTEND_REPORT_DATA_TOKEN = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_TOKEN")
 FRONTEND_REPORT_DATA_URL = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_URL")
@@ -906,6 +910,7 @@ ESQUERY_WHITE_LIST = [
     "bk-dbm",
     "bk_dbm",
     "bk-audit",
+    "klc_saas",
 ]
 
 # BK repo conf
