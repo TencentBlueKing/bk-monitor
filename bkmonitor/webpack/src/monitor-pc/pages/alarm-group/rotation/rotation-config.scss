@@ -178,8 +178,7 @@
       .item-type {
         margin-left: 8px;
         color: #c4c6cc;
-
-        @include text-ellipsis();
+        white-space: nowrap;
       }
 
       .tags {
