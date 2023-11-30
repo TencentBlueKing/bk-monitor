@@ -21,6 +21,9 @@ the project delivered to anyone in the future.
 """
 from enum import Enum
 
+from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
+
 from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
@@ -28,8 +31,6 @@ from apps.log_databus.constants import (
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
 
 
 class InnerTag(ChoicesEnum):
@@ -125,6 +126,8 @@ ASYNC_APP_CODE = settings.APP_CODE.replace("-", "_")
 ASYNC_DIR = f"/tmp/{ASYNC_APP_CODE}"
 # 异步导出配置名称
 FEATURE_ASYNC_EXPORT_COMMON = "feature_async_export"
+# 外部版异步导出配置名称
+FEATURE_ASYNC_EXPORT_EXTERNAL = "feature_async_export_external"
 # 异步导出通知方式
 FEATURE_ASYNC_EXPORT_NOTIFY_TYPE = "notify_type"
 # 异步导出存储方式
@@ -173,13 +176,13 @@ class SearchConditionFieldType(object):
 CHECK_FIELD_LIST = [SearchConditionFieldType.INTEGER, SearchConditionFieldType.LONG]
 
 CHECK_FIELD_MAX_VALUE_MAPPING = {
-    SearchConditionFieldType.INTEGER: 2 ** 31 - 1,
-    SearchConditionFieldType.LONG: 2 ** 63 - 1,
+    SearchConditionFieldType.INTEGER: 2**31 - 1,
+    SearchConditionFieldType.LONG: 2**63 - 1,
 }
 
 CHECK_FIELD_MIN_VALUE_MAPPING = {
-    SearchConditionFieldType.INTEGER: -(2 ** 31),
-    SearchConditionFieldType.LONG: -(2 ** 63),
+    SearchConditionFieldType.INTEGER: -(2**31),
+    SearchConditionFieldType.LONG: -(2**63),
 }
 
 
