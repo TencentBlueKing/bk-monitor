@@ -367,6 +367,9 @@ class LogIndexSet(SoftDeleteModel):
     bcs_project_id = models.CharField(_("项目ID"), max_length=64, default="")
     is_editable = models.BooleanField(_("是否可以编辑"), default=True)
 
+    def get_name(self):
+        return self.index_set_name
+
     def list_operate(self):
         return format_html(
             _(
