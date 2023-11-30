@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import sys
 
-from django.apps import AppConfig, apps
+from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 
 
@@ -26,11 +26,6 @@ class ApmApiConfig(AppConfig):
     label = "apm"
 
     def ready(self):
-        # 进行一些赋值，防止在app没有准备好时就赋值
-        from apm.models import application
-
-        application.MetricDataSource = apps.get_model("apm", "MetricDataSource")
-        application.TraceDataSource = apps.get_model("apm", "TraceDataSource")
 
         from apm.core.discover.base import DiscoverBase
         from apm.core.discover.endpoint import EndpointDiscover

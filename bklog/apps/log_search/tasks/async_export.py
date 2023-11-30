@@ -43,6 +43,7 @@ from apps.log_search.constants import (
     ASYNC_EXPORT_EXPIRED,
     ASYNC_EXPORT_FILE_EXPIRED_DAYS,
     FEATURE_ASYNC_EXPORT_COMMON,
+    FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     MAX_RESULT_WINDOW,
@@ -65,6 +66,7 @@ def async_export(
     url_path: str,
     search_url_path: str,
     language: str,
+    is_external: bool = False,
 ):
     """
     异步导出任务
@@ -74,6 +76,7 @@ def async_export(
     @param url_path {Str}
     @param search_url_path {Str}
     @param language {Str}
+    @param is_external {Bool}
     """
     random_hash = get_random_string(length=10)
     time_now = arrow.now().format("YYYYMMDDHHmmss")
@@ -85,6 +88,7 @@ def async_export(
         sorted_fields=sorted_fields,
         file_name=file_name,
         tar_file_name=tar_file_name,
+        is_external=is_external,
     )
     try:
         if not async_task:
@@ -205,17 +209,26 @@ class AsyncExportUtils(object):
     async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
     """
 
-    def __init__(self, search_handler: SearchHandler, sorted_fields: list, file_name: str, tar_file_name: str):
+    def __init__(
+        self,
+        search_handler: SearchHandler,
+        sorted_fields: list,
+        file_name: str,
+        tar_file_name: str,
+        is_external: bool = False,
+    ):
         """
         @param search_handler: the handler cls to search
         @param sorted_fields: the fields to sort search result
         @param file_name: the export file name
         @param tar_file_name: the file name which will be tar
+        @param is_external: is external_request
         """
         self.search_handler = search_handler
         self.sorted_fields = sorted_fields
         self.file_name = file_name
         self.tar_file_name = tar_file_name
+        self.is_external = is_external
         self.file_path = f"{ASYNC_DIR}/{self.file_name}"
         self.tar_file_path = f"{ASYNC_DIR}/{self.tar_file_name}"
         self.storage = self.init_remote_storage()
@@ -312,9 +325,11 @@ class AsyncExportUtils(object):
         os.remove(self.file_path)
         os.remove(self.tar_file_path)
 
-    @classmethod
-    def init_remote_storage(cls):
-        toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
+    def init_remote_storage(self):
+        if self.is_external:
+            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_EXTERNAL).feature_config
+        else:
+            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
         storage_type = toggle.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
         storage = StorageType.get_instance(storage_type)
         if not storage_type or storage_type == RemoteStorageType.NFS.value:

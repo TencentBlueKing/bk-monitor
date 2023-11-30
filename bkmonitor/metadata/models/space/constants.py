@@ -150,3 +150,6 @@ BKCI_AUTHORIZED_DATA_ID_LIST = [1001]
 
 # 1001 跨空间类型允许 bkci 访问的结果表前缀
 BKCI_1001_TABLE_ID_PREFIX = "devx_system."
+
+# 1001 仅允许访问 dbm 相关结果表的前缀
+DBM_1001_TABLE_ID_PREFIX = "dbm_system."
