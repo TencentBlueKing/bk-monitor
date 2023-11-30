@@ -10,6 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 from collections import defaultdict
 
+from django.conf import settings
+from opentelemetry.trace import StatusCode
+
 from apm_web.calculation import (
     ApdexCalculation,
     Calculation,
@@ -17,9 +20,6 @@ from apm_web.calculation import (
     ErrorRateOriginCalculation,
 )
 from apm_web.constants import Apdex, CalculationMethod
-from django.conf import settings
-from opentelemetry.trace import StatusCode
-
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -307,14 +307,19 @@ class ApdexRange(MetricHandler):
 @using_cache(CacheType.APM(60 * 15))
 def cache_batch_metric_query_group(
     application,
-    period: str = None,
+    period=None,
     distance=None,
+    start_time=None,
+    end_time=None,
     group_key: list = None,
     metric_handler_cls: list = None,
     where: list = None,
 ):
-    start_time, end_time = get_datetime_range(period, distance)
-    start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+    if not start_time or not end_time:
+        # start_time/end_time 和 period/distance 二选一填写
+        start_time, end_time = get_datetime_range(period, distance)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+
     return batch_metric_query_group(application, start_time, end_time, group_key, metric_handler_cls, where)
 
 
@@ -356,13 +361,17 @@ def cache_batch_metric_query(
     iteritems,
     period: str = None,
     distance: int = None,
+    start_time=None,
+    end_time=None,
     metric_handler_cls: list = None,
     id_get=lambda x: x,
     filter_dict_build=lambda x: None,
     get_application=lambda x: x,
 ):
-    start_time, end_time = get_datetime_range(period, distance)
-    start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+    if not start_time or not end_time:
+        # start_time/end_time 和 period/distance 二选一填写
+        start_time, end_time = get_datetime_range(period, distance)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
     return batch_metric_query(
         start_time,
         end_time,

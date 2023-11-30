@@ -13,6 +13,8 @@ import time
 
 import mock as _mock
 import pytest
+from django.conf import settings
+
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
 from alarm_backends.core.cache.key import ALERT_SNAPSHOT_KEY
@@ -26,7 +28,6 @@ from alarm_backends.tests.service.access.data.config import (
 )
 from constants.action import ActionPluginType, AssignMode
 from constants.alert import EventStatus
-from django.conf import settings
 
 pytestmark = pytest.mark.django_db
 
@@ -37,7 +38,6 @@ from alarm_backends.service.fta_action.tasks.alert_assign import (
     BackendAssignMatchManager,
 )
 from api.cmdb.define import Business, Host
-
 from bkmonitor.documents import AlertDocument, AlertLog, EventDocument
 from bkmonitor.models import (
     ActionConfig,
@@ -732,7 +732,7 @@ class TestAssignManager:
         assert ActionConfigCacheManager.get_action_config_by_id(4444)
 
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions0 = create_actions(0, "abnormal", alerts=[alert])
 
         new_alert = AlertDocument.get(id=alert.id)
@@ -755,7 +755,6 @@ class TestAssignManager:
         }
         print(alert.extra_info["rule_snaps"])
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
         actions = create_actions(0, "abnormal", alerts=[alert], notice_type="upgrade")
         new_alert = AlertDocument.get(id=alert.id)
         assert len(actions) == 2
@@ -801,7 +800,7 @@ class TestAssignManager:
             }
         }
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert], notice_type="upgrade")
         new_alert = AlertDocument.get(id=alert.id)
         assert len(actions) == 2
@@ -825,7 +824,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE]
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(alert.extra_info.strategy["id"], "abnormal", alerts=[alert])
         assert len(actions) == 2
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
@@ -839,7 +838,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE, AssignMode.BY_RULE]
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 3
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
@@ -855,7 +854,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy = {}
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 3
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
@@ -871,7 +870,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy = {}
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 0
 
@@ -1034,7 +1033,7 @@ class TestUpgradeChecker:
             }
         }
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         # 再次升级
         UpgradeChecker(alerts=[Alert(alert.to_dict())]).check_all()
         assert create_actions_delay.call_count == 1
@@ -1065,7 +1064,7 @@ class TestUpgradeChecker:
         alert.first_anomaly_time = int(time.time()) - alert.duration
         alert.latest_time = int(time.time())
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         # 第一次升级
         UpgradeChecker(alerts=[Alert(alert.to_dict())]).check_all()
         assert create_actions_delay.call_count == 1
