@@ -73,7 +73,7 @@ class FuncThread:
             else:
                 self.results[self.result_key] = self.func()
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             if return_exception:
                 self.results[self.result_key] = e
 

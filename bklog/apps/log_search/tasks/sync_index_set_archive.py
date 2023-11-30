@@ -19,13 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from celery.task import task
+
 from apps.api import TransferApi
 from apps.log_databus.constants import ArchiveInstanceType
 from apps.log_databus.models import ArchiveConfig
 from apps.log_search.models import LogIndexSetData
 from apps.utils.log import logger
-from celery.task import task
-
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -35,13 +35,12 @@ def sync_index_set_archive(index_set_id: int = None):
     更新索引集归档配置
     """
     if not index_set_id:
-        logger.info(f"[sync_index_set_archive] index_set_id is None ~~ Ahead Return")
+        logger.info("[sync_index_set_archive] index_set_id is None ~~ Ahead Return")
         return
 
     try:
         archive_obj = ArchiveConfig.objects.get(
-            instance_id=int(index_set_id),
-            instance_type=ArchiveInstanceType.INDEX_SET.value
+            instance_id=int(index_set_id), instance_type=ArchiveInstanceType.INDEX_SET.value
         )
     except ArchiveConfig.DoesNotExist:
         logger.info(f"[sync_index_set_archive] index_set_id->{index_set_id} ArchiveConfig DoesNotExist")
@@ -73,7 +72,7 @@ def sync_index_set_archive(index_set_id: int = None):
         logger.info(f"[sync_index_set_archive] index_set_id->{index_set_id}, all_table_ids->{all_table_ids}")
         snapshot_info, *_ = TransferApi.list_result_table_snapshot_indices({"table_ids": list(all_table_ids)})
         logger.info(f"[sync_index_set_archive] snapshot_info->{snapshot_info}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error(f"[sync_index_set_archive] request list_result_table_snapshot_indices error->{e}")
         return
 
@@ -90,7 +89,7 @@ def sync_index_set_archive(index_set_id: int = None):
             multi_execute_func.append(
                 result_key=f"delete_result_table_snapshot_{deleted_table_id}",
                 func=TransferApi.delete_result_table_snapshot,
-                params=params
+                params=params,
             )
 
     # 处理需要在metadata新增归档配置的table_id
@@ -100,12 +99,12 @@ def sync_index_set_archive(index_set_id: int = None):
             params = {
                 "table_id": normal_table_id,
                 "target_snapshot_repository_name": target_snapshot_repository_name,
-                "snapshot_days": snapshot_days
+                "snapshot_days": snapshot_days,
             }
             multi_execute_func.append(
                 result_key=f"create_result_table_snapshot_{normal_table_id}",
                 func=TransferApi.create_result_table_snapshot,
-                params=params
+                params=params,
             )
 
     if multi_execute_func.task_list:
