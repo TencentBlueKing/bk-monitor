@@ -67,7 +67,7 @@ export default class PerformanceDetail extends tsc<{}> {
     next(async (vm: PerformanceDetail) => {
       if (vm.showGuidePage) return;
       const isOldIpv4 = vm.id.toString().includes('-');
-      let params = {};
+      let params: any = {};
       if (isOldIpv4) {
         const list = vm.id.split('-');
         params = { ip: list[0], bk_cloud_id: list[1] };
@@ -103,6 +103,13 @@ export default class PerformanceDetail extends tsc<{}> {
               }
             : {}
         };
+      } else {
+        vm.routeList = [
+          {
+            id: '',
+            name: (isOldIpv4 ? params?.ip : params?.bk_host_id) || ''
+          }
+        ];
       }
       vm.loading = false;
     });
