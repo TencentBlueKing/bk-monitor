@@ -67,7 +67,7 @@ export default class PerformanceDetail extends tsc<{}> {
     next(async (vm: PerformanceDetail) => {
       if (vm.showGuidePage) return;
       const isOldIpv4 = vm.id.toString().includes('-');
-      let params: any = {};
+      let params = {};
       if (isOldIpv4) {
         const list = vm.id.split('-');
         params = { ip: list[0], bk_cloud_id: list[1] };
