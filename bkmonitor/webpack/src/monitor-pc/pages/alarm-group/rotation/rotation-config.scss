@@ -208,6 +208,7 @@
   }
 
   .del-wrap {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -221,6 +222,43 @@
     .icon-jia {
       margin-right: 4px;
       font-size: 16px;
+    }
+
+    &:hover {
+      background-color: #f0f1f5;
+    }
+
+    .refresh-wrap {
+      position: absolute;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 100%;
+
+      &::after {
+        position: absolute;
+        left: 0;
+        width: 1px;
+        height: 16px;
+        content: '';
+        background: #dcdee5;
+      }
+
+      &:hover {
+        background-color: #eaebf0;
+      }
+
+      .loading-icon {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+      }
+
+      .icon-zhongzhi1 {
+        font-size: 14px;
+      }
     }
   }
 }

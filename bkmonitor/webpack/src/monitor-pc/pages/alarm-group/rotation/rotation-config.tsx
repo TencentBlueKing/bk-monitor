@@ -30,6 +30,7 @@ import { Button, Checkbox, Input } from 'bk-magic-vue';
 import { listDutyRule } from '../../../../monitor-api/modules/model';
 import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
 import { Debounce, random } from '../../../../monitor-common/utils';
+import loadingIcon from '../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 
 import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
@@ -105,6 +106,8 @@ export default class RotationConfig extends tsc<IProps> {
   previewStartTime = '';
 
   errMsg = '';
+
+  refreshLoading = false;
 
   /* 用于统计信息 */
   get userGroupData(): {
@@ -419,6 +422,24 @@ export default class RotationConfig extends tsc<IProps> {
     this.handleNoticeChange();
   }
 
+  async handleRefresh(e: Event) {
+    e.stopPropagation();
+    if (this.refreshLoading) {
+      return;
+    }
+    this.refreshLoading = true;
+    const list = (await listDutyRule().catch(() => [])) as any;
+    const ids = this.dutyList.map(item => item.id);
+    const sets = new Set(ids);
+    this.allDutyList = list.map(item => ({
+      ...item,
+      isCheck: sets.has(item.id),
+      show: item.labels.some(l => l === this.search) || item.name.indexOf(this.search) >= 0,
+      typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
+    }));
+    this.refreshLoading = false;
+  }
+
   render() {
     return (
       <div class='alarm-group-rotation-config-component'>
@@ -595,6 +616,19 @@ export default class RotationConfig extends tsc<IProps> {
             >
               <span class='icon-monitor icon-jia'></span>
               <span>{this.$t('新增轮值排班')}</span>
+              <div
+                class='refresh-wrap'
+                onClick={e => this.handleRefresh(e)}
+              >
+                {this.refreshLoading ? (
+                  <img
+                    class='loading-icon'
+                    src={loadingIcon}
+                  ></img>
+                ) : (
+                  <span class='icon-monitor icon-zhongzhi1'></span>
+                )}
+              </div>
             </div>
           </div>
         </div>
