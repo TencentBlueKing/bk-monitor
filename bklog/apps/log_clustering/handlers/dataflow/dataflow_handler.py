@@ -1496,7 +1496,10 @@ class DataFlowHandler(BaseAiopsHandler):
         mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
         for field in dst_transform_fields:
             if field in mapping_all_fields_dict.keys():
-                format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
+                if field != mapping_all_fields_dict[field]:
+                    format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
+                else:
+                    format_transform_fields.append(f"`{field}`")
             if field == DEFAULT_CLUSTERING_FIELD:
                 format_transform_fields.append(
                     "`{}` as `{}`".format(field, all_fields_dict.get(clustering_config.clustering_fields))
