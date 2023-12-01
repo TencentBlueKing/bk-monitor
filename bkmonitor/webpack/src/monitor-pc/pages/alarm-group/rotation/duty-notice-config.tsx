@@ -126,8 +126,8 @@ export default class DutyNoticeConfig extends tsc<IProps> {
         if (!this.formData.rtxId) {
           this.errrMsg.sendChat = this.$t('请输入企业微信群ID') as string;
         }
-        if (this.formData.rtxId.length < 32) {
-          this.errrMsg.sendChat = this.$t('请确保企业微信群ID至少包含32个字符') as string;
+        if ((this.formData.rtxId || '').split(',').some(str => str.length !== 32)) {
+          this.errrMsg.sendChat = this.$t('请确保企业微信群ID为32个字符') as string;
         }
         if (!this.formData.sendTime) {
           this.errrMsg.sendTime = this.$t('请输入发送时间') as string;
@@ -252,7 +252,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
           this.$t('企业微信群ID'),
           [
             <Input
-              class='width-305 mr-12'
+              class='width-488 mr-12'
               v-model={this.formData.rtxId}
               onChange={() => this.handleChange()}
             ></Input>,
