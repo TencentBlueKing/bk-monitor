@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import time
 from typing import Dict, List, Optional, Set
 
 from django.conf import settings
@@ -41,6 +42,10 @@ from metadata.models.space.utils import (
     get_metadata_cluster_list,
     get_shared_cluster_namespaces,
     get_valid_bcs_projects,
+)
+from metadata.models.vm.constants import (
+    QUERY_VM_SPACE_UID_CHANNEL_KEY,
+    QUERY_VM_SPACE_UID_LIST_KEY,
 )
 from metadata.task.utils import bulk_handle
 from metadata.utils.redis_tools import RedisTools
@@ -100,6 +105,10 @@ def sync_bkcc_space(allow_deleted=False):
         except Exception:
             logger.exception("create bkcc biz space error")
             return
+        # 追加业务空间到 vm 查询的白名单中, 并通知到 unifyquery
+        RedisTools.sadd(QUERY_VM_SPACE_UID_LIST_KEY, [f"bkcc__{biz_id}" for biz_id in diff])
+        RedisTools.publish(QUERY_VM_SPACE_UID_CHANNEL_KEY, [json.dumps({"time": time.time()})])
+
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
 
 
@@ -801,4 +810,5 @@ def refresh_bksaas_space_resouce():
     # NOTE: 此时集群或者公共插件相关的信息已经存在了，不需要再进行指标或 data_label 的映射
     bulk_handle(multi_push_space_table_ids, space_ids)
 
+    logger.info("refresh bksaas space resource successfully")
     logger.info("refresh bksaas space resource successfully")

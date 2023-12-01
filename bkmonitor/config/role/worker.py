@@ -270,6 +270,8 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
         # 每天同步一次蓝鲸应用的使用的集群
         ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
+        # 同步空间路由数据，1小时更新一次
+        ("metadata.task.sync_space.push_and_publish_space_router_task", "* */1 * * *", "global"),
     ]
 
 # Timeout for image exporter service, default set to 10 seconds
