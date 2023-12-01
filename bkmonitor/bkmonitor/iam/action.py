@@ -381,7 +381,7 @@ class ActionEnum:
 
     MANAGE_DATASOURCE = ActionMeta(
         id="manage_datasource_v2",
-        name=_("数据源管理"),
+        name=_("仪表盘配置管理"),
         name_en="Manage DataSource",
         type="manage",
         related_resource_types=[SPACE_RESOURCE],
