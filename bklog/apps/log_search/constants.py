@@ -1013,6 +1013,11 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "description": "2006-01-02T15:04:05.000-07:00",
             },
             {
+                "id": "ISO8601",
+                "name": "ISO8601",
+                "description": "2006-01-02T15:04:05.000-0700",
+            },
+            {
                 "id": "strict_date_time_no_millis",
                 "name": "YYYY-MM-DDTHH:mm:ssZ",
                 "description": "2006-01-02T15:04:05-07:00",
