@@ -10,12 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
-from apm_web.constants import TopoNodeKind
-from apm_web.metrics import COMPONENT_LIST
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
+from apm_web.constants import TopoNodeKind
+from apm_web.metrics import COMPONENT_LIST
 from constants.apm import OtlpKey
 from core.drf_resource import api
 
@@ -96,7 +96,6 @@ class ComponentHandler:
     def get_component_instance_query_params(
         cls, bk_biz_id, app_name, kind, category, component_instance_id, exists_where, template, key_generator
     ):
-
         rules = api.apm_api.query_discover_rules(
             bk_biz_id=bk_biz_id,
             app_name=app_name,
@@ -198,7 +197,6 @@ class ComponentHandler:
 
     @classmethod
     def replace_service(cls, filter_params, predicate_value):
-
         has_service_condition = next(
             (i for i in filter_params if i["key"] == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)),
             None,
@@ -219,7 +217,7 @@ class ComponentHandler:
             filter_params.remove(has_service_condition)
 
     @classmethod
-    def get_service_component_metrics(cls, app, distance, period, metric_clz=None):
+    def get_service_component_metrics(cls, app, start_time, end_time, metric_clz=None):
         """
         获取service服务下属的组件指标值
         """
@@ -227,7 +225,7 @@ class ComponentHandler:
         if not metric_clz:
             metric_clz = COMPONENT_LIST
 
-        metric_info = metric_clz(app, distance=distance, period=period)
+        metric_info = metric_clz(app, start_time=start_time, end_time=end_time)
 
         res = {}
         for key, info in metric_info.items():
@@ -242,12 +240,12 @@ class ComponentHandler:
         return res
 
     @classmethod
-    def get_service_component_name_metrics(cls, app, distance, period, metric_clz=None):
+    def get_service_component_name_metrics(cls, app, start_time, end_time, metric_clz=None):
         """
         获取service服务下属的组件指标值
         返回 xxx-redis: {"request_count": "0"}
         """
-        data = cls.get_service_component_metrics(app, distance, period, metric_clz)
+        data = cls.get_service_component_metrics(app, start_time, end_time, metric_clz)
 
         res = {}
         for service_name, item in data.items():
@@ -258,7 +256,7 @@ class ComponentHandler:
         return res
 
     @classmethod
-    def get_service_component_instance_metrics(cls, app, kind, category, distance, period):
+    def get_service_component_instance_metrics(cls, app, kind, category, start_time, end_time):
         """
         获取组件实例的指标值
         """
@@ -281,7 +279,7 @@ class ComponentHandler:
 
         res = {}
         # TODO 因为metrics通过|拼接，这里临时替换一下
-        metrics = COMPONENT_LIST(app, group_key=group_by_keys, distance=distance, period=period)
+        metrics = COMPONENT_LIST(app, group_key=group_by_keys, start_time=start_time, end_time=end_time)
         for k, v in metrics.items():
             res[k.replace("|", ":")] = v
 

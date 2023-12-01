@@ -34,7 +34,13 @@ from metadata.utils import consul_tools, hash_util
 from .common import Label, OptionBase
 from .constants import IGNORED_CONSUL_SYNC_DATA_IDS, IGNORED_STORAGE_CLUSTER_TYPES
 from .space import Space, SpaceDataSource
-from .storage import ClusterInfo, KafkaTopicInfo
+from .storage import (
+    ClusterInfo,
+    ESStorage,
+    InfluxDBStorage,
+    KafkaStorage,
+    KafkaTopicInfo,
+)
 
 ResultTable = None
 ResultTableField = None
@@ -46,6 +52,9 @@ logger = logging.getLogger("metadata")
 
 class DataSource(models.Model):
     """数据源配置"""
+
+    # 标识 transfer 可以写入的存储表
+    TRANSFER_STORAGE_LIST = [ESStorage, InfluxDBStorage, KafkaStorage]
 
     # 默认使用的MQ类型
     DEFAULT_MQ_TYPE = ClusterInfo.TYPE_KAFKA
@@ -153,6 +162,24 @@ class DataSource(models.Model):
         """是否自定义上报的数据源"""
         return self.etl_config in ["bk_standard_v2_time_series"]
 
+    def get_transfer_storage_conf(self, table_id: str) -> List:
+        """获取transfer向后端写入的存储的配置"""
+        conf_list = []
+        for real_storage in self.TRANSFER_STORAGE_LIST:
+            try:
+                rt_st = real_storage.objects.get(table_id=table_id)
+                consul_config = rt_st.consul_config
+                # # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
+                if not consul_config:
+                    continue
+                if consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES:
+                    continue
+                conf_list.append(consul_config)
+            except real_storage.DoesNotExist:
+                continue
+
+        return conf_list
+
     def get_spaces_by_data_id(self, bk_data_id: int, from_authorization: Optional[bool] = False) -> Union[List, Dict]:
         """通过数据源 ID 查询空间为授权的或者为当前空间"""
         # 返回来源于授权空间信息
@@ -211,37 +238,29 @@ class DataSource(models.Model):
 
             result_table_info_list = []
             # 获取存在的结果表
-            real_table_id_list = ResultTable.objects.filter(
-                table_id__in=result_table_id_list, is_deleted=False, is_enable=True
-            ).values_list("table_id", flat=True)
+            real_table_ids = {
+                rt["table_id"]: rt
+                for rt in ResultTable.objects.filter(
+                    table_id__in=result_table_id_list, is_deleted=False, is_enable=True
+                ).values("table_id", "bk_biz_id", "schema_type")
+            }
+
+            real_table_id_list = list(real_table_ids.keys())
             # 批量获取结果表级别选项
             table_id_option_dict = ResultTableOption.batch_result_table_option(real_table_id_list)
             # 获取字段信息
             table_field_dict = ResultTableField.batch_get_fields(real_table_id_list, is_consul_config)
             # 判断需要未删除，而且在启用状态的结果表
-            for result_table in ResultTable.objects.filter(
-                table_id__in=result_table_id_list, is_deleted=False, is_enable=True
-            ):
-                shipper_list = []
-                # NOTE: 现阶段 transfer 识别不了 `victoria_metrics`，针对 `victoria_metrics` 类型的存储，跳过写入 consul
-                for real_table in result_table.real_storage_list:
-                    consul_config = real_table.consul_config
-                    if consul_config:
-                        if consul_config.get("cluster_type") in IGNORED_STORAGE_CLUSTER_TYPES:
-                            continue
-                        shipper_list.append(consul_config)
-
+            for rt, rt_info in real_table_ids.items():
                 result_table_info_list.append(
                     {
-                        "bk_biz_id": result_table.bk_biz_id,
-                        "result_table": result_table.table_id,
-                        "shipper_list": shipper_list,
+                        "bk_biz_id": rt_info["bk_biz_id"],
+                        "result_table": rt,
+                        "shipper_list": self.get_transfer_storage_conf(rt),
                         # 如果是自定义上报的情况，不需要将字段信息写入到consul上
-                        "field_list": table_field_dict.get(result_table.table_id, [])
-                        if not self.is_custom_timeseries_report
-                        else [],
-                        "schema_type": result_table.schema_type,
-                        "option": table_id_option_dict.get(result_table.table_id, {}),
+                        "field_list": table_field_dict.get(rt, []) if not self.is_custom_timeseries_report else [],
+                        "schema_type": rt_info["schema_type"],
+                        "option": table_id_option_dict.get(rt, {}),
                     }
                 )
             result_config["result_table_list"] = result_table_info_list
@@ -428,7 +447,6 @@ class DataSource(models.Model):
 
         # 此处启动DB事务，创建默认的信息
         with atomic(config.DATABASE_CONNECTION_NAME):
-
             if transfer_cluster_id is None:
                 transfer_cluster_id = settings.DEFAULT_TRANSFER_CLUSTER_ID
 
@@ -620,7 +638,6 @@ class DataSource(models.Model):
         # 2.3 data_name判断是否需要修改
         # 需要提供了data_name，而且data_name与当前的data_name不是一个东东
         if data_name is not None and self.data_name != data_name:
-
             if self.__class__.objects.filter(data_name=data_name).exists():
                 logger.error(
                     "user->[{operator}] try to update data_id->{data_id}] data_name->[{data_name}] "

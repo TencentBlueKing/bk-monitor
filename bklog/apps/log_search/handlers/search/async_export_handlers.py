@@ -50,6 +50,7 @@ from apps.utils.drf import DataPageNumberPagination
 from apps.utils.local import (
     get_request,
     get_request_app_code,
+    get_request_external_user_email,
     get_request_external_username,
     get_request_language_code,
     get_request_username,
@@ -79,6 +80,7 @@ class AsyncExportHandlers(object):
                 export_log=True,
             )
         self.request_user = get_request_external_username() or get_request_username()
+        self.is_external = bool(get_request_external_username())
 
     def async_export(self):
         # 判断fields是否支持
@@ -118,6 +120,8 @@ class AsyncExportHandlers(object):
             url_path=url,
             search_url_path=search_url,
             language=get_request_language_code(),
+            is_external=self.is_external,
+            external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_handler.size
 

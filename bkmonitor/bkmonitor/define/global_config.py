@@ -118,6 +118,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label=_("是否开启全局告警屏蔽"), default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label=_("第三方事件接入业务白名单"), default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_DAYS", slz.IntegerField(label=_("自定义指标过期时间"), default=30)),
+        ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label=_("获取自定义指标的间隔时间"), default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label=_("是否开启数据平台指标缓存"), default=True)),
         (
             "TRANSLATE_SNMP_TRAP_DIMENSIONS",
@@ -243,7 +244,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST", slz.ListField(label=_("容器关联关系丰富业务白名单"), default=[])),
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
         ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
-        ("BKPAAS_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
+        ("BKPAAS_AUTHORIZED_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
+        ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
     ]
 )
 
@@ -328,6 +330,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_APP_QPS", slz.IntegerField(label=_("APM中应用默认QPS"), default=500)),
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
+        ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
+        ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
