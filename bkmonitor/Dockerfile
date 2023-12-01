@@ -27,6 +27,8 @@ RUN if [ ${replace_debian_source} ] ; then \
 RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
 RUN npm install -g pnpm
 RUN node -v && npm -v && pnpm -v
+RUN  npm config get registry
+RUN npm config set registry https://registry.npmjs.org/
 WORKDIR /app
 
 # install python packages
