@@ -37,8 +37,6 @@ class EmailSubscriptionViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.email_subscription.get_send_records, endpoint="get_send_records"),
         # 订阅审批记录列表
         ResourceRoute("GET", resource.email_subscription.get_apply_records, endpoint="get_apply_records"),
-        # 内部用户渠道获取用户组列表
-        ResourceRoute("GET", resource.email_subscription.user_group_list, endpoint="user_group_list"),
         # 获取索引集列表
         ResourceRoute("GET", resource.email_subscription.user_group_list, endpoint="get_index_sets"),
         # 获取变量列表

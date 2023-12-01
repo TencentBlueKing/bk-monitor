@@ -69,11 +69,66 @@ class SubscriptionChannel(Model):
     channel_name = models.CharField(verbose_name="渠道名称", max_length=32, choices=ChannelEnum.get_choices())
     is_enabled = models.BooleanField(verbose_name="是否启用", default=True)
     subscribers = models.JSONField(verbose_name="订阅人", default=list)
+    send_text = models.CharField(verbose_name="提示文案", max_length=256, null=True)
 
     class Meta:
         verbose_name = "订阅渠道"
         verbose_name_plural = "订阅渠道"
         db_table = "subscription_channel"
+
+
+class EmailSubscription(AbstractRecordModel):
+    """
+    邮件订阅
+    """
+
+    name = models.CharField(verbose_name="订阅名称", max_length=64)
+    bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
+    scenario = models.CharField(verbose_name="订阅场景", max_length=32, choices=ScenarioEnum.get_choices())
+    frequency = models.JSONField(verbose_name="发送频率", default=dict)
+    content_config = models.JSONField(verbose_name="内容配置", default=dict)
+    scenario_config = models.JSONField(verbose_name="场景配置", default=dict)
+    start_time = models.IntegerField(verbose_name="开始时间")
+    end_time = models.IntegerField(verbose_name="结束时间")
+    last_send_record_ids = models.JSONField(verbose_name="最近一次发送记录ID", null=True, default=list)
+    is_manager_created = models.BooleanField(verbose_name="是否管理员创建", default=False)
+
+    class Meta:
+        verbose_name = "邮件订阅"
+        verbose_name_plural = "邮件订阅"
+        db_table = "email_subscription"
+
+    @property
+    def send_mode(self):
+        if self.frequency["type"] != 1:
+            return SendModeEnum.PERIODIC
+        return SendModeEnum.ONE_TIME
+
+    @property
+    def is_invaild(self):
+        now_timestamp = arrow.now().timestamp
+        if now_timestamp > self.end_time or now_timestamp < self.start_time:
+            return True
+        if self.frequency["type"] == 1:
+            return True
+        return False
+
+    def is_self_subscribed(self):
+        channels = SubscriptionChannel.objects.filter(channel_name=ChannelEnum.USER, subscription_id=self.id)
+        if channels.exist():
+            subscriber_ids = [subscriber.id for subscriber in channels.first().subscribers]
+            return self.create_user in subscriber_ids
+
+    def get_failed_subscribers(self):
+        send_results = list(self.last_send_records.values())
+        failed_subscribers = []
+        for result in send_results:
+            if result["send_status"] != "success":
+                for send_result in result["send_result"]:
+                    if send_result["result"]:
+                        continue
+                    failed_subscribers.append(send_result["id"])
+        return failed_subscribers
 
 
 class SubscriptionSendRecord(Model):
@@ -93,72 +148,7 @@ class SubscriptionSendRecord(Model):
         db_table = "subscription_send_record"
 
 
-class EmailSubscription(AbstractRecordModel):
-    """
-    邮件订阅
-    """
-
-    name = models.CharField(verbose_name="订阅名称", max_length=64)
-    bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
-    scenario = models.CharField(verbose_name="订阅场景", max_length=32, choices=ScenarioEnum.get_choices())
-    channels = models.ManyToManyField(SubscriptionChannel, verbose_name="订阅渠道")
-    frequency = models.JSONField(verbose_name="发送频率", default=dict)
-    content_config = models.JSONField(verbose_name="内容配置", default=dict)
-    scenario_config = models.JSONField(verbose_name="场景配置", default=dict)
-    last_send_records = models.ManyToManyField(SubscriptionSendRecord, verbose_name="最近一次发送记录")
-    start_time = models.IntegerField(verbose_name="开始时间")
-    end_time = models.IntegerField(verbose_name="结束时间")
-    is_manager_created = models.BooleanField(verbose_name="是否管理员创建", default=False)
-
-    class Meta:
-        verbose_name = "邮件订阅"
-        verbose_name_plural = "邮件订阅"
-        db_table = "email_subscription"
-
-    @property
-    def send_mode(self):
-        if self.frequency["type"] != 1:
-            return SendModeEnum.PERIODIC
-        return SendModeEnum.ONE_TIME
-
-    @property
-    def is_invaild(self):
-        now_timestamp = arrow.now().timestamp
-        if now_timestamp > self.end_time or now_timestamp < self.start_time:
-            return True
-        if self.frequency["type"] == 1 and self.get_last_send_time():
-            return True
-        return False
-
-    def is_self_subscribed(self):
-        channel = self.channels.filter(channel_name=ChannelEnum.USER)
-        subscriber_ids = [subscriber.id for subscriber in channel.subscribers]
-        return self.create_user in subscriber_ids
-
-    def get_send_status(self):
-        all_send_status = list(self.last_send_records.values_list("send_status", flat=1))
-        if len(all_send_status) == 1 and all_send_status[0] == SendStatusEnum.SUCCESS:
-            return SendStatusEnum.SUCCESS
-        return SendStatusEnum.FAILED
-
-    def get_failed_subscribers(self):
-        send_results = list(self.last_send_records.values())
-        failed_subscribers = []
-        for result in send_results:
-            if result["send_status"] != "success":
-                for send_result in result["send_result"]:
-                    if send_result["result"]:
-                        continue
-                    failed_subscribers.append(send_result["id"])
-        return failed_subscribers
-
-    def get_last_send_time(self):
-        if not self.last_send_records:
-            return None
-        return self.last_send_records.first().send_time
-
-
-class SubscriptionApplyRecord(Model):
+class SubscriptionApplyRecord(AbstractRecordModel):
     """
     订阅审批记录
     """
