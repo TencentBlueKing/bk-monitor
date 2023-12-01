@@ -126,6 +126,10 @@ export default class RotationConfig extends tsc<IProps> {
     return userGroupData;
   }
 
+  get showNoData() {
+    return !this.allDutyList.filter(item => !!item.show).length;
+  }
+
   created() {
     this.init();
   }
@@ -477,7 +481,12 @@ export default class RotationConfig extends tsc<IProps> {
                   onMouseenter={() => this.handleMouseenter()}
                   onMouseleave={() => this.handleMouseleave()}
                 ></span>
-                <span class='duty-item-name'>{item.name}</span>
+                <span
+                  class='duty-item-name'
+                  v-bk-overflow-tips
+                >
+                  {item.name}
+                </span>
                 <span class='duty-item-type'>{item.typeLabel}</span>
                 <span
                   class='icon-monitor icon-bianji'
@@ -581,34 +590,43 @@ export default class RotationConfig extends tsc<IProps> {
               ></Input>
             </div>
             <div class='content-wrap'>
-              {this.allDutyList
-                .filter(item => !!item.show)
-                .map(item => (
-                  <div
-                    class='duty-select-item'
-                    key={item.id}
-                    onClick={() => this.handleSelectOption(item)}
-                  >
-                    <div onClick={(e: Event) => e.stopPropagation()}>
-                      <Checkbox
-                        value={item.isCheck}
-                        onChange={v => this.handleCheckOption(v, item)}
-                      ></Checkbox>
+              {!this.showNoData ? (
+                this.allDutyList
+                  .filter(item => !!item.show)
+                  .map(item => (
+                    <div
+                      class='duty-select-item'
+                      key={item.id}
+                      onClick={() => this.handleSelectOption(item)}
+                    >
+                      <div onClick={(e: Event) => e.stopPropagation()}>
+                        <Checkbox
+                          value={item.isCheck}
+                          onChange={v => this.handleCheckOption(v, item)}
+                        ></Checkbox>
+                      </div>
+                      <span
+                        class='item-name'
+                        v-bk-overflow-tips
+                      >
+                        {item.name}
+                      </span>
+                      <span class='item-type'>{item.typeLabel}</span>
+                      <span class='tags'>
+                        {item.labels.map((tag, tagIndex) => (
+                          <span
+                            class={['item-tag', { active: this.search === tag }]}
+                            key={tagIndex}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </span>
                     </div>
-                    <span class='item-name'>{item.name}</span>
-                    <span class='item-type'>{item.typeLabel}</span>
-                    <span class='tags'>
-                      {item.labels.map((tag, tagIndex) => (
-                        <span
-                          class={['item-tag', { active: this.search === tag }]}
-                          key={tagIndex}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </span>
-                  </div>
-                ))}
+                  ))
+              ) : (
+                <div class='no-data'>{this.$t('无匹配数据')}</div>
+              )}
             </div>
             <div
               class='del-wrap'

@@ -250,7 +250,7 @@ export default class RotationPreview extends tsc<IProps> {
                   }}
                   key={index}
                 >
-                  <span>{item.name}</span>
+                  <span v-bk-overflow-tips>{item.name}</span>
                 </div>
               ))}
             </div>

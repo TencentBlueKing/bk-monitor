@@ -269,5 +269,6 @@ export default {
   暂无数据: 'No data available',
   每条轮值规则最少添加一个单班时间: 'Add at least one single shift time to each rotation rule',
   轮值规则名称长度不能超过128个字符: 'The length of the rotation rule name cannot exceed 128 characters',
-  生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time'
+  生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
+  请确保企业微信群ID为32个字符: 'Please ensure that the corporate wechat Group ID is 32 characters'
 };
