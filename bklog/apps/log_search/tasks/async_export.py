@@ -67,6 +67,7 @@ def async_export(
     search_url_path: str,
     language: str,
     is_external: bool = False,
+    external_user_email: str = "",
 ):
     """
     异步导出任务
@@ -77,6 +78,7 @@ def async_export(
     @param search_url_path {Str}
     @param language {Str}
     @param is_external {Bool}
+    @param external_user_email {Str}
     """
     random_hash = get_random_string(length=10)
     time_now = arrow.now().format("YYYYMMDDHHmmss")
@@ -89,6 +91,7 @@ def async_export(
         file_name=file_name,
         tar_file_name=tar_file_name,
         is_external=is_external,
+        external_user_email=external_user_email,
     )
     try:
         if not async_task:
@@ -216,6 +219,7 @@ class AsyncExportUtils(object):
         file_name: str,
         tar_file_name: str,
         is_external: bool = False,
+        external_user_email: str = "",
     ):
         """
         @param search_handler: the handler cls to search
@@ -229,6 +233,7 @@ class AsyncExportUtils(object):
         self.file_name = file_name
         self.tar_file_name = tar_file_name
         self.is_external = is_external
+        self.external_user_email = external_user_email
         self.file_path = f"{ASYNC_DIR}/{self.file_name}"
         self.tar_file_path = f"{ASYNC_DIR}/{self.tar_file_name}"
         self.storage = self.init_remote_storage()
@@ -308,7 +313,8 @@ class AsyncExportUtils(object):
             },
             language=language,
         )
-        self.notify.send(receivers=async_task.created_by, title=title, content=content)
+        receivers = self.external_user_email if self.is_external else async_task.created_by
+        self.notify.send(receivers=receivers, title=title, content=content, is_external=self.is_external)
 
     @classmethod
     def generate_title_template(cls, title_model):
