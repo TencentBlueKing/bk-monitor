@@ -1093,10 +1093,27 @@ class SearchHandler(object):
             self.indices, self.scenario_id, dtEventTimeStamp=self.dtEventTimeStamp, search_type_tag="context"
         ).index
 
+        tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+
+        timestamp_datetime = datetime.datetime.fromtimestamp(int(self.dtEventTimeStamp) / 1000, tz_info)
+
+        record_obj = (
+            StorageClusterRecord.objects.filter(index_set_id=int(self.index_set_id), created_at__gt=timestamp_datetime)
+            .order_by("created_at")
+            .first()
+        )
+
+        dsl_params_base = {"indices": context_indice, "scenario_id": self.scenario_id}
+
+        if record_obj:
+            dsl_params_base.update({"storage_cluster_id": record_obj.storage_cluster_id})
+
         if self.zero:
             # up
             body: dict = self._get_context_body("-")
-            result_up: dict = BkLogApi.dsl({"indices": context_indice, "scenario_id": self.scenario_id, "body": body})
+            dsl_params_up = copy.deepcopy(dsl_params_base)
+            dsl_params_up.update({"body": body})
+            result_up: dict = BkLogApi.dsl(dsl_params_up)
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
                 {
@@ -1108,13 +1125,12 @@ class SearchHandler(object):
             # down
             body: dict = self._get_context_body("+")
 
-            result_down: Dict = BkLogApi.dsl({"indices": context_indice, "scenario_id": self.scenario_id, "body": body})
+            dsl_params_down = copy.deepcopy(dsl_params_base)
+            dsl_params_down.update({"body": body})
+            result_down: Dict = BkLogApi.dsl(dsl_params_down)
 
             result_down: dict = self._deal_query_result(result_down)
-            result_down.update(
-                # self.analyze_context_result(result_down.get("list"))
-                {"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")}
-            )
+            result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
             total = result_up["total"] + result_down["total"]
             took = result_up["took"] + result_down["took"]
             new_list = result_up["list"] + result_down["list"]
@@ -1138,11 +1154,13 @@ class SearchHandler(object):
             }
         if self.start < 0:
             body: Dict = self._get_context_body("-")
-            result_up = BkLogApi.dsl({"indices": context_indice, "scenario_id": self.scenario_id, "body": body})
+
+            dsl_params_up = copy.deepcopy(dsl_params_base)
+            dsl_params_up.update({"body": body})
+            result_up = BkLogApi.dsl(dsl_params_up)
 
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
-                # self.analyze_context_result(result_up.get("list"))
                 {
                     "list": list(reversed(result_up.get("list"))),
                     "origin_log_list": list(reversed(result_up.get("origin_log_list"))),
@@ -1157,13 +1175,13 @@ class SearchHandler(object):
             return result_up
         if self.start > 0:
             body: Dict = self._get_context_body("+")
-            result_down = BkLogApi.dsl({"indices": context_indice, "scenario_id": self.scenario_id, "body": body})
+
+            dsl_params_down = copy.deepcopy(dsl_params_base)
+            dsl_params_down.update({"body": body})
+            result_down = BkLogApi.dsl(dsl_params_down)
 
             result_down = self._deal_query_result(result_down)
-            result_down.update(
-                # self.analyze_context_result(result_down.get("list"))
-                {"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")}
-            )
+            result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
             result_down.update(
                 {
                     "list": self._analyze_empty_log(result_down.get("list")),

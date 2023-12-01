@@ -70,7 +70,7 @@ import ViewDimensions from './view-dimensions';
 import './strategy-view.scss';
 
 const metricUrlMap = {
-  common: '监控平台/产品白皮书/alarm-configurations/rules.md',
+  time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
   event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
   log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
   alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md'

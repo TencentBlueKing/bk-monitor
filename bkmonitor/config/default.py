@@ -1324,7 +1324,16 @@ MAX_FIELD_PAGE_SIZE = 1000
 PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
 
 # 需要授权给蓝鲸应用的特定的数据源 ID
-BKPAAS_DATA_ID_LIST = []
+BKPAAS_AUTHORIZED_DATA_ID_LIST = []
 
 # 环境代号
 ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
+
+# `dbm_` 开头的结果表，仅特定的业务可以查看，并且不需要添加过滤条件
+ACCESS_DBM_RT_SPACE_UID = []
+
+# BCS APIGW 地址
+BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
+
+# 获取指标的间隔时间，默认为 2 hour
+FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200

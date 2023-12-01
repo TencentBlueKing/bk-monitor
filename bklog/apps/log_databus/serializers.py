@@ -720,11 +720,9 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     retention = serializers.IntegerField(label=_("有效时间"), required=True)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=True)
     storage_replies = serializers.IntegerField(
-        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0, max_value=3
+        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
-    es_shards = serializers.IntegerField(
-        label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1, max_value=64
-    )
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
     view_roles = serializers.ListField(label=_("查看权限"), required=False, default=[])
     need_assessment = serializers.BooleanField(label=_("是否需要评估配置"), required=False, default=False)
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
@@ -1124,6 +1122,12 @@ class ListBCSCollectorSerializer(serializers.Serializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
 
 
+class SwitchBCSCollectorStorageSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+    bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
+    storage_cluster_id = serializers.IntegerField(label=_("存储集群id"), required=True)
+
+
 class ListBCSCollectorWithoutRuleSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
@@ -1253,11 +1257,9 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
     storage_replies = serializers.IntegerField(
-        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0, max_value=3
+        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
-    es_shards = serializers.IntegerField(
-        label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1, max_value=64
-    )
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
 
     # 其他配置
     description = serializers.CharField(
@@ -1333,11 +1335,9 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     retention = serializers.IntegerField(label=_("有效时间"), required=False, default=settings.ES_PUBLIC_STORAGE_DURATION)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False, default=0)
     storage_replies = serializers.IntegerField(
-        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0, max_value=3
+        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
-    es_shards = serializers.IntegerField(
-        label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1, max_value=64
-    )
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
 
     def validate(self, attrs):
         if attrs["collector_scenario_id"] == "section":
@@ -1400,8 +1400,8 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
-    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0, max_value=3)
-    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1, max_value=64)
+    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
