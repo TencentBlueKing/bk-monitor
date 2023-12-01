@@ -24,9 +24,11 @@ RUN if [ ${replace_debian_source} ] ; then \
     fi
 
 # install node and pnpm
-RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
+RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
 RUN npm install -g pnpm
-
+RUN node -v && npm -v && pnpm -v
+RUN  npm config get registry
+RUN npm config set registry https://registry.npmjs.org/
 WORKDIR /app
 
 # install python packages
@@ -42,8 +44,8 @@ RUN if [ ${build_frontend} ] ; then cd /app/webpack/ && pnpm i && npm run prod; 
 
 # copy code
 COPY ./ /app/code
-RUN rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace \
-    && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/code/static/ \
+RUN rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace /app/code/static/external \
+    && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/ \
     && rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
 
 FROM python:3.6.15
