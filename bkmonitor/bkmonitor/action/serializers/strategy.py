@@ -622,36 +622,67 @@ class UserGroupSlz(serializers.ModelSerializer):
         request = kwargs.get("context", {}).get("request")
         if kwargs.get("many", False):
             # 带排除详细信息的接口不获取策略相关内容
-            groups = args[0] if args else kwargs.get("instance", [])
-            user_group_instance_mapping = {user_group.id: user_group for user_group in groups}
-            user_group_ids = list(user_group_instance_mapping.keys())
-            duty_plans = DutyPlan.objects.filter(user_group_id__in=user_group_ids, is_active=True).order_by("order")
-            group_users_data = DutyPlanSlz(instance=duty_plans, many=True).data
-            duty_arranges = DutyArrange.objects.filter(user_group_id__in=user_group_ids).order_by("order")
-            group_users_without_duty = DutyArrangeSlz(instance=duty_arranges, many=True).data
+            groups = list(args[0] if args else kwargs.get("instance", []))
             group_user_mappings = defaultdict(list)
-            for item in group_users_data:
-                group = user_group_instance_mapping.get(item["user_group_id"])
-                if group.need_duty and item["is_active"]:
-                    # 如果当前是轮值且当前轮值在生效中
-                    for user in item["users"]:
-                        if user in group_user_mappings[group.id]:
-                            continue
-                        group_user_mappings[group.id].append(user)
-            for item in group_users_without_duty:
-                group = user_group_instance_mapping.get(item["user_group_id"])
-                if group.need_duty:
-                    continue
-                if not group_user_mappings[group.id]:
-                    # 如果当前不轮值，直接返回第一组的信息
-                    group_user_mappings[group.id].extend(item["users"])
+            cls.get_group_duty_users(groups, group_user_mappings)
+            cls.get_group_users_without_duty(groups, group_user_mappings)
             kwargs["group_user_mappings"] = group_user_mappings
             if not (request and request.query_params.get("exclude_detail_info", "0") != "0"):
+                user_group_ids = [group.id for group in groups]
                 kwargs["strategy_count_of_all"] = get_user_group_strategies(user_group_ids)
                 kwargs["rule_count"] = get_user_group_assign_rules(user_group_ids)
                 kwargs["strategy_count_of_given_type"] = kwargs["strategy_count_of_all"]
 
         return super(UserGroupSlz, cls).__new__(cls, *args, **kwargs)
+
+    @staticmethod
+    def get_group_users_without_duty(groups, group_user_mappings):
+        """
+        获取没有轮值的用户信息
+        """
+        user_group_ids = [group.id for group in groups]
+        user_group_instance_mapping = {group.id: group for group in groups}
+        duty_arranges = DutyArrange.objects.filter(user_group_id__in=user_group_ids).order_by("order")
+        group_users_without_duty = DutyArrangeSlz(instance=duty_arranges, many=True).data
+        for item in group_users_without_duty:
+            group = user_group_instance_mapping.get(item["user_group_id"])
+            if group.need_duty:
+                continue
+            if not group_user_mappings[group.id]:
+                # 如果当前不轮值，直接返回第一组的信息
+                group_user_mappings[group.id].extend(item["users"])
+
+    @staticmethod
+    def get_group_duty_users(groups, group_user_mappings):
+        """
+        获取轮值用户组的用户列表
+        """
+        user_group_ids = [group.id for group in groups]
+        duty_plans = DutyPlan.objects.filter(user_group_id__in=user_group_ids, is_effective=1).order_by("order")
+        group_rule_users = defaultdict(list)
+        for plan in DutyPlanSlz(instance=duty_plans, many=True).data:
+            group_rule_users[f"{plan['user_group_id']}-{plan['duty_rule_id']}"].append(plan)
+
+        for group in groups:
+            if not group.need_duty:
+                continue
+            for duty_rule_id in group.duty_rules:
+                rule_plans = group_rule_users.get(f"{group.id}-{duty_rule_id}", [])
+                if not rule_plans:
+                    # 如果没有获取到plan, 继续
+                    continue
+                users = []
+                for plan in rule_plans:
+                    if not plan["is_active"]:
+                        # 如果当前plan未激活，直接返回
+                        continue
+                    for user in plan["users"]:
+                        if user not in users:
+                            users.append(user)
+                if users:
+                    # 命中到规则对应的用户，终止轮值规则的循环
+                    group_user_mappings[group.id] = users
+                    break
 
     def to_representation(self, instance):
         data = super(UserGroupSlz, self).to_representation(instance)
