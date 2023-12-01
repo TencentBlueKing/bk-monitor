@@ -144,7 +144,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   handleViewData(row) {
     this.sideslider.isShow = true;
-    this.sideslider.data = JSON.stringify(JSON.parse(row.raw), null, '\t');
+    this.sideslider.data = JSON.stringify(row.raw, null, '\t');
   }
 
   init() {
@@ -224,7 +224,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                     <Button
                       class='mr8'
                       text
-                      onClick={() => this.handleCopy(JSON.stringify(JSON.parse(row.raw), null, '\t'))}
+                      onClick={() => this.handleCopy(row.message)}
                     >
                       {this.$t('复制')}
                     </Button>,
