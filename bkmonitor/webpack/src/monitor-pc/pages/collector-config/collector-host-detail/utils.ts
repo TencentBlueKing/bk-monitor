@@ -111,6 +111,7 @@ export interface IContentsItem {
   successNum: number;
   failedNum: number;
   pendingNum: number;
+  showAlertHistogram?: boolean;
   child: any[];
   table: any[];
 }
