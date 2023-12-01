@@ -167,7 +167,9 @@ export default class RotationPreview extends tsc<IProps> {
       return;
     }
     this.detailDutyPlans = (
-      isHistory ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime()) : this.dutyPlans
+      isHistory
+        ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime())
+        : this.dutyPlans.filter(d => new Date(d.finished_time).getTime() > new Date().getTime())
     ).map(d => ({
       startTime: d?.start_time || '--',
       endTime: d?.finished_time || '--',
