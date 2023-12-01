@@ -54,6 +54,7 @@ from bkmonitor.utils.consul import BKConsul
 from bkmonitor.utils.thread_backend import InheritParentThread
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import MULTI_METRIC_DATA_SOURCES
+from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.prometheus import metrics
 
@@ -456,6 +457,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
 
         # topics信息
         self.topics: Dict[str, Dict] = {}
+        self.rt_id_to_storage_info = {}
 
         self.consumers: Dict[str, KafkaConsumer] = {}
         self.consumers_lock = threading.Lock()
@@ -526,9 +528,26 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             for rt_id in rt_ids:
                 try:
                     info = ResultTableCacheManager.get_result_table_by_id(DataSourceLabel.BK_MONITOR_COLLECTOR, rt_id)
-                    if not info or not info.get("storage_info"):
+                    if not info:
                         continue
-                    cluster_config = info["storage_info"]["cluster_config"]
+
+                    if rt_id in self.rt_id_to_storage_info:
+                        storage_info = self.rt_id_to_storage_info[rt_id]
+                    else:
+                        if not info.get("storage_info"):
+                            storage_info = api.metadata.get_result_table_storage(
+                                result_table_list=rt_id, storage_type="kafka"
+                            )
+                            storage_info = storage_info[rt_id] if storage_info else {}
+                        else:
+                            storage_info = info["storage_info"]
+
+                        self.rt_id_to_storage_info[rt_id] = storage_info
+
+                    if not storage_info:
+                        continue
+
+                    cluster_config = storage_info["cluster_config"]
                     bootstrap_server = f'{cluster_config["domain_name"]}:{cluster_config["port"]}'
                     consumer = consumers.get(bootstrap_server)
                     if not consumer:
@@ -539,7 +558,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                             continue
                         consumers[bootstrap_server] = consumer
 
-                    topic = info["storage_info"]["storage_config"]["topic"]
+                    topic = storage_info["storage_config"]["topic"]
                     partitions.extend(
                         [f"{bootstrap_server}|{topic}|{index}" for index in consumer.partitions_for_topic(topic) or [0]]
                     )

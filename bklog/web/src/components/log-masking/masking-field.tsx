@@ -330,7 +330,7 @@ export default class MaskingField extends tsc<IProps> {
   /** 获取字段列表样式 */
   getFieldItemStyle(fieldItem: IFieldItem) {
     let heightNum = fieldItem.rules.length || 1;
-    if (fieldItem?.is_origin) heightNum += 1;
+    if (fieldItem?.is_origin && !this.isHiddenSyncNum) heightNum += 1;
     const backgroundColor = this.hoverFieldName === fieldItem.field_name ? '#F5F7FA' : '#FFF' ;
     return `height:${heightNum * 30 + 12}px; background: ${backgroundColor}`;
   }

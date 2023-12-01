@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import hashlib
 import logging
 
@@ -82,9 +83,16 @@ class ProfileViewSet(ViewSet):
         end = validated_data["end"]
         # 由于 doris 入库可能存在延迟，所以需要稍微加大查询时间范围
         # profile_id 对于数据有较强的过滤效果，不会引起数据量过大问题
-        # 1000 * 1000: second -> microsecond
-        start = start - offset * 1000
-        end = end + offset * 1000
+        # doris 存储默认按自然天划分，默认查找从当天最早的数据开始
+
+        # start & end all in microsecond, so we need to convert it to millisecond
+        start = int(
+            datetime.datetime.combine(
+                datetime.datetime.fromtimestamp(start / (1000 * 1000)), datetime.time.min
+            ).timestamp()
+            * 1000
+        )
+        end = int(end / 1000 + offset * 1000)
 
         extra_params = {}
         profile_id = validated_data["profile_id"]

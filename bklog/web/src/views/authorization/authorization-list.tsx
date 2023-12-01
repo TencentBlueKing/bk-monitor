@@ -336,6 +336,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
   async created() {
     this.spaceUid = this.$store.state.spaceUid;
+    this.angleType = this.$route.query?.activeNav as AngleType || 'user';
     this.getBizRoleList();
     await this.getActionList();
     this.getListData();
@@ -429,6 +430,11 @@ export default class AuthorizationList extends tsc<{}, {}> {
       this.statusActive = 'all';
     }
     this.angleType = type;
+    this.$router.replace({
+      query: {
+        activeNav: type,
+      },
+    });
     this.getListData();
   }
 

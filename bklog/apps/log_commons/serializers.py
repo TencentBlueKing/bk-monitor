@@ -41,7 +41,7 @@ class CreateORUpdateExternalPermissionSLZ(serializers.Serializer):
     space_uid = serializers.CharField(required=True, label="空间ID")
     action_id = serializers.CharField(required=True, label="操作类型")
     resources = serializers.ListField(required=True, label="资源列表")
-    expire_time = serializers.DateTimeField(required=True, label="过期时间", allow_null=True)
+    expire_time = serializers.DateTimeField(required=False, default=None, label="过期时间", allow_null=True)
 
 
 class GetResourceByActionSLZ(serializers.Serializer):
