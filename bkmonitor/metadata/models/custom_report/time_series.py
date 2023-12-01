@@ -278,8 +278,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
         now_time = tz_now()
         fetch_step = settings.MAX_METRICS_FETCH_STEP
-        expired_days = settings.TIME_SERIES_METRIC_EXPIRED_DAYS
-        valid_begin_ts = (now_time - datetime.timedelta(expired_days)).timestamp()
+        expired_time = settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS
+        valid_begin_ts = (now_time - datetime.timedelta(seconds=expired_time)).timestamp()
         metrics_filter_params = {"name": custom_metrics_key, "min": valid_begin_ts, "max": now_time.timestamp()}
 
         metrics_info = []
@@ -334,6 +334,9 @@ class TimeSeriesGroup(CustomGroupBase):
         :return: 返回是否有更新指标
         """
         metrics_info = self.get_metrics_from_redis()
+        # 如果为空，直接返回
+        if not metrics_info:
+            return False
 
         # 记录是否有更新，然后推送redis并发布通知
         is_updated = self.update_metrics(metrics_info)
