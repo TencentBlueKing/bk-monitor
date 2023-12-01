@@ -721,7 +721,7 @@ class FavoriteGroupViewSet(APIViewSet):
 
 class FavoriteUnionSearchViewSet(ModelViewSet):
     """
-    联合检索组合收藏
+    联合检索搜索组合收藏
     """
 
     lookup_field = "id"
@@ -732,8 +732,8 @@ class FavoriteUnionSearchViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """
-        @api {get} /search/favorite_union/?space_uid=$space_uid 03_联合检索收藏组合-列表
-        @apiDescription 用户收藏组列表
+        @api {get} /search/favorite_union/?space_uid=$space_uid 03_联合检索搜索组合收藏-列表
+        @apiDescription 联合检索搜索组合收藏列表
         @apiName favorite_union
         @apiGroup 21_Favorite
         @apiParam {String} space_uid 空间唯一标识
@@ -773,8 +773,8 @@ class FavoriteUnionSearchViewSet(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        @api {post} /search/favorite_union/ 03_联合检索收藏组合-创建
-        @apiDescription 创建联合检索组合收藏
+        @api {post} /search/favorite_union/ 03_联合检索搜索组合收藏-创建
+        @apiDescription 创建联合检索搜索组合收藏
         @apiName create_favorite_union
         @apiGroup 21_Favorite
         @apiParam {String} space_uid 空间唯一标识
@@ -810,8 +810,8 @@ class FavoriteUnionSearchViewSet(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         """
-        @api {put} /search/favorite_union/${favorite_union_id}/ 03_联合检索收藏组合-更新
-        @apiDescription 更新联合检索组合收藏
+        @api {put} /search/favorite_union/${favorite_union_id}/ 03_联合检索搜索组合收藏-更新
+        @apiDescription 更新联合检索搜索组合收藏
         @apiName update_favorite_union
         @apiGroup 21_Favorite
         @apiParam {String} name 收藏组名
@@ -845,8 +845,8 @@ class FavoriteUnionSearchViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         """
-        @api {get} /search/favorite_union/${favorite_union_id}/ 03_联合检索收藏组合-详情
-        @apiDescription 删除联合检索组合收藏
+        @api {get} /search/favorite_union/${favorite_union_id}/ 03_联合检索搜索组合收藏-详情
+        @apiDescription 删除联合检索搜索组合收藏
         @apiName delete_favorite_union
         @apiGroup 21_Favorite
         @apiParam {Int} favorite_union_id
@@ -872,8 +872,8 @@ class FavoriteUnionSearchViewSet(ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         """
-        @api {delete} /search/favorite_union/${favorite_union_id}/ 03_联合检索收藏组合-删除
-        @apiDescription 删除联合检索组合收藏
+        @api {delete} /search/favorite_union/${favorite_union_id}/ 03_联合检索搜索组合收藏-删除
+        @apiDescription 删除联合检索搜索组合收藏
         @apiName delete_favorite_union
         @apiGroup 21_Favorite
         @apiParam {Int} favorite_union_id
