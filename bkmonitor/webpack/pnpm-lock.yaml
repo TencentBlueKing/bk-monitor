@@ -179,20 +179,48 @@ importers:
       vuex: ^3.1.2
       vuex-module-decorators: ^1.2.0
     dependencies:
-      '@blueking/bk-weweb': 0.0.23
-      async-validator: 3.5.2
-      bk-magic-vue: 2.5.8-beta.7_vue@2.7.14
-      deepmerge: 4.3.1
-      moment: 2.29.4
-      resize-detector: 0.3.0
-      throttle-debounce: 3.0.1
-      vue: 2.7.14
-      vue-class-component: 7.2.6_vue@2.7.14
-      vue-i18n: 8.28.2_vue@2.7.14
-      vue-property-decorator: 9.1.2_jtyyyychrtcflhl7vfprhmeb3y
-      vue-router: 3.6.5_vue@2.7.14
-      vuex: 3.6.2_vue@2.7.14
-      vuex-module-decorators: 1.2.0_vue@2.7.14+vuex@3.6.2
+      '@blueking/bk-weweb':
+        specifier: 0.0.24
+        version: 0.0.24
+      async-validator:
+        specifier: ^3.5.2
+        version: 3.5.2
+      bk-magic-vue:
+        specifier: ^2.5.8-beta.5
+        version: 2.5.8-beta.7(vue@2.7.14)
+      deepmerge:
+        specifier: ^4.2.2
+        version: 4.3.1
+      moment:
+        specifier: ^2.29.2
+        version: 2.29.4
+      resize-detector:
+        specifier: ^0.3.0
+        version: 0.3.0
+      throttle-debounce:
+        specifier: ^3.0.1
+        version: 3.0.1
+      vue:
+        specifier: 2.7.14
+        version: 2.7.14
+      vue-class-component:
+        specifier: ^7.2.6
+        version: 7.2.6(vue@2.7.14)
+      vue-i18n:
+        specifier: ^8.15.0
+        version: 8.28.2(vue@2.7.14)
+      vue-property-decorator:
+        specifier: ^9.1.2
+        version: 9.1.2(vue-class-component@7.2.6)(vue@2.7.14)
+      vue-router:
+        specifier: ^3.6.5
+        version: 3.6.5(vue@2.7.14)
+      vuex:
+        specifier: ^3.1.2
+        version: 3.6.2(vue@2.7.14)
+      vuex-module-decorators:
+        specifier: ^1.2.0
+        version: 1.2.0(vue@2.7.14)(vuex@3.6.2)
     devDependencies:
       '@typescript-eslint/eslint-plugin': 5.62.0_m6w5juxrikl2f6jpigg44ursuy
       '@typescript-eslint/parser': 5.62.0_x243x5ndcjz7oaxh6fnphb2y6q
@@ -403,33 +431,87 @@ importers:
       vuex-module-decorators: ^1.2.0
       xlsx: ^0.16.0
     dependencies:
-      '@blueking/bk-weweb': 0.0.23
-      '@blueking/ip-selector': 0.0.1-beta.125
-      '@blueking/paas-login': 0.0.6_lj27eexwqqlnm77zmo373bv5la
-      '@blueking/user-selector': 1.0.11
-      async-validator: 3.5.2
-      big.js: 6.2.1
-      bk-magic-vue: 2.5.8-beta.7_vue@2.7.14
-      codemirror: 5.65.15
-      deepmerge: 4.3.1
-      element-ui: 2.7.2_vue@2.7.14
-      html-to-image: 1.11.11
-      minimist: 1.2.8
-      moment: 2.29.4
-      moment-timezone: 0.5.43
-      resize-detector: 0.3.0
-      sortablejs: 1.15.0
-      vue: 2.7.14
-      vue-class-component: 7.2.6_vue@2.7.14
-      vue-i18n: 8.28.2_vue@2.7.14
-      vue-json-viewer: 2.2.22_vue@2.7.14
-      vue-property-decorator: 9.1.2_jtyyyychrtcflhl7vfprhmeb3y
-      vue-router: 3.6.5_vue@2.7.14
-      vue-tsx-support: 3.2.0_hwpzsh6pnvsm3pjf2zi526hnzq
-      vuedraggable: 2.24.3
-      vuex: 3.6.2_vue@2.7.14
-      vuex-module-decorators: 1.2.0_vue@2.7.14+vuex@3.6.2
-      xlsx: 0.16.9
+      '@blueking/bk-weweb':
+        specifier: 0.0.24
+        version: 0.0.24
+      '@blueking/ip-selector':
+        specifier: 0.0.1-beta.125
+        version: 0.0.1-beta.125
+      '@blueking/paas-login':
+        specifier: 0.0.6
+        version: 0.0.6(bk-magic-vue@2.5.8-beta.7)(vue@2.7.14)
+      '@blueking/user-selector':
+        specifier: ^1.0.5-beta.2
+        version: 1.0.11
+      async-validator:
+        specifier: ^3.5.2
+        version: 3.5.2
+      big.js:
+        specifier: ^6.1.1
+        version: 6.2.1
+      bk-magic-vue:
+        specifier: ^2.5.8-beta.5
+        version: 2.5.8-beta.7(vue@2.7.14)
+      codemirror:
+        specifier: ^5.52.2
+        version: 5.65.15
+      deepmerge:
+        specifier: ^4.2.2
+        version: 4.3.1
+      element-ui:
+        specifier: 2.7.2
+        version: 2.7.2(vue@2.7.14)
+      html-to-image:
+        specifier: ^1.9.0
+        version: 1.11.11
+      minimist:
+        specifier: ^1.2.6
+        version: 1.2.8
+      moment:
+        specifier: ^2.29.2
+        version: 2.29.4
+      moment-timezone:
+        specifier: ^0.5.34
+        version: 0.5.43
+      resize-detector:
+        specifier: ^0.3.0
+        version: 0.3.0
+      sortablejs:
+        specifier: ^1.15.0
+        version: 1.15.0
+      vue:
+        specifier: 2.7.14
+        version: 2.7.14
+      vue-class-component:
+        specifier: ^7.2.6
+        version: 7.2.6(vue@2.7.14)
+      vue-i18n:
+        specifier: ^8.15.0
+        version: 8.28.2(vue@2.7.14)
+      vue-json-viewer:
+        specifier: ^2.2.19
+        version: 2.2.22(vue@2.7.14)
+      vue-property-decorator:
+        specifier: ^9.1.2
+        version: 9.1.2(vue-class-component@7.2.6)(vue@2.7.14)
+      vue-router:
+        specifier: ^3.6.5
+        version: 3.6.5(vue@2.7.14)
+      vue-tsx-support:
+        specifier: ^3.1.0
+        version: 3.2.0(typescript@4.9.5)(vue@2.7.14)
+      vuedraggable:
+        specifier: ^2.24.3
+        version: 2.24.3
+      vuex:
+        specifier: ^3.1.2
+        version: 3.6.2(vue@2.7.14)
+      vuex-module-decorators:
+        specifier: ^1.2.0
+        version: 1.2.0(vue@2.7.14)(vuex@3.6.2)
+      xlsx:
+        specifier: ^0.16.0
+        version: 0.16.9
     devDependencies:
       '@types/echarts': 4.9.18
       '@typescript-eslint/eslint-plugin': 5.62.0_m6w5juxrikl2f6jpigg44ursuy
@@ -2187,8 +2269,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.15
       to-fast-properties: 2.0.0
 
-  /@blueking/bk-weweb/0.0.23:
-    resolution: {integrity: sha512-wMg/V+n7QkeNK/mT/g7Qr7eQM3tNH2JfQqdioIxRZzG4isYuMq5EVSmJPkPJaTR5erNnfrYtqz6bHOub6kGWUw==}
+  /@blueking/bk-weweb@0.0.24:
+    resolution: {integrity: sha512-xBiixcUqd+3fArGEc5bNZO1Ex8v3RoKaUsQ7TqcrIMOnQCvXYfqsniRxK/4WN/IGdBvS6elgnTCPOf+NWT5NVA==}
     engines: {node: '>=14.18.1'}
     dev: false
 
