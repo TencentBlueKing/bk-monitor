@@ -33,7 +33,7 @@ import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { IAuthority } from '../../typings/authority';
 
-import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
+import { getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';
@@ -75,7 +75,6 @@ export default defineComponent({
       (v: boolean) => {
         if (v) {
           getData();
-          getPreviewData();
         }
       }
     );
@@ -97,6 +96,7 @@ export default defineComponent({
             { label: t('最近更新人'), value: res.update_user || '--' },
             { label: t('修改时间'), value: res.update_time || '--' }
           ];
+          getPreviewData();
         })
         .finally(() => {
           loading.value = false;
@@ -107,13 +107,10 @@ export default defineComponent({
      */
     function getPreviewData() {
       previewLoading.value = true;
-      const startDate = getCalendar()[0][0];
-      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
       const params = {
+        ...getPreviewParams(detailData.value.effective_time),
         source_type: 'DB',
-        id: props.id,
-        begin_time: beginTime,
-        days: 42
+        id: props.id
       };
       previewDutyRulePlan(params)
         .then(data => {

@@ -34,7 +34,7 @@ import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import NavBar from '../../components/nav-bar/nav-bar';
 
-import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
+import { getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
 import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
 import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
@@ -82,7 +82,11 @@ export default defineComponent({
 
     function handleEffectiveChange(val: string, type: 'startTime' | 'endTime') {
       formData.effective[type] = val;
+      errMsg.effective = validEffective().msg;
       getPreviewData();
+    }
+    function handleNameBlur() {
+      errMsg.name = validName().msg;
     }
 
     // --------------轮值类型-------------------
@@ -126,22 +130,24 @@ export default defineComponent({
      */
     function validate() {
       let valid = true;
-      const rotationValid = validRotationRule();
       // 清空错误信息
       Object.keys(errMsg).forEach(key => (errMsg[key] = ''));
       // 轮值类型
+      const rotationValid = validRotationRule();
       if (rotationValid.err) {
         errMsg.rotationType = rotationValid.msg;
         valid = false;
       }
       // 生效时间范围
-      if (!formData.effective.startTime) {
-        errMsg.effective = t('生效起始时间必填');
+      const effectiveValid = validEffective();
+      if (effectiveValid.err) {
+        errMsg.effective = effectiveValid.msg;
         valid = false;
       }
       // 规则名称
-      if (!formData.name) {
-        errMsg.name = t('必填项');
+      const nameValid = validName();
+      if (nameValid.err) {
+        errMsg.name = nameValid.msg;
         valid = false;
       }
       return valid;
@@ -189,6 +195,20 @@ export default defineComponent({
         });
       }
       return res;
+    }
+
+    function validName() {
+      if (!formData.name) return { err: true, msg: t('必填项') };
+      if (formData.name.length > 128) return { err: true, msg: t('轮值规则名称长度不能超过128个字符') };
+      return { err: false, msg: '' };
+    }
+
+    function validEffective() {
+      const { startTime, endTime } = formData.effective;
+      if (!startTime) return { err: true, msg: t('生效起始时间必填') };
+      if (endTime && new Date(endTime).getTime() < new Date(startTime).getTime())
+        return { err: true, msg: t('生效结束时间不能小于生效起始时间') };
+      return { err: false, msg: '' };
     }
 
     function getParams() {
@@ -252,22 +272,18 @@ export default defineComponent({
         previewData.value = [];
         return;
       }
-      const startDate = getCalendar()[0][0];
-      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
       if (init) {
         const params = {
+          ...getPreviewParams(formData.effective.startTime),
           source_type: 'DB',
-          id: id.value,
-          begin_time: beginTime,
-          days: 42
+          id: id.value
         };
         const data = await previewDutyRulePlan(params).catch(() => []);
         previewData.value = setPreviewDataOfServer(data);
       } else {
         const dutyParams = getParams();
         const params = {
-          begin_time: beginTime,
-          days: 42,
+          ...getPreviewParams(formData.effective.startTime),
           source_type: 'API',
           config: dutyParams
         };
@@ -296,6 +312,7 @@ export default defineComponent({
       navList,
       formData,
       errMsg,
+      handleNameBlur,
       handleEffectiveChange,
       rotationType,
       fixedRotationTabRef,
@@ -329,6 +346,8 @@ export default defineComponent({
             <Input
               class='width-508'
               v-model={this.formData.name}
+              showOverflowTooltips={false}
+              onBlur={this.handleNameBlur}
             ></Input>
           </FormItem>
           <FormItem

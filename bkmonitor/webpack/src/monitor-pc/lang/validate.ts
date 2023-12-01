@@ -267,5 +267,7 @@ export default {
   请选择值班规则: 'Please select the duty rule',
   请输入企业微信群ID: 'Please enter the group ID of enterprise wechat',
   暂无数据: 'No data available',
-  每条轮值规则最少添加一个单班时间: 'Add at least one single shift time to each rotation rule'
+  每条轮值规则最少添加一个单班时间: 'Add at least one single shift time to each rotation rule',
+  轮值规则名称长度不能超过128个字符: 'The length of the rotation rule name cannot exceed 128 characters',
+  生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time'
 };

@@ -27,7 +27,7 @@ import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Popover } from 'bkui-vue';
 
-import { calendarDataConversion, getCalendar, ICalendarData, ICalendarDataUser } from './calendar-preview';
+import { calendarDataConversion, getCalendarNew, ICalendarData, ICalendarDataUser } from './calendar-preview';
 
 import './rotation-calendar-preview.scss';
 
@@ -45,7 +45,7 @@ export default defineComponent({
     /* 当前日历表， 集合了所有日期与用户组的信息 */
     const curCalendarData = ref<ICalendarData>({
       users: [],
-      data: getCalendar().map(item => ({
+      data: getCalendarNew().map(item => ({
         dates: item,
         data: []
       }))
@@ -138,6 +138,7 @@ export default defineComponent({
                   theme='light'
                   placement='top'
                   width={160}
+                  popoverDelay={[200, 0]}
                   arrow={true}
                   extCls={'rotation-calendar-preview-component-user-item-pop'}
                   trigger={'hover'}

@@ -48,7 +48,6 @@ export interface ReplaceRotationDateModel {
   workTime: string[][];
 }
 export interface ReplaceRotationUsersModel {
-  type: 'specified' | 'auto';
   groupNumber?: number;
   value: { key: number; value: { type: 'group' | 'user'; id: string }[] }[];
 }
@@ -70,6 +69,10 @@ export interface ReplaceItemDataModel {
 export default defineComponent({
   name: 'ReplaceRotationTableItem',
   props: {
+    userGroupType: {
+      type: String as PropType<'specified' | 'auto'>,
+      default: 'specified'
+    },
     data: {
       type: Object as PropType<ReplaceItemDataModel>,
       default: undefined
@@ -104,7 +107,6 @@ export default defineComponent({
         value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)]
       },
       users: {
-        type: 'specified',
         groupNumber: 1,
         value: [{ key: random(8, true), value: [] }]
       }
@@ -124,6 +126,7 @@ export default defineComponent({
         } else {
           localValue.date.isCustom = false;
           localValue.date.type = val;
+          localValue.date.customWorkDays = [];
         }
         localValue.date.value = [createDefaultDate(val)];
         handleEmitData(false);
@@ -513,25 +516,6 @@ export default defineComponent({
     }
 
     // ---------用户组----------
-    /** 切换分组类型 */
-    function handleGroupTabChange(val: ReplaceRotationUsersModel['type']) {
-      if (localValue.users.type === val) return;
-      localValue.users.type = val;
-      // 切换成自动分组需要把所有的用户组删除
-      if (val === 'auto') {
-        const res = localValue.users.value.reduce((pre, cur) => {
-          cur.value.forEach(user => {
-            const key = `${user.id}_${user.type}`;
-            if (!pre.has(key) && user.type === 'user') {
-              pre.set(key, user);
-            }
-          });
-          return pre;
-        }, new Map());
-        localValue.users.value = [{ key: localValue.users.value[0].key, value: Array.from(res.values()) }];
-      }
-      handleEmitData();
-    }
 
     function handleMemberSelectFilter(list: TagItemModel[]) {
       return list.filter(item => item.type === 'user');
@@ -571,6 +555,9 @@ export default defineComponent({
       emit('drop');
     }
 
+    /**
+     * @param hasPreview 是否需要请求预览轮值接口
+     */
     function handleEmitData(hasPreview = true) {
       emit('change', localValue, hasPreview);
     }
@@ -581,7 +568,6 @@ export default defineComponent({
       rotationTypeList,
       localValue,
       rotationSelectType,
-      handleGroupTabChange,
       renderClassesContent,
       handleAddUserGroup,
       handleDelUserGroup,
@@ -619,7 +605,7 @@ export default defineComponent({
         </td>
         <td class='step-wrapper replace-rotation'>
           <div class='user-panel-wrap'>
-            {this.localValue.users.type === 'specified' ? (
+            {this.userGroupType === 'specified' ? (
               // 手动分组
               <div class='specified-group-wrap'>
                 <TransitionGroup name={'flip-list'}>
@@ -673,7 +659,7 @@ export default defineComponent({
               // 自动分组
               <div
                 class='auto-group-wrap'
-                v-show={this.localValue.users.type === 'auto'}
+                v-show={this.userGroupType === 'auto'}
               >
                 <FormItem
                   label={this.t('轮值人员')}

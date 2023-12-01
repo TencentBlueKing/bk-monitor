@@ -2508,13 +2508,6 @@ class TestActionProcessor(TransactionTestCase):
         related_action_status = {r_a.real_status for r_a in ap.related_actions}
         self.assertEqual(related_action_status, {ap.action.status})
 
-        parent_action_status = [
-            p.status for p in ActionInstance.objects.filter(id__in=[r_a.parent_action_id for r_a in ap.related_actions])
-        ]
-
-        print("test_notice_collect parent_action_status ", parent_action_status)
-        self.assertEqual(set(parent_action_status), {ActionStatus.SUCCESS})
-
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()
@@ -4087,9 +4080,7 @@ class TestActionProcessor(TransactionTestCase):
         self.assertEqual(new_voice_action.status, ActionStatus.FAILURE)
         self.assertEqual(new_voice_action.failure_type, FailureType.SYSTEM_ABORT)
 
-        self.assertEqual(
-            ActionInstance.objects.get(id=new_voice_action.parent_action_id).status, ActionStatus.PARTIAL_FAILURE
-        )
+        # 没有更新主任务状态了，所以去掉了单元测试
 
         action_config_patch.stop()
         mget_alert_patch.stop()

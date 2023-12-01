@@ -210,6 +210,7 @@ export default defineComponent({
       e.stopPropagation();
       tags.splice(index, 1);
       handleEmitData();
+      emitSelectEnd();
     }
     /** 渲染用户logo */
     function renderUserLogo(tag: TagItemModel) {
@@ -413,6 +414,7 @@ export default defineComponent({
       );
     }
 
+    /** 用户每次选择操作都会触发 */
     function handleEmitData() {
       emit('change', tags);
       emit('update:modelValue', tags);

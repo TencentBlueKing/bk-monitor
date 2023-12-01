@@ -352,6 +352,16 @@ class RestoreExpired(BaseCollectorConfigException):
     MESSAGE = _("归档回溯已经过期")
 
 
+class ArchiveIndexSetInfoNotFound(BaseCollectorConfigException):
+    ERROR_CODE = "803"
+    MESSAGE = _("待归档索引集信息获取失败")
+
+
+class ArchiveIndexSetStatusError(BaseCollectorConfigException):
+    ERROR_CODE = "804"
+    MESSAGE = _("待归档索引集存在异常状态索引")
+
+
 class MissedNamespaceException(BaseCollectorConfigException):
     ERROR_CODE = "901"
     MESSAGE = _("缺少namespace参数")

@@ -74,7 +74,6 @@ def test_check_event_update(mocker: MockFixture, create_and_delete_record):
 
 
 def test_check_update_ts_metric(mocker: MockFixture, create_and_delete_record):
-    mocker.patch("metadata.task.tasks.publish_redis", return_value=None)
     mocker.patch("metadata.task.tasks.push_and_publish_space_router", return_value=None)
     mocker.patch("metadata.models.custom_report.time_series.TimeSeriesGroup.update_tag_fields", return_value=True)
     mock_redis_data = [

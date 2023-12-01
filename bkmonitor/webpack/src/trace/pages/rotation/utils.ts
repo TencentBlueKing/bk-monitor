@@ -96,8 +96,10 @@ export function replaceRotationTransform(originData, type) {
             pre.isCustom = cur.is_custom || false;
             pre.type = cur.work_type;
             pre.workTimeType = cur.work_time_type || 'time_range';
-            pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
-            pre.customWorkDays = cur.work_days;
+            if (pre.isCustom) {
+              pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
+              pre.customWorkDays = cur.work_days;
+            }
             pre.periodSettings = cur.period_settings || {
               unit: 'day',
               duration: 1
@@ -140,6 +142,7 @@ export function replaceRotationTransform(originData, type) {
           type: RotationSelectTypeEnum.WorkDay,
           workTimeType: 'time_range',
           isCustom: false,
+          customWorkDays: [],
           customTab: 'duration',
           value: []
         }
@@ -148,7 +151,6 @@ export function replaceRotationTransform(originData, type) {
         id: data.id,
         date,
         users: {
-          type: data.group_type,
           groupNumber: data.group_number,
           value: data.duty_users.map(item => ({
             key: random(8, true),
@@ -164,7 +166,6 @@ export function replaceRotationTransform(originData, type) {
       data: res
     };
   }
-
   return originData.data.map((item: ItemDataModel) => {
     const data = item.date;
     const rotationType: RotationSelectTypeEnum = data.isCustom ? RotationSelectTypeEnum.Custom : data.type;
@@ -229,7 +230,7 @@ export function replaceRotationTransform(originData, type) {
       id: item.id,
       duty_time: dutyTime,
       duty_users: item.users.value.filter(item => item.value.length).map(item => item.value),
-      group_type: item.users.type,
+      group_type: originData.userGroupType,
       group_number: item.users.groupNumber
     };
   });
