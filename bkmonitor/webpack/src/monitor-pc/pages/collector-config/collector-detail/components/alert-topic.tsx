@@ -27,7 +27,8 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Popover } from 'bk-magic-vue';
 
-import { alertStatus } from '../../../../../monitor-api/modules/datalink';
+import { alertStatus, updateAlertUserGroups } from '../../../../../monitor-api/modules/datalink';
+import { Debounce } from '../../../../../monitor-common/utils';
 import { isEnFn } from '../../../../utils/index';
 import { TCollectorAlertStage } from '../typings/detail';
 
@@ -80,6 +81,15 @@ export default class AlertTopic extends tsc<IProps> {
     const query = `queryString=${strategyIds.map(id => `${strategyKey} : ${id}`).join(' OR ')}`;
     const timeRange = 'from=now-30d&to=now';
     window.open(`${location.origin}${location.pathname}${location.search}#/event-center?${query}&${timeRange}`);
+  }
+
+  @Debounce(1000)
+  handleAlarmGroupChange(value) {
+    updateAlertUserGroups({
+      collect_config_id: this.id,
+      stage: this.stage,
+      notice_group_list: value
+    });
   }
 
   render() {
@@ -139,7 +149,7 @@ export default class AlertTopic extends tsc<IProps> {
               <AlarmGroup
                 value={this.userGroupList}
                 list={this.alarmGroupList}
-                readonly
+                onChange={this.handleAlarmGroupChange}
               ></AlarmGroup>
             </span>
           </span>
