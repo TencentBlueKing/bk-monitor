@@ -175,12 +175,18 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     return this.baseChart?.resize();
   }
 
-  @Emit('timeRangeChange')
   handleTimeRange(val: LinkStatusChartProps['timeRange']) {
+    this.handleEmitTimeRange(val);
+    this.$nextTick(() => {
+      this.handleRefresh();
+    });
+  }
+
+  @Emit('timeRangeChange')
+  handleEmitTimeRange(val: LinkStatusChartProps['timeRange']) {
     return val;
   }
 
-  // @Emit('refresh')
   async handleRefresh() {
     this.loading = true;
     await this.getChartData();
