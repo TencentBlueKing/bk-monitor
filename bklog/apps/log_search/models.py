@@ -953,6 +953,20 @@ class FavoriteGroup(OperateRecordModel):
         return groups
 
 
+class FavoriteUnionSearch(OperateRecordModel):
+    """联合检索组合收藏"""
+
+    space_uid = models.CharField(_("空间唯一标识"), max_length=256)
+    username = models.CharField(_("用户名"), max_length=255, db_index=True)
+    name = models.CharField(_("收藏名称"), max_length=64)
+    index_set_ids = models.JSONField(_("索引集ID列表"))
+
+    class Meta:
+        verbose_name = _("联合检索组合收藏")
+        verbose_name_plural = _("34_搜索-联合检索组合收藏")
+        ordering = ("-updated_at",)
+
+
 class FavoriteGroupCustomOrder(models.Model):
     """
     space_uid: 空间唯一标识

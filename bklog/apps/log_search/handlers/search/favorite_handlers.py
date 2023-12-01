@@ -39,9 +39,16 @@ from apps.log_search.exceptions import (
     FavoriteGroupNotExistException,
     FavoriteNotAllowedAccessException,
     FavoriteNotExistException,
+    FavoriteUnionSearchAlreadyExistException,
+    FavoriteUnionSearchNotExistException,
     FavoriteVisibleTypeNotAllowedModifyException,
 )
-from apps.log_search.models import Favorite, FavoriteGroup, LogIndexSet
+from apps.log_search.models import (
+    Favorite,
+    FavoriteGroup,
+    FavoriteUnionSearch,
+    LogIndexSet,
+)
 from apps.models import model_to_dict
 from apps.utils.local import (
     get_request_app_code,
@@ -327,4 +334,66 @@ class FavoriteGroupHandler(object):
         # 将该组的收藏全部归到未分组
         unknown_group_id = FavoriteGroup.get_or_create_ungrouped_group(space_uid=self.data.space_uid)
         Favorite.objects.filter(group_id=self.group_id).update(group_id=unknown_group_id.id)
+        self.data.delete()
+
+
+class FavoriteUnionSearchHandler(object):
+    data: Optional[FavoriteUnionSearch] = None
+
+    def __init__(self, favorite_union_id: int = None, space_uid: str = None) -> None:
+        self.favorite_union_id = favorite_union_id
+        self.space_uid = space_uid
+        self.username = get_request_external_username() or get_request_username()
+        if favorite_union_id:
+            try:
+                self.data = FavoriteUnionSearch.objects.get(id=favorite_union_id)
+            except FavoriteUnionSearch.DoesNotExist:
+                raise FavoriteUnionSearchNotExistException()
+
+    def list(self) -> List[dict]:
+        """联合检索获取指定空间下用户搜索组合收藏列表"""
+        objs = FavoriteUnionSearch.objects.filter(space_uid=self.space_uid, username=self.username)
+        ret = [model_to_dict(obj) for obj in objs]
+        return ret
+
+    @atomic
+    def create_or_update(self, data: dict) -> dict:
+        """联合检索搜索组合收藏创建或者更新"""
+
+        params = {"username": self.username, "name": data["name"]}
+
+        if not self.data:
+            params.update({"space_uid": data["space_uid"]})
+            check_query_set = FavoriteUnionSearch.objects.filter(**params)
+        else:
+            params.update({"space_uid": self.data.space_uid})
+            check_query_set = FavoriteUnionSearch.objects.filter(**params).exclude(id=self.favorite_union_id)
+
+        if check_query_set.exists():
+            raise FavoriteUnionSearchAlreadyExistException(
+                FavoriteUnionSearchAlreadyExistException.MESSAGE.format(name=data["name"])
+            )
+
+        if not self.data:
+            params.update(
+                {
+                    "name": data["name"],
+                    "index_set_ids": data["index_set_ids"],
+                }
+            )
+            obj = FavoriteUnionSearch.objects.create(**params)
+        else:
+            self.data.name = data["name"]
+            self.data.index_set_ids = data["index_set_ids"]
+            self.data.save()
+            obj = self.data
+
+        return model_to_dict(obj)
+
+    def retrieve(self) -> dict:
+        """联合检索搜索组合收藏详情"""
+        return model_to_dict(self.data)
+
+    def destroy(self):
+        """联合检索搜索组合收藏删除"""
         self.data.delete()

@@ -651,6 +651,37 @@ class UpdateFavoriteGroupOrderSerializer(serializers.Serializer):
     group_order = serializers.ListField(label=_("收藏组顺序"), child=serializers.IntegerField())
 
 
+class FavoriteUnionSearchListSerializer(serializers.Serializer):
+    """
+    联合检索获取收藏组合列表
+    """
+
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+
+
+class CreateFavoriteUnionSearchSerializer(serializers.Serializer):
+    """
+    联合检索组合收藏创建序列化
+    """
+
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    name = serializers.CharField(label=_("收藏组合名"), max_length=256)
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
+    )
+
+
+class UpdateFavoriteUnionSearchSerializer(serializers.Serializer):
+    """
+    联合检索组合收藏更新序列化
+    """
+
+    name = serializers.CharField(label=_("收藏组合名"), max_length=256)
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
+    )
+
+
 class KeywordSerializer(serializers.Serializer):
     """
     检索关键词序列化
