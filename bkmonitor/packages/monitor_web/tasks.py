@@ -1033,7 +1033,7 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
         logger.exception(err_msg)
 
 
-@task(ignore_result=True)
+@task(ignore_result=True, queue="celery_resource")
 def create_or_modidy_metadata_result_table(operation: str, etl_config: str, params: dict) -> None:
     """异步调用创建或更新结果表"""
     if operation == "create":
