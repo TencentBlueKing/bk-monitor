@@ -31,6 +31,31 @@ class Platform(object):
     ce = settings.BKAPP_DEPLOY_PLATFORM == "community"
 
 
+def _get_basic_context(request):
+    return {
+        "SITE_URL": settings.SITE_URL,
+        # 静态资源
+        "STATIC_URL": settings.STATIC_URL,
+        "CSRF_COOKIE_NAME": settings.CSRF_COOKIE_NAME,
+        "TAM_ID": settings.TAM_ID,
+        "gettext": _,  # 国际化
+        "_": _,  # 国际化
+        "PLATFORM": Platform,
+        # 页面title
+        "PAGE_TITLE": (
+            settings.HEADER_FOOTER_CONFIG["header"][0]["en"]
+            if get_language() == "en"
+            else settings.HEADER_FOOTER_CONFIG["header"][0]["zh-cn"]
+        ),
+    }
+
+
+def _get_full_monitor_context(request):
+    context = _get_monitor_context(request)
+    context.update(_get_basic_context(request))
+    return context
+
+
 def _get_monitor_context(request):
     """
     渲染APP基础信息
@@ -42,7 +67,6 @@ def _get_monitor_context(request):
         # 基础信息
         "RUN_MODE": settings.RUN_MODE,
         "APP_CODE": settings.APP_CODE,
-        "SITE_URL": settings.SITE_URL,
         "BK_PAAS_HOST": settings.BK_PAAS_HOST,
         "BK_CC_URL": settings.BK_CC_URL,
         "BK_JOB_URL": settings.JOB_URL,
@@ -51,8 +75,6 @@ def _get_monitor_context(request):
         "BK_NODEMAN_HOST": settings.BK_NODEMAN_HOST,
         "GRAPH_WATERMARK": settings.GRAPH_WATERMARK,
         "MAIL_REPORT_BIZ": int(settings.MAIL_REPORT_BIZ),
-        # 静态资源
-        "STATIC_URL": settings.STATIC_URL,
         "STATIC_VERSION": settings.STATIC_VERSION,
         # 登录跳转链接
         "LOGIN_URL": settings.LOGIN_URL,
@@ -63,8 +85,6 @@ def _get_monitor_context(request):
         "AVATAR": request.session.get("avatar", ""),
         "MEDIA_URL": settings.MEDIA_URL,  # MEDIA_URL
         "BK_URL": settings.BK_URL,  # 蓝鲸平台URL
-        "gettext": _,  # 国际化
-        "_": _,  # 国际化
         "LANGUAGE_CODE": request.LANGUAGE_CODE,  # 国际化
         "LANGUAGES": settings.LANGUAGES,  # 国际化
         "REMOTE_STATIC_URL": settings.REMOTE_STATIC_URL,
@@ -73,8 +93,6 @@ def _get_monitor_context(request):
         "RT_TABLE_PREFIX_VALUE": settings.RT_TABLE_PREFIX_VALUE,
         "uin": request.user.username,
         "is_superuser": str(request.user.is_superuser).lower(),
-        "CSRF_COOKIE_NAME": settings.CSRF_COOKIE_NAME,
-        "PLATFORM": Platform,
         "DOC_HOST": settings.DOC_HOST,
         "BK_DOCS_SITE_URL": settings.BK_DOCS_SITE_URL,
         "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
@@ -86,13 +104,6 @@ def _get_monitor_context(request):
         # 拨测前端校验参数
         "MAX_AVAILABLE_DURATION_LIMIT": settings.MAX_AVAILABLE_DURATION_LIMIT,
         "ENABLE_GRAFANA": bool(settings.GRAFANA_URL),
-        # 页面title
-        "PAGE_TITLE": (
-            settings.HEADER_FOOTER_CONFIG["header"][0]["en"]
-            if get_language() == "en"
-            else settings.HEADER_FOOTER_CONFIG["header"][0]["zh-cn"]
-        ),
-        "TAM_ID": settings.TAM_ID,
         "COLLECTING_CONFIG_FILE_MAXSIZE": settings.COLLECTING_CONFIG_FILE_MAXSIZE,
         "ENABLE_CREATE_CHAT_GROUP": settings.ENABLE_CREATE_CHAT_GROUP,
         "IS_CONTAINER_MODE": settings.IS_CONTAINER_MODE,
@@ -114,13 +125,10 @@ def _get_monitor_context(request):
         if key
         in [
             "APP_CODE",
-            "SITE_URL",
-            "STATIC_URL",
             "DOC_HOST",
             "BK_DOCS_SITE_URL",
             "MIGRATE_GUIDE_URL",
             "BK_JOB_URL",
-            "CSRF_COOKIE_NAME",
             "UTC_OFFSET",
             "is_superuser",
             "STATIC_VERSION",
@@ -197,20 +205,31 @@ def _get_monitor_context(request):
     return context
 
 
-def _get_fta_context(request):
-    context = _get_monitor_context(request)
+def _get_full_fta_context(request):
+    context = _get_full_monitor_context(request)
     # context["SITE_URL"] = f'{context["SITE_URL"]}fta/'
     context["PAGE_TITLE"] = _("故障自愈 | 蓝鲸智云")
     return context
 
 
+def get_full_context(request):
+    # 如果 old，仍走老路由
+    if "fta" in request.get_full_path().split("/"):
+        # 针对自愈的页面，进行特殊处理
+        return _get_full_fta_context(request)
+    else:
+        return _get_full_monitor_context(request)
+
+
 def get_context(request):
     try:
-        if "fta" in request.get_full_path().split("/"):
-            # 针对自愈的页面，进行特殊处理
-            return _get_fta_context(request)
+        if "old" in request.GET:
+            get_full_context(request)
         else:
-            return _get_monitor_context(request)
+            # 背景：原来的 context 集成了全量业务列表拉取、用户有权限业务拉取，导致首屏打开耗时较长
+            # 改造：前端仅拉取基础 context，待页面初始化后再拉取剩余 context
+            return _get_basic_context(request)
+
     except Exception as e:
         logger.exception(f"get_context error: {e}")
         raise e
