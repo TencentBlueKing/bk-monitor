@@ -247,8 +247,8 @@ export default applyGuidePage(
         },
         route: {
           parent: 'collect-config'
-        },
-        needCopyLink: true
+        }
+        // needCopyLink: true
       }
     },
     {
@@ -277,8 +277,8 @@ export default applyGuidePage(
         },
         route: {
           parent: 'collect-config'
-        },
-        needCopyLink: true
+        }
+        // needCopyLink: true
       }
     }
   ] as RouteConfig[],
