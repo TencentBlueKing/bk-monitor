@@ -92,6 +92,7 @@
           height: 64px;
 
           & > span {
+            margin: 0 8px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
