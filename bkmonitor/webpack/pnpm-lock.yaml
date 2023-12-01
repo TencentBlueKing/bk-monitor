@@ -196,8 +196,8 @@ importers:
   src/fta-solutions:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.23
-        version: 0.0.23
+        specifier: 0.0.24
+        version: 0.0.24
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -497,8 +497,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.23
-        version: 0.0.23
+        specifier: 0.0.24
+        version: 0.0.24
       '@blueking/ip-selector':
         specifier: 0.0.1-beta.125
         version: 0.0.1-beta.125
@@ -2470,8 +2470,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.15
       to-fast-properties: 2.0.0
 
-  /@blueking/bk-weweb@0.0.23:
-    resolution: {integrity: sha512-wMg/V+n7QkeNK/mT/g7Qr7eQM3tNH2JfQqdioIxRZzG4isYuMq5EVSmJPkPJaTR5erNnfrYtqz6bHOub6kGWUw==}
+  /@blueking/bk-weweb@0.0.24:
+    resolution: {integrity: sha512-xBiixcUqd+3fArGEc5bNZO1Ex8v3RoKaUsQ7TqcrIMOnQCvXYfqsniRxK/4WN/IGdBvS6elgnTCPOf+NWT5NVA==}
     engines: {node: '>=14.18.1'}
     dev: false
 
