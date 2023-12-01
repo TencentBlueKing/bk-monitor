@@ -222,12 +222,11 @@ class TasksHandler(object):
         return {"task_id": task.task_id}
 
     def retrieve(self, tasks_views):
-        request_user = get_request_external_username() or get_request_username()
         instance = tasks_views.get_object()
         serializer = tasks_views.get_serializer(instance)
         task = serializer.data
         # 只有创建者或运维人员才可获取详情
-        if not self.is_operator_or_creator(instance.bk_biz_id, request_user, instance.created_by):
+        if not self.is_operator_or_creator(instance.bk_biz_id, self.request_user, instance.created_by):
             raise exceptions.TasksRetrieveFailed
         # 主机显示优化
         task["ip_list"] = self.format_task_ip_details(task)["ip_list"]
@@ -423,13 +422,12 @@ class TasksHandler(object):
         extract.start_pipeline(task, pipeline)
 
     def download(self, task_id):
-        request_user = get_request_username()
         try:
             task = Tasks.objects.get(task_id=task_id)
         except Tasks.DoesNotExist:
             raise exceptions.TaskIDDoesNotExist
         # 只有创建者或运维人员才可下载
-        if not self.is_operator_or_creator(task.bk_biz_id, request_user, task.created_by):
+        if not self.is_operator_or_creator(task.bk_biz_id, self.request_user, task.created_by):
             raise exceptions.TaskDownloadNotAvailable
 
         # 只有处于downloadable状态才可以下载

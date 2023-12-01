@@ -165,7 +165,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
         }
         return {
           name: set.type,
-          checked: config[key].notice_ways.map(item => item.name).includes(set.type)
+          checked: !!config[key]?.notice_ways?.map(item => item.name).includes(set.type)
         };
       });
       tableData.push({

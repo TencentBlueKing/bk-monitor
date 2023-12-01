@@ -1406,10 +1406,10 @@
               "id": "manage_custom_event_v2"
             },
             {
-              "id": "view_dashboard_v2"
+              "id": "edit_single_dashboard"
             },
             {
-              "id": "manage_dashboard_v2"
+              "id": "view_single_dashboard"
             },
             {
               "id": "export_config_v2"
@@ -1472,7 +1472,7 @@
               "id": "view_custom_event_v2"
             },
             {
-              "id": "view_dashboard_v2"
+              "id": "view_single_dashboard"
             },
             {
               "id": "explore_metric_v2"

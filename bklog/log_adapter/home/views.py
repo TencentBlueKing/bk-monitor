@@ -403,6 +403,7 @@ def dispatch_external_proxy(request):
         # 请求携带外部标识
         setattr(fake_request, "external_user", external_user)
         setattr(request, "external_user", external_user)
+        setattr(request, "external_user_info", external_user_info)
         setattr(fake_request, "session", request.session)
         set_local_param("current_request", fake_request)
         if external_user_info:
