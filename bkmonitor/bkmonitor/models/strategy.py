@@ -491,7 +491,15 @@ class UserGroup(AbstractRecordModel):
 
     @cached_property
     def duty_plans(self):
-        return DutyPlan.objects.filter(user_group_id=self.id, is_effective=1).order_by("id")
+        valid_plans = []
+        for plan in DutyPlan.objects.filter(user_group_id=self.id, is_effective=1).order_by("id"):
+            valid_work_times = [
+                work_time for work_time in plan.work_times if f'{work_time["start_time"]}:00' < plan.finished_time
+            ]
+            if valid_work_times:
+                plan.work_times = valid_work_times
+                valid_plans.append(plan)
+        return valid_plans
 
     @staticmethod
     def translate_notice_ways(notify_config):

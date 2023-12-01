@@ -136,20 +136,34 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 .order_by("next_plan_time")
                 .first()
             )
+            last_user_index = 0
             if latest_snap:
                 # 如果最后一个存在，则开始生效时间为最后一次的排班时间，生成这段时间内的即可
+                # 如果存在，则需要使用snap已有的快照生成，因为快照里存了上下文信息
                 effective_time = latest_snap.next_plan_time
+                duty_rule = latest_snap.rule_snap
+                last_user_index = latest_snap.next_user_index
+
             duty_manager = DutyRuleManager(
-                duty_rule=duty_rule,
-                begin_time=effective_time,
-                end_time=end_time,
+                duty_rule=duty_rule, begin_time=effective_time, end_time=end_time, last_user_index=last_user_index
             )
             duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
 
         for duty_plan in origin_duty_plans:
-            duty_plans[duty_plan.duty_rule_id].append(
-                {"users": duty_plan.users, "user_index": duty_plan.order, "work_times": duty_plan.work_times}
-            )
+            work_times = [
+                work_time
+                for work_time in duty_plan.work_times
+                if f'{work_time["start_time"]}:00' < duty_plan.finished_time
+            ]
+            if work_times:
+                duty_plans[duty_plan.duty_rule_id].append(
+                    {
+                        "users": duty_plan.users,
+                        "id": duty_plan.id,
+                        "user_index": duty_plan.order,
+                        "work_times": work_times,
+                    }
+                )
         all_duty_plans = []
         for _, plans in duty_plans.items():
             all_duty_plans.extend(plans)
