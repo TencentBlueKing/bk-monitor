@@ -13,10 +13,8 @@ import copy
 import datetime
 import logging
 from collections import defaultdict
-from typing import Dict
 
 from django.apps import apps
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.forms.models import model_to_dict
@@ -30,13 +28,16 @@ from bkmonitor.action.serializers.report import (
     ReportContentSerializer,
     StaffSerializer,
 )
-from bkmonitor.models import Strategy
-from bkmonitor.models.base import ReportContents, ReportItems, ReportStatus
+from bkmonitor.models import (
+    ChannelEnum,
+    EmailSubscription,
+    Strategy,
+    SubscriptionSendRecord,
+)
+from bkmonitor.models.base import ReportContents, ReportItems
 from bkmonitor.utils.cache import CacheType
-from bkmonitor.utils.common_utils import replce_special_val
-from bkmonitor.utils.grafana import fetch_biz_panels, fetch_panel_title_ids
 from bkmonitor.utils.request import get_request
-from constants.report import GroupId, StaffChoice, return_replace_val_dict
+from constants.report import GroupId, StaffChoice
 from core.drf_resource import CacheResource, api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.exceptions import CustomException
@@ -45,130 +46,136 @@ logger = logging.getLogger(__name__)
 GlobalConfig = apps.get_model("bkmonitor.GlobalConfig")
 
 
-class ReportListResource(Resource):
+class GetSubscriptionListResource(Resource):
     """
-    已订阅列表接口
+    获取订阅列表
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=False, allow_null=True)
+        bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+        search_key = serializers.CharField(required=False, label="搜索关键字")
+        query_type = serializers.CharField(required=False, label="查询类型", default="all")
+        create_type = serializers.CharField(required=False, label="创建类型", default="manager")
+        conditions = serializers.ListField(required=False, child=serializers.DictField(), default=[], label="查询条件")
+        page = serializers.IntegerField(required=False, default=1, label="页数")
+        page_size = serializers.IntegerField(required=False, default=10, label="每页数量")
+        order = serializers.CharField(required=False, label="排序", default=None)
 
     @staticmethod
     def get_request_user():
         return get_request().user
 
-    def perform_request(self, validated_request_data):
-        # 提取用户有权限读取的订阅
+    def filter_by_user(self, qs, request_user):
         target_groups = []
-
         groups_data = {group_data["id"]: group_data["children"] for group_data in resource.report.group_list()}
-        request_user = self.get_request_user()
         username = request_user.username
         is_superuser = request_user.is_superuser
-        if validated_request_data.get("id"):
-            report_queryset = ReportItems.objects.filter(id=validated_request_data["id"]).order_by("-update_time")
-        else:
-            report_queryset = ReportItems.objects.all().order_by("-update_time")
-
-        if not is_superuser:
+        if is_superuser:
+            return qs
             # 找到用户所属的组别
-            for group, usernames in groups_data.items():
-                if username in usernames:
-                    target_groups.append(group)
+        for group, usernames in groups_data.items():
+            if username in usernames:
+                target_groups.append(group)
 
-            # 针对用户所有所属组别生成Q
-            total_Q_query = Q()
-            Q_receivers_list = [
-                Q(receivers__contains=[{"id": group, "type": StaffChoice.group}]) for group in target_groups
+        # 针对用户所有所属组别生成Q
+        total_Q_query = Q()
+        Q_receivers_list = [
+            Q(receivers__contains=[{"id": group, "type": StaffChoice.group}]) for group in target_groups
+        ]
+
+        Q_managers_list = [Q(managers__contains=[{"id": group, "type": StaffChoice.group}]) for group in target_groups]
+
+        Q_user_list = [
+            Q(receivers__contains=[{"id": username, "type": StaffChoice.user, "is_enabled": True}]),
+            Q(managers__contains=[{"id": username, "type": StaffChoice.user}]),
+        ]
+
+        for Q_item in Q_receivers_list + Q_managers_list + Q_user_list:
+            total_Q_query |= Q_item
+
+        # 筛选出对应的items
+        return qs.filter(total_Q_query)
+
+    def filter_by_conditions(self, qs, conditions):
+        field_mapping = {
+            "send_mode": "send_mode",
+            "send_status": "send_status",
+            "scenario": "scenario",
+            "is_self_subscribed": "is_self_subscribed",
+        }
+
+        filter_dict = defaultdict(list)
+        for condition in conditions:
+            key = condition["key"].lower()
+            key = field_mapping.get(key, key)
+            value = condition["value"]
+            if not isinstance(value, list):
+                value = [value]
+            filter_dict[key].extend(value)
+
+        # 对条件进行判定
+        return qs
+
+    def perform_request(self, validated_request_data):
+        subscription_qs = EmailSubscription.objects.filter(validated_request_data["bk_biz_id"]).order_by(
+            validated_request_data.get("order", "-update_time")
+        )
+
+        if validated_request_data["create_type"] == "self":
+            # 根据当前用户过滤
+            request_user = self.get_request_user()
+            subscription_qs = self.filter_by_user(subscription_qs, request_user)
+        else:
+            # 根据订阅创建人类型过滤：管理员创建/用户创建
+            is_manager_created = True if validated_request_data["query_type"] == "manager" else False
+            subscription_qs = subscription_qs.filter(is_manager_created=is_manager_created)
+
+        # 根据过滤条件过滤
+        if validated_request_data["conditions"]:
+            subscription_qs = self.filter_by_conditions(subscription_qs, validated_request_data["conditions"])
+
+        # 分页
+        if validated_request_data.get("page") and validated_request_data.get("page_size"):
+            subscription_qs = subscription_qs[
+                (validated_request_data["page"] - 1)
+                * validated_request_data["page_size"] : validated_request_data["page"]
+                * validated_request_data["page_size"]
             ]
 
-            Q_managers_list = [
-                Q(managers__contains=[{"id": group, "type": StaffChoice.group}]) for group in target_groups
-            ]
-
-            Q_user_list = [
-                Q(receivers__contains=[{"id": username, "type": StaffChoice.user, "is_enabled": True}]),
-                Q(managers__contains=[{"id": username, "type": StaffChoice.user}]),
-            ]
-
-            for Q_item in Q_receivers_list + Q_managers_list + Q_user_list:
-                total_Q_query |= Q_item
-
-            # 筛选出对应的items
-            report_queryset = report_queryset.filter(total_Q_query)
-
-        result = list(report_queryset.values())
+        subscription_qs = list(subscription_qs.values())
         # 补充用户最后一次发送时间
         # 取最近1000条发送状态数据
         user_last_send_time = defaultdict(dict)
-        for status in ReportStatus.objects.all().order_by("-create_time").values()[:1000]:
-            for receiver in status["details"]["receivers"]:
-                if receiver not in user_last_send_time[status["report_item"]]:
-                    user_last_send_time[status["report_item"]][receiver] = status["create_time"]
+        for record in (
+            SubscriptionSendRecord.objects.filter(channel_name=ChannelEnum.USER).order_by("-send_time").values()[:1000]
+        ):
+            for receiver in record["send_result"]["receivers"]:
+                if receiver not in user_last_send_time[record["subscription_id"]]:
+                    user_last_send_time[record["subscription_id"]][receiver] = record["send_time"]
 
-        for report in result:
-            for receiver in report["receivers"]:
-                if user_last_send_time.get(report["id"], {}).get(receiver["id"]):
-                    receiver["last_send_time"] = user_last_send_time[report["id"]].get(receiver["id"])
-            report["channels"] = report["channels"] or []
-            report["channels"].append(
-                {"channel_name": "user", "is_enabled": bool(report["receivers"]), "subscribers": report["receivers"]}
-            )
+        for subscription in subscription_qs:
+            for receiver in subscription["receivers"]:
+                if user_last_send_time.get(subscription["id"], {}).get(receiver["id"]):
+                    receiver["last_send_time"] = user_last_send_time[subscription["id"]].get(receiver["id"])
+            subscription["channels"] = subscription["channels"] or []
 
-        return result
+        return subscription_qs
 
 
-class ReportContentResource(Resource):
+class GetSubscriptionResource(Resource):
     """
-    订阅内容获取接口
+    获取订阅
     """
 
     class RequestSerializer(serializers.Serializer):
-        report_item_id = serializers.IntegerField(required=True)
+        subscription_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
-        username = get_request().user.username
-        is_superuser = get_request().user.is_superuser
+        # username = get_request().user.username
 
-        report_item = ReportItems.objects.get(id=validated_request_data["report_item_id"])
-        # 检查用户是否有权限
-        if not is_superuser:
-            managers = report_item.format_managers
-            if username not in managers:
-                raise PermissionError(_("您无权限访问此页面"))
+        subscription = EmailSubscription.objects.get(id=validated_request_data["subscription_id"])
 
-        ret_data = model_to_dict(ReportItems.objects.get(pk=validated_request_data["report_item_id"]))
-        ret_data["contents"] = list(
-            ReportContents.objects.filter(report_item=validated_request_data["report_item_id"]).values()
-        )
-
-        # 补充图表名称
-        bk_biz_id_uids = {
-            "-".join(graph.split("-")[:-1]) for content in ret_data["contents"] for graph in content["graphs"]
-        }
-        bk_biz_id_uids.add(f"{settings.MAIL_REPORT_BIZ}-{settings.REPORT_DASHBOARD_UID}")
-        panel_tag_name = {}
-        for item in bk_biz_id_uids:
-            item_id = item.split("-", 1)
-            if len(item_id[0].split(",")) > 1:
-                # 说明是内置指标，只取订阅报表默认业务
-                bk_biz_id = int(settings.MAIL_REPORT_BIZ)
-            else:
-                bk_biz_id = item_id[0]
-            panels = fetch_panel_title_ids(bk_biz_id=bk_biz_id, dashboard_uid=item_id[1])
-            for panel in panels:
-                panel_tag_name[f"{item}-{panel['id']}"] = panel["title"]
-        for content in ret_data["contents"]:
-            content["graph_name"] = []
-            for graph in content["graphs"]:
-                panel_tag = (
-                    graph.replace(graph.split("-")[0], str(settings.MAIL_REPORT_BIZ))
-                    if len(graph.split("-")[0].split(",")) > 1
-                    else replce_special_val(graph, return_replace_val_dict(settings.MAIL_REPORT_BIZ))
-                )
-                content["graph_name"].append({"graph_id": graph, "graph_name": panel_tag_name.get(panel_tag)})
-
-        return ret_data
+        return model_to_dict(subscription)
 
 
 class ReportCloneResource(Resource):
@@ -207,81 +214,6 @@ class ReportCloneResource(Resource):
                 report_content_to_create.append(ReportContents(**content))
             ReportContents.objects.bulk_create(report_content_to_create)
         return True
-
-
-class StatusListResource(Resource):
-    """
-    已发送列表接口
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=False, allow_null=True)
-
-    def perform_request(self, validated_request_data):
-        # 提取用户有权限读取的订阅
-        if validated_request_data.get("id"):
-            report_items = resource.report.report_list(id=validated_request_data["id"])
-        else:
-            report_items = resource.report.report_list()
-
-        items = {item["id"]: item for item in report_items}
-        # 当前日期格式
-        cur_date = datetime.datetime.now().date()
-        # 近2周
-        two_weeks_ago = cur_date - datetime.timedelta(weeks=2)
-        status_queryset = ReportStatus.objects.filter(
-            report_item__in=list(items.keys()), create_time__gte=two_weeks_ago
-        ).order_by("-create_time")
-        statuses = status_queryset.values()
-        for status in statuses:
-            status.update({"receivers": status["details"].get("receivers", [])})
-            status.update({"username": items.get(status["report_item"]).get("create_user")})
-        return list(statuses)
-
-
-class GraphsListByBizResource(Resource):
-    """
-    每个业务下的图表列表接口
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True)
-
-    def perform_request(self, validated_request_data):
-        request = get_request()
-        is_superuser = get_request().user.is_superuser
-        user_bizs = [biz.id for biz in resource.cc.get_app_by_user(request.user)]
-        if not is_superuser and str(validated_request_data["bk_biz_id"]) not in user_bizs:
-            raise PermissionError(_("您无权限访问此业务的图表列表接口"))
-        return {validated_request_data["bk_biz_id"]: fetch_biz_panels(validated_request_data["bk_biz_id"])}
-
-
-class GetPanelsByDashboardResource(Resource):
-    """
-    获取仪表盘下的图表列表
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True)
-        uid = serializers.CharField(required=True)
-
-    def perform_request(self, params: Dict):
-        return fetch_panel_title_ids(params["bk_biz_id"], params["uid"])
-
-
-class BuildInMetricResource(Resource):
-    """
-    内置指标
-    """
-
-    def perform_request(self, validated_request_data):
-        # 获取运营数据内置仪表盘的数据
-        dashboard_data = []
-        report_dashboards = fetch_biz_panels(int(settings.MAIL_REPORT_BIZ))
-        for dashboard in report_dashboards:
-            if settings.REPORT_DASHBOARD_UID == dashboard["uid"]:
-                dashboard_data.append(dashboard)
-        return dashboard_data
 
 
 class ReportCreateOrUpdateResource(Resource):
