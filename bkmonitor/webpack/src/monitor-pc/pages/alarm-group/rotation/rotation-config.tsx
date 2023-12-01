@@ -153,6 +153,7 @@ export default class RotationConfig extends tsc<IProps> {
   handleWatchrRendreKey() {
     this.setDutyList();
     this.noticeConfig = paramsToDutyNoticeConfig(this.dutyNotice);
+    this.showNotice = !!(this.noticeConfig?.isSend || this.noticeConfig?.needNotice);
     this.noticeRenderKey = random(8);
   }
 
