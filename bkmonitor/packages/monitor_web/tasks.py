@@ -1031,3 +1031,14 @@ def access_biz_metric_recommend_flow(access_bk_biz_id):
     except Exception as e:  # noqa
         err_msg = "create metric recommend by bk_biz_id({}) failed: {}".format(access_bk_biz_id, e)
         logger.exception(err_msg)
+
+
+@task(ignore_result=True)
+def create_or_modidy_metadata_result_table(operation: str, etl_config: str, params: dict) -> None:
+    """异步调用创建或更新结果表"""
+    if operation == "create":
+        if etl_config == "bk_exporter":
+            params.update({"option": {"enable_default_value": False}})
+        api.metadata.create_result_table(params)
+    else:
+        api.metadata.modify_result_table(params)

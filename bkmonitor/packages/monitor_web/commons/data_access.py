@@ -237,7 +237,6 @@ class DataAccessor(object):
         """
         创建结果表
         """
-        create_rt_result_list = []
         contrast_result = self.contrast_rt()
         for operation in contrast_result:
             param = {
@@ -266,16 +265,10 @@ class DataAccessor(object):
                         "external_storage": external_storage,
                     }
                 )
-                if operation == "create":
-                    if self.etl_config == "bk_exporter":
-                        param.update({"option": {"enable_default_value": False}})
-                    create_rt_result = api.metadata.create_result_table(param)
-                else:
-                    create_rt_result = api.metadata.modify_result_table(param)
+                # NOTE: 因为调用方不关心返回结果，异步方式处理
+                from monitor_web.tasks import create_or_modidy_metadata_result_table
 
-                create_rt_result_list.append(create_rt_result)
-
-        return create_rt_result_list
+                create_or_modidy_metadata_result_table.delay(operation, self.etl_config, param)
 
     def access(self):
         """
