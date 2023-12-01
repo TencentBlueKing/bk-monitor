@@ -499,7 +499,7 @@ class UserGroup(AbstractRecordModel):
             if valid_work_times:
                 plan.work_times = valid_work_times
                 plan.start_time = min([work_time["start_time"] for work_time in plan.work_times])
-                plan.finished_time = max([work_time["start_time"] for work_time in plan.work_times])
+                plan.finished_time = max([work_time["end_time"] for work_time in plan.work_times])
                 valid_plans.append(plan)
         return valid_plans
 

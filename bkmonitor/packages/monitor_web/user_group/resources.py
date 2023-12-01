@@ -150,20 +150,14 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
             duty_plans[duty_rule["id"]] = duty_manager.get_duty_plan()
 
         for duty_plan in origin_duty_plans:
-            work_times = [
-                work_time
-                for work_time in duty_plan.work_times
-                if f'{work_time["start_time"]}:00' < duty_plan.finished_time
-            ]
-            if work_times:
-                duty_plans[duty_plan.duty_rule_id].append(
-                    {
-                        "users": duty_plan.users,
-                        "id": duty_plan.id,
-                        "user_index": duty_plan.order,
-                        "work_times": work_times,
-                    }
-                )
+            duty_plans[duty_plan.duty_rule_id].append(
+                {
+                    "users": duty_plan.users,
+                    "id": duty_plan.id,
+                    "user_index": duty_plan.order,
+                    "work_times": duty_plan.work_times,
+                }
+            )
         all_duty_plans = []
         for _, plans in duty_plans.items():
             all_duty_plans.extend(plans)
