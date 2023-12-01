@@ -144,7 +144,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   handleViewData(row) {
     this.sideslider.isShow = true;
-    this.sideslider.data = JSON.stringify(row, null, '\t');
+    this.sideslider.data = JSON.stringify(JSON.parse(row.raw), null, '\t');
   }
 
   init() {
@@ -209,6 +209,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               <TableColumn
                 label={this.$t('原始数据')}
                 prop='message'
+                show-overflow-tooltip
               />
               <TableColumn
                 label={this.$t('采集时间')}
@@ -223,7 +224,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                     <Button
                       class='mr8'
                       text
-                      onClick={() => this.handleCopy(JSON.stringify(row, null, '\t'))}
+                      onClick={() => this.handleCopy(JSON.stringify(JSON.parse(row.raw), null, '\t'))}
                     >
                       {this.$t('复制')}
                     </Button>,
