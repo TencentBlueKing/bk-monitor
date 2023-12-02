@@ -216,8 +216,6 @@ class ActionProcessor(BaseActionProcessor):
         # 更新当前执行任务的内容
         self.related_actions.update(real_status=self.action.status)
 
-        ActionInstance.update_parent_action_status([action.id for action in self.related_actions])
-
         logger.info(
             "--${}|{} end to send collect notice for actions({})".format(
                 self.action.id, self.converge_instance.id, ",".join(related_action_ids)
@@ -236,23 +234,3 @@ class ActionProcessor(BaseActionProcessor):
             converge_label_info[key] = values
         biz_lock_key = FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.get_key(**converge_label_info)
         FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.client.delete(biz_lock_key)
-
-    def set_finished(
-        self, to_status, failure_type="", message=_("执行任务成功"), retry_func="execute", kwargs=None, end_time=None
-    ):
-        """
-        设置任务结束
-        :param end_time: 结束时间点
-        :param need_poll:
-        :param to_status: 结束状态
-        :param failure_type: 错误类型
-        :param message: 结束日志信息
-        :param retry_func: 重试函数
-        :param kwargs: 需要重试调用参数
-        :return:
-        """
-        super(ActionProcessor, self).set_finished(
-            to_status, failure_type, message=message, retry_func=retry_func, kwargs=kwargs, end_time=end_time
-        )
-        if to_status == ActionStatus.FAILURE and self.is_finished:
-            ActionInstance.update_parent_action_status([action.id for action in self.related_actions])
