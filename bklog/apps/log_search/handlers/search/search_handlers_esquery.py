@@ -47,6 +47,7 @@ from apps.log_search.constants import (
     CHECK_FIELD_LIST,
     CHECK_FIELD_MAX_VALUE_MAPPING,
     CHECK_FIELD_MIN_VALUE_MAPPING,
+    DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ERROR_MSG_CHECK_FIELDS_FROM_BKDATA,
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
     MAX_EXPORT_REQUEST_RETRY,
@@ -57,6 +58,7 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     IndexSetType,
     OperatorEnum,
+    SearchScopeEnum,
     TimeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
@@ -90,6 +92,7 @@ from apps.log_search.handlers.es.indices_optimizer_context_tail import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.pre_search_handlers import PreSearchHandlers
 from apps.log_search.models import (
+    IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -104,6 +107,7 @@ from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
+    get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
@@ -2136,8 +2140,7 @@ class UnionSearchHandler(object):
 
         return result
 
-    @staticmethod
-    def union_search_fields(data):
+    def union_search_fields(self, data):
         """
         获取字段mapping信息
         """
@@ -2215,12 +2218,68 @@ class UnionSearchHandler(object):
             time_field_type = list(union_time_fields_type)[0]
             time_field_unit = list(union_time_fields_unit)[0]
 
+        index_set_ids_hash = hashlib.md5(str(index_set_ids).encode("utf-8")).hexdigest() if index_set_ids else ""
+
+        sort_list = [[time_field, "desc"]]
+
+        # 查询索引集ids是否有默认的显示配置  不存在则去创建
+        # 考虑index_set_ids的查询性能 查询统一用index_set_ids_hash
+        username = get_request_external_username() or get_request_username()
+        try:
+            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.get(
+                index_set_ids_hash=index_set_ids_hash,
+                username=username,
+                scope=SearchScopeEnum.DEFAULT.value,
+            )
+        except UserIndexSetFieldsConfig.DoesNotExist:
+            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.none()
+
+        if user_index_set_config_obj:
+            try:
+                obj = IndexSetFieldsConfig.objects.get(pk=user_index_set_config_obj.config_id)
+            except IndexSetFieldsConfig.DoesNotExist:
+                obj = self.get_or_create_default_config(
+                    index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
+                )
+                user_index_set_config_obj.config_id = obj.id
+                user_index_set_config_obj.save()
+
+        else:
+            obj = self.get_or_create_default_config(
+                index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
+            )
+
         ret = {
+            "config_id": obj.id,
             "fields": total_fields,
             "fields_info": fields_info,
-            "display_fields": union_display_fields,
+            "display_fields": obj.display_fields,
+            "sort_list": obj.sort_list,
             "time_field": time_field,
             "time_field_type": time_field_type,
             "time_field_unit": time_field_unit,
         }
         return ret
+
+    @staticmethod
+    def get_or_create_default_config(index_set_ids: str, display_fields: list, sort_list: list) -> IndexSetFieldsConfig:
+        index_set_ids_hash = hashlib.md5(str(index_set_ids).encode("utf-8")).hexdigest() if index_set_ids else ""
+        obj = IndexSetFieldsConfig.objects.filter(
+            index_set_ids_hash=index_set_ids_hash,
+            name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+            scope=SearchScopeEnum.DEFAULT.value,
+            source_app_code=get_request_app_code(),
+        ).first()
+
+        if not obj.exists():
+            obj = IndexSetFieldsConfig.objects.create(
+                index_set_ids=index_set_ids,
+                index_set_ids_hash=index_set_ids_hash,
+                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+                scope=SearchScopeEnum.DEFAULT.value,
+                source_app_code=get_request_app_code(),
+                display_fields=display_fields,
+                sort_list=sort_list,
+            )
+
+        return obj

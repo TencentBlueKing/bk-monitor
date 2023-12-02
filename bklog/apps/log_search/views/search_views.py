@@ -71,12 +71,14 @@ from apps.log_search.serializers import (
     BcsWebConsoleSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
+    IndexSetFieldsConfigListSerializer,
     OriginalSearchAttrSerializer,
     SearchAsyncExportSerializer,
     SearchAttrSerializer,
     SearchExportSerializer,
     SearchIndexSetScopeSerializer,
     SearchUserIndexSetConfigSerializer,
+    SearchUserIndexSetDeleteConfigSerializer,
     UnionSearchAttrSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
@@ -804,10 +806,10 @@ class SearchViewSet(APIViewSet):
 
         return Response(SearchHandlerEsquery.get_bcs_manage_url(data["cluster_id"], data["container_id"]))
 
-    @detail_route(methods=["POST"], url_path="config")
+    @list_route(methods=["POST"], url_path="config")
     def config(self, request, *args, **kwargs):
         """
-        @api {post} /search/index_set/$index_set_id/config/?scope=search_context 03_搜索-索引集配置
+        @api {post} /search/index_set/config/?scope=search_context 03_搜索-索引集配置
         @apiDescription 更新用户在某个索引集的配置
         @apiName update_user_index_set_config
         @apiGroup 11_Search
@@ -823,15 +825,21 @@ class SearchViewSet(APIViewSet):
             "result": true
         }
         """
-        index_set_id = kwargs.get("index_set_id", "")
         data = self.params_valid(SearchUserIndexSetConfigSerializer)
-        result = IndexSetHandler(index_set_id=index_set_id).config(config_id=data["config_id"])
+        if data["index_set_type"] == IndexSetType.SINGLE.value:
+            result = IndexSetHandler(index_set_id=data["index_set_id"]).config(config_id=data["config_id"])
+        else:
+            result = IndexSetHandler().config(
+                config_id=data["config_id"],
+                index_set_ids=data["index_set_ids"],
+                index_set_type=data["index_set_type"],
+            )
         return Response(result)
 
-    @detail_route(methods=["POST"], url_path="create_config")
+    @list_route(methods=["POST"], url_path="create_config")
     def create_config(self, request, *args, **kwargs):
         """
-        @api {post} /search/index_set/$index_set_id/create_config/ 03_搜索-创建索引集配置
+        @api {post} /search/index_set/create_config/ 03_搜索-创建索引集配置
         @apiDescription 创建索引集的字段配置
         @apiName create_index_set_config
         @apiGroup 11_Search
@@ -852,18 +860,27 @@ class SearchViewSet(APIViewSet):
             "result": true
         }
         """
-        index_set_id = kwargs.get("index_set_id", "")
         data = self.params_valid(CreateIndexSetFieldsConfigSerializer)
-        SearchHandlerEsquery(index_set_id, {}).verify_sort_list_item(data["sort_list"])
-        result = IndexSetFieldsConfigHandler(index_set_id=index_set_id).create_or_update(
+        if data.get("index_set_type") == IndexSetType.SINGLE.value:
+            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            init_params = {
+                "index_set_id": data["index_set_id"],
+                "index_set_type": data["index_set_type"],
+            }
+        else:
+            init_params = {
+                "index_set_ids": data["index_set_ids"],
+                "index_set_type": data["index_set_type"],
+            }
+        result = IndexSetFieldsConfigHandler(**init_params).create_or_update(
             name=data["name"], display_fields=data["display_fields"], sort_list=data["sort_list"]
         )
         return Response(result)
 
-    @detail_route(methods=["POST"], url_path="update_config")
+    @list_route(methods=["POST"], url_path="update_config")
     def update_config(self, request, *args, **kwargs):
         """
-        @api {post} /search/index_set/$index_set_id/update_config/ 03_搜索-修改索引集配置
+        @api {post} /search/index_set/update_config/ 03_搜索-修改索引集配置
         @apiDescription 更新某个索引集的字段配置
         @apiName update_index_set_config
         @apiGroup 11_Search
@@ -884,18 +901,29 @@ class SearchViewSet(APIViewSet):
             "result": true
         }
         """
-        index_set_id = kwargs.get("index_set_id", "")
         data = self.params_valid(UpdateIndexSetFieldsConfigSerializer)
-        SearchHandlerEsquery(index_set_id, {}).verify_sort_list_item(data["sort_list"])
-        result = IndexSetFieldsConfigHandler(index_set_id=index_set_id, config_id=data["config_id"]).create_or_update(
+        if data.get("index_set_type") == IndexSetType.SINGLE.value:
+            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            init_params = {
+                "index_set_id": data["index_set_id"],
+                "index_set_type": data["index_set_type"],
+                "config_id": data["config_id"],
+            }
+        else:
+            init_params = {
+                "index_set_ids": data["index_set_ids"],
+                "index_set_type": data["index_set_type"],
+                "config_id": data["config_id"],
+            }
+        result = IndexSetFieldsConfigHandler(**init_params).create_or_update(
             name=data["name"], display_fields=data["display_fields"], sort_list=data["sort_list"]
         )
         return Response(result)
 
-    @detail_route(methods=["GET"], url_path="retrieve_config")
+    @list_route(methods=["GET"], url_path="retrieve_config")
     def retrieve_config(self, request, *args, **kwargs):
         """
-        @api {get} /search/index_set/$index_set_id/config/?config_id=1 03_搜索-获取指定索引集配置
+        @api {get} /search/index_set/config/?config_id=1 03_搜索-获取指定索引集配置
         @apiDescription 获取某个索引集的字段配置
         @apiName retrieve_index_set_config
         @apiGroup 11_Search
@@ -919,10 +947,10 @@ class SearchViewSet(APIViewSet):
         config_id = request.GET.get("config_id", 0)
         return Response(IndexSetFieldsConfigHandler(config_id=config_id).retrieve())
 
-    @detail_route(methods=["GET"], url_path="list_config")
+    @list_route(methods=["GET"], url_path="list_config")
     def list_config(self, request, *args, **kwargs):
         """
-        @api {get} /search/index_set/$index_set_id/list_config/?scope=search_context 03_搜索-获取索引集配置列表
+        @api {get} /search/index_set/list_config/ 03_搜索-获取索引集配置列表
         @apiDescription 获取某个索引集的字段配置列表
         @apiName list_index_set_config
         @apiGroup 11_Search
@@ -943,14 +971,17 @@ class SearchViewSet(APIViewSet):
             "result": true
         }
         """
-        index_set_id = kwargs.get("index_set_id", "")
-        scope = request.GET.get("scope", SearchScopeEnum.DEFAULT.value)
-        return Response(IndexSetFieldsConfigHandler(index_set_id=index_set_id).list(scope=scope))
+        data = self.params_valid(IndexSetFieldsConfigListSerializer)
+        if data["index_set_type"] == IndexSetType.SINGLE.value:
+            init_params = {"index_set_id": data["index_set_id"], "index_set_type": data["index_set_type"]}
+        else:
+            init_params = {"index_set_ids": data["index_set_ids"], "index_set_type": data["index_set_type"]}
+        return Response(IndexSetFieldsConfigHandler(**init_params).list(scope=data["scope"]))
 
-    @detail_route(methods=["POST"], url_path="delete_config")
+    @list_route(methods=["POST"], url_path="delete_config")
     def delete_config(self, request, *args, **kwargs):
         """
-        @api {post} /search/index_set/$index_set_id/delete_config/ 03_搜索-删除索引集配置
+        @api {post} /search/index_set/delete_config/ 03_搜索-删除索引集配置
         @apiDescription 删除某个索引集的字段配置
         @apiName delete_index_set_config
         @apiGroup 11_Search
@@ -963,9 +994,8 @@ class SearchViewSet(APIViewSet):
             "result": true
         }
         """
-        index_set_id = kwargs.get("index_set_id", "")
-        data = self.params_valid(SearchUserIndexSetConfigSerializer)
-        result = IndexSetFieldsConfigHandler(index_set_id=index_set_id, config_id=data["config_id"]).delete()
+        data = self.params_valid(SearchUserIndexSetDeleteConfigSerializer)
+        result = IndexSetFieldsConfigHandler(config_id=data["config_id"]).delete()
         return Response(result)
 
     @list_route(methods=["get"], url_path="operators")

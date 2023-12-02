@@ -39,6 +39,7 @@ from apps.log_search.constants import (
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
+    SearchScopeEnum,
     TagColor,
     TemplateType,
 )
@@ -347,38 +348,60 @@ class SearchIndexSetScopeSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
 
 
-class CreateIndexSetFieldsConfigSerializer(serializers.Serializer):
+class IndexSetFieldsConfigBaseSerializer(serializers.Serializer):
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=False, child=serializers.IntegerField(), default=[]
+    )
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs["index_set_type"] == IndexSetType.SINGLE.value and not attrs.get("index_set_id"):
+            raise serializers.ValidationError(_("索引集ID不能为空"))
+        elif attrs["index_set_type"] == IndexSetType.UNION.value and not attrs.get("index_set_ids"):
+            raise serializers.ValidationError(_("索引集ID列表不能为空"))
+        elif attrs["index_set_type"] == IndexSetType.UNION.value:
+            # 对index_set_ids排序处理  这里主要是为了兼容前端传递索引集列表ID顺序不一致问题 [1,2]  [2,1] ->[1,2]
+            attrs["index_set_ids"] = sorted(attrs["index_set_ids"])
+
+        return attrs
+
+
+class CreateIndexSetFieldsConfigSerializer(IndexSetFieldsConfigBaseSerializer):
     name = serializers.CharField(label=_("字段名称"), required=True)
     display_fields = serializers.ListField(allow_empty=False)
     sort_list = serializers.ListField(label=_("排序规则"), allow_empty=True, child=serializers.ListField())
 
-    def validate_sort_list(self, value):
-        for _item in value:
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        for _item in attrs["sort_list"]:
             if len(_item) != 2:
                 raise ValidationError(_("sort_list参数格式有误"))
 
             if _item[1].lower() not in ["desc", "asc"]:
                 raise ValidationError(_("排序规则只支持升序asc或降序desc"))
-        return value
+
+        return attrs
 
 
-class UpdateIndexSetFieldsConfigSerializer(serializers.Serializer):
+class UpdateIndexSetFieldsConfigSerializer(CreateIndexSetFieldsConfigSerializer):
     config_id = serializers.IntegerField(label=_("配置ID"), required=True)
-    name = serializers.CharField(label=_("字段名称"), required=True)
-    display_fields = serializers.ListField(allow_empty=False)
-    sort_list = serializers.ListField(label=_("排序规则"), allow_empty=True, child=serializers.ListField())
-
-    def validate_sort_list(self, value):
-        for _item in value:
-            if len(_item) != 2:
-                raise ValidationError(_("sort_list参数格式有误"))
-
-            if _item[1].lower() not in ["desc", "asc"]:
-                raise ValidationError(_("排序规则只支持升序asc或降序desc"))
-        return value
 
 
-class SearchUserIndexSetConfigSerializer(serializers.Serializer):
+class IndexSetFieldsConfigListSerializer(IndexSetFieldsConfigBaseSerializer):
+    scope = serializers.CharField(label=_("搜索类型"), required=False, default=SearchScopeEnum.DEFAULT.value)
+
+
+class SearchUserIndexSetConfigSerializer(IndexSetFieldsConfigBaseSerializer):
+    config_id = serializers.IntegerField(label=_("配置ID"), required=True)
+
+
+class SearchUserIndexSetDeleteConfigSerializer(serializers.Serializer):
     config_id = serializers.IntegerField(label=_("配置ID"), required=True)
 
 

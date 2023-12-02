@@ -964,6 +964,7 @@ class FavoriteUnionSearch(OperateRecordModel):
     class Meta:
         verbose_name = _("联合检索组合收藏")
         verbose_name_plural = _("34_搜索-联合检索组合收藏")
+        unique_together = [("space_uid", "username", "name")]
         ordering = ("-updated_at",)
 
 
@@ -1239,16 +1240,21 @@ class IndexSetFieldsConfig(models.Model):
     """索引集展示字段以及排序配置"""
 
     name = models.CharField(_("配置名称"), max_length=255)
-    index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
+    index_set_id = models.IntegerField(_("索引集ID"), null=True, blank=True, db_index=True)
     display_fields = JsonField(_("字段配置"))
     sort_list = JsonField(_("排序规则"), null=True, default=None)
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True)
+    index_set_type = models.CharField(
+        _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
     class Meta:
         verbose_name = _("索引集自定义显示")
         verbose_name_plural = _("31_搜索-索引集自定义显示")
-        unique_together = [("index_set_id", "name", "scope", "source_app_code")]
+        unique_together = [("index_set_id", "index_set_ids_hash", "name", "scope", "source_app_code")]
 
     @classmethod
     @atomic
@@ -1259,14 +1265,22 @@ class IndexSetFieldsConfig(models.Model):
         if obj.name == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME:
             raise DefaultConfigNotAllowedDelete()
 
-        index_set_id = obj.index_set_id
-        # 删除配置的时候
-        default_config_id = cls.objects.get(
-            index_set_id=index_set_id,
-            name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
-            scope=obj.scope,
-            source_app_code=source_app_code,
-        ).id
+        if obj.index_set_type == IndexSetType.UNION.value:
+            default_config_id = cls.objects.get(
+                index_set_ids_hash=obj.index_set_ids_hash,
+                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+                scope=obj.scope,
+                source_app_code=source_app_code,
+            ).id
+        else:
+            index_set_id = obj.index_set_id
+            # 删除配置的时候
+            default_config_id = cls.objects.get(
+                index_set_id=index_set_id,
+                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+                scope=obj.scope,
+                source_app_code=source_app_code,
+            ).id
         UserIndexSetFieldsConfig.objects.filter(config_id=config_id).update(config_id=default_config_id)
         cls.objects.filter(id=config_id).delete()
 
@@ -1274,16 +1288,21 @@ class IndexSetFieldsConfig(models.Model):
 class UserIndexSetFieldsConfig(models.Model):
     """用户索引集展示字段以及排序配置"""
 
-    index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
-    config_id = models.IntegerField(_("索引集ID"), db_index=True)
+    index_set_id = models.IntegerField(_("索引集ID"), null=True, blank=True, db_index=True)
+    config_id = models.IntegerField(_("索引集配置ID"), db_index=True)
     username = models.CharField(_("用户名"), max_length=32, default="", db_index=True)
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True)
+    index_set_type = models.CharField(
+        _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
     class Meta:
         verbose_name = _("用户索引集配置")
         verbose_name_plural = _("31_搜索-用户索引集配置")
-        unique_together = [("index_set_id", "username", "scope", "source_app_code")]
+        unique_together = [("index_set_id", "index_set_ids_hash", "username", "scope", "source_app_code")]
 
     @classmethod
     @atomic

@@ -377,11 +377,12 @@ class FavoriteUnionSearchHandler(object):
         if not self.data:
             params.update(
                 {
-                    "name": data["name"],
-                    "index_set_ids": data["index_set_ids"],
+                    "defaults": {
+                        "index_set_ids": data["index_set_ids"],
+                    }
                 }
             )
-            obj = FavoriteUnionSearch.objects.create(**params)
+            obj, is_create = FavoriteUnionSearch.objects.get_or_create(**params)
         else:
             self.data.name = data["name"]
             self.data.index_set_ids = data["index_set_ids"]
