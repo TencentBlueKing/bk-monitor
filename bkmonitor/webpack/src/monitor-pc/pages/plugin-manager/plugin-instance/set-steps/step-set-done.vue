@@ -130,15 +130,15 @@
       <bk-button
         class="mr10"
         @click="close"
-      > {{ $t('button-关闭') }} </bk-button>
+      >
+        {{ $t('button-关闭') }}
+      </bk-button>
       <bk-button
         class="mr10"
         theme="primary"
         v-if="needUpdataPlugin"
         @click="goToCollectConfig"
-      >{{
-        $t('前往采集配置升级插件')
-      }}</bk-button>
+      >{{ $t('前往采集配置升级插件') }}</bk-button>
       <bk-button
         theme="primary"
         @click="goToCollectConfigAdd"
@@ -239,7 +239,9 @@ export default {
           }
         });
       } else {
-        this.$router.back();
+        this.$router.push({
+          name: 'plugin-manager'
+        });
       }
     },
     releasePlugin(params) {
@@ -288,24 +290,24 @@ export default {
 
 @mixin message-title {
   height: 21px;
-  line-height: 21px;
   font-size: 16px;
   font-weight: bold;
+  line-height: 21px;
   color: #000;
 }
 
 @mixin message-tip {
   width: auto;
   height: 16px;
-  line-height: 16px;
   font-size: 12px;
+  line-height: 16px;
   color: #63656e;
 }
 
 .step-set-done {
   display: flex;
-  justify-content: center;
   flex-direction: column;
+  justify-content: center;
 
   .step-set-done-body {
     margin-top: 84px;
@@ -333,8 +335,8 @@ export default {
         g {
           @for $i from 1 through 8 {
             :nth-child(#{$i}) {
-              fill: $primaryFontColor;
               opacity: #{$i * .125};
+              fill: $primaryFontColor;
             }
           }
         }
@@ -345,8 +347,8 @@ export default {
           height: 21px;
           font-size: 16px;
           font-weight: bold;
-          color: #000;
           line-height: 21px;
+          color: #000;
         }
       }
     }

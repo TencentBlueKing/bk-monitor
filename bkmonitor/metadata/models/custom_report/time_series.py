@@ -278,8 +278,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
         now_time = tz_now()
         fetch_step = settings.MAX_METRICS_FETCH_STEP
-        expired_days = settings.TIME_SERIES_METRIC_EXPIRED_DAYS
-        valid_begin_ts = (now_time - datetime.timedelta(expired_days)).timestamp()
+        expired_time = settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS
+        valid_begin_ts = (now_time - datetime.timedelta(seconds=expired_time)).timestamp()
         metrics_filter_params = {"name": custom_metrics_key, "min": valid_begin_ts, "max": now_time.timestamp()}
 
         metrics_info = []
@@ -334,6 +334,9 @@ class TimeSeriesGroup(CustomGroupBase):
         :return: 返回是否有更新指标
         """
         metrics_info = self.get_metrics_from_redis()
+        # 如果为空，直接返回
+        if not metrics_info:
+            return False
 
         # 记录是否有更新，然后推送redis并发布通知
         is_updated = self.update_metrics(metrics_info)
@@ -814,7 +817,7 @@ class TimeSeriesMetric(models.Model):
                 field_name = metric_info["field_name"]
                 field_name_list.append(field_name)
             except KeyError as key:
-                logger.error("metric_info got bad metric->[{}] which has no key->[{}]".format(metric_info, key))
+                logger.error("metric_info got bad metric->[%s] which has no key->[%s]", json.dumps(metric_info), key)
                 raise ValueError(_("自定义时序列表配置有误，请确认后重试"))
 
             last_modify_time = make_aware(
@@ -854,10 +857,20 @@ class TimeSeriesMetric(models.Model):
                         metric_obj.last_modify_time = datetime.datetime(1970, 1, 1)
                     else:
                         white_list_disabled_metric.append(metric_obj.field_id)
+
                 # 有效期内的维度直接覆盖
-                metric_obj.tag_list = tag_list
-                metric_obj.last_modify_time = last_modify_time
-                metric_obj.save()
+                # 判断是否需要保存操作
+                need_save_op = False
+                if set(metric_obj.tag_list or []) != set(tag_list):
+                    metric_obj.tag_list = tag_list
+                    need_save_op = True
+                # TODO: 还需要继续优化，先设置最后更新时间 1 天更新一次，减少对 db 的操作
+                if (last_modify_time - metric_obj.last_modify_time).days >= 1:
+                    metric_obj.last_modify_time = last_modify_time
+                    need_save_op = True
+                if need_save_op:
+                    metric_obj.save()
+
                 # 后续可以在此处追加其他修改内容
                 logger.info(
                     "time_series_group_id->[{}] has update field_name->[{}] all tags->[{}]".format(
@@ -867,16 +880,6 @@ class TimeSeriesMetric(models.Model):
 
         if white_list_disabled_metric:
             cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
-
-        # 判断是否存在需要删除的字段，仅在自动发现模式下需要
-        if is_auto_discovery:
-            need_delete_query = cls.objects.filter(group_id=group_id).exclude(field_name__in=field_name_list)
-            if need_delete_query.exists():
-                deleted_field_list = list(need_delete_query.values_list("field_name", flat=True))
-                need_delete_query.update(last_modify_time=datetime.datetime(1970, 1, 1))
-                logger.info(
-                    "time_series_group_id->[{}] has delete field_name->[{}]".format(group_id, deleted_field_list)
-                )
 
         return is_updated
 

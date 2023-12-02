@@ -24,6 +24,10 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 
 import arrow
+from django.conf import settings
+from django.utils.http import urlencode
+from rest_framework.reverse import reverse
+
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
@@ -31,6 +35,7 @@ from apps.log_search.constants import (
     MAX_GET_ATTENTION_SIZE,
     ExportStatus,
     ExportType,
+    IndexSetType,
 )
 from apps.log_search.exceptions import (
     MissAsyncExportException,
@@ -42,18 +47,30 @@ from apps.log_search.tasks.async_export import async_export
 from apps.models import model_to_dict
 from apps.utils.db import array_chunk
 from apps.utils.drf import DataPageNumberPagination
-from apps.utils.local import get_request, get_request_language_code
+from apps.utils.local import (
+    get_request,
+    get_request_app_code,
+    get_request_external_user_email,
+    get_request_external_username,
+    get_request_language_code,
+    get_request_username,
+)
 from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.utils.http import urlencode
-from rest_framework.reverse import reverse
 
 
 class AsyncExportHandlers(object):
-    def __init__(self, index_set_id: int, bk_biz_id, search_dict: dict = None, export_fields=None):
+    def __init__(
+        self,
+        index_set_id: int = None,
+        bk_biz_id=None,
+        search_dict: dict = None,
+        export_fields=None,
+        index_set_ids: list = None,
+    ):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
+        self.index_set_ids = index_set_ids
         if search_dict:
             self.search_dict = search_dict
             self.search_handler = SearchHandler(
@@ -62,6 +79,8 @@ class AsyncExportHandlers(object):
                 export_fields=export_fields,
                 export_log=True,
             )
+        self.request_user = get_request_external_username() or get_request_username()
+        self.is_external = bool(get_request_external_username())
 
     def async_export(self):
         # 判断fields是否支持
@@ -87,6 +106,7 @@ class AsyncExportHandlers(object):
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "created_by": self.request_user,
             }
         )
 
@@ -100,6 +120,8 @@ class AsyncExportHandlers(object):
             url_path=url,
             search_url_path=search_url,
             language=get_request_language_code(),
+            is_external=self.is_external,
+            external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_handler.size
 
@@ -135,11 +157,23 @@ class AsyncExportHandlers(object):
         )
         return search_url
 
-    def get_export_history(self, request, view, show_all=False):
+    def get_export_history(self, request, view, show_all=False, is_union_search=False):
         # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
-        query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id)
-        if not show_all:
-            query_set = query_set.filter(index_set_id=self.index_set_id)
+        source_app_code = get_request_app_code()
+        external_username = get_request_external_username()
+        query_set = AsyncTask.objects.filter(bk_biz_id=self.bk_biz_id, source_app_code=source_app_code)
+        # 外部用户只能看到自己的导出历史
+        if external_username:
+            query_set = query_set.filter(created_by=external_username)
+        if is_union_search:
+            query_set = query_set.filter(index_set_type=IndexSetType.UNION.value)
+            if not show_all:
+                query_set = query_set.filter(index_set_ids=self.index_set_ids)
+        else:
+            # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
+            query_set = query_set.filter(index_set_type=IndexSetType.SINGLE.value)
+            if not show_all:
+                query_set = query_set.filter(index_set_id=self.index_set_id)
         pg = DataPageNumberPagination()
         page_export_task_history = pg.paginate_queryset(
             queryset=query_set.order_by("-created_at", "created_by"), request=request, view=view
@@ -149,21 +183,23 @@ class AsyncExportHandlers(object):
         )
         res = pg.get_paginated_response(
             [
-                self.generate_export_history(model_to_dict(history), index_set_retention)
+                self.generate_export_history(
+                    model_to_dict(history), index_set_retention, is_union_search=is_union_search
+                )
                 for history in page_export_task_history
             ]
         )
         return res
 
     @classmethod
-    def generate_export_history(cls, export_task_history, index_set_retention):
+    def generate_export_history(cls, export_task_history, index_set_retention, is_union_search=False):
         download_able = cls.judge_download_able(export_task_history["export_status"])
         retry_able = cls.judge_retry_able(
             export_task_history["end_time"], retention=index_set_retention.get(export_task_history["index_set_id"])
         )
-        return {
+
+        res = {
             "id": export_task_history["id"],
-            "log_index_set_id": export_task_history["index_set_id"],
             "search_dict": export_task_history["request_param"],
             "start_time": export_task_history["start_time"],
             "end_time": export_task_history["end_time"],
@@ -178,7 +214,19 @@ class AsyncExportHandlers(object):
             "export_completed_at": export_task_history["completed_at"],
             "download_able": download_able,
             "retry_able": retry_able,
+            "index_set_type": export_task_history["index_set_type"],
         }
+
+        if not is_union_search:
+            res.update({"log_index_set_id": export_task_history["index_set_id"]})
+        else:
+            res.update(
+                {
+                    "log_index_set_ids": export_task_history["index_set_ids"],
+                }
+            )
+
+        return res
 
     @classmethod
     def judge_download_able(cls, status):

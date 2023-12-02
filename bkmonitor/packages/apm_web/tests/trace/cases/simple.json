@@ -1,0 +1,211 @@
+[
+  {
+    "trace_state": "",
+    "events": [],
+    "status": {
+      "code": 1,
+      "message": ""
+    },
+    "links": [],
+    "elapsed_time": 39817,
+    "parent_span_id": "",
+    "kind": 2,
+    "end_time": 1690962301594061,
+    "trace_id": "9b39a70af0b62ded70899414d4e2116b",
+    "span_name": "^api/v1/tt/io/(?P<io_id>[^/.]+)/fields/$",
+    "attributes": {
+      "http.target": "/api/v1/tt/io/105/fields/?bar_we_id=-4",
+      "http.server_name": "0.0.0.0",
+      "net.host.port": 80,
+      "result_message": "",
+      "http.status_code": 200,
+      "http.user_agent": "python-requests/2.22.0",
+      "http.scheme": "http",
+      "http.method": "GET",
+      "net.peer.ip": "0.0.0.0",
+      "http.route": "^api/v1/tt/io/(?P<io_id>[^/.]+)/fields/$",
+      "net.peer.port": "38484",
+      "result_errors": "",
+      "http.flavor": "1.1",
+      "http.host": "bar-log-tt-api",
+      "result_code": 0
+    },
+    "time": "1690962304000",
+    "resource": {
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bar_data_id": -1,
+      "bar.instance.id": "foo_api::::python:-1:opentelemetry"
+    },
+    "start_time": 1690962301554243,
+    "span_id": "bb4c9e48544dd811"
+  },
+  {
+    "kind": 3,
+    "events": [],
+    "span_name": "SELECT",
+    "trace_id": "9b39a70af0b62ded70899414d4e2116b",
+    "start_time": 1690962301571868,
+    "resource": {
+      "bar.instance.id": "foo_api::::python:-1:opentelemetry",
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bar_data_id": -1
+    },
+    "span_id": "e0edb40a9e03ea3d",
+    "time": "1690962304000",
+    "end_time": 1690962301574745,
+    "elapsed_time": 2876,
+    "trace_state": "",
+    "status": {
+      "code": 0,
+      "message": ""
+    },
+    "links": [],
+    "parent_span_id": "bb4c9e48544dd811",
+    "attributes": {
+      "db.system": "mysql",
+      "db.name": "",
+      "db.statement": "\n                SELECT VERSION(),\n                       @@sql_mode,\n                       @@default_storage_engine,\n                       @@sql_auto_is_null,\n                       @@lower_case_table_names,\n                       CONVERT_TZ('2001-01-01 01:00:00', 'UTC', 'UTC') IS NOT NULL\n            ",
+      "net.peer.port": 3306
+    }
+  },
+  {
+    "events": [],
+    "attributes": {
+      "db.name": "",
+      "db.statement": "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED",
+      "net.peer.port": 3306,
+      "db.system": "mysql"
+    },
+    "end_time": 1690962301577693,
+    "status": {
+      "code": 0,
+      "message": ""
+    },
+    "parent_span_id": "bb4c9e48544dd811",
+    "trace_state": "",
+    "kind": 3,
+    "trace_id": "9b39a70af0b62ded70899414d4e2116b",
+    "links": [],
+    "time": "1690962304000",
+    "span_name": "SET",
+    "resource": {
+      "bar.instance.id": "foo_api::::python:-1:opentelemetry",
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bar_data_id": -1
+    },
+    "elapsed_time": 2656,
+    "start_time": 1690962301575037,
+    "span_id": "b46497ee01ac8abf"
+  },
+  {
+    "resource": {
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bar_data_id": -1,
+      "bar.instance.id": "foo_api::::python:-1:opentelemetry",
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1"
+    },
+    "trace_id": "9b39a70af0b62ded70899414d4e2116b",
+    "events": [],
+    "time": "1690962304000",
+    "trace_state": "",
+    "links": [],
+    "span_id": "168f8813b8fb7d13",
+    "span_name": "SELECT",
+    "attributes": {
+      "net.peer.port": 3306,
+      "db.system": "mysql",
+      "db.name": "",
+      "db.statement": "SELECT `baz_mm`.`created_at`, `baz_mm`.`created_by`, `baz_mm`.`updated_at`, `baz_mm`.`updated_by`, `baz_mm`.`is_deleted`, `baz_mm`.`deleted_at`, `baz_mm`.`deleted_by`, `baz_mm`.`id`, `baz_mm`.`mm_uid`, `baz_mm`.`bar_we_id`, `baz_mm`.`mm_type_id`, `baz_mm`.`mm_type_name`, `baz_mm`.`mm_id`, `baz_mm`.`mm_name`, `baz_mm`.`mm_code`, `baz_mm`.`properties` FROM `baz_mm` WHERE (`baz_mm`.`id` = %s AND NOT `baz_mm`.`is_deleted`) ORDER BY `baz_mm`.`id` ASC LIMIT 1"
+    },
+    "kind": 3,
+    "start_time": 1690962301577935,
+    "status": {
+      "message": "",
+      "code": 0
+    },
+    "end_time": 1690962301580869,
+    "parent_span_id": "bb4c9e48544dd811",
+    "elapsed_time": 2933
+  },
+  {
+    "span_name": "SELECT",
+    "attributes": {
+      "db.name": "",
+      "db.statement": "SELECT `account_user`.`id`, `account_user`.`password`, `account_user`.`last_login`, `account_user`.`is_superuser`, `account_user`.`username`, `account_user`.`nickname`, `account_user`.`is_staff`, `account_user`.`is_active`, `account_user`.`date_joined` FROM `account_user` WHERE `account_user`.`username` = %s LIMIT 21",
+      "net.peer.port": 3306,
+      "db.system": "mysql"
+    },
+    "links": [],
+    "status": {
+      "message": "",
+      "code": 0
+    },
+    "events": [],
+    "start_time": 1690962301583342,
+    "parent_span_id": "bb4c9e48544dd811",
+    "time": "1690962304000",
+    "resource": {
+      "bar.instance.id": "foo_api::::python:-1:opentelemetry",
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bar_data_id": -1
+    },
+    "elapsed_time": 2771,
+    "kind": 3,
+    "trace_state": "",
+    "span_id": "8028dad0b50c1b55",
+    "trace_id": "9b39a70af0b62ded70899414d4e2116b",
+    "end_time": 1690962301586114
+  },
+  {
+    "kind": 3,
+    "parent_span_id": "bb4c9e48544dd811",
+    "status": {
+      "message": "",
+      "code": 0
+    },
+    "events": [],
+    "trace_state": "",
+    "resource": {
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bar_data_id": -1,
+      "bar.instance.id": "foo_api::::python:-1:opentelemetry",
+      "telemetry.sdk.language": "python"
+    },
+    "attributes": {
+      "db.statement": "SELECT `baz_logindexset`.`created_at`, `baz_logindexset`.`created_by`, `baz_logindexset`.`updated_at`, `baz_logindexset`.`updated_by`, `baz_logindexset`.`is_deleted`, `baz_logindexset`.`deleted_at`, `baz_logindexset`.`deleted_by`, `baz_logindexset`.`io_id`, `baz_logindexset`.`io_name`, `baz_logindexset`.`mm_uid`, `baz_logindexset`.`project_id`, `baz_logindexset`.`category_id`, `baz_logindexset`.`bardata_project_id`, `baz_logindexset`.`collector_config_id`, `baz_logindexset`.`scenario_id`, `baz_logindexset`.`storage_cluster_id`, `baz_logindexset`.`source_id`, `baz_logindexset`.`orders`, `baz_logindexset`.`view_roles`, `baz_logindexset`.`pre_check_tag`, `baz_logindexset`.`pre_check_msg`, `baz_logindexset`.`is_active`, `baz_logindexset`.`fields_snapshot`, `baz_logindexset`.`is_trace_log`, `baz_logindexset`.`source_app_code`, `baz_logindexset`.`time_field`, `baz_logindexset`.`time_field_type`, `baz_logindexset`.`time_field_unit`, `baz_logindexset`.`tag_ids`, `baz_logindexset`.`bcs_project_id`, `baz_logindexset`.`is_editable` FROM `baz_logindexset` WHERE (NOT `baz_logindexset`.`is_deleted` AND `baz_logindexset`.`io_id` = %s) LIMIT 21",
+      "net.peer.port": 3306,
+      "db.system": "mysql",
+      "db.name": ""
+    },
+    "start_time": 1690962301589050,
+    "trace_id": "9b39a70af0b62ded70899414d4e2116b",
+    "span_name": "SELECT",
+    "end_time": 1690962301592119,
+    "elapsed_time": 3069,
+    "links": [],
+    "span_id": "9fe39485a3ba6d5a",
+    "time": "1690962304000"
+  }
+]

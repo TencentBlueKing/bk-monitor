@@ -99,7 +99,7 @@ class AESCipher(object):
     @staticmethod
     def _unpad(s):
         return s[: -ord(s[len(s) - 1:])]
-    # fmt: ofn
+    # fmt: on
 
     @staticmethod
     def predict_length(length):
@@ -123,6 +123,35 @@ def transform_data_id_to_token(metric_data_id=-1, trace_data_id=-1, log_data_id=
                 metric_data_id,
                 trace_data_id,
                 log_data_id,
+                bk_biz_id,
+                app_name,
+            ]
+        ]
+    )
+    # 需要判断是否有指定密钥，如有，优先级最高
+    x_key = getattr(settings, settings.AES_X_KEY_FIELD)
+    if settings.SPECIFY_AES_KEY != "":
+        x_key = settings.SPECIFY_AES_KEY
+    return AESCipher(x_key, settings.BK_DATA_AES_IV).encrypt(bk_data_token_raw).decode("utf-8")
+
+
+def transform_data_id_to_v1_token(
+    metric_data_id=-1, trace_data_id=-1, log_data_id=-1, profile_data_id=-1, bk_biz_id=-1, app_name=""
+):
+    """
+    将dataid 加密为bk.data.token
+    bk.data.token=
+    ${metric_data_id}${s}${trace_data_id}${s}${log_data_id}${s}${profile_data_id}${s}${bk_biz_id}
+    """
+    bk_data_token_raw = settings.BK_DATA_TOKEN_SALT.join(
+        [
+            str(x)
+            for x in [
+                "v1",
+                metric_data_id,
+                trace_data_id,
+                log_data_id,
+                profile_data_id,
                 bk_biz_id,
                 app_name,
             ]

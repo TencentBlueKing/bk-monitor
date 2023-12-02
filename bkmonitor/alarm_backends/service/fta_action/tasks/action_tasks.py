@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import importlib
 import logging
 import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from celery.task import task
@@ -215,7 +216,7 @@ def sync_action_instances_every_10_secs(last_sync_time=None):
             logger.info("start sync_action_instances from time %s", last_sync_time)
 
             perform_sharding_task(
-                updated_action_instances.values_list("id", flat=True), sync_actions_sharding_task, num_per_task=100
+                updated_action_instances.values_list("id", flat=True), sync_actions_sharding_task, num_per_task=200
             )
             redis_client.set(cache_key, int(current_sync_time.timestamp()))
     except LockError:
@@ -248,12 +249,64 @@ def sync_actions_sharding_task(action_ids):
         all_alerts.extend(instance.alerts)
         all_actions.append(instance)
     all_alert_docs = {alert.id: alert for alert in AlertDocument.mget(ids=all_alerts)}
+    # 记录需要更新的主任务
+    updated_parent_actions = {}
     for instance in all_actions:
         instance.converge_info = converge_relations.get(instance.id, {})
         if not instance.action_config:
             continue
+        if instance.parent_action_id and instance.real_status not in ActionStatus.IGNORE_STATUS:
+            updated_parent_actions.update({instance.parent_action_id: instance.generate_uuid})
         try:
             alert_doc = all_alert_docs.get(instance.alerts[0]) if instance.alerts else None
+            action_documents.append(to_document(instance, current_sync_time, alerts=[alert_doc] if alert_doc else None))
+        except BaseException as error:  # NOCC:broad-except(设计如此:)
+            logger.exception(
+                "sync action error: %s , action_info %s",
+                error,
+                "{}{}".format(instance.id, instance.action_config.get("name", "")),
+            )
+    ActionInstanceDocument.bulk_create(action_documents, action=BulkActionType.INDEX)
+
+    # 涉及到相关的主任务也进行一次同步
+    sync_updated_parent_actions(updated_parent_actions, all_alert_docs, current_sync_time)
+
+
+def sync_updated_parent_actions(updated_parent_actions, alert_docs, current_sync_time):
+    """
+    同步需要更新的主任务状态
+    """
+    if not updated_parent_actions:
+        return
+    failed_actions = []
+    partial_failed_actions = []
+    all_sub_actions = ActionInstance.objects.filter(
+        generate_uuid__in=list(updated_parent_actions.values()),
+        parent_action_id__in=list(updated_parent_actions.keys()),
+    ).values("status", "id", "real_status", "parent_action_id")
+    sub_action_status = defaultdict(list)
+    for sub_action in all_sub_actions:
+        action_status = sub_action["real_status"] or sub_action["status"]
+        sub_action_status[sub_action["parent_action_id"]].append(action_status)
+    action_documents = []
+    for parent_action_id, sub_action_status in sub_action_status.items():
+        priority_status = set(sub_action_status) - ActionStatus.IGNORE_STATUS
+        # 一般成功状态下，是不需要更新的，因为主任务一般是成功状态
+        if priority_status == {ActionStatus.FAILURE}:
+            # 子任务完全失败，默认为失败
+            failed_actions.append(parent_action_id)
+        elif ActionStatus.FAILURE in priority_status:
+            # 存在有失败情况下（夹杂着其他状态）
+            partial_failed_actions.append(parent_action_id)
+    updated_actions = failed_actions + partial_failed_actions
+    for instance in ActionInstance.objects.filter(id__in=updated_actions):
+        try:
+            alert_doc = alert_docs.get(instance.alerts[0]) if instance.alerts else None
+            # 同步的时候直接在ES同步的时候更新, 不再进行mysql的更新
+            if instance.id in failed_actions:
+                instance.status = ActionStatus.FAILURE
+            if instance.id in partial_failed_actions:
+                instance.status = ActionStatus.PARTIAL_FAILURE
             action_documents.append(to_document(instance, current_sync_time, alerts=[alert_doc] if alert_doc else None))
         except BaseException as error:  # NOCC:broad-except(设计如此:)
             logger.exception(

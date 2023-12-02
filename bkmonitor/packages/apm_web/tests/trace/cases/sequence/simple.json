@@ -1,0 +1,178 @@
+[
+  {
+    "events": [],
+    "kind": 2,
+    "span_id": "a3da436ea8ef402c",
+    "span_name": "rootSpan",
+    "time": "1692169327000",
+    "trace_state": "",
+    "status": {
+      "code": 1,
+      "message": ""
+    },
+    "start_time": 1692169324180198,
+    "end_time": 1692169324213551,
+    "trace_id": "fcb1bd345237b3ee7c694533a6e76e9d",
+    "resource": {
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bk_data_id": -1,
+      "bk.instance.id": "python:foo_api:::"
+    },
+    "attributes": {
+      "http.host": "foo-api",
+      "http.scheme": "http",
+      "result_message": "",
+      "http.server_name": "y.y.y.y",
+      "http.method": "GET",
+      "http.status_code": 200,
+      "http.route": "^api/v1/bar/baz/(?P<index_set_id>[^/.]+)/fields/$",
+      "net.peer.port": "60052",
+      "http.target": "/api/v1/bar/baz/124/fields/?bk_biz_id=2",
+      "net.peer.ip": "x.x.x.x",
+      "result_errors": "",
+      "net.host.port": 80,
+      "http.user_agent": "python-requests/2.22.0",
+      "result_code": 0,
+      "http.flavor": "1.1"
+    },
+    "elapsed_time": 33352,
+    "parent_span_id": "",
+    "links": []
+  },
+  {
+    "start_time": 1692169324197943,
+    "parent_span_id": "a3da436ea8ef402c",
+    "resource": {
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bk_data_id": -1,
+      "bk.instance.id": "python:foo_api:::",
+      "telemetry.sdk.language": "python"
+    },
+    "links": [],
+    "time": "1692169327000",
+    "status": {
+      "code": 0,
+      "message": ""
+    },
+    "end_time": 1692169324200666,
+    "span_name": "SELECT",
+    "kind": 3,
+    "events": [],
+    "trace_state": "",
+    "trace_id": "fcb1bd345237b3ee7c694533a6e76e9d",
+    "elapsed_time": 2723,
+    "span_id": "ea3c9543a7d211b5",
+    "attributes": {
+      "db.system": "mysql",
+      "db.name": "",
+      "db.statement": "select * from ANYTABLE;",
+      "net.peer.port": 3306
+    }
+  },
+  {
+    "links": [],
+    "trace_id": "fcb1bd345237b3ee7c694533a6e76e9d",
+    "elapsed_time": 2499,
+    "resource": {
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bk_data_id": -1,
+      "bk.instance.id": "python:foo_api:::",
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1"
+    },
+    "start_time": 1692169324200915,
+    "attributes": {
+      "net.peer.port": 3306,
+      "db.system": "mysql",
+      "db.name": "",
+      "db.statement": "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    },
+    "span_name": "SET",
+    "span_id": "2b723f51c796e7d2",
+    "kind": 3,
+    "status": {
+      "code": 0,
+      "message": ""
+    },
+    "parent_span_id": "a3da436ea8ef402c",
+    "trace_state": "",
+    "time": "1692169327000",
+    "events": [],
+    "end_time": 1692169324203414
+  },
+  {
+    "parent_span_id": "a3da436ea8ef402c",
+    "attributes": {
+      "net.peer.port": 3306,
+      "db.system": "mysql",
+      "db.name": "",
+      "db.statement": "select * from ANYTABLE;"
+    },
+    "resource": {
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api",
+      "service.version": "4.3.4-beta609",
+      "bk_data_id": -1,
+      "bk.instance.id": "python:foo_api:::"
+    },
+    "trace_id": "fcb1bd345237b3ee7c694533a6e76e9d",
+    "links": [],
+    "trace_state": "",
+    "elapsed_time": 2650,
+    "span_id": "7b5aed816dd15466",
+    "end_time": 1692169324206265,
+    "span_name": "SELECT",
+    "start_time": 1692169324203614,
+    "status": {
+      "code": 0,
+      "message": ""
+    },
+    "events": [],
+    "time": "1692169327000",
+    "kind": 3
+  },
+  {
+    "end_time": 1692169324211995,
+    "kind": 3,
+    "start_time": 1692169324208912,
+    "time": "1692169327000",
+    "events": [],
+    "trace_state": "",
+    "status": {
+      "code": 0,
+      "message": ""
+    },
+    "span_name": "SELECT",
+    "parent_span_id": "a3da436ea8ef402c",
+    "attributes": {
+      "net.peer.port": 3306,
+      "db.system": "mysql",
+      "db.name": "",
+      "db.statement": "select * from ANYTABLE;"
+    },
+    "elapsed_time": 3082,
+    "span_id": "45836f288c3e834a",
+    "links": [],
+    "resource": {
+      "service.version": "4.3.4-beta609",
+      "bk_data_id": -1,
+      "bk.instance.id": "python:foo_api:::",
+      "telemetry.sdk.language": "python",
+      "telemetry.sdk.name": "opentelemetry",
+      "telemetry.sdk.version": "1.7.1",
+      "service.name": "foo_api"
+    },
+    "trace_id": "fcb1bd345237b3ee7c694533a6e76e9d"
+  }
+]

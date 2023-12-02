@@ -8703,3 +8703,15 @@ msgstr "Moved the log extraction task to management; added status management suc
 #: config/default.py:644
 msgid "日志脱敏"
 msgstr "Log Desensitize"
+
+#: apps/log_search/exceptions.py:451
+msgid "联合检索获取索引Mapping字段信息失败"
+msgstr "UnionSearch get index set mapping field info field"
+
+#: apps/log_search/exceptions.py:456
+msgid "联合检索API异常"
+msgstr "UnionSearch API Exception"
+
+#: apps/log_search/exceptions.py:462
+msgid "跨集群检索结果处理异常"
+msgstr "Exception in handling cross cluster retrieval results"

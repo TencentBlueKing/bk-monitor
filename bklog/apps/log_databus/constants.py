@@ -546,6 +546,7 @@ META_DATA_CRON_REFRESH_TASK_NAME_LIST = [
 class ArchiveInstanceType(TextChoices):
     COLLECTOR_CONFIG = "collector_config", _("采集项")
     COLLECTOR_PLUGIN = "collector_plugin", _("采集插件")
+    INDEX_SET = "index_set", _("索引集")
 
 
 # 一键检测工具执行脚本超时时间

@@ -45,7 +45,7 @@ class QueryClient(object):  # pylint: disable=invalid-name
             Scenario.ES: "apps.log_esquery.esquery.client.QueryClientEs.QueryClientEs",
         }
         client = import_string(mapping.get(self.scenario_id))
-        if self.scenario_id == Scenario.ES:
+        if self.scenario_id in [Scenario.LOG, Scenario.ES]:
             return client(self.storage_cluster_id)
         elif self.scenario_id == Scenario.BKDATA:
             return client(self.bkdata_authentication_method, self.bkdata_data_token)

@@ -206,8 +206,8 @@ importers:
   src/fta-solutions:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.22
-        version: 0.0.22
+        specifier: 0.0.24
+        version: 0.0.24
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -507,8 +507,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.22
-        version: 0.0.22
+        specifier: 0.0.24
+        version: 0.0.24
       '@blueking/date-picker':
         specifier: ^0.0.68
         version: 0.0.68(bkui-vue@0.0.2-beta.93)(dayjs@1.11.10)(vue@2.7.14)
@@ -2484,8 +2484,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
 
-  /@blueking/bk-weweb@0.0.22:
-    resolution: {integrity: sha512-EWZlCTrADRrieQLCOs5fm8ZsaYk3H61fmXAX8S+820FVlwxb0U/fecMjX3E22t6+7xfGx15aWWHFaQSM5lBOmQ==}
+  /@blueking/bk-weweb@0.0.24:
+    resolution: {integrity: sha512-xBiixcUqd+3fArGEc5bNZO1Ex8v3RoKaUsQ7TqcrIMOnQCvXYfqsniRxK/4WN/IGdBvS6elgnTCPOf+NWT5NVA==}
     engines: {node: '>=14.18.1'}
     dev: false
 

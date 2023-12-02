@@ -18,7 +18,6 @@ from django.core.management import BaseCommand
 
 from metadata import models
 from metadata.models.space.constants import SYSTEM_USERNAME, EtlConfigs, SpaceTypes
-from metadata.models.space.space_redis import push_and_publish_all_space
 from metadata.task.sync_space import push_and_publish_space_router
 
 logger = logging.getLogger("metadata")
@@ -56,7 +55,6 @@ class Command(BaseCommand):
         self._create_space_resource(space_id)
         # 6. 推送数据到 redis并发布
         # NOTE: 仅 bkci 类型更新
-        push_and_publish_all_space(space_type_id=SpaceTypes.BKCI.value)
         push_and_publish_space_router(space_type=SpaceTypes.BKCI.value)
 
         print("init bkci data successfully")
