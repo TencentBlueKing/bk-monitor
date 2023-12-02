@@ -517,7 +517,9 @@ class PluginImportResource(Resource):
                 conflict_list.append(_(ConflictMap.RemoteCollectorConfig.info))
                 conflict_ids.append(ConflictMap.RemoteCollectorConfig.id)
             # 判断重名的非官方插件是否已经下发了采集任务（包含历史版本）
-            if self.current_version.collecting_config_total > 0:
+            # 新增跳过采集关联判断。 支持通过配置环境变量`BKAPP_PLUGIN_SKIP_RELATED_CHECK`跳过
+            skip_related_check = os.getenv("BKAPP_PLUGIN_SKIP_RELATED_CHECK")
+            if not skip_related_check and self.current_version.collecting_config_total > 0:
                 conflict_list.append(
                     _(ConflictMap.RelatedCollectorConfig.info) % (self.current_version.collecting_config_total)
                 )

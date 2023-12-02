@@ -28,7 +28,6 @@ from .tools.elasticsearch import get_es7_settings
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
-    IS_CONTAINER_MODE,
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -599,6 +598,9 @@ APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 500
 APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 30
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 3
 APM_TRACE_DIAGRAM_CONFIG = {}
+APM_DORIS_STORAGE_CONFIG = {}
+# {2:["foo", "bar"], 3:["baz"]}
+APM_PROFILING_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 
 # bk.data.token 的salt值
@@ -685,6 +687,7 @@ DISABLE_BIZ_ID = []
 
 # 是否开启聚合网关上报
 METRIC_AGG_GATEWAY_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_URL", "")
+METRIC_AGG_GATEWAY_UDP_URL = os.getenv("BKAPP_METRIC_AGG_GATEWAY_UDP_URL", METRIC_AGG_GATEWAY_URL)
 
 # 网关API域名
 APIGW_BASE_URL = os.getenv("BKAPP_APIGW_BASE_URL", "")
@@ -1218,6 +1221,7 @@ BLUEKING_NAME = os.getenv("BKAPP_BLUEKING_NAME", "蓝鲸")
 
 # 后台任务多进程并行数量，默认设置为1个
 MAX_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
+MAX_TS_METRIC_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
 
 # 是否默认展示策略模块实时功能
 SHOW_REALTIME_STRATEGY = False
@@ -1315,3 +1319,21 @@ IS_RESTRICT_DS_BELONG_SPACE = True
 
 # 最大的指标分片查询大小
 MAX_FIELD_PAGE_SIZE = 1000
+
+# 访问 PaaS 提供接口地址
+PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
+
+# 需要授权给蓝鲸应用的特定的数据源 ID
+BKPAAS_AUTHORIZED_DATA_ID_LIST = []
+
+# 环境代号
+ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
+
+# `dbm_` 开头的结果表，仅特定的业务可以查看，并且不需要添加过滤条件
+ACCESS_DBM_RT_SPACE_UID = []
+
+# BCS APIGW 地址
+BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
+
+# 获取指标的间隔时间，默认为 2 hour
+FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200

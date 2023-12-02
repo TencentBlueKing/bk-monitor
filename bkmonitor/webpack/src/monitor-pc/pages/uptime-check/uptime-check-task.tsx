@@ -389,12 +389,12 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
         this.$bkInfo({
           type: 'warning',
           title: this.$t('确认要删除？'),
-          subHeader: () => (
-            <DeleteSubtitle
-              title={this.$tc('任务名')}
-              name={taskData.name}
-            />
-          ),
+          subHeader: this.$createElement(DeleteSubtitle, {
+            props: {
+              title: this.$tc('任务名'),
+              name: taskData.name
+            }
+          }),
           maskClose: true,
           escClose: true,
           confirmFn: async () => {

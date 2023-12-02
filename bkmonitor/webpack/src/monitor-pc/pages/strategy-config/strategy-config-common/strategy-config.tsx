@@ -167,7 +167,8 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     data: {
       shieldInfo: {
         is_shielded: true
-      }
+      },
+      strategyName: ''
     }
   };
   table = {
@@ -1407,12 +1408,12 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
     this.$bkInfo({
       type: 'warning',
       title: this.$t('你确认么？'),
-      subHeader: () => (
-        <DeleteSubtitle
-          title={this.$tc('策略名')}
-          name={this.popover.data.strategyName}
-        />
-      ),
+      subHeader: this.$createElement(DeleteSubtitle, {
+        props: {
+          title: this.$tc('策略名'),
+          name: this.popover.data.strategyName
+        }
+      }),
       maskClose: true,
       escClose: true,
       confirmFn: () => {

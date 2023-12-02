@@ -8,17 +8,20 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Optional
+
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from apm.constants import DATABASE_CONNECTION_NAME
-from bkmonitor.utils.cipher import transform_data_id_to_token
+from apm.models.datasource import MetricDataSource, ProfileDataSource, TraceDataSource
+from bkmonitor.utils.cipher import (
+    transform_data_id_to_token,
+    transform_data_id_to_v1_token,
+)
 from bkmonitor.utils.model_manager import AbstractRecordModel
-
-MetricDataSource = None
-TraceDataSource = None
 
 
 class ApmApplication(AbstractRecordModel):
@@ -52,7 +55,7 @@ class ApmApplication(AbstractRecordModel):
             raise ValueError(_("应用不存在"))
 
     @classmethod
-    def apply_datasource(cls, bk_biz_id, app_name, es_storage_config):
+    def apply_datasource(cls, bk_biz_id, app_name, es_storage_config, options: Optional[dict] = None):
         application = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
             raise ValueError(_("应用({}) 不存在").format(app_name))
@@ -61,14 +64,24 @@ class ApmApplication(AbstractRecordModel):
         for datasource in [TraceDataSource, MetricDataSource]:
             datasource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name, **es_storage_config)
 
-        return {
+        # 创建和更新性能分析数据源
+        if options.get("enabled_profiling", False):
+            ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name, **es_storage_config)
+
+        configs = {
             "metric_config": application.metric_datasource.to_json(),
             "trace_config": application.trace_datasource.to_json(),
         }
+        if application.profile_datasource:
+            configs["profile_config"] = application.profile_datasource.to_json()
+
+        return configs
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def create_application(cls, bk_biz_id, app_name, app_alias, description, es_storage_config):
+    def create_application(
+        cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: Optional[dict] = None
+    ):
         if cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).exists():
             raise ValueError(_("应用名称(app_name) {} 在该业务({})已经存在").format(app_name, bk_biz_id))
         # step1: 创建应用
@@ -80,7 +93,7 @@ class ApmApplication(AbstractRecordModel):
         )
 
         # step2: 创建结果表
-        datasource_info = cls.apply_datasource(bk_biz_id, app_name, es_storage_config)
+        datasource_info = cls.apply_datasource(bk_biz_id, app_name, es_storage_config, options)
 
         # step3: 创建虚拟指标
         from apm.task.tasks import create_virtual_metric
@@ -102,6 +115,10 @@ class ApmApplication(AbstractRecordModel):
     def metric_datasource(self):
         return MetricDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
+    @cached_property
+    def profile_datasource(self):
+        return ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+
     def get_bk_data_token(self):
         if not self.metric_datasource:
             return ""
@@ -111,6 +128,9 @@ class ApmApplication(AbstractRecordModel):
             "bk_biz_id": self.bk_biz_id,
             "app_name": self.app_name,
         }
+        if self.profile_datasource:
+            params["profile_data_id"] = self.profile_datasource.bk_data_id
+            return transform_data_id_to_v1_token(**params)
         return transform_data_id_to_token(**params)
 
 

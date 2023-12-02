@@ -38,6 +38,7 @@ DEFAULT_GSE_PROCESS_EVENT_STRATEGIES = [
                     "unifyTlogc",
                     "unifytlogc",
                     "gseAgent",
+                    "bk-collector",
                 ],
             },
         ],

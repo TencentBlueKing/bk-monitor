@@ -504,17 +504,15 @@ class ResultTable(models.Model):
 
         # 针对归属具体业务的结果表，直接推送 redis
         try:
-            from metadata.task.tasks import publish_redis, push_and_publish_space_router
+            from metadata.task.tasks import push_and_publish_space_router
 
             if default_storage == ClusterInfo.TYPE_INFLUXDB:
                 if target_bk_biz_id != 0 and space_id and space_type:
                     push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
-                    publish_redis(space_type, space_id, table_id=table_id)
                 else:
                     on_commit(
                         lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[table_id])
                     )
-                    on_commit(lambda: publish_redis.delay(space_type, space_id))
         except Exception as e:
             logger.error("push and publish redis error, %s", e)
         return result_table
@@ -804,14 +802,14 @@ class ResultTable(models.Model):
         )
 
         # 3. 遍历所有的实际存储，操作增加字段
-        # TODO: 确认下这里的具体作用，因为 `add_field` 方法没有实现， 而且 create field 方法返回的是True
-        for real_storage in self.real_storage_list:
-            real_storage.add_field(new_field)
-            logger.info(
-                "result_table->[%s] storage->[%s] has added field success.",
-                self.table_id,
-                real_storage.STORAGE_TYPE,
-            )
+        # NOTE: 下面仅针对计算平台数据库添加字段需要，现阶段没有使用，先注释掉
+        # for real_storage in self.real_storage_list:
+        #     real_storage.add_field(new_field)
+        #     logger.info(
+        #         "result_table->[%s] storage->[%s] has added field success.",
+        #         self.table_id,
+        #         real_storage.STORAGE_TYPE,
+        #     )
 
         # 4. 更新ETL配置
         if is_etl_refresh:

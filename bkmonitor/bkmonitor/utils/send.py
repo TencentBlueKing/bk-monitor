@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import base64
+import copy
 import hashlib
 import json
 import logging
@@ -454,11 +455,12 @@ class Sender(BaseSender):
             if chat_mentioned_users:
                 mentioned_users_string = "".join([f"<@{user}>" for user in chat_mentioned_users])
                 mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}"
-            layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
+            chat_layouts = copy.deepcopy(layouts)
+            chat_layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
             params = {
                 "msgtype": "message",
                 "chatid": chat_id,
-                "layouts": layouts,
+                "layouts": chat_layouts,
             }
             try:
                 response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
