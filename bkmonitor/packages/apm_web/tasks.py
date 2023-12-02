@@ -129,7 +129,4 @@ def create_default_custom_time_series():
     # 内置自定义指标
     bk_biz_ids = list(DeepflowWorkload.objects.all().values_list("bk_biz_id", flat=True).distinct())
     for bk_biz_id in bk_biz_ids:
-        # 简单判断, 在 DeepflowWorkload 数据新增时, 创建自定义指标
-        obj = DeepflowWorkload.objects.filter(bk_biz_id=bk_biz_id).order_by("-update_at").first()
-        if abs((obj.update_at - obj.create_at).seconds) < 60:
-            CustomTimeSeriesInstall(bk_biz_id).create_default_custom_time_series()
+        CustomTimeSeriesInstall(bk_biz_id).create_default_custom_time_series()
