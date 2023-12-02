@@ -137,7 +137,10 @@ def update_metric_list():
     source_type_use_biz = ["BKDATA", "LOGTIMESERIES", "BKMONITORALERT"]
     source_type_all_biz = ["BASEALARM", "BKMONITORLOG"]
     source_type_add_biz_0 = ["BKMONITOR", "CUSTOMEVENT", "CUSTOMTIMESERIES", "BKFTAALERT", "BKMONITORK8S"]
+    # 非业务空间不需要执行
     source_type_gt_0 = ["BKDATA"]
+    # 不再全局周期任务重执行，引导用户通过主动刷新进行处罚
+    extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
     businesses = SpaceApi.list_spaces()
 
     # 记录分发任务轮次
@@ -184,7 +187,7 @@ def update_metric_list():
             if source_type in source_type_to_app_code and source_type_to_app_code[source_type] not in apps:
                 continue
             # 数据平台指标缓存仅支持更新大于0业务
-            if source_type in source_type_gt_0 and biz.bk_biz_id <= 0:
+            if source_type in (source_type_gt_0 + extr_source_type_gt_0) and biz.bk_biz_id <= 0:
                 continue
             update_metric(source_type, biz.bk_biz_id)
 
