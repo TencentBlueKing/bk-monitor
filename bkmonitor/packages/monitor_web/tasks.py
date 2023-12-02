@@ -133,7 +133,7 @@ def update_metric_list():
     source_type_add_biz_0 = ["BKMONITOR", "CUSTOMEVENT", "CUSTOMTIMESERIES", "BKFTAALERT", "BKMONITORK8S"]
     # 非业务空间不需要执行
     source_type_gt_0 = ["BKDATA"]
-    # 不再全局周期任务重执行，引导用户通过主动刷新进行处罚
+    # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
     extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
     businesses = SpaceApi.list_spaces()
 
@@ -195,7 +195,7 @@ def update_metric_list():
 
     # 关联容器平台的业务，批量跑容器指标
     for k8s_biz in k8s_biz_set:
-        update_metric("BKMONITORK8S", k8s_biz)
+        update_metric("BKMONITORK8S", k8s_biz.bk_biz_id)
 
     logger.info("$update metric list(round {}), biz count: {}, cost: {}".format(offset, biz_count, time.time() - start))
 
