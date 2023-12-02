@@ -35,30 +35,20 @@ def add_gse_system_event_data_source(apps, *args, **kwargs):
     for model_name in list(models.keys()):
         models[model_name] = apps.get_model("metadata", model_name)
 
+    add_event_data_source(models, 1100000, "gse_custom_string", "gse自定义字符串上报", "bk_gse_custom_string")
+    add_event_data_source(models, 1000, "gse_system_event", "gse系统事件上报", "bk_gse_system_event")
+
+
+def add_event_data_source(models, data_id, table_id, table_name, etl_config):
     bk_biz_id = 0
     # 数据库记录的操作员
     user = "system"
-    # 数据id，用于整个链路的数据流转标识
-    data_id = 1100000
-    # data_id对应的名称
-    data_name = "gse_custom_string"
-    # 结果表id
-    table_id = "gse_custom_string"
-    # 结果表名称
-    table_name_zh = "gse自定义字符串上报"
-    # 数据清洗类型
-    etl_config = "bk_gse_custom_string"
-    # 来源标签
-    source_label = "bk_monitor"
-    # 数据上报形式，这里以事件上报
-    type_label = "event"
-    # 结果表标签，指监控对象，这里定义为"主机-进程"
+    # 结果表标签，指监控对象
     label = "os"
     # 默认存储介质
     default_storage = "elasticsearch"
     # 是否是用户自定义
     is_custom_table = 1
-    is_custom_source = True
     # 固定格式
     schema_type = "free"
 
@@ -146,9 +136,7 @@ def add_gse_system_event_data_source(apps, *args, **kwargs):
     add_datasourceresulttable(models, data_id, table_id, user)
     add_datasource_option(models, data_id, user, datasource_option)
 
-    add_resulttable(
-        models, table_id, table_name_zh, label, default_storage, is_custom_table, schema_type, user, bk_biz_id
-    )
+    add_resulttable(models, table_id, table_name, label, default_storage, is_custom_table, schema_type, user, bk_biz_id)
     add_es_resulttableoption(table_id, user)
     add_resulttablefield(models, table_id, field_item_list, user)
     add_resulttablefieldoption(result_table_field_options)
