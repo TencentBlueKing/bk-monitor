@@ -1380,4 +1380,3 @@ class TimeSeriesTag(models.Model):
 
     class Meta:
         unique_together = ("group_id", "metric_id", "name")
-        unique_together = ("group_id", "metric_id", "name")
