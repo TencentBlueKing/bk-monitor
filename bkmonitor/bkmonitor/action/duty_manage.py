@@ -724,7 +724,7 @@ class GroupDutyRuleManager:
         # 开始时间小于当前时间，但是结束时间大于当前时间的
         current_time_str = time_tools.datetime2str(current_time)
         end_time_str = time_tools.datetime2str(end_datetime)
-        duty_plan_queryset = DutyPlan.objects.filter(user_group_id=self.user_group.id).filter(
+        duty_plan_queryset = DutyPlan.objects.filter(user_group_id=self.user_group.id, is_effective=1).filter(
             Q(
                 start_time__gte=current_time_str,
                 start_time__lte=end_time_str,
@@ -753,8 +753,9 @@ class GroupDutyRuleManager:
             duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
             duty_contents = []
             for work_time in duty_plan["work_times"]:
-                if work_time['start_time'] <= end_time_str:
-                    duty_contents.append(f"\\n> {work_time['start_time']} -- {work_time['end_time']}  {duty_users}")
+                content = f"\\n> {work_time['start_time']} -- {work_time['end_time']}  {duty_users}"
+                if work_time['start_time'] <= end_time_str and content not in duty_contents:
+                    duty_contents.append(content)
             if duty_contents:
                 notice_content.extend(duty_contents)
         sender = Sender(
