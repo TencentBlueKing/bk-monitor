@@ -156,6 +156,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WINDOWS_GSE_AGENT_IPC_PATH", slz.CharField(label=_("Windows IPC 路径"), default="127.0.0.1:47000")),
         ("WECOM_ROBOT_BIZ_WHITE_LIST", slz.ListField(label=_("分级告警业务白名单"), default=[])),
         ("WECOM_ROBOT_ACCOUNT", slz.DictField(label=_("分级告警企业微信机器人账户"), default={})),
+        ("WECOM_ROBOT_APP", slz.DictField(label=_("分级告警企业微信应用号账户"), default={})),
         ("IS_WECOM_ROBOT_ENABLED", slz.BooleanField(label=_("是否启用分级机器人告警"), default=False)),
         ("MD_SUPPORTED_NOTICE_WAYS", slz.ListField(label=_("支持MD的通知方式列表"), default=["wxwork-bot"])),
         ("BK_DATA_PLAN_ID_INTELLIGENT_DETECTION", slz.IntegerField(label=_("ai设置单指标异常检测默认plan id"), default=0)),
