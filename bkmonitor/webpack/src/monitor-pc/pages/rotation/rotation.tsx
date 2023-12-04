@@ -25,9 +25,11 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import {unmount} from '@blueking/bk-weweb'
+import { unmount } from '@blueking/bk-weweb';
+
 import './rotation.scss';
-const wewebId = 'trace'
+
+const wewebId = 'trace';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class Rotation extends tsc<{}> {
