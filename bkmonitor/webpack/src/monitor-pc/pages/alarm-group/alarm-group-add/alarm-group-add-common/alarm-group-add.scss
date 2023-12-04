@@ -28,6 +28,10 @@
 $minWidth: 1036px;
 
 .alarm-group-add-wrap {
+  .width-508 {
+    width: 508px
+  }
+
   .biz-id-select {
     @include inputMinWidth();
   }
@@ -71,7 +75,7 @@ $minWidth: 1036px;
       //position: absolute;
       //bottom: -16px;
       //left: 0;
-      line-height: 1;
+      line-height: 30px;
       color: #ff5656;
     }
   }

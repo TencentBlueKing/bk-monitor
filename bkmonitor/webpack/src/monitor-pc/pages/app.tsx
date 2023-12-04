@@ -56,7 +56,7 @@ import HeaderSettingModal from './header-setting-modal';
 
 import './app.scss';
 
-const microRouteNameList = ['alarm-shield'];
+const microRouteNameList = ['alarm-shield', 'rotation'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';

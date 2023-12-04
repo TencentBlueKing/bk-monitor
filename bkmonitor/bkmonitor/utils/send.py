@@ -59,12 +59,7 @@ class BaseSender(object):
     Utf8Encoding = "utf-8"
 
     def __init__(
-        self,
-        context=None,
-        title_template_path="",
-        content_template_path="",
-        notice_type=NoticeType.ALERT_NOTICE,
-        mentioned_users=None,
+        self, context=None, title_template_path="", content_template_path="", notice_type=NoticeType.ALERT_NOTICE
     ):
         """
         :param context: EventContext or dict
@@ -76,7 +71,7 @@ class BaseSender(object):
             self.bk_biz_id = int(self.context.get("target").business.bk_biz_id)
         except Exception as error:
             logger.info("failed to get notice business id: %s", str(error))
-            self.bk_biz_id = 0
+            self.bk_biz_id = self.context.get("bk_biz_id", 0)
 
         # todo: 这里是公共模块，不应该依赖alarm_backends
         if i18n:

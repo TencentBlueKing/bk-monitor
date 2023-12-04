@@ -190,3 +190,5 @@ build.yml
 # GTM
 .gtm.yaml
 
+.idea
+.vscode
