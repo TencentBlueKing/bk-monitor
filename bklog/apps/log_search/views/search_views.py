@@ -266,6 +266,11 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
+        if not data.get("is_desensitize"):
+            # 只针对白名单中的APP_CODE开放不脱敏的权限
+            auth_info = Permission.get_auth_info(self.request, raise_exception=False)
+            if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
+                data["is_desensitize"] = True
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
@@ -384,11 +389,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = request.data
-        # data.update({
-        #     "size": 30
-        # })
         data.update({"search_type_tag": "context"})
-        # search_handler = SearchHandler(index_set_id, data)
         search_handler = SearchHandlerEsquery(index_set_id, data)
         return Response(search_handler.search_context())
 
