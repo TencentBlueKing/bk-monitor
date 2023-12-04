@@ -715,8 +715,9 @@ class GroupDutyRuleManager:
         last_record = DutyPlanSendRecord.objects.filter(user_group_id=self.user_group.id).first()
         if last_record:
             last_send_time = datetime.fromtimestamp(last_record.last_send_time, tz=self.user_group.tz_info)
-            if last_send_time.day == current_time.day:
-                # 如果最后一次记录的时间就在今天，表示已经发送过，忽略
+            if last_send_time.day == current_time.day and last_send_time.strftime("%H:%M") >= compare_time:
+                # 如果最后一次记录的时间就在今天，表示已经发送过并且配置时间未发生过变化，忽略
+                # 这里是为了兼容部分用户改了报表的时间，如果是当天的，需要立马发出
                 return
 
         # 过滤的范围：开始时间处于两个时间范围之内的
