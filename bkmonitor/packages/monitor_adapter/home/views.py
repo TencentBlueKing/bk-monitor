@@ -14,7 +14,6 @@ from urllib import parse
 from urllib.parse import urlsplit
 
 from blueapps.account.decorators import login_exempt
-from common.log import logger
 from django.conf import settings
 from django.contrib import auth
 from django.http import HttpResponseForbidden, HttpResponseNotFound, JsonResponse
@@ -25,68 +24,82 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from fta_web.tasks import run_init_builtin_action_config
-from monitor.models import GlobalConfig
-from monitor_web.iam.resources import CallbackResource
-from monitor_web.strategies.built_in import run_build_in
+from django.views.decorators.http import require_GET, require_POST
 
 from bkm_space.api import SpaceApi
-from bkmonitor.models import ActionConfig
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
+from common.context_processors import get_basic_context, get_default_biz_id
+from common.log import logger
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
+from monitor.models import GlobalConfig
+from monitor_web.iam.resources import CallbackResource
 
 
+@login_exempt
 def home(request):
     """统一入口 ."""
+
+    response = render(request, "monitor/index.html", {"cc_biz_id": 0})
+    return response
+
+
+@require_GET
+def basic_context(request):
+
+    try:
+        space_list = resource.commons.list_spaces()
+    except Exception:  # noqa
+        space_list = []
+        logger.exception("[basic_context] list_spaces failed")
+
+    default_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
+
     cc_biz_id = 0
     # 新增space_uid的支持
     if request.GET.get("space_uid", None):
         try:
-            space = SpaceApi.get_space_detail(request.GET["space_uid"])
-            cc_biz_id = space.bk_biz_id
-        except BKAPIError as e:
-            logger.exception(f"获取空间信息({request.GET['space_uid']})失败：{e}")
+            space = {}
+            for space in space_list:
+                if space["space_uid"] == request.GET["space_uid"]:
+                    break
+            cc_biz_id = space["bk_biz_id"]
+        except KeyError:
+            logger.warning(
+                f"[basic_context] space_uid not found: "
+                f"uid -> {request.GET['space_uid']} not in space_list -> {space_list}"
+            )
             if settings.DEMO_BIZ_ID:
                 cc_biz_id = settings.DEMO_BIZ_ID
     else:
         cc_biz_id = request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
         if not cc_biz_id:
-            biz_id_list = [s["bk_biz_id"] for s in resource.commons.list_spaces()]
-            if biz_id_list:
-                cc_biz_id = biz_id_list[0]
+            cc_biz_id = default_biz_id
         else:
             cc_biz_id = safe_int(cc_biz_id.strip("/"), dft=None)
 
-    if cc_biz_id is not None and settings.ENVIRONMENT != "development":
-        # 创建默认内置策略
-        run_build_in(int(cc_biz_id))
-
-        # 创建k8s内置策略
-        run_build_in(int(cc_biz_id), mode="k8s")
-        if (
-            settings.ENABLE_DEFAULT_STRATEGY
-            and int(cc_biz_id) > 0
-            and not ActionConfig.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists()
-        ):
-            logger.warning("home run_init_builtin_action_config")
-            # 如果当前页面没有出现内置套餐，则会进行快捷套餐的初始化
-            try:
-                run_init_builtin_action_config.delay(cc_biz_id)
-            except Exception as error:
-                # 直接忽略
-                logger.exception("run_init_builtin_action_config failed ", str(error))
-        # TODO 先关闭，后面稳定了直接打开
-        # if not AlertAssignGroup.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists():
-        #     # 如果当前页面没有出现内置的规则组
-        #     run_init_builtin_assign_group(cc_biz_id)
-
     request.biz_id = cc_biz_id
-    response = render(request, "monitor/index.html", {"cc_biz_id": cc_biz_id})
+    context = get_basic_context(request)
+    context.update(
+        {
+            "UIN": request.user.username,
+            "IS_SUPERUSER": str(request.user.is_superuser).lower(),
+            "BK_PAAS_HOST": settings.BK_PAAS_HOST,
+            "LANGUAGE_CODE": request.LANGUAGE_CODE,  # 国际化
+            "LANGUAGES": settings.LANGUAGES,  # 国际化,
+            "SPACE_LIST": space_list,
+        }
+    )
+
+    context["BK_BIZ_ID"] = cc_biz_id
+    context["PLATFORM"] = {key: getattr(context["PLATFORM"], key) for key in ["ce", "ee", "te"]}
+    context["LANGUAGES"] = dict(context["LANGUAGES"])
+    context = {key: context[key] for key in context if key not in ["gettext", "_"]}
+    response = JsonResponse(context, status=200)
     response.set_cookie("bk_biz_id", str(cc_biz_id))
+
     return response
 
 

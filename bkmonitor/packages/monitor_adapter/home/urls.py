@@ -11,10 +11,12 @@ specific language governing permissions and limitations under the License.
 
 
 from django.conf.urls import url
+
 from monitor_adapter.home import views
 
 urlpatterns = [
     url(r"^$", views.home),
+    url("^basic_context", views.basic_context),
     url(r"^e/$", views.event_center_proxy),
     url(r"^croute/$", views.path_route_proxy),
     url(r"^static/monitor/$", views.home),
