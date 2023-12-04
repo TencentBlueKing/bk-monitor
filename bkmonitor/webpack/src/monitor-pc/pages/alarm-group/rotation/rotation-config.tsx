@@ -484,7 +484,7 @@ export default class RotationConfig extends tsc<IProps> {
     if (!document.hidden) {
       if (!!this.curToEditDutyId) {
         await this.handleRefresh().catch(() => []);
-        this.curToEditDutyId = 0;
+        // this.curToEditDutyId = 0;
       }
     }
   }
