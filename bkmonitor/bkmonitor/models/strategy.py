@@ -256,7 +256,6 @@ class QueryConfigModel(Model):
         """
         根据source_app来源获取对应的策略ID
         :param source_app:来源app
-        :param bk_biz_id:业务ID
         :return:
         """
         source_app = source_app or get_source_app()
@@ -491,6 +490,9 @@ class UserGroup(AbstractRecordModel):
 
     @cached_property
     def duty_plans(self):
+        """
+        轮值安排
+        """
         valid_plans = []
         for plan in DutyPlan.objects.filter(user_group_id=self.id, is_effective=1).order_by("id"):
             valid_work_times = [

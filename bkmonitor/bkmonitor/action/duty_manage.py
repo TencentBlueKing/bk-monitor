@@ -593,6 +593,9 @@ class GroupDutyRuleManager:
             self.manage_duty_plan(rule_snap=rule_snap)
 
     def manage_duty_plan(self, rule_snap: DutyRuleSnap):
+        """
+        排班计划生成
+        """
         # step 1 当前分组的原计划都设置为False
         if not rule_snap:
             logger.warning("[manage_duty_plan] snap of user group(%s) not existed", self.user_group.id)
@@ -601,6 +604,10 @@ class GroupDutyRuleManager:
         snap_id = rule_snap.id
         logger.info("[manage_duty_plan] begin to manage duty(%s) plan for group(%s)", snap_id, self.user_group.id)
 
+        if not rule_snap.rule_snap["enabled"]:
+            # 如果当前规则不生效，则不生成计划
+            logger.info("[manage_duty_plan] duty rule (%s) of group(%s) is disabled", snap_id, self.user_group.id)
+            return
         # step 2 根据当前的轮值模式生成新的计划
         begin_time = rule_snap.next_plan_time
 
