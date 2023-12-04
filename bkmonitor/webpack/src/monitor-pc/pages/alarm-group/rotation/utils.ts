@@ -222,6 +222,9 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
           freeTimes.push([totalRangeTime[0], totalRangeTime[1]]);
         } else {
           freeTimes.push([totalRangeTime[0], cur[0]]);
+          if (allRangeTime.length === 1 && cur[1] < totalRangeTime[1]) {
+            freeTimes.push([cur[0], totalRangeTime[1]]);
+          }
         }
       }
     }

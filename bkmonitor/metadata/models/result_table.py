@@ -802,14 +802,14 @@ class ResultTable(models.Model):
         )
 
         # 3. 遍历所有的实际存储，操作增加字段
-        # TODO: 确认下这里的具体作用，因为 `add_field` 方法没有实现， 而且 create field 方法返回的是True
-        for real_storage in self.real_storage_list:
-            real_storage.add_field(new_field)
-            logger.info(
-                "result_table->[%s] storage->[%s] has added field success.",
-                self.table_id,
-                real_storage.STORAGE_TYPE,
-            )
+        # NOTE: 下面仅针对计算平台数据库添加字段需要，现阶段没有使用，先注释掉
+        # for real_storage in self.real_storage_list:
+        #     real_storage.add_field(new_field)
+        #     logger.info(
+        #         "result_table->[%s] storage->[%s] has added field success.",
+        #         self.table_id,
+        #         real_storage.STORAGE_TYPE,
+        #     )
 
         # 4. 更新ETL配置
         if is_etl_refresh:

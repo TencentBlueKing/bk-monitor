@@ -143,7 +143,7 @@ importers:
 
   src/fta-solutions:
     specifiers:
-      '@blueking/bk-weweb': 0.0.23
+      '@blueking/bk-weweb': 0.0.24
       '@typescript-eslint/eslint-plugin': ^5.20.0
       '@typescript-eslint/parser': ^5.20.0
       async-validator: ^3.5.2
@@ -179,7 +179,7 @@ importers:
       vuex: ^3.1.2
       vuex-module-decorators: ^1.2.0
     dependencies:
-      '@blueking/bk-weweb': 0.0.23
+      '@blueking/bk-weweb': 0.0.24
       async-validator: 3.5.2
       bk-magic-vue: 2.5.8-beta.7_vue@2.7.14
       deepmerge: 4.3.1
@@ -353,7 +353,7 @@ importers:
 
   src/monitor-pc:
     specifiers:
-      '@blueking/bk-weweb': 0.0.23
+      '@blueking/bk-weweb': 0.0.24
       '@blueking/ip-selector': 0.0.1-beta.125
       '@blueking/paas-login': 0.0.6
       '@blueking/user-selector': ^1.0.5-beta.2
@@ -403,7 +403,7 @@ importers:
       vuex-module-decorators: ^1.2.0
       xlsx: ^0.16.0
     dependencies:
-      '@blueking/bk-weweb': 0.0.23
+      '@blueking/bk-weweb': 0.0.24
       '@blueking/ip-selector': 0.0.1-beta.125
       '@blueking/paas-login': 0.0.6_lj27eexwqqlnm77zmo373bv5la
       '@blueking/user-selector': 1.0.11
@@ -2187,8 +2187,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.15
       to-fast-properties: 2.0.0
 
-  /@blueking/bk-weweb/0.0.23:
-    resolution: {integrity: sha512-wMg/V+n7QkeNK/mT/g7Qr7eQM3tNH2JfQqdioIxRZzG4isYuMq5EVSmJPkPJaTR5erNnfrYtqz6bHOub6kGWUw==}
+  /@blueking/bk-weweb/0.0.24:
+    resolution: {integrity: sha512-xBiixcUqd+3fArGEc5bNZO1Ex8v3RoKaUsQ7TqcrIMOnQCvXYfqsniRxK/4WN/IGdBvS6elgnTCPOf+NWT5NVA==}
     engines: {node: '>=14.18.1'}
     dev: false
 

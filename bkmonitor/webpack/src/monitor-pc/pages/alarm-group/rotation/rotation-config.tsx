@@ -30,6 +30,7 @@ import { Button, Checkbox, Input } from 'bk-magic-vue';
 import { listDutyRule } from '../../../../monitor-api/modules/model';
 import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
 import { Debounce, random } from '../../../../monitor-common/utils';
+import loadingIcon from '../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 
 import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
@@ -106,6 +107,8 @@ export default class RotationConfig extends tsc<IProps> {
 
   errMsg = '';
 
+  refreshLoading = false;
+
   /* 用于统计信息 */
   get userGroupData(): {
     display_name: string;
@@ -121,6 +124,10 @@ export default class RotationConfig extends tsc<IProps> {
       }
     });
     return userGroupData;
+  }
+
+  get showNoData() {
+    return !this.allDutyList.filter(item => !!item.show).length;
   }
 
   created() {
@@ -146,6 +153,7 @@ export default class RotationConfig extends tsc<IProps> {
   handleWatchrRendreKey() {
     this.setDutyList();
     this.noticeConfig = paramsToDutyNoticeConfig(this.dutyNotice);
+    this.showNotice = !!(this.noticeConfig?.isSend || this.noticeConfig?.needNotice);
     this.noticeRenderKey = random(8);
   }
 
@@ -182,7 +190,8 @@ export default class RotationConfig extends tsc<IProps> {
       begin_time: beginTime,
       config: {
         duty_rules: this.dutyList.map(d => d.id)
-      }
+      },
+      id: !!this.alarmGroupId ? this.alarmGroupId : undefined
     };
     this.handleDutyChange();
     this.previewLoading = true;
@@ -222,7 +231,8 @@ export default class RotationConfig extends tsc<IProps> {
       begin_time: startTime,
       config: {
         duty_rules: this.dutyList.map(d => d.id)
-      }
+      },
+      id: !!this.alarmGroupId ? this.alarmGroupId : undefined
     };
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
@@ -419,6 +429,24 @@ export default class RotationConfig extends tsc<IProps> {
     this.handleNoticeChange();
   }
 
+  async handleRefresh(e: Event) {
+    e.stopPropagation();
+    if (this.refreshLoading) {
+      return;
+    }
+    this.refreshLoading = true;
+    const list = (await listDutyRule().catch(() => [])) as any;
+    const ids = this.dutyList.map(item => item.id);
+    const sets = new Set(ids);
+    this.allDutyList = list.map(item => ({
+      ...item,
+      isCheck: sets.has(item.id),
+      show: item.labels.some(l => l === this.search) || item.name.indexOf(this.search) >= 0,
+      typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
+    }));
+    this.refreshLoading = false;
+  }
+
   render() {
     return (
       <div class='alarm-group-rotation-config-component'>
@@ -456,7 +484,12 @@ export default class RotationConfig extends tsc<IProps> {
                   onMouseenter={() => this.handleMouseenter()}
                   onMouseleave={() => this.handleMouseleave()}
                 ></span>
-                <span class='duty-item-name'>{item.name}</span>
+                <span
+                  class='duty-item-name'
+                  v-bk-overflow-tips
+                >
+                  {item.name}
+                </span>
                 <span class='duty-item-type'>{item.typeLabel}</span>
                 <span
                   class='icon-monitor icon-bianji'
@@ -560,34 +593,43 @@ export default class RotationConfig extends tsc<IProps> {
               ></Input>
             </div>
             <div class='content-wrap'>
-              {this.allDutyList
-                .filter(item => !!item.show)
-                .map(item => (
-                  <div
-                    class='duty-select-item'
-                    key={item.id}
-                    onClick={() => this.handleSelectOption(item)}
-                  >
-                    <div onClick={(e: Event) => e.stopPropagation()}>
-                      <Checkbox
-                        value={item.isCheck}
-                        onChange={v => this.handleCheckOption(v, item)}
-                      ></Checkbox>
+              {!this.showNoData ? (
+                this.allDutyList
+                  .filter(item => !!item.show)
+                  .map(item => (
+                    <div
+                      class='duty-select-item'
+                      key={item.id}
+                      onClick={() => this.handleSelectOption(item)}
+                    >
+                      <div onClick={(e: Event) => e.stopPropagation()}>
+                        <Checkbox
+                          value={item.isCheck}
+                          onChange={v => this.handleCheckOption(v, item)}
+                        ></Checkbox>
+                      </div>
+                      <span
+                        class='item-name'
+                        v-bk-overflow-tips
+                      >
+                        {item.name}
+                      </span>
+                      <span class='item-type'>{item.typeLabel}</span>
+                      <span class='tags'>
+                        {item.labels.map((tag, tagIndex) => (
+                          <span
+                            class={['item-tag', { active: this.search === tag }]}
+                            key={tagIndex}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </span>
                     </div>
-                    <span class='item-name'>{item.name}</span>
-                    <span class='item-type'>{item.typeLabel}</span>
-                    <span class='tags'>
-                      {item.labels.map((tag, tagIndex) => (
-                        <span
-                          class={['item-tag', { active: this.search === tag }]}
-                          key={tagIndex}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </span>
-                  </div>
-                ))}
+                  ))
+              ) : (
+                <div class='no-data'>{this.$t('无匹配数据')}</div>
+              )}
             </div>
             <div
               class='del-wrap'
@@ -595,6 +637,19 @@ export default class RotationConfig extends tsc<IProps> {
             >
               <span class='icon-monitor icon-jia'></span>
               <span>{this.$t('新增轮值排班')}</span>
+              <div
+                class='refresh-wrap'
+                onClick={e => this.handleRefresh(e)}
+              >
+                {this.refreshLoading ? (
+                  <img
+                    class='loading-icon'
+                    src={loadingIcon}
+                  ></img>
+                ) : (
+                  <span class='icon-monitor icon-zhongzhi1'></span>
+                )}
+              </div>
             </div>
           </div>
         </div>

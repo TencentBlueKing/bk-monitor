@@ -142,7 +142,7 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
         logger.exception("refresh custom report config to colletor error: %s" % e)
 
 
-@share_lock(identify="metadata_refreshTimeSeriesMetrics")
+@share_lock(ttl=7200, identify="metadata_refreshTimeSeriesMetrics")
 def check_update_ts_metric():
     logger.info("check_update_ts_metric:start")
     s_time = time.time()
@@ -159,33 +159,16 @@ def check_update_ts_metric():
     # 按数量分组，最多分为max_worker组
     chunks = [ts_groups[i : i + chunk_size] for i in range(0, count, chunk_size)]
     processes = []
-    task_result_queue = multiprocessing.Queue()
     # 使用django-ORM时启用多进程会导致子进程使用同一个数据库连接，会产生无效连接，在启用多进程之前需要关闭连接，子进程中会重新创建连接
     db.connections.close_all()
     for chunk in chunks:
         # multiprocessing库在celery中会导致worker假死，使用billiard库启用多进程
-        t = multiprocessing.Process(target=update_time_series_metrics, args=(chunk, task_result_queue))
+        t = multiprocessing.Process(target=update_time_series_metrics, args=(chunk,))
         processes.append(t)
         t.start()
 
-    # NOTE: 针对大数据量，需要把队列中数据消费掉; 防止卡住问题
-    results = set()
-    for p in processes:
-        try:
-            results.update(task_result_queue.get())
-        except Exception as e:
-            logging.error("get data from task queue error, %s", e)
-
     for t in processes:
         t.join()
-
-    # 更新空间信息
-    logger.info("start to push and publish redis")
-    from metadata.task.tasks import publish_redis
-
-    for space in results:
-        publish_redis(space[0], space[1])
-    logger.info("push and publish redis finished")
 
     logger.info("check_update_ts_metric:finished, cost:%s s", time.time() - s_time)
 

@@ -217,6 +217,7 @@
           :prop="item.key"
           sortable
           min-width="120"
+          :render-header="renderHeader"
         >
           <template #default="{ row }">
             {{ row[item.key] }}
@@ -227,6 +228,7 @@
   </div>
 </template>
 <script lang="ts">
+import { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
@@ -237,12 +239,7 @@ import { debounce } from 'throttle-debounce';
 
 import { traceListById } from '../../monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
-import {
-  downCsvFile,
-  IUnifyQuerySeriesItem,
-  transformSrcData,
-  transformTableDataToCsvStr
-} from '../../monitor-pc/pages/view-detail/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from '../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -623,6 +620,18 @@ export default class MonitorEcharts extends Vue {
     document.removeEventListener('mouseup', this.documentMouseup);
   }
 
+  renderHeader(h: CreateElement, data) {
+    const { column } = data;
+    return h(
+      'div',
+      {
+        class: 'ellipsis',
+        directives: [{ name: 'bk-overflow-tips' }]
+      },
+      column.label
+    );
+  }
+
   /** 图表拉伸 */
   documentMousemove(e) {
     this.drawRecord.moving = true;
@@ -715,6 +724,7 @@ export default class MonitorEcharts extends Vue {
         console.info(e);
         return [];
       });
+      console.log(data);
       this.seriesData = [...data].map(item => ({
         ...item,
         key: item.target.replace(/\./g, '_')
@@ -1107,7 +1117,7 @@ export default class MonitorEcharts extends Vue {
     if (!!this.seriesData?.length) {
       const csvList = [];
       const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
-      csvList.push(keys.map(key => key.replace(/,/gmi, '_')).join(','));
+      csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
       this.tableData.forEach((item) => {
         const list = [];
         keys.forEach((key) => {
@@ -1656,6 +1666,12 @@ export default class MonitorEcharts extends Vue {
       ::v-deep th.is-leaf {
         height: 32px;
       }
+    }
+
+    ::v-deep .ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }

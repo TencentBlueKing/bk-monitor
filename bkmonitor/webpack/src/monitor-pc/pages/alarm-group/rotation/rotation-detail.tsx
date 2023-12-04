@@ -29,7 +29,7 @@ import { Button, Sideslider } from 'bk-magic-vue';
 
 import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
 import { previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
-import { getCalendar, setPreviewDataOfServer } from '../../../../trace/pages/rotation/components/calendar-preview';
+import { getPreviewParams, setPreviewDataOfServer } from '../../../../trace/pages/rotation/components/calendar-preview';
 import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
 import { randomColor, RuleDetailModel, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
@@ -70,7 +70,6 @@ export default class RotationDetail extends tsc<IProps> {
   handleShow(v: boolean) {
     if (v) {
       this.getData();
-      this.getPreviewData();
     }
   }
 
@@ -86,6 +85,7 @@ export default class RotationDetail extends tsc<IProps> {
         this.detailData = res;
         this.type = res.category;
         this.rules = transformRulesDetail(res.duty_arranges);
+        this.getPreviewData();
       })
       .finally(() => {
         this.loading = false;
@@ -93,13 +93,10 @@ export default class RotationDetail extends tsc<IProps> {
   }
 
   async getPreviewData() {
-    const startDate = getCalendar()[0][0];
-    const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
     const params = {
+      ...getPreviewParams(this.detailData.effective_time),
       source_type: 'DB',
-      id: this.id,
-      begin_time: beginTime,
-      days: 42
+      id: this.id
     };
     const data = await previewDutyRulePlan(params).catch(() => []);
     this.previewData = setPreviewDataOfServer(data);
@@ -157,7 +154,7 @@ export default class RotationDetail extends tsc<IProps> {
           slot='content'
           class='rotation-detail-side-content'
         >
-          {formItem(this.$t('规则名称'), <span class='detail-text'>{this.detailData?.name || '--'}</span>)}
+          {formItem(this.$t('规则名称'), <span class='detail-text text-wrap'>{this.detailData?.name || '--'}</span>)}
           {formItem(this.$t('标签'), <span class='detail-text'>{this.detailData?.labels?.join(', ') || '--'}</span>)}
           {formItem(
             this.$t('轮值类型'),

@@ -34,7 +34,7 @@ import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import NavBar from '../../components/nav-bar/nav-bar';
 
-import { getCalendar, setPreviewDataOfServer } from './components/calendar-preview';
+import { getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
 import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
 import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
@@ -272,22 +272,18 @@ export default defineComponent({
         previewData.value = [];
         return;
       }
-      const startDate = getCalendar()[0][0];
-      const beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
       if (init) {
         const params = {
+          ...getPreviewParams(formData.effective.startTime),
           source_type: 'DB',
-          id: id.value,
-          begin_time: beginTime,
-          days: 42
+          id: id.value
         };
         const data = await previewDutyRulePlan(params).catch(() => []);
         previewData.value = setPreviewDataOfServer(data);
       } else {
         const dutyParams = getParams();
         const params = {
-          begin_time: beginTime,
-          days: 42,
+          ...getPreviewParams(formData.effective.startTime),
           source_type: 'API',
           config: dutyParams
         };
@@ -350,6 +346,7 @@ export default defineComponent({
             <Input
               class='width-508'
               v-model={this.formData.name}
+              showOverflowTooltips={false}
               onBlur={this.handleNameBlur}
             ></Input>
           </FormItem>

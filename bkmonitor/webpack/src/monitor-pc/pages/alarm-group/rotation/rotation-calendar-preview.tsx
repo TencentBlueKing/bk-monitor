@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import {
   calendarDataConversion,
-  getCalendar,
+  getCalendarNew,
   ICalendarData,
   ICalendarDataUser
 } from '../../../../trace/pages/rotation/components/calendar-preview';
@@ -47,7 +47,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
 
   curCalendarData: ICalendarData = {
     users: [],
-    data: getCalendar().map(item => ({
+    data: getCalendarNew().map(item => ({
       dates: item,
       data: []
     }))
