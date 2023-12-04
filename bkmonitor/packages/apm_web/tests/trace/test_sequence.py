@@ -1,4 +1,5 @@
 import pytest
+
 from apm_web.trace.diagram.sequence import trace_to_mermaid_sequence_data
 
 from .utils import read_trace_list

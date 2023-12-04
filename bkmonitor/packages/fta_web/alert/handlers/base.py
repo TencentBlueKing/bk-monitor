@@ -8,13 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import time
 from abc import ABC
 from typing import Callable, Dict, List, Optional
 
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
 from elasticsearch_dsl.response import Response
-from fta_web.alert.handlers.translator import AbstractTranslator
 from luqum.auto_head_tail import auto_head_tail
 from luqum.elasticsearch import ElasticsearchQueryBuilder, SchemaAnalyzer
 from luqum.exceptions import ParseError
@@ -27,6 +27,7 @@ from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request, get_request_username
 from constants.alert import EventTargetType
 from core.errors.alert import QueryStringParseError
+from fta_web.alert.handlers.translator import AbstractTranslator
 
 
 class QueryField:
@@ -207,7 +208,10 @@ class BaseQueryHandler:
         **kwargs,
     ):
         self.start_time = start_time
+        # 结束时间为未来时间的时候，默认为当前时间 加1min
         self.end_time = end_time
+        if self.end_time:
+            self.end_time = min(int(time.time() + 60), end_time)
         self.query_string = query_string
         self.conditions = conditions
         self.page = page
@@ -414,7 +418,6 @@ class BaseQueryHandler:
         bucket_count_suffix = ".bucket_count"
 
         for field in fields:
-
             # 处理桶排序
             if field.startswith("-"):
                 order = {"_count": "desc"}

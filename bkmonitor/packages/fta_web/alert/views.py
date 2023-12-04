@@ -11,8 +11,6 @@ specific language governing permissions and limitations under the License.
 import collections
 import logging
 
-from fta_web.alert.serializers import SearchFavoriteSerializer
-from fta_web.models.alert import SearchFavorite
 from rest_framework.viewsets import ModelViewSet
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
@@ -22,6 +20,8 @@ from bkmonitor.views.renderers import PlainTextRenderer
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.errors.iam import PermissionDeniedError
+from fta_web.alert.serializers import SearchFavoriteSerializer
+from fta_web.models.alert import SearchFavorite
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,6 @@ class AlertViewSet(ResourceViewSet):
         return True
 
     def check_permissions(self, request):
-
         if self.action in ["search_history", "list_index_by_host", "validate_query_string", "allowed_biz"]:
             return
         elif self.action == "alert/search":
@@ -191,6 +190,8 @@ class AlertViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", resource.alert.metric_recommendation_feedback, endpoint="alert/metric_recommendation_feedback"
         ),
+        # 主机多指标异常检测告警详情图表
+        ResourceRoute("GET", resource.alert.multi_anomaly_detect_graph, endpoint="alert/multi_anomaly_detect_graph"),
     ]
 
 

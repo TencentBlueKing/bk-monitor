@@ -34,6 +34,7 @@ export const listAlertFeedback = request('GET', 'fta/alert/alert/list_feedback/'
 export const dimensionDrillDown = request('GET', 'fta/alert/alert/dimension_drill_down/');
 export const metricRecommendation = request('GET', 'fta/alert/alert/metric_recommendation/');
 export const metricRecommendationFeedback = request('POST', 'fta/alert/alert/metric_recommendation_feedback/');
+export const multiAnomalyDetectGraph = request('GET', 'fta/alert/alert/multi_anomaly_detect_graph/');
 export const quickAlertShield = request('GET', 'fta/alert/alert/quick_shield/');
 export const quickAlertAck = request('GET', 'fta/alert/alert/quick_ack/');
 
@@ -72,6 +73,7 @@ export default {
   dimensionDrillDown,
   metricRecommendation,
   metricRecommendationFeedback,
+  multiAnomalyDetectGraph,
   quickAlertShield,
   quickAlertAck
 };

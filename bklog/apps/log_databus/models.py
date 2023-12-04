@@ -38,6 +38,14 @@ databus
 3. 入库
 """
 
+from django.db import models, transaction  # noqa
+from django.utils import timezone  # noqa
+from django.utils.functional import cached_property  # noqa
+from django.utils.translation import ugettext_lazy as _  # noqa
+from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-import
+    JSONField,
+)
+
 from apps.api import CmsiApi, TransferApi  # noqa
 from apps.log_databus.constants import CollectItsmStatus  # noqa
 from apps.log_databus.constants import EtlConfig  # noqa
@@ -64,13 +72,6 @@ from apps.models import (  # noqa
     MultiStrSplitByCommaField,
     OperateRecordModel,
     SoftDeleteModel,
-)
-from django.db import models, transaction  # noqa
-from django.utils import timezone  # noqa
-from django.utils.functional import cached_property  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
-from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-import
-    JSONField,
 )
 
 
@@ -396,6 +397,12 @@ class BcsRule(SoftDeleteModel):
     bcs_project_id = models.CharField(_("项目ID"), max_length=64, default="")
 
 
+class BcsStorageClusterConfig(SoftDeleteModel):
+    bk_biz_id = models.IntegerField(_("业务id"))
+    bcs_cluster_id = models.CharField(_("bcs集群ID"), max_length=128)
+    storage_cluster_id = models.IntegerField(_("存储集群ID"))
+
+
 class ItsmEtlConfig(SoftDeleteModel):
     ticket_sn = models.CharField(_("itsm单据号"), max_length=255)
     request_param = models.JSONField(_("请求参数"))
@@ -532,11 +539,13 @@ class ArchiveConfig(SoftDeleteModel):
         verbose_name_plural = _("归档配置表")
 
     @cached_property
-    def instance(self) -> Union["CollectorConfig", "CollectorPlugin"]:
+    def instance(self) -> Union["CollectorConfig", "CollectorPlugin", "LogIndexSet"]:
         if self.instance_type == ArchiveInstanceType.COLLECTOR_CONFIG.value:
             return CollectorConfig.objects.get(collector_config_id=self.instance_id)
         if self.instance_type == ArchiveInstanceType.COLLECTOR_PLUGIN.value:
             return CollectorPlugin.objects.get(collector_plugin_id=self.instance_id)
+        if self.instance_type == ArchiveInstanceType.INDEX_SET.value:
+            return LogIndexSet.objects.get(index_set_id=self.instance_id)
 
     @property
     def table_id(self) -> str:
@@ -559,6 +568,14 @@ class ArchiveConfig(SoftDeleteModel):
         try:
             archive_config: cls = cls.objects.get(archive_config_id=archive_config_id)
             return archive_config.collector_config_id
+        except cls.DoesNotExist:
+            raise ArchiveNotFound
+
+    @classmethod
+    def get_index_set_id(cls, archive_config_id) -> int:
+        try:
+            archive_config: cls = cls.objects.get(archive_config_id=archive_config_id)
+            return archive_config.instance_id
         except cls.DoesNotExist:
             raise ArchiveNotFound
 
@@ -610,6 +627,11 @@ class RestoreConfig(SoftDeleteModel):
     def get_collector_config_id(cls, restore_config_id):
         restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.collector_config_id
+
+    @classmethod
+    def get_index_set_id(cls, restore_config_id):
+        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        return restore.archive.instance_id
 
 
 class CollectorPlugin(CollectorBase):

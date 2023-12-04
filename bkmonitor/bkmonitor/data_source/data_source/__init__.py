@@ -953,10 +953,6 @@ class BkMonitorTimeSeriesDataSource(TimeSeriesDataSource):
     def __init__(self, *args, **kwargs):
         super(BkMonitorTimeSeriesDataSource, self).__init__(*args, **kwargs)
 
-        # 业务相关filter, todo 可以去掉。
-        if kwargs.get("bk_biz_id") and int(kwargs["bk_biz_id"]) > 0:
-            self.filter_dict["bk_biz_id"] = str(kwargs["bk_biz_id"])
-
         if settings.IS_ACCESS_BK_DATA and self.is_cmdb_level_query(
             where=self.where, filter_dict=self.filter_dict, group_by=self.group_by
         ):
@@ -1492,7 +1488,6 @@ class BkMonitorLogDataSource(DataSource):
         *args,
         **kwargs,
     ) -> List:
-
         if isinstance(dimension_field, list):
             dimension_field = dimension_field[0]
 
@@ -1520,7 +1515,6 @@ class BkMonitorLogDataSource(DataSource):
     def query_log(
         self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
     ) -> Tuple[List, int]:
-
         q = self._get_queryset(
             table=self.table,
             agg_condition=self._get_where(),
@@ -1745,7 +1739,6 @@ class BkFtaEventDataSource(DataSource):
         *args,
         **kwargs,
     ) -> List:
-
         if start_time:
             start_time = start_time + self.time_offset
         if end_time:
@@ -1802,7 +1795,6 @@ class BkFtaEventDataSource(DataSource):
     def query_log(
         self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
     ) -> Tuple[List, int]:
-
         q = self._get_queryset(
             table=f"{start_time}|{end_time}" if start_time and end_time else None,
             metrics=self.metrics,
