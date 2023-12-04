@@ -762,7 +762,7 @@ class GroupDutyRuleManager:
                 "bk_biz_id": self.user_group.bk_biz_id,
                 "group_name": self.user_group.name,
                 "days": plan_notice["days"],
-                "plan_content": "".join(notice_content) + "\\n",
+                "plan_content": "".join(sorted(notice_content)) + "\\n",
                 "notice_way": NoticeWay.WX_BOT,
             },
             content_template_path="duty/plan_content.jinja",
@@ -801,6 +801,8 @@ class GroupDutyRuleManager:
         end_time = start_time + timedelta(seconds=60)
 
         # 获取当前时间内一分钟以后的数据
+        # 获取指定时间以后的一段内容
+        # 可能因为某些原因没有发送个人通知的，需要补齐
         duty_plan_queryset = DutyPlan.objects.filter(user_group_id=self.user_group.id, is_effective=1).filter(
             Q(start_time__gte=time_tools.datetime2str(start_time), start_time__lte=time_tools.datetime2str(end_time))
             | Q(
@@ -852,7 +854,7 @@ class GroupDutyRuleManager:
             # 表示所有人的通知内容都是一样的
             logger.info("[send_personal_notice] send personal duty email of group(%s) to all users", self.user_group.id)
             duty_users = list(user_duty_plans.keys())
-            send_content = "\n".join(list(user_duty_plans.values())[0])
+            send_content = "\n".join(sorted(list(user_duty_plans.values())[0]))
             sender = Sender(
                 context={
                     "bk_biz_id": self.user_group.bk_biz_id,
@@ -884,7 +886,7 @@ class GroupDutyRuleManager:
             self.user_group.id,
         )
         for user, duty_plan in user_duty_plans.items():
-            send_content = "\n".join(duty_plan)
+            send_content = "\n".join(sorted(duty_plan))
             sender = Sender(
                 context={
                     "bk_biz_id": self.user_group.bk_biz_id,
