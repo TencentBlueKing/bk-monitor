@@ -516,9 +516,6 @@ QOS_ALERT_WINDOW = 60
 # 第三方事件接入白名单
 BIZ_WHITE_LIST_FOR_3RD_EVENT = []
 
-# 自定义指标过期时间
-TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
-
 # 自定义指标拉取最大步长
 MAX_METRICS_FETCH_STEP = os.environ.get("MAX_METRICS_FETCH_STEP", 500)
 METRICS_KEY_PREFIX = "bkmonitor:metrics_"
