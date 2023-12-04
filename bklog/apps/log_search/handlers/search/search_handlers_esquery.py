@@ -972,7 +972,22 @@ class SearchHandler(object):
             index_set_type=index_set_type,
         )
 
-        ret = [model_to_dict(obj) for obj in option_history_objs]
+        ret = list()
+
+        option_set = set()
+
+        for obj in option_history_objs:
+            info = model_to_dict(obj)
+            if info["index_set_type"] == IndexSetType.SINGLE.value:
+                if info["index_set_id"] in option_set:
+                    continue
+                ret.append(info)
+                option_set.add(info["index_set_id"])
+            else:
+                if str(info["index_set_ids"]) in option_set:
+                    continue
+                ret.append(info)
+                option_set.add(str(info["index_set_ids"]))
 
         return ret
 
@@ -982,7 +997,20 @@ class SearchHandler(object):
     ):
         """删除用户检索选项历史记录"""
         if not is_delete_all:
-            return UserIndexSetSearchOptionHistory.objects.filter(pk=int(history_id)).delete()
+            obj = UserIndexSetSearchOptionHistory.objects.filter(pk=int(history_id)).first()
+
+            delete_params = {
+                "space_uid": obj.space_uid,
+                "username": obj.username,
+                "index_set_type": obj.index_set_type,
+            }
+
+            if obj.index_set_type == IndexSetType.SINGLE.value:
+                delete_params.update({"index_set_id": obj.index_set_id})
+            else:
+                delete_params.update({"index_set_ids": obj.index_set_ids})
+
+            return UserIndexSetSearchOptionHistory.objects.filter(**delete_params).delete()
         else:
             username = get_request_external_username() or get_request_username()
             return UserIndexSetSearchOptionHistory.objects.filter(
