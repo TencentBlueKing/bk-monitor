@@ -21,6 +21,12 @@ the project delivered to anyone in the future.
 """
 import base64
 
+from django.conf import settings
+from django.db.models import Q
+from django.utils.translation import ugettext as _
+from rest_framework import serializers
+from rest_framework.response import Response
+
 from apps.exceptions import ValidationError
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -61,6 +67,7 @@ from apps.log_databus.serializers import (
     PreviewContainersSerializer,
     RetrySerializer,
     RunSubscriptionSerializer,
+    SwitchBCSCollectorStorageSerializer,
     TaskDetailSerializer,
     TaskStatusSerializer,
     UpdateContainerCollectorSerializer,
@@ -78,11 +85,6 @@ from apps.log_search.permission import Permission
 from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
 from bkm_space.utils import space_uid_to_bk_biz_id
-from django.conf import settings
-from django.db.models import Q
-from django.utils.translation import ugettext as _
-from rest_framework import serializers
-from rest_framework.response import Response
 
 
 class CollectorViewSet(ModelViewSet):
@@ -322,6 +324,7 @@ class CollectorViewSet(ModelViewSet):
 
         response = super().list(request, *args, **kwargs)
         response.data["list"] = CollectorHandler.add_cluster_info(response.data["list"])
+        response.data["list"] = CollectorHandler.add_tags_info(response.data["list"])
 
         return response
 
@@ -2009,6 +2012,31 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.params_valid(PreCheckSerializer)
         return Response(CollectorHandler().pre_check(data))
+
+    @list_route(methods=["POST"], url_path="switch_bcs_collector_storage")
+    def switch_bcs_collector_storage(self, request):
+        """
+        @api {get} /databus/collectors/switch_bcs_collector_storage/ 切换存储集群
+        @apiName switch_bcs_collector_storage
+        @apiDescription 根据项目ID切换存量&增量存储集群
+        @apiGroup 10_Collector
+        @apiParam {Int} bk_biz_id 所属业务ID
+        @apiParam {Int} space_uid 所属空间唯一标识
+        @apiParam {Int} storage_cluster_id 存储集群ID
+        """
+        auth_info = Permission.get_auth_info(request, raise_exception=False)
+        if not auth_info:
+            raise BkJwtVerifyException()
+        data = self.params_valid(SwitchBCSCollectorStorageSerializer)
+        from apps.log_databus.tasks.collector import switch_bcs_collector_storage
+
+        switch_bcs_collector_storage.delay(
+            bk_biz_id=data["bk_biz_id"],
+            bcs_cluster_id=data["bcs_cluster_id"],
+            storage_cluster_id=data["storage_cluster_id"],
+            bk_app_code=auth_info["bk_app_code"],
+        )
+        return Response({"status": "success"})
 
     @list_route(methods=["GET"], url_path="list_bcs_collector")
     def list_bcs_collector(self, request):

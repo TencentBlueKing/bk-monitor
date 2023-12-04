@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 from django.core.management.base import BaseCommand
 
 from alarm_backends.core.cluster import get_cluster
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from bkmonitor.models import CacheNode, CacheRouter
 
 
@@ -39,7 +40,7 @@ class Command(BaseCommand):
     def handle_list(self, strategy_id):
         current_node_id = 0
         if strategy_id:
-            current_node_id = CacheRouter.get_node_by_strategy_id(strategy_id=strategy_id).id
+            current_node_id = get_node_by_strategy_id(strategy_id=strategy_id).id
         for node in CacheNode.objects.filter(is_enable=True, cluster_name=get_cluster().name):
             print(f"- ({node.id}){node}{' <- {}'.format(strategy_id) if current_node_id == node.id else ''}")
 

@@ -15,7 +15,7 @@ import logging
 import math
 import re
 import time
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain
@@ -28,38 +28,11 @@ from django.db.models import Count
 from django.http import HttpResponseRedirect
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import Q
-from fta_web.alert.handlers.action import ActionQueryHandler
-from fta_web.alert.handlers.alert import AlertQueryHandler
-from fta_web.alert.handlers.alert_log import AlertLogHandler
-from fta_web.alert.handlers.event import EventQueryHandler
-from fta_web.alert.handlers.translator import PluginTranslator
-from fta_web.alert.serializers import (
-    ActionIDField,
-    ActionSearchSerializer,
-    AlertFeedbackSerializer,
-    AlertIDField,
-    AlertSearchSerializer,
-    AlertSuggestionSerializer,
-    EventSearchSerializer,
-)
-from fta_web.models.alert import (
-    SEARCH_TYPE_CHOICES,
-    AlertFeedback,
-    AlertSuggestion,
-    MetricRecommendationFeedback,
-    SearchHistory,
-    SearchType,
-)
-from monitor_web.aiops.metric_recommend.constant import (
-    METRIC_RECOMMAND_SCENE_SERVICE_TEMPLATE,
-)
-from monitor_web.constants import AlgorithmType
-from monitor_web.data_explorer.resources import GetGraphQueryConfig
-from monitor_web.models import CustomEventGroup
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.cmdb.define import Host, ServiceInstance
+from bkmonitor.aiops.alert.utils import parse_anomaly
 from bkmonitor.data_source import load_data_source
 from bkmonitor.dataflow.constant import VisualType
 from bkmonitor.documents import (
@@ -108,11 +81,40 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.alert import (
     AIOpsFunctionAccessedError,
+    AIOpsMultiAnomlayDetectError,
     AIOpsResultError,
     AlertNotFoundError,
 )
 from core.errors.api import BKAPIError
 from core.unit import load_unit
+from fta_web.alert.handlers.action import ActionQueryHandler
+from fta_web.alert.handlers.alert import AlertQueryHandler
+from fta_web.alert.handlers.alert_log import AlertLogHandler
+from fta_web.alert.handlers.event import EventQueryHandler
+from fta_web.alert.handlers.translator import PluginTranslator
+from fta_web.alert.serializers import (
+    ActionIDField,
+    ActionSearchSerializer,
+    AlertFeedbackSerializer,
+    AlertIDField,
+    AlertSearchSerializer,
+    AlertSuggestionSerializer,
+    EventSearchSerializer,
+)
+from fta_web.models.alert import (
+    SEARCH_TYPE_CHOICES,
+    AlertFeedback,
+    AlertSuggestion,
+    MetricRecommendationFeedback,
+    SearchHistory,
+    SearchType,
+)
+from monitor_web.aiops.metric_recommend.constant import (
+    METRIC_RECOMMAND_SCENE_SERVICE_TEMPLATE,
+)
+from monitor_web.constants import AlgorithmType
+from monitor_web.data_explorer.resources import GetGraphQueryConfig
+from monitor_web.models import CustomEventGroup
 
 logger = logging.getLogger("root")
 
@@ -2135,7 +2137,6 @@ class AIOpsBaseResource(Resource, metaclass=ABCMeta):
 
         return cache_result
 
-    @abstractmethod
     def fetch_aiops_result(self, alert):
         """各种场景下获取AIOps算法结果.
 
@@ -2553,9 +2554,16 @@ class MetricRecommendationResource(AIOpsBaseResource):
         """
         graph_panel = AlertDetailResource.get_graph_panel(alert, use_raw_query_config=True)
 
-        # 告警指标大于1或者没有告警指标时，则不进行推荐
+        # 告警指标大于1、没有告警指标或为多指标异常检测时，则不进行推荐
         if len(alert.event["metric"]) != 1:
             return {}
+        try:
+            algoritm = alert.strategy["items"][0]["algorithms"][0]
+            if algoritm["type"] == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection:
+                return {}
+        except (KeyError, IndexError):
+            # 如果配置中没有找到算法类型，则跳过当前检测
+            pass
 
         processing_id = f'{settings.BK_DATA_METRIC_RECOMMEND_PROCESSING_ID_PREFIX}_{alert.event["bk_biz_id"]}'
         try:
@@ -2891,7 +2899,6 @@ class MetricRecommendationFeedbackResource(Resource):
             logger.exception(f"metric: [{feedback_obj.recommendation_metric}] feedback failed. exception: {e}")
 
     def perform_request(self, validated_request_data):
-
         alert_metric_id = validated_request_data["alert_metric_id"]
         recommendation_metric = validated_request_data["recommendation_metric_id"]
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -2923,6 +2930,82 @@ class MetricRecommendationFeedbackResource(Resource):
         result = {"feedback": {"good": good_count, "bad": bad_count, "self": feedback}}
 
         return result
+
+
+class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
+    """提供主机智能异常检测告警详情的图表配置."""
+
+    def perform_request(self, validated_request_data):
+        alert = AlertDocument.get(validated_request_data["alert_id"])
+
+        graph_panels = []
+        try:
+            strategy_algorithm = alert.strategy["items"][0]["algorithms"][0]
+            if strategy_algorithm["type"] == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection:
+                anomaly_sort = alert.origin_alarm["data"]["values"]["anomaly_sort"]
+                anomaly_metrics = parse_anomaly(anomaly_sort, strategy_algorithm["config"])
+
+                base_graph_panel = AlertDetailResource.get_graph_panel(alert, use_raw_query_config=True)
+                for anomaly_metric in anomaly_metrics:
+                    graph_panel = self.generate_metric_graph_panel(
+                        copy.deepcopy(base_graph_panel),
+                        anomaly_metric,
+                    )
+                    if graph_panel:
+                        graph_panels.append(graph_panel)
+        except (KeyError, IndexError):
+            raise AIOpsMultiAnomlayDetectError()
+
+        return graph_panels
+
+    def generate_metric_graph_panel(self, base_graph_panel: Dict, anomaly_metric: List) -> Dict:
+        """根据图表基础配置和指标ID生成指标图表配置
+
+        :param base_graph_panel: 基础图表配置
+        :param anomaly_metric: 异常指标
+            格式: [指标名, 数值, 异常得分, 带单位的数值, 指标中文名]
+            参考: ["bk_monitor.system.net.speed_recv", 2812154.0, 0.9799, "2812154.0Kbs", "网卡入流量"]
+        :return: 指标图表配置
+        """
+        graph_panel = copy.deepcopy(base_graph_panel)
+
+        # 获取当前异常指标的详情
+        metric_info = parse_metric_id(anomaly_metric[0])
+        if not metric_info:
+            return {}
+
+        metric = MetricListCache.objects.filter(**metric_info).first()
+        if not metric:
+            return {}
+
+        anomaly_info = {
+            "metric_id": anomaly_metric[0],
+            "anomaly_point": anomaly_metric[1],
+            "anomaly_score": anomaly_metric[2],
+            "anomaly_point_with_unit": anomaly_metric[3],
+            "metric_name": anomaly_metric[4],
+        }
+
+        graph_panel["id"] = anomaly_metric[0]
+        graph_panel["title"] = anomaly_metric[4]
+        graph_panel["subTitle"] = anomaly_metric[0]
+        graph_panel["anomaly_info"] = anomaly_info
+        graph_panel["result_table_label"] = metric.result_table_label
+        graph_panel["result_table_label_name"] = metric.result_table_label_name
+        graph_panel["metric_name_alias"] = metric.metric_field_name
+        graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
+        graph_panel["targets"][0]["alias"] = ""
+
+        # 因为推荐指标不一定具有告警相同的维度，因此这里不对维度进行任何聚合，只做指标的推荐
+        query_configs = graph_panel["targets"][0]["data"]["query_configs"]
+        for query_config in query_configs:
+            query_config["where"] = [item for item in query_config["where"] if item["key"] != "is_anomaly"]
+            query_config["data_source_label"] = metric.data_source_label
+            query_config["data_type_label"] = metric.data_type_label
+            query_config["table"] = metric.result_table_id
+            query_config["metrics"] = [{"field": metric.metric_field, "method": "AVG", "alias": "a"}]
+
+        return graph_panel
 
 
 class QuickAlertShield(QuickActionTokenResource):
