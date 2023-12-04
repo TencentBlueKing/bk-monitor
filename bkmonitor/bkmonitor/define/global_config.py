@@ -117,7 +117,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("STRATEGY_NOTICE_BUCKET_SIZE", slz.IntegerField(label=_("策略告警限流数量"), default=100)),
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label=_("是否开启全局告警屏蔽"), default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label=_("第三方事件接入业务白名单"), default=[])),
-        ("TIME_SERIES_METRIC_EXPIRED_DAYS", slz.IntegerField(label=_("自定义指标过期时间"), default=30)),
+        ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label=_("自定义指标过期时间"), default=30 * 24 * 3600)),
         ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label=_("获取自定义指标的间隔时间"), default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label=_("是否开启数据平台指标缓存"), default=True)),
         (
@@ -156,6 +156,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WINDOWS_GSE_AGENT_IPC_PATH", slz.CharField(label=_("Windows IPC 路径"), default="127.0.0.1:47000")),
         ("WECOM_ROBOT_BIZ_WHITE_LIST", slz.ListField(label=_("分级告警业务白名单"), default=[])),
         ("WECOM_ROBOT_ACCOUNT", slz.DictField(label=_("分级告警企业微信机器人账户"), default={})),
+        ("WECOM_ROBOT_APP", slz.DictField(label=_("分级告警企业微信应用号账户"), default={})),
         ("IS_WECOM_ROBOT_ENABLED", slz.BooleanField(label=_("是否启用分级机器人告警"), default=False)),
         ("MD_SUPPORTED_NOTICE_WAYS", slz.ListField(label=_("支持MD的通知方式列表"), default=["wxwork-bot"])),
         ("BK_DATA_PLAN_ID_INTELLIGENT_DETECTION", slz.IntegerField(label=_("ai设置单指标异常检测默认plan id"), default=0)),
