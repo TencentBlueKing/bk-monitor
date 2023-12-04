@@ -106,5 +106,8 @@ export default {
   指标维度设置: 'Metric / Dimension Setting',
   此操作存在危险: 'This operation is dangerous',
   DB设置: 'DB settings',
-  DB类型: 'DB type'
+  DB类型: 'DB type',
+  '{0}月': '{0} month',
+  轮值规则: 'Rotation rules',
+  轮值详情: 'Details of rotation'
 };
