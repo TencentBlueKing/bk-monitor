@@ -716,9 +716,9 @@ class SpaceTableIDRedis:
             return {}
 
         table_id_ts_group_id = {data["table_id"]: data["time_series_group_id"] for data in _filter_data}
-        # NOTE: 针对自定义时序，过滤掉历史废弃的指标，时间在`TIME_SERIES_METRIC_EXPIRED_DAYS`的为有效数据
+        # NOTE: 针对自定义时序，过滤掉历史废弃的指标，时间在`TIME_SERIES_METRIC_EXPIRED_SECONDS`的为有效数据
         # 其它类型直接获取所有指标和维度
-        begin_time = tz_now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+        begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         _filter_group_id_list = list(table_id_ts_group_id.values())
         ts_group_fields = filter_model_by_in_page(
             model=models.TimeSeriesMetric,
