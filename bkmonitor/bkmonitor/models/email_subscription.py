@@ -157,9 +157,9 @@ class SubscriptionApplyRecord(AbstractRecordModel):
 
     subscription_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
     bk_biz_id = models.IntegerField(verbose_name="业务ID", db_index=True)
-    approvers = models.JSONField("审批人", default=[])
+    approvers = models.JSONField("审批人", default=list)
     expire_time = models.DateTimeField("过期时间", null=True, default=None)
-    approval_step = models.JSONField("当前步骤", default=[])
+    approval_step = models.JSONField("当前步骤", default=list)
     approval_sn = models.CharField("审批单号", max_length=128, default="", null=True, blank=True)
     approval_url = models.CharField("审批地址", default="", max_length=1024, null=True, blank=True)
     status = models.CharField("审批状态", max_length=32, choices=APPROVAL_STATUS_CHOICES)

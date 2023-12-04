@@ -55,9 +55,9 @@ class Migration(migrations.Migration):
                 ('update_time', models.DateTimeField(auto_now=True, verbose_name='最后修改时间')),
                 ('subscription_id', models.IntegerField(db_index=True, verbose_name='订阅ID')),
                 ('bk_biz_id', models.IntegerField(db_index=True, verbose_name='业务ID')),
-                ('approvers', models.JSONField(default=[], verbose_name='审批人')),
+                ('approvers', models.JSONField(default=list, verbose_name='审批人')),
                 ('expire_time', models.DateTimeField(default=None, null=True, verbose_name='过期时间')),
-                ('approval_step', models.JSONField(default=[], verbose_name='当前步骤')),
+                ('approval_step', models.JSONField(default=list, verbose_name='当前步骤')),
                 (
                     'approval_sn',
                     models.CharField(blank=True, default='', max_length=128, null=True, verbose_name='审批单号'),
