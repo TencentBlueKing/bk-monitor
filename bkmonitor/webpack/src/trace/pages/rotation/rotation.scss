@@ -47,6 +47,15 @@
 
     .table-content {
       margin-top: 16px;
+
+      .rotation-name {
+        color: #3a84ff;
+        cursor: pointer;
+
+        &:hover {
+          color: #5594fa;
+        }
+      }
     }
 
     & > .content-header {

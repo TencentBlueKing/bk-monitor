@@ -197,7 +197,7 @@ export default defineComponent({
                   label={this.t('规则名称')}
                   hasColon={true}
                 >
-                  <span class='detail-text'>{this.detailData?.name || '--'}</span>
+                  <span class='detail-text text-wrap'>{this.detailData?.name || '--'}</span>
                 </FormItem>
                 <FormItem
                   label={this.t('标签')}
