@@ -1495,15 +1495,23 @@ class DataFlowHandler(BaseAiopsHandler):
         dst_transform_fields = [i.replace("`", "") for i in dst_transform_fields]
         mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
         for field in dst_transform_fields:
-            if field in mapping_all_fields_dict.keys():
+            if field not in mapping_all_fields_dict:
+                # 如果是 log
+                if field == clustering_fields:
+                    if field == DEFAULT_CLUSTERING_FIELD:
+                        format_transform_fields.append(f"`{field}`")
+                    else:
+                        format_transform_fields.append("`{}` as `{}`".format(DEFAULT_CLUSTERING_FIELD, field))
+                else:
+                    if field == DEFAULT_CLUSTERING_FIELD:
+                        format_transform_fields.append("`{}` as `{}`".format(field, clustering_fields))
+                    else:
+                        format_transform_fields.append(f"`{field}`")
+            else:
                 if field != mapping_all_fields_dict[field]:
                     format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
                 else:
                     format_transform_fields.append(f"`{field}`")
-            if field == DEFAULT_CLUSTERING_FIELD:
-                format_transform_fields.append(
-                    "`{}` as `{}`".format(field, all_fields_dict.get(clustering_config.clustering_fields))
-                )
 
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
