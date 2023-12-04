@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+from itertools import chain
 from typing import Dict, List
 
 import yaml
@@ -1095,7 +1096,7 @@ class GetTimeSeriesMetricsResource(Resource):
 
 
 class QueryTimeSeriesGroupResource(Resource):
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(PageSerializer):
         label = serializers.CharField(required=False, label="自定义分组标签", default=None)
         time_series_group_name = serializers.CharField(required=False, label="自定义分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
@@ -1119,11 +1120,16 @@ class QueryTimeSeriesGroupResource(Resource):
         if time_series_group_name is not None:
             query_set = query_set.filter(time_series_group_name=time_series_group_name)
 
-        results = []
-        for time_series_group in query_set:
-            results = results + time_series_group.to_json_v2()
+        if validated_request_data["page_size"] > 0:
+            # page_size > 0 才分页
+            count = query_set.count()
+            limit = validated_request_data["page_size"]
+            offset = (validated_request_data["page"] - 1) * validated_request_data["page_size"]
+            paginated_query_set = query_set[offset : offset + limit]
+            results = list(chain.from_iterable(instance.to_json_v2() for instance in paginated_query_set))
+            return {"count": count, "info": results}
 
-        return results
+        return list(chain.from_iterable(instance.to_json_v2() for instance in query_set))
 
 
 class QueryBCSMetricsResource(Resource):

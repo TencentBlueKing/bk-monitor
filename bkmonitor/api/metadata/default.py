@@ -450,6 +450,9 @@ class QueryTimeSeriesGroupResource(MetaDataAPIGWResource):
         label = serializers.CharField(required=False, label="分组标签")
         time_series_group_name = serializers.CharField(required=False, label="分组名称")
 
+    def perform_request(self, validated_request_data):
+        return batch_request(api.metadata.query_time_series_group, validated_request_data, limit=1000, app="metadata")
+
 
 class QueryTagValuesResource(MetaDataAPIGWResource):
     """
