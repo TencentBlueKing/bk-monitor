@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('bkmonitor', '0149_monitormigration'),
+        ('bkmonitor', '0153_dutyrule_code_hash'),
     ]
 
     operations = [
