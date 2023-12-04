@@ -15,6 +15,7 @@ from typing import Dict, List
 from django.core.management import BaseCommand, CommandError
 
 from metadata import models
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.constants import VM_RETENTION_TIME, TimestampLen
 from metadata.models.vm.utils import (
     access_vm_by_kafka,
@@ -135,7 +136,7 @@ class Command(BaseCommand):
         for _, data_id_and_time in table_ids.items():
             self._refresh_consul(data_id_and_time["bk_data_id"])
         # 刷新 redis
-        self._refresh_redis(table_ids.keys())
+        self._refresh_redis(space_type, space_id, list(table_ids.keys()))
 
         # 创建空间对应的记录
         models.SpaceVMInfo.objects.get_or_create(
@@ -327,10 +328,14 @@ class Command(BaseCommand):
         models.DataSource.objects.get(bk_data_id=data_id).refresh_consul_config()
         self.stdout.write("refresh consul config success")
 
-    def _refresh_redis(self, table_id_list: List[str]):
+    def _refresh_redis(self, space_type: str, space_id: str, table_id_list: List[str]):
         """刷新 redis 配置"""
         self.stdout.write("start refresh router redis config")
-        objs = models.InfluxDBStorage.objects.filter(table_id__in=table_id_list)
-        for obj in objs:
-            obj.push_redis_data(is_publish=True)
+
+        # 推送数据
+        client = SpaceTableIDRedis()
+        client.push_space_table_ids(space_type, space_id, is_publish=True)
+        client.push_data_label_table_ids(table_id_list=table_id_list)
+        client.push_table_id_detail(table_id_list=table_id_list)
+
         self.stdout.write("refresh router redis config success")

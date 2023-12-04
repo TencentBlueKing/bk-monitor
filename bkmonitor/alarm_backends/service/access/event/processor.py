@@ -205,10 +205,17 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             cls._kafka_queues[queue_key] = kafka_queue
         return cls._kafka_queues[queue_key]
 
-    def __init__(self, data_id=None):
+    def __init__(self, data_id=None, topic=None):
         super(AccessCustomEventGlobalProcess, self).__init__()
 
         self.data_id = data_id
+        if not topic:
+            # 获取topic信息
+            topic_info = api.metadata.get_data_id(bk_data_id=self.data_id, with_rt_info=False)
+            self.topic = topic_info["mq_config"]["storage_config"]["topic"]
+        else:
+            self.topic = topic
+
         self.strategies = {}
 
         # gse基础事件、自定义字符型、进程托管事件策略ID列表缓存
@@ -280,12 +287,9 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
 
         from alarm_backends.service.access.tasks import run_access_event_handler
 
-        # 获取topic信息
-        topic_info = api.metadata.get_data_id(bk_data_id=self.data_id, with_rt_info=False)
-        topic = topic_info["mq_config"]["storage_config"]["topic"]
         record_list = []
 
-        if not topic:
+        if not self.topic:
             logger.warning("[access] dataid:(%s) no topic" % self.data_id)
             return
 
@@ -297,7 +301,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
             group_prefix = f"{cluster_name}.access.event.{self.data_id}"
 
         try:
-            kafka_queue = self.get_kafka_queue(topic=topic, group_prefix=group_prefix)
+            kafka_queue = self.get_kafka_queue(topic=self.topic, group_prefix=group_prefix)
             try:
                 with service_lock(ACCESS_EVENT_LOCKS, data_id=self.data_id):
                     # 加锁成功，拉取数据
@@ -315,7 +319,7 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
 
             if len(result) == MAX_RETRIEVE_NUMBER:
                 # 数据大小刚好等于上限，说明可能还有数据，继续将此 data_id 重新发布任务
-                run_access_event_handler.delay(data_id=self.data_id)
+                run_access_event_handler.delay(data_id=self.data_id, topic=self.topic)
 
             for m in result:
                 if not m:
@@ -327,12 +331,12 @@ class AccessCustomEventGlobalProcess(BaseAccessEventProcess):
                     if event_record and event_record.check():
                         record_list.extend(event_record.flat())
                 except Exception as e:
-                    logger.exception("topic(%s) loads alarm(%s) failed, %s", topic, m, e)
+                    logger.exception("topic(%s) loads alarm(%s) failed, %s", self.topic, m, e)
             self.record_list.extend(record_list)
         except Exception as e:
-            logger.exception("topic(%s) poll alarm failed, %s", topic, e)
+            logger.exception("topic(%s) poll alarm failed, %s", self.topic, e)
         metrics.ACCESS_EVENT_PROCESS_PULL_DATA_COUNT.labels(self.data_id).inc(len(record_list))
-        logger.info("topic(%s) poll alarm list(%s)", topic, len(record_list))
+        logger.info("topic(%s) poll alarm list(%s)", self.topic, len(record_list))
 
     def process(self):
         with metrics.ACCESS_EVENT_PROCESS_TIME.labels(data_id=self.data_id).time():

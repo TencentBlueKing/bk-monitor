@@ -122,7 +122,7 @@ def bk_monitor_collect():
                 "sub_types": [metric["sub_type"]] if metric["sub_type"] else None,
             }
             logger.info("[statistics_data] metric->{} receive collection task.".format(metric_id))
-            collect_metrics(
+            collect_metrics.delay(
                 import_paths, collect_params["namespaces"], collect_params["data_names"], collect_params["sub_types"]
             )
     # 清理注册表里的内容，下一次运行的时候重新注册
@@ -166,5 +166,5 @@ def collect_metrics(
         # 清理注册表里的内容，下一次运行的时候重新注册
         clear_registered_metrics()
 
-    except Exception as ex:
+    except Exception as ex:  # pylint:disable=broad-except
         logger.exception(f"[statistics_data] Failed to save metric_data, msg: {ex}")
