@@ -25,9 +25,11 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { unmount } from '@blueking/bk-weweb';
 
 import './rotation.scss';
 
+const wewebId = 'trace';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class Rotation extends tsc<{}> {
@@ -47,6 +49,7 @@ export default class Rotation extends tsc<{}> {
     });
   }
   beforeRouteLeave(to, from, next) {
+    unmount(wewebId);
     (document.body as any).___zrEVENTSAVED = null;
     next();
   }
@@ -61,7 +64,7 @@ export default class Rotation extends tsc<{}> {
           class='rotation-iframe'
           url={this.rotationUrl}
           showSourceCode={true}
-          id='trace'
+          id={wewebId}
           data={this.rotationData}
         />
       </div>
