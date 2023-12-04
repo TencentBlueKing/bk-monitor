@@ -82,7 +82,7 @@ class APMCollector(BaseCollector):
             for ins in instances:
                 metric.labels(bk_biz_id=biz_id, bk_biz_name=self.get_biz_name(biz_id), app_name=ins.app_name).inc()
 
-    @register(labelnames=("bk_biz_id", "bk_biz_name", "application_id"))
+    @register(labelnames=("bk_biz_id", "bk_biz_name", "app_name"))
     def application_status(self, metric: Metric):
         """
         应用数据状态
@@ -97,8 +97,8 @@ class APMCollector(BaseCollector):
             bk_biz_name = self.get_biz_name(biz_id)
             for app in apps:
                 if app.data_status == DataStatus.NORMAL:
-                    metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, application_id=app.application_id).set(1)
+                    metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, app_name=app.app_name).set(1)
                 elif app.data_status == DataStatus.NO_DATA:
-                    metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, application_id=app.application_id).set(0)
+                    metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, app_name=app.app_name).set(0)
                 else:
-                    metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, application_id=app.application_id).set(-1)
+                    metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name, app_name=app.app_name).set(-1)
