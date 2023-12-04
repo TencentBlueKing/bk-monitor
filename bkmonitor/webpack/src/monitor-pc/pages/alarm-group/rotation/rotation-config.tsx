@@ -343,7 +343,7 @@ export default class RotationConfig extends tsc<IProps> {
   handleSearchChange(v: string) {
     this.search = v;
     this.allDutyList.forEach(item => {
-      item.show = item.labels.some(l => l === this.search) || item.name.indexOf(this.search) >= 0;
+      item.show = item.labels.some(l => l.indexOf(this.search) >= 0) || item.name.indexOf(this.search) >= 0;
     });
   }
   /**
@@ -441,7 +441,7 @@ export default class RotationConfig extends tsc<IProps> {
     this.allDutyList = list.map(item => ({
       ...item,
       isCheck: sets.has(item.id),
-      show: item.labels.some(l => l === this.search) || item.name.indexOf(this.search) >= 0,
+      show: item.labels.some(l => l.indexOf(this.search) >= 0) || item.name.indexOf(this.search) >= 0,
       typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
     }));
     this.refreshLoading = false;
@@ -618,8 +618,9 @@ export default class RotationConfig extends tsc<IProps> {
                       <span class='tags'>
                         {item.labels.map((tag, tagIndex) => (
                           <span
-                            class={['item-tag', { active: this.search === tag }]}
+                            class={['item-tag', { active: !!this.search && tag.indexOf(this.search) >= 0 }]}
                             key={tagIndex}
+                            v-bk-overflow-tips
                           >
                             {tag}
                           </span>
