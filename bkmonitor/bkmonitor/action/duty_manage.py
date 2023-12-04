@@ -716,20 +716,21 @@ class GroupDutyRuleManager:
         if last_record:
             last_send_time = datetime.fromtimestamp(last_record.last_send_time, tz=self.user_group.tz_info)
             if last_send_time.day == current_time.day and last_send_time.strftime("%H:%M") >= compare_time:
-                # 如果最后一次记录的时间就在今天，表示已经发送过并且配置时间未发生过变化，忽略
+                # 如果最后一次记录的时间就在今天，已经发送过并且配置时间未发生过变化（配置时间小于最后一次发送时间），忽略
                 # 这里是为了兼容部分用户改了报表的时间，如果是当天的，需要立马发出
                 return
 
         # 过滤的范围：开始时间处于两个时间范围之内的
         # 开始时间小于当前时间，但是结束时间大于当前时间的
+        current_time_str = time_tools.datetime2str(current_time)
+        end_time_str = time_tools.datetime2str(end_datetime)
         duty_plan_queryset = DutyPlan.objects.filter(user_group_id=self.user_group.id).filter(
             Q(
-                start_time__gte=time_tools.datetime2str(current_time),
-                start_time__lte=time_tools.datetime2str(end_datetime),
+                start_time__gte=current_time_str,
+                start_time__lte=end_time_str,
             )
             | Q(
-                Q(start_time__lte=time_tools.datetime2str(current_time))
-                & Q(Q(finished_time__gte=time_tools.datetime2str(current_time)) | Q(finished_time__in=["", None])),
+                Q(start_time__lte=current_time_str) & Q(finished_time__gte=current_time_str),
             )
         )
         duty_plans = [
@@ -752,7 +753,8 @@ class GroupDutyRuleManager:
             duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
             duty_contents = []
             for work_time in duty_plan["work_times"]:
-                duty_contents.append(f"\\n> {work_time['start_time']} -- {work_time['end_time']}  {duty_users}")
+                if work_time['start_time'] <= end_time_str:
+                    duty_contents.append(f"\\n> {work_time['start_time']} -- {work_time['end_time']}  {duty_users}")
             if duty_contents:
                 notice_content.extend(duty_contents)
         sender = Sender(
