@@ -152,6 +152,7 @@ StrategySchema = Schema(
             Optional("assign_mode", default=lambda: ["only_notice", "by_rule"]): And(
                 [Or("only_notice", "by_rule")], lambda x: len(x) > 0
             ),
+            Optional("chart_image_enabled", default=True): bool,
             Optional("interval_mode", default="standard"): Or("standard", "increasing"),
             Optional("interval", default=120): int,
             Optional(
@@ -307,6 +308,7 @@ AssignGroupRuleSchema = Schema(
                         Optional("condition", default="and"): Or("and"),
                     }
                 ],
+                Optional("notice_enabled"): bool,
                 Optional("upgrade_config", default=lambda: {"enabled": False, "user_groups": [], "interval": 1440}): {
                     "enabled": bool,
                     "user_groups": [str],

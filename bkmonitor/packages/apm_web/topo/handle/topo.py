@@ -14,6 +14,9 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from typing import List
 
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext_lazy as _
+
 from apm_web.constants import (
     CalculationMethod,
     CategoryEnum,
@@ -34,10 +37,7 @@ from apm_web.models import (
     AppServiceRelation,
     LogServiceRelation,
 )
-from apm_web.utils import get_time_period, group_by
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-
+from apm_web.utils import group_by
 from constants.apm import OtlpKey, SpanKind
 from core.drf_resource import api
 
@@ -272,18 +272,15 @@ class TopoHandler:
             bk_biz_id=self.application.bk_biz_id,
             match_type=CustomServiceMatchType.MANUAL,
         )
-        distance, period = get_time_period(self.start_time, self.end_time)
-        self.distance = distance
-        self.period = period
 
         # 获取服务指标
         self.service_metric = {
-            **TOPO_SERVICE_METRIC(self.application, period=self.period, distance=self.distance),
-            **TOPO_REMOTE_SERVICE_METRIC(self.application, period=self.period, distance=self.distance),
+            **TOPO_SERVICE_METRIC(self.application, start_time=self.start_time, end_time=self.end_time),
+            **TOPO_REMOTE_SERVICE_METRIC(self.application, start_time=self.start_time, end_time=self.end_time),
         }
         # 获取服务下组件指标
         self.service_components_metric = ComponentHandler.get_service_component_metrics(
-            self.application, self.distance, self.period, metric_clz=TOPO_COMPONENT_METRIC
+            self.application, self.start_time, self.end_time, metric_clz=TOPO_COMPONENT_METRIC
         )
 
     def get_topo_view(
@@ -374,7 +371,6 @@ class TopoHandler:
 
         for node_name, node_dbs in node_db_mapping.items():
             for converge, c_nodes in node_dbs.items():
-
                 for c_node in c_nodes:
                     if c_node in nodes:
                         nodes.remove(c_node)
@@ -461,7 +457,6 @@ class TopoHandler:
         return res
 
     def process_tips(self, nodes):
-
         instance_count_mapping = defaultdict(int)
         for instance in self.original_instances:
             instance_count_mapping[instance["topo_node_key"]] += 1
@@ -504,7 +499,6 @@ class TopoHandler:
             node.tips = node_metric
 
     def get_simple_node_metric(self, node: TopoNode):
-
         kind = node.kind
 
         if kind == TopoNodeKind.SERVICE:
@@ -532,11 +526,9 @@ class TopoHandler:
         source = fission_mapping[node.id]
 
         for index, origin_node in enumerate(node.original_node):
-
             tmp_where = []
 
             for key_index, key in enumerate(origin_node.get("extra_data", {}).get("instance", {}).keys()):
-
                 tmp_where.append(
                     {
                         "condition": "or" if index != 0 and key_index == 0 else "and",
@@ -552,7 +544,7 @@ class TopoHandler:
             where += tmp_where
 
         component_metric = TOPO_COMPONENT_METRIC(
-            self.application, period=self.period, distance=self.distance, where=where, group_key=[]
+            self.application, start_time=self.start_time, end_time=self.end_time, where=where, group_key=[]
         )
 
         if component_metric:
@@ -666,7 +658,6 @@ class TopoHandler:
         return f"/?bizId={bk_biz_id}#/apm/application/?filter-app_name={app_name}"
 
     def process_menu(self, nodes: List[TopoNode], service_name=None):
-
         log_service_names = LogServiceRelation.objects.filter(
             service_name__in=[i.name for i in nodes],
             bk_biz_id=self.application.bk_biz_id,
@@ -875,9 +866,7 @@ class TopoHandler:
         ]
 
     def get_topo_list(self, category=None):
-        distance, period = get_time_period(self.start_time, self.end_time)
-
-        metric_data = TOPO_LIST(self.application, distance=distance, period=period)
+        metric_data = TOPO_LIST(self.application, start_time=self.start_time, end_time=self.end_time)
         res = []
 
         for relation in self.original_relations:

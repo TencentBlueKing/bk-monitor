@@ -214,12 +214,13 @@
           v-for="item of seriesData"
           :key="item.target"
           :label="item.target"
-          :prop="item.target"
+          :prop="item.key"
           sortable
           min-width="120"
+          :render-header="renderHeader"
         >
           <template #default="{ row }">
-            {{ row[item.target] }}
+            {{ row[item.key] }}
           </template>
         </bk-table-column>
       </bk-table>
@@ -227,6 +228,7 @@
   </div>
 </template>
 <script lang="ts">
+import { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
@@ -237,12 +239,7 @@ import { debounce } from 'throttle-debounce';
 
 import { traceListById } from '../../monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
-import {
-  downCsvFile,
-  IUnifyQuerySeriesItem,
-  transformSrcData,
-  transformTableDataToCsvStr
-} from '../../monitor-pc/pages/view-detail/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from '../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -542,7 +539,7 @@ export default class MonitorEcharts extends Vue {
     /** { time: 各个图表在同一时间点的值 } */
     const data: { [key: string]: { [key: string]: number } } = this.seriesData.reduce((pre, cur) => {
       cur.datapoints.forEach((item) => {
-        pre[item[1]] = { ...pre[item[1]], [cur.target]: item[0] };
+        pre[item[1]] = { ...pre[item[1]], [cur.key]: item[0] };
       });
       return pre;
     }, {});
@@ -621,6 +618,18 @@ export default class MonitorEcharts extends Vue {
     this.chart && this.destroy();
     document.removeEventListener('mousemove', this.documentMousemove);
     document.removeEventListener('mouseup', this.documentMouseup);
+  }
+
+  renderHeader(h: CreateElement, data) {
+    const { column } = data;
+    return h(
+      'div',
+      {
+        class: 'ellipsis',
+        directives: [{ name: 'bk-overflow-tips' }]
+      },
+      column.label
+    );
   }
 
   /** 图表拉伸 */
@@ -715,7 +724,11 @@ export default class MonitorEcharts extends Vue {
         console.info(e);
         return [];
       });
-      this.seriesData = [...data];
+      console.log(data);
+      this.seriesData = [...data].map(item => ({
+        ...item,
+        key: item.target.replace(/\./g, '_')
+      }));
       !this.chart && this.initChart();
       if (!this.isEchartsRender || Array.isArray(data)) {
         await this.handleSetChartData(data);
@@ -772,7 +785,10 @@ export default class MonitorEcharts extends Vue {
             }
           ] = realSeries;
           // 获取图表的指标信息 多指标情况下不显示
-          const hasExtendMetricData = extendData && realSeries.every(item => item?.metric?.metric_field === metricFiled);
+          let hasExtendMetricData = extendData;
+          if (extendData) {
+            hasExtendMetricData = realSeries.every(item => item?.metric?.metric_field === metricFiled);
+          }
           this.extendMetricData = hasExtendMetricData ? extendData : null;
           if (hasExtendMetricData && typeof this.getAlarmStatus === 'function') {
             this.getAlarmStatus(extendData.metric_id)
@@ -1099,9 +1115,17 @@ export default class MonitorEcharts extends Vue {
    */
   handleExportCsv() {
     if (!!this.seriesData?.length) {
-      const { tableThArr, tableTdArr } = transformSrcData(this.seriesData);
-      const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-      downCsvFile(csvString, this.title);
+      const csvList = [];
+      const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
+      csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
+      this.tableData.forEach((item) => {
+        const list = [];
+        keys.forEach((key) => {
+          list.push(item[key]);
+        });
+        csvList.push(list.join(','));
+      });
+      downCsvFile(csvList.join('\n'), this.title);
     }
   }
   // 点击title 告警图标跳转
@@ -1582,16 +1606,6 @@ export default class MonitorEcharts extends Vue {
     margin-top: 5px;
     cursor: row-resize;
 
-    &:hover {
-      &::before {
-        border-color: #5794f2;
-      }
-
-      &::after {
-        background: #3a84ff;
-      }
-    }
-
     &::before {
       position: absolute;
       top: 50%;
@@ -1612,6 +1626,16 @@ export default class MonitorEcharts extends Vue {
       background: #c4c6cc;
       border-radius: 2px;
       transform: translate(-50%, -50%);
+    }
+
+    &:hover {
+      &::before {
+        border-color: #5794f2;
+      }
+
+      &::after {
+        background: #3a84ff;
+      }
     }
   }
 
@@ -1642,6 +1666,12 @@ export default class MonitorEcharts extends Vue {
       ::v-deep th.is-leaf {
         height: 32px;
       }
+    }
+
+    ::v-deep .ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }

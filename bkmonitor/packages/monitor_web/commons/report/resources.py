@@ -27,7 +27,6 @@ class FrontendReportEventResource(Resource):
         dimensions = serializers.DictField(label="维度信息", required=False, default={})
         event_name = serializers.CharField(label="事件名称", required=True)
         event_content = serializers.CharField(label="事件内容", allow_blank=True, default="")
-        target = serializers.CharField(label="事件目标", required=True)
         timestamp = serializers.IntegerField(label="事件时间戳(ms)", required=False)
 
     def perform_request(self, params):
@@ -36,15 +35,21 @@ class FrontendReportEventResource(Resource):
             return
 
         # 获取上报地址
-        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
-            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
-        elif settings.CUSTOM_REPORT_DEFAULT_PROXY_IP:
-            host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
+        if not settings.FRONTEND_REPORT_DATA_HOST:
+            if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
+                host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
+            elif settings.CUSTOM_REPORT_DEFAULT_PROXY_IP:
+                host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
+            else:
+                return
+            host = f"{host}:10205"
         else:
-            return
+            host = settings.FRONTEND_REPORT_DATA_HOST
 
-        url = f"http://{host}:10205/v2/push/"
+        url = f"http://{host}/v2/push/"
 
+        params["dimensions"]["app_code"] = "bkmonitor"
+        params["target"] = settings.ENVIRONMENT_CODE
         report_data = {
             "data_id": int(settings.FRONTEND_REPORT_DATA_ID),
             "access_token": settings.FRONTEND_REPORT_DATA_TOKEN,

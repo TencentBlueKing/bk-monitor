@@ -199,6 +199,7 @@
               :rules="basicRules.access_key_secret"
               :property="formData.cosFormData.access_key_secret">
               <bk-input
+                type="password"
                 v-model="formData.cosFormData.access_key_secret"
                 data-test-id="addNewStorehouse_input_SecretKey"></bk-input>
             </bk-form-item>
@@ -416,22 +417,22 @@ export default {
         const url = '/archive/createRepository';
         const {
           cluster_id,
-          snapshot_repository_name,
-          es_config,
+          snapshot_repository_name: snapshotRepositoryName,
+          es_config: esConfig,
           hdfsFormData,
           fsFormData,
           cosFormData,
         } = this.formData;
         const paramsData = {
           cluster_id,
-          snapshot_repository_name,
-          alias: snapshot_repository_name,
+          snapshot_repository_name: snapshotRepositoryName,
+          alias: snapshotRepositoryName,
           es_config: {
-            type: es_config.type,
+            type: esConfig.type,
           },
           bk_biz_id: this.bkBizId,
         };
-        if (es_config.type === 'hdfs') {
+        if (esConfig.type === 'hdfs') {
           const { uri, path, isSecurity, security, compress  } = hdfsFormData;
           const principal = isSecurity ? security.principal : undefined;
           paramsData.es_config.settings = {
@@ -441,10 +442,10 @@ export default {
             'security.principal': principal,
           };
         }
-        if (es_config.type === 'fs') {
+        if (esConfig.type === 'fs') {
           paramsData.es_config.settings = { ...fsFormData };
         }
-        if (es_config.type === 'cos') {
+        if (esConfig.type === 'cos') {
           paramsData.es_config.settings = { ...cosFormData };
         }
 

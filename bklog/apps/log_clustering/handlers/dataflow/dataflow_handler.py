@@ -25,6 +25,11 @@ import os
 from dataclasses import asdict
 
 import arrow
+from django.conf import settings
+from django.utils.translation import ugettext as _
+from jinja2 import Environment, FileSystemLoader
+from retrying import retry
+
 from apps.api import BkDataAIOPSApi, BkDataDatabusApi, BkDataDataFlowApi, BkDataMetaApi
 from apps.api.base import DataApiRetryClass, check_result_is_true
 from apps.log_clustering.constants import (
@@ -100,10 +105,6 @@ from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from jinja2 import Environment, FileSystemLoader
-from retrying import retry
 
 
 class DataFlowHandler(BaseAiopsHandler):
@@ -1097,7 +1098,6 @@ class DataFlowHandler(BaseAiopsHandler):
             self.update_flow_nodes({"sql": sql}, flow_id=flow_id, node_id=not_cluster_nodes["node_id"])
 
     def deal_update_predict_node(self, predict_node, flow_id, predict_change_args):
-
         if predict_node:
             model_extra_config = predict_node["node_config"]["model_extra_config"]
             predict_args = model_extra_config.get("predict_args", {})
@@ -1649,6 +1649,9 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.predict_flow_id = result["flow_id"]
         # 聚类预测节点的输出 RT
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
+        # 聚类数据链路旁路化改造   计算平台:填充聚类结果表   采集项:暂不填充
+        if not clustering_config.collector_config_id:
+            clustering_config.clustered_rt = predict_flow_dict["rename_signature"]["result_table_id"]
         clustering_config.save()
 
         # 添加日志数量聚类 flow数据回流节点

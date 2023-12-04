@@ -29,6 +29,11 @@ from typing import Any, Dict, List, Union
 
 import arrow
 import yaml
+from django.conf import settings
+from django.db import IntegrityError, transaction
+from django.utils.translation import ugettext as _
+from rest_framework.exceptions import ErrorDetail, ValidationError
+
 from apps.api import BcsCcApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
 from apps.api.modules.bk_node import BKNodeApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -120,6 +125,7 @@ from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
     ArchiveConfig,
     BcsRule,
+    BcsStorageClusterConfig,
     CleanStash,
     CollectorConfig,
     CollectorPlugin,
@@ -135,10 +141,18 @@ from apps.log_search.constants import (
     CollectorScenarioEnum,
     CustomTypeEnum,
     GlobalCategoriesEnum,
+    InnerTag,
 )
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, Space
+from apps.log_search.models import (
+    IndexSetTag,
+    LogIndexSet,
+    LogIndexSetData,
+    Scenario,
+    Space,
+    StorageClusterRecord,
+)
 from apps.models import model_to_dict
 from apps.utils.bcs import Bcs
 from apps.utils.cache import caches_one_hour
@@ -151,10 +165,6 @@ from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.db import IntegrityError, transaction
-from django.utils.translation import ugettext as _
-from rest_framework.exceptions import ErrorDetail, ValidationError
 
 
 class CollectorHandler(object):
@@ -480,7 +490,7 @@ class CollectorHandler(object):
         @return:
         """
         result_table_list = [_data["table_id"] for _data in data if _data.get("table_id")]
-        cluster_infos = {}
+
         try:
             cluster_infos = cls.bulk_cluster_infos(result_table_list=result_table_list)
         except ApiError as error:
@@ -528,6 +538,45 @@ class CollectorHandler(object):
                 )
             else:
                 _data["is_search"] = False
+
+        return data
+
+    @classmethod
+    def add_tags_info(cls, data):
+        """添加标签信息"""
+        index_set_ids = [data_info.get("index_set_id") for data_info in data if data_info.get("index_set_id")]
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+
+        tag_ids_mapping = dict()
+        tag_ids_all = list()
+
+        for obj in index_set_objs:
+            tag_ids_mapping[obj.index_set_id] = obj.tag_ids
+            tag_ids_all.extend(obj.tag_ids)
+
+        # 查询出所有的tag信息
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        index_set_tag_mapping = {
+            obj.tag_id: {
+                "name": InnerTag.get_choice_label(obj.name),
+                "color": obj.color,
+                "tag_id": obj.tag_id,
+            }
+            for obj in index_set_tag_objs
+        }
+
+        for data_info in data:
+            index_set_id = data_info.get("index_set_id", None)
+            if not index_set_id:
+                data_info["tags"] = list()
+                continue
+            tag_ids = tag_ids_mapping.get(int(index_set_id), [])
+            if not tag_ids:
+                data_info["tags"] = list()
+                continue
+            data_info["tags"] = [
+                index_set_tag_mapping.get(int(tag_id)) for tag_id in tag_ids if index_set_tag_mapping.get(int(tag_id))
+            ]
 
         return data
 
@@ -1422,7 +1471,7 @@ class CollectorHandler(object):
                     "is_label": False,
                     "label_name": "",
                     "bk_obj_name": _("主机"),
-                    "node_path": "主机",
+                    "node_path": _("主机"),
                     "bk_obj_id": "host",
                     "bk_inst_id": "",
                     "bk_inst_name": "",
@@ -1929,7 +1978,7 @@ class CollectorHandler(object):
                         "is_label": False,
                         "label_name": "",
                         "bk_obj_name": _("主机"),
-                        "node_path": "主机",
+                        "node_path": _("主机"),
                         "bk_obj_id": "host",
                         "bk_inst_id": "",
                         "bk_inst_name": "",
@@ -1948,7 +1997,7 @@ class CollectorHandler(object):
                     "is_label": False,
                     "label_name": "",
                     "bk_obj_name": _("主机"),
-                    "node_path": "主机",
+                    "node_path": _("主机"),
                     "bk_obj_id": "host",
                     "bk_inst_id": "",
                     "bk_inst_name": "",
@@ -2986,7 +3035,11 @@ class CollectorHandler(object):
 
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
-        conf = self.get_bcs_config(bk_biz_id=data["bk_biz_id"], storage_cluster_id=data.get("storage_cluster_id"))
+        conf = self.get_bcs_config(
+            bk_biz_id=data["bk_biz_id"],
+            bcs_cluster_id=data["bcs_cluster_id"],
+            storage_cluster_id=data.get("storage_cluster_id"),
+        )
         bcs_collector_config_name = self.generate_collector_config_name(
             bcs_cluster_id=data["bcs_cluster_id"],
             collector_config_name=data["collector_config_name"],
@@ -3171,6 +3224,36 @@ class CollectorHandler(object):
         )
         return path_index_set, std_index_set
 
+    @staticmethod
+    def update_bcs_project_index_set_storage(bcs_cluster_id, bk_biz_id, storage_cluster_id):
+        """
+        更新BCS项目索引集的存储集群配置
+        """
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid)
+
+        std_index_set_name = f"{bcs_cluster_id}_std"
+        std_index_set = src_index_list.filter(index_set_name=std_index_set_name).first()
+        path_index_set_name = f"{bcs_cluster_id}_path"
+        path_index_set = src_index_list.filter(index_set_name=path_index_set_name).first()
+        # 更新索引集当前存储集群配置，并创建该索引集存储集群切换记录
+        if path_index_set:
+            old_storage_cluster_id = path_index_set.storage_cluster_id
+            if old_storage_cluster_id != storage_cluster_id:
+                path_index_set.storage_cluster_id = storage_cluster_id
+                path_index_set.save()
+                StorageClusterRecord.objects.create(
+                    index_set_id=path_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
+                )
+        if std_index_set:
+            old_storage_cluster_id = std_index_set.storage_cluster_id
+            if old_storage_cluster_id != storage_cluster_id:
+                std_index_set.storage_cluster_id = storage_cluster_id
+                std_index_set.save()
+                StorageClusterRecord.objects.create(
+                    index_set_id=std_index_set.index_set_id, storage_cluster_id=old_storage_cluster_id
+                )
+
     @classmethod
     def generate_collector_config_name(cls, bcs_cluster_id, collector_config_name, collector_config_name_en):
         lower_cluster_id = convert_lower_cluster_id(bcs_cluster_id)
@@ -3276,30 +3359,11 @@ class CollectorHandler(object):
 
     @transaction.atomic
     def update_bcs_container_config(self, data, rule_id):
-        bcs_collector_config_name = self.generate_collector_config_name(
-            bcs_cluster_id=data["bcs_cluster_id"],
-            collector_config_name=data["collector_config_name"],
-            collector_config_name_en=data.get(""),
-        )
-
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
         if len(collectors) != DEFAULT_COLLECTOR_LENGTH:
             raise RuleCollectorException(RuleCollectorException.MESSAGE.format(rule_id=rule_id))
         for collector in collectors:
             if collector.collector_config_name_en.endswith("_path"):
-                if (
-                    collector.collector_config_name
-                    != bcs_collector_config_name["bcs_path_collector"]["collector_config_name"]
-                ):
-                    index_set_name = (
-                        _("[采集项]") + bcs_collector_config_name["bcs_path_collector"]["collector_config_name"]
-                    )
-                    LogIndexSet.objects.filter(index_set_id=collector.index_set_id).update(
-                        index_set_name=index_set_name
-                    )
-                collector.collector_config_name = bcs_collector_config_name["bcs_path_collector"][
-                    "collector_config_name"
-                ]
                 collector.description = data["description"]
                 collector.bcs_cluster_id = data["bcs_cluster_id"]
                 collector.add_pod_label = data["add_pod_label"]
@@ -3307,19 +3371,6 @@ class CollectorHandler(object):
                 collector.save()
                 path_collector = collector
             if collector.collector_config_name_en.endswith("_std"):
-                if (
-                    collector.collector_config_name
-                    != bcs_collector_config_name["bcs_std_collector"]["collector_config_name"]
-                ):
-                    index_set_name = (
-                        _("[采集项]") + bcs_collector_config_name["bcs_std_collector"]["collector_config_name"]
-                    )
-                    LogIndexSet.objects.filter(index_set_id=collector.index_set_id).update(
-                        index_set_name=index_set_name
-                    )
-                collector.collector_config_name = bcs_collector_config_name["bcs_std_collector"][
-                    "collector_config_name"
-                ]
                 collector.description = data["description"]
                 collector.bcs_cluster_id = data["bcs_cluster_id"]
                 collector.add_pod_label = data["add_pod_label"]
@@ -3473,14 +3524,19 @@ class CollectorHandler(object):
         self.destroy()
 
     @staticmethod
-    def get_bcs_config(bk_biz_id: int, storage_cluster_id: int = None):
+    def get_bcs_config(bk_biz_id: int, bcs_cluster_id: str, storage_cluster_id: int = None):
+        bcs_storage_config = BcsStorageClusterConfig.objects.filter(
+            bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
+        ).first()
         toggle = FeatureToggleObject.toggle(BCS_COLLECTOR)
         conf = toggle.feature_config if toggle else {}
         data_link_id = int(conf.get("data_link_id") or 0)
         data_link_id = get_data_link_id(bk_biz_id=bk_biz_id, data_link_id=data_link_id)
-        # 优先使用传的集群ID, 传的集群ID和特性配置里的集群都不存在时, 使用第一个默认集群
+        # 优先使用传的集群ID, 传的集群ID和bcs业务指定存储集群都不存在时, 使用第一个默认集群
         if not storage_cluster_id:
-            storage_cluster_id = conf.get("storage_cluster_id")
+            storage_cluster_id = (
+                bcs_storage_config.storage_cluster_id if bcs_storage_config else conf.get("storage_cluster_id")
+            )
         if not storage_cluster_id:
             es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
             for es in es_clusters:

@@ -23,9 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { MetricType } from '../../strategy-config-set-new/typings';
+
 export const allDescription = [
   {
-    type: 'common',
+    type: 'time_series',
     title: window.i18n.tc('指标'),
     description: `${window.i18n.tc(
       '指标数据即时序数据。数据来源有：蓝鲸监控采集，自定义上报，计算平台，日志平台。'
@@ -42,8 +45,8 @@ export const allDescription = [
   },
   {
     type: 'log',
-    title: window.i18n.tc('日志关键字'),
-    description: `${window.i18n.tc('日志关键字即通过日志关键字匹配的数量进行告警，主要有两种')}\n${window.i18n.tc(
+    title: window.i18n.tc('日志'),
+    description: `${window.i18n.tc('日志即通过日志关键字匹配的数量进行告警，主要有两种')}\n${window.i18n.tc(
       '1） 来自日志平台的日志数据，通过ES Query语法查询的日志关键字告警能力。'
     )}\n${window.i18n.tc('2） 通过插件采集，在Client端进行日志关键字匹配产生事件进行上报。')}\n`
   },
@@ -53,5 +56,14 @@ export const allDescription = [
     description: `${window.i18n.tc('关联告警在需要判断多个告警事件关联产生才生效时就可以使用。')}\n${window.i18n.tc(
       '支持告警事件和策略'
     )}、${window.i18n.tc('支持')}&& ||\n`
+  },
+  {
+    type: MetricType.MultivariateAnomalyDetection,
+    title: window.i18n.tc('场景智能检测'),
+    description: `${window.i18n.tc(
+      '针对 综合拨测、APM、主机、K8s 等场景，提供该场景定制化的异常发现和告警功能'
+    )}。\n${window.i18n.tc(
+      '以 主机 场景为例，将会对指定的主机下的 CPU使用率、网卡入流量、物理内存空闲 等多个关键指标进行智能异常检测，如果检出多个指标异常，将以发生异常的主机为单位生成告警'
+    )}。\n`
   }
 ];

@@ -12,8 +12,9 @@ import datetime
 from abc import ABC
 from typing import List
 
-from core.unit import load_unit
 from django.utils.translation import gettext_lazy as _lazy
+
+from core.unit import load_unit
 
 
 class DefaultTableFormat(ABC):
@@ -72,7 +73,7 @@ class TableFormat(DefaultTableFormat):
 
     def get_filter_key(self, row):
         """获取筛选的键"""
-        default_key = row.get(self.id, "")
+        default_key = row.get(self.id, "--")
         default_value = self.get_map_value(default_key)
         return {"text": default_key, "value": default_value}
 
@@ -145,7 +146,7 @@ class StringLabelTableFormat(StringTableFormat):
         return {**res, "showOverflowTooltip": self.show_over_flow_tool_tip}
 
     def get_filter_key(self, row):
-        default_key = row.get(self.id, "")
+        default_key = row.get(self.id, "--")
         return {"value": default_key, "text": self.label_getter(default_key)}
 
 
@@ -263,18 +264,25 @@ class LinkListTableFormat(TableFormat):
 class ProgressTableFormat(TableFormat):
     column_type = "progress"
 
-    def __init__(self, *args, clear_if_not_sorted=False, **kwargs):
+    def __init__(self, *args, clear_if_not_sorted=False, color_getter=None, **kwargs):
         super(ProgressTableFormat, self).__init__(*args, **kwargs)
         self.clear_if_not_sorted = clear_if_not_sorted
+        self.color_getter = color_getter
 
     def format(self, row):
         data = row[self.id]
-        if data == 0:
-            color = "SUCCESS"
-        elif 0 < data < 30:
-            color = "NORMAL"
+        if data is None:
+            return {"value": None, "label": None, "status": None}
+
+        if self.color_getter:
+            color = self.color_getter(data)
         else:
-            color = "FAILED"
+            if data == 0:
+                color = "SUCCESS"
+            elif 0 < data < 30:
+                color = "NORMAL"
+            else:
+                color = "FAILED"
 
         return {"value": data, "label": f"{round(data, 2)}%", "status": color}
 
@@ -357,7 +365,11 @@ class NumberTableFormat(TableFormat):
         self.decimal = decimal
 
     def format(self, row):
-        value, unit = load_unit(self.unit).auto_convert(row[self.id], decimal=self.decimal)
+        v = row[self.id]
+        if v is None:
+            return {"value": "--", "unit": ""}
+
+        value, unit = load_unit(self.unit).auto_convert(v, decimal=self.decimal)
         return {
             "value": value,
             "unit": unit,

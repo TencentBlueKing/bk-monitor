@@ -148,7 +148,14 @@ export default class AppAdd extends tsc<{}> {
     name: '',
     enName: '',
     desc: '',
-    pluginId: ''
+    pluginId: 'opentelemetry',
+    plugin_config: {
+      target_node_type: 'INSTANCE',
+      target_object_type: 'HOST',
+      target_nodes: [],
+      data_encoding: '',
+      paths: ['']
+    }
   };
 
   /** 插件状态 */
@@ -209,6 +216,7 @@ export default class AppAdd extends tsc<{}> {
 
   /**
    * 获取应用、语言等列表数据
+   * 20231107 现在这里用作 setting-params 的 存储索引名 里显示 业务 名称。
    */
   async getPluginList() {
     this.loading = true;
@@ -245,7 +253,7 @@ export default class AppAdd extends tsc<{}> {
     this.$router.push({
       name: 'application',
       query: {
-        'filter-app_name': this.appInfo.enName
+        'filter-app_name': this.appInfo.name
       }
       // path: `/application?filter-app_name=${this.appInfoData.enName}`
     });
@@ -258,16 +266,26 @@ export default class AppAdd extends tsc<{}> {
   @Debounce(200)
   async handleSubmit(clusterInfo: IEsClusterInfo) {
     this.loading = true;
-    const { pluginId, deploymentIds, languageIds } = this.getSystemIds();
-    const params = {
-      app_name: this.appInfo?.enName, // 应用名
-      app_alias: this.appInfo?.name, // 应用别名
+    const { deploymentIds, languageIds } = this.getSystemIds();
+    const params: { [key: string]: any } = {
+      app_name: this.appInfo?.name, // 应用名
+      app_alias: this.appInfo?.enName, // 应用别名
       description: this.appInfo?.desc, // 应用描述
-      plugin_id: pluginId, // 插件id
+      plugin_id: this.appInfo?.pluginId, // 插件id
       deployment_ids: deploymentIds, // 环境id
       language_ids: languageIds, // 语言
       datasource_option: clusterInfo
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const plugin_config = {
+      target_node_type: this.appInfo?.plugin_config?.target_node_type,
+      target_object_type: this.appInfo?.plugin_config?.target_object_type,
+      // TOOD：这里需要过滤一下
+      target_nodes: this.appInfo?.plugin_config?.target_nodes,
+      data_encoding: this.appInfo?.plugin_config?.data_encoding,
+      paths: this.appInfo?.plugin_config?.paths
+    };
+    if (this.appInfo?.pluginId === 'log_trace') params.plugin_config = plugin_config;
     createApplication(params)
       .then(() => {
         this.currentStep = 3;
@@ -279,6 +297,7 @@ export default class AppAdd extends tsc<{}> {
       .finally(() => (this.loading = false));
   }
 
+  // 20230925 由于该页面没有 插件、语言、环境 列表，相关代码将没有作用。
   /** 处理环境选中值 */
   getSystemIds() {
     const languageIds = [];
@@ -300,6 +319,7 @@ export default class AppAdd extends tsc<{}> {
     };
   }
 
+  // 20230925 由于该页面没有 插件、语言、环境 列表，相关代码将没有作用。
   /** 获取已经选中的环境配置 */
   getCheckedList(): ICardItem[] {
     const fn = list =>
@@ -314,7 +334,8 @@ export default class AppAdd extends tsc<{}> {
 
   /** 下一步 */
   handleNext() {
-    this.isCheckedItemList = this.getCheckedList();
+    // 20230925 由于该页面没有 插件、语言、环境 列表，相关代码将没有作用。
+    // this.isCheckedItemList = this.getCheckedList();
     this.currentStep = 2;
   }
 

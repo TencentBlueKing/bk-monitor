@@ -187,9 +187,9 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     });
     if (list?.length) {
       if (isCreate) {
-        this.circulationRecord.list = list;
+        this.circulationRecord.list = this.listLinkCompatibility(list);
       } else {
-        this.circulationRecord.list.push(...list);
+        this.circulationRecord.list.push(...this.listLinkCompatibility(list));
       }
       // 保留上一次的ID
       this.lastLogOffset = this.circulationRecord.offset;
@@ -204,6 +204,29 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     }
     this.showLoadingBox = false;
     this.circulationRecord.loading = false;
+  }
+
+  /**
+   * @description 兼容流转记录旧的告警屏蔽链接
+   * @param list
+   * @returns
+   */
+  listLinkCompatibility(list) {
+    return list.map(item => {
+      if (!!item?.url) {
+        if (typeof item.url === 'string') {
+          const match = item.url.match(/\/alarm-shield-detail\/(\d+)/);
+          const id = match?.[1];
+          if (!!id) {
+            return {
+              ...item,
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield-edit/${id}`
+            };
+          }
+        }
+      }
+      return item;
+    });
   }
 
   // async handleInsertItemIntoLogList(item, index) {

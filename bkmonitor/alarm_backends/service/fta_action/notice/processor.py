@@ -195,7 +195,6 @@ class ActionProcessor(BaseActionProcessor):
         return self.notify_interval
 
     def notify_handle(self):
-
         """
         根据当前的状态发送不同的通知
         """
@@ -298,8 +297,6 @@ class ActionProcessor(BaseActionProcessor):
                     "outputs": notify_content_outputs,
                 }
             )
-            # 更新失败任务的主任务状态
-            ActionInstance.update_parent_action_status(sub_actions=failed_actions)
 
         self.is_finished = True
 
@@ -348,22 +345,3 @@ class ActionProcessor(BaseActionProcessor):
         )
 
         return False, collect_action_id
-
-    def set_finished(
-        self, to_status, failure_type="", message=_("执行任务成功"), retry_func="execute", kwargs=None, end_time=None
-    ):
-        """
-        设置任务结束
-        :param need_poll:
-        :param to_status: 结束状态
-        :param failure_type: 错误类型
-        :param message: 结束日志信息
-        :param retry_func: 重试函数
-        :param kwargs: 需要重试调用参数
-        :return:
-        """
-        super(ActionProcessor, self).set_finished(
-            to_status, failure_type, message=message, retry_func=retry_func, kwargs=kwargs, end_time=end_time
-        )
-        if to_status == ActionStatus.FAILURE:
-            ActionInstance.update_parent_action_status(self.receiver_action_mapping.values())

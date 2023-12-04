@@ -36,6 +36,7 @@ import moment from 'moment';
 
 import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
+import { docCookies, LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
 import { IOption } from '../pages/monitor-k8s/typings';
 import store from '../store/store';
 /**
@@ -384,3 +385,5 @@ export const createOnlyId = (len = 6, keywords = 'abcdefghijklmnopqrstuvwxyz1234
   idMap.set(onlyId, onlyId);
   return onlyId;
 };
+
+export const isEnFn = () => docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';

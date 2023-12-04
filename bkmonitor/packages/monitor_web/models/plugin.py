@@ -22,6 +22,10 @@ from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
+
+from bkmonitor.utils.db.fields import JsonField, YamlField
+from bkmonitor.utils.user import get_global_user
+from core.drf_resource import api
 from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.models import OperateRecordModelBase
 from monitor_web.plugin.constant import (
@@ -30,10 +34,6 @@ from monitor_web.plugin.constant import (
     PluginType,
 )
 from monitor_web.plugin.signature import Signature
-
-from bkmonitor.utils.db.fields import JsonField, YamlField
-from bkmonitor.utils.user import get_global_user
-from core.drf_resource import api
 
 
 class CollectorPluginMeta(OperateRecordModelBase):
@@ -260,7 +260,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
                 result.append(
                     {
                         "description": tag.get("description", ""),
-                        "type": tag.get("type", ""),
+                        "type": tag.get("type", "") or "string",
                         "monitor_type": "dimension",
                         "unit": tag.get("unit", ""),
                         "name": tag.get("field_name", ""),
@@ -387,7 +387,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
                     table_fields["fields"].append(
                         {
                             "description": tag_data.get("description", ""),
-                            "type": tag_data.get("type", ""),
+                            "type": tag_data.get("type", "") or "string",
                             "monitor_type": "dimension",
                             "unit": tag_data.get("unit", ""),
                             "name": tag_data.get("field_name", ""),
@@ -430,7 +430,9 @@ class CollectorPluginMeta(OperateRecordModelBase):
         # 仅对有数据做处理
         if len(group_list) == 0:
             return
-        self.reserved_dimension_list = [field_name for field_name, _ in PLUGIN_REVERSED_DIMENSION]
+        self.reserved_dimension_list = [
+            field_name for field_name, _ in PLUGIN_REVERSED_DIMENSION + plugin_data_info.dms_field
+        ]
         self.update_metric_json_from_ts_group(group_list)
 
     def get_config_json(self, params):

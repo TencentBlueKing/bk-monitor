@@ -149,6 +149,7 @@ class BluekingInstrumentor(BaseInstrumentor):
             resource=Resource.create(
                 {
                     "service.name": settings.APP_CODE + "_" + suffix,
+                    "service.version": settings.VERSION,
                     "bk_data_id": otlp_bk_data_id,
                     "bk.data.token": otlp_bk_data_token,
                     "net.host.ip": get_local_ip()

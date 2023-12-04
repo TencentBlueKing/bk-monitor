@@ -23,6 +23,11 @@ import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Q
+from django.utils.translation import ugettext as _
+
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -35,7 +40,10 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
-from apps.log_desensitize.constants import MODEL_TO_DICT_EXCLUDE_FIELD
+from apps.log_desensitize.constants import (
+    MODEL_TO_DICT_EXCLUDE_FIELD,
+    DesensitizeRuleStateEnum,
+)
 from apps.log_desensitize.models import (
     DesensitizeConfig,
     DesensitizeFieldConfig,
@@ -49,6 +57,7 @@ from apps.log_search.constants import (
     DEFAULT_TIME_FIELD,
     EsHealthStatus,
     GlobalCategoriesEnum,
+    InnerTag,
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
@@ -62,7 +71,10 @@ from apps.log_search.exceptions import (
     IndexSetDoseNotExistException,
     IndexSetFieldsConfigAlreadyExistException,
     IndexSetFieldsConfigNotExistException,
+    IndexSetInnerTagOperatorException,
     IndexSetSourceException,
+    IndexSetTagNameExistException,
+    IndexSetTagNotExistException,
     IndexTraceNotAcceptException,
     ResultTableIdDuplicateException,
     ScenarioNotSupportedException,
@@ -72,28 +84,31 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
     IndexSetFieldsConfig,
+    IndexSetTag,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
     Space,
+    StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
+from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
 from apps.log_trace.handlers.proto.proto import Proto
 from apps.models import model_to_dict
 from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
 from apps.utils.db import array_hash
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import (
+    get_request_app_code,
+    get_request_external_username,
+    get_request_username,
+)
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
-from django.conf import settings
-from django.db import transaction
-from django.db.models import Q
-from django.utils.translation import ugettext as _
 
 
 class IndexSetHandler(APIModel):
@@ -109,7 +124,10 @@ class IndexSetHandler(APIModel):
         """修改用户当前索引集的配置"""
         username = get_request_username()
         UserIndexSetFieldsConfig.objects.update_or_create(
-            index_set_id=self.index_set_id, username=username, defaults={"config_id": config_id}
+            index_set_id=self.index_set_id,
+            username=username,
+            source_app_code=get_request_app_code(),
+            defaults={"config_id": config_id},
         )
         # add user_operation_record
         try:
@@ -595,10 +613,13 @@ class IndexSetHandler(APIModel):
 
             # 构建配置直接入库批量创建参数列表
             bulk_create_list = list()
+            field_names = list()
             for field_config in params["field_configs"]:
                 field_name = field_config.get("field_name")
                 sort_index = 0
                 rule_ids = list()
+                if field_name not in field_names:
+                    field_names.append(field_name)
                 for rule in field_config.get("rules"):
                     rule_id = rule.get("rule_id")
                     rule_state = rule.get("state")
@@ -609,8 +630,8 @@ class IndexSetHandler(APIModel):
                     }
                     if rule_id:
                         # 根据规则状态执行不同的操作
-                        if rule_state in ["add", "update"]:
-                            if rule_id not in rules_mapping.keys():
+                        if rule_state in [DesensitizeRuleStateEnum.ADD.value, DesensitizeRuleStateEnum.UPDATE.value]:
+                            if rule_id not in rules_mapping:
                                 raise DesensitizeRuleException(
                                     DesensitizeRuleException.MESSAGE.format(field_name=field_name, rule_id=rule_id)
                                 )
@@ -626,6 +647,8 @@ class IndexSetHandler(APIModel):
                                 rule_id=rule_id,
                                 defaults=model_params,
                             )
+                        elif rule_state == DesensitizeRuleStateEnum.DELETE.value:
+                            continue
                         else:
                             # 只更新优先级
                             DesensitizeFieldConfig.objects.filter(
@@ -650,7 +673,11 @@ class IndexSetHandler(APIModel):
                     DesensitizeFieldConfig.objects.filter(
                         index_set_id=self.index_set_id, field_name=field_name
                     ).exclude(rule_id__in=rule_ids).delete()
-
+            if field_names and not created:
+                # 处理删除的字段配置 删除库里存在但是更新时不存在的字段配置
+                DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).exclude(
+                    field_name__in=field_names
+                ).delete()
             if bulk_create_list:
                 DesensitizeFieldConfig.objects.bulk_create(bulk_create_list)
         except Exception as e:
@@ -658,15 +685,24 @@ class IndexSetHandler(APIModel):
 
         return params
 
-    def desensitize_config_retrieve(self):
+    def desensitize_config_retrieve(self, raise_exception=True):
         """
         脱敏配置详情
         """
         try:
             desensitize_obj = DesensitizeConfig.objects.get(index_set_id=self.index_set_id)
-            desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id)
+            desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(
+                index_set_id=self.index_set_id
+            ).order_by("sort_index")
         except DesensitizeConfig.DoesNotExist:
-            raise DesensitizeConfigDoseNotExistException()
+            if raise_exception:
+                raise DesensitizeConfigDoseNotExistException()
+            else:
+                return {}
+
+        rule_ids = set(desensitize_field_config_objs.values_list("rule_id", flat=True))
+        desensitize_rule_objs = DesensitizeRule.origin_objects.filter(id__in=rule_ids)
+        desensitize_rule_info = {_obj.id: model_to_dict(_obj) for _obj in desensitize_rule_objs}
 
         # 构建返回数据
         ret = model_to_dict(desensitize_obj)
@@ -676,12 +712,52 @@ class IndexSetHandler(APIModel):
         field_info_mapping = dict()
         for _obj in desensitize_field_config_objs:
             field_name = _obj.field_name
-            if field_name not in field_info_mapping.keys():
+            if field_name not in field_info_mapping:
                 field_info_mapping[field_name] = list()
-            field_info_mapping[field_name].append(model_to_dict(_obj, exclude=MODEL_TO_DICT_EXCLUDE_FIELD))
+            _rule = model_to_dict(_obj, exclude=MODEL_TO_DICT_EXCLUDE_FIELD)
+
+            rule_id = _rule["rule_id"]
+            if rule_id:
+                # 添加规则变更标识
+                if int(rule_id) in desensitize_rule_info:
+                    _rule["rule_name"] = desensitize_rule_info[rule_id]["rule_name"]
+                    _rule["match_fields"] = desensitize_rule_info[rule_id]["match_fields"]
+
+                if int(rule_id) not in desensitize_rule_info or desensitize_rule_info[rule_id]["is_deleted"]:
+                    state = DesensitizeRuleStateEnum.DELETE.value
+                    new_rule = {}
+                elif (
+                    _rule["operator"] != desensitize_rule_info[rule_id]["operator"]
+                    or _rule["match_pattern"] != desensitize_rule_info[rule_id]["match_pattern"]
+                    or sorted(_rule["params"].items()) != sorted(desensitize_rule_info[rule_id]["params"].items())
+                ):
+                    state = DesensitizeRuleStateEnum.UPDATE.value
+                    new_rule = {
+                        "rule_name": desensitize_rule_info[rule_id]["rule_name"],
+                        "operator": desensitize_rule_info[rule_id]["operator"],
+                        "params": desensitize_rule_info[rule_id]["params"],
+                        "match_pattern": desensitize_rule_info[rule_id]["match_pattern"],
+                        "match_fields": desensitize_rule_info[rule_id]["match_fields"],
+                    }
+                else:
+                    state = DesensitizeRuleStateEnum.NORMAL.value
+                    new_rule = {}
+            else:
+                state = DesensitizeRuleStateEnum.NORMAL.value
+                new_rule = {}
+
+            _rule["state"] = state
+            _rule["new_rule"] = new_rule
+
+            field_info_mapping[field_name].append(_rule)
 
         for _field_name, _rules in field_info_mapping.items():
-            ret["field_configs"].append({"field_name": _field_name, "rules": _rules})
+            ret["field_configs"].append(
+                {
+                    "field_name": _field_name,
+                    "rules": sorted(_rules, key=lambda x: x["sort_index"]),
+                }
+            )
 
         return ret
 
@@ -692,6 +768,115 @@ class IndexSetHandler(APIModel):
         """
         DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
         DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
+
+    def add_tag(self, tag_id: int):
+        """
+        索引集添加标签
+        """
+        # 校验标签是否存在
+        if not IndexSetTag.objects.filter(tag_id=tag_id).exists():
+            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
+
+        # 校验是否为内置标签
+        if tag_id in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        tag_ids.append(str(tag_id))
+
+        index_set_obj.tag_ids = list(set(tag_ids))
+
+        index_set_obj.save()
+
+        return
+
+    def delete_tag(self, tag_id: int):
+        """
+        索引集删除标签
+        """
+        # 校验是否为内置标签
+        if tag_id in self._get_inner_tag_ids():
+            raise IndexSetInnerTagOperatorException()
+
+        index_set_obj = self._get_data()
+
+        tag_ids = list(index_set_obj.tag_ids)
+
+        if tag_ids and str(tag_id) in tag_ids:
+            tag_ids.remove(str(tag_id))
+            index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.save()
+
+        return
+
+    @staticmethod
+    def create_tag(params: dict):
+        """
+        创建标签
+        """
+        # 名称校验
+        if (
+            params["name"] in list(InnerTag.get_dict_choices().keys())
+            or IndexSetTag.objects.filter(name=params["name"]).exists()
+        ):
+            raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
+
+        obj = IndexSetTag.objects.create(name=params["name"], color=params["color"])
+
+        return model_to_dict(obj)
+
+    @staticmethod
+    def tag_list():
+        """
+        标签列表
+        """
+        objs = IndexSetTag.objects.all()
+
+        ret = list()
+
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        for obj in objs:
+            _data = model_to_dict(obj)
+            if _data["name"] in inner_tag_names:
+                _data["is_built_in"] = True
+            else:
+                _data["is_built_in"] = False
+            ret.append(_data)
+
+        return ret
+
+    @staticmethod
+    def _get_inner_tag_ids():
+        """
+        获取内置标签ID列表
+        """
+        inner_tag_names = list(InnerTag.get_dict_choices().keys())
+        inner_tag_ids = list(IndexSetTag.objects.filter(name__in=inner_tag_names).values_list("tag_id", flat=True))
+        return inner_tag_ids
+
+    @staticmethod
+    def get_desensitize_config_state(index_set_ids: list):
+        """
+        获取索引集脱敏状态
+        """
+        if not index_set_ids:
+            return {}
+        index_set_exist_ids = set(
+            DesensitizeFieldConfig.objects.filter(index_set_id__in=index_set_ids).values_list("index_set_id", flat=True)
+        )
+
+        ret = dict()
+
+        for _index_set_id in set(index_set_ids):
+            if _index_set_id in index_set_exist_ids:
+                ret[_index_set_id] = {"is_desensitize": True}
+            else:
+                ret[_index_set_id] = {"is_desensitize": False}
+
+        return ret
 
     @staticmethod
     def _get_health(src: list):
@@ -1305,6 +1490,11 @@ class BaseIndexSetHandler(object):
         if self.category_id:
             self.index_set_obj.category_id = self.category_id
 
+        if self.index_set_obj.storage_cluster_id == self.storage_cluster_id:
+            old_storage_cluster_id = None
+        else:
+            old_storage_cluster_id = self.index_set_obj.storage_cluster_id
+
         self.index_set_obj.index_set_name = self.index_set_name
         self.index_set_obj.view_roles = self.view_roles
         self.index_set_obj.storage_cluster_id = self.storage_cluster_id
@@ -1318,6 +1508,12 @@ class BaseIndexSetHandler(object):
         self.index_set_obj.time_field_type = self.time_field_type
         self.index_set_obj.time_field_unit = self.time_field_unit
         self.index_set_obj.save()
+
+        if old_storage_cluster_id:
+            # 保存旧的存储集群记录
+            StorageClusterRecord.objects.create(
+                index_set_id=self.index_set_obj.index_set_id, storage_cluster_id=old_storage_cluster_id
+            )
 
         # 需移除的索引
         to_delete_indexes = [
@@ -1347,6 +1543,9 @@ class BaseIndexSetHandler(object):
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
 
+        # 更新索引集归档配置
+        sync_index_set_archive.delay(self.index_set_obj.index_set_id)
+
         return self.index_set_obj
 
     def post_update(self, index_set):
@@ -1358,6 +1557,7 @@ class BaseIndexSetHandler(object):
 
     def delete(self):
         self.index_set_obj.delete()
+        StorageClusterRecord.objects.filter(index_set_id=self.index_set_obj.index_set_id).delete()
 
     def post_delete(self, index_set):
         # @TODO 调用auth模块删除权限
@@ -1527,10 +1727,16 @@ class IndexSetFieldsConfigHandler(object):
 
     data: Optional[IndexSetFieldsConfig] = None
 
-    def __init__(self, config_id: int = None, index_set_id: int = None, scope: str = SearchScopeEnum.DEFAULT.value):
+    def __init__(
+        self,
+        config_id: int = None,
+        index_set_id: int = None,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ):
         self.config_id = config_id
         self.index_set_id = index_set_id
         self.scope = scope
+        self.source_app_code = get_request_app_code()
         if config_id:
             try:
                 self.data = IndexSetFieldsConfig.objects.get(pk=config_id)
@@ -1545,16 +1751,20 @@ class IndexSetFieldsConfigHandler(object):
     def list(self, scope: str = SearchScopeEnum.DEFAULT.value) -> list:
         config_list = [
             model_to_dict(i)
-            for i in IndexSetFieldsConfig.objects.filter(index_set_id=self.index_set_id, scope=scope).all()
+            for i in IndexSetFieldsConfig.objects.filter(
+                index_set_id=self.index_set_id, scope=scope, source_app_code=self.source_app_code
+            ).all()
         ]
         config_list.sort(key=lambda c: c["name"] == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME, reverse=True)
         return config_list
 
     def create_or_update(self, name: str, display_fields: list, sort_list: list):
-        username = get_request_username()
+        username = get_request_external_username() or get_request_username()
         # 校验配置需要修改名称时, 名称是否可用
         if self.data and self.data.name != name or not self.data:
-            if IndexSetFieldsConfig.objects.filter(name=name, index_set_id=self.index_set_id).exists():
+            if IndexSetFieldsConfig.objects.filter(
+                name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
+            ).exists():
                 raise IndexSetFieldsConfigAlreadyExistException()
 
         if self.data:
@@ -1572,7 +1782,10 @@ class IndexSetFieldsConfigHandler(object):
                 display_fields=display_fields,
                 sort_list=sort_list,
                 scope=self.scope,
+                source_app_code=self.source_app_code,
             )
+            self.data.created_by = username
+            self.data.save()
 
         # add user_operation_record
         try:
@@ -1589,6 +1802,7 @@ class IndexSetFieldsConfigHandler(object):
                     "index_set_id": self.index_set_id,
                     "display_fields": display_fields,
                     "sort_list": sort_list,
+                    "source_app_code": self.source_app_code,
                 },
             }
         except LogIndexSet.DoesNotExist:

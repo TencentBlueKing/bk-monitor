@@ -19,40 +19,40 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import datetime
+import json
 import os
 import tarfile
-import json
-import datetime
-import pytz
-import arrow
 
-from django.utils.translation import gettext as _
-from django.utils import translation
+import arrow
+import pytz
 from celery.schedules import crontab
+from celery.task import periodic_task, task
 from django.conf import settings
+from django.utils import timezone, translation
 from django.utils.crypto import get_random_string
-from django.utils import timezone
-from celery.task import task, periodic_task
+from django.utils.translation import gettext as _
 
 from apps.constants import RemoteStorageType
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search.constants import (
-    ASYNC_DIR,
-    FEATURE_ASYNC_EXPORT_COMMON,
-    ASYNC_EXPORT_EMAIL_TEMPLATE,
-    ASYNC_EXPORT_FILE_EXPIRED_DAYS,
-    ASYNC_EXPORT_EXPIRED,
     ASYNC_APP_CODE,
+    ASYNC_DIR,
+    ASYNC_EXPORT_EMAIL_ERR_TEMPLATE,
+    ASYNC_EXPORT_EMAIL_TEMPLATE,
+    ASYNC_EXPORT_EXPIRED,
+    ASYNC_EXPORT_FILE_EXPIRED_DAYS,
+    FEATURE_ASYNC_EXPORT_COMMON,
+    FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     MAX_RESULT_WINDOW,
-    MsgModel,
-    ASYNC_EXPORT_EMAIL_ERR_TEMPLATE,
     ExportStatus,
+    MsgModel,
 )
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import Scenario, AsyncTask, LogIndexSet
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 from apps.utils.remote_storage import StorageType
@@ -66,6 +66,8 @@ def async_export(
     url_path: str,
     search_url_path: str,
     language: str,
+    is_external: bool = False,
+    external_user_email: str = "",
 ):
     """
     异步导出任务
@@ -75,6 +77,8 @@ def async_export(
     @param url_path {Str}
     @param search_url_path {Str}
     @param language {Str}
+    @param is_external {Bool}
+    @param external_user_email {Str}
     """
     random_hash = get_random_string(length=10)
     time_now = arrow.now().format("YYYYMMDDHHmmss")
@@ -86,6 +90,8 @@ def async_export(
         sorted_fields=sorted_fields,
         file_name=file_name,
         tar_file_name=tar_file_name,
+        is_external=is_external,
+        external_user_email=external_user_email,
     )
     try:
         if not async_task:
@@ -158,7 +164,7 @@ def set_failed_status(async_task: AsyncTask, reason):
     return async_task
 
 
-@task(ignore_result=True)
+@task(ignore_result=True, queue="async_export")
 def set_expired_status(async_task_id):
     async_task = AsyncTask.objects.get(id=async_task_id)
     async_task.export_status = ExportStatus.DOWNLOAD_EXPIRED
@@ -206,17 +212,28 @@ class AsyncExportUtils(object):
     async export utils(export_package, export_upload, generate_download_url, send_msg, clean_package)
     """
 
-    def __init__(self, search_handler: SearchHandler, sorted_fields: list, file_name: str, tar_file_name: str):
+    def __init__(
+        self,
+        search_handler: SearchHandler,
+        sorted_fields: list,
+        file_name: str,
+        tar_file_name: str,
+        is_external: bool = False,
+        external_user_email: str = "",
+    ):
         """
         @param search_handler: the handler cls to search
         @param sorted_fields: the fields to sort search result
         @param file_name: the export file name
         @param tar_file_name: the file name which will be tar
+        @param is_external: is external_request
         """
         self.search_handler = search_handler
         self.sorted_fields = sorted_fields
         self.file_name = file_name
         self.tar_file_name = tar_file_name
+        self.is_external = is_external
+        self.external_user_email = external_user_email
         self.file_path = f"{ASYNC_DIR}/{self.file_name}"
         self.tar_file_path = f"{ASYNC_DIR}/{self.tar_file_name}"
         self.storage = self.init_remote_storage()
@@ -296,7 +313,8 @@ class AsyncExportUtils(object):
             },
             language=language,
         )
-        self.notify.send(receivers=async_task.created_by, title=title, content=content)
+        receivers = self.external_user_email if self.is_external else async_task.created_by
+        self.notify.send(receivers=receivers, title=title, content=content, is_external=self.is_external)
 
     @classmethod
     def generate_title_template(cls, title_model):
@@ -313,9 +331,11 @@ class AsyncExportUtils(object):
         os.remove(self.file_path)
         os.remove(self.tar_file_path)
 
-    @classmethod
-    def init_remote_storage(cls):
-        toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
+    def init_remote_storage(self):
+        if self.is_external:
+            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_EXTERNAL).feature_config
+        else:
+            toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
         storage_type = toggle.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
         storage = StorageType.get_instance(storage_type)
         if not storage_type or storage_type == RemoteStorageType.NFS.value:

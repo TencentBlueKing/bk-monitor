@@ -21,6 +21,12 @@ the project delivered to anyone in the future.
 """
 import base64
 
+from django.conf import settings
+from django.utils.translation import ugettext
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError as SlzValidationError
+
 from apps.exceptions import ValidationError
 from apps.generic import DataModelSerializer
 from apps.log_commons.serializers import BkIpSerializer
@@ -47,13 +53,9 @@ from apps.log_search.constants import (
     FieldBuiltInEnum,
     SyslogProtocolEnum,
 )
+from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 from bkm_space.utils import space_uid_to_bk_biz_id
-from django.conf import settings
-from django.utils.translation import ugettext
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError as SlzValidationError
 
 
 class LabelsSerializer(serializers.Serializer):
@@ -718,11 +720,9 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     retention = serializers.IntegerField(label=_("有效时间"), required=True)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=True)
     storage_replies = serializers.IntegerField(
-        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0, max_value=3
+        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
-    es_shards = serializers.IntegerField(
-        label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1, max_value=64
-    )
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
     view_roles = serializers.ListField(label=_("查看权限"), required=False, default=[])
     need_assessment = serializers.BooleanField(label=_("是否需要评估配置"), required=False, default=False)
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
@@ -908,14 +908,14 @@ class RestoreArchiveSerlalizer(serializers.Serializer):
     archive_config_id = serializers.IntegerField(label=_("业务ID"), required=True)
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     index_set_name = serializers.CharField(label=_("索引集名称"), required=True)
-    start_time = serializers.DateTimeField(required=True, label=_("数据开始时间"), format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=True, label=_("数据结束时间"), format="%Y-%m-%d %H:%M:%S")
-    expired_time = serializers.DateTimeField(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=True, label=_("数据开始时间"), format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=True, label=_("数据结束时间"), format="%Y-%m-%d %H:%M:%S")
+    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
     notice_user = serializers.ListField(required=True, label=_("通知人"))
 
 
 class UpdateRestoreArchiveSerlalizer(serializers.Serializer):
-    expired_time = serializers.DateTimeField(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
+    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
 
 
 class DeleteRestoreArchiveSerlalizer(serializers.Serializer):
@@ -1122,6 +1122,12 @@ class ListBCSCollectorSerializer(serializers.Serializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
 
 
+class SwitchBCSCollectorStorageSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+    bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
+    storage_cluster_id = serializers.IntegerField(label=_("存储集群id"), required=True)
+
+
 class ListBCSCollectorWithoutRuleSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
@@ -1251,11 +1257,9 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
     storage_replies = serializers.IntegerField(
-        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0, max_value=3
+        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
-    es_shards = serializers.IntegerField(
-        label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1, max_value=64
-    )
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
 
     # 其他配置
     description = serializers.CharField(
@@ -1331,11 +1335,9 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     retention = serializers.IntegerField(label=_("有效时间"), required=False, default=settings.ES_PUBLIC_STORAGE_DURATION)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False, default=0)
     storage_replies = serializers.IntegerField(
-        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0, max_value=3
+        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
-    es_shards = serializers.IntegerField(
-        label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1, max_value=64
-    )
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
 
     def validate(self, attrs):
         if attrs["collector_scenario_id"] == "section":
@@ -1398,8 +1400,8 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
-    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0, max_value=3)
-    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1, max_value=64)
+    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

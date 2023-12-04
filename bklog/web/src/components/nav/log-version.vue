@@ -30,11 +30,12 @@
       <div class="log-version" v-bkloading="{ isLoading: loading }">
         <div class="log-version-left">
           <ul class="left-list">
-            <li class="left-list-item"
-                :class="{ 'item-active': index === active }"
-                v-for="(item,index) in logList"
-                :key="index"
-                @click="handleItemClick(index)">
+            <li
+              class="left-list-item"
+              :class="{ 'item-active': index === active }"
+              v-for="(item,index) in logList"
+              :key="index"
+              @click="handleItemClick(index)">
               <span class="item-title">{{item.title}}</span>
               <span class="item-date">{{item.date}}</span>
               <span v-if="index === current" class="item-current">{{$t('当前版本')}}</span>
@@ -52,6 +53,7 @@
 </template>
 
 <script>
+import { mapState } from 'vuex';
 import axios from 'axios';
 
 export default {
@@ -70,6 +72,10 @@ export default {
     };
   },
   computed: {
+    ...mapState({
+      spaceUid: state => state.spaceUid,
+      isExternal: state => state.isExternal,
+    }),
     currentLog() {
       return this.logList[this.active] || {};
     },
@@ -111,10 +117,16 @@ export default {
     },
     // 获取左侧版本日志列表
     async getVersionLogsList() {
-      const { data } = await axios({
+      const params = {
         method: 'get',
         url: `${window.SITE_URL}version_log/version_logs_list/`,
-      }).catch((_) => {
+      };
+      if (this.isExternal) {
+        params.headers = {
+          'X-Bk-Space-Uid': this.spaceUid,
+        };
+      }
+      const { data } = await axios(params).catch((_) => {
         console.warn(_);
         return { data: { data: [] } };
       });
@@ -122,13 +134,19 @@ export default {
     },
     // 获取右侧对应的版本详情
     async getVersionLogsDetail() {
-      const { data } = await axios({
+      const params = {
         method: 'get',
         url: `${window.SITE_URL}version_log/version_log_detail/`,
         params: {
           log_version: this.currentLog.title,
         },
-      }).catch((_) => {
+      };
+      if (this.isExternal) {
+        params.headers = {
+          'X-Bk-Space-Uid': this.spaceUid,
+        };
+      }
+      const { data } = await axios(params).catch((_) => {
         console.warn(_);
         return { data: '' };
       });

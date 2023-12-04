@@ -22,6 +22,9 @@ the project delivered to anyone in the future.
 import copy
 from typing import List
 
+import arrow
+from django.utils.functional import cached_property
+
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_LABEL,
@@ -42,13 +45,13 @@ from apps.log_clustering.models import (
     SignatureStrategySettings,
 )
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
+from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
-from apps.utils.local import get_local_param
+from apps.utils.local import get_local_param, get_request_username
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range, generate_time_range_shift
-from django.utils.functional import cached_property
 
 
 class PatternHandler:
@@ -88,20 +91,19 @@ class PatternHandler:
         pattern_aggs = result.get("pattern_aggs", [])
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
-
         if self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
                 model_id=self._clustering_config.model_output_rt
-            ).values("signature", "pattern", "label")
+            ).values("signature", "pattern", "label", "remark", "owners")
         else:
             pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
-                "signature", "pattern", "label"
+                "signature", "pattern", "label", "remark", "owners"
             )
-
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
         signature_map_label = array_hash(pattern_map, "signature", "label")
-
+        signature_map_remark = array_hash(pattern_map, "signature", "remark")
+        signature_map_owners = array_hash(pattern_map, "signature", "owners")
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs])
         result = []
         for pattern in pattern_aggs:
@@ -113,6 +115,8 @@ class PatternHandler:
                 {
                     "pattern": signature_map_pattern.get(signature, ""),
                     "label": signature_map_label.get(signature, ""),
+                    "remark": signature_map_remark.get(signature, []),
+                    "owners": signature_map_owners.get(signature, []),
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
@@ -245,13 +249,37 @@ class PatternHandler:
             )
         return {new_class["signature"] for new_class in new_classes}
 
-    def set_label(self, signature: str, label: str):
+    def set_signature_config(self, signature: str, configs: dict):
+        """
+        日志聚类-数据指纹 页面展示信息修改
+        """
         if self._clustering_config.model_output_rt:
-            qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_output_rt)
+            qs = AiopsSignatureAndPattern.objects.filter(
+                model_id=self._clustering_config.model_output_rt, signature=signature
+            )
         else:
-            qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id)
-
-        qs.filter(signature=signature).update(label=label)
+            qs = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id, signature=signature)
+        qs_obj = qs.first()
+        if not qs_obj:
+            return
+        for k, v in configs.items():
+            if k == "label":
+                qs_obj.label = v
+            if k == "owners":
+                qs_obj.owners = v
+            if k == "remark":
+                now = int(arrow.now().timestamp * 1000)
+                current_remark = {
+                    "username": get_request_username(),
+                    "create_time": now,
+                    "remark": v,
+                }
+                if qs_obj.remark:
+                    qs_obj.remark.append(current_remark)
+                else:
+                    qs_obj.remark = [current_remark]
+        qs_obj.save()
+        return model_to_dict(qs_obj)
 
     @classmethod
     def _generate_strategy_result(cls, strategy_result):

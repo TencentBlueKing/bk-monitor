@@ -262,8 +262,6 @@ def wxbot_user_group_setup():
         group_data["id"] = group_id
         user_groups = UserGroup.objects.create(**group_data)
     yield user_groups
-    UserGroup.objects.all().delete()
-    DutyArrange.objects.all().delete()
 
 
 def init_action_plugin():
@@ -734,7 +732,7 @@ class TestAssignManager:
         assert ActionConfigCacheManager.get_action_config_by_id(4444)
 
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions0 = create_actions(0, "abnormal", alerts=[alert])
 
         new_alert = AlertDocument.get(id=alert.id)
@@ -744,10 +742,9 @@ class TestAssignManager:
 
     def test_notice_upgrade(self, setup, alert, user_group_setup, biz_mock, init_configs):
         """
-        测试告警升级
+        测试告警分派的告警升级
         :param setup:
         :param alert:
-        :param user_group:
         :param biz_mock:
         :param init_configs:
         :return:
@@ -758,7 +755,6 @@ class TestAssignManager:
         }
         print(alert.extra_info["rule_snaps"])
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
         actions = create_actions(0, "abnormal", alerts=[alert], notice_type="upgrade")
         new_alert = AlertDocument.get(id=alert.id)
         assert len(actions) == 2
@@ -786,10 +782,9 @@ class TestAssignManager:
 
     def test_notice_reupgrade(self, setup, alert, user_group_setup, biz_mock, init_configs):
         """
-        再次升级测试
+        分派规则下的再次升级测试
         :param setup:
         :param alert:
-        :param user_group:
         :param biz_mock:
         :param init_configs:
         :return:
@@ -805,7 +800,7 @@ class TestAssignManager:
             }
         }
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert], notice_type="upgrade")
         new_alert = AlertDocument.get(id=alert.id)
         assert len(actions) == 2
@@ -829,7 +824,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE]
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(alert.extra_info.strategy["id"], "abnormal", alerts=[alert])
         assert len(actions) == 2
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
@@ -837,13 +832,29 @@ class TestAssignManager:
         assert p_ai.inputs["notify_info"] == {'weixin': ['lisa']}
         assert alert.severity == 3
 
+    def test_ignore_origin_notice(self, setup, alert, user_group_setup, biz_mock, init_configs):
+        """
+        测试适配到告警条件之后原来的告警不会产生
+        """
+        alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE, AssignMode.BY_RULE]
+        AlertDocument.bulk_create([alert])
+        assert biz_mock.call_count == 1
+        actions = create_actions(0, "abnormal", alerts=[alert])
+        assert len(actions) == 3
+        p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
+        p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
+        assert p_ai.inputs["notify_info"] == {'mail': ['lisa']}
+        new_alert = AlertDocument.get(id=alert.id)
+        assert new_alert.severity == 2
+        assert new_alert.assign_tags == setup.additional_tags
+
     def test_default_assign_notice(self, setup, alert, user_group_setup, biz_mock, init_configs):
         """
         原生测试
         """
         alert.extra_info.strategy = {}
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 3
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
@@ -859,7 +870,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy = {}
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 0
 
@@ -938,49 +949,6 @@ class TestAssignManager:
         assert enriched_alert.severity == 3
         assert alert_obj.severity_source == ""
 
-    def test_origin_notice_upgrade(
-        self, setup, alert, user_group_setup, biz_mock, init_configs, save_alert_snapshot, save_alert_to_cache
-    ):
-        """
-        测试告警升级
-        :param setup:
-        :param alert:
-        :param user_group:
-        :param biz_mock:
-        :param init_configs:
-        :return:
-        """
-        # 第一次升级
-        alert.duration = 50 * 60
-        alert.extra_info["upgrade_notice"] = {}
-        alert.strategy["notice"]["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE]
-        alert.strategy["notice"]["options"].update(
-            {"upgrade_config": {"is_enabled": True, "user_groups": [2, 1], "upgrade_interval": 30}}
-        )
-        AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
-
-        actions = create_actions(alert.strategy_id, "abnormal", alerts=[alert], notice_type="upgrade")
-        new_alert = AlertDocument.get(id=alert.id)
-        assert len(actions) == 2
-        p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
-        p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"]["weixin"] == ['admin']
-        assert new_alert.severity == 3
-        assert hasattr(new_alert.extra_info, "severity_source") is False
-        assert new_alert.extra_info.upgrade_notice["last_group_index"] == 0
-
-        # 第二次升级
-        alert.extra_info = new_alert.extra_info
-        alert.assignee = new_alert.assignee
-        alert.extra_info.upgrade_notice["last_upgrade_time"] = int(time.time()) - 31 * 60
-        AlertDocument.bulk_create([alert], action="update")
-        ActionInstance.objects.all().delete()
-        new_actions = create_actions(1, "abnormal", alerts=[alert], notice_type="upgrade")
-        assert len(new_actions) == 2
-        p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=new_actions)
-        assert set(p_ai.inputs["notify_info"]["weixin"]) == {"lisa"}
-
 
 @pytest.fixture()
 def create_actions_delay(mocker):
@@ -995,7 +963,6 @@ class TestUpgradeChecker:
         测试告警升级
         :param setup:
         :param alert:
-        :param user_group:
         :param biz_mock:
         :param init_configs:
         :return:
@@ -1051,7 +1018,6 @@ class TestUpgradeChecker:
         再次升级测试
         :param setup:
         :param alert:
-        :param user_group:
         :param biz_mock:
         :param init_configs:
         :return:
@@ -1067,7 +1033,7 @@ class TestUpgradeChecker:
             }
         }
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         # 再次升级
         UpgradeChecker(alerts=[Alert(alert.to_dict())]).check_all()
         assert create_actions_delay.call_count == 1
@@ -1090,7 +1056,6 @@ class TestUpgradeChecker:
         再次升级测试
         :param setup:
         :param alert:
-        :param user_group:
         :param biz_mock:
         :param init_configs:
         :return:
@@ -1099,7 +1064,7 @@ class TestUpgradeChecker:
         alert.first_anomaly_time = int(time.time()) - alert.duration
         alert.latest_time = int(time.time())
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         # 第一次升级
         UpgradeChecker(alerts=[Alert(alert.to_dict())]).check_all()
         assert create_actions_delay.call_count == 1

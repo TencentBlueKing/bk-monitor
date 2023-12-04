@@ -155,7 +155,7 @@
                   v-for="option in globalsData.etl_config"
                   :key="option.id"
                   :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
-                  @click="params.etl_config = option.id"
+                  @click="handleSelectConfig(option.id)"
                   :class="params.etl_config === option.id ? 'is-selected' : ''"
                   :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`">
                   {{ option.name }}
@@ -250,6 +250,14 @@
                   @standard="dialogVisible = true"
                   @reset="getDetail">
                 </field-table>
+                <div
+                  class="add-field-container"
+                  v-if="isShowAddFields">
+                  <div class="text-btn" @click="addNewField">
+                    <i class="icon bk-icon icon-plus push"></i>
+                    <span class="text">{{$t('新增字段')}}</span>
+                  </div>
+                </div>
               </div>
             </template>
           </div>
@@ -470,6 +478,7 @@ import fieldTable from './field-table';
 import AuthContainerPage from '@/components/common/auth-container-page';
 import { projectManages } from '@/common/util';
 import * as authorityMap from '../../common/authority-map';
+import { deepClone } from '../../common/util';
 
 export default {
   components: {
@@ -485,8 +494,10 @@ export default {
     collectorId: String,
     isCleanField: Boolean,
     isTempField: Boolean,
+    /** 是否是字段提取 */
     isSetEdit: Boolean,
     setId: Number,
+    /** 字段提取是否禁用 */
     setDisabled: Boolean,
   },
   data() {
@@ -584,6 +595,25 @@ export default {
       cacheVisibleList: [], // 缓存多业务选择下拉框
       visibleIsToggle: false,
       docUrl: window.BK_ETL_DOC_URL,
+      /** 添加字段的基础数据 */
+      baseFieldObj: {
+        value: '',
+        option: {
+          time_zone: '',
+          time_format: '',
+        },
+        is_time: false,
+        verdict: false,
+        is_delete: false,
+        alias_name: '',
+        field_name: '',
+        field_type: '',
+        description: '',
+        is_analyzed: false,
+        is_built_in: false,
+        is_dimension: false,
+        previous_type: '',
+      },
     };
   },
   computed: {
@@ -647,6 +677,9 @@ export default {
     },
     isSetDisabled() {
       return this.isSetEdit && this.setDisabled;
+    },
+    isShowAddFields() {
+      return this.params.etl_config === 'bk_log_json';
     },
     // 可见范围单选判断，禁用下拉框
     scopeValueType() {
@@ -785,7 +818,7 @@ export default {
         name,
         clean_type,
         etl_params,
-        etl_fields,
+        etl_fields: etlFields,
         visible_type,
         visible_bk_biz_id: visibleBkBizList,
       } = data;
@@ -808,7 +841,7 @@ export default {
           separator: '',
           retain_extra_json: false,
         }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
-        fields: etl_fields,
+        fields: etlFields,
         visible_type,
       });
     },
@@ -847,37 +880,37 @@ export default {
     // 字段提取
     fieldCollection(isCollect = false) {
       const {
-        etl_config,
+        etl_config: etlConfig,
         fields,
-        etl_params,
+        etl_params: etlParams,
         visible_type,
       } = this.formData;
       this.isLoading = true;
       this.basicLoading = true;
       let data = {
-        clean_type: etl_config,
+        clean_type: etlConfig,
         etl_params: {
-          retain_original_text: etl_params.retain_original_text,
-          separator_regexp: etl_params.separator_regexp,
-          separator: etl_params.separator,
-          retain_extra_json: etl_params.retain_extra_json ?? false,
+          retain_original_text: etlParams.retain_original_text,
+          separator_regexp: etlParams.separator_regexp,
+          separator: etlParams.separator,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
         },
         etl_fields: fields,
         visible_type,
       };
       /* eslint-disable */
-      if (etl_config !== 'bk_log_text') {
-        const etlParams = {
-          retain_original_text: etl_params.retain_original_text,
-          retain_extra_json : etl_params.retain_extra_json ?? false
+      if (etlConfig !== 'bk_log_text') {
+        const payload = {
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json : etlParams.retain_extra_json ?? false
         }
-        if (etl_config === 'bk_log_delimiter') {
-          etlParams.separator = etl_params.separator
+        if (etlConfig === 'bk_log_delimiter') {
+          payload.separator = etlParams.separator
         }
-        if (etl_config === 'bk_log_regexp') {
-          etlParams.separator_regexp = etl_params.separator_regexp
+        if (etlConfig === 'bk_log_regexp') {
+          payload.separator_regexp = etlParams.separator_regexp
         }
-        data.etl_params = etlParams
+        data.etlParams = payload
         data.etl_fields = this.$refs.fieldTable.getData()
       }
 
@@ -895,9 +928,9 @@ export default {
           storage_replies,
           allocation_min_days,
           view_roles,
-          etl_config,
+          etl_config: etlConfig,
           fields: data.etl_fields,
-          etl_params,
+          etl_params: etlParams,
         }
         requestUrl = 'collect/fieldCollection'
       } else if (isCollect) { // 缓存采集项清洗配置
@@ -1211,6 +1244,9 @@ export default {
                     }, [])
                     list.splice(list.length, 0, ...deletedFileds)
                   }
+                  list.forEach((item, itemIndex) => {
+                    item.field_index = itemIndex;
+                  });
                   this.formData.fields.splice(0, fields.length, ...list)
                 }
 
@@ -1403,7 +1439,7 @@ export default {
         },
       }).then((res) => {
         if (res.data) {
-          const { clean_type, etl_params, etl_fields } = res.data;
+          const { clean_type, etl_params, etl_fields: etlFields } = res.data;
           this.formData.fields.splice(0, this.formData.fields.length);
           /* eslint-disable */
           this.params.etl_config = clean_type
@@ -1421,7 +1457,7 @@ export default {
               separator: '',
               retain_extra_json: false,
             }, etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}), // eslint-disable-line
-            fields: etl_fields,
+            fields: etlFields,
           });
         }
       })
@@ -1497,6 +1533,23 @@ export default {
     },
     handleOpenDocument() {
       window.open(this.docUrl, '_blank');
+    },
+    /** 切换匹配模式 */
+    handleSelectConfig(id) {
+      this.params.etl_config = id;
+      this.formData.fields = []; // 切换匹配模式时需要清空字段
+    },
+    /** json格式新增字段 */
+    addNewField() {
+      const fields = deepClone(this.formData.fields);
+      const newBaseFieldObj = {
+        ...this.baseFieldObj,
+        field_index: this.formData.fields.length,
+      };
+      // 获取table表格编辑的数据 新增新的字段对象
+      this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
+      this.deletedVisible = true;
+      this.savaFormData();
     },
   },
 };
@@ -1783,6 +1836,34 @@ export default {
 
     .field-method-result {
       margin-top: 8px;
+    }
+
+    .add-field-container {
+      height: 40px;
+      border: 1px solid #dcdee5;
+      border-top: none;
+      border-bottom: 1.5px solid #dcdee5;
+      border-radius: 0 0 2px 2px;
+      transform: translateY(-1px);
+      padding-left: 4px;
+      display: flex;
+      align-items: center;
+
+      .text-btn {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+
+        .text,
+        .icon {
+          font-size: 22px;
+          color: #3a84ff;
+        }
+
+        .text {
+          font-size: 12px;
+        }
+      }
     }
 
     .visible-select {

@@ -50,9 +50,10 @@ DATE_RE = re.compile("[0-9]{6,8}$")
 
 
 class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
-    def __init__(self):
+    def __init__(self, storage_cluster_id: int = None):
         super(QueryClientLog, self).__init__()
         self._client: Elasticsearch
+        self.storage_cluster_id = storage_cluster_id
 
     def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
         # query前没有必要检查ping
@@ -157,7 +158,11 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         return new_index_list[-1]
 
     def _get_connection(self, index: str, check_ping: bool = True):
-        self.host, self.port, self.username, self.password, self.version, self.schema = self._connect_info(index=index)
+        if not self.storage_cluster_id or self.storage_cluster_id == -1:
+            _connect_info: tuple = self._connect_info(index=index)
+        else:
+            _connect_info: tuple = self._connect_info_by_storage_cluster_id(storage_cluster_id=self.storage_cluster_id)
+        self.host, self.port, self.username, self.password, self.version, self.schema = _connect_info
         self._active: bool = False
 
         if not self.host or not self.port:
@@ -181,37 +186,57 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         if not check_ping or self._client.ping():
             self._active = True
 
-    @staticmethod
     @cache_five_minute("_connect_info_{index}", need_md5=True)
-    def _connect_info(index: str = "") -> tuple:
+    def _connect_info(self, index: str = "") -> tuple:
         transfer_api_response: dict = TransferApi.get_result_table_storage(
             {"result_table_list": index, "storage_type": "elasticsearch"}
         )
-        # if transfer_api_response.get("code") == "0":
-        if len(transfer_api_response) == 1:
-            data: dict = transfer_api_response.get(index)
-            cluster_config: dict = data.get("cluster_config")
-            domain_name: str = cluster_config.get("domain_name")
-            port: int = cluster_config.get("port")
-            version: str = cluster_config.get("version")
-            auth_info_dict: dict = data.get("auth_info")
-            username: str = auth_info_dict.get("username")
-            password: str = auth_info_dict.get("password")
-            # 添加协议字段 由于是后添加的 所以放置在这个地方
-            schema: str = cluster_config.get("schema") or DEFAULT_SCHEMA
 
-            _es_password = password
-            _es_host = domain_name
-            _es_port = port
-            _es_user = username
-            _es_version = version
-            _es_schema = schema
-
-            return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
-        else:
+        if not transfer_api_response:
             raise EsClientMetaInfoException(
                 EsClientMetaInfoException.MESSAGE.format(message=transfer_api_response.get("message"))
             )
+
+        data: dict = transfer_api_response.get(index)
+        return self._get_cluster_config(
+            cluster_config=data.get("cluster_config"),
+            auth_info=data.get("auth_info")
+        )
+
+    @cache_five_minute("_connect_info_{storage_cluster_id}", need_md5=True)
+    def _connect_info_by_storage_cluster_id(self, storage_cluster_id: int) -> tuple:
+        transfer_api_response: list = TransferApi.get_cluster_info({"cluster_id": storage_cluster_id})
+
+        if not transfer_api_response:
+            raise EsClientMetaInfoException(EsClientMetaInfoException.MESSAGE.format(message="meta_api_response error"))
+
+        cluster_config: dict = transfer_api_response[0].get("cluster_config")
+        return self._get_cluster_config(
+            cluster_config=cluster_config,
+            auth_info=transfer_api_response[0].get("auth_info")
+        )
+
+    @staticmethod
+    def _get_cluster_config(cluster_config: dict, auth_info: dict):
+        """
+        提取存储集群配置信息
+        """
+        domain_name: str = cluster_config.get("domain_name")
+        port: int = cluster_config.get("port")
+        version: str = cluster_config.get("version")
+        username: str = auth_info.get("username")
+        password: str = auth_info.get("password")
+        # 添加协议字段 由于是后添加的 所以放置在这个地方
+        schema: str = cluster_config.get("schema") or DEFAULT_SCHEMA
+
+        _es_password = password
+        _es_host = domain_name
+        _es_port = port
+        _es_user = username
+        _es_version = version
+        _es_schema = schema
+
+        return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
 
     @classmethod
     def indices(cls, bk_biz_id, result_table_id=None, with_storage=False):

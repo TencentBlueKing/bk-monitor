@@ -8,20 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-"""
-处理套餐配置缓存
-"""
-
+import datetime
 from typing import Dict
 
-from django.db.models import Q
+import pytz
 
 from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.cache.cmdb.business import BusinessManager
 from bkmonitor.action.serializers import ActionConfigDetailSlz, ActionPluginSlz
 from bkmonitor.models import ActionConfig, ActionPlugin
 from bkmonitor.utils import extended_json
-from constants.action import DEFAULT_NOTICE_ID, DEFAULT_NOTICE_INTERVAL, GLOBAL_BIZ_ID
+from constants.action import DEFAULT_NOTICE_ID, DEFAULT_NOTICE_INTERVAL
 
 
 class ActionConfigCacheManager(CacheManager):
@@ -79,8 +75,7 @@ class ActionConfigCacheManager(CacheManager):
         )
 
     @classmethod
-    def refresh(cls):
-        biz_list = [biz.bk_biz_id for biz in BusinessManager.all()]
+    def refresh(cls, minutes=None):
         pipeline = cls.cache.pipeline()
         action_plugins = ActionPluginSlz(instance=ActionPlugin.objects.all(), many=True).data
         for action_plugin in action_plugins:
@@ -94,8 +89,24 @@ class ActionConfigCacheManager(CacheManager):
         for deleted_plugin_id in deleted_plugins:
             pipeline.delete(cls.PLUGIN_CACHE_KEY.format(cache_id=deleted_plugin_id))
 
-        action_configs = ActionConfig.objects.filter(Q(bk_biz_id__in=biz_list) | Q(bk_biz_id=GLOBAL_BIZ_ID))
-        action_configs = ActionConfigDetailSlz(instance=action_configs, many=True).data
+        deleted_configs = []
+        updated_configs = []
+        if minutes:
+            # 如果有带时间，通过原生manager查找出来
+            all_configs = ActionConfig.origin_objects.filter(
+                update_time__gte=datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(minutes=minutes)
+            )
+            for config in all_configs:
+                if config.is_deleted:
+                    # 如果被删除的，加入到删除列表中
+                    deleted_configs.append(config.id)
+                    continue
+                else:
+                    updated_configs.append(config)
+        else:
+            updated_configs = ActionConfig.objects.all()
+
+        action_configs = ActionConfigDetailSlz(instance=updated_configs, many=True).data
 
         for action_config in action_configs:
             pipeline.set(
@@ -103,7 +114,7 @@ class ActionConfigCacheManager(CacheManager):
                 extended_json.dumps(action_config),
                 cls.CACHE_TIMEOUT,
             )
-        deleted_configs = set(ActionConfig.origin_objects.filter(is_deleted=True).values_list("id", flat=True))
+
         for deleted_config_id in deleted_configs:
             pipeline.delete(
                 cls.CACHE_KEY_TEMPLATE.format(cache_type=cls.CacheType.CONFIG_ID, cache_id=deleted_config_id)
@@ -111,5 +122,15 @@ class ActionConfigCacheManager(CacheManager):
         pipeline.execute()
 
 
-def main():
+def refresh_total():
+    """
+    刷新全部
+    """
     ActionConfigCacheManager.refresh()
+
+
+def refresh_latest_5_minutes():
+    """
+    刷新全部
+    """
+    ActionConfigCacheManager.refresh(minutes=5)

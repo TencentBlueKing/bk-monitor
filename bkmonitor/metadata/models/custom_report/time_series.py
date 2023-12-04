@@ -23,6 +23,8 @@ from django.utils.functional import cached_property
 from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
 from django.utils.translation import ugettext as _
+
+from bkmonitor.utils.db.fields import JsonField
 from metadata import config
 from metadata.models.constants import DB_DUPLICATE_ID
 from metadata.models.result_table import (
@@ -32,8 +34,6 @@ from metadata.models.result_table import (
 )
 from metadata.models.storage import ClusterInfo
 from packages.utils.redis_client import RedisClient
-
-from bkmonitor.utils.db.fields import JsonField
 
 from .base import CustomGroupBase
 
@@ -148,7 +148,6 @@ class TimeSeriesGroup(CustomGroupBase):
         logger.info("table->[%s] refresh tag count->[%s] success.", table_id, len(tag_list))
         return True
 
-    @atomic(config.DATABASE_CONNECTION_NAME)
     def update_metric_field(self, field_name: str, is_disabled: bool) -> bool:
         """
         更新单个指标的信息
@@ -160,7 +159,8 @@ class TimeSeriesGroup(CustomGroupBase):
         table_id = self.table_id
 
         # 更新指标列信息
-        rt_field, is_created = ResultTableField.objects.update_or_create(
+        # 先进行查询，如果存在，并且有变动才进行更新；如果不存在，则进行创建
+        rt_field, is_created = ResultTableField.objects.get_or_create(
             table_id=table_id,
             field_name=field_name,
             tag=ResultTableField.FIELD_TAG_METRIC,
@@ -173,8 +173,16 @@ class TimeSeriesGroup(CustomGroupBase):
                 "is_disabled": is_disabled,
             },
         )
+        # 判断是否有字段的更新，如果有变化则进行更新
+        is_field_update = False
+        # NOTE: is_disabled 字段不可能为空
+        if rt_field.is_disabled != is_disabled:
+            rt_field.is_disabled = is_disabled
+            rt_field.save(update_fields=["is_disabled"])
+            is_field_update = True
+
         # RTField 有新增 或是 is_disabled 有变更，需要刷新 consul
-        if is_created or rt_field.is_disabled != is_disabled:
+        if is_created or is_field_update:
             self.NEED_REFRESH_CONSUL = True
 
         logger.info("table->[%s] metric field->[%s] is update.", table_id, field_name)
@@ -259,7 +267,7 @@ class TimeSeriesGroup(CustomGroupBase):
     def metric_consul_path(self):
         return "{}/influxdb_metrics/{}/time_series_metric".format(config.CONSUL_PATH, self.bk_data_id)
 
-    def get_metrics_from_redis(self):
+    def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
 
         其中，redis 中数据有 transfer 上报
@@ -270,14 +278,12 @@ class TimeSeriesGroup(CustomGroupBase):
 
         now_time = tz_now()
         fetch_step = settings.MAX_METRICS_FETCH_STEP
-        expired_days = settings.TIME_SERIES_METRIC_EXPIRED_DAYS
-        valid_begin_ts = (now_time - datetime.timedelta(expired_days)).timestamp()
+        valid_begin_ts = (now_time - datetime.timedelta(seconds=expired_time)).timestamp()
         metrics_filter_params = {"name": custom_metrics_key, "min": valid_begin_ts, "max": now_time.timestamp()}
 
         metrics_info = []
         # 分批拉取 redis 数据，防止大批量数据拖垮
         for i in range(math.ceil(client.zcount(**metrics_filter_params) / fetch_step)):
-
             try:
                 # 0. 首先获取有效期内的所有 metrics
                 metrics_with_scores: List[Tuple[bytes, float]] = client.zrangebyscore(
@@ -326,7 +332,10 @@ class TimeSeriesGroup(CustomGroupBase):
 
         :return: 返回是否有更新指标
         """
-        metrics_info = self.get_metrics_from_redis()
+        metrics_info = self.get_metrics_from_redis(expired_time=settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS)
+        # 如果为空，直接返回
+        if not metrics_info:
+            return False
 
         # 记录是否有更新，然后推送redis并发布通知
         is_updated = self.update_metrics(metrics_info)
@@ -477,6 +486,8 @@ class TimeSeriesGroup(CustomGroupBase):
         if not metrics:
             return [self.to_json()]
         results = []
+        is_auto_discovery = self.is_auto_discovery()
+        data_label = self.data_label
         for metric in metrics:
             results.append(
                 {
@@ -492,8 +503,8 @@ class TimeSeriesGroup(CustomGroupBase):
                     "last_modify_user": self.last_modify_user,
                     "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "metric_info_list": [metric],
-                    "is_auto_discovery": self.is_auto_discovery(),
-                    "data_label": self.data_label,
+                    "is_auto_discovery": is_auto_discovery,
+                    "data_label": data_label,
                 }
             )
 
@@ -608,7 +619,7 @@ class TimeSeriesGroup(CustomGroupBase):
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
-        last = datetime.datetime.now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+        last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         # 查找过期时间以前的数据
         for metric in TimeSeriesMetric.objects.filter(**metric_filter_params, last_modify_time__gt=last).iterator():
             metric_info = metric.to_metric_info_with_label(self, field_map=orm_field_map)
@@ -629,7 +640,7 @@ class TimeSeriesGroup(CustomGroupBase):
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
-        last = datetime.datetime.now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+        last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         time_series_metric_query = TimeSeriesMetric.objects.filter(group_id=self.time_series_group_id)
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
@@ -763,7 +774,6 @@ class TimeSeriesMetric(models.Model):
         return result
 
     @classmethod
-    @atomic(config.DATABASE_CONNECTION_NAME)
     def update_metrics(cls, group_id, metric_info_list):
         """
         批量的修改/创建某个自定义时序分组下的metric信息
@@ -795,7 +805,6 @@ class TimeSeriesMetric(models.Model):
         # 需要删除的指标（白名单模式下禁用的指标）
         white_list_disabled_metric = []
         for metric_info in metric_info_list:
-
             # 判断传入数据是否包含 values (tag_value_list/tag_list)
             if "tag_value_list" in metric_info:
                 tag_list = list(metric_info["tag_value_list"].keys())
@@ -807,7 +816,7 @@ class TimeSeriesMetric(models.Model):
                 field_name = metric_info["field_name"]
                 field_name_list.append(field_name)
             except KeyError as key:
-                logger.error("metric_info got bad metric->[{}] which has no key->[{}]".format(metric_info, key))
+                logger.error("metric_info got bad metric->[%s] which has no key->[%s]", json.dumps(metric_info), key)
                 raise ValueError(_("自定义时序列表配置有误，请确认后重试"))
 
             last_modify_time = make_aware(
@@ -847,10 +856,20 @@ class TimeSeriesMetric(models.Model):
                         metric_obj.last_modify_time = datetime.datetime(1970, 1, 1)
                     else:
                         white_list_disabled_metric.append(metric_obj.field_id)
+
                 # 有效期内的维度直接覆盖
-                metric_obj.tag_list = tag_list
-                metric_obj.last_modify_time = last_modify_time
-                metric_obj.save()
+                # 判断是否需要保存操作
+                need_save_op = False
+                if set(metric_obj.tag_list or []) != set(tag_list):
+                    metric_obj.tag_list = tag_list
+                    need_save_op = True
+                # TODO: 还需要继续优化，先设置最后更新时间 1 天更新一次，减少对 db 的操作
+                if (last_modify_time - metric_obj.last_modify_time).days >= 1:
+                    metric_obj.last_modify_time = last_modify_time
+                    need_save_op = True
+                if need_save_op:
+                    metric_obj.save()
+
                 # 后续可以在此处追加其他修改内容
                 logger.info(
                     "time_series_group_id->[{}] has update field_name->[{}] all tags->[{}]".format(
@@ -860,16 +879,6 @@ class TimeSeriesMetric(models.Model):
 
         if white_list_disabled_metric:
             cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
-
-        # 判断是否存在需要删除的字段，仅在自动发现模式下需要
-        if is_auto_discovery:
-            need_delete_query = cls.objects.filter(group_id=group_id).exclude(field_name__in=field_name_list)
-            if need_delete_query.exists():
-                deleted_field_list = list(need_delete_query.values_list("field_name", flat=True))
-                need_delete_query.update(last_modify_time=datetime.datetime(1970, 1, 1))
-                logger.info(
-                    "time_series_group_id->[{}] has delete field_name->[{}]".format(group_id, deleted_field_list)
-                )
 
         return is_updated
 
@@ -882,7 +891,6 @@ class TimeSeriesMetric(models.Model):
         return TimeSeriesGroup.objects.get(time_series_group_id=self.group_id)
 
     def to_json(self):
-
         return {"field_id": self.field_id, "field_name": self.field_name, "tag_list": self.tag_list}
 
     def to_metric_info_with_label(self, group: TimeSeriesGroup, field_map=None):
@@ -1020,7 +1028,10 @@ class TimeSeriesTagManager(models.Manager):
         """通过关键信息批量构建标签实例"""
         _ins = []
         for tag_name, tag_info in tag_infos.items():
-            tag, created, = self.update_or_create(
+            (
+                tag,
+                created,
+            ) = self.update_or_create(
                 group_id=metric_obj.group_id,
                 metric_id=metric_obj.pk,
                 name=tag_name,

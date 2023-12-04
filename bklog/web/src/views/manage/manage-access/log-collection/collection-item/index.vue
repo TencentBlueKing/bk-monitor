@@ -80,6 +80,11 @@
               {{ props.row.collector_config_name }}
             </span>
             <span
+              v-if="props.row.is_desensitize"
+              class="bk-icon log-icon icon-masking"
+              v-bk-tooltips.top="$t('已脱敏')">
+            </span>
+            <span
               v-if="!props.row.table_id"
               class="table-mark mark-mini mark-default">
               {{ $t('未完成') }}
@@ -287,11 +292,12 @@
               @click.stop="operateHandler(props.row, 'edit')">
               {{ $t('编辑') }}
             </bk-button>
-            <span v-bk-tooltips.top="{
-              content: getDisabledTipsMessage(props.row, 'clean'),
-              disabled: !props.row.status || props.row.table_id,
-              delay: 500,
-            }">
+            <span
+              v-bk-tooltips.top="{
+                content: getDisabledTipsMessage(props.row, 'clean'),
+                disabled: !props.row.status || props.row.table_id,
+                delay: 500,
+              }">
               <!-- 清洗 -->
               <bk-button
                 theme="primary"
@@ -305,13 +311,18 @@
                 {{ $t('清洗') }}
               </bk-button>
             </span>
-            <bk-dropdown-menu ref="dropdown" align="right" position-fixed>
+            <bk-popover
+              class="dot-menu"
+              placement="bottom-start"
+              theme="dot-menu light"
+              :arrow="false"
+              offset="15"
+              :distance="0">
               <i
                 class="bk-icon icon-more"
-                style="margin-left: 5px; font-size: 14px; font-weight: bold;"
-                slot="dropdown-trigger">
+                style="margin-left: 5px; font-size: 14px; font-weight: bold;">
               </i>
-              <ul class="bk-dropdown-list collection-operation-list" slot="dropdown-content">
+              <ul class="collection-operation-list" slot="content">
                 <!-- 查看详情 -->
                 <li>
                   <a
@@ -323,7 +334,53 @@
                     {{ $t('详情') }}
                   </a>
                 </li>
-
+                <li v-if="isShowMaskingTemplate">
+                  <a href="javascript:;" @click.stop="operateHandler(props.row, 'masking')">
+                    {{ $t('日志脱敏') }}
+                  </a>
+                </li>
+                <!-- 存储设置 -->
+                <li>
+                  <a
+                    href="javascript:;"
+                    class="text-disabled"
+                    v-if="!props.row.table_id"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'storage'),
+                      disabled: !props.row.status || props.row.table_id,
+                      delay: 500,
+                    }">
+                    {{$t('存储设置')}}
+                  </a>
+                  <a
+                    href="javascript:;"
+                    v-else
+                    v-cursor="{
+                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                    }"
+                    @click.stop="operateHandler(props.row, 'storage')">{{$t('存储设置')}}</a>
+                </li>
+                <!-- 克隆 -->
+                <li>
+                  <a
+                    href="javascript:;"
+                    class="text-disabled"
+                    v-if="!props.row.table_id"
+                    v-bk-tooltips.top="{
+                      content: getDisabledTipsMessage(props.row, 'clone'),
+                      disabled: !props.row.status || props.row.table_id,
+                      delay: 500,
+                    }">
+                    {{ $t('克隆') }}
+                  </a>
+                  <a
+                    href="javascript:;"
+                    v-else
+                    v-cursor="{
+                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                    }"
+                    @click.stop="operateHandler(props.row, 'clone')">{{ $t('克隆') }}</a>
+                </li>
                 <li v-if="props.row.is_active">
                   <a
                     href="javascript:;"
@@ -383,55 +440,13 @@
                     }"
                     @click.stop="operateHandler(props.row, 'delete')">{{$t('删除')}}</a>
                 </li>
-                <!-- 存储设置 -->
-                <li>
-                  <a
-                    href="javascript:;"
-                    class="text-disabled"
-                    v-if="!props.row.table_id"
-                    v-bk-tooltips.top="{
-                      content: getDisabledTipsMessage(props.row, 'storage'),
-                      disabled: !props.row.status || props.row.table_id,
-                      delay: 500,
-                    }">
-                    {{$t('存储设置')}}
-                  </a>
-                  <a
-                    href="javascript:;"
-                    v-else
-                    v-cursor="{
-                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                    }"
-                    @click.stop="operateHandler(props.row, 'storage')">{{$t('存储设置')}}</a>
-                </li>
-                <!-- 克隆 -->
-                <li>
-                  <a
-                    href="javascript:;"
-                    class="text-disabled"
-                    v-if="!props.row.table_id"
-                    v-bk-tooltips.top="{
-                      content: getDisabledTipsMessage(props.row, 'clone'),
-                      disabled: !props.row.status || props.row.table_id,
-                      delay: 500,
-                    }">
-                    {{ $t('克隆') }}
-                  </a>
-                  <a
-                    href="javascript:;"
-                    v-else
-                    v-cursor="{
-                      active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                    }"
-                    @click.stop="operateHandler(props.row, 'clone')">{{ $t('克隆') }}</a>
-                </li>
                 <li v-if="enableCheckCollector">
                   <a href="javascript:;" @click.stop="handleShowReport(props.row)">
                     {{ $t('一键检测') }}
                   </a>
                 </li>
               </ul>
-            </bk-dropdown-menu>
+            </bk-popover>
           </div>
         </bk-table-column>
         <bk-table-column type="setting">
@@ -577,6 +592,7 @@ export default {
       spaceUid: 'spaceUid',
       bkBizId: 'bkBizId',
       authGlobalInfo: 'globals/authContainerInfo',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
     }),
     ...mapGetters('globals', ['globalsData']),
     authorityMap() {
@@ -689,6 +705,7 @@ export default {
         clean: 'clean-edit',
         storage: 'collectStorage',
         clone: 'collectAdd',
+        masking: 'collectMasking',
       };
       const targetRoute = routeMap[operateType];
       // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
@@ -697,7 +714,7 @@ export default {
           return this.operateHandler(row, 'edit');
         }
       }
-      if (['manage-collection', 'collectEdit', 'collectField', 'collectStorage'].includes(targetRoute)) {
+      if (['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)) {
         params.collectorId = row.collector_config_id;
       }
       if (operateType === 'status') {
@@ -719,6 +736,10 @@ export default {
         params.collectorId = row.collector_config_id;
         query.collectorId = row.collector_config_id;
         query.type = 'clone';
+      }
+      if (operateType === 'masking') {
+        // 直接跳转到脱敏页隐藏左侧的步骤
+        query.type = 'masking';
       }
       this.$store.commit('collect/setCurCollect', row);
       this.$router.push({
@@ -765,22 +786,28 @@ export default {
     requestData() {
       this.isTableLoading = true;
       this.emptyType = (this.params.keyword || this.isFilterSearch) ? 'search-empty' : 'empty';
+      const ids = this.$route.query.ids; // 根据id来检索
+      const collectorIdList = ids ? decodeURIComponent(ids) : [];
       this.$http.request('collect/getCollectList', {
         query: {
           bk_biz_id: this.bkBizId,
           keyword: this.params.keyword,
           page: this.pagination.current,
           pagesize: this.pagination.limit,
+          collector_id_list: collectorIdList,
           not_custom: 1,
         },
-      }).then((res) => {
+      }).then(async (res) => {
         const { data } = res;
         if (data && data.list) {
           const idList = [];
+          const indexIdList = data.list.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+          const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
           data.list.forEach((row) => {
             row.status = '';
             row.status_name = '';
             idList.push(row.collector_config_id);
+            row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
           });
           this.collectList.splice(0, this.collectList.length, ...data.list);
           this.pagination.count = data.total;
@@ -801,6 +828,12 @@ export default {
         })
         .finally(() => {
           this.isTableLoading = false;
+          // 如果有ids 重置路由
+          if (ids) this.$router.replace({
+            query: {
+              spaceUid: this.$route.query.spaceUid,
+            },
+          });
         });
     },
     handleOperation(type) {
@@ -914,6 +947,15 @@ export default {
         }
       });
     },
+    async getDesensitizeStatus(indexIdList = []) {
+      try {
+        return await this.$http.request('masking/getDesensitizeState', {
+          data: { index_set_ids: indexIdList },
+        });
+      } catch (error) {
+        return [];
+      }
+    },
   },
 };
 </script>
@@ -984,6 +1026,10 @@ export default {
       color: #fff;
     }
 
+    .icon-masking {
+      color: #ff9c01;
+    }
+
     .status {
       cursor: pointer;
 
@@ -1025,27 +1071,56 @@ export default {
         }
       }
     }
+  }
 
-    .bk-dropdown-list a.text-disabled:hover {
-      color: #c4c6cc;
-      cursor: not-allowed;
+  .dot-menu {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .dot-menu-theme {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+
+    &::before {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #fff !important;
+    }
+  }
+
+  .collection-operation-list {
+    margin: 0;
+    min-width: 50px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    li {
+      padding: 4px 16px;
+      font-size: 12px;
+      line-height: 26px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #eaf3ff;
+        color: #3a84ff;
+      }
     }
 
-    .collection-operation-list {
-      max-height: 190px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-
-    .collect-table-operate {
-      display: flex;
-    }
-
-    .bk-dropdown-trigger {
-      display: flex;
-      align-items: center;
+    a {
+      display: inline-block;
+      width: 100%;
       height: 100%;
+      color: #63656e;
+    }
+
+    .text-disabled {
+      color: #c4c6cc;
+
+      &:hover {
+        cursor: not-allowed;
+      }
     }
   }
 

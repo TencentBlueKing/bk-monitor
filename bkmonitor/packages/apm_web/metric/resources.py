@@ -15,6 +15,12 @@ import operator
 from collections import defaultdict
 from typing import List
 
+from django.utils.translation import gettext_lazy as _lazy
+from django.utils.translation import ugettext as _
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+from rest_framework import serializers
+
 from apm_web.constants import (
     APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
@@ -62,12 +68,12 @@ from apm_web.serializers import (
     ComponentInstanceIdDynamicField,
     ServiceParamsSerializer,
 )
-from apm_web.utils import Calculator, get_time_period, group_by, handle_filter_fields
+from apm_web.utils import Calculator, group_by, handle_filter_fields
+from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request
 from constants.apm import OtlpKey, SpanKind
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
-from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
     CollectTableFormat,
@@ -85,12 +91,6 @@ from monitor_web.scene_view.table_format import (
     StringTableFormat,
     SyncTimeLinkTableFormat,
 )
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-from rest_framework import serializers
-
-from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.utils.request import get_request
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ class DynamicUnifyQueryResource(Resource):
         service_name = serializers.CharField(label="服务名称")
         category = serializers.CharField(label="分类")
         kind = serializers.CharField(label="类型")
-        predicate_value = serializers.CharField(label="具体值")
+        predicate_value = serializers.CharField(label="具体值", allow_blank=True)
         unify_query_param = serializers.DictField(label="unify-query参数")
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -141,7 +141,6 @@ class DynamicUnifyQueryResource(Resource):
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
 
     def perform_request(self, validate_data):
-
         unify_query_params = {
             **validate_data["unify_query_param"],
             "start_time": validate_data["start_time"],
@@ -179,9 +178,10 @@ class DynamicUnifyQueryResource(Resource):
             else:
                 # 没有组件实例时 单独添加组件类型的条件
                 where = component_where_mapping[validate_data["category"]]
-                config["where"].append(
-                    json.loads(json.dumps(where).replace("{predicate_value}", validate_data["predicate_value"]))
-                )
+                if validate_data.get("predicate_value"):
+                    config["where"].append(
+                        json.loads(json.dumps(where).replace("{predicate_value}", validate_data["predicate_value"]))
+                    )
 
         # 替换service名称
         unify_query_params = json.loads(
@@ -398,12 +398,18 @@ class ServiceListResource(PageListResource):
                     if strategy_alert_map[name] > strategy.get("severity", ServiceStatus.NORMAL):
                         strategy_alert_map[name] = strategy.get("severity", ServiceStatus.NORMAL)
 
-        distance, period = get_time_period(validate_data["start_time"], validate_data["end_time"])
         # 仅获取状态列 其他列通过异步接口获取
         request_count_info = {
-            **SERVICE_DATA_STATUS(app, distance=distance, period=period),
-            **REMOTE_SERVICE_DATA_STATUS(app, distance=distance, period=period),
-            **ComponentHandler.get_service_component_name_metrics(app, distance, period, COMPONENT_DATA_STATUS),
+            **SERVICE_DATA_STATUS(app, start_time=validate_data["start_time"], end_time=validate_data["end_time"]),
+            **REMOTE_SERVICE_DATA_STATUS(
+                app, start_time=validate_data["start_time"], end_time=validate_data["end_time"]
+            ),
+            **ComponentHandler.get_service_component_name_metrics(
+                app,
+                validate_data["start_time"],
+                validate_data["end_time"],
+                COMPONENT_DATA_STATUS,
+            ),
         }
         # 处理响应数据
         raw_data = self.combine_data(
@@ -440,12 +446,15 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         if not app:
             raise ValueError(_("应用{}不存在").format(validated_data['app_name']))
 
-        distance, period = get_time_period(validated_data["start_time"], validated_data["end_time"])
         service_metric_info = {
-            **SERVICE_LIST(app, distance=distance, period=period),
-            **REMOTE_SERVICE_LIST(app, distance=distance, period=period),
+            **SERVICE_LIST(app, start_time=validated_data["start_time"], end_time=validated_data["end_time"]),
+            **REMOTE_SERVICE_LIST(app, start_time=validated_data["start_time"], end_time=validated_data["end_time"]),
         }
-        component_metric_info = ComponentHandler.get_service_component_metrics(app, distance, period)
+        component_metric_info = ComponentHandler.get_service_component_metrics(
+            app,
+            validated_data["start_time"],
+            validated_data["end_time"],
+        )
 
         services = ServiceHandler.list_services(app)
         column = validated_data["column"]
@@ -540,6 +549,7 @@ class InstanceListResource(Resource):
         service_name = serializers.CharField(label="服务名称", required=False, allow_blank=True)
         keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
         service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
+        category = serializers.ListField(label="分类", required=False, default=[])
 
     def perform_request(self, validated_request_data):
         query_dict = {"bk_biz_id": validated_request_data["bk_biz_id"], "app_name": validated_request_data["app_name"]}
@@ -558,6 +568,11 @@ class InstanceListResource(Resource):
                 "instance_topo_kind": TopoNodeKind.COMPONENT,
                 "component_instance_category": service_params["category"],
                 "component_instance_predicate_value": service_params["predicate_value"],
+            }
+        elif validated_request_data.get("category"):
+            query_dict["filters"] = {
+                "component_instance_category__in": validated_request_data.get("category"),
+                "instance_topo_kind": TopoNodeKind.COMPONENT,
             }
         else:
             query_dict["filters"] = {"instance_topo_kind": TopoNodeKind.SERVICE}
@@ -849,7 +864,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             }
 
     def parse_errors(self, bk_biz_id, error_spans):
-
         # 获取service
         service_mappings = {
             i["topo_key"]: i for i in api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": self.app_name})
@@ -896,7 +910,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         filter_from_status = validated_data.get("status") == "has_stack"
 
         if filter_from_filter_dict or filter_from_status:
-
             res = []
             for item in data:
                 if True if item["message"]["is_stack"] == _lazy("有Stack") else False:
@@ -1076,7 +1089,6 @@ class EndpointDetailListResource(Resource):
         duration_all_count = sum([i.get("avg_duration") for i in endpoints_metric.values()])
 
         if validated_request_data["show_type"] == "topo":
-
             res = []
             for endpoint in endpoints:
                 service_name = endpoint["service_name"]
@@ -1255,7 +1267,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             for i in data
         )
 
-        return round((error_count / request_count_sum) * 100, 2) if request_count_sum else 0
+        return round((error_count / request_count_sum) * 100, 2) if request_count_sum else None
 
     def get_columns(self, column_type=None):
         service_format = LinkTableFormat(
@@ -1352,6 +1364,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 id="error_rate",
                 name=_lazy("错误率"),
                 overview_calculate_handler=EndpointListResource.overview_error_rate,
+                color_getter=lambda _: "FAILED",
                 min_width=120,
             ),
             NumberTableFormat(
@@ -1560,8 +1573,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
 
         # 获取时间范围内endpoint的指标
-        distance, period = get_time_period(data["start_time"], data["end_time"])
-        endpoints_metric = ENDPOINT_LIST(application, distance=distance, period=period)
+        endpoints_metric = ENDPOINT_LIST(application, start_time=data["start_time"], end_time=data["end_time"])
 
         request_all_count = 0
         error_all_count = 0
@@ -1599,7 +1611,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             endpoint["app_name"] = application.app_name
             endpoint["operation"] = {"trace": _lazy("调用链")}
             endpoint["origin_category_kind"] = endpoint["category_kind"]
-            endpoint["category_kind"] = endpoint["category_kind"]["value"]
+            endpoint["category_kind"] = endpoint["category_kind"]["value"] or "--"
             endpoint["bk_biz_id"] = data["bk_biz_id"]
             endpoint["status"] = self.get_status(metric)
             endpoint["service"] = endpoint["service_name"]
@@ -1797,11 +1809,9 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
         return ["instance_id"]
 
     def perform_request(self, validated_request_data):
-
         application = Application.objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         ).first()
-        distance, period = get_time_period(validated_request_data["start_time"], validated_request_data["end_time"])
 
         query_dict = {
             "bk_biz_id": validated_request_data["bk_biz_id"],
@@ -1823,7 +1833,11 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
                 "component_instance_predicate_value": service_params["predicate_value"],
             }
             metric_data = ComponentHandler.get_service_component_instance_metrics(
-                application, service_params["kind"], service_params["category"], distance, period
+                application,
+                service_params["kind"],
+                service_params["category"],
+                validated_request_data["start_time"],
+                validated_request_data["end_time"],
             )
 
         else:
@@ -1831,7 +1845,11 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
                 "instance_topo_kind": TopoNodeKind.SERVICE,
             }
 
-            metric_data = INSTANCE_LIST(application, distance=distance, period=period)
+            metric_data = INSTANCE_LIST(
+                application,
+                start_time=validated_request_data["start_time"],
+                end_time=validated_request_data["end_time"],
+            )
 
         instances = api.apm_api.query_instance(query_dict).get("data", [])
 

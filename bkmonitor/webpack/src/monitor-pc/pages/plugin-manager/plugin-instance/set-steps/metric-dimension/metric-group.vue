@@ -173,15 +173,15 @@
             </bk-table-column>
             <bk-table-column
               :label="$t('指标/维度')"
-              width="150"
+              width="100"
             >
               <template slot-scope="scope">
                 {{ scope.row.monitor_type === 'metric' ? $t('指标') : $t('维度') }}
               </template>
             </bk-table-column>
             <bk-table-column
-              :label="$t('英文名')"
-              min-width="100"
+              :label="$t('指标名')"
+              min-width="150"
             >
               <template slot-scope="scope">
                 <div class="cell-margin name">
@@ -241,7 +241,7 @@
             </bk-table-column>
             <bk-table-column
               :label="$t('别名')"
-              min-width="100"
+              min-width="150"
             >
               <template slot-scope="scope">
                 <div class="cell-margin name">
@@ -273,7 +273,7 @@
             </bk-table-column>
             <bk-table-column
               :label="$t('类型')"
-              width="120"
+              width="100"
             >
               <template slot-scope="scope">
                 <template v-if="scope.row.monitor_type === 'metric'">
@@ -314,7 +314,7 @@
             </bk-table-column>
             <bk-table-column
               :label="$t('单位')"
-              width="170"
+              width="130"
             >
               <template slot-scope="scope">
                 <div
@@ -476,7 +476,7 @@
 
 <script>
 /* eslint-disable vue/no-mutating-props */
-import { mapActions, mapGetters } from 'vuex';
+import { mapActions } from 'vuex';
 import { bkPopconfirm } from 'bk-magic-vue';
 
 import { collapseMixin } from '../../../../../common/mixins';
@@ -601,8 +601,6 @@ export default {
     };
   },
   computed: {
-    //    关键字列表
-    ...mapGetters('plugin-manager', ['reservedWords']),
     localGroupRules() {
       const data = this.groupRules.map(item => ({
         type: 'value',
@@ -635,6 +633,7 @@ export default {
       // 根据是否开启隐藏已停用功能来判断展示的内容
       return this.metricData
         .filter(item => !this.hideStop || (this.hideStop && item.is_active))
+        .sort((a, b) => a.name.localeCompare(b.name))
         .slice(limit * (current - 1), limit * current);
     },
     // 指标数量
@@ -745,7 +744,6 @@ export default {
     }
   },
   async created() {
-    !this.reservedWords.length && (await this.getReservedWords());
     this.metricData.forEach((row) => {
       this.checkNameFn(row);
     });
@@ -798,7 +796,8 @@ export default {
           // 维度不能被勾选
           item.isCheck = value === 2 && item.monitor_type !== 'dimension';
           // 收集已勾选指标所关联的维度
-          item.monitor_type === 'metric' && (item.tag_list || []).forEach(item => relatedDimensions.add(item.field_name));
+          item.monitor_type === 'metric'
+            && (item.tag_list || []).forEach(item => relatedDimensions.add(item.field_name));
         });
         // 自动勾选关联的维度
         this.metricData.forEach((item) => {
@@ -841,9 +840,6 @@ export default {
         ) {
           data.errValue = true;
           data.reValue = false;
-        } else if (this.reservedWords.find(item => item === row.name.toLocaleUpperCase())) {
-          data.errValue = false;
-          data.reValue = true;
         } else if (!judgeIsIllegal(row.name)) {
           data.errValue = false;
           data.reValue = true;
@@ -884,7 +880,7 @@ export default {
     reNameFn(row) {
       const index = this.metricData.findIndex(item => item.id === row.id);
       this.metricData[index].source_name = row.name;
-      this.metricData[index].name = metricNameTransFrom(row.name, this.reservedWords);
+      this.metricData[index].name = metricNameTransFrom(row.name);
       this.metricData[index].reValue = false;
       this.checkNameFn(row);
     },
@@ -1087,10 +1083,7 @@ export default {
 };
 </script>
 
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 /* stylelint-disable no-descending-specificity */
 
 .pl5 {
@@ -1317,7 +1310,6 @@ export default {
     border-top: none;
 
     .left-table {
-
       width: 100%;
       transition: width .5s;
 
@@ -1503,70 +1495,42 @@ export default {
     }
 
     .left-active {
-      width: calc(100% - 420px);
+      width: calc(100% - 300px);
     }
 
     .right-data {
       display: flex;
       flex-direction: column;
-      width: 420px;
+      width: 300px;
 
       .ul-head {
         display: flex;
-        align-items: center;
-        height: 43px;
-        padding-left: 10px;
         background: #000;
 
         .host-type {
           display: flex;
-          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-width: 71px;
+          height: 42px;
+          padding: 0 16px;
+          color: #fff;
+          cursor: pointer;
+        }
 
-          .ul-head {
-            display: flex;
-            background: #000;
+        .active {
+          position: relative;
+          height: 42px;
+          overflow: hidden;
+          background: #313238;
 
-            .host-type {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-width: 71px;
-              height: 42px;
-              padding: 0 16px;
-              color: #fff;
-              cursor: pointer;
-            }
-
-            .active {
-              position: relative;
-              height: 42px;
-              overflow: hidden;
-              background: #313238;
-
-              &:after {
-                position: absolute;
-                top: 0;
-                width: 100%;
-                height: 2px;
-                content: '';
-                background: #3a84ff;
-              }
-            }
-          }
-
-          .data-preview {
-            height: 43px;
-            padding: 0 20px;
-            line-height: 43px;
-            color: #979ba5;
-            background: #313238;
-            border-bottom: 1px solid #3b3c42;
-          }
-
-          .no-data-preview {
-            width: 420px;
-            height: 93px;
-            background: #313238;
+          &:after {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 2px;
+            content: '';
+            background: #3a84ff;
           }
         }
       }

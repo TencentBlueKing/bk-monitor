@@ -55,6 +55,7 @@ urlpatterns = [
     url(r"^api/v1/", include("apps.log_clustering.urls")),
     url(r"^api/v1/", include("apps.log_desensitize.urls")),
     url(r"^", include("apps.grafana.urls")),
+    url(r"^", include("log_adapter.urls")),
     # 前端页面
     url(r"^", include("home_application.urls")),
     # celery flower
@@ -65,7 +66,6 @@ urlpatterns = [
     url(r"^api/v1/ipchooser/", include("bkm_ipchooser.urls")),
     url(r"^api/v1/search_module/", include("bkm_search_module.urls")),
 ]
-
 
 if settings.IS_K8S_DEPLOY_MODE:
     urlpatterns.extend(

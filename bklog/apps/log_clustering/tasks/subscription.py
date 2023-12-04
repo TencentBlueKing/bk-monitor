@@ -26,6 +26,13 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 import pytz
+from celery.schedules import crontab
+from celery.task import periodic_task
+from django.conf import settings
+from django.utils import timezone, translation
+from django.utils.translation import ugettext_lazy as _
+from jinja2 import Environment, FileSystemLoader
+
 from apps.api import CmsiApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
@@ -50,13 +57,8 @@ from apps.log_search.serializers import SearchAttrSerializer
 from apps.utils.drf import custom_params_valid
 from apps.utils.local import set_local_param
 from apps.utils.log import logger
+from apps.utils.task import high_priority_task
 from bkm_space import api
-from celery.schedules import crontab
-from celery.task import periodic_task, task
-from django.conf import settings
-from django.utils import timezone, translation
-from django.utils.translation import ugettext_lazy as _
-from jinja2 import Environment, FileSystemLoader
 
 
 def validate_end_time(freq: dict, end_time: datetime):
@@ -271,7 +273,6 @@ def clean_pattern(
 
 
 def generate_log_search_url(config: ClusteringSubscription, time_config: dict, signature: str = "") -> str:
-
     params = {
         "spaceUid": config.space_uid,
         "keyword": config.query_string or "*",
@@ -334,7 +335,7 @@ def send_mail(params: dict, receivers: list, log_prefix: str):
     logger.info(f"{log_prefix} Successfully sent mail params: {send_params}")
 
 
-@task()
+@high_priority_task()
 def send(
     config: ClusteringSubscription, time_config: dict, space_name: str, language: str, log_prefix: str, time_zone: str
 ):

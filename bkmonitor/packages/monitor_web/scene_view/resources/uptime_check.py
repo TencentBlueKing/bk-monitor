@@ -14,13 +14,6 @@ from typing import Dict, List
 
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from monitor.models import NODE_IP_TYPE_DICT
-from monitor_web.models.uptime_check import (
-    UptimeCheckGroup,
-    UptimeCheckNode,
-    UptimeCheckTask,
-)
-from monitor_web.uptime_check.serializers import UptimeCheckTaskSerializer
 from rest_framework import serializers
 
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -29,6 +22,13 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.time_tools import strftime_local
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
+from monitor.models import NODE_IP_TYPE_DICT
+from monitor_web.models.uptime_check import (
+    UptimeCheckGroup,
+    UptimeCheckNode,
+    UptimeCheckTask,
+)
+from monitor_web.uptime_check.serializers import UptimeCheckTaskSerializer
 
 
 class GetUptimeCheckTaskList(Resource):
@@ -262,14 +262,21 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
                 if node.bk_host_id:
                     host_to_node[node.bk_host_id] = node
                 else:
-                    bk_host_id = ip_to_hostid[(node.ip, node.plat_id)]
-                    host_to_node[bk_host_id] = node
+                    bk_host_id = ip_to_hostid.get(
+                        (
+                            node.ip,
+                            node.plat_id,
+                        )
+                    )
+                    if bk_host_id:
+                        host_to_node[bk_host_id] = node
             else:
                 if node.ip:
                     host_to_node[(node.ip, node.plat_id)] = node
                 else:
-                    ip_key = hostid_to_ip[node.bk_host_id]
-                    host_to_node[ip_key] = node
+                    ip_key = hostid_to_ip.get(node.bk_host_id)
+                    if ip_key:
+                        host_to_node[ip_key] = node
 
         location_values = defaultdict(list)
         node_values = defaultdict(list)

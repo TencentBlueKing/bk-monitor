@@ -27,6 +27,7 @@ from apps.iam.handlers.drf import (
     insert_permission_field,
 )
 from apps.log_databus.constants import ArchiveInstanceType
+from apps.log_databus.exceptions import ArchiveNotFound
 from apps.log_databus.handlers.archive import ArchiveHandler
 from apps.log_databus.models import ArchiveConfig, CollectorConfig, CollectorPlugin
 from apps.log_databus.serializers import (
@@ -36,6 +37,7 @@ from apps.log_databus.serializers import (
     PageSerializer,
     UpdateArchiveSerlalizer,
 )
+from apps.log_search.models import LogIndexSet
 from apps.utils.drf import detail_route, list_route
 from rest_framework.response import Response
 
@@ -50,6 +52,10 @@ class ArchiveViewSet(ModelViewSet):
         if self.action in ["create"]:
             instance_id = self.request.data.get("instance_id")
             instance_type = self.request.data.get("instance_type")
+            if instance_type == ArchiveInstanceType.INDEX_SET.value:
+                return [
+                    InstanceActionForDataPermission("instance_id", [ActionEnum.MANAGE_INDICES], ResourceEnum.INDICES)
+                ]
             # 若创建的是采集插件类型归档。需要使用任一采集项进行鉴权
             if instance_type == ArchiveInstanceType.COLLECTOR_PLUGIN.value:
                 self.request.data["collector_config_id"] = CollectorPlugin.get_collector_config_id(instance_id)
@@ -61,6 +67,19 @@ class ArchiveViewSet(ModelViewSet):
                 )
             ]
         if self.action in ["destroy", "update", "restore", "retrieve"]:
+            archive_config_id = self.kwargs[self.lookup_field]
+            archive_obj = ArchiveConfig.objects.filter(archive_config_id=int(archive_config_id)).first()
+            if not archive_obj:
+                raise ArchiveNotFound
+            if archive_obj.instance_type == ArchiveInstanceType.INDEX_SET.value:
+                return [
+                    InstanceActionForDataPermission(
+                        "archive_config_id",
+                        [ActionEnum.MANAGE_INDICES],
+                        ResourceEnum.INDICES,
+                        get_instance_id=ArchiveConfig.get_index_set_id,
+                    )
+                ]
             return [
                 InstanceActionForDataPermission(
                     "archive_config_id",
@@ -77,17 +96,20 @@ class ArchiveViewSet(ModelViewSet):
         """
         query_set = super().get_queryset()
         bk_biz_id = self.request.query_params["bk_biz_id"]
-        # 查询采集项和采集插件是否被删除, 过滤掉已删除的
+        # 查询采集项和采集插件、索引集是否被删除, 过滤掉已删除的
         archive_ids = []
         collector_config_map = dict()
         collector_plugin_map = dict()
+        index_set_map = dict()
         for archive_config in ArchiveConfig.objects.filter(bk_biz_id=bk_biz_id).values(
             "instance_id", "instance_type", "archive_config_id"
         ):
             if archive_config["instance_type"] == ArchiveInstanceType.COLLECTOR_CONFIG.value:
                 collector_config_map[archive_config["instance_id"]] = archive_config["archive_config_id"]
-            else:
+            elif archive_config["instance_type"] == ArchiveInstanceType.COLLECTOR_PLUGIN.value:
                 collector_plugin_map[archive_config["instance_id"]] = archive_config["archive_config_id"]
+            elif archive_config["instance_type"] == ArchiveInstanceType.INDEX_SET.value:
+                index_set_map[archive_config["instance_id"]] = archive_config["archive_config_id"]
         if collector_config_map:
             collector_config_ids = list(
                 CollectorConfig.objects.filter(
@@ -106,10 +128,19 @@ class ArchiveViewSet(ModelViewSet):
             )
             for collector_plugin_id in collector_plugin_ids:
                 archive_ids.append(collector_plugin_map[collector_plugin_id])
+        if index_set_map:
+            index_set_ids = list(
+                LogIndexSet.objects.filter(
+                    index_set_id__in=index_set_map.keys(),
+                    is_deleted=False,
+                ).values_list("index_set_id", flat=True)
+            )
+            for index_set_id in index_set_ids:
+                archive_ids.append(index_set_map[index_set_id])
         return query_set.filter(archive_config_id__in=archive_ids)
 
     @insert_permission_field(
-        id_field=lambda d: d["_collector_config_id"],
+        id_field=lambda d: d.get("_collector_config_id"),
         data_field=lambda d: d["list"],
         actions=[ActionEnum.VIEW_COLLECTION, ActionEnum.MANAGE_COLLECTION],
         resource_meta=ResourceEnum.COLLECTION,
@@ -269,7 +300,7 @@ class ArchiveViewSet(ModelViewSet):
         return Response(ArchiveHandler(archive_config_id).create_or_update(data))
 
     @insert_permission_field(
-        id_field=lambda d: d["_collector_config_id"],
+        id_field=lambda d: d.get("_collector_config_id"),
         actions=[ActionEnum.VIEW_COLLECTION, ActionEnum.MANAGE_COLLECTION],
         resource_meta=ResourceEnum.COLLECTION,
     )

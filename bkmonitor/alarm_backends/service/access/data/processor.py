@@ -28,6 +28,7 @@ from kafka.consumer.fetcher import ConsumerRecord
 from kafka.errors import NoBrokersAvailable
 
 from alarm_backends import constants
+from alarm_backends.cluster import TargetType
 from alarm_backends.core.cache import clear_mem_cache, key
 from alarm_backends.core.cache.key import ACCESS_END_TIME_KEY, REAL_TIME_HOST_TOPIC_KEY
 from alarm_backends.core.cache.result_table import ResultTableCacheManager
@@ -53,6 +54,7 @@ from bkmonitor.utils.consul import BKConsul
 from bkmonitor.utils.thread_backend import InheritParentThread
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import MULTI_METRIC_DATA_SOURCES
+from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.prometheus import metrics
 
@@ -404,6 +406,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 记录检测点 下次从检测点开始重新检查
             checkpoint.set(last_checkpoint)
 
+        # 记录access最后一次数据拉取时间
+        access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
+        key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
+
         logger.info(
             "strategy_group_key({}), push records({}), last_checkpoint({})".format(
                 self.strategy_group_key,
@@ -451,6 +457,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
 
         # topics信息
         self.topics: Dict[str, Dict] = {}
+        self.rt_id_to_storage_info = {}
 
         self.consumers: Dict[str, KafkaConsumer] = {}
         self.consumers_lock = threading.Lock()
@@ -499,6 +506,20 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             start_time = time.time()
             # 获取所有实时监控待拉取的topic及对应的策略信息
             rt_id_to_strategies = StrategyCacheManager.get_real_time_data_strategy_ids()
+
+            # 过滤出当前集群下的策略
+            for rt_id in rt_id_to_strategies:
+                rt_id_to_strategies[rt_id] = {
+                    biz_id: strategy_ids
+                    for biz_id, strategy_ids in rt_id_to_strategies[rt_id].items()
+                    if get_cluster().match(TargetType.biz, biz_id)
+                }
+
+            # 去除空的rt_id
+            rt_id_to_strategies = {
+                rt_id: strategy_ids for rt_id, strategy_ids in rt_id_to_strategies.items() if strategy_ids
+            }
+
             rt_ids = list(rt_id_to_strategies.keys())
             partitions = []
             topic_strategy = defaultdict(set)
@@ -507,9 +528,26 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             for rt_id in rt_ids:
                 try:
                     info = ResultTableCacheManager.get_result_table_by_id(DataSourceLabel.BK_MONITOR_COLLECTOR, rt_id)
-                    if not info or not info.get("storage_info"):
+                    if not info:
                         continue
-                    cluster_config = info["storage_info"]["cluster_config"]
+
+                    if rt_id in self.rt_id_to_storage_info:
+                        storage_info = self.rt_id_to_storage_info[rt_id]
+                    else:
+                        if not info.get("storage_info"):
+                            storage_info = api.metadata.get_result_table_storage(
+                                result_table_list=rt_id, storage_type="kafka"
+                            )
+                            storage_info = storage_info[rt_id] if storage_info else {}
+                        else:
+                            storage_info = info["storage_info"]
+
+                        self.rt_id_to_storage_info[rt_id] = storage_info
+
+                    if not storage_info:
+                        continue
+
+                    cluster_config = storage_info["cluster_config"]
                     bootstrap_server = f'{cluster_config["domain_name"]}:{cluster_config["port"]}'
                     consumer = consumers.get(bootstrap_server)
                     if not consumer:
@@ -520,7 +558,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                             continue
                         consumers[bootstrap_server] = consumer
 
-                    topic = info["storage_info"]["storage_config"]["topic"]
+                    topic = storage_info["storage_config"]["topic"]
                     partitions.extend(
                         [f"{bootstrap_server}|{topic}|{index}" for index in consumer.partitions_for_topic(topic) or [0]]
                     )

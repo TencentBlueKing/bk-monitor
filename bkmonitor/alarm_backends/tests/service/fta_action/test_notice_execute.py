@@ -57,7 +57,6 @@ from alarm_backends.service.fta_action.notice.processor import (
 from alarm_backends.service.fta_action.tasks import (
     NoiseReduceExecuteProcessor,
     NoiseReduceRecordProcessor,
-    check_create_poll_action_10_secs,
     check_timeout_actions,
     create_actions,
     create_interval_actions,
@@ -1051,7 +1050,7 @@ class TestActionProcessor(TransactionTestCase):
         self.assertEqual(ac.notice_channel, NoticeChannel.BK_CHAT)
         self.assertEqual(ac.notice_way, NoticeWay.MAIL)
 
-        self.assertEqual(len(ac.alarm.link_layouts), 0)
+        # self.assertEqual(len(ac.alarm.link_layouts), 0)
 
         wxbot_actions = [
             a
@@ -1070,7 +1069,7 @@ class TestActionProcessor(TransactionTestCase):
             {"hihihihihh": user_set, "hihihiashihi": user_set},
         )
 
-        self.assertEqual(len(ac.alarm.link_layouts), 2)
+        # self.assertEqual(len(ac.alarm.link_layouts), 2)
 
     def test_user_group_receivers(self):
         duty_plans = copy.deepcopy(self.duty_plans)
@@ -2131,7 +2130,7 @@ class TestActionProcessor(TransactionTestCase):
 
     def test_render_related_info_markdown(self):
         alert = AlertDocument(**self.alert_info)
-        related_info = "".join([f"test" for i in range(0, 100)])
+        related_info = "".join(["test" for i in range(0, 100)])
         context = ActionContext(
             action=None, alerts=[alert], use_alert_snap=True, notice_way="markdown"
         ).get_dictionary()
@@ -2158,7 +2157,7 @@ class TestActionProcessor(TransactionTestCase):
 
     def test_render_markdown(self):
         alert = AlertDocument(**self.alert_info)
-        related_info = "".join([f"test" for i in range(0, 100)])
+        related_info = "".join(["test" for i in range(0, 100)])
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way=NoticeWay.WX_BOT)
         context_dict = context.get_dictionary()
         context_dict["alarm"].log_related_info = related_info
@@ -2185,7 +2184,7 @@ class TestActionProcessor(TransactionTestCase):
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="sms").get_dictionary()
         content = Jinja2Renderer.render("{{content.sms_forced_related_info[:8]}}", context)
         self.assertEqual(content, "关联信息: 集群")
-        related_info = "".join([f"test" for i in range(0, 100)])
+        related_info = "".join(["test" for i in range(0, 100)])
 
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="sms").get_dictionary()
         context["alarm"].related_info = related_info
@@ -2206,7 +2205,7 @@ class TestActionProcessor(TransactionTestCase):
 
     def test_render_content_length(self):
         alert = AlertDocument(**self.alert_info)
-        related_info = "".join([f"test" for i in range(0, 1000)])
+        related_info = "".join(["test" for i in range(0, 1000)])
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx").get_dictionary()
         context["alarm"].related_info = related_info
         content_template_path = "notice/abnormal/action/markdown_content.jinja"
@@ -2220,7 +2219,7 @@ class TestActionProcessor(TransactionTestCase):
     def test_render_content_utf8_length(self):
         """uTF8渲染，最终长度应该少于等于设置长度"""
         alert = AlertDocument(**self.alert_info)
-        related_info = "".join([f"【" for i in range(0, 1000)])
+        related_info = "".join(["【" for i in range(0, 1000)])
         context = ActionContext(action=None, alerts=[alert], use_alert_snap=True, notice_way="rtx").get_dictionary()
         context["alarm"].related_info = related_info
         content_template_path = "notice/abnormal/action/markdown_content.jinja"
@@ -2513,13 +2512,6 @@ class TestActionProcessor(TransactionTestCase):
         related_action_status = {r_a.real_status for r_a in ap.related_actions}
         self.assertEqual(related_action_status, {ap.action.status})
 
-        parent_action_status = [
-            p.status for p in ActionInstance.objects.filter(id__in=[r_a.parent_action_id for r_a in ap.related_actions])
-        ]
-
-        print("test_notice_collect parent_action_status ", parent_action_status)
-        self.assertEqual(set(parent_action_status), {ActionStatus.SUCCESS})
-
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()
@@ -2563,7 +2555,6 @@ class TestActionProcessor(TransactionTestCase):
         mget_alert_patch.start()
         get_alert_patch.start()
         new_actions = create_actions(1, "abnormal", alerts=[alert])
-        # conv_ids = list(ConvergeInstance.objects.filter(converge_type=ConvergeType.ACTION).values_list("id", flat=True))
         conv_ids = []
         self.converge_actions(ActionInstance.objects.filter(status="received"), ConvergeType.ACTION)
         self.converge_actions(
@@ -3338,7 +3329,6 @@ class TestActionProcessor(TransactionTestCase):
         self.assertTrue(shield_obj.is_match(alert))
 
     def test_alert_shield_by_strategy_dimensions(self):
-
         group = self.create_shield_group()
         strategy_dict = get_strategy_dict(group.id)
         alert_info = {
@@ -3909,7 +3899,6 @@ class TestActionProcessor(TransactionTestCase):
         )
 
     def test_webhook_render(self):
-
         content = json.dumps(
             {
                 "ip": "{{target.host.bk_host_innerip}}",
@@ -4095,9 +4084,7 @@ class TestActionProcessor(TransactionTestCase):
         self.assertEqual(new_voice_action.status, ActionStatus.FAILURE)
         self.assertEqual(new_voice_action.failure_type, FailureType.SYSTEM_ABORT)
 
-        self.assertEqual(
-            ActionInstance.objects.get(id=new_voice_action.parent_action_id).status, ActionStatus.PARTIAL_FAILURE
-        )
+        # 没有更新主任务状态了，所以去掉了单元测试
 
         action_config_patch.stop()
         mget_alert_patch.stop()

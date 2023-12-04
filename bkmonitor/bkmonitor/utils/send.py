@@ -9,13 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import base64
+import copy
 import hashlib
 import json
 import logging
 from os import path
 
 import requests
-from common.context_processors import Platform
 from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
@@ -28,6 +28,7 @@ from bkmonitor.utils.text import (
     cut_str_by_max_bytes,
     get_content_length,
 )
+from common.context_processors import Platform
 from constants.action import ActionPluginType, NoticeType, NoticeWay
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -277,18 +278,37 @@ class Sender(BaseSender):
         }
         :rtype: dict
         """
-        logger.info(
-            "send.weixin({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
-                ",".join(notice_receivers), self.title, self.content, action_plugin
+        if (
+            settings.IS_WECOM_ROBOT_ENABLED
+            and Platform.te
+            and (not settings.WECOM_ROBOT_BIZ_WHITE_LIST or self.bk_biz_id in settings.WECOM_ROBOT_BIZ_WHITE_LIST)
+        ):
+            logger.info(
+                "send.webot_app({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
+                    ",".join(notice_receivers), self.title, self.content, action_plugin
+                )
             )
-        )
-
-        api_result = api.cmsi.send_weixin(
-            receiver__username=",".join(notice_receivers),
-            heading=self.title,
-            message=self.content,
-            is_message_base64=True,
-        )
+            # 复用企业微信机器人的配置
+            # 如果启用了并且是te环境，可以使用
+            # 用白名单控制
+            api_result = api.cmsi.send_wecom_app(
+                receiver=notice_receivers,
+                sender=settings.WECOM_APP_ACCOUNT.get(str(self.context.get("alert_level"))),
+                content=self.content,
+                type=self.msg_type,
+            )
+        else:
+            logger.info(
+                "send.weixin({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
+                    ",".join(notice_receivers), self.title, self.content, action_plugin
+                )
+            )
+            api_result = api.cmsi.send_weixin(
+                receiver__username=",".join(notice_receivers),
+                heading=self.title,
+                message=self.content,
+                is_message_base64=True,
+            )
         return self.handle_api_result(api_result, notice_receivers)
 
     def send_mail(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
@@ -411,20 +431,30 @@ class Sender(BaseSender):
             params = {"msgtype": msgtype, "chatid": chat_id}
             chat_mentioned_users = mentioned_users.get(chat_id, [])
             msg_content = {}
+            send_content = content.rstrip("\n")
             if chat_mentioned_users:
                 if msgtype == "markdown":
                     # 如果是markdown格式，组装markdown的内容
                     mentioned_users_string = "".join([f"<@{user}>" for user in chat_mentioned_users])
-                    mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}"
-                    content = "\n".join([content, mentioned_users_string])
+                    mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}\n"
+                    logger.info("send wxwork to %s, mentioned_users_string %s", chat_id, mentioned_users_string)
+                    if "--mention-users--" in content:
+                        # 如果有提醒占位符位置，需要做替换，一般异常告警提醒人的位置在中间，需要做替换
+                        send_content = content.replace("--mention-users--\n", mentioned_users_string)
+                    else:
+                        # 没有的话，直接做拼接
+                        send_content = "\n".join([content, mentioned_users_string])
                 else:
                     msg_content["mentioned_list"] = chat_mentioned_users
-            content = Sender.get_notice_content(NoticeWay.WX_BOT, content, Sender.Utf8Encoding)
-            msg_content["content"] = content
+            else:
+                send_content = content.replace("--mention-users--\n", "")
+            send_content = Sender.get_notice_content(NoticeWay.WX_BOT, send_content, Sender.Utf8Encoding)
+            msg_content["content"] = send_content
             params[msgtype] = msg_content
             try:
                 response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
                 if response["errcode"] != 0:
+                    send_result["errcode"] = -1
                     send_result["errmsg"].append(f"send to {chat_id} failed: {response['errmsg']}")
             except Exception as error:
                 send_result["errcode"] = -1
@@ -444,11 +474,12 @@ class Sender(BaseSender):
             if chat_mentioned_users:
                 mentioned_users_string = "".join([f"<@{user}>" for user in chat_mentioned_users])
                 mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}"
-            layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
+            chat_layouts = copy.deepcopy(layouts)
+            chat_layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
             params = {
                 "msgtype": "message",
                 "chatid": chat_id,
-                "layouts": layouts,
+                "layouts": chat_layouts,
             }
             try:
                 response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
@@ -536,11 +567,7 @@ class Sender(BaseSender):
         """
         sender = None
         notice_way = "rtx"
-        if (
-            settings.IS_WECOM_ROBOT_ENABLED
-            and Platform.te
-            and (not settings.WECOM_ROBOT_BIZ_WHITE_LIST or self.bk_biz_id in settings.WECOM_ROBOT_BIZ_WHITE_LIST)
-        ):
+        if settings.IS_WECOM_ROBOT_ENABLED and Platform.te:
             # 允许进行通知方式切换，才进行通知发送
             sender = settings.WECOM_ROBOT_ACCOUNT.get(str(self.context.get("alert_level")))
             if sender:

@@ -1,40 +1,57 @@
-@import "../../../../monitor-pc/theme/index.scss";
+@import '../../../../monitor-pc/theme/index.scss';
 
 .chart-colllect-component {
+  .mr24 {
+    margin-right: 24px;
+  }
+
   .view-collection {
-    display: flex;
-    align-items: center;
     position: fixed;
     bottom: 50px;
     left: calc(50vw - 210px);
-    height: 42px;
-    color: #fff;
-    font-size: 14px;
-    border: 1px solid #313238;
-    background: rgba(0, 0, 0, .85);
-    border-radius: 21px;
-    padding: 0 11px 0 20px;
     z-index: 1999;
+    display: flex;
+    align-items: center;
+    height: 42px;
+    padding: 0 11px 0 20px;
+    font-size: 14px;
+    color: #fff;
+    background: rgba(0, 0, 0, .85);
+    border: 1px solid #313238;
+    border-radius: 21px;
+
     &-btn {
       margin-left: 10px;
       color: $primaryFontColor;
       cursor: pointer;
     }
+
+    &.en {
+      .view-collection-btn {
+        margin-left: 24px;
+        color: $primaryFontColor;
+        cursor: pointer;
+      }
+    }
+
     .icon-mc-close-fill {
       font-size: 22px;
       color: #63656e;
       cursor: pointer;
     }
   }
+
   .collection-fade-enter-active {
     transition: all .3s ease;
   }
+
   .collection-fade-leave-active {
     transition: all .3s ease;
   }
+
   .collection-fade-enter,
   .collection-fade-leave-to {
-    transform: translateY(42px);
     opacity: 0;
+    transform: translateY(42px);
   }
 }

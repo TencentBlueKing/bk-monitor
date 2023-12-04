@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.utils.functional import cached_property
-from monitor_web.statistics.v2.base import BaseCollector
 
 from core.drf_resource import api, resource
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import BaseCollector
 
 
 class GrafanaCollector(BaseCollector):
@@ -44,6 +44,8 @@ class GrafanaCollector(BaseCollector):
         for org in self.organizations:
             org_name = org["name"]
             datasources = api.grafana.get_all_data_source(org_id=org["id"])["data"]
+            if not datasources:
+                continue
             for datasource in datasources:
                 metric.labels(
                     bk_biz_id=int(org_name), bk_biz_name=self.get_biz_name(org_name), type=datasource["type"]

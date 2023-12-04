@@ -37,10 +37,11 @@ export default {
      * @param {String} key
      * @param {String} fieldType
      * @param {Boolean} isFormatDate
+     * @param {String} emptyCharacter
      * @return {String|Number}
      */
-    tableRowDeepView(row, key, fieldType, isFormatDate = this.isFormatDate) {
-      return parseTableRowData(row, key, fieldType, isFormatDate);
+    tableRowDeepView(row, key, fieldType, isFormatDate = this.isFormatDate, emptyCharacter) {
+      return parseTableRowData(row, key, fieldType, isFormatDate, emptyCharacter);
     },
 
   },

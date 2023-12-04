@@ -89,7 +89,6 @@ GRAFANA_DASHBOARD_RESOURCE = {
 
 
 class ActionEnum:
-
     VIEW_BUSINESS = ActionMeta(
         id="view_business_v2",
         name=_("业务访问"),
@@ -370,9 +369,19 @@ class ActionEnum:
         version=1,
     )
 
+    NEW_DASHBOARD = ActionMeta(
+        id="new_dashboard",
+        name=_("新建仪表盘"),
+        name_en="New Dashboard",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id, VIEW_SINGLE_DASHBOARD.id, EDIT_SINGLE_DASHBOARD.id],
+        version=1,
+    )
+
     MANAGE_DATASOURCE = ActionMeta(
         id="manage_datasource_v2",
-        name=_("数据源管理"),
+        name=_("仪表盘配置管理"),
         name_en="Manage DataSource",
         type="manage",
         related_resource_types=[SPACE_RESOURCE],

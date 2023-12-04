@@ -18,6 +18,7 @@ from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
     [
+        ("UNIFY_QUERY_ROUTING_RULES", slz.ListField(label=_("统一查询路由规则"), default=[])),
         (
             "ALARM_BACKEND_CLUSTER_ROUTING_RULES",
             slz.ListField(
@@ -29,6 +30,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("FRONTEND_REPORT_DATA_ID", slz.IntegerField(label=_("前端上报数据ID"), default=0)),
         ("FRONTEND_REPORT_DATA_TOKEN", slz.CharField(label=_("前端上报数据Token"), default="")),
+        ("FRONTEND_REPORT_DATA_HOST", slz.CharField(label=_("前端上报地址"), default="")),
         ("QOS_DROP_ALARM_THREADHOLD", slz.IntegerField(label=_("流控丢弃阈值"), default=3)),
         ("QOS_DROP_ACTION_THRESHOLD", slz.IntegerField(label=_("处理动作流控丢弃阈值"), default=100)),
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label=_("处理动作流控窗口大小(秒)"), default=60)),
@@ -115,7 +117,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("STRATEGY_NOTICE_BUCKET_SIZE", slz.IntegerField(label=_("策略告警限流数量"), default=100)),
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label=_("是否开启全局告警屏蔽"), default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label=_("第三方事件接入业务白名单"), default=[])),
-        ("TIME_SERIES_METRIC_EXPIRED_DAYS", slz.IntegerField(label=_("自定义指标过期时间"), default=30)),
+        ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label=_("自定义指标过期时间"), default=30 * 24 * 3600)),
+        ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label=_("获取自定义指标的间隔时间"), default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label=_("是否开启数据平台指标缓存"), default=True)),
         (
             "TRANSLATE_SNMP_TRAP_DIMENSIONS",
@@ -153,6 +156,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WINDOWS_GSE_AGENT_IPC_PATH", slz.CharField(label=_("Windows IPC 路径"), default="127.0.0.1:47000")),
         ("WECOM_ROBOT_BIZ_WHITE_LIST", slz.ListField(label=_("分级告警业务白名单"), default=[])),
         ("WECOM_ROBOT_ACCOUNT", slz.DictField(label=_("分级告警企业微信机器人账户"), default={})),
+        ("WECOM_ROBOT_APP", slz.DictField(label=_("分级告警企业微信应用号账户"), default={})),
         ("IS_WECOM_ROBOT_ENABLED", slz.BooleanField(label=_("是否启用分级机器人告警"), default=False)),
         ("MD_SUPPORTED_NOTICE_WAYS", slz.ListField(label=_("支持MD的通知方式列表"), default=["wxwork-bot"])),
         ("BK_DATA_PLAN_ID_INTELLIGENT_DETECTION", slz.IntegerField(label=_("ai设置单指标异常检测默认plan id"), default=0)),
@@ -235,10 +239,14 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SHOW_REALTIME_STRATEGY", slz.BooleanField(label="是否默认展示策略模块实时功能", default=False)),
         ("BKDATA_CMDB_LEVEL_TABLES", slz.ListField(label=_("数据平台CMDB聚合表"), default=[])),
         ("MAX_TASK_PROCESS_NUM", slz.IntegerField(label="后台任务多进程并行数量", default=1)),
+        ("MAX_TS_METRIC_TASK_PROCESS_NUM", slz.IntegerField(label="指标后台任务多进程并行数量", default=1)),
         ("QUERY_VM_SPACE_UID_LIST", slz.ListField(label="通过 vm 查询的空间列表", default=[])),
         ("MAIL_REPORT_FULL_PAGE_WAIT_TIME", slz.IntegerField(label="邮件报表整屏渲染等待时间", default=60)),
         ("KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST", slz.ListField(label=_("容器关联关系丰富业务白名单"), default=[])),
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
+        ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
+        ("BKPAAS_AUTHORIZED_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
+        ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
     ]
 )
 
@@ -291,7 +299,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
         ("PING_SERVER_TARGET_NUMBER_LIMIT", slz.IntegerField(label=_("单台机器Ping采集目标数量限制"), default=6000)),
-        ("BK_NODEMAN_VERSION", slz.CharField(label=_("节点管理版本号"), default="2.0")),
         (
             "MAX_AVAILABLE_DURATION_LIMIT",
             slz.IntegerField(label=_("拨测任务最大超时限制(ms)"), default=60000, min_value=1000),
@@ -324,6 +331,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_APP_QPS", slz.IntegerField(label=_("APM中应用默认QPS"), default=500)),
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
+        ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
+        ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
@@ -362,7 +371,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("DISABLE_BIZ_ID", slz.ListField(label=_("业务黑名单"), default=[])),
         ("BCS_GRAY_CLUSTER_ID_LIST", slz.ListField(label=_("BCS集群灰度ID名单"), default=[])),
         ("BCS_API_DATA_SOURCE", slz.ChoiceField(label=_("BCS集群元数据获取方式"), default="db", choices=("db", "api"))),
-        ("METRIC_AGG_GATEWAY_URL", slz.CharField(label=_("指标聚合网关上报地址"), default="")),
         ("ENABLE_BCS_GRAY_CLUSTER", slz.BooleanField(label=_("是否启用BCS集群灰度模式"), default=False)),
         ("NOTICE_TITLE", slz.CharField(label=_("告警通知标题"), default="蓝鲸监控")),
         ("DEFAULT_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True)),

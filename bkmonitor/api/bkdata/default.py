@@ -13,13 +13,13 @@ specific language governing permissions and limitations under the License.
 import abc
 
 import six
+from constants.dataflow import AutoOffsetResets
+from core.drf_resource import APIResource
 from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request
-from constants.dataflow import AutoOffsetResets
-from core.drf_resource import APIResource
 
 
 class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -331,7 +331,7 @@ class GetReleaseModelInfo(DataAccessAPIResource):  # noqa
     获取模型详情信息
     """
 
-    action = "/v3/model/releases/{model_release_id}"
+    action = "/v3/model/releases/{model_release_id}/"
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):

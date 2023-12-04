@@ -159,11 +159,11 @@
                           class="table-item"
                           :style="tdIndex === 0 ? 'text-align: left' : ''"
                         >
-                          {{ item.value === null ? '--' : item.value }}
+                          {{ item?.value === null ? '--' : item.value }}
                           <img
-                            v-if="tdIndex > 0 && (item.max || item.min)"
+                            v-if="tdIndex > 0 && (item?.max || item?.min)"
                             class="item-max-min"
-                            :src="require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)"
+                            :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
                           >
                         </div>
                       </td>
@@ -212,12 +212,12 @@ import { TimeRangeType } from '../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import { MANAGE_AUTH as GRAFANA_MANAGE_AUTH, VIEW_AUTH as GRAFANA_VIEW_AUTH } from '../grafana/authority-map';
+import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
 
 import QueryCriteriaItem from './query-criteria-item.vue';
 import { downCsvFile, transformSrcData, transformTableDataToCsvStr } from './utils';
 
-const authorityMap = { GRAFANA_VIEW_AUTH, GRAFANA_MANAGE_AUTH };
+const authorityMap = { GRAFANA_MANAGE_AUTH };
 @Component({
   name: 'view-detail',
   components: {
@@ -684,8 +684,9 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
    * 导出csv文件
    */
   handleExportCsv() {
-    const csvString = transformTableDataToCsvStr(this.tableThArr.map(item => item.name), this.tableTdArr);
-    downCsvFile(csvString, this.viewConfig?.config?.title);
+    const csvList = this.tableTdArr.map(item => item.map(i => i.value).join(','))
+    csvList.unshift(this.tableThArr.map(item => item.name.replace(/,/gmi, '_')).join(','));
+    downCsvFile(csvList.join('\n'), this.viewConfig?.config?.title);
   }
   /**
    * 表格排序

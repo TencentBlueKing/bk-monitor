@@ -11,13 +11,18 @@ specific language governing permissions and limitations under the License.
 import time
 
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.models import Application
 from apm_web.serializers import ApplicationCacheSerializer
+
 from celery.task import task
+from celery.task import periodic_task
+from celery.schedules import crontab
 from common.log import logger
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.time_tools import strftime_local
 from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from core.drf_resource import api
@@ -35,8 +40,13 @@ def build_event_body(app: Application, bk_biz_id: int):
     event_body_map["target"] = get_local_ip()
     event_body_map["timestamp"] = int(round(time.time() * 1000))
     event_body_map["dimension"] = {"bk_biz_id": bk_biz_id, "bk_biz_name": bk_biz_name}
-    content = _("有新APM应用创建，请关注！应用名称：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}").format(
-        app.app_name, bk_biz_id, bk_biz_name, app.create_user, app.create_time
+    content = _("有新APM应用创建，请关注！应用名称：{}, 应用别名：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}").format(
+        app.app_name,
+        app.app_alias,
+        bk_biz_id,
+        bk_biz_name,
+        app.create_user,
+        strftime_local(app.create_time)
     )
     event_body_map["event"] = {"content": content}
     return [event_body_map]
@@ -86,6 +96,15 @@ def report_apm_application_event(bk_biz_id, application_id):
     logger.info(
         f"[report_apm_application_event] task finished, bk_biz_id({bk_biz_id}), application_id({application_id})"
     )
+
+
+@periodic_task(run_every=crontab(minute="*/30"))
+def refresh_log_trace_config():
+    # 30分钟刷新一次
+    applications = Application.objects.filter().values("application_id", "plugin_config")
+    for application in applications:
+        if application.plugin_id == LOG_TRACE:
+            application.set_plugin_config(application["plugin_config"], application["application_id"])
 
 
 @task(ignore_result=True)

@@ -41,7 +41,7 @@
           ({{ `#${item.space_id || item.space_code}` }})
         </span>
       </span>
-      <span class="list-item-right">
+      <span class="list-item-right" v-if="showTag">
         <span
           v-for="(tag) in item.tags"
           class="list-item-tag"
@@ -58,6 +58,7 @@
 </template>
 
 <script>
+import { mapState } from 'vuex';
 import navMenuMixin from '@/mixins/nav-menu-mixin';
 import * as authorityMap from '../../common/authority-map';
 import { SPACE_TYPE_MAP } from '@/store/constant';
@@ -86,11 +87,17 @@ export default {
     };
   },
   computed: {
+    ...mapState([
+      'isExternal',
+    ]),
     authorityMap() {
       return authorityMap;
     },
     spaceTypeMap() {
       return SPACE_TYPE_MAP;
+    },
+    showTag() {
+      return !this.isExternal;
     },
   },
   watch: {},
