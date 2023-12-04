@@ -79,6 +79,8 @@ from apps.log_search.serializers import (
     SearchIndexSetScopeSerializer,
     SearchUserIndexSetConfigSerializer,
     SearchUserIndexSetDeleteConfigSerializer,
+    SearchUserIndexSetOptionHistoryDeleteSerializer,
+    SearchUserIndexSetOptionHistorySerializer,
     UnionSearchAttrSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
@@ -1068,6 +1070,72 @@ class SearchViewSet(APIViewSet):
         """
         index_set_id = kwargs.get("index_set_id")
         return Response(SearchHandlerEsquery.search_history(index_set_id))
+
+    @list_route(methods=["POST"], url_path="option/history")
+    def option_history(self, request, *args, **kwargs):
+        """
+        @api {get} /search/index_set/option/history/ 06_搜索-检索选项历史
+        @apiDescription 检索选项历史记录
+        @apiName search_index_set_user_option_history
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": [
+                {
+                    "id": 13,
+                    "params": {
+                        "keyword": "*",
+                        "host_scopes": {
+                            "modules": [
+                                {
+                                    "bk_inst_id": 25,
+                                    "bk_obj_id": "module"
+                                }
+                            ],
+                            "ips": "127.0.0.1,127.0.0.2"
+                        },
+                        "addition": [
+                            {
+                                "field": "cloudId",
+                                "operator": "is",
+                                "value": "0"
+                            }
+                        ]
+                    },
+                    "query_string": "keyword:* ADN modules:25 AND ips:127.0.0.1,127.0.0.2"
+                }],
+            "result": true
+        }
+        """
+        data = self.params_valid(SearchUserIndexSetOptionHistorySerializer)
+        return Response(SearchHandlerEsquery.search_option_history(data["space_uid"], data["index_set_type"]))
+
+    @list_route(methods=["POST"], url_path="option/history/delete")
+    def option_history_delete(self, request, *args, **kwargs):
+        """
+        @api {get} /search/index_set/option/history/delete/ 06_搜索-检索选项历史删除
+        @apiDescription 检索选项历史记录删除
+        @apiName search_index_set_user_option_history
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": null,
+            "result": true
+        }
+        """
+        data = self.params_valid(SearchUserIndexSetOptionHistoryDeleteSerializer)
+        return Response(
+            SearchHandlerEsquery.search_option_history_delete(
+                space_uid=data["space_uid"],
+                index_set_type=data["index_set_type"],
+                history_id=data["history_id"],
+                is_delete_all=data["is_delete_all"],
+            )
+        )
 
     @list_route(methods=["POST"], url_path="union_search")
     @search_history_record

@@ -405,6 +405,30 @@ class SearchUserIndexSetDeleteConfigSerializer(serializers.Serializer):
     config_id = serializers.IntegerField(label=_("配置ID"), required=True)
 
 
+class SearchUserIndexSetOptionHistorySerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
+
+
+class SearchUserIndexSetOptionHistoryDeleteSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
+    history_id = serializers.IntegerField(label=_("历史记录ID"), required=False)
+    is_delete_all = serializers.BooleanField(label=_("是否删除用户当前空间下所有历史记录"), required=False, default=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if not attrs["is_delete_all"] and not attrs.get("history_id"):
+            raise ValidationError(_("历史记录ID不能为空"))
+
+        return attrs
+
+
 class SearchExportSerializer(serializers.Serializer):
     export_dict = serializers.CharField(required=False, allow_blank=False, allow_null=False)
 

@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
+import hashlib
 import os
 import time
 from collections import defaultdict
@@ -693,6 +694,21 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
         verbose_name_plural = _("32_搜索-索引集用户检索记录")
 
 
+class UserIndexSetSearchOptionHistory(OperateRecordModel):
+    space_uid = models.CharField(_("空间唯一标识"), max_length=256)
+    username = models.CharField(_("用户名"), max_length=255, db_index=True)
+    index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_type = models.CharField(
+        _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
+
+    class Meta:
+        verbose_name = _("索引集用户检索选项记录")
+        verbose_name_plural = _("34_搜索-索引集用户检索选项记录")
+        ordering = ("-updated_at",)
+
+
 class ResourceChange(OperateRecordModel):
     """
     数据平台索引集变更记录
@@ -964,7 +980,7 @@ class FavoriteUnionSearch(OperateRecordModel):
     class Meta:
         verbose_name = _("联合检索组合收藏")
         verbose_name_plural = _("34_搜索-联合检索组合收藏")
-        unique_together = [("space_uid", "username", "name")]
+        unique_together = (("space_uid", "username", "name"),)
         ordering = ("-updated_at",)
 
 
@@ -1246,7 +1262,7 @@ class IndexSetFieldsConfig(models.Model):
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
-    index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True)
+    index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True, default="")
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
@@ -1254,7 +1270,7 @@ class IndexSetFieldsConfig(models.Model):
     class Meta:
         verbose_name = _("索引集自定义显示")
         verbose_name_plural = _("31_搜索-索引集自定义显示")
-        unique_together = [("index_set_id", "index_set_ids_hash", "name", "scope", "source_app_code")]
+        unique_together = (("index_set_id", "index_set_ids_hash", "name", "scope", "source_app_code"),)
 
     @classmethod
     @atomic
@@ -1284,6 +1300,10 @@ class IndexSetFieldsConfig(models.Model):
         UserIndexSetFieldsConfig.objects.filter(config_id=config_id).update(config_id=default_config_id)
         cls.objects.filter(id=config_id).delete()
 
+    @classmethod
+    def get_index_set_ids_hash(cls, index_set_ids: list):
+        return hashlib.md5(str(index_set_ids).encode("utf-8")).hexdigest() if index_set_ids else ""
+
 
 class UserIndexSetFieldsConfig(models.Model):
     """用户索引集展示字段以及排序配置"""
@@ -1294,7 +1314,7 @@ class UserIndexSetFieldsConfig(models.Model):
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
-    index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True)
+    index_set_ids_hash = models.CharField("索引集ID哈希", max_length=32, null=True, db_index=True, default="")
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
@@ -1302,7 +1322,7 @@ class UserIndexSetFieldsConfig(models.Model):
     class Meta:
         verbose_name = _("用户索引集配置")
         verbose_name_plural = _("31_搜索-用户索引集配置")
-        unique_together = [("index_set_id", "index_set_ids_hash", "username", "scope", "source_app_code")]
+        unique_together = (("index_set_id", "index_set_ids_hash", "username", "scope", "source_app_code"),)
 
     @classmethod
     @atomic
@@ -1333,6 +1353,10 @@ class UserIndexSetFieldsConfig(models.Model):
             if obj:
                 return obj
         return None
+
+    @classmethod
+    def get_index_set_ids_hash(cls, index_set_ids: list):
+        return hashlib.md5(str(index_set_ids).encode("utf-8")).hexdigest() if index_set_ids else ""
 
 
 class StorageClusterRecord(SoftDeleteModel):

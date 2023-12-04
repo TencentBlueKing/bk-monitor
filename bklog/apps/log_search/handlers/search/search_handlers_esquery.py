@@ -99,8 +99,10 @@ from apps.log_search.models import (
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
+    UserIndexSetSearchOptionHistory,
 )
 from apps.log_search.utils import sort_func
+from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
@@ -956,6 +958,36 @@ class SearchHandler(object):
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()
         return cache_key
+
+    @staticmethod
+    def search_option_history(space_uid: str, index_set_type: str = IndexSetType.SINGLE.value):
+        """
+        用户检索选项历史记录
+        """
+        username = get_request_external_username() or get_request_username()
+
+        option_history_objs = UserIndexSetSearchOptionHistory.objects.filter(
+            username=username,
+            space_uid=space_uid,
+            index_set_type=index_set_type,
+        )
+
+        ret = [model_to_dict(obj) for obj in option_history_objs]
+
+        return ret
+
+    @staticmethod
+    def search_option_history_delete(
+        space_uid: str, history_id: int = None, index_set_type: str = IndexSetType.SINGLE.value, is_delete_all=False
+    ):
+        """删除用户检索选项历史记录"""
+        if not is_delete_all:
+            return UserIndexSetSearchOptionHistory.objects.filter(pk=int(history_id)).delete()
+        else:
+            username = get_request_external_username() or get_request_username()
+            return UserIndexSetSearchOptionHistory.objects.filter(
+                space_uid=space_uid, username=username, index_set_type=index_set_type
+            ).delete()
 
     @staticmethod
     def search_history(index_set_id=None, index_set_ids=None, is_union_search=False, **kwargs):

@@ -124,31 +124,24 @@ class IndexSetHandler(APIModel):
     def config(self, config_id: int, index_set_ids: list = None, index_set_type: str = IndexSetType.SINGLE.value):
         """修改用户当前索引集的配置"""
         username = get_request_username()
+        params = {"username": username, "source_app_code": get_request_app_code(), "defaults": {"config_id": config_id}}
         if index_set_type == IndexSetType.UNION.value:
-            index_set_ids_hash = hashlib.md5(str(index_set_ids).encode("utf-8")).hexdigest() if index_set_ids else ""
-            obj = UserIndexSetFieldsConfig.objects.filter(
-                username=username, source_app_code=get_request_app_code(), index_set_ids_hash=index_set_ids_hash
-            ).first()
-            if obj.exists():
-                obj.config_id = config_id
-                obj.save()
-            else:
-                UserIndexSetFieldsConfig.objects.create(
-                    index_set_ids=index_set_ids,
-                    index_set_ids_hash=index_set_ids_hash,
-                    index_set_type=IndexSetType.UNION.value,
-                    username=username,
-                    source_app_code=get_request_app_code(),
-                    config_id=config_id,
-                )
+            index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
+            params.update(
+                {
+                    "index_set_ids": index_set_ids,
+                    "index_set_type": IndexSetType.UNION.value,
+                    "index_set_ids_hash": index_set_ids_hash,
+                }
+            )
+        else:
+            params.update({"index_set_id": self.index_set_id})
+
+        UserIndexSetFieldsConfig.objects.update_or_create(**params)
+
+        if index_set_type == IndexSetType.UNION.value:
             return
 
-        UserIndexSetFieldsConfig.objects.update_or_create(
-            index_set_id=self.index_set_id,
-            username=username,
-            source_app_code=get_request_app_code(),
-            defaults={"config_id": config_id},
-        )
         # add user_operation_record
         try:
             log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)
