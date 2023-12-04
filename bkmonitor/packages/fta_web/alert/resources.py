@@ -2942,7 +2942,7 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
         try:
             strategy_algorithm = alert.strategy["items"][0]["algorithms"][0]
             if strategy_algorithm["type"] == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection:
-                anomaly_sort = alert.origin_alarm["data"]["values"]["anomaly_sort"]
+                anomaly_sort = alert.event.extra_info["origin_alarm"]["data"]["values"]["anomaly_sort"]
                 anomaly_metrics = parse_anomaly(anomaly_sort, strategy_algorithm["config"])
 
                 base_graph_panel = AlertDetailResource.get_graph_panel(alert, use_raw_query_config=True)
