@@ -12,8 +12,8 @@ import arrow
 from django.db import models
 from django.utils.translation import ugettext_lazy as _lazy
 
-from bkmonitor.models.external_iam import APPORVAL_STEP_CHOICES, STATUS_CHOICES
 from bkmonitor.utils.enum import ChoicesEnum
+from bkmonitor.utils.itsm import APPROVAL_STATUS_CHOICES
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
 
 
@@ -37,11 +37,17 @@ class ScenarioEnum(ChoicesEnum):
 
 class SendStatusEnum(ChoicesEnum):
     # 订阅发送状态
+    NO_STATUS = "no_status"
     SUCCESS = "success"
     FAILED = "failed"
     PARTIAL_FAILED = "partial_failed"
 
-    _choices_labels = ((SUCCESS, _lazy("成功")), (FAILED, _lazy("失败")), (PARTIAL_FAILED, _lazy("部分失败")))
+    _choices_labels = (
+        (SUCCESS, _lazy("成功")),
+        (FAILED, _lazy("失败")),
+        (PARTIAL_FAILED, _lazy("部分失败")),
+        (NO_STATUS, _lazy("无")),
+    )
 
 
 class SendModeEnum(ChoicesEnum):
@@ -69,12 +75,29 @@ class SubscriptionChannel(Model):
     channel_name = models.CharField(verbose_name="渠道名称", max_length=32, choices=ChannelEnum.get_choices())
     is_enabled = models.BooleanField(verbose_name="是否启用", default=True)
     subscribers = models.JSONField(verbose_name="订阅人", default=list)
-    send_text = models.CharField(verbose_name="提示文案", max_length=256, null=True)
+    send_text = models.CharField(verbose_name="提示文案", max_length=256, default="", blank=True, null=True)
 
     class Meta:
         verbose_name = "订阅渠道"
         verbose_name_plural = "订阅渠道"
         db_table = "subscription_channel"
+
+
+class SubscriptionSendRecord(Model):
+    """
+    订阅发送记录
+    """
+
+    subscription_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
+    channel_name = models.CharField(verbose_name="渠道名称", max_length=32, choices=ChannelEnum.get_choices())
+    send_results = models.JSONField(verbose_name="发送结果详情", default=list)
+    send_status = models.CharField(verbose_name="发送状态", max_length=32, choices=SendStatusEnum.get_choices())
+    send_time = models.DateTimeField(verbose_name="发送时间")
+
+    class Meta:
+        verbose_name = "订阅发送记录"
+        verbose_name_plural = "订阅发送记录"
+        db_table = "subscription_send_record"
 
 
 class EmailSubscription(AbstractRecordModel):
@@ -90,7 +113,7 @@ class EmailSubscription(AbstractRecordModel):
     scenario_config = models.JSONField(verbose_name="场景配置", default=dict)
     start_time = models.IntegerField(verbose_name="开始时间")
     end_time = models.IntegerField(verbose_name="结束时间")
-    last_send_record_ids = models.JSONField(verbose_name="最近一次发送记录ID", null=True, default=list)
+    last_send_time = models.DateTimeField(verbose_name="发送时间", null=True, default=None)
     is_manager_created = models.BooleanField(verbose_name="是否管理员创建", default=False)
 
     class Meta:
@@ -105,7 +128,7 @@ class EmailSubscription(AbstractRecordModel):
         return SendModeEnum.ONE_TIME
 
     @property
-    def is_invaild(self):
+    def is_invalid(self):
         now_timestamp = arrow.now().timestamp
         if now_timestamp > self.end_time or now_timestamp < self.start_time:
             return True
@@ -113,14 +136,10 @@ class EmailSubscription(AbstractRecordModel):
             return True
         return False
 
-    def is_self_subscribed(self):
-        channels = SubscriptionChannel.objects.filter(channel_name=ChannelEnum.USER, subscription_id=self.id)
-        if channels.exist():
-            subscriber_ids = [subscriber.id for subscriber in channels.first().subscribers]
-            return self.create_user in subscriber_ids
-
     def get_failed_subscribers(self):
-        send_results = list(self.last_send_records.values())
+        send_results = list(
+            SubscriptionSendRecord.objects.filter(send_time=self.last_send_time, subscription_id=self.id).values()
+        )
         failed_subscribers = []
         for result in send_results:
             if result["send_status"] != "success":
@@ -131,23 +150,6 @@ class EmailSubscription(AbstractRecordModel):
         return failed_subscribers
 
 
-class SubscriptionSendRecord(Model):
-    """
-    订阅发送记录
-    """
-
-    subscription_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
-    channel_name = models.CharField(verbose_name="渠道名称", max_length=32, choices=ChannelEnum.get_choices())
-    send_results = models.JSONField(verbose_name="发送结果详情", default=list)
-    send_status = models.CharField(verbose_name="发送状态", max_length=32, choices=SendStatusEnum.get_choices())
-    send_time = models.DateTimeField(verbose_name="发送时间", null=True)
-
-    class Meta:
-        verbose_name = "订阅发送记录"
-        verbose_name_plural = "订阅发送记录"
-        db_table = "subscription_send_record"
-
-
 class SubscriptionApplyRecord(AbstractRecordModel):
     """
     订阅审批记录
@@ -155,12 +157,12 @@ class SubscriptionApplyRecord(AbstractRecordModel):
 
     subscription_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
     bk_biz_id = models.IntegerField(verbose_name="业务ID", db_index=True)
-    approvers = models.JSONField("审批人列表", default=list)
+    approvers = models.JSONField("审批人", default=[])
     expire_time = models.DateTimeField("过期时间", null=True, default=None)
-    approval_step = models.CharField("审批步骤", max_length=32, choices=APPORVAL_STEP_CHOICES, default="no_status")
+    approval_step = models.JSONField("当前步骤", default=[])
     approval_sn = models.CharField("审批单号", max_length=128, default="", null=True, blank=True)
     approval_url = models.CharField("审批地址", default="", max_length=1024, null=True, blank=True)
-    status = models.CharField("审批状态", max_length=32, choices=STATUS_CHOICES, default="no_status")
+    status = models.CharField("审批状态", max_length=32, choices=APPROVAL_STATUS_CHOICES)
 
     class Meta:
         verbose_name = "订阅审批记录"

@@ -13,7 +13,7 @@ from rest_framework import serializers
 
 class SubscriberSerializer(serializers.Serializer):
     id = serializers.CharField()
-    type = serializers.CharField()
+    type = serializers.CharField(required=False)
     is_enabled = serializers.BooleanField()
 
 
@@ -21,6 +21,7 @@ class ChannelSerializer(serializers.Serializer):
     is_enabled = serializers.BooleanField()
     subscribers = SubscriberSerializer(many=True)
     channel_name = serializers.CharField()
+    send_text = serializers.CharField(required=False)
 
 
 class ScenarioConfigSerializer(serializers.Serializer):
@@ -35,11 +36,11 @@ class ScenarioConfigSerializer(serializers.Serializer):
 
 
 class FrequencySerializer(serializers.Serializer):
-    hour = serializers.FloatField()
-    type = serializers.IntegerField()
-    day_list = serializers.ListField(child=serializers.IntegerField())
-    run_time = serializers.TimeField()
-    week_list = serializers.ListField(child=serializers.IntegerField())
+    type = serializers.IntegerField(required=True, label="频率类型")
+    day_list = serializers.ListField(required=False, label="几天")
+    week_list = serializers.ListField(required=False, label="周几")
+    run_time = serializers.CharField(required=False, label="运行时间", allow_blank=True)
+    hour = serializers.FloatField(required=False, label="小时频率")
 
 
 class ContentConfigSerializer(serializers.Serializer):
