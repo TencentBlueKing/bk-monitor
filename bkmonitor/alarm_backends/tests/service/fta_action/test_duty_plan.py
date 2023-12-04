@@ -377,7 +377,6 @@ class TestDutyPreview:
                 "backups": [],
             }
         )
-        regular_duty_rule["enabled"] = False
         m = DutyRuleManager(duty_rule=regular_duty_rule, days=2)
         duty_plan = m.get_duty_plan()
         print(duty_plan)
@@ -386,6 +385,10 @@ class TestDutyPreview:
             {'start_time': '2023-07-25 00:00', 'end_time': '2023-07-25 23:59'},
             {'start_time': '2023-07-26 00:00', 'end_time': '2023-07-26 23:59'},
         ]
+        regular_duty_rule["enabled"] = False
+        m = DutyRuleManager(duty_rule=regular_duty_rule, days=2)
+        duty_plan = m.get_duty_plan()
+        assert len(duty_plan) == 0
 
     def test_regular_daily_cross_day_duty_rule(self, regular_duty_rule):
         regular_duty_rule["duty_arranges"].append(

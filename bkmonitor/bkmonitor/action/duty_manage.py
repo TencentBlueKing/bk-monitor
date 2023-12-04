@@ -109,6 +109,7 @@ class DutyRuleManager:
         begin_time = begin_time or ""
         self.begin_time = time_tools.str2datetime(max(begin_time, duty_rule["effective_time"]))
         self.end_time = None
+        self.enabled = bool(duty_rule.get("enabled"))
         self.last_user_index = last_user_index
         self.last_time_index = last_time_index
         if end_time:
@@ -126,6 +127,8 @@ class DutyRuleManager:
         """
         获取轮值计算排班入口
         """
+        if not self.enabled:
+            return []
         if self.category == "regular":
             return self.get_regular_duty_plan()
         return self.get_rotation_duty_plan()
