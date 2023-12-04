@@ -238,8 +238,6 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
         # metadata同步自定义时序维度信息, 每5分钟将会从consul同步一次
         ("metadata.task.custom_report.check_update_ts_metric", "*/5 * * * *", "global"),
-        # 每天4点半执行一次
-        ("metadata.task.vm.refresh_query_vm_space_list", "30 4 * * *", "global"),
     ]
     # 耗时任务单独队列处理
     LONG_TASK_CRONTAB = [
