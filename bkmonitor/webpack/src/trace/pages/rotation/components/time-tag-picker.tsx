@@ -54,7 +54,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    const timeTagPickerRef = ref();
     const sourceValue = ref<string[][]>([]);
     const localValue = reactive<string[][]>([]);
     watch(
@@ -103,7 +102,7 @@ export default defineComponent({
      * @param time 时间选择器回填的时间
      * @param ind 索引
      */
-    function handleShowTime(time?: string[], ind?: number) {
+    function handleShowTime(e: Event, time?: string[], ind?: number) {
       currentTime.index = ind ?? -1;
       currentTime.value = time ? [...time] : [];
       currentTime.show = true;
@@ -115,6 +114,7 @@ export default defineComponent({
         });
       }
       sourceValue.value = JSON.parse(JSON.stringify(localValue));
+      e.stopPropagation();
     }
 
     /**
@@ -154,8 +154,7 @@ export default defineComponent({
      * 确认选择时间
      */
     function handleConfirm(e: Event) {
-      if (timeTagPickerRef.value.contains(e.target as Node) || getEventPaths(e, '.time-picker-popover').length) return;
-
+      if (getEventPaths(e, '.time-picker-popover').length) return;
       if (!currentTime.value.length && !currentTime.inputValue) {
         currentTime.show = false;
         currentTime.showInput = false;
@@ -237,7 +236,6 @@ export default defineComponent({
 
     return {
       t,
-      timeTagPickerRef,
       localValue,
       currentTime,
       inputWidth,
@@ -253,10 +251,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div
-        class='time-tag-picker-wrapper-component'
-        ref='timeTagPickerRef'
-      >
+      <div class='time-tag-picker-wrapper-component'>
         {this.label && (
           <div
             class='label'
@@ -280,7 +275,7 @@ export default defineComponent({
             trigger: () => (
               <div
                 class='content'
-                onClick={() => this.handleShowTime()}
+                onClick={e => this.handleShowTime(e)}
               >
                 <i class='icon-monitor icon-mc-time icon'></i>
                 <div class='time-tag-list'>
@@ -288,7 +283,7 @@ export default defineComponent({
                     <Tag
                       class='time-tag'
                       closable
-                      onClick={() => this.handleShowTime(item, ind)}
+                      onClick={e => this.handleShowTime(e, item, ind)}
                       onClose={() => this.handleTagClose(ind)}
                     >
                       {this.tagNameFormat(item)}
