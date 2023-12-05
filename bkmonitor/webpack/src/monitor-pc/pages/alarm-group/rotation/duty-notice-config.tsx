@@ -220,7 +220,11 @@ export default class DutyNoticeConfig extends tsc<IProps> {
               class='width-200'
               v-model={this.formData.sendTime}
               format={'HH:mm'}
-              onChange={() => this.handleChange()}
+              onChange={() => {
+                setTimeout(() => {
+                  this.handleChange();
+                }, 100);
+              }}
             ></TimePicker>
           ],
           'mt-16',
