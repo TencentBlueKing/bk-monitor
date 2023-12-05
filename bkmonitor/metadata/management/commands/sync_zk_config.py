@@ -9,16 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import logging
-
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config, models
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -37,7 +33,6 @@ class Command(BaseCommand):
                 "no MQ for cluster type->[%s]," "maybe admin set something wrong?" % cls.DEFAULT_STREAM_TO_REPORT_MODEL
             )
             print(msg)
-            logger.error(msg, exc_info=True)
             return
 
         for mq_cluster in qs:
@@ -47,7 +42,6 @@ class Command(BaseCommand):
                 else:
                     cls.register_to_gse(mq_cluster)
             except:  # noqa
-                logger.exception("register to gse error with mq_cluster=>(%s)", mq_cluster.domain_name)
                 raise  # 这里不对异常捕获，需要抛出去，让Command执行失败
 
     @classmethod
@@ -109,9 +103,7 @@ class Command(BaseCommand):
             result = api.gse.query_stream_to(**params)
             return bool(result)
         except BKAPIError as e:
-            logger.warning(
-                "default zk gse data cluster id:{} not exists, error:{}".format(config.ZK_GSE_DATA_CLUSTER_ID, e)
-            )
+            print("default zk gse data cluster id:{} not exists, error:{}".format(config.ZK_GSE_DATA_CLUSTER_ID, e))
             return False
 
     @classmethod

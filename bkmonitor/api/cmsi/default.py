@@ -53,6 +53,8 @@ class CheckCMSIResource(CMSIBaseResource):
         """
         if validated_request_data.get("receiver__username"):
             receivers = validated_request_data["receiver__username"].split(",")
+        elif isinstance(validated_request_data["receiver"], list):
+            receivers = validated_request_data["receiver"]
         else:
             receivers = validated_request_data["receiver"].split(",")
         try:
@@ -335,5 +337,25 @@ class SendWecomRobot(CheckCMSIResource):
         content = serializers.JSONField(required=True)
 
         def validate(self, attrs):
-            attrs[attrs["type"]] = attrs["content"]
+            attrs[attrs["type"]] = {"content": attrs["content"]}
+            return attrs
+
+
+class SendWecomAPP(CheckCMSIResource):
+    """
+    发送企业号消息
+    """
+
+    action = "send_wecom_app"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        receiver = serializers.ListField(required=False, child=serializers.CharField())
+        tag_receiver = serializers.ListField(required=False, child=serializers.CharField())
+        sender = serializers.CharField(required=False)
+        type = serializers.CharField(required=False, default="text")
+        content = serializers.JSONField(required=True)
+
+        def validate(self, attrs):
+            attrs[attrs["type"]] = {"content": attrs["content"]}
             return attrs
