@@ -25,8 +25,7 @@
     <div class="nav-left fl">
       <div class="log-logo-container" @click.stop="jumpToHome">
         <img
-          v-if="logoImgUrl"
-          :src="logoImgUrl"
+          :src="require('@/images/log-logo.png')"
           alt="logo"
           class="logo-image">
         <span class="logo-text">{{ logoText }}</span>
@@ -216,9 +215,6 @@ export default {
         host,
         bkDomain,
       };
-    },
-    logoImgUrl() {
-      return process.env.NODE_ENV === 'development' ? '' : (window.MENU_LOGO_URL || '');
     },
     dropDownActive() {
       let current;
