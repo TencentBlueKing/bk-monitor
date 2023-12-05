@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
-import { dutyDataConversion, getCalendarOfNum, IDutyData } from './utils';
+import { dutyDataConversion, getCalendarOfNum, getDutyPlansDetails, IDutyData } from './utils';
 
 import './rotation-preview.scss';
 
@@ -166,15 +166,16 @@ export default class RotationPreview extends tsc<IProps> {
     if (!v) {
       return;
     }
-    this.detailDutyPlans = (
-      isHistory
-        ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime())
-        : this.dutyPlans.filter(d => new Date(d.finished_time).getTime() > new Date().getTime())
-    ).map(d => ({
-      startTime: d?.start_time || '--',
-      endTime: d?.finished_time || '--',
-      users: (d?.users?.map(u => u.display_name) || []).join('、 ')
-    }));
+    this.detailDutyPlans = getDutyPlansDetails(this.dutyPlans, isHistory);
+    // this.detailDutyPlans = (
+    //   isHistory
+    //     ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime())
+    //     : this.dutyPlans.filter(d => new Date(d.finished_time).getTime() > new Date().getTime())
+    // ).map(d => ({
+    //   startTime: d?.start_time || '--',
+    //   endTime: d?.finished_time || '--',
+    //   users: (d?.users?.map(u => u.display_name) || []).join('、 ')
+    // }));
   }
 
   getOverlapStyleTop(verticalRange: number[]) {
