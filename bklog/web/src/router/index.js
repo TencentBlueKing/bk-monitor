@@ -777,7 +777,7 @@ const routes = [
             name: 'log-clean-list', // 日志清洗 - 清洗列表
             component: cleanList,
             meta: {
-              title: '清洗列表',
+              title: '日志清洗',
               navId: 'clean-list',
             },
           },
@@ -785,7 +785,7 @@ const routes = [
             path: 'create',
             name: 'clean-create', // 日志清洗 - 新建清洗
             meta: {
-              title: '清洗列表',
+              title: '日志清洗',
               needBack: true,
               backName: 'log-clean-list',
               navId: 'clean-list',
@@ -796,7 +796,7 @@ const routes = [
             path: 'edit/:collectorId',
             name: 'clean-edit', // 日志清洗 - 编辑清洗
             meta: {
-              title: '清洗列表',
+              title: '日志清洗',
               needBack: true,
               backName: 'log-clean-list',
               navId: 'clean-list',
@@ -816,7 +816,7 @@ const routes = [
             name: 'log-clean-templates', // 日志清洗 - 清洗模板
             component: cleanTemplate,
             meta: {
-              title: '清洗模板',
+              title: '日志清洗',
               navId: 'clean-templates',
             },
           },
@@ -824,7 +824,7 @@ const routes = [
             path: 'create',
             name: 'clean-template-create', // 日志清洗 - 新增模板
             meta: {
-              title: '清洗模板',
+              title: '日志清洗',
               needBack: true,
               backName: 'log-clean-templates',
               navId: 'clean-templates',
@@ -835,7 +835,7 @@ const routes = [
             path: 'edit/:templateId',
             name: 'clean-template-edit', // 日志清洗 - 编辑模板
             meta: {
-              title: '清洗模板',
+              title: '日志清洗',
               needBack: true,
               backName: 'log-clean-templates',
               navId: 'clean-templates',
@@ -855,7 +855,7 @@ const routes = [
             name: 'log-desensitize-list',
             component: MaskingList,
             meta: {
-              title: '日志脱敏',
+              title: '日志清洗',
               navId: 'log-desensitize',
             },
           },
@@ -866,7 +866,7 @@ const routes = [
         name: 'archive-repository', // 日志归档 - 归档仓库
         component: ArchiveRepository,
         meta: {
-          title: '归档仓库',
+          title: '日志归档',
           navId: 'archive-repository',
         },
       },
@@ -875,7 +875,7 @@ const routes = [
         name: 'archive-list', // 日志归档 - 归档列表
         component: ArchiveList,
         meta: {
-          title: '归档列表',
+          title: '日志归档',
           navId: 'archive-list',
         },
       },
@@ -884,7 +884,7 @@ const routes = [
         name: 'archive-restore', // 日志归档 - 归档回溯
         component: ArchiveRestore,
         meta: {
-          title: '归档回溯',
+          title: '日志归档',
           navId: 'archive-restore',
         },
       },
@@ -893,7 +893,7 @@ const routes = [
         name: 'manage-log-extract', // 日志提取 - 提取配置
         component: ExtractPermission,
         meta: {
-          title: '日志提取配置',
+          title: '日志提取',
           navId: 'manage-log-extract',
         },
       },
@@ -903,7 +903,7 @@ const routes = [
         component: extract,
         redirect: '/manage/log-extract-task',
         meta: {
-          title: '日志提取任务',
+          title: '日志提取',
           navId: 'log-extract-task',
         },
         children: [
@@ -912,7 +912,7 @@ const routes = [
             name: 'extract-home', // 日志提取 - 提取任务
             component: extractHome,
             meta: {
-              title: '日志提取任务',
+              title: '日志提取',
               navId: 'log-extract-task',
             },
           },
@@ -920,7 +920,7 @@ const routes = [
             path: 'extract-create',
             name: 'extract-create', // 日志提取 - 新建提取任务
             meta: {
-              title: '日志提取任务',
+              title: '日志提取',
               needBack: true,
               backName: 'log-extract-task',
               navId: 'log-extract-task',
@@ -931,7 +931,7 @@ const routes = [
             path: 'extract-clone',
             name: 'extract-clone', // 日志提取 - 克隆提取任务
             meta: {
-              title: '日志提取任务',
+              title: '日志提取',
               needBack: true,
               backName: 'log-extract-task',
               navId: 'log-extract-task',
@@ -951,7 +951,7 @@ const routes = [
             name: 'extract-link-list',
             component: ExtractLinkList,
             meta: {
-              title: '提取链路管理',
+              title: '日志提取',
               navId: 'extract-link-manage',
             },
           },
@@ -959,7 +959,7 @@ const routes = [
             path: 'edit/:linkId',
             name: 'extract-link-edit',
             meta: {
-              title: '提取链路管理',
+              title: '日志提取',
               needBack: true,
               backName: 'extract-link-list',
               navId: 'extract-link-manage',
@@ -970,7 +970,7 @@ const routes = [
             path: 'create',
             name: 'extract-link-create',
             meta: {
-              title: '提取链路管理',
+              title: '日志提取',
               needBack: true,
               backName: 'extract-link-list',
               navId: 'extract-link-manage',
@@ -984,7 +984,7 @@ const routes = [
         name: 'es-cluster-manage', // ES集群 - 集群信息
         component: ClusterMess,
         meta: {
-          title: '集群管理',
+          title: 'ES集群',
           navId: 'es-cluster-manage',
         },
       },
@@ -993,7 +993,7 @@ const routes = [
         name: 'manage-data-link-conf', // 管理 - 采集链路管理
         component: DataLinkConf,
         meta: {
-          title: '采集链路管理',
+          title: '设置',
           navId: 'manage-data-link-conf',
         },
       },
