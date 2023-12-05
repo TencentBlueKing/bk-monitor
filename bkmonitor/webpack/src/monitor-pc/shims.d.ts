@@ -119,6 +119,7 @@ declare global {
     bkchat_manage_url: string;
     timezone: string;
     show_realtime_strategy: boolean;
+    bk_paas_host: string;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
