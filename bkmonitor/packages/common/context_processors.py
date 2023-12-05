@@ -31,7 +31,31 @@ class Platform(object):
     ce = settings.BKAPP_DEPLOY_PLATFORM == "community"
 
 
-def _get_basic_context(request):
+def get_default_biz_id(request, biz_list, id_key):
+
+    sorted(biz_list, key=lambda biz: biz[id_key])
+
+    if hasattr(request, "biz_id"):
+        biz_id = request.biz_id
+    else:
+        biz_id = fetch_biz_id_from_request(request, {})
+        if biz_id:
+            biz_id = biz_id
+        elif biz_list:
+            biz_id = biz_id[0][id_key]
+        else:
+            biz_id = -1
+
+    # 检查业务ID是否合法
+    try:
+        biz_id = int(biz_id)
+    except (TypeError, ValueError):
+        biz_id = -1
+
+    return biz_id
+
+
+def get_basic_context(request):
     return {
         "SITE_URL": settings.SITE_URL,
         # 静态资源
@@ -52,7 +76,7 @@ def _get_basic_context(request):
 
 def _get_full_monitor_context(request):
     context = _get_monitor_context(request)
-    context.update(_get_basic_context(request))
+    context.update(get_basic_context(request))
     return context
 
 
@@ -152,23 +176,8 @@ def _get_monitor_context(request):
         ]
     except:  # noqa
         context["BK_BIZ_LIST"] = []
-    context["BK_BIZ_LIST"].sort(key=lambda biz: biz["id"])
-    if hasattr(request, "biz_id"):
-        context["BK_BIZ_ID"] = request.biz_id
-    else:
-        biz_id = fetch_biz_id_from_request(request, {})
-        if biz_id:
-            context["BK_BIZ_ID"] = biz_id
-        elif context["BK_BIZ_LIST"]:
-            context["BK_BIZ_ID"] = context["BK_BIZ_LIST"][0]["id"]
-        else:
-            context["BK_BIZ_ID"] = -1
 
-    # 检查业务ID是否合法
-    try:
-        context["BK_BIZ_ID"] = int(context["BK_BIZ_ID"])
-    except (TypeError, ValueError):
-        context["BK_BIZ_ID"] = -1
+    context["BK_BIZ_ID"] = get_default_biz_id(request, context["BK_BIZ_LIST"], "id")
 
     # 是否开启前端视图部分，按拓扑聚合的能力。（不包含对监控策略部分的功能）
     context["ENABLE_CMDB_LEVEL"] = settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL
@@ -221,13 +230,14 @@ def get_full_context(request):
 
 
 def get_context(request):
+    return get_full_context(request)
     try:
         if "old" in request.GET:
             get_full_context(request)
         else:
             # 背景：原来的 context 集成了全量业务列表拉取、用户有权限业务拉取，导致首屏打开耗时较长
             # 改造：前端仅拉取基础 context，待页面初始化后再拉取剩余 context
-            return _get_basic_context(request)
+            return get_basic_context(request)
 
     except Exception as e:
         logger.exception(f"get_context error: {e}")
