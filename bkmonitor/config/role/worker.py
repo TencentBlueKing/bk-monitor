@@ -244,10 +244,10 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
     # 耗时任务单独队列处理
     LONG_TASK_CRONTAB = [
         # 清理任务耗时较久，半个小时执行一次
-        ("metadata.task.config_refresh.clean_influxdb_tag", "*/30 * * * *", "global"),
-        ("metadata.task.config_refresh.clean_influxdb_storage", "*/30 * * * *", "global"),
-        ("metadata.task.config_refresh.clean_influxdb_cluster", "*/30 * * * *", "global"),
-        ("metadata.task.config_refresh.clean_influxdb_host", "*/30 * * * *", "global"),
+        # ("metadata.task.config_refresh.clean_influxdb_tag", "*/30 * * * *", "global"),
+        # ("metadata.task.config_refresh.clean_influxdb_storage", "*/30 * * * *", "global"),
+        # ("metadata.task.config_refresh.clean_influxdb_cluster", "*/30 * * * *", "global"),
+        # ("metadata.task.config_refresh.clean_influxdb_host", "*/30 * * * *", "global"),
         # 刷新数据源信息到 consul
         ("metadata.task.config_refresh.refresh_datasource", "*/10 * * * *", "global"),
         # 刷新 storage 信息给unify-query使用
@@ -257,7 +257,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.config_refresh.refresh_influxdb_route", "*/10 * * * *", "global"),
         # 刷新空间信息，业务、BCS的关联资源
         ("metadata.task.sync_space.refresh_cluster_resource", "*/30 * * * *", "global"),
-        ("metadata.task.sync_space.sync_bkcc_space_data_source", "*/10 * * * *", "global"),
+        ("metadata.task.sync_space.sync_bkcc_space_data_source", "* */1 * * *", "global"),
         # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
         ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
         # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
@@ -265,7 +265,7 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每天3点半执行一次
         ("metadata.task.sync_space.refresh_bkcc_space_name", "30 3 * * *", "global"),
         # metadata 刷新 unify_query 视图需要的字段，因为变动性很低，每天 4 点执行一次
-        ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
+        # ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
         # 删除数据库中已经不存在的数据源
         ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
         # 每天同步一次蓝鲸应用的使用的集群
@@ -515,9 +515,6 @@ QOS_ALERT_WINDOW = 60
 
 # 第三方事件接入白名单
 BIZ_WHITE_LIST_FOR_3RD_EVENT = []
-
-# 自定义指标过期时间
-TIME_SERIES_METRIC_EXPIRED_DAYS = 30
 
 # 自定义指标拉取最大步长
 MAX_METRICS_FETCH_STEP = os.environ.get("MAX_METRICS_FETCH_STEP", 500)

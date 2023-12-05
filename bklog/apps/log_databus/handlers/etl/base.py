@@ -21,6 +21,11 @@ the project delivered to anyone in the future.
 """
 
 import arrow
+from django.conf import settings
+from django.db import transaction
+from django.utils.module_loading import import_string
+from django.utils.translation import ugettext as _
+
 from apps.api import TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
@@ -65,10 +70,6 @@ from apps.utils.db import array_group
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.db import transaction
-from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
 
 
 class EtlHandler(object):
@@ -253,7 +254,6 @@ class EtlHandler(object):
 
     @staticmethod
     def etl_preview(etl_config, etl_params, data):
-
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
         fields = etl_storage.etl_preview(data, etl_params)
         return {"fields": fields}
@@ -264,7 +264,7 @@ class EtlHandler(object):
         """
         fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
         fmt = fmts.get(time_format)
-        if fmt["name"] == ISO_8601_TIME_FORMAT_NAME:
+        if fmt["name"] in [ISO_8601_TIME_FORMAT_NAME, "ISO8601"]:
             try:
                 epoch_second = arrow.get(data, tzinfo=f"GMT{time_zone}").timestamp
             except Exception:  # pylint: disable=broad-except
