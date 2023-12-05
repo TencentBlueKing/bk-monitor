@@ -49,5 +49,6 @@ declare global {
     __POWERED_BY_BK_WEWEB__?: boolean;
     mermaidClick?: (id: string) => void;
     apm_ebpf_enabled: boolean;
+    enable_apm_profiling: boolean;
   }
 }

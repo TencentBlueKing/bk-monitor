@@ -86,10 +86,8 @@ export function timeRangeTransform(val: string) {
 export function replaceRotationTransform(originData, type) {
   if (type === 'data') {
     let id;
-    let userGroupType;
     const res = originData.map(data => {
       id = data.id;
-      userGroupType = data.group_type;
       const date = data.duty_time.reduce(
         (pre: ReplaceItemDataModel['date'], cur, ind) => {
           if (ind === 0) {
@@ -152,6 +150,7 @@ export function replaceRotationTransform(originData, type) {
         date,
         users: {
           groupNumber: data.group_number,
+          groupType: data.group_type,
           value: data.duty_users.map(item => ({
             key: random(8, true),
             value: item
@@ -162,7 +161,6 @@ export function replaceRotationTransform(originData, type) {
     });
     return {
       id,
-      userGroupType,
       data: res
     };
   }
@@ -230,7 +228,7 @@ export function replaceRotationTransform(originData, type) {
       id: item.id,
       duty_time: dutyTime,
       duty_users: item.users.value.filter(item => item.value.length).map(item => item.value),
-      group_type: originData.userGroupType,
+      group_type: item.users.groupType,
       group_number: item.users.groupNumber
     };
   });

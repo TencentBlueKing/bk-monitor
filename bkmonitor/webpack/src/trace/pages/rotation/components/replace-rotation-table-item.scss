@@ -94,6 +94,47 @@
     }
   }
 
+  .user-panel-wrap {
+    .group-tab {
+      margin-bottom: 12px;
+      background: #fff;
+
+      .item {
+        box-sizing: content-box;
+        width: 62px;
+        height: 24px;
+        line-height: 26px;
+        text-align: center;
+        cursor: pointer;
+        border: 1px solid #c4c6cc;
+
+        &.active {
+          color: #3a84ff;
+          background: #e1ecff;
+          border-color: #3a84ff;
+        }
+
+        &:first-child {
+          border-right-width: 0px;
+          border-radius: 2px 0 0 2px;
+
+          &.active {
+            border-right-width: 1px;
+          }
+        }
+
+        &:last-child {
+          border-left-width: 0px;
+          border-radius: 0 2px 2px 0;
+
+          &.active {
+            border-left-width: 1px;
+          }
+        }
+      }
+    }
+  }
+
   td {
     border: 1px solid #dcdee5;
   }

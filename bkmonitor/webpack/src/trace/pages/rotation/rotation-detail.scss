@@ -39,6 +39,10 @@
       color: #313238;
     }
 
+    .text-wrap {
+      word-break: break-all;
+    }
+
     .regular-form-item-wrap {
       display: flex;
       flex-direction: column;

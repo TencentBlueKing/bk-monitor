@@ -30,7 +30,7 @@ import { unmount } from '@blueking/bk-weweb';
 import './rotation.scss';
 
 const wewebId = 'trace';
-Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
+Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class Rotation extends tsc<{}> {
   get rotationHost() {

@@ -9,14 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import logging
 
 from django.core.management.base import BaseCommand
 
-from metadata import models
 from alarm_backends.core.cache.strategy import StrategyCacheManager
-
-logger = logging.getLogger("metadata")
+from metadata import models
 
 
 class Command(BaseCommand):
@@ -28,5 +25,5 @@ class Command(BaseCommand):
             if not models.storage.KafkaStorage.objects.filter(table_id=table_id).exists():
                 models.storage.KafkaStorage.create_table(table_id, is_sync_db=True, **{"expired_time": 1800000})
                 models.ResultTable.objects.get(table_id=table_id).refresh_etl_config()
-                logger.info(f"{table_id} kafka storage missing, created.")
+                self.stdout.write(f"{table_id} kafka storage missing, created.")
         print("all realtime strategy storage check done.")

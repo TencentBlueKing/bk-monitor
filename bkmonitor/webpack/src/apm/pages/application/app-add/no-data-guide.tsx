@@ -260,7 +260,7 @@ export default class NoDataGuide extends tsc<IProps> {
               this.$tc('配置信息'),
               <div class='config-row'>
                 <div class='config-item'>
-                  <span class='config-label'>SecureKey</span>
+                  <span class='config-label'>Token</span>
                   <span class='config-value'>
                     {(this.showSecureKey ? this.secureKey : '********') || '●●●●●●●●●●'}
                     {!this.secureKey ? (

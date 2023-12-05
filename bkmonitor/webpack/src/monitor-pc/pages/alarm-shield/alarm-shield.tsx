@@ -29,6 +29,8 @@ import { unmount } from '@blueking/bk-weweb';
 
 import './alarm-shield.scss';
 
+const wewebId = 'trace';
+
 Component.registerHooks(['beforeRouteLeave']);
 
 Component.registerHooks(['beforeRouteLeave']);
@@ -50,7 +52,7 @@ export default class TraceRetrieval extends tsc<{}> {
     });
   }
   beforeRouteLeave(to, from, next) {
-    unmount('trace');
+    unmount(wewebId);
     (document.body as any).___zrEVENTSAVED = null;
     next();
   }
@@ -65,7 +67,7 @@ export default class TraceRetrieval extends tsc<{}> {
           class='alarm-shield-wrap-iframe'
           url={this.alarmShieldUrl}
           showSourceCode={true}
-          id='trace'
+          id={wewebId}
           data={this.alarmShieldData}
         />
       </div>

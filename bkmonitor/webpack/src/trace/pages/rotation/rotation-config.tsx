@@ -117,7 +117,6 @@ export default defineComponent({
         regular: [],
         handoff: {
           id: undefined,
-          userGroupType: 'specified',
           data: []
         }
       };
