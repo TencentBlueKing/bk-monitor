@@ -969,7 +969,9 @@ class SearchHandler(object):
         username = get_request_external_username() or get_request_username()
 
         # 找出用户指定索引集类型下所有记录
-        history_objs = UserIndexSetSearchHistory.objects.filter(created_by=username, index_set_type=index_set_type)
+        history_objs = UserIndexSetSearchHistory.objects.filter(
+            created_by=username, index_set_type=index_set_type
+        ).order_by("-created_at")
 
         # 过滤出当前空间下的记录
         if index_set_type == IndexSetType.SINGLE.value:
@@ -982,13 +984,11 @@ class SearchHandler(object):
         if not index_set_id_all:
             return []
 
-        effect_index_set_ids = list(
-            LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
-                "index_set_id", flat=True
-            )
-        )
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid)
 
-        if not effect_index_set_ids:
+        effect_index_set_mapping = {obj.index_set_id: obj.index_set_name for obj in index_set_objs}
+
+        if not effect_index_set_mapping:
             return []
 
         ret = list()
@@ -997,18 +997,22 @@ class SearchHandler(object):
 
         for obj in history_objs:
             # 最多只返回10条记录
-            if len(ret) == 10:
+            if len(ret) >= 10:
                 break
 
             info = model_to_dict(obj)
             if obj.index_set_type == IndexSetType.SINGLE.value:
-                if obj.index_set_id not in effect_index_set_ids or obj.index_set_id in option_set:
+                if obj.index_set_id not in effect_index_set_mapping or obj.index_set_id in option_set:
                     continue
+                info["index_set_name"] = effect_index_set_mapping[obj.index_set_id]
                 ret.append(info)
                 option_set.add(info["index_set_id"])
             else:
-                if obj.index_set_ids[0] not in effect_index_set_ids or tuple(obj.index_set_ids) in option_set:
+                if obj.index_set_ids[0] not in effect_index_set_mapping or tuple(obj.index_set_ids) in option_set:
                     continue
+                info["index_set_names"] = [
+                    effect_index_set_mapping.get(index_set_id) for index_set_id in obj.index_set_ids
+                ]
                 ret.append(info)
                 option_set.add(tuple(info["index_set_ids"]))
 
@@ -2056,10 +2060,7 @@ class UnionSearchHandler(object):
         self.search_dict = search_dict
         self.union_configs = search_dict.get("union_configs", [])
         self.sort_list = search_dict.get("sort_list", [])
-        if search_dict.get("index_set_ids", []):
-            self.index_set_ids = list(set(search_dict["index_set_ids"]))
-        else:
-            self.index_set_ids = list({info["index_set_id"] for info in self.union_configs})
+        self.index_set_ids = list(set(search_dict.get("index_set_ids", [])))
 
     def _init_sort_list(self, index_set_id):
         sort_list = self.search_dict.get("sort_list", [])

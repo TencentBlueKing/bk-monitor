@@ -114,6 +114,9 @@ class SearchViewSet(APIViewSet):
         if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "config", "history"]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
         if self.action in ["union_search"]:
+            self.request.data["index_set_ids"] = [
+                config["index_set_id"] for config in self.request.data.get("union_configs", [])
+            ]
             return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         return [ViewBusinessPermission()]
@@ -958,7 +961,7 @@ class SearchViewSet(APIViewSet):
         config_id = request.GET.get("config_id", 0)
         return Response(IndexSetFieldsConfigHandler(config_id=config_id).retrieve())
 
-    @list_route(methods=["GET"], url_path="list_config")
+    @list_route(methods=["POST"], url_path="list_config")
     def list_config(self, request, *args, **kwargs):
         """
         @api {get} /search/index_set/list_config/ 03_搜索-获取索引集配置列表
