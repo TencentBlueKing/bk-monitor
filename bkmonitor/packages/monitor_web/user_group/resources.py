@@ -154,7 +154,8 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 {
                     "users": duty_plan.users,
                     "id": duty_plan.id,
-                    "user_index": duty_plan.order,
+                    "user_index": duty_plan.user_index,
+                    "order": duty_plan.order,
                     "work_times": duty_plan.work_times,
                 }
             )
