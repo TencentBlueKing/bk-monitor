@@ -1505,8 +1505,10 @@ class DataFlowHandler(BaseAiopsHandler):
                 else:
                     if field == DEFAULT_CLUSTERING_FIELD:
                         format_transform_fields.append("`{}` as `{}`".format(field, clustering_fields))
-                    else:
+                    elif field not in all_fields_dict:
                         format_transform_fields.append(f"`{field}`")
+                    else:
+                        continue
             else:
                 if field != mapping_all_fields_dict[field]:
                     format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
