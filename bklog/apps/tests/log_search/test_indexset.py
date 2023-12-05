@@ -20,11 +20,10 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
-
-import arrow
 import json
 from unittest.mock import patch
 
+import arrow
 from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
@@ -396,7 +395,8 @@ class TestIndexSet(TestCase):
     @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.utils.bk_data_auth.BkDataAuthHandler.filter_unauthorized_rt_by_user", return_value=[])
     @patch(
-        "apps.utils.bk_data_auth.BkDataAuthHandler.list_authorized_rt_by_token", return_value=["591_xx", "log_xxx"],
+        "apps.utils.bk_data_auth.BkDataAuthHandler.list_authorized_rt_by_token",
+        return_value=["591_xx", "log_xxx"],
     )
     @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
@@ -539,6 +539,7 @@ class TestIndexSet(TestCase):
 
     @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_update_index_set(self, *args, **kwargs):
         """

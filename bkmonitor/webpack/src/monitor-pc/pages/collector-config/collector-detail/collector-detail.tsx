@@ -273,12 +273,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.TargetDetail}
           >
             <AlertTopic
+              class='mb-24'
               stage={TCollectorAlertStage.collecting}
               id={this.collectId as any}
               alarmGroupList={this.alarmGroupList}
             ></AlertTopic>
             <CollectorStatusDetails
-              class='mt-24'
               data={this.allData[TabEnum.TargetDetail].data}
               updateKey={this.allData[TabEnum.TargetDetail].updateKey}
               onCanPolling={this.handlePolling}
@@ -290,12 +290,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.DataLink}
           >
             <AlertTopic
+              class='mb-24'
               stage={TCollectorAlertStage.transfer}
               id={this.collectId as any}
               alarmGroupList={this.alarmGroupList}
             ></AlertTopic>
             <LinkStatus
-              class='mt-24'
               show={this.active === TabEnum.DataLink}
               collectId={this.collectId}
             />
@@ -305,12 +305,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.StorageState}
           >
             <AlertTopic
+              class='mb-24'
               stage={TCollectorAlertStage.storage}
               id={this.collectId as any}
               alarmGroupList={this.alarmGroupList}
             ></AlertTopic>
             <StorageState
-              class='mt-24'
               loading={this.allData[TabEnum.StorageState].loading}
               data={this.allData[TabEnum.StorageState].data}
               collectId={this.collectId}

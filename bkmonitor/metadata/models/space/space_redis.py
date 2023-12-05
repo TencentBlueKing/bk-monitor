@@ -517,9 +517,9 @@ def get_table_field_by_table_id(table_id_list: List) -> Dict:
     )
     table_id_list = list(set(table_id_list) - white_tables)
 
-    # NOTE: 针对自定义时序，过滤掉历史废弃的指标，时间在`TIME_SERIES_METRIC_EXPIRED_DAYS`的为有效数据
+    # NOTE: 针对自定义时序，过滤掉历史废弃的指标，时间在`TIME_SERIES_METRIC_EXPIRED_SECONDS`的为有效数据
     # 其它类型直接获取所有指标和维度
-    begin_time = tz_now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+    begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
     # 获取时序的结果表
     ts_groups = TimeSeriesGroup.objects.filter(table_id__in=table_id_list)
     # 获取时序的结果表及关联的group id
@@ -611,7 +611,10 @@ def push_redis_data(
     space_code: Optional[str] = None,
     table_id: Optional[str] = None,
 ):
-    """推送 redis 数据"""
+    """推送 redis 数据
+
+    TODO: 待移除
+    """
     space_redis = SpaceRedis()
     if space_type_id == SpaceTypes.BKCC.value:
         space_redis.push_bkcc_type_space(space_id, table_id=table_id)
@@ -636,7 +639,10 @@ def push_redis_data(
 def push_and_publish_all_space(
     space_type_id: Optional[str] = None, space_id: Optional[str] = None, is_publish: Optional[bool] = True
 ):
-    """推送redis数据并发布通知"""
+    """推送redis数据并发布通知
+
+    TODO: 待移除
+    """
     # 根据参数过滤出要更新的空间信息
     all_spaces = Space.objects.all()
     if space_type_id:

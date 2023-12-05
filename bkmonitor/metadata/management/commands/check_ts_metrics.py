@@ -51,7 +51,7 @@ class Command(BaseCommand):
     def _query(self, options: Dict):
         """查询现有的指标，确认到重复
 
-        NOTE: 现阶段时间窗口为 30d，来源于 `TIME_SERIES_METRIC_EXPIRED_DAYS`
+        NOTE: 现阶段时间窗口为 30d，来源于 `TIME_SERIES_METRIC_EXPIRED_SECONDS`
         """
         qs = models.TimeSeriesGroup.objects.filter(bk_data_id=options["data_id"])
         if not qs.exists():

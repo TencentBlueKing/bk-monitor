@@ -1,5 +1,5 @@
 FROM python:3.6.15 as builder
-ARG build_frontend=false
+ARG build_frontend=true
 ARG replace_debian_source=false
 
 # download fonts
@@ -11,14 +11,14 @@ RUN mkdir -p /app/fonts \
 RUN if [ ${replace_debian_source} ] ; then \
         echo "update debian source to ustc" &&\
         mv /etc/apt/sources.list /etc/apt/sources.list.bakevan && \
-        echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.ustc.edu.cn/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.ustc.edu.cn/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb https://mirrors.ustc.edu.cn/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.ustc.edu.cn/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list; \
+        echo "deb https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list; \
     else \
         echo "don't need change debian source"; \
     fi
@@ -38,13 +38,19 @@ RUN python -m venv venv \
 
 # build frontend
 COPY ./webpack /app/webpack
-RUN if [ ${build_frontend} ] ; then cd /app/webpack/ && pnpm i && npm run prod; fi
+RUN if [ "${build_frontend}" = true ] ; then \
+  cd /app/webpack/ && pnpm i && npm run prod; \
+fi
 
 # copy code
 COPY ./ /app/code
-RUN rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace \
-    && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/code/static/ \
-    && rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
+
+RUN if [ "${build_frontend}" = true ] ; then \
+  rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace /app/code/static/external \
+  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/; \
+fi
+
+RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
 
 FROM python:3.6.15
 

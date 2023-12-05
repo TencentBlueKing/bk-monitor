@@ -13,14 +13,14 @@ import operator
 from abc import ABC
 from datetime import datetime
 
+from django.utils.translation import ugettext_lazy as _
+
 from apm_web.icon import get_icon
 from apm_web.utils import group_by
+from bkmonitor.share.api_auth_resource import ApiAuthResource
 from core.drf_resource import api
-from django.utils.translation import ugettext_lazy as _
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import OverviewDataTableFormat
-
-from bkmonitor.share.api_auth_resource import ApiAuthResource
 
 
 class SidebarPageListResource(PageListResource):
@@ -182,7 +182,11 @@ class SidebarPageListResource(PageListResource):
             else:
                 if column.overview_calculate_handler:
                     d.pop(column.id)
-                    res[column.id] = column.format({column.id: column.overview_calculate_handler(data), **d})
+                    v = column.overview_calculate_handler(data)
+                    if v is None:
+                        res[column.id] = column.format({column.id: None, **d})
+                    else:
+                        res[column.id] = column.format({column.id: v, **d})
                 else:
                     if column.overview_calculator:
                         all_values = [
@@ -191,7 +195,10 @@ class SidebarPageListResource(PageListResource):
                             if i.get(column.id)
                         ]
                         d.pop(column.id)
-                        res[column.id] = column.format({column.id: column.overview_calculator(all_values), **d})
+                        if all_values:
+                            res[column.id] = column.format({column.id: column.overview_calculator(all_values), **d})
+                        else:
+                            res[column.id] = column.format({column.id: None, **d})
                     else:
                         res[column.id] = None
 

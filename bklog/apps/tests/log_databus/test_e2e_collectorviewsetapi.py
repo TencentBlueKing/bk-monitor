@@ -55,7 +55,7 @@ CLUSTER_INFOS = {
 
 FAKE_CACHE = CLUSTER_INFOS
 
-BATCH_IS_ALLOWED = {"231": {"search_log": True}}
+BATCH_IS_ALLOWED = {"231": {"view_collection_v2": True, "manage_collection_v2": True}}
 
 SCENARIOS = [
     {
@@ -168,13 +168,14 @@ COLLECTORS_LIST = {
                 "storage_cluster_name": "",
                 "table_id_prefix": "2_bklog_",
                 "is_search": False,
-                "permission": {"search_log": True},
+                "permission": {"view_collection_v2": True, "manage_collection_v2": True},
                 "create_clean_able": True,
                 "bkdata_index_set_ids": [],
                 "retention": 7,
                 "is_display": True,
                 "yaml_config_enabled": False,
                 "yaml_config": "",
+                "tags": [],
             }
         ],
     },

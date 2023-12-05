@@ -95,7 +95,6 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     } else {
       this.dayChartConfig.timeRange = val;
     }
-    this.getChartData(type);
   }
 
   async getChartData(type: 'minute' | 'day') {
@@ -144,7 +143,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
 
   handleViewData(row) {
     this.sideslider.isShow = true;
-    this.sideslider.data = JSON.stringify(row, null, '\t');
+    this.sideslider.data = JSON.stringify(row.raw, null, '\t');
   }
 
   init() {
@@ -165,7 +164,6 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               timeRange={this.minuteChartConfig.timeRange}
               data={this.minuteChartConfig.data}
               getChartData={() => this.getChartData('minute')}
-              // onRefresh={() => this.getChartData('minute')}
               onTimeRangeChange={val => this.handleTimeRange(val, 'minute')}
             />
           </div>
@@ -176,7 +174,6 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               timeRange={this.dayChartConfig.timeRange}
               data={this.dayChartConfig.data}
               getChartData={() => this.getChartData('day')}
-              // onRefresh={() => this.getChartData('day')}
               onTimeRangeChange={val => this.handleTimeRange(val, 'day')}
             />
           </div>
@@ -203,12 +200,13 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             >
               <TableColumn
                 type='index'
-                label={this.$t('序列')}
+                label={this.$t('序号')}
                 width='90'
               />
               <TableColumn
                 label={this.$t('原始数据')}
                 prop='message'
+                show-overflow-tooltip
               />
               <TableColumn
                 label={this.$t('采集时间')}
@@ -223,7 +221,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                     <Button
                       class='mr8'
                       text
-                      onClick={() => this.handleCopy(JSON.stringify(row, null, '\t'))}
+                      onClick={() => this.handleCopy(row.message)}
                     >
                       {this.$t('复制')}
                     </Button>,

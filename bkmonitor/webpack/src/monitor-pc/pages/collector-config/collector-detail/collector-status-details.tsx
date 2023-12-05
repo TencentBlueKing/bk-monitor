@@ -145,8 +145,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           pendingNum: 0,
           successNum: 0
         };
+        let showAlertHistogram = true;
         item.child.forEach(set => {
-          const alertHistogram = set.alert_histogram.map(a => ({ level: a[1] }));
+          const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
+          showAlertHistogram = !!set?.alert_histogram;
           // 表格内容
           if (
             STATUS_LIST.includes(set.status) ||
@@ -174,6 +176,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           ...item,
           ...nums,
           table,
+          showAlertHistogram,
           isExpan: true
         };
       });
@@ -232,15 +235,18 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.header.status = id;
     this.contents.forEach(item => {
       const table = [];
+      let showAlertHistogram = true;
       item.child.forEach(set => {
         if ((id === EStatus.RUNNING && STATUS_LIST.includes(set.status)) || set.status === id || id === EStatus.ALL) {
-          const alertHistogram = set.alert_histogram.map(a => ({ level: a[1] }));
+          const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
+          showAlertHistogram = !!set?.alert_histogram;
           table.push({
             ...set,
             alertHistogram
           });
         }
       });
+      item.showAlertHistogram = showAlertHistogram;
       item.table = table;
     });
   }
@@ -599,108 +605,110 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                     }
                   }}
                 >
-                  {this.tableColumns.map(column => {
-                    const key = `column_${column.id}`;
-                    return (
-                      <TableColumn
-                        key={key}
-                        prop={column.id}
-                        label={column.name}
-                        width={column.width}
-                        formatter={(row: any) => {
-                          switch (column.id) {
-                            case EColumn.name: {
-                              return <span>{row.instance_name}</span>;
-                            }
-                            case EColumn.alert: {
-                              return <AlertHistogram value={row.alertHistogram}></AlertHistogram>;
-                            }
-                            case EColumn.status: {
-                              return (
-                                <span class='col-status'>
-                                  {[
-                                    this.isRunning && STATUS_LIST.includes(row.status) ? (
-                                      <Spin
-                                        size='mini'
-                                        class='mr-3'
-                                      ></Spin>
-                                    ) : undefined,
-                                    this.isRunning &&
-                                    [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
-                                      row.status
-                                    ) ? (
-                                      <span
-                                        class='point mr-3'
-                                        style={{ background: colorMap[row.status][0] }}
-                                      >
+                  {this.tableColumns
+                    .filter(column => (column.id === EColumn.alert ? !!content?.showAlertHistogram : true))
+                    .map(column => {
+                      const key = `column_${column.id}`;
+                      return (
+                        <TableColumn
+                          key={key}
+                          prop={column.id}
+                          label={column.name}
+                          width={column.width}
+                          formatter={(row: any) => {
+                            switch (column.id) {
+                              case EColumn.name: {
+                                return <span>{row.instance_name}</span>;
+                              }
+                              case EColumn.alert: {
+                                return <AlertHistogram value={row.alertHistogram}></AlertHistogram>;
+                              }
+                              case EColumn.status: {
+                                return (
+                                  <span class='col-status'>
+                                    {[
+                                      this.isRunning && STATUS_LIST.includes(row.status) ? (
+                                        <Spin
+                                          size='mini'
+                                          class='mr-3'
+                                        ></Spin>
+                                      ) : undefined,
+                                      this.isRunning &&
+                                      [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
+                                        row.status
+                                      ) ? (
                                         <span
-                                          class='s-point'
-                                          style={{ background: colorMap[row.status][1] }}
-                                        ></span>
+                                          class='point mr-3'
+                                          style={{ background: colorMap[row.status][0] }}
+                                        >
+                                          <span
+                                            class='s-point'
+                                            style={{ background: colorMap[row.status][1] }}
+                                          ></span>
+                                        </span>
+                                      ) : undefined,
+                                      this.isRunning ? (
+                                        <span class='content-panel-span'>{statusMap[row.status].name}</span>
+                                      ) : (
+                                        <span>--</span>
+                                      )
+                                    ]}
+                                  </span>
+                                );
+                              }
+                              case EColumn.version: {
+                                return <span>{row.plugin_version}</span>;
+                              }
+                              case EColumn.detail: {
+                                return (
+                                  <span class='col-detail'>
+                                    <span class='col-detail-data'>{row.log || '--'}</span>
+                                    {this.isRunning && row.status === EStatus.FAILED && (
+                                      <span
+                                        class='col-detail-more fix-same-code'
+                                        onClick={() => this.handleGetMoreDetail(row)}
+                                      >
+                                        {this.$t('详情')}
                                       </span>
-                                    ) : undefined,
-                                    this.isRunning ? (
-                                      <span class='content-panel-span'>{statusMap[row.status].name}</span>
-                                    ) : (
-                                      <span>--</span>
-                                    )
-                                  ]}
-                                </span>
-                              );
-                            }
-                            case EColumn.version: {
-                              return <span>{row.plugin_version}</span>;
-                            }
-                            case EColumn.detail: {
-                              return (
-                                <span class='col-detail'>
-                                  <span class='col-detail-data'>{row.log || '--'}</span>
-                                  {this.isRunning && row.status === EStatus.FAILED && (
-                                    <span
-                                      class='col-detail-more fix-same-code'
-                                      onClick={() => this.handleGetMoreDetail(row)}
+                                    )}
+                                  </span>
+                                );
+                              }
+                              case EColumn.operate: {
+                                return [
+                                  this.isRunning && row.status === EStatus.FAILED ? (
+                                    <div
+                                      class='col-retry'
+                                      onClick={() =>
+                                        this.authority.MANAGE_AUTH
+                                          ? this.handleRetry(row, content)
+                                          : this.handleShowAuthorityDetail()
+                                      }
                                     >
-                                      {this.$t('详情')}
-                                    </span>
-                                  )}
-                                </span>
-                              );
+                                      {this.$t('重试')}
+                                    </div>
+                                  ) : undefined,
+                                  this.isRunning && ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
+                                    <div
+                                      class='col-retry fix-same-code'
+                                      onClick={() =>
+                                        ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
+                                        this.handleRevoke(row, content)
+                                      }
+                                    >
+                                      {this.$t('终止')}
+                                    </div>
+                                  ) : undefined
+                                ];
+                              }
+                              default: {
+                                return <span>--</span>;
+                              }
                             }
-                            case EColumn.operate: {
-                              return [
-                                this.isRunning && row.status === EStatus.FAILED ? (
-                                  <div
-                                    class='col-retry'
-                                    onClick={() =>
-                                      this.authority.MANAGE_AUTH
-                                        ? this.handleRetry(row, content)
-                                        : this.handleShowAuthorityDetail()
-                                    }
-                                  >
-                                    {this.$t('重试')}
-                                  </div>
-                                ) : undefined,
-                                this.isRunning && ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
-                                  <div
-                                    class='col-retry fix-same-code'
-                                    onClick={() =>
-                                      ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
-                                      this.handleRevoke(row, content)
-                                    }
-                                  >
-                                    {this.$t('终止')}
-                                  </div>
-                                ) : undefined
-                              ];
-                            }
-                            default: {
-                              return <span>--</span>;
-                            }
-                          }
-                        }}
-                      ></TableColumn>
-                    );
-                  })}
+                          }}
+                        ></TableColumn>
+                      );
+                    })}
                 </Table>
               </div>
             </ExpandWrapper>

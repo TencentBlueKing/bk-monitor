@@ -117,5 +117,6 @@ export default {
   '投递到 influxdb': 'Post to influxdb',
   '投递到 Kafka (topic)': 'Post to Kafka (topic)',
   接口名称: 'Span name',
-  'Async 数量': 'Async quantity'
+  'Async 数量': 'Async quantity',
+  告警: 'Alarm'
 };
