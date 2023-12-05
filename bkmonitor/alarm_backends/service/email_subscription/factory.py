@@ -20,9 +20,9 @@ from alarm_backends.service.email_subscription.handler.scene import (
 from bkmonitor.models.email_subscription import ScenarioEnum
 
 SUPPORTED_SCENARIO = {
-    ScenarioEnum.CLUSTERING: ClusteringSubscriptionHandler,
-    ScenarioEnum.DASHBOARD: DashboardSubscriptionHandler,
-    ScenarioEnum.SCENE: SceneSubscriptionHandler,
+    ScenarioEnum.CLUSTERING.value: ClusteringSubscriptionHandler,
+    ScenarioEnum.DASHBOARD.value: DashboardSubscriptionHandler,
+    ScenarioEnum.SCENE.value: SceneSubscriptionHandler,
 }
 
 
