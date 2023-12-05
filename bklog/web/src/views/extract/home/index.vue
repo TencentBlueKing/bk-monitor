@@ -78,7 +78,7 @@
         prop="created_by"
         min-width="100">
       </bk-table-column>
-      <bk-table-column :label="$t('任务状态')" :render-header="$renderHeader" min-width="100">
+      <bk-table-column :label="$t('任务状态')" :render-header="$renderHeader" min-width="120">
         <div
           slot-scope="{ row }"
           :class="{
@@ -98,7 +98,7 @@
           />
         </div>
       </bk-table-column>
-      <bk-table-column :label="$t('操作')" :render-header="$renderHeader" min-width="140">
+      <bk-table-column :label="$t('操作')" :render-header="$renderHeader" width="200">
         <div slot-scope="{ row }" class="task-operation-container">
           <span class="task-operation" @click="viewDetail(row)">{{ $t('详情') }}</span>
           <span

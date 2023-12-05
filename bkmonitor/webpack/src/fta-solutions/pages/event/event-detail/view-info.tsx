@@ -34,10 +34,14 @@ import { logQuery } from '../../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
 import { transformDataKey, typeTools } from '../../../../monitor-common/utils/utils';
 import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { IDetectionConfig } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import {
+  IDetectionConfig,
+  MetricType
+} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import MonitorEchart from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import AiopsChartEvent, { createAutoTimerange } from './aiops-chart';
+import IntelligenceScene from './intelligence-scene';
 import LoadingBox from './loading-box';
 import OutlierDetectionChart from './outlier-detection-chart';
 import TimeSeriesForecastingChart from './time-series-forecasting-chart';
@@ -98,6 +102,10 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   zoomFlag = false;
   traceInfoTimeRange = {};
   errorMsg = '';
+
+  /* 是否为智能场景检测视图 */
+  isMultivariateAnomalyDetection = false;
+
   @Watch('detail', { immediate: true })
   handleDetailChange() {
     this.bkBizId = this.detail.bk_biz_id;
@@ -160,6 +168,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   get hasTimeSeriesForecasting() {
     return this.detectionConfig?.data?.some?.(item => item.type === 'TimeSeriesForecasting');
   }
+
   displayDetectionRulesConfig(item) {
     const { config } = item;
     if (item.type === 'IntelligentDetect' && !config.anomaly_detect_direct) config.anomaly_detect_direct = 'all';
@@ -193,8 +202,12 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   }
   @Watch('show')
   handleShow(v) {
-    if (v && !this.logData.length) {
-      this.getData();
+    if (v) {
+      this.isMultivariateAnomalyDetection =
+        this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.MultivariateAnomalyDetection;
+      if (!this.logData.length) {
+        this.getData();
+      }
     }
   }
 
@@ -516,6 +529,9 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
 
   // 事件及日志来源告警视图
   getSeriesViewComponent() {
+    if (this.isMultivariateAnomalyDetection) {
+      return <IntelligenceScene params={this.detail}></IntelligenceScene>;
+    }
     /** 智能检测算法图表 */
     if (this.hasAIOpsDetection)
       return (

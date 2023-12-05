@@ -21,6 +21,9 @@ the project delivered to anyone in the future.
 """
 from enum import Enum
 
+from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
+
 from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
@@ -28,8 +31,6 @@ from apps.log_databus.constants import (
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
 
 
 class InnerTag(ChoicesEnum):
@@ -125,6 +126,8 @@ ASYNC_APP_CODE = settings.APP_CODE.replace("-", "_")
 ASYNC_DIR = f"/tmp/{ASYNC_APP_CODE}"
 # 异步导出配置名称
 FEATURE_ASYNC_EXPORT_COMMON = "feature_async_export"
+# 外部版异步导出配置名称
+FEATURE_ASYNC_EXPORT_EXTERNAL = "feature_async_export_external"
 # 异步导出通知方式
 FEATURE_ASYNC_EXPORT_NOTIFY_TYPE = "notify_type"
 # 异步导出存储方式
@@ -173,13 +176,13 @@ class SearchConditionFieldType(object):
 CHECK_FIELD_LIST = [SearchConditionFieldType.INTEGER, SearchConditionFieldType.LONG]
 
 CHECK_FIELD_MAX_VALUE_MAPPING = {
-    SearchConditionFieldType.INTEGER: 2 ** 31 - 1,
-    SearchConditionFieldType.LONG: 2 ** 63 - 1,
+    SearchConditionFieldType.INTEGER: 2**31 - 1,
+    SearchConditionFieldType.LONG: 2**63 - 1,
 }
 
 CHECK_FIELD_MIN_VALUE_MAPPING = {
-    SearchConditionFieldType.INTEGER: -(2 ** 31),
-    SearchConditionFieldType.LONG: -(2 ** 63),
+    SearchConditionFieldType.INTEGER: -(2**31),
+    SearchConditionFieldType.LONG: -(2**63),
 }
 
 
@@ -857,6 +860,14 @@ class TimeFieldUnitEnum(ChoicesEnum):
     _choices_labels = ((SECOND, _("second")), (MILLISECOND, _("millisecond")), (MICROSECOND, _("microsecond")))
 
 
+# 时间单位倍数映射关系
+TIME_FIELD_MULTIPLE_MAPPING = {
+    TimeFieldUnitEnum.SECOND.value: 1000,
+    TimeFieldUnitEnum.MILLISECOND.value: 1,
+    TimeFieldUnitEnum.MICROSECOND.value: 1 / 1000,
+}
+
+
 class FieldDataTypeEnum(ChoicesEnum):
     """
     字段类型
@@ -1000,6 +1011,11 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
                 "description": "2006-01-02T15:04:05.000-07:00",
+            },
+            {
+                "id": "ISO8601",
+                "name": "ISO8601",
+                "description": "2006-01-02T15:04:05.000-0700",
             },
             {
                 "id": "strict_date_time_no_millis",
@@ -1252,6 +1268,17 @@ class UserFunctionGuideType(ChoicesEnum):
     SEARCH_FAVORITE = "search_favorite"
 
     _choices_keys = (SEARCH_FAVORITE,)
+
+
+class IndexSetType(ChoicesEnum):
+    """
+    索引集类型
+    """
+
+    SINGLE = "single"
+    UNION = "union"
+
+    _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
 
 
 # 索引集无数据检查缓存前缀

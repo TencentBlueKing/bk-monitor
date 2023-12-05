@@ -26,6 +26,7 @@ from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.http import JsonResponse
 from django.utils.translation import ugettext_lazy as _
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.constants import ExternalPermissionActionEnum
@@ -41,6 +42,7 @@ from apps.log_commons.serializers import (
     CreateORUpdateExternalPermissionSLZ,
     CreateORUpdateMaintainersSLZ,
     DestroyExternalPermissionSLZ,
+    FrontendEventSerializer,
     GetApplyRecordSLZ,
     GetAuthorizerSLZ,
     GetResourceByActionSLZ,
@@ -48,12 +50,6 @@ from apps.log_commons.serializers import (
     ListMaintainersSLZ,
 )
 from apps.utils.drf import list_route
-from rest_framework.decorators import action
-from rest_framework.response import Response
-
-from apps.generic import APIViewSet
-from apps.log_commons.exceptions import BaseCommonsException
-from apps.log_commons.serializers import FrontendEventSerializer
 
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = "日志平台"
@@ -309,7 +305,8 @@ class FrontendEventViewSet(APIViewSet):
 
         url = f"{host}/v2/push/"
 
-        params["dimensions"]["app_code"] = settings.APP_CODE
+        params["dimensions"]["app_code"] = "bklog"
+        params["target"] = settings.ENVIRONMENT_CODE
         report_data = {
             "data_id": int(settings.FRONTEND_REPORT_DATA_ID),
             "access_token": settings.FRONTEND_REPORT_DATA_TOKEN,

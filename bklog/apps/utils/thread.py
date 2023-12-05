@@ -20,21 +20,26 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from concurrent.futures import ThreadPoolExecutor
+from typing import List, Tuple
 
 import pytz
 from django.utils import timezone
-from rest_framework.test import APIRequestFactory
-from rest_framework.request import Request
-from rest_framework.parsers import MultiPartParser, FormParser
-
 from opentelemetry.context import attach, get_current
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.request import Request
+from rest_framework.test import APIRequestFactory
 
 from apps.utils.function import ignored
-from apps.utils.local import get_request, activate_request, get_local_param, set_local_param
+from apps.utils.local import (
+    activate_request,
+    get_local_param,
+    get_request,
+    set_local_param,
+)
 
 
 class FuncThread:
-    def __init__(self, func, params, result_key, results, use_request=True):
+    def __init__(self, func, params, result_key, results, use_request=True, multi_func_params=False):
         self.func = func
         self.params = params
         self.result_key = result_key
@@ -45,6 +50,7 @@ class FuncThread:
             self.requests = get_request()
         self.trace_context = get_current()
         self.timezone = get_local_param("time_zone")
+        self.multi_func_params = multi_func_params
 
     def _init_context(self):
         with ignored(Exception):
@@ -54,18 +60,27 @@ class FuncThread:
                 set_local_param("time_zone", self.timezone)
                 timezone.activate(pytz.timezone(self.timezone))
 
-    def run(self):
-        self._init_context()
-        if self.use_request and self.requests:
-            activate_request(self.requests)
-        if self.params:
-            self.results[self.result_key] = self.func(self.params)
-        else:
-            self.results[self.result_key] = self.func()
+    def run(self, return_exception=False):
+        try:
+            self._init_context()
+            if self.use_request and self.requests:
+                activate_request(self.requests)
+            if self.params:
+                if not self.multi_func_params:
+                    self.results[self.result_key] = self.func(self.params)
+                else:
+                    self.results[self.result_key] = self.func(**self.params)
+            else:
+                self.results[self.result_key] = self.func()
+
+        except Exception as e:  # pylint: disable=broad-except
+            if return_exception:
+                self.results[self.result_key] = e
 
 
-def executor_wrap(func_thread):
-    func_thread.run()
+def executor_wrap(params: List[Tuple[FuncThread, bool]]):
+    func_thread, return_exception = params
+    func_thread.run(return_exception)
 
 
 class MultiExecuteFunc(object):
@@ -78,17 +93,23 @@ class MultiExecuteFunc(object):
         self.task_list = []
         self.max_workers = max_workers
 
-    def append(self, result_key, func, params=None, use_request=True):
+    def append(self, result_key, func, params=None, use_request=True, multi_func_params=False):
         if result_key in self.results:
             raise ValueError(f"result_key: {result_key} is duplicate. Please rename it.")
         task = FuncThread(
-            func=func, params=params, result_key=result_key, results=self.results, use_request=use_request
+            func=func,
+            params=params,
+            result_key=result_key,
+            results=self.results,
+            use_request=use_request,
+            multi_func_params=multi_func_params,
         )
         self.task_list.append(task)
 
-    def run(self):
+    def run(self, return_exception=False):
+        params = [(task, return_exception) for task in self.task_list]
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            executor.map(executor_wrap, self.task_list)
+            executor.map(executor_wrap, params)
         return self.results
 
 

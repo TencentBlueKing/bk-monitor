@@ -1,4 +1,5 @@
 import pytest
+
 from apm_web.trace.diagram.config import DiagramConfigController
 
 

@@ -8,13 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
 
 from django.core.management.base import BaseCommand
 
 from core.drf_resource import api
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -45,7 +42,7 @@ class Command(BaseCommand):
         if check_bkcc not in ["true", "True"]:
             return
 
-        logger.info("check bkcc service start")
+        self.stdout.write("check bkcc service start")
         try:
             # 通过查询接口判断
             api.cmdb.get_business()
@@ -53,14 +50,14 @@ class Command(BaseCommand):
             msg = f"request bkcc biz api error, {e}"
             self.stderr.write(msg)
 
-        logger.info("check bkcc service end")
+        self.stdout.write("check bkcc service end")
 
     def _check_bcs_project_manager_health(self, check_bcs_project_manager: bool) -> None:
         """校验 bcs project 服务正常"""
         if check_bcs_project_manager not in ["true", "True"]:
             return
 
-        logger.info("check bcs project manager service start")
+        self.stdout.write("check bcs project manager service start")
         try:
             project_list = api.bcs_project.get_projects()
         except Exception as e:
@@ -71,14 +68,14 @@ class Command(BaseCommand):
         if len(project_list) == 0:
             self.stderr.write("project is null")
 
-        logger.info("check bcs project manager service end")
+        self.stdout.write("check bcs project manager service end")
 
     def _check_bcs_cluster_manager_health(self, check_bcs_cluster_manager: bool) -> None:
         """校验 bcs cluster 服务正常"""
         if check_bcs_cluster_manager not in ["true", "True"]:
             return
 
-        logger.info("check bcs cluster manager service start")
+        self.stdout.write("check bcs cluster manager service start")
         try:
             cluster_list = api.bcs_cluster_manager.get_project_clusters()
         except Exception as e:
@@ -89,4 +86,4 @@ class Command(BaseCommand):
         if len(cluster_list) == 0:
             self.stderr.write("cluster is null")
 
-        logger.info("check bcs cluster manager service end")
+        self.stdout.write("check bcs cluster manager service end")

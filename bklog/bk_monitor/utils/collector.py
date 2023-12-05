@@ -18,17 +18,15 @@ class MetricCollector(object):
     """
 
     def __init__(self, collector_import_paths=None):
-        self.collector_import_paths = collector_import_paths
         if collector_import_paths and not REGISTERED_METRICS:
             for key in collector_import_paths:
                 importlib.reload(importlib.import_module(key))
 
-    def collect(self, namespaces=None, data_names=None):
+    def collect(self, namespaces=None, data_names=None, sub_types=None):
         """
         采集入口
         """
-        logger.info("[statistics_data] import path->{} receive collection task.".format(self.collector_import_paths))
-        metric_methods = self.metric_filter(namespaces=namespaces, data_names=data_names)
+        metric_methods = self.metric_filter(namespaces=namespaces, data_names=data_names, sub_types=sub_types)
         metric_groups = []
         for metric_method in metric_methods:
             metric_id = build_metric_id(
@@ -61,13 +59,16 @@ class MetricCollector(object):
         return metric_groups
 
     @classmethod
-    def metric_filter(cls, namespaces=None, data_names=None):
+    def metric_filter(cls, namespaces=None, data_names=None, sub_types=None):
         metric_methods = []
         for metric_id, metric in REGISTERED_METRICS.items():
             if data_names and metric["data_name"] not in data_names:
                 continue
 
             if namespaces and metric["namespace"] not in namespaces:
+                continue
+
+            if sub_types and metric["sub_type"] not in sub_types:
                 continue
 
             # 根据执行锁是否过期判定是否采集，避免队列堆积时同时执行子任务
@@ -82,6 +83,7 @@ class MetricCollector(object):
         key = cache.get(metric_id)
         # 执行锁未被占用则允许执行
         if key is None:
+            logger.info("[statistics_data] collect metric->[{}] start.".format(metric_id))
             cache.set(
                 metric_id,
                 True,

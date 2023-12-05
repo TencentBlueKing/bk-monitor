@@ -27,8 +27,9 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Exception } from 'bk-magic-vue';
 import { throttle } from 'throttle-debounce';
-import { showAccessRequest } from '../../components/access-request-dialog';
 
+// 20231205 代码还原，先保留原有部分
+// import { showAccessRequest } from '../../components/access-request-dialog';
 import { spaceTypeTexts } from '../../../fta-solutions/pages/home/business-item';
 import { getAuthorityDetail } from '../../../monitor-api/modules/iam';
 
@@ -92,9 +93,9 @@ export default class NoBusinessItem extends tsc<IProps> {
   }
 
   handleClick() {
-    showAccessRequest(this.url);
-    // 20230704 暂时不需要
-    // window.open(this.url);
+    // 20231205 代码还原，先保留原有部分
+    // showAccessRequest(this.url);
+    window.open(this.url);
   }
 
   // 项目类型tag

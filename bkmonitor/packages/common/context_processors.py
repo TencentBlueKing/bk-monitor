@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 import os
 
-from common.log import logger
 from django.conf import settings
 from django.utils.translation import get_language
 from django.utils.translation import ugettext as _
@@ -18,6 +17,7 @@ from django.utils.translation import ugettext as _
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
+from common.log import logger
 from core.drf_resource import resource
 
 
@@ -177,6 +177,7 @@ def _get_monitor_context(request):
 
     # 默认开启APM
     context["ENABLE_APM"] = "true"
+    context["ENABLE_APM_PROFILING"] = "true" if settings.APM_PROFILING_ENABLED else "false"
     # 有权限的空间列表
     context["SPACE_LIST"] = []
     try:
