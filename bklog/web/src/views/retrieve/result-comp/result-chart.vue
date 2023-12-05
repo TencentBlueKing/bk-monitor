@@ -156,6 +156,7 @@ export default {
       isEmptyChart: true,
       optionData: [],
       totalCount: 0,
+      localAddition: [],
     };
   },
   computed: {
@@ -170,6 +171,7 @@ export default {
   watch: {
     chartKey: {
       handler() {
+        this.localAddition = this.retrieveParams.addition;
         this.$refs.chartRef && this.$refs.chartRef.handleCloseTimer();
         this.totalCount = 0;
         this.isRenderChart = true;
@@ -268,6 +270,7 @@ export default {
           params: { index_set_id: this.$route.params.indexId },
           data: {
             ...this.retrieveParams,
+            addition: this.localAddition,
             time_range: 'customized',
             interval: this.interval,
             // 每次轮循的起始时间
