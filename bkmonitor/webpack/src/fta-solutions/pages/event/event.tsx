@@ -47,7 +47,8 @@ import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
 import { checkAllowed } from '../../../monitor-api/modules/iam';
 import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
 import { random } from '../../../monitor-common/utils/utils';
-import { showAccessRequest } from '../../../monitor-pc/components/access-request-dialog';
+// 20231205 代码还原，先保留原有部分
+// import { showAccessRequest } from '../../../monitor-pc/components/access-request-dialog';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../monitor-pc/components/empty-status/types';
 import SpaceSelect from '../../../monitor-pc/components/space-select/space-select';
 import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
@@ -1917,13 +1918,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       resources: bizList.map(id => ({ id, type: 'space' }))
     });
     if (applyObj?.apply_url) {
-      // 20230707 暂时不用
-
-      if (bizList.length > 1) {
-        window.open(applyObj?.apply_url, random(10));
-      } else {
-        showAccessRequest(applyObj?.apply_url, bizList[0]);
-      }
+      window.open(applyObj?.apply_url, random(10));
+      // 20231205 代码还原，先保留原有部分
+      // if (bizList.length > 1) {
+      //   window.open(applyObj?.apply_url, random(10));
+      // } else {
+      //   showAccessRequest(applyObj?.apply_url, bizList[0]);
+      // }
     }
   }
 
