@@ -10,15 +10,42 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
-from django.apps import apps
-
+from alarm_backends.service.email_subscription.factory import SubscriptionFactory
+from alarm_backends.service.email_subscription.utils import (
+    is_invalid,
+    is_run_time,
+    parse_frequency,
+)
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.models import EmailSubscription
 
-GlobalConfig = apps.get_model("bkmonitor.GlobalConfig")
 logger = logging.getLogger("bkmonitor.cron_report")
 
 
 @app.task(ignore_result=True, queue="celery_report_cron")
-def email_subscription_task():
-    """ """
-    pass
+def send_email_subscriptions(subscription):
+    """
+    发送邮件订阅
+    """
+    SubscriptionFactory.get_handler(subscription).run()
+
+
+@app.task(ignore_result=True, queue="celery_report_cron")
+def detect_email_subscriptions():
+    """
+    检测邮件订阅
+    """
+    subscriptions = EmailSubscription.objects.filter(is_enabled=True)
+    for subscription in subscriptions:
+        # 判断订阅是否有效
+        if is_invalid(subscription):
+            logger.info(f"subscription{subscription.id} is invalid.")
+            continue
+        # 判断订阅是否到执行时间
+        frequency = subscription.frequency
+        run_time_strings = parse_frequency(frequency)
+        if not is_run_time(frequency, run_time_strings):
+            logger.info(f"subscription{subscription.id} not at sending time.")
+            continue
+        # 异步执行订阅发送任务
+        send_email_subscriptions.delay(subscription)

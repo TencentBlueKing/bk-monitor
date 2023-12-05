@@ -77,6 +77,30 @@ class ESQuerySearchResource(LogSearchAPIGWResource):
         include_end_time = serializers.BooleanField(required=False, label="end_time__gt or gte", default=False)
 
 
+class SearchPatternResource(LogSearchAPIGWResource):
+    """
+    聚类查询接口
+    """
+
+    action = "pattern/{index_set_id}/search/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        index_set_id = serializers.IntegerField(required=False, label="索引集ID")
+        host_scopes = serializers.DictField(default={}, required=False)
+        addition = serializers.ListField(allow_empty=True, required=False, default=[])
+        start_time = serializers.DateTimeField(required=False)
+        end_time = serializers.DateTimeField(required=False)
+        time_range = serializers.CharField(required=False, default="customized")
+        keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        size = serializers.IntegerField(required=False, default=10000)
+        pattern_level = serializers.CharField(required=True)
+        show_new_pattern = serializers.BooleanField(required=True)
+        year_on_year_hour = serializers.IntegerField(required=False, default=0, min_value=0)
+        group_by = serializers.ListField(required=False, default=[])
+        filter_not_clustering = serializers.BooleanField(required=False, default=True)
+
+
 class SearchIndexFieldsResource(LogSearchAPIGWResource):
     """
     索引集field

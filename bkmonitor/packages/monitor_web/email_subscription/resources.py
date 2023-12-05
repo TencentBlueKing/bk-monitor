@@ -94,7 +94,7 @@ class GetSubscriptionListResource(Resource):
         ]
 
         Q_user_list = [
-            Q(subscribers__contains=[{"id": username, "type": StaffChoice.user, "is_enabled": True}]),
+            Q(subscribers__contains={"id": username}),
         ]
 
         for Q_item in Q_receivers_list + Q_user_list:
@@ -126,7 +126,7 @@ class GetSubscriptionListResource(Resource):
                 value = [value]
             filter_dict[key].extend(value)
 
-        # 对条件进行判定
+        # TODO: 根据条件进行过滤
         return qs
 
     def filter_by_search_key(self, qs, search_key):
@@ -422,7 +422,7 @@ class GetVariablesResource(Resource):
 
 class GetExistSubscriptionsResource(Resource):
     """
-    获取相同条件已存在的订阅
+    根据条件获取已存在的订阅
     """
 
     class RequestSerializer(serializers.Serializer):

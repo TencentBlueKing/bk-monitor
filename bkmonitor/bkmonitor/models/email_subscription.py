@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import arrow
 from django.db import models
 from django.utils.translation import ugettext_lazy as _lazy
 
@@ -64,6 +63,48 @@ class HourFrequencyTime:
     HOUR_12 = {"hours": ["09", "21"]}
 
     TIME_CONFIG = {"0.5": HALF_HOUR, "1": HOUR, "2": HOUR_2, "6": HOUR_6, "12": HOUR_12}
+
+
+class YearOnYearEnum(ChoicesEnum):
+    NOT = 0
+    ONE_HOUR = 1
+    TWO_HOUR = 2
+    THREE_HOUR = 3
+    SIX_HOUR = 6
+    HALF_DAY = 12
+    ONE_DAY = 24
+
+    _choices_labels = (
+        (NOT, _lazy("不比对")),
+        (ONE_HOUR, _lazy("1小时前")),
+        (TWO_HOUR, _lazy("2小时前")),
+        (THREE_HOUR, _lazy("3小时前")),
+        (SIX_HOUR, _lazy("6小时前")),
+        (HALF_DAY, _lazy("12小时前")),
+        (ONE_DAY, _lazy("24小时前")),
+    )
+
+
+class YearOnYearChangeEnum(ChoicesEnum):
+    ALL = "all"
+    RISE = "rise"
+    DECLINE = "decline"
+
+    _choices_labels = (
+        (ALL, _lazy("所有")),
+        (RISE, _lazy("上升")),
+        (DECLINE, _lazy("下降")),
+    )
+
+
+class LogColShowTypeEnum(ChoicesEnum):
+    PATTERN = "pattern"
+    LOG = "log"
+
+    _choices_labels = (
+        (PATTERN, _lazy("PATTERN模式")),
+        (LOG, _lazy("采样日志")),
+    )
 
 
 class SubscriptionChannel(Model):
@@ -126,15 +167,6 @@ class EmailSubscription(AbstractRecordModel):
         if self.frequency["type"] != 1:
             return SendModeEnum.PERIODIC
         return SendModeEnum.ONE_TIME
-
-    @property
-    def is_invalid(self):
-        now_timestamp = arrow.now().timestamp
-        if now_timestamp > self.end_time or now_timestamp < self.start_time:
-            return True
-        if self.frequency["type"] == 1:
-            return True
-        return False
 
     def get_failed_subscribers(self):
         send_results = list(
