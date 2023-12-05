@@ -8,12 +8,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import collections
 import logging
 import time
 from collections import defaultdict
-from functools import reduce
 
-from django.db.models import Q
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -208,11 +207,19 @@ class GetObservationSceneList(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
     @classmethod
+    def strategy_count_group_by_table(cls, bk_biz_id: int):
+        strategy_ids = list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True))
+        query_configs = QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).only("config")
+        table_counter = collections.Counter([qc.config.get("result_table_id", "") for qc in query_configs])
+        return table_counter
+
+    @classmethod
     def get_collect_plugin_list(cls, bk_biz_id: int):
         plugins = CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id]).exclude(
             plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG]
         )
 
+        table_counter = cls.strategy_count_group_by_table(bk_biz_id)
         result = []
         for plugin in plugins:
             version = plugin.current_version
@@ -220,17 +227,11 @@ class GetObservationSceneList(Resource):
             for table in version.info.metric_json:
                 table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
 
+            # 基于插件进行策略统计
+            strategy_count = 0
             if table_ids:
-                strategy_ids = (
-                    QueryConfigModel.objects.filter(
-                        reduce(lambda x, y: x | y, (Q(config__result_table_id=table_id) for table_id in table_ids))
-                    )
-                    .values_list("strategy_id", flat=True)
-                    .distinct()
-                )
-                strategy_count = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=list(strategy_ids)).count()
-            else:
-                strategy_count = 0
+                for table_id in table_ids:
+                    strategy_count += table_counter.get(table_id, 0)
 
             # 如果存在未停用的采集任务才进行展示
             collect_config_count = (

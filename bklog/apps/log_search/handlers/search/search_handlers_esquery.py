@@ -577,7 +577,6 @@ class SearchHandler(object):
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
-
         if not storage_cluster_record_objs:
             try:
                 return BkLogApi.search(params)

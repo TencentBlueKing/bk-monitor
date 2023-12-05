@@ -84,7 +84,8 @@ class Command(ConsulDispatchCommand):
                     else:
                         host_targets, instance_targets = self.dispatch()
 
-                    logger.info("^use targets(%s)...", instance_targets)
+                    # 最多打100个
+                    logger.info("^use targets(%s)...", instance_targets[:100])
                     handler = handler_cls(instance_targets, access_type=self._ACCESS_TYPE_, service=self)
                 else:
                     handler = handler_cls(access_type=self._ACCESS_TYPE_, *args, **kwargs)
