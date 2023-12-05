@@ -687,7 +687,7 @@ export default class BasicInfo extends tsc<IProps> {
               )}
               {this.isEditing && (
                 <EditableFormItem
-                  label='SecureKey'
+                  label='Token'
                   value={this.secureKey}
                   formType='password'
                   showEditable={false}
@@ -747,7 +747,7 @@ export default class BasicInfo extends tsc<IProps> {
                     showEditable={false}
                   />
                   <EditableFormItem
-                    label='SecureKey'
+                    label='Token'
                     value={this.secureKey}
                     formType='password'
                     showEditable={false}
