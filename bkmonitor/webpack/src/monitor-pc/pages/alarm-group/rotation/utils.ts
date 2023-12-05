@@ -165,15 +165,17 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
   const totalRangeTime = totalRange.map(item => new Date(item).getTime());
   const allRangeTime: number[][] = JSON.parse(
     JSON.stringify(
-      timeRanges.map(item => {
-        let start = new Date(item[0]).getTime();
-        const end = new Date(item[1]).getTime();
-        if (start < totalRangeTime[0]) {
-          // eslint-disable-next-line prefer-destructuring
-          start = totalRangeTime[0];
-        }
-        return [start, end];
-      })
+      timeRanges
+        .filter(item => new Date(item[1]).getTime() > totalRangeTime[0])
+        .map(item => {
+          let start = new Date(item[0]).getTime();
+          const end = new Date(item[1]).getTime();
+          if (start < totalRangeTime[0]) {
+            // eslint-disable-next-line prefer-destructuring
+            start = totalRangeTime[0];
+          }
+          return [start, end];
+        })
     )
   );
   allRangeTime.sort((a, b) => (a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]));
@@ -516,7 +518,7 @@ export function dutyDataConversion(dutyData: IDutyData) {
         other
       };
     });
-    const obj = setRowYOfOverlap(data);
+    const obj = setRowYOfOverlap(data.filter(d => d.range[1] - d.range[0] !== 0));
     return {
       ...item,
       maxRow: obj.maxRow,
