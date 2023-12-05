@@ -18,7 +18,6 @@ overrides:
   eslint-plugin-prettier: ^5.0.0
   eslint-plugin-simple-import-sort: ^10.0.0
   eslint-plugin-vue: ^9.17.0
-  moment: ^2.29.2
   postcss-html: ^1.5.0
   postcss-scss: ^4.0.7
   prettier: ^3.0.2
@@ -9123,7 +9122,7 @@ packages:
   /moment-locales-webpack-plugin@1.2.0(moment@2.29.4)(webpack@5.89.0):
     resolution: {integrity: sha512-QAi5v0OlPUP7GXviKMtxnpBAo8WmTHrUNN7iciAhNOEAd9evCOvuN0g1N7ThIg3q11GLCkjY1zQ2saRcf/43nQ==}
     peerDependencies:
-      moment: ^2.29.2
+      moment: ^2.8.0
       webpack: ^1 || ^2 || ^3 || ^4 || ^5
     dependencies:
       lodash.difference: 4.5.0
