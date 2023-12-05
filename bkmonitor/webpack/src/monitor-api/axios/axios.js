@@ -49,7 +49,7 @@ const errorHandle = (response, config) => {
         window.location.href = `${process.env.loginUrl}?c_url=${process.env.devUrl}`;
       } else {
         const handleLoginExpire = () => {
-          window.location.href = `${window.bkPaasHost.replace(/\/$/g, '')}/login/`;
+          window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
         };
         const { data } = response;
         // eslint-disable-next-line camelcase
