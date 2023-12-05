@@ -278,18 +278,37 @@ class Sender(BaseSender):
         }
         :rtype: dict
         """
-        logger.info(
-            "send.weixin({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
-                ",".join(notice_receivers), self.title, self.content, action_plugin
+        if (
+            settings.IS_WECOM_ROBOT_ENABLED
+            and Platform.te
+            and (not settings.WECOM_ROBOT_BIZ_WHITE_LIST or self.bk_biz_id in settings.WECOM_ROBOT_BIZ_WHITE_LIST)
+        ):
+            logger.info(
+                "send.webot_app({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
+                    ",".join(notice_receivers), self.title, self.content, action_plugin
+                )
             )
-        )
-
-        api_result = api.cmsi.send_weixin(
-            receiver__username=",".join(notice_receivers),
-            heading=self.title,
-            message=self.content,
-            is_message_base64=True,
-        )
+            # 复用企业微信机器人的配置
+            # 如果启用了并且是te环境，可以使用
+            # 用白名单控制
+            api_result = api.cmsi.send_wecom_app(
+                receiver=notice_receivers,
+                sender=settings.WECOM_APP_ACCOUNT.get(str(self.context.get("alert_level"))),
+                content=self.content,
+                type=self.msg_type,
+            )
+        else:
+            logger.info(
+                "send.weixin({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
+                    ",".join(notice_receivers), self.title, self.content, action_plugin
+                )
+            )
+            api_result = api.cmsi.send_weixin(
+                receiver__username=",".join(notice_receivers),
+                heading=self.title,
+                message=self.content,
+                is_message_base64=True,
+            )
         return self.handle_api_result(api_result, notice_receivers)
 
     def send_mail(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
@@ -548,11 +567,7 @@ class Sender(BaseSender):
         """
         sender = None
         notice_way = "rtx"
-        if (
-            settings.IS_WECOM_ROBOT_ENABLED
-            and Platform.te
-            and (not settings.WECOM_ROBOT_BIZ_WHITE_LIST or self.bk_biz_id in settings.WECOM_ROBOT_BIZ_WHITE_LIST)
-        ):
+        if settings.IS_WECOM_ROBOT_ENABLED and Platform.te:
             # 允许进行通知方式切换，才进行通知发送
             sender = settings.WECOM_ROBOT_ACCOUNT.get(str(self.context.get("alert_level")))
             if sender:

@@ -9,13 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import logging
-
 from django.core.management.base import BaseCommand
-from metadata.models import DataSource
 
-logger = logging.getLogger("metadata")
+from metadata.models import DataSource
 
 
 class Command(BaseCommand):
@@ -30,10 +26,10 @@ class Command(BaseCommand):
         target_type = options["target_type"]
         # 优先使用dataid
         if len(data_ids) != 0:
-            logger.info("start redirect data_id->[%s] to [%s]", str(data_ids), target_type)
+            self.stdout.write(f"start redirect data_id->[{str(data_ids)}] to [{target_type}]")
             datasources = DataSource.objects.filter(bk_data_id__in=data_ids)
         else:
-            logger.info("start redirect data_name->[%s] to [%s]", str(data_name), target_type)
+            self.stdout.write(f"start redirect data_name->[{str(data_name)}] to [{target_type}]")
             datasources = DataSource.objects.filter(data_name__contains=data_name)
 
         # 记录影响到的dataid，供日志使用
@@ -41,4 +37,4 @@ class Command(BaseCommand):
         for datasource in datasources:
             data_id_record.append(datasource.bk_data_id)
             datasource.redirect_consul_config(target_type)
-        logger.info("redirect dataid->[%s] to [%s] all done", str(data_id_record), target_type)
+        self.stdout.write(f"redirect dataid->[{str(data_id_record)}] to [{target_type}] all done")

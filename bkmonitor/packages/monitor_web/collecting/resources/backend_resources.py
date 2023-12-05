@@ -23,31 +23,6 @@ from django.core.paginator import Paginator
 from django.db import connections, transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from monitor_web.collecting.constant import (
-    COLLECT_TYPE_CHOICES,
-    COMPLEX_OPETATION_TYPE,
-    CollectStatus,
-    OperationResult,
-    OperationType,
-    Status,
-    TaskStatus,
-)
-from monitor_web.collecting.lock import CacheLock, lock
-from monitor_web.collecting.utils import fetch_sub_statistics_nodeman_2_1
-from monitor_web.commons.cc.utils import foreach_topo_tree, topo_tree_tools
-from monitor_web.commons.data_access import ResultTable
-from monitor_web.models import (
-    CollectConfigMeta,
-    CollectorPluginMeta,
-    DeploymentConfigVersion,
-    PluginVersionHistory,
-)
-from monitor_web.models.custom_report import CustomEventGroup
-from monitor_web.plugin.constant import PluginType
-from monitor_web.plugin.manager import PluginManagerFactory
-from monitor_web.tasks import append_metric_list_cache
-from utils import business
-from utils.query_data import TSDataBase
 
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source import BkMonitorLogDataSource
@@ -79,6 +54,31 @@ from core.errors.collecting import (
 )
 from core.errors.plugin import PluginIDNotExist
 from core.unit import load_unit
+from monitor_web.collecting.constant import (
+    COLLECT_TYPE_CHOICES,
+    COMPLEX_OPETATION_TYPE,
+    CollectStatus,
+    OperationResult,
+    OperationType,
+    Status,
+    TaskStatus,
+)
+from monitor_web.collecting.lock import CacheLock, lock
+from monitor_web.collecting.utils import fetch_sub_statistics_nodeman_2_1
+from monitor_web.commons.cc.utils import foreach_topo_tree, topo_tree_tools
+from monitor_web.commons.data_access import ResultTable
+from monitor_web.models import (
+    CollectConfigMeta,
+    CollectorPluginMeta,
+    DeploymentConfigVersion,
+    PluginVersionHistory,
+)
+from monitor_web.models.custom_report import CustomEventGroup
+from monitor_web.plugin.constant import PluginType
+from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.tasks import append_metric_list_cache
+from utils import business
+from utils.query_data import TSDataBase
 
 # 最低版本依赖
 PLUGIN_VERSION = {PluginType.PROCESS: {"bkmonitorbeat": "0.33.0" if settings.PLATFORM == "ieod" else "2.10.0"}}
@@ -2626,7 +2626,6 @@ class ListLegacySubscription(Resource):
     """
 
     def perform_request(self, validated_request_data):
-
         # 把已经删除的采集配置也包括在内
         meta_configs = CollectConfigMeta.origin_objects.all()
 
@@ -2815,7 +2814,10 @@ class ListLegacyStrategy(Resource):
         )
 
         # 2. 找到已经不再有效的rt表（采集被删除）对应的策略
-        invalid_strategy_ids = QueryConfigModel.objects.filter(
+        strategy_ids = list(
+            StrategyModel.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).values_list("id", flat=True)
+        )
+        invalid_strategy_ids = QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).filter(
             Q(data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR, data_type_label=DataTypeLabel.LOG)
             | Q(data_source_label=DataSourceLabel.CUSTOM, data_type_label=DataTypeLabel.EVENT)
         )

@@ -114,5 +114,9 @@ export default {
   当前有告警: 'current warning',
   可接收告警: 'Can receive warning',
   总告警: 'General warning',
-  近一小时: 'Almost an hour'
+  近一小时: 'Almost an hour',
+  分钟数据量: 'Minute data volume',
+  日数据量: 'Daily data volume',
+  集群状态: 'Cluster status',
+  索引状态: 'Index status'
 };
