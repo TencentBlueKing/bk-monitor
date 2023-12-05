@@ -260,6 +260,7 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "expire_time", "value": params["expire_time"]},
                 {"key": "action_id", "value": ExternalPermissionActionEnum.get_choice_label(params["action_id"])},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
+                {"key": "approver", "value": ",".join(get_maintainers(space_uid=space_uid))},
                 {
                     "key": "resources",
                     "value": cls.build_itsm_resources_display_name(
