@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { IBizItem, ISpaceItem } from '../typings';
+import { ISpaceItem } from '../typings';
 
 import { LOCAL_BIZ_STORE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
 // merge space list width biz list
-export function mergeSpaceList(spaceList: ISpaceItem[], bizList: IBizItem[]) {
+export function mergeSpaceList(spaceList: ISpaceItem[]) {
   spaceList.sort((a, b) => {
     if (a.bk_biz_id > 0 && b.bk_biz_id > 0) return a.bk_biz_id - b.bk_biz_id;
     return b.bk_biz_id - a.bk_biz_id;
@@ -39,8 +39,7 @@ export function mergeSpaceList(spaceList: ISpaceItem[], bizList: IBizItem[]) {
     ...item,
     id: item.bk_biz_id,
     text: item.space_name,
-    name: item.space_name,
-    is_demo: bizList.some(set => +set.id === item.bk_biz_id && set.is_demo)
+    name: item.space_name
   }));
   window.space_list = list;
   return list;
