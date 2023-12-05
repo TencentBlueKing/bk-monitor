@@ -129,7 +129,8 @@ import { Component, Vue } from 'vue-property-decorator';
 
 import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
 import { getUrlParam } from '../../../monitor-common/utils';
-import { showAccessRequest } from '../../components/access-request-dialog';
+// 20231205 代码还原，先保留原有部分
+// import { showAccessRequest } from '../../components/access-request-dialog';
 interface INewBusiness {
   url: string;
 }
@@ -177,7 +178,9 @@ export default class NoBusiness extends Vue {
     }
   }
   handleGetAccess() {
-    showAccessRequest(this.getAccess.url);
+    window.open(this.getAccess.url);
+    // 20231205 代码还原，先保留原有部分
+    // showAccessRequest(this.getAccess.url);
   }
 }
 </script>
