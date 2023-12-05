@@ -109,6 +109,9 @@ export default class RotationConfig extends tsc<IProps> {
 
   refreshLoading = false;
 
+  /* 即将跳转到轮值编辑页的轮值规则id */
+  curToEditDutyId = 0;
+
   /* 用于统计信息 */
   get userGroupData(): {
     display_name: string;
@@ -132,6 +135,11 @@ export default class RotationConfig extends tsc<IProps> {
 
   created() {
     this.init();
+    document.addEventListener('visibilitychange', this.handleDocumentvisibilitychange);
+  }
+
+  destroyed() {
+    document.removeEventListener('visibilitychange', this.handleDocumentvisibilitychange);
   }
 
   async init() {
@@ -343,7 +351,7 @@ export default class RotationConfig extends tsc<IProps> {
   handleSearchChange(v: string) {
     this.search = v;
     this.allDutyList.forEach(item => {
-      item.show = item.labels.some(l => l === this.search) || item.name.indexOf(this.search) >= 0;
+      item.show = item.labels.some(l => l.indexOf(this.search) >= 0) || item.name.indexOf(this.search) >= 0;
     });
   }
   /**
@@ -400,6 +408,7 @@ export default class RotationConfig extends tsc<IProps> {
    */
   handleToEditRotation(item) {
     const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation-edit/${item.id}`;
+    this.curToEditDutyId = item.id;
     window.open(url);
   }
 
@@ -429,8 +438,13 @@ export default class RotationConfig extends tsc<IProps> {
     this.handleNoticeChange();
   }
 
-  async handleRefresh(e: Event) {
-    e.stopPropagation();
+  /**
+   * @description 刷新轮值列表数据
+   * @param e
+   * @returns
+   */
+  async handleRefresh(e?: Event) {
+    e?.stopPropagation?.();
     if (this.refreshLoading) {
       return;
     }
@@ -438,13 +452,41 @@ export default class RotationConfig extends tsc<IProps> {
     const list = (await listDutyRule().catch(() => [])) as any;
     const ids = this.dutyList.map(item => item.id);
     const sets = new Set(ids);
-    this.allDutyList = list.map(item => ({
-      ...item,
-      isCheck: sets.has(item.id),
-      show: item.labels.some(l => l === this.search) || item.name.indexOf(this.search) >= 0,
-      typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
-    }));
+    const maps = new Map();
+    const allSets = new Set();
+    this.allDutyList = list.map(item => {
+      allSets.add(item.id);
+      const obj = {
+        ...item,
+        isCheck: sets.has(item.id),
+        show: item.labels.some(l => l.indexOf(this.search) >= 0) || item.name.indexOf(this.search) >= 0,
+        typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
+      };
+      maps.set(item.id, obj);
+      return obj;
+    });
+    this.dutyList = this.dutyList
+      .filter(item => allSets.has(item.id))
+      .map(item => ({
+        ...maps.get(item.id)
+      }));
+    if (!e) {
+      this.cacheDutyList = '';
+    }
+    this.getPreviewData();
     this.refreshLoading = false;
+  }
+
+  /**
+   * @description 监听切换到当前浏览器标签页
+   */
+  async handleDocumentvisibilitychange() {
+    if (!document.hidden) {
+      if (!!this.curToEditDutyId) {
+        await this.handleRefresh().catch(() => []);
+        // this.curToEditDutyId = 0;
+      }
+    }
   }
 
   render() {
@@ -618,8 +660,9 @@ export default class RotationConfig extends tsc<IProps> {
                       <span class='tags'>
                         {item.labels.map((tag, tagIndex) => (
                           <span
-                            class={['item-tag', { active: this.search === tag }]}
+                            class={['item-tag', { active: !!this.search && tag.indexOf(this.search) >= 0 }]}
                             key={tagIndex}
+                            v-bk-overflow-tips
                           >
                             {tag}
                           </span>

@@ -601,6 +601,8 @@ APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
+# dis/enable profiling for all apps
+APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 
 # bk.data.token 的salt值

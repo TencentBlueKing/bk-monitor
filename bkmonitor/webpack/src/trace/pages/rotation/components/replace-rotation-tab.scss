@@ -39,28 +39,6 @@
       align-items: center;
     }
 
-    .grouped-tab {
-      width: 124px;
-      height: 26px;
-      margin-left: 24px;
-      line-height: 26px;
-      background: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 13px;
-
-      .item {
-        flex: 1;
-        text-align: center;
-        cursor: pointer;
-
-        &.active {
-          color: #1768ef;
-          background: #e1ecff;
-          border-radius: 100px 100px;
-        }
-      }
-    }
-
     .step-text {
       color: #ea3636;
     }

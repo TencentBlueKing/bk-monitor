@@ -184,8 +184,8 @@
       .tags {
         display: flex;
         align-items: center;
+        max-width: 50%;
         margin: 0 0 0 auto;
-        overflow: hidden;
 
         .item-tag {
           display: block;

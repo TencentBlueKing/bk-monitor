@@ -22,21 +22,6 @@ from django.conf import settings
 from django.db.models import Count, Max, Q
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
-from monitor_web.collecting.utils import chunks
-from monitor_web.models import (
-    CollectConfigMeta,
-    CustomEventGroup,
-    CustomEventItem,
-    DataTarget,
-    DataTargetMapping,
-)
-from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
-from monitor_web.plugin.constant import ParamMode, PluginType
-from monitor_web.plugin.manager.process import (
-    BuildInProcessDimension,
-    BuildInProcessMetric,
-)
-from monitor_web.tasks import run_metric_manager_async
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import is_build_in_process_data_source
@@ -69,6 +54,21 @@ from constants.strategy import (
 )
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from monitor_web.collecting.utils import chunks
+from monitor_web.models import (
+    CollectConfigMeta,
+    CustomEventGroup,
+    CustomEventItem,
+    DataTarget,
+    DataTargetMapping,
+)
+from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
+from monitor_web.plugin.constant import ParamMode, PluginType
+from monitor_web.plugin.manager.process import (
+    BuildInProcessDimension,
+    BuildInProcessMetric,
+)
+from monitor_web.tasks import run_metric_manager_async
 
 FILTER_DIMENSION_LIST = ["time", "bk_supplier_id", "bk_cmdb_level", "timestamp"]
 # 时序指标filed_type
@@ -231,7 +231,7 @@ class BaseMetricCacheManager:
 
     def _run(self):
         start_time = time.time()
-        logger.info(f"update metric {self.__class__.__name__}({self.bk_biz_id}) start，timestamp: {int(start_time)}")
+        logger.info(f"[start] update metric {self.__class__.__name__}({self.bk_biz_id})")
 
         # 集中整理后进行差量更新
         to_be_create = []
@@ -334,7 +334,7 @@ class BaseMetricCacheManager:
             MetricListCache.objects.filter(id__in=to_be_delete).delete()
 
         logger.info(
-            f"update metric {self.__class__.__name__}({self.bk_biz_id}) end, "
+            f"[end] update metric {self.__class__.__name__}({self.bk_biz_id}) "
             f"create {len(to_be_create)} metric,update {len(to_be_update)} metric, delete {len(to_be_delete)} metric."
             f"timestamp: {int(start_time)}, cost {time.time() - start_time}s"
         )
@@ -1574,7 +1574,6 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
         metrics_define = api.kubernetes.fetch_metrics_define()
 
         for metric in metrics:
-
             # 获取该k8s指标基础表 及 基础指标结构
             table = get_base_table_by_metric(metric)
             base_metric = self.get_base_dict(table)
@@ -1619,7 +1618,7 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
 
 class BkMonitorAlertCacheManager(BaseMetricCacheManager):
     """
-    批量缓存自定义事件指标
+    批量缓存监控告警事件指标
     """
 
     data_sources = ((DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT),)
@@ -1729,7 +1728,7 @@ class BkMonitorAlertCacheManager(BaseMetricCacheManager):
 
 class BkFtaAlertCacheManager(BaseMetricCacheManager):
     """
-    批量缓存自定义事件指标
+    批量缓存告警源事件
     """
 
     data_sources = (
@@ -1738,7 +1737,6 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
     )
 
     def search_alerts(self):
-
         search = AlertDocument.search(all_indices=True).exclude("exists", field="strategy_id")
 
         if self.bk_biz_id:
@@ -1774,7 +1772,6 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         alert_names = set()
 
         for alert_config in AlertConfig.objects.filter(plugin_id__in=list(plugins.values_list("plugin_id", flat=True))):
-
             alert_names.add(alert_config.name)
 
             if alert_config.name in tables:
@@ -1791,7 +1788,6 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         return tables
 
     def get_tables(self):
-
         tables = default_tables = self.get_config_tables(bk_biz_id=0)
         if self.bk_biz_id:
             tables = self.get_config_tables(bk_biz_id=self.bk_biz_id)

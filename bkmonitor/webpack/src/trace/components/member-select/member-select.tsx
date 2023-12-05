@@ -47,7 +47,7 @@ export interface TagItemModel {
   type: 'group' | 'user';
 }
 
-type FilterMethod = (list: TagItemModel[]) => TagItemModel[];
+type FilterMethod = (list: TagItemModel[], val: string) => TagItemModel[];
 
 export default defineComponent({
   name: 'MemberSelect',
@@ -353,7 +353,7 @@ export default defineComponent({
     /** 弹窗选择列表 */
     const selectList = computed<TagItemModel[]>(() => {
       if (props.filterMethod) {
-        return props.filterMethod([...userAndGroupList.group, ...userAndGroupList.user]);
+        return props.filterMethod([...userAndGroupList.group, ...userAndGroupList.user], inputValue.value);
       }
       return inputValue.value ? userAndGroupList.user : userAndGroupList.group;
     });

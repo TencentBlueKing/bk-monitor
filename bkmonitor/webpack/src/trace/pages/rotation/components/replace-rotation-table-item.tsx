@@ -49,6 +49,7 @@ export interface ReplaceRotationDateModel {
 }
 export interface ReplaceRotationUsersModel {
   groupNumber?: number;
+  groupType: 'specified' | 'auto';
   value: { key: number; value: { type: 'group' | 'user'; id: string }[] }[];
 }
 
@@ -69,10 +70,6 @@ export interface ReplaceItemDataModel {
 export default defineComponent({
   name: 'ReplaceRotationTableItem',
   props: {
-    userGroupType: {
-      type: String as PropType<'specified' | 'auto'>,
-      default: 'specified'
-    },
     data: {
       type: Object as PropType<ReplaceItemDataModel>,
       default: undefined
@@ -107,6 +104,7 @@ export default defineComponent({
         value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)]
       },
       users: {
+        groupType: 'specified',
         groupNumber: 1,
         value: [{ key: random(8, true), value: [] }]
       }
@@ -517,6 +515,31 @@ export default defineComponent({
 
     // ---------用户组----------
 
+    /** 切换分组类型 */
+    function handleGroupTabChange(val: ReplaceRotationUsersModel['groupType']) {
+      if (localValue.users.groupType === val) return;
+      localValue.users.groupType = val;
+      // 切换成自动分组需要把所有的用户组删除
+      if (val === 'auto') {
+        const res = localValue.users.value.reduce((pre, cur) => {
+          cur.value.forEach(user => {
+            const key = `${user.id}_${user.type}`;
+            if (!pre.has(key) && user.type === 'user') {
+              pre.set(key, user);
+            }
+          });
+          return pre;
+        }, new Map());
+        localValue.users.value = [{ key: localValue.users.value[0].key, value: Array.from(res.values()) }];
+      }
+      handleEmitData(true);
+    }
+
+    /**
+     * 过滤可选的人员列表
+     * @param list 所有人员列表
+     * @returns 可选的人员列表
+     */
     function handleMemberSelectFilter(list: TagItemModel[]) {
       return list.filter(item => item.type === 'user');
     }
@@ -577,7 +600,8 @@ export default defineComponent({
       handleDragover,
       handleDrop,
       handleEmitDrop,
-      handleEmitData
+      handleEmitData,
+      handleGroupTabChange
     };
   },
   render() {
@@ -605,7 +629,21 @@ export default defineComponent({
         </td>
         <td class='step-wrapper replace-rotation'>
           <div class='user-panel-wrap'>
-            {this.userGroupType === 'specified' ? (
+            <div class='group-tab flex'>
+              <div
+                class={['item', this.localValue.users.groupType === 'specified' && 'active']}
+                onClick={() => this.handleGroupTabChange('specified')}
+              >
+                {this.t('手动分组')}
+              </div>
+              <div
+                class={['item', this.localValue.users.groupType === 'auto' && 'active']}
+                onClick={() => this.handleGroupTabChange('auto')}
+              >
+                {this.t('自动分组')}
+              </div>
+            </div>
+            {this.localValue.users.groupType === 'specified' ? (
               // 手动分组
               <div class='specified-group-wrap'>
                 <TransitionGroup name={'flip-list'}>
@@ -659,7 +697,7 @@ export default defineComponent({
               // 自动分组
               <div
                 class='auto-group-wrap'
-                v-show={this.userGroupType === 'auto'}
+                v-show={this.localValue.users.groupType === 'auto'}
               >
                 <FormItem
                   label={this.t('轮值人员')}
