@@ -54,6 +54,26 @@ const transformAppDir = (app) => {
 };
 const mobileBuildVariates = `
 <script>
+window.site_url = "\${SITE_URL}"
+window.static_url = "\${STATIC_URL}"
+window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
+</script>`;
+
+const pcBuildVariates = `
+<script>
+window.site_url = "\${SITE_URL}"
+window.static_url = "\${STATIC_URL}"
+window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
+</script>`;
+const externalBuildVariates = `
+<script>
+window.site_url = "\${SITE_URL}"
+window.static_url = "\${STATIC_URL}"
+window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
+</script>`;
+
+const mobileBuildVariatesOld = `
+<script>
     window.site_url = "\${WEIXIN_SITE_URL}"
     window.static_url = "\${WEIXIN_STATIC_URL}"
     window.cc_biz_id = \${BK_BIZ_ID}
@@ -68,7 +88,7 @@ const mobileBuildVariates = `
     window.graph_watermark = "\${GRAPH_WATERMARK}" == "True" ? true : false
 </script>`;
 
-const pcBuildVariates = `
+const pcBuildVariatesOld = `
 <script>
 <%
 import json
@@ -133,7 +153,7 @@ window.bk_domain = "\${BK_DOMAIN}"
 window.show_realtime_strategy = "\${SHOW_REALTIME_STRATEGY}" == "True" ? true : false
 window.apm_ebpf_enabled = \${APM_EBPF_ENABLED}
 </script>`;
-const externalBuildVariates = `
+const externalBuildVariatesOld = `
 <script>
 <%
 import json

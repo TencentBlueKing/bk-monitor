@@ -117,6 +117,7 @@ declare global {
     host_data_fields: string[];
     bkchat_manage_url: string;
     show_realtime_strategy: boolean;
+    bk_paas_host: string;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
