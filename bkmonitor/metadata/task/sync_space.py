@@ -811,4 +811,3 @@ def refresh_bksaas_space_resouce():
     bulk_handle(multi_push_space_table_ids, space_ids)
 
     logger.info("refresh bksaas space resource successfully")
-    logger.info("refresh bksaas space resource successfully")
