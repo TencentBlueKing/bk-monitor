@@ -710,6 +710,9 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       params.need_upgrade = true;
     }
     this.loading = true;
+    this.$bkLoading.Loading({
+      extCls: 'metric-dimension-confirm-loading'
+    });
     const data = await saveMetric(params, { needMessage: false }).catch(err => {
       this.$bkMessage({ theme: 'error', message: err.message, ellipsisLine: 0 });
       return false;
@@ -724,6 +727,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       result && this.handleSucessSave(data);
     }
     this.loading = false;
+    this.$bkLoading.Loading.hide();
   }
   handleSucessSave(data) {
     this.isShowCancel = true;
@@ -1353,7 +1357,6 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         mask-close={true}
         header-position='left'
         width={1280}
-        loading={this.loading}
         on-value-change={this.handleShowChange}
       >
         {this.contentRender()}
