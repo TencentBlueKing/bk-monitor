@@ -561,11 +561,15 @@ class SearchHandler(object):
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
 
         if self.start_time:
-            tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-            start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_info)
-            storage_cluster_record_objs = StorageClusterRecord.objects.filter(
-                index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
-            ).exclude(storage_cluster_id=self.storage_cluster_id)
+            try:
+                # TODO: 需要判断时间格式，时间戳会报错
+                tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+                start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_info)
+                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+                    index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
+                ).exclude(storage_cluster_id=self.storage_cluster_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
         if not storage_cluster_record_objs:
             try:

@@ -25,8 +25,9 @@ def get_maintainers(space_uid: str) -> List[str]:
             ],
         },
         "fields": ["bk_biz_maintainer"],
+        "no_request": True,
     }
-    app_list = CCApi.get_app_list(params)
+    app_list = CCApi.get_app_list(params, request_cookies=False)
     if app_list and app_list["info"]:
         for maintainer in app_list["info"][0].get("bk_biz_maintainer", "").split(","):
             if not maintainer:
