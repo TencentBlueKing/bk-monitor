@@ -165,15 +165,17 @@ function getFreeTimeRanges(timeRanges: string[][], totalRange: string[]) {
   const totalRangeTime = totalRange.map(item => new Date(item).getTime());
   const allRangeTime: number[][] = JSON.parse(
     JSON.stringify(
-      timeRanges.map(item => {
-        let start = new Date(item[0]).getTime();
-        const end = new Date(item[1]).getTime();
-        if (start < totalRangeTime[0]) {
-          // eslint-disable-next-line prefer-destructuring
-          start = totalRangeTime[0];
-        }
-        return [start, end];
-      })
+      timeRanges
+        .filter(item => new Date(item[1]).getTime() > totalRangeTime[0])
+        .map(item => {
+          let start = new Date(item[0]).getTime();
+          const end = new Date(item[1]).getTime();
+          if (start < totalRangeTime[0]) {
+            // eslint-disable-next-line prefer-destructuring
+            start = totalRangeTime[0];
+          }
+          return [start, end];
+        })
     )
   );
   allRangeTime.sort((a, b) => (a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]));
@@ -516,7 +518,7 @@ export function dutyDataConversion(dutyData: IDutyData) {
         other
       };
     });
-    const obj = setRowYOfOverlap(data);
+    const obj = setRowYOfOverlap(data.filter(d => d.range[1] - d.range[0] !== 0));
     return {
       ...item,
       maxRow: obj.maxRow,
@@ -559,7 +561,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
     name: item.name,
     data: []
   }));
-  params.forEach(item => {
+  uniqueByDutyUsers(params).forEach(item => {
     const id = item.rule_id;
     const dataItem = data.find(d => d.id === id);
     item.duty_plans.forEach((plans, pIndex) => {
@@ -579,4 +581,69 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
     });
   });
   return data;
+}
+
+/**
+ * @description 去重
+ * @param data
+ * @returns
+ */
+function uniqueByDutyUsers(data: IDutyPreviewParams[]) {
+  const result = [];
+  data.forEach(item => {
+    const maps = new Map<string | number, Set<string>>();
+    const dutyPlans = item.duty_plans.map(duty => {
+      if (!maps.has(duty.user_index)) {
+        maps.set(duty.user_index, new Set());
+      }
+      const workTimes = [];
+      duty.work_times.forEach(time => {
+        const timeStr = `${time.start_time}-${time.end_time}`;
+        if (!maps.get(duty.user_index).has(timeStr)) {
+          workTimes.push(time);
+        }
+        maps.get(duty.user_index).add(timeStr);
+      });
+      return {
+        ...duty,
+        work_times: workTimes
+      };
+    });
+    result.push({
+      ...item,
+      duty_plans: dutyPlans
+    });
+  });
+  return result;
+}
+
+interface IDutyPlansItem {
+  users: { display_name: string }[];
+  work_times: { end_time: string; start_time: string }[];
+}
+export function getDutyPlansDetails(data: IDutyPlansItem[], isHistory: boolean) {
+  const result: { startTime: string; endTime: string; users: string }[] = [];
+  const sets = new Set();
+  data.forEach(item => {
+    const usersStr = (item.users?.map(u => u.display_name) || []).join('、 ');
+    item.work_times.forEach(time => {
+      const timeStr = `${time.start_time}-${time.end_time}`;
+      if (!sets.has(`${usersStr}--${timeStr}`)) {
+        result.push({
+          startTime: time.start_time || '--',
+          endTime: time.end_time || '--',
+          users: usersStr
+        });
+      }
+      sets.add(`${usersStr}--${timeStr}`);
+    });
+  });
+  if (isHistory) {
+    return result
+      .filter(d => new Date(d.startTime).getTime() < new Date().getTime())
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }
+  return result
+    .filter(d => new Date(d.endTime).getTime() > new Date().getTime())
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 }

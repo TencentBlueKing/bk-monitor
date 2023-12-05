@@ -57,7 +57,7 @@ export default [
       noCache: Rotation
     },
     meta: {
-      title: '新建屏蔽',
+      title: '新增轮值',
       needBack: true,
       navId: 'rotation',
       // authority: {
@@ -77,7 +77,7 @@ export default [
       noCache: Rotation
     },
     meta: {
-      title: '编辑屏蔽',
+      title: '编辑轮值',
       needBack: true,
       needCopyLink: false,
       navId: 'rotation',

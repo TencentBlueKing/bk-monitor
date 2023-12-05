@@ -137,7 +137,7 @@ export default defineComponent({
                   key={`${index}${_index}`}
                   theme='light'
                   placement='top'
-                  width={160}
+                  width={data.other.time.length > 30 ? 230 : 160}
                   popoverDelay={[200, 0]}
                   arrow={true}
                   extCls={'rotation-calendar-preview-component-user-item-pop'}
