@@ -542,13 +542,19 @@ export default defineComponent({
       switch (column) {
         case EColunm.name: {
           return (
-            <Button
-              text
-              theme='primary'
+            <span
+              class='rotation-name'
               onClick={() => handleShowDetail(row)}
             >
+              {/* <Button
+            text
+            theme='primary'
+            onClick={() => handleShowDetail(row)}
+          >
+            {row.name}
+          </Button> */}
               {row.name}
-            </Button>
+            </span>
           );
         }
         case EColunm.type: {

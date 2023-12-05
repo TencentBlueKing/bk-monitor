@@ -8,15 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
+
 from typing import List, Optional
 
 from django.core.management import BaseCommand, CommandError
 
 from metadata import models
 from metadata.models.space.constants import SpaceTypes
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -50,7 +48,7 @@ class Command(BaseCommand):
         # 用以返回不存在的 data id
         diff = set(data_id_list) - set(existed_data_id_list)
         if diff:
-            logger.error("data id: %s not found", ','.join(diff))
+            self.stderr.write(f"data id: {','.join(diff)} not found")
             raise CommandError(f"{','.join(diff)} not found")
 
     def _validate_space_type(self, space_type_id: str) -> None:
@@ -65,4 +63,4 @@ class Command(BaseCommand):
             ds_qs = ds_qs.filter(bk_data_id__in=data_id_list)
         ds_qs.update(space_type_id=space_type_id)
 
-        logging.info("set space type to %s successfully", space_type_id)
+        self.stdout.write(f"set space type to {space_type_id} successfully")

@@ -40,7 +40,6 @@ export interface ItemDataModel extends ReplaceItemDataModel {
 
 export interface ReplaceDataModel {
   id?: number;
-  userGroupType: 'specified' | 'auto';
   data: ItemDataModel[];
 }
 
@@ -58,7 +57,6 @@ export default defineComponent({
 
     const localValue = reactive<ReplaceDataModel>({
       id: undefined,
-      userGroupType: 'specified',
       data: []
     });
 
@@ -100,32 +98,11 @@ export default defineComponent({
           ]
         },
         users: {
+          groupType: 'specified',
           groupNumber: 1,
           value: [{ key: random(8, true), value: [] }]
         }
       };
-    }
-
-    /** 切换分组类型 */
-    function handleGroupTabChange(val: ReplaceDataModel['userGroupType']) {
-      if (localValue.userGroupType === val) return;
-      localValue.userGroupType = val;
-      // 切换成自动分组需要把所有的用户组删除
-      if (val === 'auto') {
-        localValue.data.forEach(item => {
-          const res = item.users.value.reduce((pre, cur) => {
-            cur.value.forEach(user => {
-              const key = `${user.id}_${user.type}`;
-              if (!pre.has(key) && user.type === 'user') {
-                pre.set(key, user);
-              }
-            });
-            return pre;
-          }, new Map());
-          item.users.value = [{ key: item.users.value[0].key, value: Array.from(res.values()) }];
-        });
-      }
-      handleEmitData();
     }
 
     function handleDataChange(val: ItemDataModel, index: number, hasPreview: boolean) {
@@ -159,7 +136,6 @@ export default defineComponent({
     return {
       t,
       localValue,
-      handleGroupTabChange,
       handleDataChange,
       handleAddItem,
       handleDelItem,
@@ -183,20 +159,6 @@ export default defineComponent({
             <div class='flex step2'>
               <span class='step-text'>Step2:</span>
               <span class='step-title'>{this.t('添加用户')}</span>
-              <div class='grouped-tab flex'>
-                <div
-                  class={['item', this.localValue.userGroupType === 'specified' && 'active']}
-                  onClick={() => this.handleGroupTabChange('specified')}
-                >
-                  {this.t('手动分组')}
-                </div>
-                <div
-                  class={['item', this.localValue.userGroupType === 'auto' && 'active']}
-                  onClick={() => this.handleGroupTabChange('auto')}
-                >
-                  {this.t('自动分组')}
-                </div>
-              </div>
             </div>
           </th>
         </tr>
@@ -205,7 +167,6 @@ export default defineComponent({
             class='table-item'
             data={item}
             key={item.key}
-            userGroupType={this.localValue.userGroupType}
             onChange={(val, hasPreview) => this.handleDataChange(val, index, hasPreview)}
             onDrop={this.handleEmitDrop}
           >

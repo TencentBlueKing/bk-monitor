@@ -47,6 +47,15 @@
 
     .table-content {
       margin-top: 16px;
+
+      .rotation-name {
+        color: #3a84ff;
+        cursor: pointer;
+
+        &:hover {
+          color: #5594fa;
+        }
+      }
     }
 
     & > .content-header {
@@ -124,7 +133,13 @@
     align-items: center;
   }
 
+  .bk-switcher.is-checked.bk-switcher-small:after {
+    top: 50%;
+    transform: translate(-100%,-50%);
+  }
+
   .bk-switcher.bk-switcher-small:after {
-    top: 1.1px
+    top: 50%;
+    transform: translate(0,-50%);
   }
 }

@@ -29,7 +29,7 @@ import { unmount } from '@blueking/bk-weweb';
 
 import './alarm-shield.scss';
 
-Component.registerHooks(['beforeRouteLeave']);
+const wewebId = 'trace';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
@@ -50,7 +50,7 @@ export default class TraceRetrieval extends tsc<{}> {
     });
   }
   beforeRouteLeave(to, from, next) {
-    unmount('trace');
+    unmount(wewebId);
     (document.body as any).___zrEVENTSAVED = null;
     next();
   }
