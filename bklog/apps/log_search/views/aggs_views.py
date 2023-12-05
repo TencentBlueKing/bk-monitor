@@ -19,16 +19,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.utils.drf import detail_route, list_route
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import InstanceActionPermission
+from apps.iam.handlers.drf import BatchIAMPermission, InstanceActionPermission
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
-from apps.log_trace.serializers import AggsTermsSerializer, DateHistogramSerializer, UnionSearchDateHistogramSerializer
+from apps.log_trace.serializers import (
+    AggsTermsSerializer,
+    DateHistogramSerializer,
+    UnionSearchDateHistogramSerializer,
+)
+from apps.utils.drf import detail_route, list_route
 
 
 class AggsViewSet(APIViewSet):
@@ -36,6 +39,8 @@ class AggsViewSet(APIViewSet):
     lookup_field = "index_set_id"
 
     def get_permissions(self):
+        if self.action in ["union_search_date_histogram"]:
+            return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
         return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @detail_route(methods=["POST"], url_path="aggs/terms")

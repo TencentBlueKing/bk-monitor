@@ -126,7 +126,12 @@ class StrategyTranslator(AbstractTranslator):
 
 class BizTranslator(AbstractTranslator):
     def translate(self, values: List[int]) -> Dict:
-        biz_map = resource.cc.get_biz_map()
+        if len(values) == 1:
+            bk_biz_id = values[0]
+            biz = resource.cc.get_app_by_id(bk_biz_id)
+            biz_map = {str(bk_biz_id): biz.bk_biz_name}
+        else:
+            biz_map = resource.cc.get_biz_map()
         return {value: biz_map[str(value)].bk_biz_name if str(value) in biz_map else value for value in values}
 
 
