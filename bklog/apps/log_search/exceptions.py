@@ -19,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import BaseException, ErrorCode
 from django.utils.translation import ugettext_lazy as _
+
+from apps.exceptions import BaseException, ErrorCode
 
 
 # =================================================
@@ -448,18 +449,28 @@ class IntegerErrorException(BaseException):
 
 
 class UnionSearchFieldsFailException(BaseSearchException):
-    ERROR_CODE = "437"
+    ERROR_CODE = "439"
     MESSAGE = _("联合检索获取索引Mapping字段信息失败")
 
 
 class UnionSearchErrorException(BaseSearchException):
-    ERROR_CODE = "438"
+    ERROR_CODE = "440"
     MESSAGE = _("联合检索API异常")
 
 
 class MultiSearchErrorException(BaseSearchException):
-    ERROR_CODE = "439"
+    ERROR_CODE = "441"
     MESSAGE = _("跨集群检索结果处理异常")
+
+
+class FavoriteUnionSearchNotExistException(BaseException):
+    ERROR_CODE = "442"
+    MESSAGE = _("收藏组合不存在")
+
+
+class FavoriteUnionSearchAlreadyExistException(BaseException):
+    ERROR_CODE = "443"
+    MESSAGE = _("收藏组合名称: [{name}]已存在")
 
 
 # =================================================

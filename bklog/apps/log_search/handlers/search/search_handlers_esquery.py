@@ -35,7 +35,6 @@ from apps.api import BcsCcApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
@@ -47,6 +46,7 @@ from apps.log_search.constants import (
     CHECK_FIELD_LIST,
     CHECK_FIELD_MAX_VALUE_MAPPING,
     CHECK_FIELD_MIN_VALUE_MAPPING,
+    DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ERROR_MSG_CHECK_FIELDS_FROM_BKDATA,
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
     MAX_EXPORT_REQUEST_RETRY,
@@ -57,6 +57,7 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     IndexSetType,
     OperatorEnum,
+    SearchScopeEnum,
     TimeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
@@ -90,6 +91,7 @@ from apps.log_search.handlers.es.indices_optimizer_context_tail import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.pre_search_handlers import PreSearchHandlers
 from apps.log_search.models import (
+    IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -98,12 +100,14 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.utils import sort_func
+from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
+    get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
@@ -956,6 +960,106 @@ class SearchHandler(object):
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()
         return cache_key
+
+    @staticmethod
+    def search_option_history(space_uid: str, index_set_type: str = IndexSetType.SINGLE.value):
+        """
+        用户检索选项历史记录
+        """
+        username = get_request_external_username() or get_request_username()
+
+        # 找出用户指定索引集类型下所有记录
+        history_objs = UserIndexSetSearchHistory.objects.filter(created_by=username, index_set_type=index_set_type)
+
+        # 过滤出当前空间下的记录
+        if index_set_type == IndexSetType.SINGLE.value:
+            index_set_id_all = history_objs.values("index_set_id")
+        else:
+            index_set_id_all = list()
+            for obj in history_objs:
+                index_set_id_all.extend(obj.index_set_ids)
+
+        if not index_set_id_all:
+            return []
+
+        effect_index_set_ids = list(
+            LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
+                "index_set_id", flat=True
+            )
+        )
+
+        if not effect_index_set_ids:
+            return []
+
+        ret = list()
+
+        option_set = set()
+
+        for obj in history_objs:
+            # 最多只返回10条记录
+            if len(ret) == 10:
+                break
+
+            info = model_to_dict(obj)
+            if obj.index_set_type == IndexSetType.SINGLE.value:
+                if obj.index_set_id not in effect_index_set_ids or obj.index_set_id in option_set:
+                    continue
+                ret.append(info)
+                option_set.add(info["index_set_id"])
+            else:
+                if obj.index_set_ids[0] not in effect_index_set_ids or tuple(obj.index_set_ids) in option_set:
+                    continue
+                ret.append(info)
+                option_set.add(tuple(info["index_set_ids"]))
+
+        return ret
+
+    @staticmethod
+    def search_option_history_delete(
+        space_uid: str, history_id: int = None, index_set_type: str = IndexSetType.SINGLE.value, is_delete_all=False
+    ):
+        """删除用户检索选项历史记录"""
+        if not is_delete_all:
+            obj = UserIndexSetSearchHistory.objects.filter(pk=int(history_id)).first()
+
+            delete_params = {
+                "created_by": obj.username,
+                "index_set_type": obj.index_set_type,
+            }
+
+            if obj.index_set_type == IndexSetType.SINGLE.value:
+                delete_params.update({"index_set_id": obj.index_set_id})
+            else:
+                delete_params.update({"index_set_ids": obj.index_set_ids})
+
+            return UserIndexSetSearchHistory.objects.filter(**delete_params).delete()
+        else:
+            username = get_request_external_username() or get_request_username()
+
+            history_objs = UserIndexSetSearchHistory.objects.filter(created_by=username, index_set_type=index_set_type)
+
+            if index_set_type == IndexSetType.SINGLE.value:
+                index_set_id_all = history_objs.values("index_set_id")
+            else:
+                index_set_id_all = list()
+                for obj in history_objs:
+                    index_set_id_all.extend(obj.index_set_ids)
+
+            effect_index_set_ids = list(
+                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
+                    "index_set_id", flat=True
+                )
+            )
+
+            delete_history_ids = list()
+            for obj in history_objs:
+                if obj.index_set_type == IndexSetType.SINGLE.value and obj.index_set_id in effect_index_set_ids:
+                    delete_history_ids.append(obj.pk)
+                else:
+                    if obj.index_set_ids[0] in effect_index_set_ids:
+                        delete_history_ids.append(obj.pk)
+
+            return UserIndexSetSearchHistory.objects.filter(pk__in=delete_history_ids).delete()
 
     @staticmethod
     def search_history(index_set_id=None, index_set_ids=None, is_union_search=False, **kwargs):
@@ -1979,9 +2083,6 @@ class UnionSearchHandler(object):
                 BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_ids)
             )
 
-        # 权限校验逻辑
-        self._iam_check()
-
         index_set_obj_mapping = {obj.index_set_id: obj for obj in index_set_objs}
 
         # 构建请求参数
@@ -2106,18 +2207,6 @@ class UnionSearchHandler(object):
 
         return res
 
-    def _iam_check(self):
-        """
-        权限校验逻辑 要求拥有所有索引集检索权限
-        """
-        if settings.IGNORE_IAM_PERMISSION:
-            return True
-        client = Permission()
-        resources = [{"type": ResourceEnum.INDICES.id, "id": index_set_id} for index_set_id in self.index_set_ids]
-        resources = client.batch_make_resource(resources)
-        is_allowed = client.is_allowed(ActionEnum.SEARCH_LOG.id, resources, raise_exception=True)
-        return is_allowed
-
     def _save_union_search_history(self, result, search_type="default"):
         params = {
             "keyword": self.search_dict.get("keyword"),
@@ -2140,8 +2229,7 @@ class UnionSearchHandler(object):
 
         return result
 
-    @staticmethod
-    def union_search_fields(data):
+    def union_search_fields(self, data):
         """
         获取字段mapping信息
         """
@@ -2219,12 +2307,71 @@ class UnionSearchHandler(object):
             time_field_type = list(union_time_fields_type)[0]
             time_field_unit = list(union_time_fields_unit)[0]
 
+        index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
+
+        sort_list = [[time_field, "desc"]]
+
+        # 查询索引集ids是否有默认的显示配置  不存在则去创建
+        # 考虑index_set_ids的查询性能 查询统一用index_set_ids_hash
+        username = get_request_external_username() or get_request_username()
+        try:
+            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.get(
+                index_set_ids_hash=index_set_ids_hash,
+                username=username,
+                scope=SearchScopeEnum.DEFAULT.value,
+            )
+        except UserIndexSetFieldsConfig.DoesNotExist:
+            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.none()
+
+        if user_index_set_config_obj:
+            try:
+                obj = IndexSetFieldsConfig.objects.get(pk=user_index_set_config_obj.config_id)
+            except IndexSetFieldsConfig.DoesNotExist:
+                obj = self.get_or_create_default_config(
+                    index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
+                )
+                user_index_set_config_obj.config_id = obj.id
+                user_index_set_config_obj.save()
+
+        else:
+            obj = self.get_or_create_default_config(
+                index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
+            )
+
         ret = {
+            "config_id": obj.id,
             "fields": total_fields,
             "fields_info": fields_info,
-            "display_fields": union_display_fields,
+            "display_fields": obj.display_fields,
+            "sort_list": obj.sort_list,
             "time_field": time_field,
             "time_field_type": time_field_type,
             "time_field_unit": time_field_unit,
         }
         return ret
+
+    @staticmethod
+    def get_or_create_default_config(
+        index_set_ids: list, display_fields: list, sort_list: list
+    ) -> IndexSetFieldsConfig:
+        index_set_ids_hash = IndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
+
+        obj = IndexSetFieldsConfig.objects.filter(
+            index_set_ids_hash=index_set_ids_hash,
+            name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+            scope=SearchScopeEnum.DEFAULT.value,
+            source_app_code=get_request_app_code(),
+        ).first()
+
+        if not obj.exists():
+            obj = IndexSetFieldsConfig.objects.create(
+                index_set_ids=index_set_ids,
+                index_set_ids_hash=index_set_ids_hash,
+                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+                scope=SearchScopeEnum.DEFAULT.value,
+                source_app_code=get_request_app_code(),
+                display_fields=display_fields,
+                sort_list=sort_list,
+            )
+
+        return obj
