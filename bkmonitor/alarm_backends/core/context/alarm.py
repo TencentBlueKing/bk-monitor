@@ -38,6 +38,7 @@ from constants.alert import (
 )
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 
+from ...service.converge.shield.shielder import AlertShieldConfigShielder
 from . import BaseContextObject
 
 logger = logging.getLogger("fta_action.run")
@@ -550,6 +551,15 @@ class Alarm(BaseContextObject):
         )
 
     @cached_property
+    def is_shielded(self):
+        # 获取的时候重新计算是否屏蔽
+        shield_result = False
+        if self.parent.alert:
+            shielder = AlertShieldConfigShielder(self.parent.alert)
+            shield_result = shielder.is_matched()
+        return shield_result
+
+    @cached_property
     def callback_message(self):
         """
         接口回调数据
@@ -624,7 +634,7 @@ class Alarm(BaseContextObject):
             "event": {
                 "id": alert.id,
                 "event_id": alert.id,
-                "is_shielded": alert.is_shielded,
+                "is_shielded": self.is_shielded,
                 "begin_time": utc2_str(alert.begin_time),
                 "create_time": utc2_str(alert.create_time),
                 "end_time": utc2_str(alert.end_time) if alert.end_time else None,
@@ -658,6 +668,7 @@ class Alarm(BaseContextObject):
         extra_info = alert_dict.pop("extra_info", None)
         alert_dict.update({"strategy": extra_info.get("strategy") if extra_info else {}})
         alert_dict["event"].pop("extra_info", None)
+        alert_dict["is_shielded"] = self.is_shielded
         alert_dict.update({"current_value": self.current_value, "description": self.description})
         return json.dumps(alert_dict)
 

@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
+
 from typing import Dict, List
 
 from django.core.management.base import BaseCommand
@@ -16,8 +16,6 @@ from django.core.management.base import BaseCommand
 from metadata.models.influxdb_cluster import InfluxDBClusterInfo
 from metadata.models.storage import ClusterInfo, InfluxDBProxyStorage, InfluxDBStorage
 from metadata.task.config_refresh import refresh_influxdb_route
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -48,10 +46,10 @@ class Command(BaseCommand):
                 for m in metric_list:
                     proxy_storage_id = proxy_storage_map.get((influxdb_proxy_cluster_id, influxdb_cluster_name))
                     if proxy_storage_id is None:
-                        logger.error(
-                            "not found proxy storage id by proxy_cluster_id: %s, instance_cluster: %s",
-                            influxdb_proxy_cluster_id,
-                            influxdb_cluster_name,
+                        self.stdout.write(
+                            "not found proxy storage id by proxy_cluster_id: {}, instance_cluster: {}".format(
+                                influxdb_proxy_cluster_id, influxdb_cluster_name
+                            )
                         )
                         continue
                     InfluxDBStorage.objects.update_or_create(
@@ -69,7 +67,7 @@ class Command(BaseCommand):
             raise Exception("写入 influxdb 信息失败，%s", e)
         # 写入 consul
         refresh_influxdb_route()
-        logger.info("写入数据成功!")
+        self.stdout.write("写入数据成功!")
 
     def add_arguments(self, parser):
         # database 名称，用以组装结果表

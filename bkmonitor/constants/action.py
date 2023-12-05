@@ -724,6 +724,7 @@ class ActionSignal:
     MESSAGE_QUEUE_OPERATE_TYPE_MAPPING = {
         ABNORMAL: MessageQueueSignal.ANOMALY_PUSH,
         RECOVERED: MessageQueueSignal.RECOVERY_PUSH,
+        NO_DATA: MessageQueueSignal.ANOMALY_PUSH,
         CLOSED: MessageQueueSignal.CLOSE_PUSH,
     }
 

@@ -822,10 +822,6 @@ export default defineComponent({
       {
         label: window.i18n.t('主机'),
         name: 'Host'
-      },
-      {
-        label: window.i18n.t('性能分析'),
-        name: 'Profiling'
       }
       // 20230525 这期暂时不需要
       // {
@@ -921,6 +917,12 @@ export default defineComponent({
         </Popover>
       </div>
     );
+    if (window.enable_apm_profiling) {
+      tabList.push({
+        label: window.i18n.t('性能分析'),
+        name: 'Profiling'
+      });
+    }
     const detailsMain = () => (
       <Loading
         loading={props.isPageLoading}

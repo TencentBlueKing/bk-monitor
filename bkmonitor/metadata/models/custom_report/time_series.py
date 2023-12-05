@@ -267,7 +267,7 @@ class TimeSeriesGroup(CustomGroupBase):
     def metric_consul_path(self):
         return "{}/influxdb_metrics/{}/time_series_metric".format(config.CONSUL_PATH, self.bk_data_id)
 
-    def get_metrics_from_redis(self):
+    def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
 
         其中，redis 中数据有 transfer 上报
@@ -278,7 +278,6 @@ class TimeSeriesGroup(CustomGroupBase):
 
         now_time = tz_now()
         fetch_step = settings.MAX_METRICS_FETCH_STEP
-        expired_time = settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS
         valid_begin_ts = (now_time - datetime.timedelta(seconds=expired_time)).timestamp()
         metrics_filter_params = {"name": custom_metrics_key, "min": valid_begin_ts, "max": now_time.timestamp()}
 
@@ -333,7 +332,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
         :return: 返回是否有更新指标
         """
-        metrics_info = self.get_metrics_from_redis()
+        metrics_info = self.get_metrics_from_redis(expired_time=settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS)
         # 如果为空，直接返回
         if not metrics_info:
             return False
@@ -620,7 +619,7 @@ class TimeSeriesGroup(CustomGroupBase):
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
-        last = datetime.datetime.now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+        last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         # 查找过期时间以前的数据
         for metric in TimeSeriesMetric.objects.filter(**metric_filter_params, last_modify_time__gt=last).iterator():
             metric_info = metric.to_metric_info_with_label(self, field_map=orm_field_map)
@@ -641,7 +640,7 @@ class TimeSeriesGroup(CustomGroupBase):
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
-        last = datetime.datetime.now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+        last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         time_series_metric_query = TimeSeriesMetric.objects.filter(group_id=self.time_series_group_id)
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
