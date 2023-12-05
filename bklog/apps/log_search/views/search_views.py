@@ -39,6 +39,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
+    BatchIAMPermission,
     InstanceActionPermission,
     ViewBusinessPermission,
     insert_permission_field,
@@ -112,6 +113,9 @@ class SearchViewSet(APIViewSet):
             return []
         if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "config", "history"]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+        if self.action in ["union_search"]:
+            return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+
         return [ViewBusinessPermission()]
 
     @insert_permission_field(

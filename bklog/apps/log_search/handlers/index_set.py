@@ -19,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import hashlib
 import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -1760,9 +1759,7 @@ class IndexSetFieldsConfigHandler(object):
                 self.data = IndexSetFieldsConfig.objects.get(pk=config_id)
             except IndexSetFieldsConfig.DoesNotExist:
                 raise IndexSetFieldsConfigNotExistException()
-        self.index_set_ids_hash = (
-            hashlib.md5(str(self.index_set_ids).encode("utf-8")).hexdigest() if self.index_set_ids else ""
-        )
+        self.index_set_ids_hash = IndexSetFieldsConfig.get_index_set_ids_hash(self.index_set_ids)
 
     def retrieve(self) -> dict:
         if not self.data:

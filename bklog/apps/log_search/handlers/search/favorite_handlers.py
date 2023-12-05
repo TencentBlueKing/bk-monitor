@@ -114,17 +114,13 @@ class FavoriteHandler(object):
         result["updated_at"] = result["updated_at"]
         return result
 
-    def list_group_favorites(
-        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
-    ) -> list:
+    def list_group_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
         """收藏栏分组后且排序后的收藏列表"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
         # 将收藏分组
-        favorites = Favorite.get_user_favorite(
-            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
-        )
+        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
             favorites_by_group[favorite["group_id"]].append(favorite)
@@ -138,16 +134,12 @@ class FavoriteHandler(object):
             for group in groups
         ]
 
-    def list_favorites(
-        self, order_type: str = FavoriteListOrderType.NAME_ASC.value, index_set_type: str = IndexSetType.SINGLE.value
-    ) -> list:
+    def list_favorites(self, order_type: str = FavoriteListOrderType.NAME_ASC.value) -> list:
         """管理界面列出根据name A-Z排序的所有收藏"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
-        favorites = Favorite.get_user_favorite(
-            space_uid=self.space_uid, username=self.username, order_type=order_type, index_set_type=index_set_type
-        )
+        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
         return [
             {
                 "id": fi["id"],
@@ -382,7 +374,7 @@ class FavoriteUnionSearchHandler(object):
                     }
                 }
             )
-            obj, is_create = FavoriteUnionSearch.objects.get_or_create(**params)
+            obj, is_create = FavoriteUnionSearch.objects.update_or_create(**params)
         else:
             self.data.name = data["name"]
             self.data.index_set_ids = data["index_set_ids"]

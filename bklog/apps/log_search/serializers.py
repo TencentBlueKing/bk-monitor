@@ -669,9 +669,6 @@ class FavoriteListSerializer(serializers.Serializer):
         required=False,
         default=FavoriteListOrderType.UPDATED_AT_DESC.value,
     )
-    index_set_type = serializers.ChoiceField(
-        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
-    )
 
 
 class CreateFavoriteGroupSerializer(serializers.Serializer):

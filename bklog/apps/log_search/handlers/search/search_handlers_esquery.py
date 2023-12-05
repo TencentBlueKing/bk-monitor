@@ -35,7 +35,6 @@ from apps.api import BcsCcApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
@@ -99,7 +98,6 @@ from apps.log_search.models import (
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
-    UserIndexSetSearchOptionHistory,
 )
 from apps.log_search.utils import sort_func
 from apps.models import model_to_dict
@@ -970,28 +968,49 @@ class SearchHandler(object):
         """
         username = get_request_external_username() or get_request_username()
 
-        option_history_objs = UserIndexSetSearchOptionHistory.objects.filter(
-            username=username,
-            space_uid=space_uid,
-            index_set_type=index_set_type,
+        # 找出用户指定索引集类型下所有记录
+        history_objs = UserIndexSetSearchHistory.objects.filter(created_by=username, index_set_type=index_set_type)
+
+        # 过滤出当前空间下的记录
+        if index_set_type == IndexSetType.SINGLE.value:
+            index_set_id_all = history_objs.values("index_set_id")
+        else:
+            index_set_id_all = list()
+            for obj in history_objs:
+                index_set_id_all.extend(obj.index_set_ids)
+
+        if not index_set_id_all:
+            return []
+
+        effect_index_set_ids = list(
+            LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
+                "index_set_id", flat=True
+            )
         )
+
+        if not effect_index_set_ids:
+            return []
 
         ret = list()
 
         option_set = set()
 
-        for obj in option_history_objs:
+        for obj in history_objs:
+            # 最多只返回10条记录
+            if len(ret) == 10:
+                break
+
             info = model_to_dict(obj)
-            if info["index_set_type"] == IndexSetType.SINGLE.value:
-                if info["index_set_id"] in option_set:
+            if obj.index_set_type == IndexSetType.SINGLE.value:
+                if obj.index_set_id not in effect_index_set_ids or obj.index_set_id in option_set:
                     continue
                 ret.append(info)
                 option_set.add(info["index_set_id"])
             else:
-                if str(info["index_set_ids"]) in option_set:
+                if obj.index_set_ids[0] not in effect_index_set_ids or tuple(obj.index_set_ids) in option_set:
                     continue
                 ret.append(info)
-                option_set.add(str(info["index_set_ids"]))
+                option_set.add(tuple(info["index_set_ids"]))
 
         return ret
 
@@ -1001,11 +1020,10 @@ class SearchHandler(object):
     ):
         """删除用户检索选项历史记录"""
         if not is_delete_all:
-            obj = UserIndexSetSearchOptionHistory.objects.filter(pk=int(history_id)).first()
+            obj = UserIndexSetSearchHistory.objects.filter(pk=int(history_id)).first()
 
             delete_params = {
-                "space_uid": obj.space_uid,
-                "username": obj.username,
+                "created_by": obj.username,
                 "index_set_type": obj.index_set_type,
             }
 
@@ -1014,12 +1032,34 @@ class SearchHandler(object):
             else:
                 delete_params.update({"index_set_ids": obj.index_set_ids})
 
-            return UserIndexSetSearchOptionHistory.objects.filter(**delete_params).delete()
+            return UserIndexSetSearchHistory.objects.filter(**delete_params).delete()
         else:
             username = get_request_external_username() or get_request_username()
-            return UserIndexSetSearchOptionHistory.objects.filter(
-                space_uid=space_uid, username=username, index_set_type=index_set_type
-            ).delete()
+
+            history_objs = UserIndexSetSearchHistory.objects.filter(created_by=username, index_set_type=index_set_type)
+
+            if index_set_type == IndexSetType.SINGLE.value:
+                index_set_id_all = history_objs.values("index_set_id")
+            else:
+                index_set_id_all = list()
+                for obj in history_objs:
+                    index_set_id_all.extend(obj.index_set_ids)
+
+            effect_index_set_ids = list(
+                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
+                    "index_set_id", flat=True
+                )
+            )
+
+            delete_history_ids = list()
+            for obj in history_objs:
+                if obj.index_set_type == IndexSetType.SINGLE.value and obj.index_set_id in effect_index_set_ids:
+                    delete_history_ids.append(obj.pk)
+                else:
+                    if obj.index_set_ids[0] in effect_index_set_ids:
+                        delete_history_ids.append(obj.pk)
+
+            return UserIndexSetSearchHistory.objects.filter(pk__in=delete_history_ids).delete()
 
     @staticmethod
     def search_history(index_set_id=None, index_set_ids=None, is_union_search=False, **kwargs):
@@ -2043,9 +2083,6 @@ class UnionSearchHandler(object):
                 BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_ids)
             )
 
-        # 权限校验逻辑
-        self._iam_check()
-
         index_set_obj_mapping = {obj.index_set_id: obj for obj in index_set_objs}
 
         # 构建请求参数
@@ -2170,18 +2207,6 @@ class UnionSearchHandler(object):
 
         return res
 
-    def _iam_check(self):
-        """
-        权限校验逻辑 要求拥有所有索引集检索权限
-        """
-        if settings.IGNORE_IAM_PERMISSION:
-            return True
-        client = Permission()
-        resources = [{"type": ResourceEnum.INDICES.id, "id": index_set_id} for index_set_id in self.index_set_ids]
-        resources = client.batch_make_resource(resources)
-        is_allowed = client.is_allowed(ActionEnum.SEARCH_LOG.id, resources, raise_exception=True)
-        return is_allowed
-
     def _save_union_search_history(self, result, search_type="default"):
         params = {
             "keyword": self.search_dict.get("keyword"),
@@ -2282,7 +2307,7 @@ class UnionSearchHandler(object):
             time_field_type = list(union_time_fields_type)[0]
             time_field_unit = list(union_time_fields_unit)[0]
 
-        index_set_ids_hash = hashlib.md5(str(index_set_ids).encode("utf-8")).hexdigest() if index_set_ids else ""
+        index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
 
         sort_list = [[time_field, "desc"]]
 
@@ -2326,8 +2351,11 @@ class UnionSearchHandler(object):
         return ret
 
     @staticmethod
-    def get_or_create_default_config(index_set_ids: str, display_fields: list, sort_list: list) -> IndexSetFieldsConfig:
-        index_set_ids_hash = hashlib.md5(str(index_set_ids).encode("utf-8")).hexdigest() if index_set_ids else ""
+    def get_or_create_default_config(
+        index_set_ids: list, display_fields: list, sort_list: list
+    ) -> IndexSetFieldsConfig:
+        index_set_ids_hash = IndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
+
         obj = IndexSetFieldsConfig.objects.filter(
             index_set_ids_hash=index_set_ids_hash,
             name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,

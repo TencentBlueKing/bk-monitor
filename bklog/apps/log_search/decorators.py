@@ -23,12 +23,8 @@ import functools
 import time
 
 from apps.log_search.constants import IndexSetType
-from apps.log_search.models import (
-    LogIndexSet,
-    UserIndexSetSearchHistory,
-    UserIndexSetSearchOptionHistory,
-)
-from apps.utils.local import get_request_external_username, get_request_username
+from apps.log_search.models import UserIndexSetSearchHistory
+from apps.utils.local import get_request_external_username
 
 
 # 接口耗时装饰器
@@ -57,16 +53,6 @@ def search_history_record(func):
             if external_username:
                 obj.created_by = external_username
                 obj.save()
-
-            username = external_username or get_request_username()
-            log_index_set_obj = LogIndexSet.objects.filter(index_set_id=int(history_obj["index_set_id"])).first()
-            if log_index_set_obj:
-                UserIndexSetSearchOptionHistory.objects.create(
-                    space_uid=log_index_set_obj.space_uid,
-                    username=username,
-                    index_set_id=int(history_obj["index_set_id"]),
-                    index_set_type=IndexSetType.SINGLE.value,
-                )
             del result.data["history_obj"]
 
         if union_search_history_obj:
@@ -77,17 +63,6 @@ def search_history_record(func):
                 duration=time_consume,
                 index_set_type=IndexSetType.UNION.value,
             )
-
-            index_set_id = int(union_search_history_obj["index_set_ids"][0])
-            log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-            username = get_request_external_username() or get_request_username()
-            if log_index_set_obj:
-                UserIndexSetSearchOptionHistory.objects.create(
-                    space_uid=log_index_set_obj.space_uid,
-                    username=username,
-                    index_set_ids=list(union_search_history_obj["index_set_ids"]),
-                    index_set_type=IndexSetType.UNION.value,
-                )
             del result.data["union_search_history_obj"]
 
         return result

@@ -697,21 +697,6 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
         verbose_name_plural = _("32_搜索-索引集用户检索记录")
 
 
-class UserIndexSetSearchOptionHistory(OperateRecordModel):
-    space_uid = models.CharField(_("空间唯一标识"), max_length=256)
-    username = models.CharField(_("用户名"), max_length=255, db_index=True)
-    index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
-    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
-    index_set_type = models.CharField(
-        _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
-    )
-
-    class Meta:
-        verbose_name = _("索引集用户检索选项记录")
-        verbose_name_plural = _("34_搜索-索引集用户检索选项记录")
-        ordering = ("-updated_at",)
-
-
 class ResourceChange(OperateRecordModel):
     """
     数据平台索引集变更记录
@@ -822,13 +807,7 @@ class Favorite(OperateRecordModel):
         unique_together = [("name", "space_uid", "source_app_code")]
 
     @classmethod
-    def get_user_favorite(
-        cls,
-        space_uid: str,
-        username: str,
-        order_type: str = FavoriteListOrderType.NAME_ASC.value,
-        index_set_type: str = IndexSetType.SINGLE.value,
-    ) -> list:
+    def get_user_favorite(cls, space_uid: str, username: str, order_type: str = FavoriteListOrderType.NAME_ASC.value):
         """获取用户所有能看到的收藏"""
         source_app_code = get_request_app_code()
         favorites = []
@@ -837,9 +816,8 @@ class Favorite(OperateRecordModel):
                 space_uid=space_uid,
                 created_by=username,
                 visible_type=FavoriteVisibleType.PRIVATE.value,
-                index_set_type=index_set_type,
             )
-            | Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value, index_set_type=index_set_type)
+            | Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
         )
         qs = qs.filter(source_app_code=source_app_code)
         if order_type == FavoriteListOrderType.NAME_ASC.value:
@@ -849,13 +827,13 @@ class Favorite(OperateRecordModel):
         else:
             qs = qs.order_by("-updated_at")
 
-        if index_set_type == IndexSetType.SINGLE.value:
-            index_set_id_list = list(qs.all().values_list("index_set_id", flat=True).distinct())
-        else:
-            index_set_id_list = list()
-            for obj in qs.all():
+        index_set_id_list = list()
+        for obj in qs.all():
+            if obj.index_set_type == IndexSetType.SINGLE.value:
+                index_set_id_list.append(obj.index_set_id)
+            else:
                 index_set_id_list.extend(obj.index_set_ids)
-            index_set_id_list = list(set(index_set_id_list))
+        index_set_id_list = list(set(index_set_id_list))
         active_index_set_id_dict = {
             i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
             for i in LogIndexSet.objects.filter(index_set_id__in=index_set_id_list).values(
@@ -864,7 +842,7 @@ class Favorite(OperateRecordModel):
         }
         for fi in qs.all():
             fi_dict = model_to_dict(fi)
-            if index_set_type == IndexSetType.SINGLE.value:
+            if fi_dict["index_set_type"] == IndexSetType.SINGLE.value:
                 if active_index_set_id_dict.get(fi.index_set_id):
                     fi_dict["is_active"] = active_index_set_id_dict[fi.index_set_id]["is_active"]
                     fi_dict["index_set_name"] = active_index_set_id_dict[fi.index_set_id]["index_set_name"]

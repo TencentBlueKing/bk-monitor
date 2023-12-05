@@ -19,13 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf import settings
 from rest_framework import serializers
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
-from apps.iam import ActionEnum, Permission, ResourceEnum
-from apps.iam.handlers.drf import InstanceActionPermission
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import BatchIAMPermission, InstanceActionPermission
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_trace.serializers import (
     AggsTermsSerializer,
@@ -41,14 +40,7 @@ class AggsViewSet(APIViewSet):
 
     def get_permissions(self):
         if self.action in ["union_search_date_histogram"]:
-            if settings.IGNORE_IAM_PERMISSION:
-                return []
-            index_set_ids = self.request.data.get("index_set_ids", [])
-            client = Permission()
-            resources = [{"type": ResourceEnum.INDICES.id, "id": index_set_id} for index_set_id in index_set_ids]
-            resources = client.batch_make_resource(resources)
-            client.is_allowed(ActionEnum.SEARCH_LOG.id, resources, raise_exception=True)
-            return []
+            return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
         return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @detail_route(methods=["POST"], url_path="aggs/terms")
