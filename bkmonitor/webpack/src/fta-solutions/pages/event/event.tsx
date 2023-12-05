@@ -45,7 +45,7 @@ import {
 import { listSpaces } from '../../../monitor-api/modules/commons';
 import { bizWithAlertStatistics } from '../../../monitor-api/modules/home';
 import { checkAllowed } from '../../../monitor-api/modules/iam';
-import { docCookies, LANGUAGE_COOKIE_KEY, TIMEZONE_STORE_KEY } from '../../../monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
 import { random } from '../../../monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../../monitor-pc/components/access-request-dialog';

@@ -31,7 +31,6 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
-import { TIMEZONE_STORE_KEY } from '@common/utils';
 import { Collapse, CollapseItem, Input, Popover } from 'bk-magic-vue';
 
 import { getMainlineObjectTopo } from '../../../monitor-api/modules/commons';

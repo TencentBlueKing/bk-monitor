@@ -28,8 +28,6 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { TIMEZONE_STORE_KEY } from '@common/utils';
-import dayjs from 'dayjs';
 
 import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
 import bus from '../../../../monitor-common/utils/event-bus';
