@@ -1503,7 +1503,7 @@ class DataFlowHandler(BaseAiopsHandler):
                         format_transform_fields.append("`{}` as `{}`".format(DEFAULT_CLUSTERING_FIELD, field))
                 else:
                     if field == DEFAULT_CLUSTERING_FIELD:
-                        if clustering_config.collector_config.id:
+                        if clustering_config.collector_config_id:
                             format_transform_fields.append(f"`{field}`")
                         else:
                             format_transform_fields.append("`{}` as `{}`".format(field, clustering_fields))
