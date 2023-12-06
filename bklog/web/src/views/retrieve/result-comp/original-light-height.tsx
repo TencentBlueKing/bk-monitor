@@ -33,11 +33,16 @@ export default class QueryStatement extends tsc<IProps> {
   /** 原始日志字符串 */
   @Prop({ type: String, default: '' }) originJsonStr: string;
 
-  segmentReg = /"<black-mark>(.*?)<\/black-mark>"|<mark>(.*?)<\/mark>/;
+  segmentReg = /"<black-mark>(.*?)<\/black-mark>":|<mark>(.*?)<\/mark>/;
+
+  /** 正则切割原始日志最前后的大括号 */
+  get stripBracketsOriginStr() {
+    return this.originJsonStr.replace(/^[{}]+|[{}]+$/g, '');
+  }
 
   /** 正则切割原始日志 */
   get splitList() {
-    const value = this.originJsonStr;
+    const value = this.stripBracketsOriginStr;
     let arr = value.split(this.segmentReg);
     arr = arr.filter(val => val && val.length);
     return arr;
@@ -45,7 +50,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** key高亮列表 */
   get blackMarkList() {
-    let markVal = this.originJsonStr
+    let markVal = this.stripBracketsOriginStr
       .toString()
       .match(/(<black-mark>).*?(<\/black-mark>)/g) || [];
     if (markVal.length) {
@@ -56,7 +61,7 @@ export default class QueryStatement extends tsc<IProps> {
   }
   /** 检索的高亮列表 */
   get markList() {
-    let markVal = this.originJsonStr.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
+    let markVal = this.stripBracketsOriginStr.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
     if (markVal.length) {
       markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
       );
@@ -83,21 +88,27 @@ export default class QueryStatement extends tsc<IProps> {
         || splitItem.endsWith(`${item}.`),
     );
   }
+  /** 获取原始日志显示的值 */
+  getOriginVal(item) {
+    // 空字符串+逗号 返回空字符串
+    if (item === '"",') return '"" ';
+    // 数字类型 去掉末尾的逗号
+    if (/[0-9],/.test(item)) return item.replace(/(.*?),/g, ($0, $1) => `${$1} `);
+    // 其余的切割双引号和逗号
+    return item.replace(/"(.*?)"(,|.*?)/g, ($0, $1) => `${$1} `);
+  }
 
   render() {
     return (
       <span class="origin-content">
         {this.splitList.map((item) => {
-          if (item === '\n') {
-            return <br />;
-          }
           if (this.checkBlackMark(item)) {
-            return <span class="black-mark">"{item}"</span>;
+            return <span class="black-mark">&nbsp;{item}:&nbsp;</span>;
           }
           if (this.checkMark(item)) {
             return <mark>{item}</mark>;
           }
-          return item;
+          return <span class="origin-value">{this.getOriginVal(item)}</span>;
         })}
       </span>
     );
