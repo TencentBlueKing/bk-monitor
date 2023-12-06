@@ -96,7 +96,6 @@ export default class CalendarList extends tsc<IProps, IEvents> {
 
   /** 列表数据的时区 默认当前时区 */
   timeZone = dayjs.tz.guess();
-
   /** 搜索关键字 */
   searchKeyword = '';
 

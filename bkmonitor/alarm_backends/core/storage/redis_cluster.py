@@ -8,17 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache
-from bkmonitor.models import CacheRouter
-
-__doc__ = """
-
-"""
+from bkmonitor.models import CacheNode, CacheRouter
 
 
 class RedisNode(object):
-
     redis_type = "RedisCache"
 
     def __init__(self, host, port, password=None):
@@ -50,7 +45,6 @@ class RedisNode(object):
 
 
 class SentinelRedisNode(RedisNode):
-
     redis_type = "SentinelRedisCache"
 
     def __init__(self, host, port, master_name, password=None, sentinel_password=None):
@@ -149,7 +143,6 @@ class RedisProxy(KeyRouterMixin):
 
 
 class PipelineProxy(KeyRouterMixin):
-
     ALLOWED_METHOD = ["execute"]
 
     def __init__(self, node_proxy, *args, **kwargs):
@@ -194,14 +187,39 @@ class PipelineProxy(KeyRouterMixin):
         return handle
 
 
-STRATEGY_ROUTER_CACHE = {}
+STRATEGY_ROUTER_CACHE = None
+STRATEGY_NODE_MAP = {}
+DEFAULT_NODE = None
 
 
 def get_node_by_strategy_id(strategy_id: int):
-    global STRATEGY_ROUTER_CACHE
-    try:
-        return STRATEGY_ROUTER_CACHE[strategy_id]
-    except KeyError:
-        node = CacheRouter.get_node_by_strategy_id(strategy_id)
-        STRATEGY_ROUTER_CACHE[strategy_id] = node
-        return node
+    from django.utils.translation import ugettext as _
+
+    global STRATEGY_ROUTER_CACHE, DEFAULT_NODE, STRATEGY_NODE_MAP
+
+    # 获取路由表
+    if not STRATEGY_ROUTER_CACHE:
+        STRATEGY_ROUTER_CACHE = list(
+            CacheRouter.objects.filter(cluster_name=get_cluster().name)
+            .select_related("node")
+            .order_by("strategy_score")
+        )
+
+    # 优先从缓存中获取
+    if STRATEGY_NODE_MAP.get(strategy_id):
+        return STRATEGY_NODE_MAP[strategy_id]
+
+    # 如果策略ID为0，则返回默认节点
+    if strategy_id == 0:
+        if not DEFAULT_NODE:
+            DEFAULT_NODE = CacheNode.default_node()
+        return DEFAULT_NODE
+
+    # 根据策略ID获取对应的节点
+    for router in STRATEGY_ROUTER_CACHE:
+        if router.strategy_score > strategy_id:
+            STRATEGY_NODE_MAP[strategy_id] = router.node
+            return router.node
+
+    # 如果策略ID超过了设置的默认上限，则抛出异常
+    raise Exception(_("策略ID超过设置的默认上限"))

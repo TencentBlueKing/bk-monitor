@@ -49,7 +49,7 @@ import { IDetailItem } from '../typings/common-detail';
 import Aipanel from './ai-panel/ai-panel';
 import HostDetailView from './host-detail-view/host-detail-view';
 import ShowModeButton, { ShowModeButtonType } from './show-mode-button/show-mode-button';
-import { ShowModeType } from './common-page-new';
+import { type ShowModeType } from './common-page-new';
 
 import './common-detail.scss';
 

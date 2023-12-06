@@ -42,6 +42,7 @@ import BizMenuSelect from '@/components/biz-menu/index.vue';
 import EmptyStatus from '../../components/empty-status/index.vue';
 
 import AuthorizationDialog from './authorization-dialog';
+import * as authorityMap from '../../common/authority-map';
 
 import './authorization-list.scss';
 import moment from 'moment';
@@ -336,10 +337,34 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
   async created() {
     this.spaceUid = this.$store.state.spaceUid;
-    this.getBizRoleList();
-    await this.getActionList();
-    this.getListData();
-    this.getAuthUser();
+    const hasManageAuth = await this.checkBizAllow();
+    if (hasManageAuth) {
+      this.angleType = this.$route.query?.activeNav as AngleType || 'user';
+      this.getBizRoleList();
+      await this.getActionList();
+      this.getListData();
+      this.getAuthUser();
+    }
+  }
+
+  async checkBizAllow() {
+    try {
+      const res = await this.$store.dispatch('checkAndGetData', {
+        action_ids: [authorityMap.VIEW_BUSINESS],
+        resources: [{
+          type: 'space',
+          id: this.spaceUid,
+        }],
+      });
+      if (res.isAllowed === false) {
+        this.$store.commit('updateAuthDialogData', res.data);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn(e);
+      return false;
+    }
   }
 
   async getActionList() {
@@ -353,11 +378,14 @@ export default class AuthorizationList extends tsc<{}, {}> {
    * @param v 空间uid
    * @description 业务选择器选择业务时触发
    */
-  handleSpaceChange(v: string) {
+  async handleSpaceChange(v: string) {
     this.spaceUid = v;
-    this.getListData();
-    this.getAuthUser();
-    this.getBizRoleList();
+    const hasManageAuth = await this.checkBizAllow();
+    if (hasManageAuth) {
+      this.getListData();
+      this.getAuthUser();
+      this.getBizRoleList();
+    }
 
     // 业务选择器选择全部选项时，才有权限展示该列
     // Object.values(this.tableColumns).forEach((columns) => {
@@ -429,6 +457,11 @@ export default class AuthorizationList extends tsc<{}, {}> {
       this.statusActive = 'all';
     }
     this.angleType = type;
+    this.$router.replace({
+      query: {
+        activeNav: type,
+      },
+    });
     this.getListData();
   }
 
@@ -457,7 +490,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     const [isSuccess, data] = res;
     if (isSuccess) {
       this.totalListData = data;
-      this.pagination.count = data.length;
+      this.pagination.count = this.totalListData.length;
       this.getResources();
       this.emptyStatusType = 'empty';
       this.changeEmptyStatusType();
@@ -533,6 +566,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
     this.pagination.current = page;
   }
   handlePageLimitChange(limit: number) {
+    this.pagination.current = 1;
     this.pagination.limit = limit;
   }
 
@@ -790,6 +824,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
               <div class='member-select edit'>
                 <Select
                   class='member-input'
+                  searchable
                   v-model={this.memberValue}
                 >
                   {this.bizCMDBRoleList.map(item => (

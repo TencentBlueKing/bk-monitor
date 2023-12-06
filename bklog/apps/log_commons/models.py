@@ -218,6 +218,8 @@ class ExternalPermission(OperateRecordModel):
     def build_itsm_resources_display_name(cls, action_id: str, space_uid: str, resources: List[Any]) -> str:
         """
         拼接资源列表, 用于ITSM审批单据展示
+        :param action_id: ExternalPermissionActionEnum 定义的模块操作ID
+        :param space_uid: 空间唯一标识
         :param resources:
         :return:
         """
@@ -256,8 +258,9 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "bk_biz_name", "value": bk_biz_name},
                 {"key": "title", "value": ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT},
                 {"key": "expire_time", "value": params["expire_time"]},
-                {"key": "action_id", "value": params["action_id"]},
+                {"key": "action_id", "value": ExternalPermissionActionEnum.get_choice_label(params["action_id"])},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
+                {"key": "approver", "value": ",".join(get_maintainers(space_uid=space_uid))},
                 {
                     "key": "resources",
                     "value": cls.build_itsm_resources_display_name(
@@ -410,8 +413,10 @@ class ExternalPermission(OperateRecordModel):
         if space_uid:
             permission_qs = permission_qs.filter(space_uid=space_uid)
         if view_type != ViewTypeEnum.RESOURCE.value:
+            permission_qs = permission_qs.order_by("-updated_at")
             permission_list = [
                 {
+                    "updated_at": permission.updated_at,
                     "authorized_user": permission.authorized_user,
                     "action_id": permission.action_id,
                     "resources": permission.resources,
@@ -432,8 +437,14 @@ class ExternalPermission(OperateRecordModel):
                     resource_to_user[resource_key]["resource_id"] = resource_id
                     resource_to_user[resource_key]["status"] = permission.status
                     resource_to_user[resource_key]["space_uid"] = permission.space_uid
+                    if "created_at" not in resource_to_user[resource_key]:
+                        resource_to_user[resource_key]["created_at"] = permission.created_at
+                    elif permission.created_at and permission.created_at < resource_to_user[resource_key]["created_at"]:
+                        resource_to_user[resource_key]["created_at"] = permission.created_at
 
             permission_list = list(resource_to_user.values())
+            # 按创建时间倒序排列
+            permission_list.sort(key=lambda x: x["created_at"], reverse=True)
         for permission in permission_list:
             if not space_uid:
                 permission["authorizer"] = AuthorizerSettings.get_authorizer(space_uid=permission["space_uid"])
@@ -490,13 +501,17 @@ class ExternalPermission(OperateRecordModel):
     def _get_log_extract_resource(cls, space_uid: str) -> List[Dict[str, Any]]:
         from apps.log_extract.models import Strategies
 
+        # 只过滤授权人有的策略
+        authorizer = AuthorizerSettings.get_authorizer(space_uid=space_uid)
+        qs = Strategies.objects.filter(user_list__contains=f",{authorizer},").exclude(operator="")
         if not space_uid:
             space_uid_list = ExternalPermission.objects.all().values_list("space_uid", flat=True).distinct()
             bk_biz_id_list = [space_uid_to_bk_biz_id(space_uid) for space_uid in space_uid_list]
-            qs = Strategies.objects.filter(bk_biz_id__in=bk_biz_id_list)
+            qs = qs.filter(bk_biz_id__in=bk_biz_id_list)
         else:
             bk_biz_id = space_uid_to_bk_biz_id(space_uid)
-            qs = Strategies.objects.filter(bk_biz_id=bk_biz_id)
+            qs = qs.filter(bk_biz_id=bk_biz_id)
+
         return [
             {
                 "id": strategy.strategy_id,

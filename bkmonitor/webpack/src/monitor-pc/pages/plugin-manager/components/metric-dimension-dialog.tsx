@@ -115,10 +115,6 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   /** 是否隐藏切换自动采集功能时的提示 */
   isHiddenTip = true;
 
-  /* 关键字列表 */
-  get reservedWords() {
-    return this.$store.state['plugin-manager'].reservedWords;
-  }
   /* 分组名称列表 */
   get groupNameList() {
     return this.tableData.map(group => group.table_name);
@@ -190,18 +186,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           return false;
         })
     );
-    // 关键字检查
-    let hasReservedWord = false;
-    this.tableData.forEach(row => {
-      row.fields.forEach(item => {
-        if (this.reservedWords.find(word => word === item.name.toLocaleUpperCase())) {
-          item.errValue = false;
-          item.reValue = true;
-          hasReservedWord = true;
-        }
-      });
-    });
-    return !isMetricRepeat && !isDimensionRepeat && !isDescRepeat && !hasReservedWord;
+    return !isMetricRepeat && !isDimensionRepeat && !isDescRepeat;
   }
   /* 能否启用移动 */
   get canMoveBtn() {
@@ -314,7 +299,6 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     }
     this.createDefaultGroup(this.localMetricData);
     await this.getUnitListData();
-    !this.reservedWords.length && this.getReservedWords();
     this.loading = false;
   }
 
@@ -330,34 +314,12 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     }
   }
 
-  getReservedWords() {
-    this.$store.dispatch('plugin-manager/getReservedWords');
-  }
-
   @Watch('localMetricData', { deep: true })
   handleWatchMetricJson(newV) {
-    this.tableData = this.handleTableDataConflictError(JSON.parse(JSON.stringify(newV)));
+    this.tableData = JSON.parse(JSON.stringify(newV));
     this.handleTableDataChange();
   }
 
-  /**
-   * 处理指标维度名字冲突报错置顶
-   * @param data 指标维度数据
-   */
-  handleTableDataConflictError(data) {
-    return data.map(group => {
-      group.fields = group.fields.reduce((total, item) => {
-        if (this.reservedWords.find(word => word === item.name.toLocaleUpperCase())) {
-          item.errValue = false;
-          item.reValue = true;
-          item.order = 0; /** 将名字冲突的指标和维度置顶 */
-        }
-        total.push(item);
-        return total;
-      }, []);
-      return group;
-    });
-  }
   /**
    * 是否允许继续添加指标维度
    * @param tableData 指标维度数据
@@ -481,13 +443,9 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       }
       return item.table_name === group.name;
     });
-    const res1 = this.reservedWords.some(item => item === group.name.toLocaleUpperCase());
-    if (res || res1) {
-      if (res) {
-        this.$bkMessage({ theme: 'error', message: `${this.$t('注意: 名字冲突')}` });
-        return;
-      }
-      this.$bkMessage({ theme: 'error', message: this.$t('指标分类不能同名且不能为{0}', [group.name]) });
+
+    if (res) {
+      this.$bkMessage({ theme: 'error', message: `${this.$t('注意: 名字冲突')}` });
       return;
     }
     // 新增/编辑
@@ -716,7 +674,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
     if (!this.canSave) {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('所有的指标/维度的英文名和别名不能重名或与关键字冲突或为空')
+        message: this.$t('所有的指标/维度的英文名和别名不能重名或为空')
       });
       return;
     }
@@ -1004,7 +962,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       this.handleMaxMetircDimMsg();
       return;
     }
-    this.tableData = this.handleTableDataConflictError(list);
+    this.tableData = JSON.parse(JSON.stringify(list));
     this.handleTableDataChange();
   }
   getDefaultMetric({

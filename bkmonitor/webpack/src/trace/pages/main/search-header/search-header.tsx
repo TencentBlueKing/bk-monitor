@@ -25,8 +25,8 @@
  */
 
 import { defineComponent, PropType } from 'vue';
-import dayjs from 'dayjs';
 
+import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
@@ -53,7 +53,7 @@ export default defineComponent({
     },
     timezone: {
       type: String,
-      default: dayjs.tz.guess()
+      default: getDefautTimezone()
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,

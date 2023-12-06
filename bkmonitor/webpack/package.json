@@ -84,7 +84,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@blueking/date-picker": "^0.0.56",
+      "@blueking/date-picker": "^0.0.69",
       "@blueking/stylelint-config": "0.0.3",
       "@blueking/user-selector>vue": "2.7.14",
       "@typescript-eslint/eslint-plugin": "^5.20.0",
@@ -97,7 +97,6 @@
       "eslint-plugin-prettier": "^5.0.0",
       "eslint-plugin-simple-import-sort": "^10.0.0",
       "eslint-plugin-vue": "^9.17.0",
-      "moment": "^2.29.2",
       "postcss-html": "^1.5.0",
       "postcss-scss": "^4.0.7",
       "prettier": "^3.0.2",

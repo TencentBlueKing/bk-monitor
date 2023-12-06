@@ -19,33 +19,6 @@ from django.db.models import Count, Q, QuerySet, Sum
 from django.db.models.functions import Length
 from django.forms import model_to_dict
 from django.utils.translation import ugettext as _
-from monitor_web.alert_events.constant import EventStatus
-from monitor_web.commons.cc.utils import CmdbUtil
-from monitor_web.models import CustomEventGroup, CustomEventItem, DataTargetMapping
-from monitor_web.shield.utils import ShieldDetectManager
-from monitor_web.strategies.constant import (
-    DEFAULT_TRIGGER_CONFIG_MAP,
-    DETECT_ALGORITHM_CHOICES,
-    EVENT_METRIC_ID,
-    GLOBAL_TRIGGER_CONFIG,
-    Scenario,
-)
-from monitor_web.strategies.metric_list_cache import (
-    DEFAULT_DIMENSIONS_MAP,
-    FILTER_DIMENSION_LIST,
-    DefaultDimensions,
-)
-from monitor_web.strategies.serializers import (
-    handle_target,
-    is_validate_target,
-    validate_action_config,
-    validate_agg_condition_msg,
-    validate_algorithm_config_msg,
-    validate_algorithm_msg,
-    validate_no_data_config_msg,
-    validate_recovery_config_msg,
-    validate_trigger_config_msg,
-)
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import (
@@ -76,6 +49,33 @@ from core.drf_resource.exceptions import CustomException
 from core.drf_resource.management.exceptions import ResourceNotRegistered
 from core.errors.strategy import StrategyNotExist
 from core.unit import load_unit
+from monitor_web.alert_events.constant import EventStatus
+from monitor_web.commons.cc.utils import CmdbUtil
+from monitor_web.models import CustomEventGroup, CustomEventItem, DataTargetMapping
+from monitor_web.shield.utils import ShieldDetectManager
+from monitor_web.strategies.constant import (
+    DEFAULT_TRIGGER_CONFIG_MAP,
+    DETECT_ALGORITHM_CHOICES,
+    EVENT_METRIC_ID,
+    GLOBAL_TRIGGER_CONFIG,
+    Scenario,
+)
+from monitor_web.strategies.metric_list_cache import (
+    DEFAULT_DIMENSIONS_MAP,
+    FILTER_DIMENSION_LIST,
+    DefaultDimensions,
+)
+from monitor_web.strategies.serializers import (
+    handle_target,
+    is_validate_target,
+    validate_action_config,
+    validate_agg_condition_msg,
+    validate_algorithm_config_msg,
+    validate_algorithm_msg,
+    validate_no_data_config_msg,
+    validate_recovery_config_msg,
+    validate_trigger_config_msg,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -303,13 +303,10 @@ class GetMetricListResource(Resource):
                 _(
                     "通过蓝鲸Agent目录中的gsecmdline命令上报自定义字符型告警。"
                     '用法：{}plugins/bin/gsecmdline -d {} -l "This service is offline."'
-                ).format(settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID)
+                ).format(settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID),
             ]
         elif metric["metric_field"] == "agent-gse":
-            return [
-                _("gse每隔60秒检查一次agent心跳数据。"),
-                _("心跳数据持续未更新，24小时后将不再上报失联事件。")
-            ]
+            return [_("gse每隔60秒检查一次agent心跳数据。"), _("心跳数据持续未更新，24小时后将不再上报失联事件。")]
         elif metric["metric_field"] == "oom-gse":
             return [
                 _("通过调用内核syslog接口获取系统日志，对out of memory:关键字匹配告警，应用进程触发的OOM告警"),
@@ -326,8 +323,7 @@ class GetMetricListResource(Resource):
                 _("由监控后台部署的bk-collector去探测目标IP是否存活。"),
             ]
         elif metric["metric_field"] == "proc_port":
-            return [_("依赖bkmonitorbeat采集器的安装，在节点管理进行安装"),
-                    _("对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警")]
+            return [_("依赖bkmonitorbeat采集器的安装，在节点管理进行安装"), _("对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警")]
 
         return []
 
@@ -499,11 +495,11 @@ class StrategyConfigListResource(Resource):
         """
         target : [
             [
-            {"field":"ip", "method":"eq", "value": [{"ip":"10.0.0.1","bk_supplier_id":0,"bk_cloud_id":0},]},
+            {"field":"ip", "method":"eq", "value": [{"ip":"127.0.0.1","bk_supplier_id":0,"bk_cloud_id":0},]},
             {"field":"host_topo_node", "method":"eq", "value": [{"bk_obj_id":"test","bk_inst_id":2}]}
             ],
             [
-            {"field":"ip", "method":"eq", "value": [{"ip":"10.0.0.1","bk_supplier_id":0,"bk_cloud_id":0},]},
+            {"field":"ip", "method":"eq", "value": [{"ip":"127.0.0.1","bk_supplier_id":0,"bk_cloud_id":0},]},
             {"field":"host_topo_node", "method":"eq", "value": [{"bk_obj_id":"test","bk_inst_id":2}]}
             ]
         ]
@@ -872,9 +868,8 @@ class StrategyConfigListResource(Resource):
             table_ids = [metric.result_table_id for metric in metrics.only("result_table_id")]
             if table_ids:
                 strategy_ids = (
-                    QueryConfigModel.objects.filter(
-                        reduce(lambda x, y: x | y, (Q(config__result_table_id=table_id) for table_id in table_ids))
-                    )
+                    QueryConfigModel.objects.filter(strategy_id__in=strategy_ids)
+                    .filter(reduce(lambda x, y: x | y, (Q(config__result_table_id=table_id) for table_id in table_ids)))
                     .values_list("strategy_id", flat=True)
                     .distinct()
                 )
@@ -1663,9 +1658,8 @@ class StrategyConfigResource(Resource):
         - 计算平台数据(根据用户身份配置)
             1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
         """
-        from monitor_web.tasks import access_aiops_by_strategy_id
-
         from bkmonitor.models import AlgorithmModel
+        from monitor_web.tasks import access_aiops_by_strategy_id
 
         # 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:

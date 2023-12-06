@@ -693,8 +693,6 @@ export default {
       this.indexId = val;
       this.activeFavoriteID = -1;
       this.activeFavorite = {};
-      // 在切换索引集之前 需要把表格里的table数据清空 数据不为空的话 table的empty骨架loading会不生效
-      this.$refs.resultMainRef.reset();
       this.retrieveLog();
     },
     // 切换索引时重置检索数据
@@ -954,8 +952,13 @@ export default {
           'clusterRouteParams', // 日志聚类参数
           'timezone',
         ];
+        // 判断路由是否带有下载历史的检索的数据 如果有 则使用路由里的数据初始化
+        const routerQuery = this.$route.query;
+        const initRetrieveParams = routerQuery.routeParams
+          ? JSON.parse(decodeURIComponent(routerQuery.routeParams))
+          : routerQuery;
         for (const field of shouldCoverParamFields) {
-          const param = this.$route.query[field]; // 指定查询参数
+          const param = initRetrieveParams[field]; // 指定查询参数
           if (this.isInitPage) {
             if (param) {
               switch (field) {
@@ -1061,6 +1064,8 @@ export default {
       try {
         this.tableLoading = true;
         this.resetResult();
+        // 表格loading处理
+        this.$refs.resultMainRef.reset();
         if (!this.totalFields.length || this.shouldUpdateFields) {
           window.bus.$emit('openChartLoading');
           await this.requestFields();
@@ -1093,9 +1098,7 @@ export default {
           this.requestChart();
           this.requestSearchHistory(this.indexId);
         }
-        // 表格loading处理
-        this.$refs.resultMainRef.reset();
-        this.searchCancelFn();
+        // this.searchCancelFn();
         await this.requestTable();
         if (this.isAfterRequestFavoriteList) await this.getFavoriteList();
 
@@ -1239,6 +1242,8 @@ export default {
           }
         }
       }).filter(Boolean);
+      this.isSetDefaultTableColumn = false;
+      this.setDefaultTableColumn();
     },
     sessionShowFieldObj() { // 显示字段缓存
       const showFieldStr = sessionStorage.getItem('showFieldSession');
@@ -1252,7 +1257,8 @@ export default {
      */
     async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
       this.$store.commit('updateClearTableWidth', 1);
-      this.initVisibleFields(displayFieldNames);
+      // requestFields已经更新过一次了展示了 不需要再更新
+      if (!isRequestFields) this.initVisibleFields(displayFieldNames);
       // 缓存展示字段
       const showFieldObj = this.sessionShowFieldObj();
       Object.assign(showFieldObj, { [this.indexId]: displayFieldNames });

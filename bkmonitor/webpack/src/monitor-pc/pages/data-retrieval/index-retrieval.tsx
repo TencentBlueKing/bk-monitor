@@ -26,14 +26,14 @@
 import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 
-import { updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
 
 import * as dataRetrievalAuthMap from './authority-map';
 import DataRetrieval from './data-retrieval';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const authMap = {
   ...dataRetrievalAuthMap,
   GRAFANA_MANAGE_AUTH
@@ -51,8 +51,9 @@ export default class IndexRetrieval extends Mixins(authorityMixinCreate(authMap)
       vm.dataRetrieval.handleBeforeRouteEnter(to, from);
     });
   }
-  beforeDestroy() {
-    updateTimezone();
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
   }
   render() {
     return <DataRetrieval ref='dataRetrieval' />;

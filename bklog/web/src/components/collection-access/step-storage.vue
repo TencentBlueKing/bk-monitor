@@ -538,6 +538,8 @@ export default {
             } else {
               this.$emit('setAssessmentItem', {});
             }
+            // 只有在不展示日志脱敏的情况下才改变保存状态
+            if (!this.isShowMaskingTemplate) this.$emit('change-submit', true);
             this.$emit('stepChange');
           }
         }

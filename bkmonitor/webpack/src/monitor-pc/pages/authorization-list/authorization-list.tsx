@@ -321,12 +321,13 @@ export default class AuthorizationList extends tsc<{}, {}> {
       // 关键字匹配
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { status, expire_time, ...searchKey } = TableColumnEnum;
+      // 可以匹配的字段
       return Object.keys(searchKey).some(key => {
         if (!item[key]) return false;
         const val = Array.isArray(item[key]) ? item[key] : [item[key]];
         if (key === TableColumnEnum.resources || key === TableColumnEnum.resource_id) {
           return val.some(id => {
-            const { text } = this.resourceList.find(item => item.id === id);
+            const { text } = this.resourceList.find(item => item.uid === id);
             return text.includes(this.searchValue);
           });
         }

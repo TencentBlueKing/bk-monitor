@@ -38,28 +38,53 @@ export interface IUnifyQuerySeriesItem {
  */
 export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   let tableThArr = []; /** 表头数据 */
-  let tableTdArr = []; /** 表格数据 */
-
+  const tableTdArr = []; /** 表格数据 */
   tableThArr = data.map(item => item.target); // 原始数据表头
   tableThArr.unshift('time');
-  //  原始数据表格数据
-  tableTdArr = data[0].datapoints.map(set => [
-    {
-      value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ss'),
-      originValue: set[1]
-    }
-  ]);
+  const getDefaultValue = () => ({
+    max: false,
+    min: false,
+    value: null,
+    originValue: null
+  });
+  const timeMap = {};
   data.forEach(item => {
-    item.datapoints.forEach((set, index) => {
-      tableTdArr[index]?.push({
-        max: false,
-        min: false,
-        value: set[0],
-        originValue: set[0]
-      });
+    item.datapoints.forEach(([v, time]) => {
+      let list = timeMap[time];
+      if (!list) {
+        timeMap[time] = new Array(tableThArr.length).fill(null);
+        list = timeMap[time];
+        list[0] = {
+          value: dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
+          originValue: time
+        };
+      }
+      const index = tableThArr.findIndex(target => item.target === target);
+      if (index >= 0) {
+        const value = typeof v !== undefined ? v : null;
+        list[index] = {
+          value,
+          originValue: value,
+          max: false,
+          min: false
+        };
+      }
     });
   });
-  // 计算极值
+  const keys = Object.keys(timeMap);
+  keys.sort();
+  keys.forEach(key => {
+    const list = timeMap[key];
+    list.forEach((set, lIndex) => {
+      if (!set) {
+        list[lIndex] = {
+          ...getDefaultValue()
+        };
+      }
+    });
+    tableTdArr.push(list);
+  });
+  // // 计算极值
   const maxMinMap = tableThArr.map(() => ({
     max: null,
     min: null

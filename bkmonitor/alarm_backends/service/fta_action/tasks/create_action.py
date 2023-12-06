@@ -707,10 +707,6 @@ class CreateActionProcessor:
             )
             return
 
-        message_queue_signal = ActionSignal.MESSAGE_QUEUE_OPERATE_TYPE_MAPPING.get(self.signal)
-        if not message_queue_signal:
-            return
-
         plugin_type = ActionPluginType.MESSAGE_QUEUE
         action_instance = ActionInstance.objects.create(
             alerts=self.alert_ids,

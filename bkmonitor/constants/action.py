@@ -539,6 +539,8 @@ class ActionStatus:
 
     CAN_EXECUTE_STATUS = [RECEIVED, CONVERGED, RUNNING, RETRYING]
 
+    IGNORE_STATUS = {RUNNING, SLEEP, SKIPPED, SHIELD}
+
     CAN_SYNC_STATUS = [
         WAITING,
         CONVERGING,
@@ -722,6 +724,7 @@ class ActionSignal:
     MESSAGE_QUEUE_OPERATE_TYPE_MAPPING = {
         ABNORMAL: MessageQueueSignal.ANOMALY_PUSH,
         RECOVERED: MessageQueueSignal.RECOVERY_PUSH,
+        NO_DATA: MessageQueueSignal.ANOMALY_PUSH,
         CLOSED: MessageQueueSignal.CLOSE_PUSH,
     }
 

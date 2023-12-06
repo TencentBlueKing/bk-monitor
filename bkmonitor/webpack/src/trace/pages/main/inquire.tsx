@@ -38,7 +38,6 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
-import dayjs from 'dayjs';
 
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from '../../../apm/pages/home/authority-map';
@@ -64,7 +63,7 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '.
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
-import { updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
@@ -171,7 +170,7 @@ export default defineComponent({
     };
     getAppList();
     const timeRange = ref<TimeRangeType>(DEFAULT_TIME_RANGE);
-    const timezone = ref<string>(dayjs.tz.guess());
+    const timezone = ref<string>(getDefautTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
     const curTimestamp = ref<number[]>(handleTransformToTimestamp(timeRange.value));
@@ -1125,7 +1124,7 @@ export default defineComponent({
       checkRouterHasQuery();
     });
     onBeforeUnmount(() => {
-      updateTimezone();
+      destroyTimezone();
     });
     onUnmounted(() => {
       clearInterval(refleshIntervalInstace.value);

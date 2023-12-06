@@ -42,7 +42,7 @@ import {
   transformQueryDataSearch,
   updateBkSearchSelectName
 } from '../../utils';
-import { ShowModeType } from '../common-page-new';
+import { type ShowModeType } from '../common-page-new';
 import CommonTable from '../common-table';
 import SortTool from '../sort-tool/sort-tool';
 

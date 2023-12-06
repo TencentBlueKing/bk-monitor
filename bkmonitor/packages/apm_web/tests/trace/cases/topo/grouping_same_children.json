@@ -1,0 +1,436 @@
+[
+  {
+    "trace_state": "",
+    "status": {
+      "message": "success",
+      "code": 1
+    },
+    "end_time": 1691038417614905,
+    "start_time": 1691038416614908,
+    "attributes": {
+      "src": "x.x.x.x",
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test"
+    },
+    "resource": {
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::",
+      "agent_id": 1,
+      "service.name": "service_trace_test"
+    },
+    "span_name": "level0",
+    "kind": 1,
+    "span_id": "level0",
+    "links": [],
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "parent_span_id": "",
+    "elapsed_time": 999997,
+    "events": [],
+    "time": "1691038420000"
+  },
+  {
+    "kind": 1,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::",
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry"
+    },
+    "events": [],
+    "links": [],
+    "end_time": 1691038417618905,
+    "attributes": {
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x",
+      "dest": "y.y.y.y"
+    },
+    "elapsed_time": 3999,
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "start_time": 1691038417614905,
+    "parent_span_id": "level0",
+    "trace_state": "",
+    "span_name": "level1",
+    "time": "1691038417000",
+    "span_id": "level1_1"
+  },
+  {
+    "kind": 1,
+    "trace_state": "",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038417618905,
+    "resource": {
+      "bk.instance.id": "c++:service_trace_test:::",
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1"
+    },
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "links": [],
+    "time": "1691038417000",
+    "span_id": "level1_2",
+    "parent_span_id": "level0",
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "start_time": 1691038417614905,
+    "elapsed_time": 3999,
+    "span_name": "level1",
+    "events": []
+  },
+  {
+    "kind": 1,
+    "trace_state": "",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038417618905,
+    "resource": {
+      "bk.instance.id": "c++:service_trace_test:::",
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1"
+    },
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "links": [],
+    "time": "1691038417000",
+    "span_id": "level1_3",
+    "parent_span_id": "level0",
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "start_time": 1691038417614905,
+    "elapsed_time": 3999,
+    "span_name": "level1",
+    "events": []
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "span_name": "level2",
+    "kind": 1,
+    "events": [],
+    "trace_state": "",
+    "links": [],
+    "start_time": 1691038417618905,
+    "span_id": "level2_1",
+    "parent_span_id": "level1_1",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038418618903,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::"
+    },
+    "elapsed_time": 999997,
+    "time": "1691038420000"
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "end_time": 1691038418618903,
+    "parent_span_id": "level1_2",
+    "span_name": "level2",
+    "links": [],
+    "elapsed_time": 999997,
+    "events": [],
+    "span_id": "level2_2",
+    "attributes": {
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x",
+      "dest": "y.y.y.y"
+    },
+    "status": {
+      "message": "success",
+      "code": 1
+    },
+    "time": "1691038420000",
+    "kind": 1,
+    "resource": {
+      "bk.instance.id": "c++:service_trace_test:::",
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1"
+    },
+    "trace_state": "",
+    "start_time": 1691038417618905
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "end_time": 1691038418618903,
+    "parent_span_id": "level1_3",
+    "span_name": "level3",
+    "links": [],
+    "elapsed_time": 999997,
+    "events": [],
+    "span_id": "level2_3",
+    "attributes": {
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x",
+      "dest": "y.y.y.y"
+    },
+    "status": {
+      "message": "success",
+      "code": 1
+    },
+    "time": "1691038420000",
+    "kind": 1,
+    "resource": {
+      "bk.instance.id": "c++:service_trace_test:::",
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1"
+    },
+    "trace_state": "",
+    "start_time": 1691038417618905
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "end_time": 1691038418618903,
+    "parent_span_id": "level2_1",
+    "span_name": "level3",
+    "links": [],
+    "elapsed_time": 999997,
+    "events": [],
+    "span_id": "level3_1",
+    "attributes": {
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x",
+      "dest": "y.y.y.y"
+    },
+    "status": {
+      "message": "success",
+      "code": 1
+    },
+    "time": "1691038420000",
+    "kind": 1,
+    "resource": {
+      "bk.instance.id": "c++:service_trace_test:::",
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1"
+    },
+    "trace_state": "",
+    "start_time": 1691038417618905
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "span_name": "level3",
+    "kind": 1,
+    "events": [],
+    "trace_state": "",
+    "links": [],
+    "start_time": 1691038417618905,
+    "span_id": "level3_2",
+    "parent_span_id": "level2_1",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038418618903,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::"
+    },
+    "elapsed_time": 999997,
+    "time": "1691038420000"
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "span_name": "level3",
+    "kind": 1,
+    "events": [],
+    "trace_state": "",
+    "links": [],
+    "start_time": 1691038417618905,
+    "span_id": "level3_3",
+    "parent_span_id": "level2_2",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038418618903,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::"
+    },
+    "elapsed_time": 999997,
+    "time": "1691038420000"
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "span_name": "level3",
+    "kind": 1,
+    "events": [],
+    "trace_state": "",
+    "links": [],
+    "start_time": 1691038417618905,
+    "span_id": "level3_4",
+    "parent_span_id": "level2_2",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038418618903,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::"
+    },
+    "elapsed_time": 999997,
+    "time": "1691038420000"
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "span_name": "level3",
+    "kind": 1,
+    "events": [],
+    "trace_state": "",
+    "links": [],
+    "start_time": 1691038417618905,
+    "span_id": "level3_5",
+    "parent_span_id": "level2_3",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038418618903,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::"
+    },
+    "elapsed_time": 999997,
+    "time": "1691038420000"
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "span_name": "level3",
+    "kind": 1,
+    "events": [],
+    "trace_state": "",
+    "links": [],
+    "start_time": 1691038417618905,
+    "span_id": "level3_6",
+    "parent_span_id": "level2_3",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038418618903,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::"
+    },
+    "elapsed_time": 999997,
+    "time": "1691038420000"
+  },
+  {
+    "trace_id": "8d6a7bc10476a837fb3d251230e8e755",
+    "span_name": "level3",
+    "kind": 1,
+    "events": [],
+    "trace_state": "",
+    "links": [],
+    "start_time": 1691038417618905,
+    "span_id": "level3_7",
+    "parent_span_id": "level2_3",
+    "attributes": {
+      "dest": "y.y.y.y",
+      "service.name": "service_trace_test",
+      "src": "x.x.x.x"
+    },
+    "end_time": 1691038418618903,
+    "status": {
+      "code": 1,
+      "message": "success"
+    },
+    "resource": {
+      "agent_id": 2,
+      "service.name": "service_trace_test",
+      "telemetry.sdk.language": "c++",
+      "telemetry.sdk.name": "foo-opentelemetry",
+      "telemetry.sdk.version": "1.15.1",
+      "bk.instance.id": "c++:service_trace_test:::"
+    },
+    "elapsed_time": 999997,
+    "time": "1691038420000"
+  }
+]

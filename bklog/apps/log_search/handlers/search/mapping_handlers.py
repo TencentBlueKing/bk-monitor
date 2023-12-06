@@ -226,7 +226,7 @@ class MappingHandlers(object):
         fields_list = self._combine_description_field(fields_list)
         return self._combine_fields(fields_list)
 
-    def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value):
+    def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value, is_union_search=False):
         """
         get_all_fields_by_index_id
         @param scope:
@@ -236,6 +236,12 @@ class MappingHandlers(object):
         # search_context情况，默认只显示log字段
         # if scope in CONTEXT_SCOPE:
         #     return self._get_context_fields(final_fields_list)
+
+        # 其它情况
+        default_config = self.get_or_create_default_config(scope=scope)
+        if is_union_search:
+            return final_fields_list, default_config.display_fields
+
         username = get_request_external_username() or get_request_username()
         user_index_set_config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=self.index_set_id, username=username, scope=scope
@@ -263,8 +269,6 @@ class MappingHandlers(object):
                     final_field["is_display"] = True
             return final_fields_list, display_fields_list
 
-        # 其它情况
-        default_config = self.get_or_create_default_config(scope=scope)
         return final_fields_list, default_config.display_fields
 
     @atomic
@@ -306,7 +310,7 @@ class MappingHandlers(object):
         default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""
-        time_field = cls._get_time_field(index_set_id)
+        time_field = cls.get_time_field(index_set_id)
         if scope in ["trace_detail", "trace_scatter"]:
             return [[time_field, "asc"]]
         if default_sort_tag and scenario_id == Scenario.BKDATA:
@@ -324,7 +328,7 @@ class MappingHandlers(object):
                     _field["is_display"] = True
                     return final_fields_list, ["log"]
             return final_fields_list, []
-        display_fields_list = [self._get_time_field(self.index_set_id)]
+        display_fields_list = [self.get_time_field(self.index_set_id)]
         if self._get_object_field(final_fields_list):
             display_fields_list.append(self._get_object_field(final_fields_list))
         display_fields_list.extend(self._get_text_fields(final_fields_list))
@@ -339,7 +343,7 @@ class MappingHandlers(object):
         return final_fields_list, display_fields_list
 
     @classmethod
-    def _get_time_field(cls, index_set_id: int):
+    def get_time_field(cls, index_set_id: int):
         """获取索引时间字段"""
         index_set_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj.scenario_id in [Scenario.BKDATA, Scenario.LOG]:

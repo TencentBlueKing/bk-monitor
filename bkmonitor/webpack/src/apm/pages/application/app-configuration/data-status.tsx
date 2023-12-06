@@ -39,7 +39,7 @@ import {
 } from '../../../../monitor-api/modules/apm_meta';
 import { copyText } from '../../../../monitor-common/utils/utils';
 import TimeRange, { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { updateTimezone } from '../../../../monitor-pc/i18n/dayjs';
+import { getDefautTimezone, updateTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
 import { ApdexChart } from '../../../../monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
 import { IViewOptions, PanelModel } from '../../../../monitor-ui/chart-plugins/typings';
@@ -81,7 +81,7 @@ export default class DataStatus extends tsc<{}> {
   // 时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1d', 'now'];
   /** 时区 */
-  @ProvideReactive('timezone') timezone: string = window.timezone;
+  @ProvideReactive('timezone') timezone: string = getDefautTimezone();
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
 
@@ -95,6 +95,7 @@ export default class DataStatus extends tsc<{}> {
   }
 
   created() {
+    this.timezone = getDefautTimezone();
     this.getNoDataStrategyInfo();
     this.getDataView();
     this.getsamplingList();

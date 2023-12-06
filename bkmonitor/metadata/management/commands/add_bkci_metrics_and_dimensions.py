@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-import logging
 import os
 from typing import List, Optional
 
@@ -18,10 +17,7 @@ from django.core.management import BaseCommand
 
 from metadata import models
 from metadata.models.space.constants import SYSTEM_USERNAME, EtlConfigs, SpaceTypes
-from metadata.models.space.space_redis import push_and_publish_all_space
 from metadata.task.sync_space import push_and_publish_space_router
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -56,7 +52,6 @@ class Command(BaseCommand):
         self._create_space_resource(space_id)
         # 6. 推送数据到 redis并发布
         # NOTE: 仅 bkci 类型更新
-        push_and_publish_all_space(space_type_id=SpaceTypes.BKCI.value)
         push_and_publish_space_router(space_type=SpaceTypes.BKCI.value)
 
         print("init bkci data successfully")
@@ -115,7 +110,7 @@ class Command(BaseCommand):
         # 过滤到需要创建或更新的结果表
         created_table_id_list = set(table_id_list) - set(existed_table_id_list)
         # 创建结果表
-        logging.info("create result table start, table id: %s", ",".join(created_table_id_list))
+        self.stdout.write(f"create result table start, table id: {','.join(created_table_id_list)}")
         for table_id in created_table_id_list:
             field_list = self._get_rt_field_list(table_id)
             try:
@@ -134,12 +129,12 @@ class Command(BaseCommand):
                 }
                 models.ResultTable.create_result_table(**params)
             except Exception as e:
-                logging.error("create result table failed, params: %s, err: %s", json.dumps(params), e)
+                self.stderr.write(f"create result table failed, params: {json.dumps(params)}, err: {e}")
             else:
-                logging.info("create result table: %s successfully", table_id)
-        logging.info("create result table end")
+                self.stdout.write(f"create result table: {table_id} successfully")
+        self.stdout.write("create result table end")
         # 更新结果表
-        logging.info("update result table start, table id: %s", ",".join([t.table_id for t in existed_table_qs]))
+        self.stdout.write(f"update result table start, table id: {','.join([t.table_id for t in existed_table_qs])}")
         for table in existed_table_qs:
             field_list = self._get_rt_field_list(table.table_id)
             try:
@@ -148,10 +143,10 @@ class Command(BaseCommand):
                     field_list=field_list,
                 )
             except Exception as e:
-                logging.error("update result table failed, field_list: %s, err: %s", json.dumps(field_list), e)
+                self.stdoerr.write(f"update result table failed, field_list: {json.dumps(field_list)}, err: {e}")
             else:
-                logging.info("update result table: %s successfully", table.table_id)
-        logging.info("update result table end")
+                self.stdout.write(f"update result table: {table.table_id} successfully")
+        self.stdout.write("update result table end")
 
     def _get_rt_field_list(self, table_id: str) -> List:
         measurements = table_id.split(".")[-1]

@@ -8,14 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
+
 from typing import Dict, List, Optional
 
 from django.core.management import BaseCommand
 
 from metadata import models
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -46,7 +44,7 @@ class Command(BaseCommand):
             "tag": "dimension",
             "default_value": None,
             "is_config_by_user": True,
-            "description": "meta app",
+            "description": "dbm app",
             "unit": "",
             "alias_name": "app",
         },
@@ -56,7 +54,7 @@ class Command(BaseCommand):
             "tag": "dimension",
             "default_value": None,
             "is_config_by_user": True,
-            "description": "meta app id",
+            "description": "dbm app id",
             "unit": "",
             "alias_name": "appid",
         },
@@ -66,7 +64,7 @@ class Command(BaseCommand):
             "tag": "dimension",
             "default_value": None,
             "is_config_by_user": True,
-            "description": "meta cluster domain",
+            "description": "dbm cluster domain",
             "unit": "",
             "alias_name": "cluster_domain",
         },
@@ -76,9 +74,19 @@ class Command(BaseCommand):
             "tag": "dimension",
             "default_value": None,
             "is_config_by_user": True,
-            "description": "meta instance role",
+            "description": "dbm instance role",
             "unit": "",
             "alias_name": "instance_role",
+        },
+        {
+            "field_name": "db_type",
+            "field_type": "string",
+            "tag": "dimension",
+            "default_value": None,
+            "is_config_by_user": True,
+            "description": "dbm db type",
+            "unit": "",
+            "alias_name": "db_type",
         },
     ]
     extend_options = {

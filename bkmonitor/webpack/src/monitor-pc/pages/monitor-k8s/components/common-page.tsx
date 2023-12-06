@@ -28,7 +28,6 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
 import { getSceneView, getSceneViewList } from '../../../../monitor-api/modules/scene_view';
 import bus from '../../../../monitor-common/utils/event-bus';
@@ -49,7 +48,7 @@ import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../constant/constant';
-import { updateTimezone } from '../../../i18n/dayjs';
+import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
 import { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 import AlarmTools from '../../monitor-k8s/components/alarm-tools';
@@ -497,7 +496,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
-  @ProvideReactive('timezone') timezone: string = dayjs.tz.guess();
+  @ProvideReactive('timezone') timezone: string = getDefautTimezone();
   // 刷新间隔
   @ProvideReactive('refleshInterval') refleshInterval = -1;
   // 视图变量
@@ -540,12 +539,12 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   }
 
   mounted() {
+    this.timezone = getDefautTimezone();
     this.initData();
     bus.$on('dashboardModeChange', this.handleDashboardModeChange);
     bus.$on('switch_scenes_type', this.handleLinkToDetail);
   }
   beforeDestroy() {
-    updateTimezone(dayjs.tz.guess());
     bus.$off('dashboardModeChange', this.handleDashboardModeChange);
     bus.$off('switch_scenes_type');
   }
@@ -653,9 +652,10 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
             console.log(err);
           }
         } else if (key === 'timezone') {
-          this.timezone = (val as string) || dayjs.tz.guess();
-          window.timezone = val as string;
-          updateTimezone(val as string);
+          if (val?.length) {
+            this.timezone = val as string;
+            updateTimezone(val as string);
+          }
         } else {
           this[key] = val;
         }

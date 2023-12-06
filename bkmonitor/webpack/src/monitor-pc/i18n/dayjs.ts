@@ -33,7 +33,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import tz from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 
-import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, TIMEZONE_STORE_KEY } from '../../monitor-common/utils/constant';
 import { docCookies } from '../../monitor-common/utils/utils';
 
 dayjs.extend(customParseFormat);
@@ -48,9 +48,24 @@ dayjs.locale({
   ...(currentLang === 'en' ? en : cn),
   weekStart: 1
 });
-window.timezone = dayjs.tz.guess();
-dayjs.tz.setDefault(window.timezone);
-export const updateTimezone = (tz?: string) => {
+// window.timezone = dayjs.tz.guess();
+// dayjs.tz.setDefault(window.timezone);
+export const updateTimezone = (tz: string) => {
+  if (!tz) return;
+  console.log('updateTimezone', tz);
   window.timezone = tz || dayjs.tz.guess();
+  sessionStorage.setItem(TIMEZONE_STORE_KEY, window.timezone);
   dayjs.tz.setDefault(window.timezone);
+};
+export const destroyTimezone = () => {
+  console.log('destroyTimezone');
+  window.timezone = dayjs.tz.guess();
+  dayjs.tz.setDefault(window.timezone);
+};
+export const getDefautTimezone = () => {
+  const timezone = sessionStorage.getItem(TIMEZONE_STORE_KEY) || dayjs.tz.guess();
+  console.log('getDefautTimezone', timezone);
+  window.timezone = timezone;
+  dayjs.tz.setDefault(window.timezone);
+  return timezone;
 };

@@ -52,5 +52,6 @@ declare global {
     mermaidClick?: (id: string) => void;
     apm_ebpf_enabled: boolean;
     dayjs?: Dayjs;
+    enable_apm_profiling: boolean;
   }
 }

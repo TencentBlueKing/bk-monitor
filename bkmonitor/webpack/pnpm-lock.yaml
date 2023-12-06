@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@blueking/date-picker': ^0.0.56
+  '@blueking/date-picker': ^0.0.69
   '@blueking/stylelint-config': 0.0.3
   '@blueking/user-selector>vue': 2.7.14
   '@typescript-eslint/eslint-plugin': ^5.20.0
@@ -18,7 +18,6 @@ overrides:
   eslint-plugin-prettier: ^5.0.0
   eslint-plugin-simple-import-sort: ^10.0.0
   eslint-plugin-vue: ^9.17.0
-  moment: ^2.29.2
   postcss-html: ^1.5.0
   postcss-scss: ^4.0.7
   prettier: ^3.0.2
@@ -206,8 +205,8 @@ importers:
   src/fta-solutions:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.22
-        version: 0.0.22
+        specifier: 0.0.24
+        version: 0.0.24
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -507,11 +506,11 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.22
-        version: 0.0.22
+        specifier: 0.0.24
+        version: 0.0.24
       '@blueking/date-picker':
-        specifier: ^0.0.56
-        version: 0.0.56(bkui-vue@0.0.2-beta.90)(dayjs@1.11.10)(vue@2.7.14)
+        specifier: ^0.0.69
+        version: 0.0.69(bkui-vue@0.0.2-beta.93)(dayjs@1.11.10)(vue@2.7.14)
       '@blueking/ip-selector':
         specifier: 0.0.1-beta.134
         version: 0.0.1-beta.134
@@ -855,8 +854,8 @@ importers:
         specifier: ^4.7.0
         version: 4.8.23
       '@blueking/date-picker':
-        specifier: ^0.0.56
-        version: 0.0.56(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8)
+        specifier: ^0.0.69
+        version: 0.0.69(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8)
       '@blueking/ip-selector':
         specifier: 0.0.1-beta.134
         version: 0.0.1-beta.134
@@ -2484,8 +2483,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
 
-  /@blueking/bk-weweb@0.0.22:
-    resolution: {integrity: sha512-EWZlCTrADRrieQLCOs5fm8ZsaYk3H61fmXAX8S+820FVlwxb0U/fecMjX3E22t6+7xfGx15aWWHFaQSM5lBOmQ==}
+  /@blueking/bk-weweb@0.0.24:
+    resolution: {integrity: sha512-xBiixcUqd+3fArGEc5bNZO1Ex8v3RoKaUsQ7TqcrIMOnQCvXYfqsniRxK/4WN/IGdBvS6elgnTCPOf+NWT5NVA==}
     engines: {node: '>=14.18.1'}
     dev: false
 
@@ -2632,11 +2631,11 @@ packages:
       - whiskers
     dev: false
 
-  /@blueking/date-picker@0.0.56(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8):
-    resolution: {integrity: sha512-yqjrUKYqNTZ4L5nBzEzta5QbFMHIS+ktju0iAqJgQ1988mWVyJYi7hXO39Yo+HjZRXS+47geZNRwlrBl4uttvQ==}
+  /@blueking/date-picker@0.0.69(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8):
+    resolution: {integrity: sha512-JJbV/ENvmnwof/uPCVCq6KY423Lp67CEJ3da3ucOzDqnuCXhE1E5f6WmT0meS4jclKW/5h067UqNRLSiRE7NYQ==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
-      bkui-vue: ^0.0.2-beta.90
+      bkui-vue: ^0.0.2-beta.93
       dayjs: ^1.11.10
       vue: ^3.2.0
     dependencies:
@@ -2645,15 +2644,15 @@ packages:
       vue: 3.3.8(typescript@4.9.5)
     dev: false
 
-  /@blueking/date-picker@0.0.56(bkui-vue@0.0.2-beta.90)(dayjs@1.11.10)(vue@2.7.14):
-    resolution: {integrity: sha512-yqjrUKYqNTZ4L5nBzEzta5QbFMHIS+ktju0iAqJgQ1988mWVyJYi7hXO39Yo+HjZRXS+47geZNRwlrBl4uttvQ==}
+  /@blueking/date-picker@0.0.69(bkui-vue@0.0.2-beta.93)(dayjs@1.11.10)(vue@2.7.14):
+    resolution: {integrity: sha512-JJbV/ENvmnwof/uPCVCq6KY423Lp67CEJ3da3ucOzDqnuCXhE1E5f6WmT0meS4jclKW/5h067UqNRLSiRE7NYQ==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
-      bkui-vue: ^0.0.2-beta.90
+      bkui-vue: ^0.0.2-beta.93
       dayjs: ^1.11.10
       vue: ^3.2.0
     dependencies:
-      bkui-vue: 0.0.2-beta.90(highlight.js@11.5.1)(vue@2.7.14)
+      bkui-vue: 0.0.2-beta.93(highlight.js@11.5.1)(vue@2.7.14)
       dayjs: 1.11.10
       vue: 2.7.14
     dev: false
@@ -4978,8 +4977,8 @@ packages:
       vue-types: 4.1.1(vue@3.3.8)
     dev: false
 
-  /bkui-vue@0.0.2-beta.90(highlight.js@11.5.1)(vue@2.7.14):
-    resolution: {integrity: sha512-QHbpmajc4d508KTnY6EJLtV3gZ9Rlh426g3awmK1rUJz1Gurr58M/3OFhktD/J1iRBbqeyre98PnB8P33816Kg==}
+  /bkui-vue@0.0.2-beta.93(highlight.js@11.5.1)(vue@2.7.14):
+    resolution: {integrity: sha512-kl3SHEBHfWX3k8cuBaGDzvb6urLMHbvVN83Hcp7bDAWHmP1Kh0Z8FDrut8+pbBcz8HwlOVwEmmDNXRxZwBhBgg==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       highlight.js: ~11.5.0
@@ -4991,7 +4990,7 @@ packages:
       highlight.js: 11.5.1
       js-calendar: 1.2.3
       json-formatter-js: 2.3.4
-      lodash-es: 4.17.21
+      lodash: 4.17.21
       tinycolor2: 1.6.0
       vue: 2.7.14
       vue-types: 4.1.1(vue@2.7.14)
@@ -9123,7 +9122,7 @@ packages:
   /moment-locales-webpack-plugin@1.2.0(moment@2.29.4)(webpack@5.89.0):
     resolution: {integrity: sha512-QAi5v0OlPUP7GXviKMtxnpBAo8WmTHrUNN7iciAhNOEAd9evCOvuN0g1N7ThIg3q11GLCkjY1zQ2saRcf/43nQ==}
     peerDependencies:
-      moment: ^2.29.2
+      moment: ^2.8.0
       webpack: ^1 || ^2 || ^3 || ^4 || ^5
     dependencies:
       lodash.difference: 4.5.0
