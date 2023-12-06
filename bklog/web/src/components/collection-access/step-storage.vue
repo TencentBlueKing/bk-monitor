@@ -527,7 +527,7 @@ export default {
           if (this.isCleanField) {
             this.messageSuccess(this.$t('保存成功'));
             // 只有在不展示日志脱敏的情况下才改变保存状态
-            this.$emit('changeSubmit', true);
+            this.$emit('change-submit', true);
             this.$emit('stepChange', 'back');
           } else {
             if (data.need_assessment && data.assessment_config.need_approval) {
@@ -539,7 +539,7 @@ export default {
               this.$emit('setAssessmentItem', {});
             }
             // 只有在不展示日志脱敏的情况下才改变保存状态
-            if (!this.isShowMaskingTemplate) this.$emit('changeSubmit', true);
+            if (!this.isShowMaskingTemplate) this.$emit('change-submit', true);
             this.$emit('stepChange');
           }
         }
