@@ -2342,6 +2342,7 @@ class UnionSearchHandler(object):
 
         ret = {
             "config_id": obj.id,
+            "config": self.get_fields_config(),
             "fields": total_fields,
             "fields_info": fields_info,
             "display_fields": obj.display_fields,
@@ -2365,7 +2366,7 @@ class UnionSearchHandler(object):
             source_app_code=get_request_app_code(),
         ).first()
 
-        if not obj.exists():
+        if not obj:
             obj = IndexSetFieldsConfig.objects.create(
                 index_set_ids=index_set_ids,
                 index_set_ids_hash=index_set_ids_hash,
@@ -2377,3 +2378,17 @@ class UnionSearchHandler(object):
             )
 
         return obj
+
+    @staticmethod
+    def get_fields_config():
+        return [
+            {"name": "bcs_web_console", "is_active": False},
+            {"name": "trace", "is_active": False},
+            {"name": "context_and_realtime", "is_active": False},
+            {"name": "bkmonitor", "is_active": False},
+            {"name": "async_export", "is_active": False},
+            {"name": "ip_topo_switch", "is_active": False},
+            {"name": "apm_relation", "is_active": False},
+            {"name": "clustering_config", "is_active": False},
+            {"name": "clean_config", "is_active": False},
+        ]
