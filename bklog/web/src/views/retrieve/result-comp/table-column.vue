@@ -163,7 +163,7 @@ export default {
     line-height: 21px;
 
     &.is-wrap {
-      padding-bottom: 4px;
+      padding-bottom: 3px;
     }
 
     .field-container {
