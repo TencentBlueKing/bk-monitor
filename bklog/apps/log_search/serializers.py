@@ -303,7 +303,6 @@ class SearchAttrSerializer(serializers.Serializer):
         attrs = super().validate(attrs)
         if attrs.get("keyword") and attrs["keyword"].strip() == "":
             attrs["keyword"] = WILDCARD_PATTERN
-            return attrs
         # 校验sort_list
         if attrs.get("sort_list"):
             for sort_info in attrs.get("sort_list"):
