@@ -54,3 +54,10 @@ class AIOpsFunctionAccessedError(Error):
     code = 3324005
     name = _("AIOps功能未接入")
     message_tpl = _("当前空间尚未接入[{func}]功能")
+
+
+class AIOpsMultiAnomlayDetectError(Error):
+    status_code = 200
+    code = 3324006
+    name = _("主机智能异常检测结果内容异常")
+    message_tpl = _("主机智能异常检测结果内容异常")

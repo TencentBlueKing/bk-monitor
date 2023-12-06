@@ -88,7 +88,8 @@
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { getAuthorityDetail } from '../../../monitor-api/modules/iam';
-import { showAccessRequest } from '../../components/access-request-dialog';
+// 20231205 代码还原，先保留原有部分
+// import { showAccessRequest } from '../../components/access-request-dialog';
 Component.registerHooks(['beforeRouteEnter']);
 @Component({
   name: 'error-exception'
@@ -133,18 +134,19 @@ export default class ExceptionPage extends Vue {
   }
 
   handleGotoAppy() {
-    showAccessRequest(this.applyUrl);
-    // 20230703 暂时不要
-    // if (!this.applyUrl) return;
-    // try {
-    //   if (self === top) {
-    //     window.open(this.applyUrl, '__blank');
-    //   } else {
-    //     top.BLUEKING.api.open_app_by_other('bk_iam', this.applyUrl);
-    //   }
-    // } catch (_) {
-    //   window.open(this.applyUrl, '__blank');
-    // }
+    // 20231205 代码还原，先保留原有部分
+    // showAccessRequest(this.applyUrl);
+
+    if (!this.applyUrl) return;
+    try {
+      if (self === top) {
+        window.open(this.applyUrl, '__blank');
+      } else {
+        top.BLUEKING.api.open_app_by_other('bk_iam', this.applyUrl);
+      }
+    } catch (_) {
+      window.open(this.applyUrl, '__blank');
+    }
   }
   getResource(resoures) {
     if (resoures.length === 0) {

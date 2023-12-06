@@ -561,7 +561,7 @@ export default defineComponent({
     const setSpanListPosition = () => {
       const rect = viewTool.value?.getBoundingClientRect();
       const width = traceMainElem.value?.getBoundingClientRect()?.width;
-      if (traceGraphResize.value) {
+      if (traceGraphResize.value && rect) {
         traceGraphResize.value.$el.style.top = `${rect.bottom}px`;
         traceGraphResize.value.$el.style.width = `${width}px`;
         traceGraphResize.value.$el.style.right = `${state.activePanel === 'topo' ? 16 : 20}px`;

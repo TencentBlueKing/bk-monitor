@@ -90,6 +90,15 @@ def get_request_external_username():
     return username
 
 
+def get_request_external_user_email():
+    from apps.utils.function import ignored
+
+    email = ""
+    with ignored(Exception):
+        email = get_request().external_user_info.get("email", "")
+    return email
+
+
 def get_local_username():
     """从local对象中获取用户信息（celery）"""
     for user_key in ["bk_username", "username", "operator"]:

@@ -267,7 +267,7 @@ class TimeSeriesGroup(CustomGroupBase):
     def metric_consul_path(self):
         return "{}/influxdb_metrics/{}/time_series_metric".format(config.CONSUL_PATH, self.bk_data_id)
 
-    def get_metrics_from_redis(self):
+    def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
 
         其中，redis 中数据有 transfer 上报
@@ -278,8 +278,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
         now_time = tz_now()
         fetch_step = settings.MAX_METRICS_FETCH_STEP
-        expired_days = settings.TIME_SERIES_METRIC_EXPIRED_DAYS
-        valid_begin_ts = (now_time - datetime.timedelta(expired_days)).timestamp()
+        valid_begin_ts = (now_time - datetime.timedelta(seconds=expired_time)).timestamp()
         metrics_filter_params = {"name": custom_metrics_key, "min": valid_begin_ts, "max": now_time.timestamp()}
 
         metrics_info = []
@@ -333,7 +332,10 @@ class TimeSeriesGroup(CustomGroupBase):
 
         :return: 返回是否有更新指标
         """
-        metrics_info = self.get_metrics_from_redis()
+        metrics_info = self.get_metrics_from_redis(expired_time=settings.FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS)
+        # 如果为空，直接返回
+        if not metrics_info:
+            return False
 
         # 记录是否有更新，然后推送redis并发布通知
         is_updated = self.update_metrics(metrics_info)
@@ -617,7 +619,7 @@ class TimeSeriesGroup(CustomGroupBase):
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
-        last = datetime.datetime.now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+        last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         # 查找过期时间以前的数据
         for metric in TimeSeriesMetric.objects.filter(**metric_filter_params, last_modify_time__gt=last).iterator():
             metric_info = metric.to_metric_info_with_label(self, field_map=orm_field_map)
@@ -638,7 +640,7 @@ class TimeSeriesGroup(CustomGroupBase):
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
         # 获取过期分界线
-        last = datetime.datetime.now() - datetime.timedelta(settings.TIME_SERIES_METRIC_EXPIRED_DAYS)
+        last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         time_series_metric_query = TimeSeriesMetric.objects.filter(group_id=self.time_series_group_id)
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
@@ -854,10 +856,20 @@ class TimeSeriesMetric(models.Model):
                         metric_obj.last_modify_time = datetime.datetime(1970, 1, 1)
                     else:
                         white_list_disabled_metric.append(metric_obj.field_id)
+
                 # 有效期内的维度直接覆盖
-                metric_obj.tag_list = tag_list
-                metric_obj.last_modify_time = last_modify_time
-                metric_obj.save()
+                # 判断是否需要保存操作
+                need_save_op = False
+                if set(metric_obj.tag_list or []) != set(tag_list):
+                    metric_obj.tag_list = tag_list
+                    need_save_op = True
+                # TODO: 还需要继续优化，先设置最后更新时间 1 天更新一次，减少对 db 的操作
+                if (last_modify_time - metric_obj.last_modify_time).days >= 1:
+                    metric_obj.last_modify_time = last_modify_time
+                    need_save_op = True
+                if need_save_op:
+                    metric_obj.save()
+
                 # 后续可以在此处追加其他修改内容
                 logger.info(
                     "time_series_group_id->[{}] has update field_name->[{}] all tags->[{}]".format(
@@ -867,16 +879,6 @@ class TimeSeriesMetric(models.Model):
 
         if white_list_disabled_metric:
             cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
-
-        # 判断是否存在需要删除的字段，仅在自动发现模式下需要
-        if is_auto_discovery:
-            need_delete_query = cls.objects.filter(group_id=group_id).exclude(field_name__in=field_name_list)
-            if need_delete_query.exists():
-                deleted_field_list = list(need_delete_query.values_list("field_name", flat=True))
-                need_delete_query.update(last_modify_time=datetime.datetime(1970, 1, 1))
-                logger.info(
-                    "time_series_group_id->[{}] has delete field_name->[{}]".format(group_id, deleted_field_list)
-                )
 
         return is_updated
 
