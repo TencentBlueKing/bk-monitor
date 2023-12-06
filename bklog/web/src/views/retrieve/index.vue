@@ -1098,7 +1098,7 @@ export default {
           this.requestChart();
           this.requestSearchHistory(this.indexId);
         }
-        this.searchCancelFn();
+        // this.searchCancelFn();
         await this.requestTable();
         if (this.isAfterRequestFavoriteList) await this.getFavoriteList();
 
