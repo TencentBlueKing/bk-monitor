@@ -2,28 +2,41 @@
 import copy
 import json
 import uuid
+from urllib import parse
 
 from blueapps.conf import settings
 from django.core.cache import cache
 from django.http import HttpResponse
 from django.utils import timezone
 from six import StringIO
-from urllib import parse
 
-from apps.constants import UserOperationTypeEnum, UserOperationActionEnum
-from apps.log_search.constants import ExportStatus, ExportType, DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME, SearchScopeEnum
+from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
+from apps.decorators import user_operation_record
+from apps.log_search.constants import (
+    DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+    ExportStatus,
+    ExportType,
+    SearchScopeEnum,
+)
 from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.handlers.index_set import (
+    IndexSetFieldsConfigHandler,
+    IndexSetHandler,
+)
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.favorite_handlers import FavoriteHandler
-from apps.log_search.models import LogIndexSet, AsyncTask, IndexSetFieldsConfig, UserIndexSetFieldsConfig
-from apps.decorators import user_operation_record
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
+from apps.log_search.models import (
+    AsyncTask,
+    IndexSetFieldsConfig,
+    LogIndexSet,
+    UserIndexSetFieldsConfig,
+)
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
 from bkm_search_module.api import AbstractBkApi
 from bkm_search_module.constants import ScopeType
 from bkm_space.utils import bk_biz_id_to_space_uid
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.handlers.index_set import IndexSetHandler, IndexSetFieldsConfigHandler
 
 
 class BkApi(AbstractBkApi):
@@ -45,7 +58,11 @@ class BkApi(AbstractBkApi):
         if not space_uid_list:
             return []
 
-        res = list(LogIndexSet.objects.filter(space_uid__in=space_uid_list, is_active=True).values("index_set_id", "index_set_name"))
+        res = list(
+            LogIndexSet.objects.filter(space_uid__in=space_uid_list, is_active=True).values(
+                "index_set_id", "index_set_name"
+            )
+        )
 
         return res
 
@@ -57,17 +74,15 @@ class BkApi(AbstractBkApi):
         fields = search_handler_result.get("fields")
         res = [
             {"id": _field["field_name"], "name": _field["field_alias"]}
-            for _field in fields if _field["field_name"] != "log"
+            for _field in fields
+            if _field["field_name"] != "log"
         ]
         return res
 
     @staticmethod
     def search_condition_options(index_set_id: int, fields: list):
         """检索条件选项"""
-        terms_data = AggsViewAdapter().terms(
-            index_set_id=index_set_id,
-            query_data={"fields": fields}
-        )
+        terms_data = AggsViewAdapter().terms(index_set_id=index_set_id, query_data={"fields": fields})
 
         result = terms_data.get("aggs_items", {})
         res = dict()
@@ -76,12 +91,7 @@ class BkApi(AbstractBkApi):
             _value_list = list()
             _id = 1
             for _value in _v:
-                _value_list.append(
-                    {
-                        "id": str(_id),
-                        "name": _value
-                    }
-                )
+                _value_list.append({"id": str(_id), "name": _value})
                 _id += 1
             res[_k] = _value_list
 
@@ -99,7 +109,8 @@ class BkApi(AbstractBkApi):
                 "end_time": _data["params"]["end_time"],
                 "query_string": _data["query_string"],
                 "conditions": _data["params"]["addition"],
-            } for _data in data
+            }
+            for _data in data
         ]
 
         return res_data
@@ -114,7 +125,7 @@ class BkApi(AbstractBkApi):
             "is_legal": data["is_legal"],
             "is_resolved": data["is_resolved"],
             "message": data["message"],
-            "query_string": data["keyword"]
+            "query_string": data["keyword"],
         }
 
         return res_data
@@ -128,13 +139,7 @@ class BkApi(AbstractBkApi):
 
         if condition:
             for _k, _v in condition.items():
-                addition.append(
-                    {
-                        "field": _k,
-                        "operator": "=",
-                        "value": str(_v)
-                    }
-                )
+                addition.append({"field": _k, "operator": "=", "value": str(_v)})
 
         search_dict = {
             "keyword": params.get("query_string"),
@@ -158,19 +163,16 @@ class BkApi(AbstractBkApi):
     @staticmethod
     def search_fields(index_set_id: int, params: dict):
         """字段配置"""
-        search_dict = {
-            "start_time": params.get("start_time"),
-            "end_time": params.get("end_time")
-        }
+        search_dict = {"start_time": params.get("start_time"), "end_time": params.get("end_time")}
         search_handler = SearchHandler(index_set_id=index_set_id, search_dict=search_dict)
         search_handler_result = search_handler.fields(scope="default")
 
         res_data = {
-                "fields": search_handler_result["fields"],
-                "time_field": search_handler_result["time_field"],
-                "time_field_type": search_handler_result["time_field_type"],
-                "time_field_unit": search_handler_result["time_field_unit"]
-            }
+            "fields": search_handler_result["fields"],
+            "time_field": search_handler_result["time_field"],
+            "time_field_type": search_handler_result["time_field_type"],
+            "time_field_unit": search_handler_result["time_field_unit"],
+        }
         return res_data
 
     @staticmethod
@@ -178,9 +180,7 @@ class BkApi(AbstractBkApi):
         """创建索引集表格配置"""
         SearchHandler(index_set_id, {}).verify_sort_list_item(params["sort_list"])
         data = IndexSetFieldsConfigHandler(index_set_id=index_set_id).create_or_update(
-            name=params["name"],
-            display_fields=params["display_fields"],
-            sort_list=params["sort_list"]
+            name=params["name"], display_fields=params["display_fields"], sort_list=params["sort_list"]
         )
         return data
 
@@ -189,9 +189,7 @@ class BkApi(AbstractBkApi):
         """更新索引集表格配置"""
         SearchHandler(index_set_id, {}).verify_sort_list_item(params["sort_list"])
         data = IndexSetFieldsConfigHandler(index_set_id=index_set_id, config_id=params["config_id"]).create_or_update(
-            name=params["name"],
-            display_fields=params["display_fields"],
-            sort_list=params["sort_list"]
+            name=params["name"], display_fields=params["display_fields"], sort_list=params["sort_list"]
         )
         return data
 
@@ -282,10 +280,7 @@ class BkApi(AbstractBkApi):
 
         result = search_handler.search_tail_f()
 
-        res_data = {
-            "total": result.get("total"),
-            "list": result.get("list")
-        }
+        res_data = {"total": result.get("total"), "list": result.get("list")}
 
         return res_data
 
@@ -298,9 +293,9 @@ class BkApi(AbstractBkApi):
             "end_time": params.get("end_time"),
             "begin": params.get("begin"),
             "size": params.get("size"),
-            "addition": params.get("conditions"),
+            "addition": [] if not params.get("conditions") else [params.get("conditions")],
             "interval": params.get("interval"),
-            "fields": []
+            "fields": [],
         }
 
         result = AggsViewAdapter().date_histogram(index_set_id=index_set_id, query_data=query_data)
@@ -382,13 +377,7 @@ class BkApi(AbstractBkApi):
 
         if condition:
             for _k, _v in condition.items():
-                addition.append(
-                    {
-                        "field": _k,
-                        "operator": "=",
-                        "value": str(_v)
-                    }
-                )
+                addition.append({"field": _k, "operator": "=", "value": str(_v)})
 
         search_dict = {
             "keyword": params.get("query_string"),
@@ -397,7 +386,7 @@ class BkApi(AbstractBkApi):
             "begin": params.get("begin"),
             "size": params.get("size"),
             "addition": addition,
-            "export_fields": params.get("export_fields", [])
+            "export_fields": params.get("export_fields", []),
         }
         # 设置请求参数缓存
         cache_key = str(uuid.uuid4())
@@ -407,6 +396,4 @@ class BkApi(AbstractBkApi):
         if host.endswith("/"):
             host = host[0:-1]
 
-        return {
-            "export_url": host + f"/api/v1/search_module/index_set/{index_set_id}/export/?cache_key={cache_key}"
-        }
+        return {"export_url": host + f"/api/v1/search_module/index_set/{index_set_id}/export/?cache_key={cache_key}"}
