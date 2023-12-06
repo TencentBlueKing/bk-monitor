@@ -44,7 +44,7 @@ import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-
 import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
 import { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 // import { CHART_INTERVAL } from '../../../constant/constant';
@@ -524,7 +524,6 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     bus.$on('switch_scenes_type', this.handleLinkToDetail);
   }
   beforeDestroy() {
-    destroyTimezone();
     bus.$off('dashboardModeChange', this.handleDashboardModeChange);
     bus.$off('switch_scenes_type');
   }

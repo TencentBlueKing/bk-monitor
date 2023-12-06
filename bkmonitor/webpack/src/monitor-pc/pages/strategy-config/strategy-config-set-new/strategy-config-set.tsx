@@ -56,7 +56,7 @@ import { deepClone, getUrlParam, transformDataKey, typeTools } from '../../../..
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
 import { IDataRetrieval } from '../../data-retrieval/typings';
@@ -500,7 +500,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     bus.$on(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
   beforeDestroy() {
-    destroyTimezone();
     bus.$off(HANDLE_HIDDEN_SETTING, this.handleUpdateCalendarList);
   }
   @Watch('fromRouteName', { immediate: true })

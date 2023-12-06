@@ -42,8 +42,9 @@ export default class EventRetrieval extends tsc<{}> {
       vm.eventRetrieval.handleBeforeRouteEnter(to, from);
     });
   }
-  beforeRouteLeave() {
+  beforeRouteLeave(to: Route, from: Route, next: Function) {
     destroyTimezone();
+    next();
   }
   render() {
     return <DataRetrieval ref='eventRetrieval' />;

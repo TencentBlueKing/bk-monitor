@@ -34,7 +34,7 @@ import {
   PanelModel,
   VariableModel
 } from '../../../../monitor-ui/chart-plugins/typings/dashboard-panel';
-import { SceneType } from '../components/common-page-new';
+import { type SceneType } from '../components/common-page-new';
 
 import { IMenuItem } from '.';
 

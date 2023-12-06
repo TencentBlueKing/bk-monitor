@@ -38,7 +38,6 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
-import dayjs from 'dayjs';
 
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from '../../../apm/pages/home/authority-map';

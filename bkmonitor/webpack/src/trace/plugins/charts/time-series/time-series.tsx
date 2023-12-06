@@ -45,7 +45,6 @@ import {
   useCommonChartWatch,
   useTimeOffsetInject,
   useTimeRanceInject,
-  useTimezoneInject,
   useViewOptionsInject
 } from '../../hooks';
 import {

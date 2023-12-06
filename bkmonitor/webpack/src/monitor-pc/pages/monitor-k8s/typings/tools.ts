@@ -25,7 +25,7 @@
  */
 import { TranslateResult } from 'vue-i18n';
 
-import { SceneType } from '../components/common-page';
+import { type SceneType } from '../components/common-page';
 
 export interface ITabItem {
   id: string | number;

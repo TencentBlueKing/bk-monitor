@@ -25,7 +25,6 @@
  */
 
 import { defineComponent, PropType } from 'vue';
-import dayjs from 'dayjs';
 
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
