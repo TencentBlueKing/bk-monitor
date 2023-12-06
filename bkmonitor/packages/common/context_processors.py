@@ -55,16 +55,64 @@ def get_default_biz_id(request, biz_list, id_key):
     return biz_id
 
 
-def get_basic_context(request):
+def field_formatter(context):
+    # 字段大小写标准化
+    standard_context = {
+        key.upper(): context[key]
+        for key in context
+        if key
+        in [
+            "is_superuser",
+            "uin",
+        ]
+    }
+    context.update(standard_context)
+
+
+def json_formatter(context):
+    # JSON 返回预处理
+    context["PLATFORM"] = {key: getattr(context["PLATFORM"], key) for key in ["ce", "ee", "te"]}
+    context["LANGUAGES"] = dict(context["LANGUAGES"])
+
+    for key in ["gettext", "_"]:
+        context.pop(key, None)
+
+
+def get_core_context(request):
     return {
+        # healthz 自监控引用
+        "PLATFORM": Platform,
         "SITE_URL": settings.SITE_URL,
         # 静态资源
         "STATIC_URL": settings.STATIC_URL,
+        # 当前页面，主要为了 login_required 做跳转用
+        "APP_PATH": request.get_full_path(),
         "CSRF_COOKIE_NAME": settings.CSRF_COOKIE_NAME,
+        # 默认开启APM
+        "ENABLE_APM": "true",
+        "BK_JOB_URL": settings.JOB_URL,
+        "BK_CC_URL": settings.BK_CC_URL,
+        # 蓝鲸平台URL
+        "BK_URL": settings.BK_URL,
+        "BK_PAAS_HOST": settings.BK_PAAS_HOST,
+        # bkchat 用户管理接口
+        "BKCHAT_MANAGE_URL": settings.BKCHAT_MANAGE_URL,
+        "CE_URL": settings.CE_URL,
+        "BKLOGSEARCH_HOST": settings.BKLOGSEARCH_HOST,
+        "BK_NODEMAN_HOST": settings.BK_NODEMAN_HOST,
         "TAM_ID": settings.TAM_ID,
-        "gettext": _,  # 国际化
-        "_": _,  # 国际化
-        "PLATFORM": Platform,
+        # 用于切换中英文用户管理 cookie
+        "BK_COMPONENT_API_URL": settings.BK_COMPONENT_API_URL_FRONTEND,
+        "BK_DOMAIN": os.getenv("BK_DOMAIN", ""),
+        # 登录跳转链接
+        "LOGIN_URL": settings.LOGIN_URL,
+        # 用于文档链接跳转
+        "BK_DOCS_SITE_URL": settings.BK_DOCS_SITE_URL,
+        # 国际化
+        "gettext": _,
+        "_": _,
+        "LANGUAGE_CODE": request.LANGUAGE_CODE,
+        "LANGUAGES": settings.LANGUAGES,
         # 页面title
         "PAGE_TITLE": (
             settings.HEADER_FOOTER_CONFIG["header"][0]["en"]
@@ -74,10 +122,96 @@ def get_basic_context(request):
     }
 
 
-def _get_full_monitor_context(request):
-    context = _get_monitor_context(request)
-    context.update(get_basic_context(request))
+def get_basic_context(request, space_list, bk_biz_id):
+
+    context = get_core_context(request)
+    context.update(
+        {
+            "uin": request.user.username,
+            "is_superuser": str(request.user.is_superuser).lower(),
+            "SPACE_LIST": space_list,
+            "BK_BIZ_ID": bk_biz_id,
+            # 服务拨测设置最大 duration
+            "MAX_AVAILABLE_DURATION_LIMIT": settings.MAX_AVAILABLE_DURATION_LIMIT,
+            # 所有图表渲染必须
+            "GRAPH_WATERMARK": settings.GRAPH_WATERMARK,
+            # 是否开启前端视图部分，按拓扑聚合的能力。（不包含对监控策略部分的功能）
+            "ENABLE_CMDB_LEVEL": settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL,
+            # 事件中心一键拉取功能展示
+            "ENABLE_CREATE_CHAT_GROUP": settings.ENABLE_CREATE_CHAT_GROUP,
+            # 用于全局设置蓝鲸监控机器人发送图片是否开启
+            "WXWORK_BOT_SEND_IMAGE": settings.WXWORK_BOT_SEND_IMAGE,
+            # 用于策略是否展示实时查询
+            "SHOW_REALTIME_STRATEGY": settings.SHOW_REALTIME_STRATEGY,
+            # APM 是否开启 EBPF 功能
+            "APM_EBPF_ENABLED": "true" if settings.APM_EBPF_ENABLED else "false",
+        }
+    )
+
+    # 用于主机详情渲染
+    context["HOST_DATA_FIELDS"] = (
+        ["bk_host_id"] if is_ipv6_biz(context["BK_BIZ_ID"]) else ["bk_target_ip", "bk_target_cloud_id"]
+    )
+
+    # 智能配置页面渲染
+    context["ENABLE_AIOPS"] = "false"
+    try:
+        # 判断是否在白名单中
+        if settings.IS_ACCESS_BK_DATA and (
+            not settings.AIOPS_BIZ_WHITE_LIST
+            or {-1, safe_int(context["BK_BIZ_ID"])} & set(settings.AIOPS_BIZ_WHITE_LIST)
+        ):
+            context["ENABLE_AIOPS"] = "true"
+    except Exception as e:
+        logger.error(f"Get AIOPS_BIZ_WHITE_LIST Failed: {e}")
+
     return context
+
+
+def get_extra_context(request, space):
+    context = {
+        # 首页跳转到文档配置页面需要
+        "AGENT_SETUP_URL": settings.AGENT_SETUP_URL,
+        # 用于导入导出配置
+        "COLLECTING_CONFIG_FILE_MAXSIZE": settings.COLLECTING_CONFIG_FILE_MAXSIZE,
+        # 用于仪表盘迁移
+        "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
+        # 用于healz判断是否容器化部署
+        "IS_CONTAINER_MODE": settings.IS_CONTAINER_MODE,
+        # "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
+        # 用于新增空间是否展示其他
+        "MONITOR_MANAGERS": settings.MONITOR_MANAGERS,
+        # "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
+        "CLUSTER_SETUP_URL": f"{settings.BK_BCS_HOST.rstrip('/')}/bcs/",
+    }
+
+    # 格式化业务列表并排序
+    # 暂时不返回
+    # try:
+    #     context["BK_BIZ_LIST"] = [
+    #         {"id": biz.bk_biz_id, "text": biz.display_name, "is_demo": biz.bk_biz_id == int(settings.DEMO_BIZ_ID)}
+    #         for biz in resource.cc.get_app_by_user(request.user)
+    #     ]
+    # except:  # noqa
+    #     context["BK_BIZ_LIST"] = []
+    #
+    # # 有权限的空间列表
+    # try:
+    #     context["SPACE_LIST"] = resource.commons.list_spaces()
+    # except:  # noqa
+    #     pass
+    #
+    # default_biz_id = get_default_biz_id(request, context["SPACE_LIST"], "id")
+
+    # 用于新增容器空间地址
+    if space and space.space_code:
+        context["CLUSTER_SETUP_URL"] = f"{settings.BK_BCS_HOST.rstrip('/')}/bcs/{space.space_uid}/cluster"
+
+    return context
+
+
+def _get_full_monitor_context(request):
+    return _get_monitor_context(request)
 
 
 def _get_monitor_context(request):
@@ -91,125 +225,65 @@ def _get_monitor_context(request):
         # 基础信息
         "RUN_MODE": settings.RUN_MODE,
         "APP_CODE": settings.APP_CODE,
-        "BK_PAAS_HOST": settings.BK_PAAS_HOST,
-        "BK_CC_URL": settings.BK_CC_URL,
-        "BK_JOB_URL": settings.JOB_URL,
-        "BK_BCS_URL": settings.BK_BCS_HOST,
-        "BKLOGSEARCH_HOST": settings.BKLOGSEARCH_HOST,
-        "BK_NODEMAN_HOST": settings.BK_NODEMAN_HOST,
-        "GRAPH_WATERMARK": settings.GRAPH_WATERMARK,
-        "MAIL_REPORT_BIZ": int(settings.MAIL_REPORT_BIZ),
+        "SPACE_LIST": [],
+        # "MAIL_REPORT_BIZ": int(settings.MAIL_REPORT_BIZ),
         "STATIC_VERSION": settings.STATIC_VERSION,
-        # 登录跳转链接
-        "LOGIN_URL": settings.LOGIN_URL,
+        "BK_BCS_URL": settings.BK_BCS_HOST,
         # 当前页面，主要为了login_required做跳转用
         "APP_PATH": request.get_full_path(),
         "NOW": time_tools.localtime(time_tools.now()),
-        "NICK": request.session.get("nick", ""),  # 用户昵称
+        "NICK": request.session.get("nick", ""),
         "AVATAR": request.session.get("avatar", ""),
-        "MEDIA_URL": settings.MEDIA_URL,  # MEDIA_URL
-        "BK_URL": settings.BK_URL,  # 蓝鲸平台URL
-        "LANGUAGE_CODE": request.LANGUAGE_CODE,  # 国际化
-        "LANGUAGES": settings.LANGUAGES,  # 国际化
+        "MEDIA_URL": settings.MEDIA_URL,
         "REMOTE_STATIC_URL": settings.REMOTE_STATIC_URL,
         "WEIXIN_STATIC_URL": settings.WEIXIN_STATIC_URL,
         "WEIXIN_SITE_URL": settings.WEIXIN_SITE_URL,
         "RT_TABLE_PREFIX_VALUE": settings.RT_TABLE_PREFIX_VALUE,
-        "uin": request.user.username,
-        "is_superuser": str(request.user.is_superuser).lower(),
-        "DOC_HOST": settings.DOC_HOST,
-        "BK_DOCS_SITE_URL": settings.BK_DOCS_SITE_URL,
-        "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
+        # "DOC_HOST": settings.DOC_HOST,
+        # 首页跳转到文档配置页面需要
         "AGENT_SETUP_URL": settings.AGENT_SETUP_URL,
-        "UTC_OFFSET": time_tools.utcoffset_in_seconds() // 60,
-        "ENABLE_MESSAGE_QUEUE": "true" if settings.MESSAGE_QUEUE_DSN else "false",
-        "MESSAGE_QUEUE_DSN": settings.MESSAGE_QUEUE_DSN,
-        "CE_URL": settings.CE_URL,
-        # 拨测前端校验参数
-        "MAX_AVAILABLE_DURATION_LIMIT": settings.MAX_AVAILABLE_DURATION_LIMIT,
-        "ENABLE_GRAFANA": bool(settings.GRAFANA_URL),
+        # 用于仪表盘迁移
+        "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
+        # "UTC_OFFSET": time_tools.utcoffset_in_seconds() // 60,
+        # "ENABLE_MESSAGE_QUEUE": "true" if settings.MESSAGE_QUEUE_DSN else "false",
+        # "MESSAGE_QUEUE_DSN": settings.MESSAGE_QUEUE_DSN,
+        # "ENABLE_GRAFANA": bool(settings.GRAFANA_URL),
+        # 用于导入导出配置
         "COLLECTING_CONFIG_FILE_MAXSIZE": settings.COLLECTING_CONFIG_FILE_MAXSIZE,
-        "ENABLE_CREATE_CHAT_GROUP": settings.ENABLE_CREATE_CHAT_GROUP,
+        # 用于healz判断是否容器化部署
         "IS_CONTAINER_MODE": settings.IS_CONTAINER_MODE,
-        "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
-        "WXWORK_BOT_SEND_IMAGE": settings.WXWORK_BOT_SEND_IMAGE,
-        "BK_COMPONENT_API_URL": settings.BK_COMPONENT_API_URL_FRONTEND,
-        "BK_DOMAIN": os.getenv("BK_DOMAIN", ""),
-        "SHOW_REALTIME_STRATEGY": settings.SHOW_REALTIME_STRATEGY,
-        # bkchat 用户管理接口
-        "BKCHAT_MANAGE_URL": settings.BKCHAT_MANAGE_URL,
-        # APM是否开启EBPF功能
-        "APM_EBPF_ENABLED": "true" if settings.APM_EBPF_ENABLED else "false",
+        # 用于新增空间是否展示其他
+        "MONITOR_MANAGERS": settings.MONITOR_MANAGERS,
+        # "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
     }
-
-    # 字段大小写标准化
-    standard_context = {
-        key.upper(): context[key]
-        for key in context
-        if key
-        in [
-            "APP_CODE",
-            "DOC_HOST",
-            "BK_DOCS_SITE_URL",
-            "MIGRATE_GUIDE_URL",
-            "BK_JOB_URL",
-            "UTC_OFFSET",
-            "is_superuser",
-            "STATIC_VERSION",
-            "AGENT_SETUP_URL",
-            "RT_TABLE_PREFIX_VALUE",
-            "NICK",
-            "uin",
-            "AVATAR",
-            "APP_PATH",
-            "BK_URL",
-        ]
-    }
-
-    context.update(standard_context)
 
     # 格式化业务列表并排序
-    try:
-        context["BK_BIZ_LIST"] = [
-            {"id": biz.bk_biz_id, "text": biz.display_name, "is_demo": biz.bk_biz_id == int(settings.DEMO_BIZ_ID)}
-            for biz in resource.cc.get_app_by_user(request.user)
-        ]
-    except:  # noqa
-        context["BK_BIZ_LIST"] = []
+    # 暂时不返回
+    # try:
+    #     context["BK_BIZ_LIST"] = [
+    #         {"id": biz.bk_biz_id, "text": biz.display_name, "is_demo": biz.bk_biz_id == int(settings.DEMO_BIZ_ID)}
+    #         for biz in resource.cc.get_app_by_user(request.user)
+    #     ]
+    # except:  # noqa
+    #     context["BK_BIZ_LIST"] = []
 
-    context["BK_BIZ_ID"] = get_default_biz_id(request, context["BK_BIZ_LIST"], "id")
-
-    # 是否开启前端视图部分，按拓扑聚合的能力。（不包含对监控策略部分的功能）
-    context["ENABLE_CMDB_LEVEL"] = settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL
-    # 当前业务是否在AIOPS白名单中
-    context["ENABLE_AIOPS"] = "false"
-    try:
-        if settings.IS_ACCESS_BK_DATA and (
-            not settings.AIOPS_BIZ_WHITE_LIST
-            or {-1, safe_int(context["BK_BIZ_ID"])} & set(settings.AIOPS_BIZ_WHITE_LIST)
-        ):
-            context["ENABLE_AIOPS"] = "true"
-    except Exception as e:
-        logger.error(f"Get AIOPS_BIZ_WHITE_LIST Failed: {e}")
-
-    # 默认开启APM
-    context["ENABLE_APM"] = "true"
     # 有权限的空间列表
-    context["SPACE_LIST"] = []
     try:
         context["SPACE_LIST"] = resource.commons.list_spaces()
     except:  # noqa
         pass
 
-    context["SPACE_INTRODUCE"] = {}
-    context["MONITOR_MANAGERS"] = settings.MONITOR_MANAGERS
+    default_biz_id = get_default_biz_id(request, context["SPACE_LIST"], "id")
+
+    context.update(get_basic_context(request, context["SPACE_LIST"], default_biz_id))
+
+    # 用于新增容器空间地址
     context["CLUSTER_SETUP_URL"] = f"{settings.BK_BCS_HOST.rstrip('/')}/bcs/"
     for space in context["SPACE_LIST"]:
         if context["BK_BIZ_ID"] == space["bk_biz_id"] and space["space_code"]:
             context["CLUSTER_SETUP_URL"] = f"{settings.BK_BCS_HOST.rstrip('/')}/bcs/{space['space_id']}/cluster"
-    context["HOST_DATA_FIELDS"] = (
-        ["bk_host_id"] if is_ipv6_biz(context["BK_BIZ_ID"]) else ["bk_target_ip", "bk_target_cloud_id"]
-    )
+
+    field_formatter(context)
     return context
 
 
@@ -230,14 +304,14 @@ def get_full_context(request):
 
 
 def get_context(request):
-    return get_full_context(request)
+    # return get_full_context(request)
     try:
         if "old" in request.GET:
             get_full_context(request)
         else:
             # 背景：原来的 context 集成了全量业务列表拉取、用户有权限业务拉取，导致首屏打开耗时较长
             # 改造：前端仅拉取基础 context，待页面初始化后再拉取剩余 context
-            return get_basic_context(request)
+            return get_core_context(request)
 
     except Exception as e:
         logger.exception(f"get_context error: {e}")

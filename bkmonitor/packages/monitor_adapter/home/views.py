@@ -30,7 +30,12 @@ from bkm_space.api import SpaceApi
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
-from common.context_processors import get_basic_context, get_default_biz_id
+from common.context_processors import (
+    field_formatter,
+    get_basic_context,
+    get_default_biz_id,
+    json_formatter,
+)
 from common.log import logger
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
@@ -81,22 +86,16 @@ def basic_context(request):
             cc_biz_id = safe_int(cc_biz_id.strip("/"), dft=None)
 
     request.biz_id = cc_biz_id
-    context = get_basic_context(request)
+    context = get_basic_context(request, space_list, cc_biz_id)
     context.update(
         {
-            "UIN": request.user.username,
-            "IS_SUPERUSER": str(request.user.is_superuser).lower(),
-            "BK_PAAS_HOST": settings.BK_PAAS_HOST,
-            "LANGUAGE_CODE": request.LANGUAGE_CODE,  # 国际化
-            "LANGUAGES": settings.LANGUAGES,  # 国际化,
             "SPACE_LIST": space_list,
         }
     )
 
-    context["BK_BIZ_ID"] = cc_biz_id
-    context["PLATFORM"] = {key: getattr(context["PLATFORM"], key) for key in ["ce", "ee", "te"]}
-    context["LANGUAGES"] = dict(context["LANGUAGES"])
-    context = {key: context[key] for key in context if key not in ["gettext", "_"]}
+    field_formatter(context)
+    json_formatter(context)
+
     response = JsonResponse(context, status=200)
     response.set_cookie("bk_biz_id", str(cc_biz_id))
 
