@@ -844,7 +844,7 @@ class Favorite(OperateRecordModel):
         }
         for fi in qs.all():
             fi_dict = model_to_dict(fi)
-            index_set_type = fi_dict.index_set_type or IndexSetType.SINGLE.value
+            index_set_type = fi.index_set_type or IndexSetType.SINGLE.value
             if index_set_type == IndexSetType.SINGLE.value:
                 if active_index_set_id_dict.get(fi.index_set_id):
                     fi_dict["is_active"] = active_index_set_id_dict[fi.index_set_id]["is_active"]
