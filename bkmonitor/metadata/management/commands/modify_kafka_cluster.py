@@ -8,13 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
 
 from django.core.management.base import BaseCommand
 
 from metadata.service.data_source import modify_kafka_cluster_id
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -27,7 +24,7 @@ class Command(BaseCommand):
 
         # 变更操作
         modify_kafka_cluster_id(bk_data_id, kafka_topic, kafka_partition)
-        logger.info("变更kafka集群成功!")
+        self.stdout.write("变更kafka集群成功!")
 
     def add_arguments(self, parser):
         parser.add_argument("--bk_data_id", type=int, default=None, help="数据源ID")

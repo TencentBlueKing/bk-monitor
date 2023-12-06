@@ -9,19 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-import logging
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 from django.core.management.base import BaseCommand
 from django.db import models
-from django.db.models.functions import Concat
 from django.db.models import Q
+from django.db.models.functions import Concat
 
 from metadata.models import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import SPACE_UID_HYPHEN
 from metadata.models.space.utils import get_platform_data_id_list
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -63,7 +60,7 @@ class Command(BaseCommand):
             if SPACE_UID_HYPHEN not in suid:
                 error_uid_list.append(suid)
         if error_uid_list:
-            logger.warning("space_uid:%s format error, expect to contains `__`", ",".join(error_uid_list))
+            self.stderr.write(f"space_uid:{','.join(error_uid_list)} format error, expect to contains `__`")
 
     def _query_by_space_uid_list(self, space_uid_list) -> List:
         # 使用 annotate 过滤数据
