@@ -47,7 +47,7 @@ COPY ./ /app/code
 
 RUN if [ "${build_frontend}" = true ] ; then \
   rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace /app/code/static/external \
-  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/ \
+  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/; \
 fi
 
 RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs

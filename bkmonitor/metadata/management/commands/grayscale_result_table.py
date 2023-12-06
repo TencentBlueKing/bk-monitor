@@ -8,15 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
+
 from urllib import parse
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db.transaction import atomic
 
 from metadata import config, models
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
