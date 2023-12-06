@@ -1496,7 +1496,6 @@ class DataFlowHandler(BaseAiopsHandler):
         mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
         for field in dst_transform_fields:
             if field not in mapping_all_fields_dict:
-                # 如果是 log
                 if field == clustering_fields:
                     if field == DEFAULT_CLUSTERING_FIELD:
                         format_transform_fields.append(f"`{field}`")
@@ -1504,7 +1503,10 @@ class DataFlowHandler(BaseAiopsHandler):
                         format_transform_fields.append("`{}` as `{}`".format(DEFAULT_CLUSTERING_FIELD, field))
                 else:
                     if field == DEFAULT_CLUSTERING_FIELD:
-                        format_transform_fields.append("`{}` as `{}`".format(field, clustering_fields))
+                        if clustering_config.collector_config.id:
+                            format_transform_fields.append(f"`{field}`")
+                        else:
+                            format_transform_fields.append("`{}` as `{}`".format(field, clustering_fields))
                     elif field not in all_fields_dict:
                         format_transform_fields.append(f"`{field}`")
                     else:
