@@ -411,7 +411,7 @@ export default {
         }
 
         &.is-wrap .cell {
-          padding: 10px 15px 8px;
+          padding: 12px 14px 8px;
         }
 
         .show-whole-btn {
