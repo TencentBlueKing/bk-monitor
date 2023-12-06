@@ -515,6 +515,16 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         id: 'result_table_id',
         list: []
       },
+      level: {
+        name: this.$t('告警级别'),
+        value: '',
+        id: 'level',
+        list: [
+          { id: 1, name: this.$t('致命') },
+          { id: 2, name: this.$t('预警') },
+          { id: 3, name: this.$t('提醒') }
+        ]
+      },
       algorithmType: {
         name: this.$t('算法类型'),
         value: '',
