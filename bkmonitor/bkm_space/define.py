@@ -3,6 +3,8 @@ from dataclasses import asdict, dataclass, fields
 from enum import Enum
 from typing import Union
 
+from django.conf import settings
+
 
 class SpaceTypeEnum(Enum):
     """
@@ -48,6 +50,7 @@ class Space:
     space_uid: str
     type_name: Union[None, str]
     bk_biz_id: int
+    is_demo: bool = False
 
     @classmethod
     def from_dict(cls, data):
@@ -57,6 +60,10 @@ class Space:
             filtered_data["bk_biz_id"] = int(filtered_data["space_id"])
         else:
             filtered_data["bk_biz_id"] = -int(filtered_data["id"])
+        if filtered_data["bk_biz_id"] == int(settings.DEMO_BIZ_ID):
+            filtered_data["is_demo"] = True
+        else:
+            filtered_data["is_demo"] = False
         instance = cls(**filtered_data)
         setattr(instance, "extend", data)
         return instance
