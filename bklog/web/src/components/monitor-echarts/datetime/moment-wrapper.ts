@@ -22,7 +22,7 @@
 
 /* eslint-disable max-len */
 /* eslint-disable id-blacklist, no-restricted-imports, @typescript-eslint/ban-types */
-import dayjs from 'dayjs'
+import dayjs from 'dayjs';
 export interface DateTimeBuiltinFormat {
   __momentBuiltinFormatBrand: any;
 }
@@ -96,16 +96,16 @@ export interface DateTime extends Object {
 }
 
 export const setLocale = (language: string) => {
-  dayjs.locale()
+  dayjs.locale();
 }
 
-export const toUtc = (input?, formatInput?): DateTime => dayjs.utc(input, formatInput) as unknown as DateTime
+export const toUtc = (input?, formatInput?): DateTime => dayjs.utc(input, formatInput) as unknown as DateTime;
 
-export const toDuration = (input?, unit?): DateTimeDuration => dayjs.duration(input, unit) as DateTimeDuration
+export const toDuration = (input?, unit?): DateTimeDuration => dayjs.duration(input, unit) as DateTimeDuration;
 
-export const dateTime = (input?, formatInput?): DateTime => dayjs(input, formatInput) as unknown as DateTime
+export const dateTime = (input?, formatInput?): DateTime => dayjs(input, formatInput) as unknown as DateTime;
 
-export const dateTimeAsMoment = (input?: DateTimeInput) => dateTime(input)
+export const dateTimeAsMoment = (input?: DateTimeInput) => dateTime(input);
 
 export const dateTimeForTimeZone = (
   timezone?,
@@ -113,8 +113,8 @@ export const dateTimeForTimeZone = (
   formatInput?: FormatInput
 ): DateTime => {
   if (timezone === 'utc') {
-    return toUtc(input, formatInput)
+    return toUtc(input, formatInput);
   }
 
-  return dateTime(input, formatInput)
+  return dateTime(input, formatInput);
 }
