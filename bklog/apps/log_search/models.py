@@ -829,10 +829,12 @@ class Favorite(OperateRecordModel):
 
         index_set_id_list = list()
         for obj in qs.all():
-            if obj.index_set_type == IndexSetType.SINGLE.value:
+            obj_index_set_type = obj.index_set_type or IndexSetType.SINGLE.value
+            if obj_index_set_type == IndexSetType.SINGLE.value:
                 index_set_id_list.append(obj.index_set_id)
             else:
-                index_set_id_list.extend(obj.index_set_ids)
+                index_set_ids = obj.index_set_ids or []
+                index_set_id_list.extend(index_set_ids)
         index_set_id_list = list(set(index_set_id_list))
         active_index_set_id_dict = {
             i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
@@ -842,7 +844,8 @@ class Favorite(OperateRecordModel):
         }
         for fi in qs.all():
             fi_dict = model_to_dict(fi)
-            if fi_dict["index_set_type"] == IndexSetType.SINGLE.value:
+            index_set_type = fi_dict.index_set_type or IndexSetType.SINGLE.value
+            if index_set_type == IndexSetType.SINGLE.value:
                 if active_index_set_id_dict.get(fi.index_set_id):
                     fi_dict["is_active"] = active_index_set_id_dict[fi.index_set_id]["is_active"]
                     fi_dict["index_set_name"] = active_index_set_id_dict[fi.index_set_id]["index_set_name"]
