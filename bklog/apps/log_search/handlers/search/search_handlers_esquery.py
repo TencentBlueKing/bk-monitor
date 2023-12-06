@@ -109,7 +109,7 @@ from apps.utils.local import (
     get_request_username,
 )
 from apps.utils.log import logger
-from apps.utils.lucene import generate_query_string
+from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
 from apps.utils.thread import MultiExecuteFunc
 from bkm_ipchooser.constants import CommonEnum
 
@@ -212,7 +212,8 @@ class SearchHandler(object):
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
-        self.origin_query_string: str = search_dict.get("origin_keyword", "")
+        self.origin_query_string: str = search_dict.get("keyword")
+        self._enhance()
 
         # 透传start
         self.start: int = search_dict.get("begin", 0)
@@ -295,6 +296,13 @@ class SearchHandler(object):
         self.desensitize_handler = DesensitizeHandler(self.field_configs)
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
+
+    def _enhance(self):
+        """
+        语法增强
+        """
+        enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
+        self.query_string = enhance_lucene_adapter.enhance()
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)

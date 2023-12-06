@@ -309,9 +309,6 @@ class SearchAttrSerializer(serializers.Serializer):
                 field_name, order = sort_info
                 if order not in ["desc", "asc"]:
                     raise ValidationError(_("字段名【{}】的排序规则指定错误, 支持('desc', 降序）,('asc', 升序）").format(field_name))
-        enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=attrs["keyword"])
-        attrs["keyword"] = enhance_lucene_adapter.enhance()
-        attrs["origin_keyword"] = enhance_lucene_adapter.origin_query_string
         return attrs
 
 
