@@ -980,7 +980,7 @@ class SearchHandler(object):
 
         # 过滤出当前空间下的记录
         if index_set_type == IndexSetType.SINGLE.value:
-            index_set_id_all = history_objs.values("index_set_id")
+            index_set_id_all = list(set(history_objs.values_list("index_set_id", flat=True)))
         else:
             index_set_id_all = list()
             for obj in history_objs:
