@@ -42,18 +42,18 @@ export default class EchartsSeries {
     const [maxX] = seriesData[seriesData.length - 1]
     minX && maxX && (formatterFunc = (v: any) => {
       // 用绝对值兼容倒叙的情况
-      const duration = Math.abs(dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds())
+      const duration = Math.abs(dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds());
       if (duration < 60 * 60 * 24) {
         return dayjs.tz(v).format('HH:mm:ss')
-          .replace(/:00$/, '')
+          .replace(/:00$/, '');
       } if (duration < 60 * 60 * 24 * 2) {
-        return dayjs.tz(v).format('HH:mm')
+        return dayjs.tz(v).format('HH:mm');
       } if (duration < 60 * 60 * 24 * 8) {
-        return dayjs.tz(v).format('MM-DD HH:mm')
+        return dayjs.tz(v).format('MM-DD HH:mm');
       } if (duration <= 60 * 60 * 24 * 30 * 12) {
-        return dayjs.tz(v).format('MM-DD')
+        return dayjs.tz(v).format('MM-DD');
       }
-      return dayjs.tz(v).format('YYYY-MM-DD')
+      return dayjs.tz(v).format('YYYY-MM-DD');
     })
     return formatterFunc
   }
