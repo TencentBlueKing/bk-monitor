@@ -59,7 +59,6 @@ async function fetchTranslate(tempUrl, text) {
 
         writeStream.on('error', (e) => {
           console.info(e)
-          debugger
           resolve({})
         })
       }

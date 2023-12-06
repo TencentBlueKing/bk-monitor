@@ -25,7 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
 import { random } from '../../../../monitor-common/utils/utils';
@@ -61,24 +61,25 @@ class NumberChart extends CommonSimpleChart {
     this.handleLoadingChange(true);
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
-      start_time: start_time ? moment(start_time).unix() : startTime,
-      end_time: end_time ? moment(end_time).unix() : endTime
+      start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+      end_time: end_time ? dayjs.tz(end_time).unix() : endTime
     };
     const variablesService = new VariablesService({
       ...this.viewOptions
     });
-    const promiseList = this.panel.targets.map(item =>
-      // eslint-disable-next-line max-len
-      (this as any).$api[item.apiModule]
-        ?.[item.apiFunc]?.({ ...params, ...variablesService.transformVariables(item.data) }, { needMessage: false })
-        .then(data => {
-          this.clearErrorMsg();
-          return data;
-        })
-        .catch(error => {
-          this.handleErrorMsgChange(error.msg || error.message);
-          return null;
-        })
+    const promiseList = this.panel.targets.map(
+      item =>
+        // eslint-disable-next-line max-len
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc]?.({ ...params, ...variablesService.transformVariables(item.data) }, { needMessage: false })
+          .then(data => {
+            this.clearErrorMsg();
+            return data;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+            return null;
+          })
     );
     const data = await Promise.all(promiseList);
     data?.filter(Boolean)?.length && this.updateChartData(data);

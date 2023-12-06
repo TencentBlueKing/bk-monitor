@@ -23,62 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import moment, { DurationInputArg2 } from 'moment';
+import { DateRange } from '@blueking/date-picker/vue2';
+import dayjs from 'dayjs';
 
 import { TimeRangeType } from './time-range';
-
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
-
-type TimeType = 'from' | 'to';
 
 type TimestampsType = [number, number];
 
 /** 处理时间范围的对象 */
 export class TimeRange {
   /** 实例化的时间范围对象 */
-  value: moment.Moment[] = [];
-
+  value: dayjs.Dayjs[] = [];
+  dateRange: DateRange = null;
   constructor(times: TimeRangeType) {
     this.init(times);
   }
 
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
-    this.value = times.map((item, index) => this.transformTimeString(item, !index ? 'from' : 'to'));
-  }
-
-  /** 时间转换 */
-  transformTimeString(timeStr: string, type: TimeType): moment.Moment {
-    let momentRes: moment.Moment = null;
-    /** 相对时间范围 */
-    const match = timeStr.match(CUSTOM_TIME_RANGE_REG);
-    if (!!match) {
-      momentRes = moment();
-      const [target, , method, num, dateType, boundary] = match;
-      /** 过去时间 */
-      if (method === '-' && num && dateType) {
-        momentRes = momentRes.subtract(+num, dateType as DurationInputArg2);
-      }
-      /** 未来时间 */
-      if (method === '+' && num && dateType) {
-        momentRes = momentRes.add(+num, dateType as DurationInputArg2);
-      }
-      /** 获取完整时间段 */
-      if (!!boundary) {
-        type === 'from' && momentRes.startOf(boundary.replace('/', '') as moment.unitOfTime.StartOf);
-        type === 'to' && momentRes.endOf(boundary.replace('/', '') as moment.unitOfTime.StartOf);
-      }
-      /** 相对时间格式错误 */
-      if (target !== timeStr) {
-        momentRes = moment(null);
-      }
-    } else {
-      /** 绝对时间范围 */
-      const time = intTimestampStr(timeStr);
-      momentRes = moment(time);
-    }
-    return momentRes.isValid() ? momentRes : null;
+    this.dateRange = new DateRange(times, 'YYYY-MM-DD HH:mm:ss', window.timezone);
+    this.value = [this.dateRange.startDate, this.dateRange.endDate];
   }
 
   /** 格式化时间范围 */
@@ -114,9 +80,9 @@ export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType
 export function timestampTransformStr(value: number[]): TimeRangeType {
   return value.map(v => {
     if (String(v).length > 10) {
-      return moment(Number(v)).format('YYYY-MM-DD HH:mm:ss');
+      return dayjs(Number(v)).format('YYYY-MM-DD HH:mm:ss');
     }
-    return moment(Number(v) * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs(Number(v) * 1000).format('YYYY-MM-DD HH:mm:ss');
   }) as TimeRangeType;
 }
 
@@ -189,13 +155,5 @@ export const DEFAULT_TIME_RANGE: TimeRangeType = ['now-1h', 'now'];
 
 /*  */
 export const getTimeDisplay = timeRange => {
-  const shortcutsMap = shortcuts.reduce((map, cur) => {
-    map.set(cur.value.join(' -- '), cur.text);
-    return map;
-  }, new Map());
-  let timeDisplay = timeRange.join(' -- ');
-  if (shortcutsMap.get(timeDisplay)) {
-    timeDisplay = shortcutsMap.get(timeDisplay);
-  }
-  return timeDisplay;
+  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
 };

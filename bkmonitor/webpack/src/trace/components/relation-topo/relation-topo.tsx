@@ -39,7 +39,7 @@ import {
 } from 'vue';
 import G6, { Graph, IEdge, INode } from '@antv/g6';
 import { Alert, Popover } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { addListener, removeListener } from 'resize-detector';
 
 import { traceDiagram } from '../../../monitor-api/modules/apm_trace';
@@ -1072,7 +1072,7 @@ export default defineComponent({
     const downloadAsImage = () => {
       if (!graph) return;
       const { trace_id: traceID } = traceData.value;
-      const name = `${traceID}_${moment().format('YYYY-MM-DD HH:mm:ss')}`;
+      const name = `${traceID}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
       graph.downloadFullImage(name, 'image/png', {
         backgroundColor: '#fff',
         padding: 30

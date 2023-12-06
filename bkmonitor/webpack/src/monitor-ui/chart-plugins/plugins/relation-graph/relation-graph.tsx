@@ -27,7 +27,7 @@ import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import G6 from '@antv/g6';
 import { Slider } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
 import { Debounce, random } from '../../../../monitor-common/utils/utils';
@@ -296,8 +296,8 @@ export class RelationGraph extends CommonSimpleChart {
       this.unregisterOberver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       const variablesService = new VariablesService(this.viewOptions);
       let promiseList = [];
@@ -711,8 +711,8 @@ export class RelationGraph extends CommonSimpleChart {
       const languageImageShape = group.find(e => e.get('name') === 'language-image-shape');
       const startCircle = group.find(e => e.get('name') === 'start-circle');
       const start = group.find(e => e.get('name') === 'start');
-      [nodeShape, labelShape, iconShape, languageCircle, languageImageShape, startCircle, start].forEach(shape =>
-        shape?.attr({ opacity: value ? 0.1 : 1 })
+      [nodeShape, labelShape, iconShape, languageCircle, languageImageShape, startCircle, start].forEach(
+        shape => shape?.attr({ opacity: value ? 0.1 : 1 })
       );
     }
   }
