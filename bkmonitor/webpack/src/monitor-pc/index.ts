@@ -80,8 +80,8 @@ if (hasRouteHash) {
   } else {
     const spaceUid = getUrlParam('space_uid');
     const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
-    Api.commons
-      .getContext({
+    Api.model
+      .enhancedContext({
         space_uid: spaceUid || undefined,
         bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
         context_type: 'basic'
@@ -130,8 +130,8 @@ if (hasRouteHash) {
         Vue.prototype.$http = Axios;
         Vue.prototype.$ELEMENT = { size: '', zIndex: 3000 };
         Vue.prototype.$authorityStore = Authority;
-        Api.commons
-          .getContext({
+        Api.model
+          .enhancedContext({
             space_uid: spaceUid || undefined,
             bk_biz_id: bizId
           })
