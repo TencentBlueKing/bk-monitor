@@ -12,6 +12,16 @@ import logging
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
+from rest_framework import permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.utils.common_utils import host_key, safe_int
+from core.drf_resource import api, resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_api.filtersets import get_filterset
 from monitor_web.models.uptime_check import (
     UptimeCheckGroup,
@@ -25,17 +35,7 @@ from monitor_web.uptime_check.serializers import (
     UptimeCheckNodeSerializer,
     UptimeCheckTaskSerializer,
 )
-from rest_framework import permissions, viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
 from utils.business import get_business_id_list
-
-from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.utils.common_utils import host_key, safe_int
-from core.drf_resource import api, resource
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 logger = logging.getLogger(__name__)
 
@@ -353,6 +353,27 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         重写list，传入get_groups时整合拨测任务组卡片页数据，避免数据库重复查询
         """
         queryset = self.filter_queryset(self.get_queryset())
+
+        # 如果传入plain参数，则返回简单数据
+        if request.query_params.get("plain", False):
+            return Response(
+                [
+                    {
+                        "id": task.id,
+                        "name": task.name,
+                        "bk_biz_id": task.bk_biz_id,
+                        "status": task.status,
+                        "config": task.config,
+                        "protocol": task.protocol,
+                        "check_interval": task.check_interval,
+                        "location": task.location,
+                    }
+                    for task in queryset.only(
+                        "id", "name", "bk_biz_id", "status", "config", "protocol", "check_interval", "location"
+                    )
+                ]
+            )
+
         bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
         if bk_biz_id:
             queryset = queryset.filter(bk_biz_id=bk_biz_id)

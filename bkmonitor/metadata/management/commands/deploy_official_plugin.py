@@ -9,17 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import logging
-
 from django.conf import settings
 from django.core.management import BaseCommand
 
 from bkmonitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import split_list
 from core.drf_resource import api
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -83,8 +78,7 @@ class Command(BaseCommand):
         node_man_version = options.get("node_man_version")
 
         message = "Start to deply plugin({}@{}) to target_hosts({})".format(plugin_name, plugin_version, target_hosts)
-        print(message)
-        logger.info(message)
+        self.stdout.write(message)
 
         if node_man_version == "2.0":
             self.deploy_2_0(bk_biz_id, plugin_name, plugin_version, target_hosts)
@@ -100,7 +94,7 @@ class Command(BaseCommand):
             hosts = api.cmdb.get_host_by_ip(ips=ips, bk_biz_id=bk_biz_id)
             bk_host_ids = [h.bk_host_id for h in hosts]
         except Exception:  # noqa
-            logger.exception("Get host info from CMDB error")
+            self.stderr.write("Get host info from CMDB error")
         else:
             params = dict(
                 plugin_params={"name": plugin_name, "version": plugin_version},
@@ -110,8 +104,7 @@ class Command(BaseCommand):
             try:
                 result = api.node_man.plugin_operate(**params)
                 message = "update plugin success with result({}), Please see detail in bk_nodeman SaaS".format(result)
-                print(message)
-                logger.info(message)
+                self.stdout.write(message)
             except Exception as e:  # noqa
                 raise Exception("update plugin error:{}, params:{}".format(e, params))
 
@@ -133,7 +126,7 @@ class Command(BaseCommand):
                     package_info = p
             control_info = api.node_man.get_control_info(process_name=plugin_name, plugin_package_id=package_info["id"])
         except Exception as e:  # noqa
-            logger.exception("deploy plugin({}) error, Can not get plugin info from bk_nodeman".format(plugin_name))
+            self.stderr.write("deploy plugin({}) error, Can not get plugin info from bk_nodeman".format(plugin_name))
             return
 
         self.deploy_with_nodeman_1_3(bk_biz_id, plugin_info, package_info, control_info, target_hosts)
@@ -157,8 +150,7 @@ class Command(BaseCommand):
         try:
             result = api.node_man.tasks(params)
             message = "update plugin success with result({}), Please see detail in bk_nodeman SaaS".format(result)
-            print(message)
-            logger.info(message)
+            self.stdout.write(message)
 
         except Exception as e:  # noqa
             raise Exception("update plugin error:{}, params:{}".format(e, params))

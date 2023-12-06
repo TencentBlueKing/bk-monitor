@@ -29,8 +29,9 @@ import { Button } from 'bk-magic-vue';
 
 import { fetchBusinessInfo } from '../../../monitor-api/modules/commons';
 import authorityStore from '../../store/modules/authority';
-import { showAccessRequest } from '../access-request-dialog';
 
+// 20231205 代码还原，先保留原有部分
+// import { showAccessRequest } from '../access-request-dialog';
 import './no-permission.scss';
 
 interface AuthorityIDProps {
@@ -63,9 +64,9 @@ export default class NoPermission extends tsc<AuthorityIDProps> {
     };
   }
   handleApply() {
-    showAccessRequest(this.getAccess.url);
-    // 20230704 暂时不用
-    // window.open(this.getAccess.url);
+    // 20231205 代码还原，先保留原有部分
+    // showAccessRequest(this.getAccess.url);
+    window.open(this.getAccess.url);
   }
 
   render() {

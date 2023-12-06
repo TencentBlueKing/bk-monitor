@@ -707,10 +707,6 @@ class CreateActionProcessor:
             )
             return
 
-        message_queue_signal = ActionSignal.MESSAGE_QUEUE_OPERATE_TYPE_MAPPING.get(self.signal)
-        if not message_queue_signal:
-            return
-
         plugin_type = ActionPluginType.MESSAGE_QUEUE
         action_instance = ActionInstance.objects.create(
             alerts=self.alert_ids,
@@ -741,7 +737,6 @@ class CreateActionProcessor:
         :param action_relation：关联处理套餐关系
         :param action_config: 套餐配置快照
         :param action_plugin: 套餐类型快照
-        :param assignee: 处理人员
         :return:
         """
         action_relation = action_relation or {}
