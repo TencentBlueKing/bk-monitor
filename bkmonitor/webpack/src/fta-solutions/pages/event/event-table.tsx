@@ -43,6 +43,28 @@ import { eventPanelType, IEventItem, IPagination, SearchType } from './typings/e
 
 import './event-table.scss';
 
+function addHoverScrollClass(target: HTMLDivElement, className: string) {
+  const id = '------add-hover-scroll-class----';
+  if (document.querySelector(`#${id}`)) {
+    return;
+  }
+  const scrollHoverWrap = document.createElement('div');
+  scrollHoverWrap.id = id;
+  scrollHoverWrap.style.position = 'absolute';
+  scrollHoverWrap.style.height = '8px';
+  scrollHoverWrap.style.width = '100%';
+  scrollHoverWrap.style.bottom = '-4px';
+  scrollHoverWrap.onmouseenter = function () {
+    console.log('in');
+    target.classList.add(className);
+  };
+  scrollHoverWrap.onmouseleave = function () {
+    console.log('out');
+    target.classList.remove(className);
+  };
+  target.appendChild(scrollHoverWrap);
+}
+
 const alertStoreKey = '__ALERT_EVENT_COLUMN__';
 const actionStoreKey = '__ACTION_EVENT_COLUMN__';
 type TableSizeType = 'small' | 'medium' | 'large';
@@ -681,6 +703,17 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       });
     }
   }
+
+  @Watch('tableData', { immediate: true })
+  handleTableDataWatch(v) {
+    if (v.length) {
+      this.$nextTick(() => {
+        const el = document.querySelector('.bk-table-scrollable-x .bk-table-body-wrapper');
+        addHoverScrollClass(el as any, 'hover-scroll');
+      });
+    }
+  }
+
   beforeDestroy() {
     this.handlePopoverHide();
   }
