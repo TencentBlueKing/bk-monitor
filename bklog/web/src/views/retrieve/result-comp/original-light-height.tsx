@@ -50,7 +50,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** key高亮列表 */
   get blackMarkList() {
-    let markVal =      this.stripBracketsOriginStr
+    let markVal = this.stripBracketsOriginStr
       .toString()
       .match(/(<black-mark>).*?(<\/black-mark>)/g) || [];
     if (markVal.length) {
@@ -61,7 +61,7 @@ export default class QueryStatement extends tsc<IProps> {
   }
   /** 检索的高亮列表 */
   get markList() {
-    let markVal =      this.stripBracketsOriginStr.toString().match(/(<mark>).*?(<\/mark>)/g)
+    let markVal = this.stripBracketsOriginStr.toString().match(/(<mark>).*?(<\/mark>)/g)
       || [];
     if (markVal.length) {
       markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
