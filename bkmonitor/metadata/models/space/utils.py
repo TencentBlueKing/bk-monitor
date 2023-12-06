@@ -87,7 +87,7 @@ def list_spaces(
         space_resource = _filter_space_resource_by_page(spaces)
         for space in space_info["list"]:
             key = (space["space_type_id"], space["space_id"])
-            space_info["resources"] = space_resource.get(key, [])
+            space["resources"] = space_resource.get(key, [])
         return space_info
 
     # 追加空间关联的资源信息
