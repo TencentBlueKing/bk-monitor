@@ -16,6 +16,8 @@ from typing import List
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
+from MySQLdb import DatabaseError as MysqlDatabaseError
+from redis.exceptions import RedisError
 
 from alarm_backends.constants import DEFAULT_DEDUPE_FIELDS, NO_DATA_TAG_DIMENSION
 from alarm_backends.core.alert.event import Event
@@ -761,7 +763,7 @@ class Alert:
     def get(cls, alert_key: AlertKey) -> "Alert":
         try:
             alert = cls.get_from_snapshot(alert_key)
-        except Exception as error:  # noqa
+        except (MysqlDatabaseError, RedisError) as error:
             # 如果从 redis获取缓存抛异常的时候，需要记录一下日志，并且此时一定要从ES获取一次
             logger.exception("load alert(%s) from redis failed: %s", alert_key, str(error))
             alert = None
