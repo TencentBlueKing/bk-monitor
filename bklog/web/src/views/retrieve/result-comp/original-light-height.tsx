@@ -50,7 +50,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** key高亮列表 */
   get blackMarkList() {
-    let markVal = this.stripBracketsOriginStr
+    let markVal =      this.stripBracketsOriginStr
       .toString()
       .match(/(<black-mark>).*?(<\/black-mark>)/g) || [];
     if (markVal.length) {
@@ -61,7 +61,8 @@ export default class QueryStatement extends tsc<IProps> {
   }
   /** 检索的高亮列表 */
   get markList() {
-    let markVal = this.stripBracketsOriginStr.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
+    let markVal =      this.stripBracketsOriginStr.toString().match(/(<mark>).*?(<\/mark>)/g)
+      || [];
     if (markVal.length) {
       markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
       );
@@ -90,12 +91,10 @@ export default class QueryStatement extends tsc<IProps> {
   }
   /** 获取原始日志显示的值 */
   getOriginVal(item) {
-    // 空字符串+逗号 返回空字符串
-    if (item === '"",') return '"" ';
-    // 数字类型 去掉末尾的逗号
-    if (/[0-9],/.test(item)) return item.replace(/(.*?),/g, ($0, $1) => `${$1} `);
-    // 其余的切割双引号和逗号
-    return item.replace(/"(.*?)"(,|.*?)/g, ($0, $1) => `${$1} `);
+    // 空字符串+逗号代表原始值为空字符串 返回空字符串
+    if (item === '"",') return '""';
+    // 其余的切割起尾的双引号or逗号
+    return item.replace(/^"/, '').replace(/,"|",|,|"$/, '');
   }
 
   render() {
