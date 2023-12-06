@@ -301,8 +301,9 @@ class SearchHandler(object):
         """
         语法增强
         """
-        enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
-        self.query_string = enhance_lucene_adapter.enhance()
+        if self.query_string is not None:
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
+            self.query_string = enhance_lucene_adapter.enhance()
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)

@@ -684,7 +684,7 @@ class CaseInsensitiveLogicalEnhanceLucene(EnhanceLuceneBase):
 
     RE = r'\b(and|or|not)\b'
 
-    def __init__(self, query_string: str):
+    def __init__(self, query_string: str = ""):
         super().__init__(query_string)
 
     def match(self) -> bool:
