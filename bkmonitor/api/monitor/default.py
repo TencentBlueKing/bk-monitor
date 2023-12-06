@@ -8,10 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
 
 from django.conf import settings
+from rest_framework import serializers
 
 from core.drf_resource.contrib.nested_api import KernelAPIResource
 
@@ -45,6 +44,9 @@ class UptimeCheckTaskListResource(MonitorAPIGWResource):
 
     action = "/get_uptime_check_task_list/"
     method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        plain = serializers.BooleanField(label="是否返回简单数据", default=True)
 
 
 class UptimeCheckNodeListResource(MonitorAPIGWResource):
