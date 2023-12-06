@@ -34,7 +34,6 @@ from apps.log_esquery.exceptions import (
 from apps.log_search.constants import SCROLL
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.cache import cache_one_minute
-from apps.utils.lucene import EnhanceLuceneAdapter
 
 
 class EsQuerySearchAttrSerializer(serializers.Serializer):
@@ -101,11 +100,6 @@ class EsQuerySearchAttrSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        if attrs.get("query_string", ""):
-            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=attrs["query_string"])
-            attrs["query_string"] = enhance_lucene_adapter.enhance()
-            attrs["origin_query_string"] = enhance_lucene_adapter.origin_query_string
-
         # index_set_id覆盖信息
         index_set_id = attrs.get("index_set_id")
 

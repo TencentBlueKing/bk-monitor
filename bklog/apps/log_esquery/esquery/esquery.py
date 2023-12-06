@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import json
 from typing import Any, Dict, List, Tuple
 
+from dateutil import tz
+
 from apps.log_esquery.esquery.builder.query_filter_builder import QueryFilterBuilder
 from apps.log_esquery.esquery.builder.query_index_optimizer import QueryIndexOptimizer
 from apps.log_esquery.esquery.builder.query_sort_builder import QuerySortBuilder
@@ -41,15 +43,22 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.models import Scenario, Space, SpaceApi
 from apps.utils.log import logger
+from apps.utils.lucene import EnhanceLuceneAdapter
 from apps.utils.time_handler import generate_time_range
 from bkm_space.utils import bk_biz_id_to_space_uid
-from dateutil import tz
 
 
 class EsQuery(object):
     def __init__(self, search_dict: type_search_dict):
         self.search_dict: Dict[str, Any] = search_dict
+        self._enhance()
         self.include_nested_fields: bool = search_dict.get("include_nested_fields", True)
+
+    def _enhance(self):
+        if self.search_dict.get("query_string", ""):
+            enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.search_dict["query_string"])
+            self.search_dict["query_string"] = enhance_lucene_adapter.enhance()
+            self.search_dict["origin_query_string"] = enhance_lucene_adapter.origin_query_string
 
     def _init_common_args(self):
         # 初始刷查询场景类型 bkdata log 或者 es, 以及连接信息ID
