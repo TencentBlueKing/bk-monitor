@@ -25,8 +25,11 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { unmount } from '@blueking/bk-weweb';
 
 import './fta.scss';
+
+Component.registerHooks(['beforeRouteLeave']);
 
 @Component
 export default class FTA extends tsc<{}> {
@@ -46,6 +49,10 @@ export default class FTA extends tsc<{}> {
       host: this.ftaHost,
       baseroute: '/fta/'
     });
+  }
+  beforeRouteLeave(to, from, next) {
+    unmount('fta');
+    next();
   }
   mounted() {
     setTimeout(() => {

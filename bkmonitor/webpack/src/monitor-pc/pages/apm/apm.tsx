@@ -25,13 +25,14 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
+import { activated, deactivated, loadApp, unmount } from '@blueking/bk-weweb';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 
 import './apm.scss';
 
+Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class ApmPage extends tsc<{}> {
   loading = false;
@@ -82,6 +83,10 @@ export default class ApmPage extends tsc<{}> {
     });
     activated(this.appkey, this.$refs.apmPageWrap as HTMLElement);
     window.requestIdleCallback(() => (this.loading = false));
+  }
+  beforeRouteLeave(to, from, next) {
+    unmount(this.appkey);
+    next();
   }
   async activated() {
     if (this.showGuidePage || this.loading) return;
