@@ -53,6 +53,7 @@ from apps.log_search.constants import (
     MAX_RESULT_WINDOW,
     MAX_SEARCH_SIZE,
     SCROLL,
+    SEARCH_OPTION_HISTORY_NUM,
     TIME_FIELD_MULTIPLE_MAPPING,
     FieldDataTypeEnum,
     IndexSetType,
@@ -997,7 +998,7 @@ class SearchHandler(object):
 
         for obj in history_objs:
             # 最多只返回10条记录
-            if len(ret) >= 10:
+            if len(ret) >= SEARCH_OPTION_HISTORY_NUM:
                 break
 
             info = model_to_dict(obj)
