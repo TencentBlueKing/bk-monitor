@@ -307,6 +307,14 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
     union_configs = serializers.ListField(
         label=_("联合检索参数"), required=True, allow_empty=False, child=UnionConfigSerializer()
     )
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=False, default=[])
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        attrs["index_set_ids"] = sorted([config["index_set_id"] for config in attrs.get("union_configs", [])])
+
+        return attrs
 
 
 class UnionSearchFieldsSerializer(serializers.Serializer):
@@ -315,6 +323,12 @@ class UnionSearchFieldsSerializer(serializers.Serializer):
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
     )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["index_set_ids"] = sorted(attrs.get("index_set_ids", []))
+
+        return attrs
 
 
 class UserSearchHistorySerializer(serializers.Serializer):
