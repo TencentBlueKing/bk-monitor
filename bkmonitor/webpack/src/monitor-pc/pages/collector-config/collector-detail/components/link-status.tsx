@@ -200,7 +200,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             >
               <TableColumn
                 type='index'
-                label={this.$t('序列')}
+                label={this.$t('序号')}
                 width='90'
               />
               <TableColumn

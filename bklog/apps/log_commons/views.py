@@ -305,7 +305,7 @@ class FrontendEventViewSet(APIViewSet):
 
         url = f"{host}/v2/push/"
 
-        params["dimensions"]["app_code"] = settings.APP_CODE
+        params["dimensions"]["app_code"] = "bklog"
         params["target"] = settings.ENVIRONMENT_CODE
         report_data = {
             "data_id": int(settings.FRONTEND_REPORT_DATA_ID),

@@ -122,7 +122,7 @@ class ESBAuthenticationMiddleware(LoginRequiredMiddleware):
         if request.token.is_valid:
             request.user = auth.authenticate(username="admin")
             return None
-        return super(ESBAuthenticationMiddleware, self).process_view(request, *args, **kwargs)
+        return super(ESBAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
 
 
 class JWTAuthenticationMiddleware(LoginRequiredMiddleware):
