@@ -118,7 +118,7 @@ class GetProjectClustersResource(BcsClusterManagerBaseResource):
         ]
 
 
-class GetProjectK8sClustersResource(BcsClusterManagerBaseResource):
+class GetProjectK8sNonSharedClustersResource(BcsClusterManagerBaseResource):
     """获取项目下的非共享的K8S集群信息, 返回必要数据"""
 
     action = "cluster"
@@ -128,7 +128,7 @@ class GetProjectK8sClustersResource(BcsClusterManagerBaseResource):
         project_id = serializers.CharField(required=False, label="项目 ID", default="")
 
     def perform_request(self, validated_request_data):
-        clusters = super(GetProjectK8sClustersResource, self).perform_request(
+        clusters = super(GetProjectK8sNonSharedClustersResource, self).perform_request(
             {"projectID": validated_request_data["project_id"]}
         )
         # 过滤掉共享集群

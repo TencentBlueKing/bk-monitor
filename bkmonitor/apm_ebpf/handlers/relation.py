@@ -27,7 +27,7 @@ class RelationHandler:
         """
         BCS集群发现
         """
-        clusters = api.bcs_cluster_manager.get_project_k8s_clusters()
+        clusters = api.bcs_cluster_manager.get_project_k8s_non_shared_clusters()
         projects = api.bcs_project.get_projects()
         project_id_mapping = cls.group_by(projects, operator.itemgetter("project_id"))
 
@@ -41,11 +41,11 @@ class RelationHandler:
         for cluster_id, items in cluster_mapping.items():
             exists_mappings = cls.group_by(
                 ClusterRelation.objects.filter(cluster_id=cluster_id),
-                lambda i: (str(i.bk_biz_id), str(i.bkm_biz_id), i.project_id, i.cluster_id),
+                lambda i: (str(i.related_bk_biz_id), str(i.bk_biz_id), i.project_id, i.cluster_id),
             )
 
             for item in items:
-                # 创建集群<->业务关联
+                # 创建集群<->业务关联 此条件下related_bk_biz_id == bk_biz_id
                 biz_key = (str(item["bk_biz_id"]), str(item["bk_biz_id"]), item["project_id"], item["cluster_id"])
                 if biz_key in exists_mappings:
                     update_ids.extend([i.id for i in exists_mappings[biz_key]])
@@ -53,9 +53,9 @@ class RelationHandler:
                 else:
                     add_keys.append(biz_key)
 
-                # 创建集群<->容器项目关联
+                # 创建集群<->容器项目关联 此条件下需要获取容器项目的业务id(非space_uid)
                 if item["project_id"] in project_id_mapping:
-                    space_biz_id = cls._get_cluster_bkm_biz_id(
+                    space_biz_id = cls._get_cluster_bk_biz_id(
                         project_id_mapping[item["project_id"]][0].get("project_code")
                     )
                     if space_biz_id:
@@ -73,7 +73,11 @@ class RelationHandler:
         ClusterRelation.objects.bulk_create(
             [
                 ClusterRelation(
-                    bk_biz_id=i[0], bkm_biz_id=i[1], project_id=i[2], cluster_id=i[3], last_check_time=datetime.now()
+                    related_bk_biz_id=i[0],
+                    bk_biz_id=i[1],
+                    project_id=i[2],
+                    cluster_id=i[3],
+                    last_check_time=datetime.now(),
                 )
                 for i in add_keys
             ]
@@ -86,7 +90,9 @@ class RelationHandler:
         )
 
     @classmethod
-    def _get_cluster_bkm_biz_id(cls, project_code):
+    def _get_cluster_bk_biz_id(cls, project_code):
+        """获取BCS项目在监控创建的容器项目空间的业务id"""
+
         if not project_code:
             return None
 
@@ -123,5 +129,5 @@ class RelationHandler:
         根据集群ID获取关联的业务ID列表
         """
         return list(
-            ClusterRelation.objects.filter(cluster_id=cluster_id).values_list("bkm_biz_id", flat=True).distinct()
+            ClusterRelation.objects.filter(cluster_id=cluster_id).values_list("bk_biz_id", flat=True).distinct()
         )

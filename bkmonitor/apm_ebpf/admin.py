@@ -34,4 +34,4 @@ def all_fields(model):
 
 
 register(models.DeepflowWorkload, ("name", "cluster_id", "namespace"), ("cluster_id",))
-register(models.ClusterRelation, ("bkm_biz_id", "cluster_id", "project_id"), ("cluster_id", "bkm_biz_id", "project_id"))
+register(models.ClusterRelation, ("bk_biz_id", "cluster_id", "project_id"), ("cluster_id", "bk_biz_id", "project_id"))
