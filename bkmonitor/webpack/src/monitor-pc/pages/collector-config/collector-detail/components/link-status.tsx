@@ -77,16 +77,12 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   @Watch('show')
   handleShowChange(val) {
     if (val) {
+      if (this.collectId) this.init();
       this.$nextTick(() => {
         this.minuteChart.chartResize();
         this.dayChart.chartResize();
       });
     }
-  }
-
-  @Watch('collectId', { immediate: true })
-  handleCollectIdChange(val) {
-    val && this.init();
   }
 
   handleTimeRange(val, type: 'minute' | 'day') {
