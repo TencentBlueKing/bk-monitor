@@ -60,7 +60,7 @@ const errorHandle = (response, config) => {
               const curl = url.searchParams.get('c_url');
               // 初始化api 用于转换登入
               if (config.url.includes('/commons/context/enhanced') && config.params.context_type === 'basic') {
-                url.searchParams.set('c_url', location.href);
+                url.searchParams.set('c_url', encodeURIComponent(location.href));
                 window.open(url.href, '_self');
                 return;
               }
