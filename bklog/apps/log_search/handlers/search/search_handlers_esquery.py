@@ -80,6 +80,7 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeFieldType,
     UnionSearchErrorException,
     UnionSearchFieldsFailException,
+    UserIndexSetSearchHistoryNotExistException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslBkDataCreateSearchContextBody,
@@ -979,7 +980,7 @@ class SearchHandler(object):
 
         # 过滤出当前空间下的记录
         if index_set_type == IndexSetType.SINGLE.value:
-            index_set_id_all = history_objs.values("index_set_id")
+            index_set_id_all = list(set(history_objs.values_list("index_set_id", flat=True)))
         else:
             index_set_id_all = list()
             for obj in history_objs:
@@ -1030,8 +1031,11 @@ class SearchHandler(object):
         if not is_delete_all:
             obj = UserIndexSetSearchHistory.objects.filter(pk=int(history_id)).first()
 
+            if not obj:
+                raise UserIndexSetSearchHistoryNotExistException()
+
             delete_params = {
-                "created_by": obj.username,
+                "created_by": obj.created_by,
                 "index_set_type": obj.index_set_type,
             }
 
@@ -1047,11 +1051,13 @@ class SearchHandler(object):
             history_objs = UserIndexSetSearchHistory.objects.filter(created_by=username, index_set_type=index_set_type)
 
             if index_set_type == IndexSetType.SINGLE.value:
-                index_set_id_all = history_objs.values("index_set_id")
+                index_set_id_all = list(set(history_objs.values_list("index_set_id", flat=True)))
             else:
                 index_set_id_all = list()
                 for obj in history_objs:
-                    index_set_id_all.extend(obj.index_set_ids)
+                    index_set_ids = obj.index_set_ids or []
+                    index_set_id_all.extend(index_set_ids)
+                index_set_id_all = list(set(index_set_id_all))
 
             effect_index_set_ids = list(
                 LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
@@ -1059,13 +1065,16 @@ class SearchHandler(object):
                 )
             )
 
-            delete_history_ids = list()
+            delete_history_ids = set()
             for obj in history_objs:
-                if obj.index_set_type == IndexSetType.SINGLE.value and obj.index_set_id in effect_index_set_ids:
-                    delete_history_ids.append(obj.pk)
+                obj_index_set_type = obj.index_set_type or IndexSetType.SINGLE.value
+                if obj_index_set_type == IndexSetType.SINGLE.value:
+                    check_id = obj.index_set_id or 0
                 else:
-                    if obj.index_set_ids[0] in effect_index_set_ids:
-                        delete_history_ids.append(obj.pk)
+                    check_id = obj.index_set_ids[0] if obj.index_set_ids else 0
+
+                if check_id and check_id in effect_index_set_ids:
+                    delete_history_ids.add(obj.pk)
 
             return UserIndexSetSearchHistory.objects.filter(pk__in=delete_history_ids).delete()
 
@@ -2132,6 +2141,7 @@ class UnionSearchHandler(object):
         # 处理返回结果
         result_log_list = list()
         result_origin_log_list = list()
+        fields = dict()
         total = 0
         took = 0
         for index_set_id in self.index_set_ids:
@@ -2140,6 +2150,13 @@ class UnionSearchHandler(object):
             result_origin_log_list.extend(ret["origin_log_list"])
             total += int(ret["total"])
             took = max(took, ret["took"])
+            for key, value in ret.get("fields", {}).items():
+                if not isinstance(value, dict):
+                    continue
+                if key not in fields:
+                    fields[key] = value
+                else:
+                    fields[key]["max_length"] = max(fields[key].get("max_length", 0), value.get("max_length", 0))
 
         # 数据排序处理  兼容第三方ES检索排序
         time_fields = set()
@@ -2202,6 +2219,7 @@ class UnionSearchHandler(object):
         res = {
             "total": total,
             "took": took,
+            "fields": fields,
             "list": result_log_list,
             "origin_log_list": result_origin_log_list,
             "union_configs": self.union_configs,
@@ -2345,6 +2363,7 @@ class UnionSearchHandler(object):
 
         ret = {
             "config_id": obj.id,
+            "config": self.get_fields_config(),
             "fields": total_fields,
             "fields_info": fields_info,
             "display_fields": obj.display_fields,
@@ -2368,7 +2387,7 @@ class UnionSearchHandler(object):
             source_app_code=get_request_app_code(),
         ).first()
 
-        if not obj.exists():
+        if not obj:
             obj = IndexSetFieldsConfig.objects.create(
                 index_set_ids=index_set_ids,
                 index_set_ids_hash=index_set_ids_hash,
@@ -2380,3 +2399,17 @@ class UnionSearchHandler(object):
             )
 
         return obj
+
+    @staticmethod
+    def get_fields_config():
+        return [
+            {"name": "bcs_web_console", "is_active": False},
+            {"name": "trace", "is_active": False},
+            {"name": "context_and_realtime", "is_active": False},
+            {"name": "bkmonitor", "is_active": False},
+            {"name": "async_export", "is_active": False},
+            {"name": "ip_topo_switch", "is_active": False},
+            {"name": "apm_relation", "is_active": False},
+            {"name": "clustering_config", "is_active": False},
+            {"name": "clean_config", "is_active": False},
+        ]

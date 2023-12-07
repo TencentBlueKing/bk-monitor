@@ -1144,7 +1144,7 @@ class SearchViewSet(APIViewSet):
             SearchHandlerEsquery.search_option_history_delete(
                 space_uid=data["space_uid"],
                 index_set_type=data["index_set_type"],
-                history_id=data["history_id"],
+                history_id=data.get("history_id"),
                 is_delete_all=data["is_delete_all"],
             )
         )
