@@ -155,7 +155,7 @@ export default class AlertTopic extends tsc<IProps> {
                   {this.strategies.map(item => (
                     <div class='alert-name-item'>
                       <div class='item-name'>{item.name}</div>
-                      <pre class='item-description'>{item.description}</pre>
+                      <div class='item-description'>{item.description}</div>
                     </div>
                   ))}
                 </div>
