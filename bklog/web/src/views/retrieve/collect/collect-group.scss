@@ -129,6 +129,14 @@
           transform: translateY(-1px);
         }
 
+        .icon-panels {
+          display: inline-block;
+          font-size: 12px;
+          margin-left: 4px;
+          color: #699df4;
+          transform: translateY(-1px);
+        }
+
         &::before {
           content: ' ';
           width: 4px;
@@ -180,5 +188,15 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+}
+
+.favorite-data-source {
+  li {
+    color: #63656e;
+  }
+
+  .index-fail {
+    color: #c4c6cc;
   }
 }

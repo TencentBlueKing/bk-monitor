@@ -41,6 +41,17 @@
           {{ showFieldAlias ? fieldAliasMap[fieldItem.field_name] : fieldItem.field_name }}
         </span>
         <span class="field-count" v-show="isShowFieldsCount">({{ gatherFieldsCount }})</span>
+        <template v-if="isUnionConflictFields(fieldItem.field_type)">
+          <bk-popover theme="light" ext-cls="conflict-popover">
+            <i class="conflict-icon bk-icon icon-exclamation-triangle-shape"></i>
+            <div slot="content">
+              <p>{{$t('该字段在以下索引集存在冲突')}}</p>
+              <template v-for="(item, index) in unionConflictFieldsName">
+                <bk-tag :key="index">{{item}}</bk-tag>
+              </template>
+            </div>
+          </bk-popover>
+        </template>
       </span>
       <!-- 聚合字段数量 -->
       <!-- 设置字段显示或隐藏 -->
@@ -63,7 +74,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import AggChart from './agg-chart';
 
 export default {
@@ -106,6 +117,10 @@ export default {
       type: Number,
       default: 0,
     },
+    indexSetList: {
+      type: Array,
+      default: () => [],
+    },
   },
   data() {
     return {
@@ -114,6 +129,10 @@ export default {
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
     gatherFieldsCount() { // 聚合字段有多少个
       return Object.keys(this.statisticalFieldData).length;
     },
@@ -126,6 +145,12 @@ export default {
     },
     isDisabledHiddenField() {
       return this.visibleLength === 1 && this.type === 'visible';
+    },
+    /** 冲突字段索引集名称*/
+    unionConflictFieldsName() {
+      return this.indexSetList
+        .filter(item => this.unionIndexList.includes(item.index_set_id))
+        .map(item => item.indexName);
     },
   },
   methods: {
@@ -142,6 +167,10 @@ export default {
     handleShowOrHiddenItem() {
       if (this.isDisabledHiddenField) return;
       this.$emit('toggleItem', this.type, this.fieldItem);
+    },
+    /** 联合查询并且有冲突字段 */
+    isUnionConflictFields(fieldType) {
+      return this.isUnionSearch && fieldType === 'conflict';
     },
   },
 };
@@ -214,6 +243,11 @@ export default {
         }
       }
 
+      .conflict-icon {
+        color: #ff9c01;
+        font-size: 14px;
+      }
+
       .icon-ext {
         width: 18px;
         transform: scale(.8)
@@ -266,6 +300,14 @@ export default {
           transition: transform .3s;
         }
       }
+    }
+  }
+
+  .conflict-popover {
+    p {
+      font-size: 12px;
+      color: #63656e;
+      margin: 0 0 4px 6px;
     }
   }
 </style>

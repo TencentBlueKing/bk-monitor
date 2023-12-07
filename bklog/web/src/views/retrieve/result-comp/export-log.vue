@@ -188,6 +188,8 @@ export default {
       bkBizId: 'bkBizId',
       spaceUid: 'spaceUid',
       isShowMaskingTemplate: 'isShowMaskingTemplate',
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
     }),
     getAsyncText() { // 异步下载按钮前的文案
       return this.totalCount > this.exportSecondComparedSize
@@ -259,6 +261,9 @@ export default {
           start_time: tempList[0],
           end_time: tempList[1],
         });
+      if (this.isUnionSearch) { // 判断是否是联合查询 如果是 则加参数
+        Object.assign(params, { index_set_ids: this.unionIndexList });
+      }
       const exportParams = encodeURIComponent(JSON.stringify({
         ...params,
         size: this.totalCount,
@@ -267,7 +272,9 @@ export default {
         is_desensitize: this.desensitizeRadioType === 'desensitize',
       }));
       // eslint-disable-next-line max-len
-      const targetUrl = `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?space_uid=${this.spaceUid}&export_dict=${exportParams}`;
+      const targetUrl = this.isUnionSearch
+        ? `${window.SITE_URL}api/v1/search/index_set/union_search/export/?export_dict=${exportParams}`
+        : `${window.SITE_URL}api/v1/search/index_set/${this.$route.params.indexId}/export/?space_uid=${this.spaceUid}&export_dict=${exportParams}`;
       this.selectFiledList = [];
       this.isShowExportDialog = false;
       window.open(targetUrl);

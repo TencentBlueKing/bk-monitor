@@ -586,4 +586,6 @@ export default {
   脱敏算子: 'Desensitization operator',
   'label-脱敏算子': 'Desensitization Operator',
   全局脱敏: 'Global Desensitization',
+  收藏名称: 'Collection name',
+  历史记录: 'History record',
 };

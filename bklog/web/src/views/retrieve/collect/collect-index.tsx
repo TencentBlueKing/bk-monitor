@@ -66,6 +66,8 @@ export interface IFavoriteItem {
   visible_type: visibleType;
   params: object;
   is_active: boolean;
+  is_actives?: boolean[];
+  index_set_names?: string[];
   display_fields: string[];
 }
 
