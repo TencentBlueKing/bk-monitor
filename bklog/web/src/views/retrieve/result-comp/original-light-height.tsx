@@ -43,11 +43,6 @@ export default class QueryStatement extends tsc<IProps> {
     // 与kv列表同步展示字段
     const showObject = this.totalFields
       .filter(item => this.kvShowFieldsList.includes(item.field_name))
-      // .sort((a, b) => {
-      //   const sortA = a.field_name.replace(/^__+|__+/g, 'z');
-      //   const sortB = b.field_name.replace(/^__+|__+/g, 'z');
-      //   return sortA.localeCompare(sortB);
-      // })
       .reduce((pre, cur) => {
         pre[cur.field_name] = this.originJson[cur.field_name];
         return pre;
