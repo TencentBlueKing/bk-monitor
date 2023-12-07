@@ -49,12 +49,16 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
+    this.$store.commit('retrieve/updateCachePickerValue', this.value);
     return v;
   }
   @Emit('timezoneChange')
   handleTimezoneChange(timezone: string) {
     timezone && updateTimezone(timezone);
     return timezone;
+  }
+  mounted() {
+    this.$store.commit('retrieve/updateCachePickerValue', this.value);
   }
   render() {
     return (

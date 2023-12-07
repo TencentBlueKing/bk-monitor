@@ -424,7 +424,7 @@ export default class Condition extends tsc<IProps> {
             v-model={this.localValue}
             data-test-id="addConditions_input_valueFilter"
             allow-create
-            allow-auto-match
+            // allow-auto-match
             tpl={this.tpl}
             placeholder={this.inputPlaceholder}
             list={this.tagInputValueList}
