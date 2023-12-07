@@ -42,7 +42,7 @@ class UserSearchHistorySerializer(serializers.Serializer):
         t = t.replace("&nbsp;", " ")
         try:
             datetime_obj = datetime.datetime.fromtimestamp(
-                t, pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+                int(t), pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
             )
         except Exception:  # pylint: disable=broad-except
             datetime_obj = parse(t)
