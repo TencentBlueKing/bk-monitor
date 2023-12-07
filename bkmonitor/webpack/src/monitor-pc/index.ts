@@ -57,7 +57,8 @@ window.source_app = 'monitor';
 window.slimit = 500;
 setVue(Vue);
 const hasRouteHash = getUrlParam('routeHash');
-const bizId = +getUrlParam('bizId')?.replace(/\//gim, '');
+const spaceUid = getUrlParam('space_uid');
+const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
@@ -78,8 +79,6 @@ if (hasRouteHash) {
   if (process.env.APP !== 'external' && !window.__POWERED_BY_BK_WEWEB__ && pathname !== window.site_url) {
     location.pathname = window.site_url || '/';
   } else {
-    const spaceUid = getUrlParam('space_uid');
-    const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
     Api.model
       .enhancedContext({
         space_uid: spaceUid || undefined,
@@ -91,9 +90,9 @@ if (hasRouteHash) {
           window[key.toLocaleLowerCase()] = data[key];
         });
         mergeSpaceList(window.space_list);
-        data.IS_SUPERUSER = data.IS_SUPERUSER === 'true';
-        window.is_superuser = data.IS_SUPERUSER;
+        window.username = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
+        window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
         store.commit('app/SET_APP_STATE', {
@@ -103,18 +102,14 @@ if (hasRouteHash) {
           bizList: window.space_list,
           csrfCookieName: window.csrf_cookie_name || [],
           siteUrl: window.site_url,
-          enableMessageQueue: window.enable_message_queue,
-          messageQueueDSN: window.message_queue_dsn,
           maxAvailableDurationLimit: window.max_available_duration_limit,
-          cmdbUrl: window.cmdb_url,
+          cmdbUrl: window.bk_cc_url,
           bkLogSearchUrl: window.bk_log_search_url,
           bkUrl: window.bk_url,
           bkNodemanHost: window.bk_nodeman_host,
-          collectingConfigFileMaxSize: window.collecting_config_file_maxsize,
           enable_cmdb_level: !!window.enable_cmdb_level,
           bkPaasHost: window.bk_paas_host,
-          jobUrl: window.job_url,
-          bkBcsUrl: window.bk_bcs_url
+          jobUrl: window.bk_job_url
         });
         // eslint-disable-next-line no-new
         new Vue({
@@ -133,35 +128,19 @@ if (hasRouteHash) {
         Api.model
           .enhancedContext({
             space_uid: spaceUid || undefined,
-            bk_biz_id: bizId
+            bk_biz_id: bizId,
+            context_type: 'extra'
           })
           .then(data => {
             Object.keys(data).forEach(key => {
               window[key.toLocaleLowerCase()] = data[key];
             });
-            mergeSpaceList(window.space_list);
-            window.job_url = window.bk_job_url;
-            window.username = window.uin;
-            window.bk_url = data.BK_URL;
-            window.platform = data.PLATFORM;
             store.commit('app/SET_APP_STATE', {
-              bizList: window.space_list,
-              enableMessageQueue: data.ENABLE_MESSAGE_QUEUE,
-              siteUrl: data.SITE_URL,
-              messageQueueDSN: data.MESSAGE_QUEUE_DSN,
-              maxAvailableDurationLimit: data.MAX_AVAILABLE_DURATION_LIMIT,
-              cmdbUrl: data.BK_CC_URL,
-              bkLogSearchUrl: data.BKLOGSEARCH_HOST,
-              bkUrl: data.BK_URL,
-              bkNodemanHost: data.BK_NODEMAN_HOST,
-              collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
-              enable_cmdb_level: true,
-              bkPaasHost: data.BKPAASHOST,
-              jobUrl: data.BK_JOB_URL,
-              bkBcsUrl: data.BK_BCS_URL
+              collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE
             });
           });
         serviceWorker.register();
-      });
+      })
+      .catch(e => console.error(e));
   }
 }
