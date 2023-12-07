@@ -117,6 +117,7 @@ class EnhancedGetContextResource(Resource):
 
         context = get_basic_context(request, space_list, bk_biz_id)
         context["SPACE_LIST"] = space_list
+        context["CSRF_TOKEN"] = get_token(request)
 
         field_formatter(context)
         json_formatter(context)
