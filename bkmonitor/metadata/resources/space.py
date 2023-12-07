@@ -68,6 +68,7 @@ class ListSpacesResource(Resource):
             label="每页的数量", max_value=1000, min_value=1, required=False, default=constants.DEFAULT_PAGE_SIZE
         )
         exclude_platform_space = serializers.BooleanField(label="过滤掉平台级的空间", required=False, default=True)
+        include_resource_id = serializers.BooleanField(label="过滤掉平台级的空间", required=False, default=False)
 
     def perform_request(self, request_data):
         return utils.list_spaces(**request_data)

@@ -45,11 +45,14 @@ def get_platform_data_ids(space_type: Optional[str] = None) -> Dict[int, str]:
 
 def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> Dict:
     """获取influxdb 和 vm的结果表"""
-    vm_tables = models.AccessVMRecord.objects.values("result_table_id", "storage_cluster_id", "vm_result_table_id")
+    vm_tables = models.AccessVMRecord.objects.values("result_table_id", "vm_cluster_id", "vm_result_table_id")
     # 如果结果表存在，则过滤指定的结果表
     if table_id_list:
         vm_tables = vm_tables.filter(result_table_id__in=table_id_list)
-    vm_table_map = {data["result_table_id"]: {"vm_rt": data["vm_result_table_id"]} for data in vm_tables}
+    vm_table_map = {
+        data["result_table_id"]: {"vm_rt": data["vm_result_table_id"], "storage_id": data["vm_cluster_id"]}
+        for data in vm_tables
+    }
     influxdb_tables = models.InfluxDBStorage.objects.values(
         "table_id", "database", "real_table_name", "influxdb_proxy_storage_id", "partition_tag"
     )
@@ -83,18 +86,29 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
         cluster_name = storage_clusters.get("instance_cluster_name") or ""
         table_id_info[table_id] = {
             "storage_id": storage_id,
+            "storage_name": "",
             "cluster_name": cluster_name,
             "db": detail["db"],
             "measurement": detail["measurement"],
             "vm_rt": "",
             "tags_key": detail["tags_key"],
         }
+    # 仅有几条记录，查询一次 vm 集群列表，获取到集群ID和名称关系
+    vm_cluster_id_name = {
+        cluster["cluster_id"]: cluster["cluster_name"]
+        for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
+            "cluster_id", "cluster_name"
+        )
+    }
     # 处理 vm 的数据信息
     for table_id, detail in vm_table_map.items():
+        storage_name = vm_cluster_id_name.get(detail["storage_id"], "")
         if table_id in table_id_info:
-            table_id_info[table_id].update({"vm_rt": detail["vm_rt"]})
+            table_id_info[table_id].update({"vm_rt": detail["vm_rt"], "storage_name": storage_name})
         else:
-            detail.update({"cluster_name": "", "db": "", "measurement": "", "tags_key": []})
+            detail.update(
+                {"cluster_name": "", "storage_name": storage_name, "db": "", "measurement": "", "tags_key": []}
+            )
             table_id_info[table_id] = detail
     return table_id_info
 
