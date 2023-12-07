@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from bkm_search_module import constants
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
+from apps.utils.drf import DateTimeFieldWithEpoch
+from bkm_search_module import constants
 from bkm_search_module.exceptions import ValidationError
 
 
@@ -16,7 +17,9 @@ class IndexSetListSerializer(serializers.Serializer):
 
 
 class SearchConditionOptionsSerializer(serializers.Serializer):
-    condition_id = serializers.ListField(help_text=_("条件ID数组"), child=serializers.CharField(), required=False, default=[])
+    condition_id = serializers.ListField(
+        help_text=_("条件ID数组"), child=serializers.CharField(), required=False, default=[]
+    )
 
 
 class SearchInspectSerializer(serializers.Serializer):
@@ -28,9 +31,11 @@ class UserConfigSerializer(serializers.Serializer):
 
 
 class SearchAttrSerializer(serializers.Serializer):
-    query_string = serializers.CharField(help_text=_("查询语句"), required=False, default="", allow_null=True, allow_blank=True)
-    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    query_string = serializers.CharField(
+        help_text=_("查询语句"), required=False, default="", allow_null=True, allow_blank=True
+    )
+    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=10)
     condition = serializers.DictField(allow_empty=True, required=False, default=dict)
@@ -38,8 +43,8 @@ class SearchAttrSerializer(serializers.Serializer):
 
 
 class SearchFieldsSerializer(serializers.Serializer):
-    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S", default="")
-    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S", default="")
+    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S", default="")
+    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S", default="")
 
 
 class CreateIndexSetFieldsConfigSerializer(serializers.Serializer):
@@ -105,9 +110,11 @@ class SearchTailFSerializer(serializers.Serializer):
 
 
 class DownLoadUrlSeaializer(serializers.Serializer):
-    query_string = serializers.CharField(help_text=_("查询语句"), required=False, default="", allow_null=True, allow_blank=True)
-    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    query_string = serializers.CharField(
+        help_text=_("查询语句"), required=False, default="", allow_null=True, allow_blank=True
+    )
+    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=10)
     condition = serializers.DictField(allow_empty=True, required=False, default=dict)
