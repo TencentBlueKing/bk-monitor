@@ -19,6 +19,7 @@ from apm_ebpf.models import ClusterRelation
 from bkm_space.api import SpaceApi
 from core.drf_resource import api
 from core.errors.bkmonitor.space import SpaceNotFound
+from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 
 
 class RelationHandler:
@@ -96,14 +97,9 @@ class RelationHandler:
         if not project_code:
             return None
 
-        from metadata.models import Space
-
-        info = Space.objects.filter(space_id=project_code).first()
-        if not info:
-            return None
-
+        space_uid = f"{SpaceTypes.BKCI.value}{SPACE_UID_HYPHEN}{project_code}"
         try:
-            return SpaceApi.get_space_detail(space_uid=info.space_uid).bk_biz_id
+            return SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
         except SpaceNotFound as e:
             logger.warning(f"try to get bk_biz_id of project_code: {project_code}, but found: {e}")
             return None
