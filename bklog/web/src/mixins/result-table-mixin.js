@@ -186,7 +186,7 @@ export default {
           newObj[`<black-mark>${key}</black-mark>`] = obj[key];
         }
       }
-      return newObj;
+      return JSON.stringify(newObj);
     },
     formatterStr(content) {
       // 匹配高亮标签

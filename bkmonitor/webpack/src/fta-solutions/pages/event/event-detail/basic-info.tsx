@@ -27,7 +27,7 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { bkTag } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { toPerformanceDetail } from '../../../common/go-link';
 
@@ -259,8 +259,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         children: [
           {
             title: this.$t('首次异常时间'),
-            content: moment(first_anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-            timeZone: moment(first_anomaly_time * 1000).format('Z')
+            content: dayjs.tz(first_anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+            timeZone: dayjs.tz(first_anomaly_time * 1000).format('Z')
           },
           { title: this.$t('处理阶段'), content: handleStatus() }
         ]
@@ -269,8 +269,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         children: [
           {
             title: this.$t('告警产生时间'),
-            content: moment(create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-            timeZone: moment(create_time * 1000).format('Z')
+            content: dayjs.tz(create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+            timeZone: dayjs.tz(create_time * 1000).format('Z')
           }
         ]
       },

@@ -7,8 +7,8 @@
       "from_nodes": [],
       "node_type": "stream_source",
       "frontend_info": {
-        "x": 203,
-        "y": 224
+        "x": 12,
+        "y": 12
       }
     },
     {
@@ -42,43 +42,8 @@
       ],
       "node_type": "realtime",
       "frontend_info": {
-        "x": 473,
-        "y": 179
-      }
-    },
-    {
-      "bk_biz_id": {{predict.bk_biz_id}},
-      "sql": "SELECT {{predict.non_clustering_stream_source.fields}},'' as dist_01,'' as dist_03,'' as dist_05,'' as dist_07,'' as dist_09 FROM {{predict.result_table_id}} {{predict.non_clustering_stream_source.filter_rule}}",
-      "table_name": "{{predict.non_clustering_stream_source.table_name}}",
-      "name": "不参与聚类的日志",
-      "count_freq": null,
-      "waiting_time": null,
-      "window_time": null,
-      "window_type": "none",
-      "counter": null,
-      "output_name": "{{predict.non_clustering_stream_source.result_table_id}}",
-      "session_gap": null,
-      "expired_time": null,
-      "window_lateness": {
-        "allowed_lateness": false,
-        "lateness_time": 1,
-        "lateness_count_freq": 60
-      },
-      "correct_config_id": null,
-      "is_open_correct": false,
-      "id": 431008,
-      "from_nodes": [
-        {
-          "id": 431004,
-          "from_result_table_ids": [
-            "{{predict.result_table_id}}"
-          ]
-        }
-      ],
-      "node_type": "realtime",
-      "frontend_info": {
-        "x": 474,
-        "y": 295
+        "x": 297,
+        "y": 12
       }
     },
     {
@@ -625,13 +590,13 @@
       ],
       "node_type": "model_ts_custom",
       "frontend_info": {
-        "x": 772,
-        "y": 172
+        "x": 582,
+        "y": 12
       }
     },
     {
       "bk_biz_id": {{predict.bk_biz_id}},
-      "sql": "SELECT {{predict.format_signature.fields}}, dist_01, dist_03,dist_05, dist_07, dist_09 FROM {{predict.clustering_predict.result_table_id}}, lateral table(udf_signature_format(log_signature)) as T(dist_01, dist_03, dist_05, dist_07, dist_09)",
+      "sql": "SELECT {{predict.format_signature.fields}}, __dist_01, __dist_03, __dist_05, __dist_07, __dist_09 FROM {{predict.clustering_predict.result_table_id}}, lateral table(udf_signature_format(log_signature)) as T(__dist_01, __dist_03, __dist_05, __dist_07, __dist_09)",
       "table_name": "{{predict.format_signature.table_name}}",
       "name": "签名字段打平",
       "count_freq": null,
@@ -660,25 +625,26 @@
       ],
       "node_type": "realtime",
       "frontend_info": {
-        "x": 1079,
-        "y": 178
+        "x": 867,
+        "y": 12
       }
     },
     {
+      "result_table_id": "{{predict.format_signature.result_table_id}}",
+      "name": "{{predict.format_signature.result_table_id}}(elastic_storage)",
+      "physical_table_name": "",
       "bk_biz_id": {{predict.bk_biz_id}},
-      "name": "合并日志",
-      "table_name": "{{predict.merge_log.table_name}}",
-      "output_name": "{{predict.merge_log.table_name}}",
-      "description": "合并日志",
-      "config": [],
-      "id": 431246,
+      "cluster": "{{predict.es_cluster}}",
+      "analyzed_fields": {{predict.es.analyzed_fields}},
+      "date_fields": [],
+      "doc_values_fields": {{predict.es.doc_values_fields}},
+      "json_fields": {{predict.es.json_fields}},
+      "expires": {{predict.es.expires}},
+      "has_replica": {{predict.es.has_replica}},
+      "has_unique_key": false,
+      "storage_keys": [],
+      "id": 431249,
       "from_nodes": [
-        {
-          "id": 431008,
-          "from_result_table_ids": [
-            "{{predict.non_clustering_stream_source.result_table_id}}"
-          ]
-        },
         {
           "id": 431232,
           "from_result_table_ids": [
@@ -686,31 +652,10 @@
           ]
         }
       ],
-      "node_type": "merge",
+      "node_type": "elastic_storage",
       "frontend_info": {
         "x": 1085,
-        "y": 292
-      }
-    },
-    {
-      "name": "{{predict.merge_log.result_table_id}}(queue_storage)",
-      "bk_biz_id": {{predict.bk_biz_id}},
-      "cluster": "{{predict.queue_cluster}}",
-      "expires": 3,
-      "result_table_id": "{{predict.merge_log.result_table_id}}",
-      "id": 431247,
-      "from_nodes": [
-        {
-          "id": 431246,
-          "from_result_table_ids": [
-            "{{predict.merge_log.result_table_id}}"
-          ]
-        }
-      ],
-      "node_type": "queue_storage",
-      "frontend_info": {
-        "x": 1400,
-        "y": 242
+        "y": 12
       }
     }
 ]

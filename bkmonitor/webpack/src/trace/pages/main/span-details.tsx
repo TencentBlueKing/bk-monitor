@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { getSceneView } from '../../../monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from '../../../monitor-common/utils/utils';
@@ -259,8 +259,8 @@ export default defineComponent({
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
-            content: moment(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
-            title: moment(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss')
+            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
+            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss')
           },
           {
             label: t('来源'),

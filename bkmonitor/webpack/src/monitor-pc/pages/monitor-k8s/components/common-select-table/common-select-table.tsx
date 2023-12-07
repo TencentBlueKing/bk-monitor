@@ -33,7 +33,7 @@ import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-cha
 import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
 import { ITableDataItem } from '../../../../../monitor-ui/chart-plugins/typings/table-chart';
 import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IFilterDict, IQueryData, IQueryDataSearch, ITableColumn } from '../../typings';
 import {
@@ -42,7 +42,7 @@ import {
   transformQueryDataSearch,
   updateBkSearchSelectName
 } from '../../utils';
-import { ShowModeType } from '../common-page-new';
+import { type ShowModeType } from '../common-page-new';
 import CommonTable from '../common-table';
 import SortTool from '../sort-tool/sort-tool';
 

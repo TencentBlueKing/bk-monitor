@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import copy
 import json
 
+from django.utils.translation import ugettext_lazy as _
+
 import settings
 from apps.api import (
     BkDataAccessApi,
@@ -37,7 +39,6 @@ from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
 from apps.utils.log import logger
-from django.utils.translation import ugettext_lazy as _
 
 
 class DataAccessHandler(BaseAiopsHandler):
@@ -156,7 +157,7 @@ class DataAccessHandler(BaseAiopsHandler):
             "result_table_name_alias": collector_config.collector_config_name_en,
             "clean_config_name": collector_config.collector_config_name,
             "description": collector_config.description,
-            "bk_biz_id": self.conf.get("bk_biz_id"),
+            "bk_biz_id": collector_config.bk_biz_id,
             "fields": [
                 {
                     "field_name": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),

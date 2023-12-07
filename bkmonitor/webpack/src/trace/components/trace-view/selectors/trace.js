@@ -1,42 +1,43 @@
 /*
-  * Tencent is pleased to support the open source community by making
-  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
-  *
-  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  *
-  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
-  *
-  * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
-  *
-  * ---------------------------------------------------
-  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-  * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  *
-  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-  * the Software.
-  *
-  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-  * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-  * IN THE SOFTWARE.
-  */
-
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { createSelector, createStructuredSelector } from 'reselect';
-import {
-  getSpanId,
-  getSpanName,
-  getSpanServiceName,
-  getSpanTimestamp,
-  getSpanDuration,
-  getSpanProcessId
-} from './span';
-import { getProcessServiceName } from './process';
+
 import { formatMillisecondTime, formatSecondTime, ONE_SECOND } from '../utils/date';
 import { numberSortComparator } from '../utils/sort';
 import TreeNode from '../utils/TreeNode';
+
+import { getProcessServiceName } from './process';
+import {
+  getSpanDuration,
+  getSpanId,
+  getSpanName,
+  getSpanProcessId,
+  getSpanServiceName,
+  getSpanTimestamp
+} from './span';
 
 export const getTraceId = trace => trace.traceID;
 
@@ -53,9 +54,8 @@ const getSpanWithProcess = createSelector(
   })
 );
 
-export const getTraceSpansAsMap = createSelector(
-  getTraceSpans,
-  spans => spans.reduce((map, span) => map.set(getSpanId(span), span), new Map())
+export const getTraceSpansAsMap = createSelector(getTraceSpans, spans =>
+  spans.reduce((map, span) => map.set(getSpanId(span), span), new Map())
 );
 
 export const TREE_ROOT_ID = '__root__';
@@ -78,7 +78,7 @@ export const getTraceSpanIdsAsTree = function (trace) {
   const nodesById = new Map(trace.spans.map(span => [span.spanID, new TreeNode(span.spanID)]));
   const spansById = new Map(trace.spans.map(span => [span.spanID, span]));
   const root = new TreeNode(TREE_ROOT_ID);
-  trace.spans.forEach((span) => {
+  trace.spans.forEach(span => {
     const node = nodesById.get(span.spanID);
     if (Array.isArray(span.references) && span.references.length) {
       const { refType, spanID: parentID } = span.references[0];
@@ -97,7 +97,7 @@ export const getTraceSpanIdsAsTree = function (trace) {
     const b = spansById.get(nodeB.value);
     return +(a.startTime > b.startTime) || +(a.startTime === b.startTime) - 1;
   };
-  trace.spans.forEach((span) => {
+  trace.spans.forEach(span => {
     const node = nodesById.get(span.spanID);
     if (node.children.length > 1) {
       node.children.sort(comparator);
@@ -108,7 +108,7 @@ export const getTraceSpanIdsAsTree = function (trace) {
 };
 
 // attach "process" as an object to each span.
-export const hydrateSpansWithProcesses = (trace) => {
+export const hydrateSpansWithProcesses = trace => {
   const spans = getTraceSpans(trace);
   const processes = getTraceProcesses(trace);
 
@@ -118,26 +118,21 @@ export const hydrateSpansWithProcesses = (trace) => {
   };
 };
 
-export const getTraceSpanCount = createSelector(
-  getTraceSpans,
-  spans => spans.length
-);
+export const getTraceSpanCount = createSelector(getTraceSpans, spans => spans.length);
 
-export const getTraceTimestamp = createSelector(
-  getTraceSpans,
-  spans => spans.reduce(
+export const getTraceTimestamp = createSelector(getTraceSpans, spans =>
+  spans.reduce(
     (prevTimestamp, span) => (prevTimestamp ? Math.min(prevTimestamp, getSpanTimestamp(span)) : getSpanTimestamp(span)),
     null
   )
 );
 
-export const getTraceDuration = createSelector(
-  getTraceSpans,
-  getTraceTimestamp,
-  (spans, timestamp) => spans.reduce(
-    (prevDuration, span) => (prevDuration
-      ? Math.max(getSpanTimestamp(span) - timestamp + getSpanDuration(span), prevDuration)
-      : getSpanDuration(span)),
+export const getTraceDuration = createSelector(getTraceSpans, getTraceTimestamp, (spans, timestamp) =>
+  spans.reduce(
+    (prevDuration, span) =>
+      prevDuration
+        ? Math.max(getSpanTimestamp(span) - timestamp + getSpanDuration(span), prevDuration)
+        : getSpanDuration(span),
     null
   )
 );
@@ -151,40 +146,28 @@ export const getTraceEndTimestamp = createSelector(
 export const getParentSpan = createSelector(
   getTraceSpanIdsAsTree,
   getTraceSpansAsMap,
-  (tree, spanMap) => tree.children
-    .map(node => spanMap.get(node.value))
-    .sort((spanA, spanB) => numberSortComparator(getSpanTimestamp(spanA), getSpanTimestamp(spanB)))[0]
+  (tree, spanMap) =>
+    tree.children
+      .map(node => spanMap.get(node.value))
+      .sort((spanA, spanB) => numberSortComparator(getSpanTimestamp(spanA), getSpanTimestamp(spanB)))[0]
 );
 
-export const getTraceDepth = createSelector(
-  getTraceSpanIdsAsTree,
-  spanTree => spanTree.depth - 1
-);
+export const getTraceDepth = createSelector(getTraceSpanIdsAsTree, spanTree => spanTree.depth - 1);
 
 export const getSpanDepthForTrace = createSelector(
-  createSelector(
-    state => state.trace,
-    getTraceSpanIdsAsTree
-  ),
-  createSelector(
-    state => state.span,
-    getSpanId
-  ),
+  createSelector(state => state.trace, getTraceSpanIdsAsTree),
+  createSelector(state => state.span, getSpanId),
   (node, spanID) => node.getPath(spanID).length - 1
 );
 
-export const getTraceServices = createSelector(
-  getTraceProcesses,
-  processes => Object.keys(processes).reduce(
+export const getTraceServices = createSelector(getTraceProcesses, processes =>
+  Object.keys(processes).reduce(
     (services, processID) => services.add(getProcessServiceName(processes[processID])),
     new Set()
   )
 );
 
-export const getTraceServiceCount = createSelector(
-  getTraceServices,
-  services => services.size
-);
+export const getTraceServiceCount = createSelector(getTraceServices, services => services.size);
 
 // establish constants to determine how math should be handled
 // for nanosecond-to-millisecond conversions.
@@ -193,9 +176,8 @@ export const DURATION_FORMATTERS = {
   s: formatSecondTime
 };
 
-const getDurationFormatterForTrace = createSelector(
-  getTraceDuration,
-  totalDuration => (totalDuration >= ONE_SECOND ? DURATION_FORMATTERS.s : DURATION_FORMATTERS.ms)
+const getDurationFormatterForTrace = createSelector(getTraceDuration, totalDuration =>
+  totalDuration >= ONE_SECOND ? DURATION_FORMATTERS.s : DURATION_FORMATTERS.ms
 );
 
 export const formatDurationForUnit = createSelector(
@@ -206,10 +188,7 @@ export const formatDurationForUnit = createSelector(
 
 export const formatDurationForTrace = createSelector(
   ({ duration }) => duration,
-  createSelector(
-    ({ trace }) => trace,
-    getDurationFormatterForTrace
-  ),
+  createSelector(({ trace }) => trace, getDurationFormatterForTrace),
   (duration, formatter) => formatter(duration)
 );
 
@@ -218,29 +197,21 @@ export const getSortedSpans = createSelector(
   ({ spans }) => spans,
   ({ sort }) => sort,
   // eslint-disable-next-line max-len
-  (trace, spans, { dir, comparator, selector }) => [...spans].sort((spanA, spanB) => dir * comparator(selector(spanA, trace), selector(spanB, trace)))
+  (trace, spans, { dir, comparator, selector }) =>
+    [...spans].sort((spanA, spanB) => dir * comparator(selector(spanA, trace), selector(spanB, trace)))
 );
 
-const getTraceSpansByHierarchyPosition = createSelector(
-  getTraceSpanIdsAsTree,
-  (tree) => {
-    const hierarchyPositionMap = new Map();
-    let i = 0;
-    // eslint-disable-next-line no-plusplus
-    tree.walk(spanID => hierarchyPositionMap.set(spanID, i++));
-    return hierarchyPositionMap;
-  }
-);
+const getTraceSpansByHierarchyPosition = createSelector(getTraceSpanIdsAsTree, tree => {
+  const hierarchyPositionMap = new Map();
+  let i = 0;
+  // eslint-disable-next-line no-plusplus
+  tree.walk(spanID => hierarchyPositionMap.set(spanID, i++));
+  return hierarchyPositionMap;
+});
 
 export const getTreeSizeForTraceSpan = createSelector(
-  createSelector(
-    state => state.trace,
-    getTraceSpanIdsAsTree
-  ),
-  createSelector(
-    state => state.span,
-    getSpanId
-  ),
+  createSelector(state => state.trace, getTraceSpanIdsAsTree),
+  createSelector(state => state.span, getSpanId),
   (tree, spanID) => {
     const node = tree.find(spanID);
     if (!node) {
@@ -251,20 +222,14 @@ export const getTreeSizeForTraceSpan = createSelector(
 );
 
 export const getSpanHierarchySortPositionForTrace = createSelector(
-  createSelector(
-    ({ trace }) => trace,
-    getTraceSpansByHierarchyPosition
-  ),
+  createSelector(({ trace }) => trace, getTraceSpansByHierarchyPosition),
   ({ span }) => span,
   (hierarchyPositionMap, span) => hierarchyPositionMap.get(getSpanId(span))
 );
 
 export const getTraceName = createSelector(
   createSelector(
-    createSelector(
-      hydrateSpansWithProcesses,
-      getParentSpan
-    ),
+    createSelector(hydrateSpansWithProcesses, getParentSpan),
     createStructuredSelector({
       name: getSpanName,
       serviceName: getSpanServiceName
@@ -275,10 +240,7 @@ export const getTraceName = createSelector(
 
 export const omitCollapsedSpans = createSelector(
   ({ spans }) => spans,
-  createSelector(
-    ({ trace }) => trace,
-    getTraceSpanIdsAsTree
-  ),
+  createSelector(({ trace }) => trace, getTraceSpanIdsAsTree),
   ({ collapsed }) => collapsed,
   (spans, tree, collapse) => {
     const hiddenSpanIds = collapse.reduce((result, collapsedSpanId) => {
@@ -301,10 +263,11 @@ export const getTicksForTrace = createSelector(
     interval,
     width
     // timestamps will be spaced over the interval, starting from the initial timestamp
-  ) => [...Array(interval + 1).keys()].map(num => ({
-    timestamp: getTraceTimestamp(trace) + getTraceDuration(trace) * (num / interval),
-    width
-  }))
+  ) =>
+    [...Array(interval + 1).keys()].map(num => ({
+      timestamp: getTraceTimestamp(trace) + getTraceDuration(trace) * (num / interval),
+      width
+    }))
 );
 
 // TODO: delete this when the backend can ensure uniqueness
@@ -318,9 +281,7 @@ export const enforceUniqueSpanIds = createSelector(
     return {
       ...trace,
       spans: spans.reduce((result, span) => {
-        const spanID = map.has(getSpanId(span))
-          ? `${getSpanId(span)}_${map.get(getSpanId(span))}`
-          : getSpanId(span);
+        const spanID = map.has(getSpanId(span)) ? `${getSpanId(span)}_${map.get(getSpanId(span))}` : getSpanId(span);
         const updatedSpan = { ...span, spanID };
 
         if (spanID !== getSpanId(span)) {

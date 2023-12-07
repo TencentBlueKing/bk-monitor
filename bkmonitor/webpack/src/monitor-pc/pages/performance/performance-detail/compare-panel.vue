@@ -177,7 +177,6 @@
           </div>
           <div class="time-shift">
             <time-range
-              :type="showText ? 'normal' : 'simple'"
               :value="tools.timeRange"
               @change="handleTimeRangeChange"
             />

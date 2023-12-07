@@ -26,21 +26,18 @@
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
 import { lang, locale } from 'bk-magic-vue';
-import moment from 'moment';
+
+import './dayjs';
 
 import { LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils/constant';
 import { docCookies } from '../../monitor-common/utils/utils';
 
 import { mergeI18nJson } from './commmon';
-
 // 获取语言偏好设置
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 
 // 判断当前语言是否为英文
 export const isEn = currentLang === 'en';
-
-// 设置 moment.js 使用的语言
-moment.locale(isEn ? 'en' : 'zh-cn');
 
 // 设置网页标题
 document.title = isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云';
