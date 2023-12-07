@@ -1404,7 +1404,7 @@
   name: get_clustering_config
   label: 日志平台-日志聚类-获取聚类配置
   label_en: bk_log get clustering config
-  method: POST
+  method: GET
   api_type: query
   comp_codename: generic.v2.bk_log.bk_log_component
   dest_path: /api/v1/clustering_config/$index_set_id/config
