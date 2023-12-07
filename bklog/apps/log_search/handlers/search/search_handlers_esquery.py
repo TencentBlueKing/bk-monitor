@@ -2391,6 +2391,7 @@ class UnionSearchHandler(object):
             obj = IndexSetFieldsConfig.objects.create(
                 index_set_ids=index_set_ids,
                 index_set_ids_hash=index_set_ids_hash,
+                index_set_type=IndexSetType.UNION.value,
                 name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
                 scope=SearchScopeEnum.DEFAULT.value,
                 source_app_code=get_request_app_code(),
