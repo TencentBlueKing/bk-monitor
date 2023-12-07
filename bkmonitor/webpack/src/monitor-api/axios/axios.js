@@ -56,14 +56,14 @@ const errorHandle = (response, config) => {
         if (data?.has_plain) {
           try {
             if (data.login_url) {
-              const url = new URL(data.login_url);
-              const curl = url.searchParams.get('c_url');
               // 初始化api 用于转换登入
               if (config.url.includes('/commons/context/enhanced') && config.params.context_type === 'basic') {
-                url.searchParams.set('c_url', encodeURIComponent(location.href));
+                const url = `${data.login_url.split('c_url=')[0]}c_url=${encodeURIComponent(location.href)}`;
                 window.open(url.href, '_self');
                 return;
               }
+              const url = new URL(data.login_url);
+              const curl = url.searchParams.get('c_url');
               if (curl) {
                 url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
                 window.LoginModal.$props.loginUrl = url.href;
