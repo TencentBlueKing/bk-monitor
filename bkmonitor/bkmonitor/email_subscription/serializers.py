@@ -10,10 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 from rest_framework import serializers
 
+from constants.email_subscription import StaffEnum
+
 
 class SubscriberSerializer(serializers.Serializer):
     id = serializers.CharField()
-    type = serializers.CharField(required=False)
+    type = serializers.ChoiceField(required=False, choices=StaffEnum.get_choices())
     is_enabled = serializers.BooleanField()
 
 
@@ -21,7 +23,7 @@ class ChannelSerializer(serializers.Serializer):
     is_enabled = serializers.BooleanField()
     subscribers = SubscriberSerializer(many=True)
     channel_name = serializers.CharField()
-    send_text = serializers.CharField(required=False)
+    send_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class ScenarioConfigSerializer(serializers.Serializer):
@@ -39,8 +41,14 @@ class FrequencySerializer(serializers.Serializer):
     type = serializers.IntegerField(required=True, label="频率类型")
     day_list = serializers.ListField(required=False, label="几天")
     week_list = serializers.ListField(required=False, label="周几")
-    run_time = serializers.CharField(required=False, label="运行时间", allow_blank=True)
     hour = serializers.FloatField(required=False, label="小时频率")
+    run_time = serializers.CharField(required=False, label="运行时间", allow_blank=True)
+
+    class DataRangeSerializer(serializers.Serializer):
+        time_level = serializers.CharField(required=True, label="数据范围时间等级")
+        number = serializers.IntegerField(required=True, label="数据范围时间")
+
+    data_range = DataRangeSerializer(required=False)
 
 
 class ContentConfigSerializer(serializers.Serializer):

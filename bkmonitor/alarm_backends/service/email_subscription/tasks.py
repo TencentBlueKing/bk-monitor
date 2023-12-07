@@ -11,23 +11,27 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from alarm_backends.service.email_subscription.factory import SubscriptionFactory
-from alarm_backends.service.email_subscription.utils import (
-    is_invalid,
-    is_run_time,
-    parse_frequency,
-)
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.email_subscription.utils import is_run_time, parse_frequency
 from bkmonitor.models import EmailSubscription
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
 
 @app.task(ignore_result=True, queue="celery_report_cron")
-def send_email_subscriptions(subscription):
+def send_email_subscriptions(subscription, channels=None):
     """
     发送邮件订阅
     """
-    SubscriptionFactory.get_handler(subscription).run()
+    SubscriptionFactory.get_handler(subscription).run(channels)
+
+
+@app.task(ignore_result=True, queue="celery_report_cron")
+def test_send_email_subscriptions(subscription, channels=None):
+    """
+    发送邮件订阅
+    """
+    SubscriptionFactory.get_handler(subscription).test(channels)
 
 
 @app.task(ignore_result=True, queue="celery_report_cron")
@@ -38,7 +42,7 @@ def detect_email_subscriptions():
     subscriptions = EmailSubscription.objects.filter(is_enabled=True)
     for subscription in subscriptions:
         # 判断订阅是否有效
-        if is_invalid(subscription):
+        if subscription.is_invalid():
             logger.info(f"subscription{subscription.id} is invalid.")
             continue
         # 判断订阅是否到执行时间

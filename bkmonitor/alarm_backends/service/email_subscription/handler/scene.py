@@ -18,8 +18,8 @@ class SceneSubscriptionHandler(BaseSubscriptionHandler):
     观测场景订阅管理器
     """
 
-    def render_subscription(self):
+    def render(self, render_params: dict) -> dict:
         """
-        渲染订阅内容
+        渲染订阅
         """
         pass

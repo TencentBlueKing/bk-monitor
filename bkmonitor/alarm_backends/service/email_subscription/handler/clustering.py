@@ -19,9 +19,9 @@ from alarm_backends.core.context import logger
 from alarm_backends.service.email_subscription.handler.base import (
     BaseSubscriptionHandler,
 )
-from alarm_backends.service.email_subscription.utils import get_data_range
-from bkmonitor.models import (
-    EmailSubscription,
+from bkmonitor.email_subscription.utils import get_data_range
+from bkmonitor.models import EmailSubscription
+from constants.email_subscription import (
     LogColShowTypeEnum,
     YearOnYearChangeEnum,
     YearOnYearEnum,

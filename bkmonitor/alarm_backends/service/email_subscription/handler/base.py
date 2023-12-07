@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 
-from alarm_backends.service.email_subscription.utils import send_email, send_wxbot
+from bkmonitor.email_subscription.utils import send_email, send_wxbot
 from bkmonitor.models.email_subscription import (
     ChannelEnum,
     EmailSubscription,
@@ -40,7 +40,7 @@ class BaseSubscriptionHandler(object):
         self.subscription = subscription
         self.channels = SubscriptionChannel.objects.filter(subscription_id=subscription.id)
 
-    def run(self):
+    def run(self, channels=None):
         """
         执行订阅
         """
@@ -50,10 +50,13 @@ class BaseSubscriptionHandler(object):
         context = self.render(render_params)
 
         # 根据渠道分别发送，记录最新发送轮次
-        # self.subscription.send_round = self.subscription.send_round + 1 if self.subscription.send_round else 1
-        # self.subscription.save()
-        for channel in self.channels:
-            SendChannelHandler(channel).send(context, self.subscription.bk_biz_id)
+        send_round = self.subscription.send_round + 1 if self.subscription.send_round else 1
+        self.subscription.send_round = send_round
+        self.subscription.save()
+        if not channels:
+            channels = self.channels
+        for channel in channels:
+            SendChannelHandler(channel).send(context, send_round, self.subscription.bk_biz_id)
 
     def get_render_params(self) -> dict:
         """
@@ -86,7 +89,7 @@ class SendChannelHandler(object):
         self.channel = channel
         self.send_cls = self.send_cls_map[channel.channel_name]
 
-    def send(self, context, send_round=1, bk_biz_id=None):
+    def send(self, context, send_round, bk_biz_id=None):
         subscribers = self.fetch_subscribers(bk_biz_id)
         result = self.send_cls(context, subscribers)
         send_time = datetime.datetime.now()
@@ -117,7 +120,7 @@ class SendChannelHandler(object):
             "send_results": send_results,
             "send_status": send_status,
             "send_time": send_time,
-            # "send_round": send_round
+            "send_round": send_round,
         }
         SubscriptionSendRecord.objects.create(**send_record)
 
