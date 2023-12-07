@@ -19,11 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.api import BkDataDataFlowApi
-from apps.utils import ChoicesEnum
 from django.utils.translation import ugettext as _
 
+from apps.api import BkDataDataFlowApi
 from apps.log_search.constants import OPERATORS
+from apps.utils import ChoicesEnum
 
 DEFAULT_TIME_FIELD = "timestamp"
 DEFAULT_CLUSTERING_FIELD = "log"
@@ -89,8 +89,6 @@ class FlowMode(ChoicesEnum):
     AFTER_TREAT_FLOW_BKDATA = "after_treat_flow_bkdata"
     # 在线训练 预测处理 flow
     PREDICT_FLOW = "predict_flow"
-    # 在线训练 计算平台 rt flow
-    PREDICT_FLOW_BKDATA = "predict_flow_bkdata"
     # 日志数量聚合 flow
     LOG_COUNT_AGGREGATION_FLOW = "log_count_aggregation_flow"
 
@@ -100,7 +98,6 @@ class FlowMode(ChoicesEnum):
         (MODIFY_FLOW, "templates/flow/modify_flow.json"),
         (AFTER_TREAT_FLOW_BKDATA, "templates/flow/after_treat_flow_bkdata.json"),
         (PREDICT_FLOW, "templates/flow/predict_flow.json"),
-        (PREDICT_FLOW_BKDATA, "templates/flow/predict_flow_bkdata.json"),
         (LOG_COUNT_AGGREGATION_FLOW, "templates/flow/log_count_aggregation_flow.json"),
     )
 
@@ -128,17 +125,18 @@ class RealTimePredictFlowNode(object):
 # 查询字段   __dist_xx
 PATTERN_SEARCH_FIELDS = [
     {
-      "field_type": "keyword",
-      "field_name": field_name,
-      "field_alias": "",
-      "is_display": False,
-      "is_editable": True,
-      "tag": "dimension",
-      "es_doc_values": True,
-      "is_analyzed": False,
-      "field_operator": OPERATORS.get("keyword", []),
-      "description": None
-    } for field_name in RENAME_DIST_FIELDS
+        "field_type": "keyword",
+        "field_name": field_name,
+        "field_alias": "",
+        "is_display": False,
+        "is_editable": True,
+        "tag": "dimension",
+        "es_doc_values": True,
+        "is_analyzed": False,
+        "field_operator": OPERATORS.get("keyword", []),
+        "description": None,
+    }
+    for field_name in RENAME_DIST_FIELDS
 ]
 
 

@@ -19,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import BaseException, ErrorCode
 from django.utils.translation import ugettext_lazy as _
+
+from apps.exceptions import BaseException, ErrorCode
 
 # =================================================
 # 日志聚类模块
@@ -95,3 +96,23 @@ class ModelReleaseNotFoundException(BaseClusteringException):
 class IndexSetHasClsStrategyException(BaseClusteringException):
     ERROR_CODE = "014"
     MESSAGE = _("该索引集已经创建告警策略: {index_set_id}")
+
+
+class CreateBkdataDataIdException(BaseClusteringException):
+    ERROR_CODE = "015"
+    MESSAGE = _("同步创建bkdata_data_id失败: {index_set_id}")
+
+
+class CollectorStorageNotExistException(BaseClusteringException):
+    ERROR_CODE = "016"
+    MESSAGE = _("日志聚类-采集项侧落地es存储配置不存在: {collector_config_id}")
+
+
+class QueryFieldsException(BaseClusteringException):
+    ERROR_CODE = "017"
+    MESSAGE = _("该索引集查询字段失败: {index_set_id}")
+
+
+class CollectorEsStorageNotExistException(BaseClusteringException):
+    ERROR_CODE = "018"
+    MESSAGE = _("日志聚类-采集项侧落地es存储配置中集群信息不存在: {collector_config_id}")

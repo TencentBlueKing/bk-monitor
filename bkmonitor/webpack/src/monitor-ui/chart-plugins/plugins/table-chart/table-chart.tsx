@@ -26,7 +26,7 @@
  */
 import { Component, Emit, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { Debounce } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
@@ -193,8 +193,8 @@ export class TableChart extends CommonSimpleChart {
       this.unregisterOberver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       const interval = reviewInterval(
         this.viewOptions.interval,

@@ -71,7 +71,7 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 @Component({ name: 'strategy-view-log' })
 export default class StrategyViewLog extends Vue {
@@ -113,12 +113,12 @@ export default class StrategyViewLog extends Vue {
 
   getFormatTime({ time }) {
     if (typeof time === 'string') {
-      return moment(+time).format('YYYY-MM-DD HH:mm:ss');
+      return dayjs.tz(+time).format('YYYY-MM-DD HH:mm:ss');
     } if (typeof time === 'number') {
       if (time.toString().length === 10) {
-        return moment.unix(time).format('YYYY-MM-DD HH:mm:ss');
+        return dayjs.tz.unix(time).format('YYYY-MM-DD HH:mm:ss');
       }
-      return moment(time).format('YYYY-MM-DD HH:mm:ss');
+      return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
     }
     return time;
   }

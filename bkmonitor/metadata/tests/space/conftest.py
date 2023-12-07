@@ -19,6 +19,7 @@ DEFAULT_MQ_CLUSTER_ID = 10000
 DEFAULT_MQ_CONFIG_ID = 10001
 DEFAULT_SPACE_TYPE = "bkcc"
 DEFAULT_SPACE_ID = "test"
+DEFAULT_SPACE_ID_ONE = "test1"
 DEFAULT_OTHER_SPACE_ID = "other"
 DEFAULT_TABLE_ID = "demo.test"
 DEFAULT_CREATOR = "system"
@@ -85,6 +86,19 @@ def create_and_delete_record(mocker):
     models.SpaceDataSource.objects.create(
         space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID, bk_data_id=DEFAULT_DATA_ID + 1
     )
+    models.Space.objects.create(space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID, space_name="")
+    models.SpaceResource.objects.create(
+        space_type_id=DEFAULT_SPACE_TYPE,
+        space_id=DEFAULT_SPACE_ID,
+        resource_type=DEFAULT_SPACE_TYPE,
+        resource_id=DEFAULT_SPACE_ID,
+    )
+    models.SpaceResource.objects.create(
+        space_type_id=DEFAULT_SPACE_TYPE,
+        space_id=DEFAULT_SPACE_ID,
+        resource_type=DEFAULT_SPACE_TYPE,
+        resource_id=DEFAULT_SPACE_ID_ONE,
+    )
     models.InfluxDBStorage.objects.create(
         table_id=DEFAULT_TABLE_ID,
         storage_cluster_id=1,
@@ -117,7 +131,6 @@ def create_and_delete_record(mocker):
         api_key_content="test",
         K8sMetricDataID=DEFAULT_K8S_METRIC_DATA_ID_TWO,
     )
-    print(models.BCSClusterInfo.objects.filter(cluster_id=DEFAULT_BCS_CLUSTER_ID_TWO))
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.filter(data_name__startswith=DEFAULT_NAME).delete()
@@ -129,6 +142,7 @@ def create_and_delete_record(mocker):
     models.BCSClusterInfo.objects.filter(
         cluster_id__in=[DEFAULT_BCS_CLUSTER_ID_ONE, DEFAULT_BCS_CLUSTER_ID_TWO]
     ).delete()
+    models.SpaceResource.objects.filter(space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID).delete()
 
 
 def consul_client(*args, **kwargs):

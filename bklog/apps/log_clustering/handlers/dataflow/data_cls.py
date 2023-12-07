@@ -400,16 +400,11 @@ class AfterTreatDataFlowCls(object):
 
 @dataclass
 class PredictDataFlowCls(object):
-
     table_name_no_id: str
     result_table_id: str
     clustering_stream_source: RealTimeCls
-    non_clustering_stream_source: RealTimeCls
     clustering_predict: ModelClusterPredictNodeCls
     format_signature: RealTimeCls
-    rename_signature: RealTimeCls
-    merge_log: MergeNodeCls
-    queue_cluster: str
     bk_biz_id: int
     is_flink_env: bool = False
     es: ElasticsearchCls = ElasticsearchCls()

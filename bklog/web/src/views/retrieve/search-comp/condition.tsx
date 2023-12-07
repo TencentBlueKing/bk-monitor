@@ -30,6 +30,7 @@ import {
 } from 'vue-property-decorator';
 import { Switcher, Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
 import './condition.scss';
+import { Debounce } from '../../../common/util';
 
 interface IProps {
 }
@@ -83,7 +84,7 @@ export default class Condition extends tsc<IProps> {
     content: '#match-tips-content',
     placement: 'top',
     distance: 9,
-  }
+  };
 
   get ipSelectLength() { // 是否有选择ip
     return Object.keys(this.catchIpChooser).length;
@@ -169,6 +170,7 @@ export default class Condition extends tsc<IProps> {
     return v;
   }
 
+  @Debounce(300)
   @Emit('additionValueChange')
   handleAdditionChange(v: any, key: string, isQuery = true) {
     return { v, key, isQuery };
@@ -228,6 +230,8 @@ export default class Condition extends tsc<IProps> {
       const matchVal = Number(matchList.join(',')); // 拿到数字的值进行一个大小对比
       this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType);  // 判断数字最大值 超出则使用最大值
     }
+
+    this.handleAdditionChange(this.localValue, 'value');
   }
 
   /**
@@ -246,9 +250,9 @@ export default class Condition extends tsc<IProps> {
   // 当有对比的操作时 值改变
   handleValueBlur(val: string) {
     if (val !== '' && this.isHaveCompared) this.localValue = [val];
-    if (this.localValue.length) {
-      this.handleAdditionChange(this.localValue, 'value');
-    }
+    // if (this.localValue.length) {
+    //   this.handleAdditionChange(this.localValue, 'value');
+    // }
   }
 
   handleValueRemoveAll() {
@@ -420,7 +424,7 @@ export default class Condition extends tsc<IProps> {
             v-model={this.localValue}
             data-test-id="addConditions_input_valueFilter"
             allow-create
-            allow-auto-match
+            // allow-auto-match
             tpl={this.tpl}
             placeholder={this.inputPlaceholder}
             list={this.tagInputValueList}

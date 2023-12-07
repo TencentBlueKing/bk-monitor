@@ -4,26 +4,33 @@ body {
   color: #63656e;
   // overflow: hidden
 }
+
 html {
   overflow: hidden;
 }
+
 ul {
-  margin: 0;
   padding: 0;
+  margin: 0;
+
   li {
     list-style: none;
   }
 }
+
 label {
   margin-bottom: 0;
 }
+
 * {
   /* stylelint-disable-next-line declaration-no-important */
-  font-family: -apple-system, "Helvetica Neue", "Helvetica", "Arial", "PingFang SC", "Microsoft YaHei", SimSun, sans-serif !important;
+  font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif !important;
+
   &:focus {
     outline: none;
   }
 }
+
 div,
 ul,
 section,
@@ -32,18 +39,22 @@ article {
     width: 4px;
     height: 4px;
   }
+
   &::-webkit-scrollbar-thumb {
-    border-radius: 20px;
     background: #ddd;
+    border-radius: 20px;
     box-shadow: inset 0 0 6px rgba(204, 204, 204, .3);
   }
 }
+
 input::-webkit-inner-spin-button {
   appearance: none;
 }
-input[type="number"] {
+
+input[type='number'] {
   appearance: textfield;
 }
+
 a {
   text-decoration: none;
 }

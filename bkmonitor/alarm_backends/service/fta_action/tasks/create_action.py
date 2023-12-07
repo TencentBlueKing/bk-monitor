@@ -7,6 +7,7 @@ from typing import List
 from celery.task import task
 from django.conf import settings
 from django.utils.translation import ugettext as _
+from elasticsearch import ConflictError
 
 from alarm_backends.constants import CONST_SECOND
 from alarm_backends.core.alert import Alert, AlertCache
@@ -685,7 +686,19 @@ class CreateActionProcessor:
         cached_alerts = [Alert(data=alert.to_dict()) for alert in self.alerts]
         AlertCache.save_alert_to_cache(cached_alerts)
         AlertCache.save_alert_snapshot(cached_alerts)
-        AlertDocument.bulk_create(handled_alerts, action=BulkActionType.UPDATE)
+        retry_times = 0
+        while retry_times < 3:
+            # 更新alert 的时候，可能会有版本冲突，所以需要做重试处理，最多3次
+            try:
+                AlertDocument.bulk_create(handled_alerts, action=BulkActionType.UPDATE)
+                break
+            except ConflictError:
+                # 版本冲突一般是由于其他进程并发导致，在1分钟的周期任务频率下会比较严重，可以加重试处理
+                logger.info(
+                    "[update_alert_document] update alert(%s) failed because of version conflict",
+                    [ad.id for ad in self.alerts],
+                )
+                retry_times += 1
 
     def create_message_queue_action(self, new_actions: list):
         """
@@ -705,10 +718,6 @@ class CreateActionProcessor:
                 self.alert_ids,
                 settings.ENABLE_PUSH_SHIELDED_ALERT,
             )
-            return
-
-        message_queue_signal = ActionSignal.MESSAGE_QUEUE_OPERATE_TYPE_MAPPING.get(self.signal)
-        if not message_queue_signal:
             return
 
         plugin_type = ActionPluginType.MESSAGE_QUEUE
@@ -741,7 +750,6 @@ class CreateActionProcessor:
         :param action_relation：关联处理套餐关系
         :param action_config: 套餐配置快照
         :param action_plugin: 套餐类型快照
-        :param assignee: 处理人员
         :return:
         """
         action_relation = action_relation or {}

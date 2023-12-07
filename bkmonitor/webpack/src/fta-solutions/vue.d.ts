@@ -94,6 +94,7 @@ declare global {
     Vue?: any;
     i18n: IVueI18n;
     bk_url: string;
+    timezone: string;
     __POWERED_BY_BK_WEWEB__: boolean;
     __BK_WEWEB_DATA__: Record<string, any>;
     __bk_zIndex_manager: {

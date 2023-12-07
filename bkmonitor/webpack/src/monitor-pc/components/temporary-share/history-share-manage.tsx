@@ -25,8 +25,9 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { DateRange } from '@blueking/date-picker/dist/vue2-light.es';
 import { Button, Checkbox, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { INavItem } from '@/pages/monitor-k8s/typings';
 
@@ -254,7 +255,7 @@ export default class HistoryShareManage extends tsc<IProps> {
       isCheck: false,
       expireTimeStr: !!item.params_info?.[0]?.expire_period
         ? periodStrFormat(item.params_info?.[0]?.expire_period)
-        : formNowStrFormat(moment(item.create_time).from(moment(Number(item.expire_time) * 1000), true))
+        : formNowStrFormat(dayjs.tz(item.create_time).from(dayjs.tz(Number(item.expire_time) * 1000), true))
     }));
     this.pagination.count = this.urlList.length;
     const { current, limit } = this.pagination;
@@ -286,8 +287,8 @@ export default class HistoryShareManage extends tsc<IProps> {
               return b.accessCount - a.accessCount;
             }
             case 'create_time': {
-              const aTime = moment(a.create_time).unix();
-              const bTime = moment(b.create_time).unix();
+              const aTime = dayjs.tz(a.create_time).unix();
+              const bTime = dayjs.tz(b.create_time).unix();
               if (isAscending) {
                 return aTime - bTime;
               }
@@ -344,7 +345,7 @@ export default class HistoryShareManage extends tsc<IProps> {
     row.isShowAccess = true;
     this.accessDetail = row.access_info.data.map(item => ({
       user: item.visitor,
-      time: moment(item.last_time).format('YYYY-MM-DD HH:mm:ss')
+      time: dayjs.tz(item.last_time).format('YYYY-MM-DD HH:mm:ss')
     }));
     this.handleShowPop(event, this.accessDetailRef);
   }
@@ -354,17 +355,12 @@ export default class HistoryShareManage extends tsc<IProps> {
     this.handlePopoerHidden();
     const timeRangeItem = row.params_info.find(item => item.name === 'time_range');
     if (timeRangeItem) {
-      let timeRangeStr = '';
-      if (!!timeRangeItem?.default_time_range) {
-        timeRangeStr =
-          this.shortcutsMap.get(timeRangeItem.default_time_range.join(' -- ')) ||
-          timeRangeItem.default_time_range.join(' -- ');
-      } else {
-        const formatStr = 'YYYY-MM-DD HH:mm:ss';
-        timeRangeStr = `${moment(timeRangeItem.start_time * 1000).format(formatStr)}--${moment(
-          timeRangeItem.end_time * 1000
-        ).format(formatStr)}`;
-      }
+      const range = !!timeRangeItem?.default_time_range?.length
+        ? timeRangeItem.default_time_range
+        : [timeRangeItem.start_time * 1000, timeRangeItem.end_time * 1000];
+      const timeRangeStr =
+        this.shortcutsMap.get(range.join(' -- ')) ||
+        new DateRange(range, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
       this.variableDetail = [
         { name: this.$tc('时间选择'), isUpdate: !timeRangeItem.lock_search, timeRange: timeRangeStr }
       ];
@@ -471,8 +467,8 @@ export default class HistoryShareManage extends tsc<IProps> {
             return a[prop].localeCompare(b[prop]);
           }
           case 'time': {
-            const aTime = moment(a[prop]).unix();
-            const bTime = moment(b[prop]).unix();
+            const aTime = dayjs.tz(a[prop]).unix();
+            const bTime = dayjs.tz(b[prop]).unix();
             if (isAscending) {
               return aTime - bTime;
             }
@@ -482,8 +478,8 @@ export default class HistoryShareManage extends tsc<IProps> {
       });
     } else {
       this.accessDetail.sort((a, b) => {
-        const aTime = moment(a.time).unix();
-        const bTime = moment(b.time).unix();
+        const aTime = dayjs.tz(a.time).unix();
+        const bTime = dayjs.tz(b.time).unix();
         return bTime - aTime;
       });
     }
@@ -705,7 +701,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                           show-overflow-tooltip
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => (
-                              <span>{moment(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>
+                              <span>{dayjs.tz(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>
                             )
                           }}
                         ></TableColumn>

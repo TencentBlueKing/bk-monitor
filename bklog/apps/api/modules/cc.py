@@ -19,11 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api.base import DataAPI
 from apps.api.modules.utils import adapt_non_bkcc, add_esb_info_before_request
 from config.domains import CC_APIGATEWAY_ROOT_V2
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
 
 
 def get_supplier_account_before(params):
@@ -47,7 +48,6 @@ def filter_bk_field_prefix_before(params):
 
 
 class _CCApi:
-
     MODULE = _("配置平台")
 
     def __init__(self):
@@ -58,6 +58,7 @@ class _CCApi:
             description="查询业务列表",
             before_request=get_supplier_account_before,
             cache_time=60,
+            use_superuser=True,
         )
         self.search_inst_by_object = DataAPI(
             method="POST",
@@ -65,6 +66,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询CC对象列表",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.search_biz_inst_topo = DataAPI(
             method="POST",
@@ -72,6 +74,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询业务TOPO，显示各个层级",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.search_module = DataAPI(
             method="POST",
@@ -79,6 +82,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询模块",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.get_host_info = DataAPI(
             method="GET",
@@ -86,6 +90,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询模块",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.get_biz_internal_module = DataAPI(
             method="GET",
@@ -93,6 +98,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询内部业务模块",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.search_object_attribute = DataAPI(
             method="POST",
@@ -100,6 +106,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询对象属性",
             before_request=filter_bk_field_prefix_before,
+            use_superuser=True,
         )
         self.list_biz_hosts = DataAPI(
             method="POST",
@@ -107,6 +114,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询业务下的主机",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.list_hosts_without_biz = DataAPI(
             method="POST",
@@ -114,6 +122,7 @@ class _CCApi:
             module=self.MODULE,
             description="根据条件查询主机, 不需要业务",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.list_biz_hosts_topo = DataAPI(
             method="POST",
@@ -121,6 +130,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询业务下的主机和拓扑信息",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.search_cloud_area = DataAPI(
             method="POST",
@@ -128,6 +138,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询云区域",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.find_host_topo_relation = DataAPI(
             method="POST",
@@ -135,6 +146,7 @@ class _CCApi:
             module=self.MODULE,
             description="获取主机与拓扑的关系",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.search_set = DataAPI(
             method="POST",
@@ -142,6 +154,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询集群",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.list_service_template = DataAPI(
             method="POST",
@@ -149,6 +162,7 @@ class _CCApi:
             module=self.MODULE,
             description="获取服务模板列表",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.list_set_template = DataAPI(
             method="POST",
@@ -156,6 +170,7 @@ class _CCApi:
             module=self.MODULE,
             description="获取集群模板列表",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.find_host_by_set_template = DataAPI(
             method="POST",
@@ -163,6 +178,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询集群模板下的主机",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.find_host_by_service_template = DataAPI(
             method="POST",
@@ -170,6 +186,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询服务模板下的主机",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.find_module_with_relation = DataAPI(
             method="POST",
@@ -177,6 +194,7 @@ class _CCApi:
             module=self.MODULE,
             description="根据条件查询业务下的模块",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.search_dynamic_group = DataAPI(
             method="POST",
@@ -184,6 +202,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询动态分组列表",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.execute_dynamic_group = DataAPI(
             method="POST",
@@ -191,6 +210,7 @@ class _CCApi:
             module=self.MODULE,
             description="根据指定动态分组规则查询获取数据",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.find_host_by_topo = DataAPI(
             method="POST",
@@ -198,6 +218,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询拓扑节点下的主机",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.list_host_total_mainline_topo = DataAPI(
             method="POST",
@@ -205,6 +226,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询主机及其对应拓扑",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.find_topo_node_paths = DataAPI(
             method="POST",
@@ -212,6 +234,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询业务拓扑节点的拓扑路径",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
         self.list_service_category = DataAPI(
             method="POST",
@@ -219,6 +242,7 @@ class _CCApi:
             module=self.MODULE,
             description="list_service_category",
             before_request=get_supplier_account_before,
+            use_superuser=True,
         )
 
     def get_biz_location(self, *args, **kwargs):

@@ -25,8 +25,7 @@
     <div class="nav-left fl">
       <div class="log-logo-container" @click.stop="jumpToHome">
         <img
-          v-if="logoImgUrl"
-          :src="logoImgUrl"
+          :src="require('@/images/log-logo.png')"
           alt="logo"
           class="logo-image">
         <span class="logo-text">{{ logoText }}</span>
@@ -216,9 +215,6 @@ export default {
         host,
         bkDomain,
       };
-    },
-    logoImgUrl() {
-      return process.env.NODE_ENV === 'development' ? '' : (window.MENU_LOGO_URL || '');
     },
     dropDownActive() {
       let current;
@@ -453,7 +449,7 @@ export default {
   @import '../../scss/mixins/flex';
 
   .log-search-nav {
-    height: 50px;
+    height: 52px;
     color: #fff;
     background: #182132;
 
@@ -476,12 +472,13 @@ export default {
 
         .logo-text {
           font-size: 16px;
+          font-weight: 700;
           color: #96a2b9;
         }
 
         .logo-image {
-          width: 32px;
-          height: 32px;
+          width: 40px;
+          height: 40px;
           margin-right: 10px;
         }
       }

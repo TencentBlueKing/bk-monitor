@@ -329,7 +329,7 @@
   </div>
 </template>
 <script>
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { debounce } from 'throttle-debounce';
 
 import { disableShield, frontendShieldList } from '../../../../monitor-api/modules/shield.js';
@@ -623,9 +623,9 @@ export default {
         params.order = this.curOrder.id;
       }
       if (this.right.dateRange.join('').length) {
-        params.time_range =          `${moment(this.right.dateRange[0]).format('YYYY-MM-DD HH:mm:ss')}`
+        params.time_range =          `${dayjs.tz(this.right.dateRange[0]).format('YYYY-MM-DD HH:mm:ss')}`
           + '--'
-          + `${moment(this.right.dateRange[1]).format('YYYY-MM-DD HH:mm:ss')} `;
+          + `${dayjs.tz(this.right.dateRange[1]).format('YYYY-MM-DD HH:mm:ss')} `;
       }
       const data = await frontendShieldList(params).catch(() => {
         this.emptyType = '500';
@@ -875,8 +875,8 @@ export default {
       display: flex;
 
       .bk-date-picker {
-        margin-right: 10px;
         width: 301px;
+        margin-right: 10px;
 
         .bk-picker-confirm {
           .bk-picker-confirm-time {
@@ -902,26 +902,26 @@ export default {
 
   .content-wrapper {
     margin-top: 16px;
-    border: 1px solid #dcdee5;
     background: #fff;
+    border: 1px solid #dcdee5;
 
     .tab-list {
       display: flex;
       flex-direction: row;
-      justify-content: flex-start;
       align-items: center;
-      line-height: 42px;
-      background: #fafbfd;
+      justify-content: flex-start;
       padding: 0;
       margin: 0 0 16px 0;
       font-size: 14px;
+      line-height: 42px;
+      background: #fafbfd;
 
       &-item {
         flex: 0 0 120px;
+        color: #63656e;
+        text-align: center;
         border-right: 1px solid #dcdee5;
         border-bottom: 1px solid #dcdee5;
-        text-align: center;
-        color: #63656e;
 
         &.tab-active {
           color: #3a84ff;
@@ -934,8 +934,8 @@ export default {
         }
 
         &:hover {
-          cursor: pointer;
           color: #3a84ff;
+          cursor: pointer;
         }
       }
 
@@ -947,8 +947,8 @@ export default {
     }
 
     .shield-table {
-      border-left: 0;
       border-right: 0;
+      border-left: 0;
 
       &::before {
         width: 0;
@@ -959,16 +959,15 @@ export default {
       }
 
       .content {
-        overflow: hidden;
-        text-overflow: ellipsis;
-
         /* stylelint-disable-next-line value-no-vendor-prefix */
         display: -webkit-box;
+        margin: 12px 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
 
         /* stylelint-disable-next-line property-no-vendor-prefix */
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
-        margin: 12px 0;
       }
 
       .link {
@@ -987,16 +986,16 @@ export default {
 
       .edit-btn,
       .clone-btn {
-        padding-left: 0;
         padding-right: 0;
+        padding-left: 0;
         margin-right: 8px;
       }
 
       .dropdown-trigger {
-        cursor: pointer;
         display: inline-block;
-        height: 42px;
         width: 100%;
+        height: 42px;
+        cursor: pointer;
 
         .icon-filter-fill {
           margin-left: 6px;
@@ -1019,21 +1018,21 @@ export default {
 
       .dropdown-menu-list {
         display: flex;
-        width: 150px;
         flex-direction: column;
+        width: 150px;
         padding: 6px 0;
         background: #fff;
 
         .list-item {
-          flex: 0 0 32px;
           display: flex;
+          flex: 0 0 32px;
           align-items: center;
           padding-left: 15px;
 
           &:hover {
-            background: #e1ecff;
             color: #3a84ff;
             cursor: pointer;
+            background: #e1ecff;
           }
         }
       }
@@ -1041,8 +1040,8 @@ export default {
       .icon-mc-wailian {
         margin-left: 2px;
         font-size: 22px;
-        cursor: pointer;
         color: #c4c6cc;
+        cursor: pointer;
 
         &:hover {
           color: #3a84ff;
@@ -1068,9 +1067,9 @@ export default {
   .label-menu-list {
     display: flex;
     flex-direction: column;
+    padding: 6px 0;
     background-color: #fff;
     border-radius: 2px;
-    padding: 6px 0;
 
     .item {
       display: flex;
@@ -1084,13 +1083,13 @@ export default {
       .name {
         display: inline-block;
         height: 18px;
-        line-height: 18px;
         margin-left: 6px;
+        line-height: 18px;
       }
 
       &:hover {
-        background: #e1ecff;
         color: #3a84ff;
+        background: #e1ecff;
       }
     }
   }
@@ -1099,23 +1098,23 @@ export default {
     display: flex;
     justify-content: center;
     height: 29px;
-    border-top: solid 2px #f0f1f5;
     background-color: #fff;
+    border-top: solid 2px #f0f1f5;
 
     .btn-group {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       width: 70px;
       height: 100%;
     }
 
     .bk-button-text {
-      font-size: 12px;
-      line-height: 22px;
       position: relative;
       top: -1px;
       padding: 0;
+      font-size: 12px;
+      line-height: 22px;
     }
   }
 }

@@ -9,13 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import logging
-
 from django.core.management.base import BaseCommand
 
 from metadata import config, models
-
-logger = logging.getLogger("metadata")
 
 
 def update_metrics_report_path_option(data_id):
@@ -49,5 +45,4 @@ class Command(BaseCommand):
         # 3. 更新新版运营数据上报report path
         update_metrics_report_path_option(1100013)
 
-        logger.info("all data_id refresh report path option done.")
-        print("all data_id refresh report path option done.")
+        self.stdout.write("all data_id refresh report path option done.")

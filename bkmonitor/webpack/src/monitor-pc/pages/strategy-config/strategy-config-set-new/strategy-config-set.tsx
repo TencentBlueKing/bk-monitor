@@ -56,6 +56,7 @@ import { deepClone, getUrlParam, transformDataKey, typeTools } from '../../../..
 import ChangeRcord from '../../../components/change-record/change-record';
 import MetricSelector from '../../../components/metric-selector/metric-selector';
 import { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
+import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { ISpaceItem } from '../../../types';
 import { IOptionsItem } from '../../calendar/types';
 import { IDataRetrieval } from '../../data-retrieval/typings';
@@ -376,7 +377,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   /* 是否展示实时查询（只有实时能力的不能隐藏 如系统事件， 如果已经配置了的不能隐藏） */
   showRealtimeStrategy = !!window?.show_realtime_strategy;
-
+  /* 时区 */
+  timezone = getDefautTimezone();
   get isEdit(): boolean {
     return !!this.$route.params.id;
   }
@@ -890,6 +892,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 初始化数据
   async initData() {
     this.showRealtimeStrategy = !!window?.show_realtime_strategy;
+    if (this.$route.query?.timezone) {
+      this.timezone = this.$route.query.timezone as string;
+      updateTimezone(this.timezone);
+    }
     if (this.isClone || !this.id) {
       this.updateRouteNavName(this.$tc('新建策略'));
     }

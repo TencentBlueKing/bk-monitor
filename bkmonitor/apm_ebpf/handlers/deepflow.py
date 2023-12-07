@@ -284,26 +284,26 @@ class DeepflowHandler:
     @property
     def server_addresses(self):
         """
-        获取业务下所有集群的service: deepflow-server访问地址
+        获取业务下所有已发现集群的service: deepflow-server的访问地址
         """
         res = {}
-        for cluster in self._clusters:
-            u = self.get_server_access(cluster["clusterID"])
+        for cluster_id in WorkloadHandler.list_deepflow_cluster_ids(self.bk_biz_id):
+            u = self.get_server_access(cluster_id)
             if u:
-                res[cluster["clusterID"]] = u
+                res[cluster_id] = u
 
         return res
 
     @property
     def app_addresses(self):
         """
-        获取业务下所有集群的service: deepflow-app访问地址
+        获取业务下所有已发现集群的service: deepflow-app访问地址
         """
         res = {}
-        for cluster in self._clusters:
-            u = self.get_app_access(cluster["clusterID"])
+        for cluster_id in WorkloadHandler.list_deepflow_cluster_ids(self.bk_biz_id):
+            u = self.get_app_access(cluster_id)
             if u:
-                res[cluster["clusterID"]] = u
+                res[cluster_id] = u
 
         return res
 
@@ -311,6 +311,11 @@ class DeepflowHandler:
         """
         获取DeepFlow-server访问地址
         """
+        if not service_content:
+            server_service = self._get_service_instance(cluster_id, DeepflowComp.SERVICE_SERVER_REGEX)
+            if not server_service:
+                return None
+            service_content = server_service.content
         return self._get_access(
             cluster_id,
             service_content,
@@ -321,10 +326,28 @@ class DeepflowHandler:
         """
         获取DeepFlow-app访问地址
         """
+        if not service_content:
+            app_service = self._get_service_instance(cluster_id, DeepflowComp.SERVICE_APP_REGEX)
+            if not app_service:
+                return None
+            service_content = app_service.content
+
         return self._get_access(
             cluster_id,
             service_content,
             DeepflowComp.SERVICE_APP_PORT_QUERY,
+        )
+
+    def _get_service_instance(self, cluster_id, specific_service):
+        services = WorkloadHandler.list_services(self.bk_biz_id, DeepflowComp.NAMESPACE, cluster_id)
+
+        return next(
+            (
+                i
+                for i in services
+                if DeepflowInstaller.check_service(WorkloadContent.json_to_service(i.content), specific_service)
+            ),
+            None,
         )
 
     def _get_access(self, cluster_id, service_content, port_name):

@@ -22,82 +22,75 @@
 
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop } from 'vue-property-decorator';
+import { getFlatObjValues } from '@/common/util';
 import './original-light-height.scss';
 
 interface IProps {
-  originJsonStr: string;
+  originJson: Object;
+  kvShowFieldsList: string[];
 }
 
 @Component
 export default class QueryStatement extends tsc<IProps> {
-  /** 原始日志字符串 */
-  @Prop({ type: String, default: '' }) originJsonStr: string;
+  /** 原始日志 */
+  @Prop({ type: Object, required: true }) originJson;
+  @Prop({ type: Array, required: true }) kvShowFieldsList;
+  @Prop({ type: Array, required: true }) totalFields;
 
-  segmentReg = /"<black-mark>(.*?)<\/black-mark>"|<mark>(.*?)<\/mark>/;
+  segmentReg = /<mark>(.*?)<\/mark>/g;
 
-  /** 正则切割原始日志 */
-  get splitList() {
-    const value = this.originJsonStr;
-    let arr = value.split(this.segmentReg);
-    arr = arr.filter(val => val && val.length);
-    return arr;
+  get fieldMapData() {
+    // 与kv列表同步展示字段
+    const showObject = this.totalFields
+      .filter(item => this.kvShowFieldsList.includes(item.field_name))
+      .reduce((pre, cur) => {
+        pre[cur.field_name] = this.originJson[cur.field_name];
+        return pre;
+      }, {});
+    // 扁平化对象所有数据
+    const { newObject } = getFlatObjValues(showObject || {});
+    return Object.entries(newObject);
   }
 
-  /** key高亮列表 */
-  get blackMarkList() {
-    let markVal = this.originJsonStr
-      .toString()
-      .match(/(<black-mark>).*?(<\/black-mark>)/g) || [];
-    if (markVal.length) {
-      markVal = markVal.map(item => item.replace(/<black-mark>/g, '').replace(/<\/black-mark>/g, ''),
-      );
-    }
-    return markVal;
-  }
   /** 检索的高亮列表 */
-  get markList() {
-    let markVal = this.originJsonStr.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
-    if (markVal.length) {
-      markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-      );
+  markItem(str: any) {
+    let splitList = str
+      .toString()
+      .split(this.segmentReg)
+      .filter(Boolean)
+      .map(item => ({
+        str: item,
+        isMark: false,
+      }));
+    // 过滤切割的数组 判断所有的值filter(Boolean)清空所有空字符串后 若为空数组 则补一个空字符串展示位
+    if (!splitList.length) splitList = ['""'];
+    let markVal = str.toString().match(this.segmentReg);
+    if (markVal?.length) {
+      splitList.forEach((el) => {
+        markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        );
+        markVal.includes(el.str) && (el.isMark = true); // 给匹配到的数据 mark高亮设置为true
+      });
     }
-    return markVal;
-  }
-  /** 判断是否是key */
-  checkBlackMark(splitItem) {
-    if (!this.blackMarkList.length) return false;
-    // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-    return this.blackMarkList.some(
-      item => item === splitItem
-        || splitItem.startsWith(`.${item}`)
-        || splitItem.endsWith(`${item}.`),
-    );
-  }
-  /** 判断是否是检索高亮 */
-  checkMark(splitItem) {
-    if (!this.markList.length) return false;
-    // 以句号开头或句号结尾的分词符匹配成功也高亮展示
-    return this.markList.some(
-      item => item === splitItem
-        || splitItem.startsWith(`.${item}`)
-        || splitItem.endsWith(`${item}.`),
-    );
+    return splitList;
   }
 
   render() {
+    const valueStr = (val) => {
+      return this.markItem(val).map((item) => {
+        if (item.isMark) return <mark>{item.str}</mark>;
+        return item.str || '""';
+      });
+    };
     return (
       <span class="origin-content">
-        {this.splitList.map((item) => {
-          if (item === '\n') {
-            return <br />;
-          }
-          if (this.checkBlackMark(item)) {
-            return <span class="black-mark">"{item}"</span>;
-          }
-          if (this.checkMark(item)) {
-            return <mark>{item}</mark>;
-          }
-          return item;
+        {this.fieldMapData.map(([key, value]) => {
+          return (
+            <span>
+              <span class="black-mark">&nbsp;{key}:&nbsp;</span>
+              <span class="origin-value">{valueStr(value)}</span>
+            </span>
+          );
         })}
       </span>
     );
