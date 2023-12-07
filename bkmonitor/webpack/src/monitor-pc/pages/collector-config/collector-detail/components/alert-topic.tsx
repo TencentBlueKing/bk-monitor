@@ -40,6 +40,7 @@ import './alert-topic.scss';
 interface IProps {
   alarmGroupList?: IAlarmGroupList[];
   stage: TCollectorAlertStage;
+  updateKey?: string;
 }
 
 @Component
@@ -47,6 +48,7 @@ export default class AlertTopic extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) alarmGroupList: IAlarmGroupList[];
   @Prop({ type: String, default: '' }) stage: TCollectorAlertStage;
   @Prop({ type: [String, Number], default: '' }) id: number | string;
+  @Prop({ type: String, default: '' }) updateKey: string;
 
   strategies = [];
   userGroupList = [];
@@ -55,8 +57,8 @@ export default class AlertTopic extends tsc<IProps> {
 
   show = false;
 
-  @Watch('id', { immediate: true })
-  handleWatch() {
+  @Watch('updateKey')
+  handleWatchKey() {
     if (!!this.stage && !!this.id) {
       alertStatus({
         collect_config_id: this.id,
@@ -68,11 +70,30 @@ export default class AlertTopic extends tsc<IProps> {
         this.show = true;
         this.strategies = data.alert_config?.strategies || [];
         this.userGroupList = data.alert_config?.user_group_list?.map(item => item.id) || [];
-        this.alertHistogram = data.alert_histogram.map(item => ({ level: item[1] }));
+        this.alertHistogram = data?.alert_histogram || [];
         this.hasAlert = data.has_alert;
       });
     }
   }
+
+  // @Watch('id', { immediate: true })
+  // handleWatch() {
+  //   if (!!this.stage && !!this.id) {
+  //     alertStatus({
+  //       collect_config_id: this.id,
+  //       stage: this.stage
+  //     }).then(data => {
+  //       if (data?.has_strategies === false) {
+  //         return;
+  //       }
+  //       this.show = true;
+  //       this.strategies = data.alert_config?.strategies || [];
+  //       this.userGroupList = data.alert_config?.user_group_list?.map(item => item.id) || [];
+  //       this.alertHistogram = data?.alert_histogram || [];
+  //       this.hasAlert = data.has_alert;
+  //     });
+  //   }
+  // }
 
   handleToEvent() {
     const strategyIds = this.strategies.map(item => item.id);

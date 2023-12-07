@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './alert-histogram.scss';
@@ -45,16 +45,137 @@ export default class AlertHistogram extends tsc<IProps> {
     type: Array,
     default: () => []
   })
-  value: {
-    level: number;
-  }[];
+  value: number[][];
+
+  @Ref('time') timeRef: HTMLDivElement;
+
+  /* 监听容器宽度 */
+  resizeObserver = null;
+  /* 当前容器宽度 */
+  width = 0;
+  /* 当前显示的数据 */
+  localValue: { times: number[]; level: number }[] = [];
+  /* pop实例 */
+  popInstance = null;
+  /* 当前hover的时间 */
+  curHoverTime = '';
+
+  mounted() {
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        // 获取元素的新宽度
+        const newWidth = entry.contentRect.width;
+        this.width = newWidth;
+        this.reduceAccuracy();
+      }
+    });
+    this.resizeObserver.observe(this.$el);
+  }
+
+  destroyed() {
+    this.resizeObserver.unobserve(this.$el);
+  }
+
+  /**
+   * @description 降低精度处理
+   */
+  reduceAccuracy() {
+    const max = 6 * 60 + 6;
+    const max1 = 6 * 30 + 6;
+    if (this.width < max) {
+      const values = [];
+      let interval = 2;
+      if (this.width < max1) {
+        interval = 4;
+      }
+      let i = 0;
+      let tempTime = [];
+      let timeValue = [];
+      const len = this.value.length;
+      this.value.forEach((item, index) => {
+        i += 1;
+        tempTime.push(item[0]);
+        timeValue.push(item[1]);
+        if (i === interval) {
+          values.push([tempTime, timeValue]);
+          tempTime = [];
+          timeValue = [];
+          i = 0;
+        }
+        if (index === len - 1 && tempTime.length) {
+          values.push([tempTime, timeValue]);
+        }
+      });
+      this.localValue = values.map(item => ({ times: item[0], level: Math.max(...item[1]) }));
+    } else {
+      this.localValue = this.value.map(item => ({
+        times: [item[0]],
+        level: item[1]
+      }));
+    }
+  }
+
+  timeStampToStr(time: number) {
+    const timeDate = new Date(time);
+    const year = timeDate.getFullYear();
+    const month = timeDate.getMonth() + 1;
+    const date = timeDate.getDate();
+    const h = timeDate.getHours();
+    const m = timeDate.getMinutes();
+    const numStr = num => {
+      if (num < 10) {
+        return `0${num}`;
+      }
+      return num;
+    };
+    return `${year}-${numStr(month)}-${numStr(date)} ${numStr(h)}:${numStr(m)}`;
+  }
+  /**
+   * @description hover
+   * @param e
+   * @param item
+   */
+  handleMouseenter(e: Event, item: { times: number[]; level: number }) {
+    if (item.times.length > 1) {
+      const start = item.times[0];
+      const end = item.times[item.times.length - 1];
+      this.curHoverTime = `${this.timeStampToStr(start)} ~ ${this.timeStampToStr(end)}`;
+    } else {
+      this.curHoverTime = this.timeStampToStr(item.times[0]);
+    }
+    this.$nextTick(() => {
+      this.popInstance = this.$bkPopover(e.target, {
+        content: this.timeRef,
+        trigger: 'mouseenter',
+        theme: 'light',
+        delay: [300, 0],
+        arrow: true,
+        placement: 'top',
+        boundary: 'window'
+      });
+      this.popInstance?.show();
+    });
+  }
+
+  handleMouseleave() {
+    this.popInstance?.hide?.(0);
+    this.popInstance?.destroy?.();
+    this.popInstance = null;
+  }
 
   render() {
     return (
       <div class='alert-histogram-component'>
-        {this.value.map(item => (
-          <div class={['histogram-item', classMap[item.level]]}></div>
+        {this.localValue.map(item => (
+          <div
+            class={['histogram-item', classMap[item.level]]}
+            onMouseenter={e => this.handleMouseenter(e, item)}
+            onMouseleave={() => this.handleMouseleave()}
+          ></div>
         ))}
+        <div style={{ display: 'none' }}>
+          <div ref='time'>{this.curHoverTime}</div>
+        </div>
       </div>
     );
   }

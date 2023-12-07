@@ -147,7 +147,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         };
         let showAlertHistogram = true;
         item.child.forEach(set => {
-          const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
+          // const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
+          const alertHistogram = set?.alert_histogram || [];
           showAlertHistogram = !!set?.alert_histogram;
           // 表格内容
           if (
@@ -238,7 +239,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       let showAlertHistogram = true;
       item.child.forEach(set => {
         if ((id === EStatus.RUNNING && STATUS_LIST.includes(set.status)) || set.status === id || id === EStatus.ALL) {
-          const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
+          // const alertHistogram = set?.alert_histogram?.map(a => ({ level: a[1] })) || [];
+          const alertHistogram = set?.alert_histogram || [];
           showAlertHistogram = !!set?.alert_histogram;
           table.push({
             ...set,

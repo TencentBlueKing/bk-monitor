@@ -1,10 +1,10 @@
 .alert-histogram-component {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  width: 100%;
 
   .histogram-item {
-    width: 4px;
+    flex: 1;
     min-width: 4px;
     height: 12px;
     min-height: 12px;

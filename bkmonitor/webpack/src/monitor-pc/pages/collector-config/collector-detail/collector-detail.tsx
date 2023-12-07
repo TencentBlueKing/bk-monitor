@@ -79,14 +79,18 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       pollingCount: 1,
       needPolling: true,
       timer: null,
-      topicKey: random(8)
+      topicKey: ''
     },
     [TabEnum.StorageState]: {
       loading: false,
-      data: null
+      data: null,
+      topicKey: ''
     },
     [TabEnum.Configuration]: {
       renderKey: random(8)
+    },
+    [TabEnum.DataLink]: {
+      topicKey: ''
     }
   };
 
@@ -113,8 +117,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     this.active = v;
     if (this.active === TabEnum.TargetDetail) {
       this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount);
+      this.allData[TabEnum.TargetDetail].topicKey = random(8);
     } else if (this.active === TabEnum.StorageState) {
       this.getStorageStateData();
+      this.allData[TabEnum.StorageState].topicKey = random(8);
+    } else if (this.active === TabEnum.DataLink) {
+      this.allData[TabEnum.DataLink].topicKey = random(8);
     }
   }
 
@@ -277,6 +285,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               class='mb-24'
               stage={TCollectorAlertStage.collecting}
               id={this.collectId as any}
+              updateKey={this.allData[TabEnum.TargetDetail].topicKey}
               alarmGroupList={this.alarmGroupList}
             ></AlertTopic>
             <CollectorStatusDetails
@@ -294,6 +303,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               class='mb-24'
               stage={TCollectorAlertStage.transfer}
               id={this.collectId as any}
+              updateKey={this.allData[TabEnum.DataLink].topicKey}
               alarmGroupList={this.alarmGroupList}
             ></AlertTopic>
             <LinkStatus
@@ -309,6 +319,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               class='mb-24'
               stage={TCollectorAlertStage.storage}
               id={this.collectId as any}
+              updateKey={this.allData[TabEnum.StorageState].topicKey}
               alarmGroupList={this.alarmGroupList}
             ></AlertTopic>
             <StorageState
