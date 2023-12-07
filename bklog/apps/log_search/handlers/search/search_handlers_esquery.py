@@ -2141,6 +2141,7 @@ class UnionSearchHandler(object):
         # 处理返回结果
         result_log_list = list()
         result_origin_log_list = list()
+        fields = dict()
         total = 0
         took = 0
         for index_set_id in self.index_set_ids:
@@ -2149,6 +2150,13 @@ class UnionSearchHandler(object):
             result_origin_log_list.extend(ret["origin_log_list"])
             total += int(ret["total"])
             took = max(took, ret["took"])
+            for key, value in ret.get("fields", {}).items():
+                if not isinstance(value, dict):
+                    continue
+                if key not in fields:
+                    fields[key] = value
+                else:
+                    fields[key]["max_length"] = max(fields[key].get("max_length", 0), value.get("max_length", 0))
 
         # 数据排序处理  兼容第三方ES检索排序
         time_fields = set()
@@ -2211,6 +2219,7 @@ class UnionSearchHandler(object):
         res = {
             "total": total,
             "took": took,
+            "fields": fields,
             "list": result_log_list,
             "origin_log_list": result_origin_log_list,
             "union_configs": self.union_configs,
