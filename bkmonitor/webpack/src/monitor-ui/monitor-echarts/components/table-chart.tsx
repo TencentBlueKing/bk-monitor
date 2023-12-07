@@ -26,7 +26,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { ITableSeries } from '../options/type-interface';
 
@@ -54,7 +54,7 @@ export default class TableChart extends tsc<TableChartProps> {
         const obj: any = {};
         this.tableColumn?.forEach((column, index) => {
           if (column.type === 'time') {
-            obj[column.text] = moment(String(item[index])).format('YYYY-MM-DD HH:mm:ss');
+            obj[column.text] = dayjs.tz(String(item[index])).format('YYYY-MM-DD HH:mm:ss');
           } else {
             obj[column.text] = item[index];
           }

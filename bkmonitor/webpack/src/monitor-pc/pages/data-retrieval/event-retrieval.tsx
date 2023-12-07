@@ -27,9 +27,11 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { destroyTimezone } from '../../i18n/dayjs';
+
 import DataRetrieval from './data-retrieval';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
 export default class EventRetrieval extends tsc<{}> {
@@ -40,7 +42,10 @@ export default class EventRetrieval extends tsc<{}> {
       vm.eventRetrieval.handleBeforeRouteEnter(to, from);
     });
   }
-
+  beforeRouteLeave(to: Route, from: Route, next: Function) {
+    destroyTimezone();
+    next();
+  }
   render() {
     return <DataRetrieval ref='eventRetrieval' />;
   }

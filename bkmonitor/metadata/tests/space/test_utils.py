@@ -66,3 +66,12 @@ def test_create_bksaas_space_resource(create_and_delete_record, mocker):
             assert isinstance(dv["namespace"], list)
 
     assert set(real_clusters) == {DEFAULT_BCS_CLUSTER_ID_ONE, DEFAULT_BCS_CLUSTER_ID_TWO}
+
+
+def test_filter_space_resource(create_and_delete_record):
+    space_info = models.Space.objects.list_all_spaces()
+    spaces = [(space["space_type_id"], space["space_id"]) for space in space_info["list"]]
+    space_resource_data = utils._filter_space_resource_by_page(spaces)
+    expected_key = (DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID)
+    assert set(space_resource_data.keys()) == {expected_key}
+    assert isinstance(space_resource_data[expected_key], list)

@@ -26,7 +26,7 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Dialog, DropdownMenu, Input, Popover, Switcher } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { releaseCollectorPlugin, retrieveCollectorPlugin } from '../../../../monitor-api/modules/model';
 import { saveMetric } from '../../../../monitor-api/modules/plugin';
@@ -846,7 +846,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                 }
               )
           })),
-        `${this.localPluginData.plugin_id}-${moment().format('YYYY-MM-DD HH-mm-ss')}.json`
+        `${this.localPluginData.plugin_id}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
       );
   }
   handleImportMetric(data) {

@@ -27,6 +27,7 @@ import { locale, lang } from 'bk-magic-vue';
 // import en from './lang/en';
 // import zh from './lang/zh';
 import { logEnJson } from './lang/en/index';
+import './dayjs';
 
 Vue.use(VueI18n);
 

@@ -67,7 +67,7 @@
               @mouseenter="(e) => handleHoverFavoriteName(e, JSON.stringify(row))">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <original-light-height :origin-json-str="JSON.stringify(addBlackMarkToKeys(row))" />
+              <original-light-height :origin-json-str="addBlackMarkToKeys(row)" />
               <p
                 v-if="!cacheExpandStr.includes($index)"
                 class="show-whole-btn"

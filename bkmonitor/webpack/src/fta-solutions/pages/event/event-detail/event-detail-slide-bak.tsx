@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { actionDetail } from '../../../../monitor-api/modules/alert';
 import { copyText } from '../../../../monitor-common/utils/utils';
@@ -169,7 +169,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           const { key } = item;
           item.value = data[key];
           if (key === 'create_time') {
-            item.value = moment(data[key] * 1000).format('YYYY-MM-DD HH:mm:ss');
+            item.value = dayjs.tz(data[key] * 1000).format('YYYY-MM-DD HH:mm:ss');
           }
           if (['action_plugin_type', 'signal', 'status', 'alert_level'].includes(key)) {
             item.display = item.valueDisplayMap[item.value as string];

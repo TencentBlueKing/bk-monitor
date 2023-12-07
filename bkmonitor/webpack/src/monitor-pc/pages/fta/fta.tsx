@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './fta.scss';
 
+Component.registerHooks(['beforeRouteLeave']);
+
 @Component
 export default class FTA extends tsc<{}> {
   @Prop() a: number;
@@ -46,6 +48,9 @@ export default class FTA extends tsc<{}> {
       host: this.ftaHost,
       baseroute: '/fta/'
     });
+  }
+  beforeRouteLeave(to, from, next) {
+    next();
   }
   mounted() {
     setTimeout(() => {

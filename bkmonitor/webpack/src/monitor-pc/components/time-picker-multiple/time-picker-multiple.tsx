@@ -25,7 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc, modifiers } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   defaultAddTimeRange,
@@ -147,7 +147,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
         return moment[method]?.(timeList[index]);
       }
       return moment;
-    }, moment());
+    }, dayjs.tz());
   }
 
   /**
@@ -248,8 +248,8 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
    */
   handleSortTimeRange(): IProps['value'] {
     return this.localValue.sort((a, b) => {
-      const time1 = +moment(moment().startOf('day').format(`YYYY-MM-DD ${a[0]}`)).format('x');
-      const time2 = +moment(moment().startOf('day').format(`YYYY-MM-DD ${b[0]}`)).format('x');
+      const time1 = +dayjs.tz(dayjs.tz().startOf('day').format(`YYYY-MM-DD ${a[0]}`)).format('x');
+      const time2 = +dayjs.tz(dayjs.tz().startOf('day').format(`YYYY-MM-DD ${b[0]}`)).format('x');
       return time1 - time2;
     });
   }

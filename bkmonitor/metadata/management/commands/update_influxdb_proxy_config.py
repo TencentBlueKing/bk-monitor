@@ -9,9 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import logging
-
 import yaml
 from django.core.management.base import BaseCommand
 from django.db.transaction import atomic
@@ -23,8 +20,6 @@ from metadata.models.influxdb_cluster import (
     InfluxDBTagInfo,
 )
 from metadata.models.storage import InfluxDBStorage
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):

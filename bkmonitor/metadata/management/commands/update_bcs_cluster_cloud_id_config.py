@@ -9,14 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import logging
-from metadata import config
 from django.core.management.base import BaseCommand
 from django.db.transaction import atomic
-from metadata.task.bcs import update_bcs_cluster_cloud_id_config
 
-logger = logging.getLogger("metadata")
+from metadata import config
+from metadata.task.bcs import update_bcs_cluster_cloud_id_config
 
 
 class Command(BaseCommand):
