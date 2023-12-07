@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import os
+from typing import Any, Dict
 
 from django.conf import settings
 from django.utils.translation import get_language
@@ -55,7 +56,7 @@ def get_default_biz_id(request, biz_list, id_key):
     return biz_id
 
 
-def field_formatter(context):
+def field_formatter(context: Dict[str, Any]):
     # 字段大小写标准化
     standard_context = {
         key.upper(): context[key]
@@ -69,13 +70,22 @@ def field_formatter(context):
     context.update(standard_context)
 
 
-def json_formatter(context):
+def json_formatter(context: Dict[str, Any]):
     # JSON 返回预处理
     context["PLATFORM"] = {key: getattr(context["PLATFORM"], key) for key in ["ce", "ee", "te"]}
     context["LANGUAGES"] = dict(context["LANGUAGES"])
 
     for key in ["gettext", "_"]:
         context.pop(key, None)
+
+    bool_context: Dict[
+        str,
+    ] = {}
+    for key, value in context.items():
+        if isinstance(value, str) and value in ["false", "False", "true", "True"]:
+            bool_context[key] = True if value in {"True", "true"} else False
+
+    context.update(bool_context)
 
 
 def get_core_context(request):
