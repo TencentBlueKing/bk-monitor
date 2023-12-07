@@ -107,13 +107,14 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     this.getCollectConfigListItem();
     this.getAlarmGroupList();
     this.getDetails();
-    this.getStorageStateData();
   }
 
   handleTabChange(v: TabEnum) {
     this.active = v;
     if (this.active === TabEnum.TargetDetail) {
       this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount);
+    } else if (this.active === TabEnum.StorageState) {
+      this.getStorageStateData();
     }
   }
 

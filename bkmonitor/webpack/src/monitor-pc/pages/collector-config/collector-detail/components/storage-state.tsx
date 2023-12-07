@@ -188,15 +188,13 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
 
   render() {
     return (
-      <div class='storage-state-component'>
+      <div
+        class='storage-state-component'
+        v-bkloading={{ isLoading: this.loading }}
+      >
         <div class='storage-info'>
           <div class='title'>{this.$t('存储信息')}</div>
-          <div
-            class='info-form'
-            v-bkloading={{ isLoading: this.loading }}
-          >
-            {this.infoData.map(field => this.renderInfoField(field))}
-          </div>
+          <div class='info-form'>{this.infoData.map(field => this.renderInfoField(field))}</div>
         </div>
         <Divider class='divider' />
         <div class='cluster-status'>
@@ -208,7 +206,6 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
               outer-border={false}
               header-border={false}
               max-height={350}
-              v-bkloading={{ isLoading: this.loading }}
             >
               {this.clusterStatusTable.columns.map(column => {
                 return (
@@ -232,7 +229,6 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
               outer-border={false}
               header-border={false}
               max-height={350}
-              v-bkloading={{ isLoading: this.loading }}
             >
               {this.indexStatusTable.columns.map(column => {
                 return (
