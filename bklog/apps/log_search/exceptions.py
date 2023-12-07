@@ -473,6 +473,11 @@ class FavoriteUnionSearchAlreadyExistException(BaseException):
     MESSAGE = _("收藏组合名称: [{name}]已存在")
 
 
+class UserIndexSetSearchHistoryNotExistException(BaseException):
+    ERROR_CODE = "444"
+    MESSAGE = _("历史记录不存在")
+
+
 # =================================================
 # 导出
 # =================================================
