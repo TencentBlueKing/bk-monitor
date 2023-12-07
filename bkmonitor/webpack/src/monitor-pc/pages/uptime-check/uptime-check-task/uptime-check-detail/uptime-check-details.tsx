@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import introduce from '../../../../common/introduce';
 import GuidePage from '../../../../components/guide-page/guide-page';
+import { destroyTimezone } from '../../../../i18n/dayjs';
 import CommonNavBar from '../../../monitor-k8s/components/common-nav-bar';
 import CommonPage from '../../../monitor-k8s/components/common-page';
 import { IMenuItem, INavItem, IViewOptions } from '../../../monitor-k8s/typings';
@@ -35,7 +36,7 @@ import * as authorityMap from '../../authority-map';
 
 import './uptime-check-detail.scss';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
 export default class UptimeCheckDetail extends tsc<{}> {
@@ -97,7 +98,10 @@ export default class UptimeCheckDetail extends tsc<{}> {
       };
     });
   }
-
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
+  }
   /**
    * 基于当前的配置信息进行拨测任务的新建
    */

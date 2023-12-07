@@ -28,10 +28,10 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 import { Alert, Button, Exception, Input, Option, Select } from 'bk-magic-vue';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
-import moment from 'moment';
 
 import { Debounce, random } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
@@ -200,8 +200,8 @@ class RelatedLogChart extends CommonSimpleChart {
       this.unregisterOberver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime,
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         interval: this.chartInterval,
         index_set_id: this.relatedIndexSetId,
         keyword: this.keyword
@@ -211,42 +211,43 @@ class RelatedLogChart extends CommonSimpleChart {
       });
       this.panel.targets
         .filter(item => item.dataType === 'time_series')
-        .map(item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
+        .map(
+          item =>
+            (this as any).$api[item.apiModule]
+              ?.[item.apiFunc](
+                {
+                  ...variablesService.transformVariables(item.data),
+                  ...params,
+                  view_options: {
+                    ...this.viewOptions
+                  }
+                },
+                { needMessage: false }
+              )
+              .then(res => {
+                if (res.series?.[0].datapoints?.length) {
+                  this.customOptions.series = [];
+                  const data = {
+                    series: [
+                      {
+                        data: res.series[0].datapoints,
+                        type: 'bar',
+                        colorBy: 'data',
+                        name: 'COUNT ',
+                        zlevel: 100
+                      }
+                    ]
+                  };
+                  const updateOption = deepmerge(option, data);
+                  this.customOptions = deepmerge(this.customOptions, updateOption);
+                  this.emptyChart = false;
+                } else {
+                  this.emptyChart = true;
                 }
-              },
-              { needMessage: false }
-            )
-            .then(res => {
-              if (res.series?.[0].datapoints?.length) {
-                this.customOptions.series = [];
-                const data = {
-                  series: [
-                    {
-                      data: res.series[0].datapoints,
-                      type: 'bar',
-                      colorBy: 'data',
-                      name: 'COUNT ',
-                      zlevel: 100
-                    }
-                  ]
-                };
-                const updateOption = deepmerge(option, data);
-                this.customOptions = deepmerge(this.customOptions, updateOption);
-                this.emptyChart = false;
-              } else {
-                this.emptyChart = true;
-              }
-            })
-            .finally(() => {
-              this.handleLoadingChange(false);
-            })
+              })
+              .finally(() => {
+                this.handleLoadingChange(false);
+              })
         );
     } catch (error) {
       this.handleErrorMsgChange(error.msg || error.message);
@@ -274,8 +275,8 @@ class RelatedLogChart extends CommonSimpleChart {
       }
 
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime,
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         keyword: this.keyword,
         limit: this.pagination.limit,
         offset: this.pagination.offset,
@@ -286,29 +287,30 @@ class RelatedLogChart extends CommonSimpleChart {
       });
       await this.panel.targets
         .filter(item => item.dataType === 'table-chart')
-        .map(item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc]({
-              ...variablesService.transformVariables(item.data),
-              ...params,
-              view_options: {
-                ...this.viewOptions
-              }
-            })
-            .then(data => {
-              if (this.isScrollLoadTableData) {
-                this.tableData.push(...data.data);
-              } else {
-                this.tableRenderKey = random(6);
-                this.tableData.splice(0, this.tableData.length, ...data.data);
-                this.columns = data.columns;
-                this.pagination.count = data.total;
-              }
-              this.pagination.offset += data.data.length;
-            })
-            .finally(() => {
-              this.handleLoadingChange(false);
-            })
+        .map(
+          item =>
+            (this as any).$api[item.apiModule]
+              ?.[item.apiFunc]({
+                ...variablesService.transformVariables(item.data),
+                ...params,
+                view_options: {
+                  ...this.viewOptions
+                }
+              })
+              .then(data => {
+                if (this.isScrollLoadTableData) {
+                  this.tableData.push(...data.data);
+                } else {
+                  this.tableRenderKey = random(6);
+                  this.tableData.splice(0, this.tableData.length, ...data.data);
+                  this.columns = data.columns;
+                  this.pagination.count = data.total;
+                }
+                this.pagination.offset += data.data.length;
+              })
+              .finally(() => {
+                this.handleLoadingChange(false);
+              })
         );
     } catch (e) {}
   }

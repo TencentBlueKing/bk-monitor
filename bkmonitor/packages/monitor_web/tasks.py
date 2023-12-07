@@ -23,7 +23,7 @@ from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
+from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.dataflow.constant import (
     METRIC_RECOMMENDATION_SCENE_NAME,
     AccessStatus,
@@ -182,7 +182,9 @@ def update_metric_list():
             else:
                 # 记录容器平台项目空间关联的业务id
                 try:
-                    k8s_biz_set.add(SpaceApi.get_related_space(biz.space_uid, SpaceTypeEnum.BKCC.value))
+                    k8s_biz: Space = SpaceApi.get_related_space(biz.space_uid, SpaceTypeEnum.BKCC.value)
+                    if k8s_biz:
+                        k8s_biz_set.add(k8s_biz.bk_biz_id)
                 except BKAPIError:
                     pass
             # 部分环境可用禁用数据平台指标缓存
@@ -194,8 +196,8 @@ def update_metric_list():
             update_metric(source_type, biz.bk_biz_id)
 
     # 关联容器平台的业务，批量跑容器指标
-    for k8s_biz in k8s_biz_set:
-        update_metric("BKMONITORK8S", k8s_biz.bk_biz_id)
+    for k8s_biz_id in k8s_biz_set:
+        update_metric("BKMONITORK8S", k8s_biz_id)
 
     logger.info("$update metric list(round {}), biz count: {}, cost: {}".format(offset, biz_count, time.time() - start))
 

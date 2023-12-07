@@ -448,10 +448,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   mounted() {
     this.strategyView.rightWidth = this.$el.clientWidth * 0.33;
   }
-
-  /**
-   * 获取告警组数据
-   */
+  // 获取告警组数据
   async getAlarmGroupList() {
     const data = await listUserGroup().catch(() => []);
     this.alarmGroupList = data.map(item => ({

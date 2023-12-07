@@ -27,7 +27,7 @@ import { TranslateResult } from 'vue-i18n';
 
 export interface IRadioMap {
   id: number;
-  name: string;
+  name: string | TranslateResult;
 }
 
 export interface IGraphValueItem {

@@ -1412,6 +1412,8 @@ class SearchHandler(object):
                         index_set_id=index_set_id, raise_exception=False
                     )
                     if clustering_config and clustering_config.clustered_rt:
+                        # 如果是查询bkbase端的表，即场景需要对应改为bkdata
+                        self.scenario_id = Scenario.BKDATA
                         return clustering_config.clustered_rt
             index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
             if len(index_set_data_obj_list) > 0:

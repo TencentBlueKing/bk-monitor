@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import moment from 'moment';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { metricRecommendationFeedback } from '../../../../monitor-api/modules/alert';
@@ -129,9 +129,9 @@ export default class AiopsDimensionLine extends LineChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params: any = {
         // eslint-disable-next-line no-nested-ternary
-        start_time: start_time ? moment(start_time).unix() : this.needLegend ? startTime : '',
+        start_time: start_time ? dayjs.tz(start_time).unix() : this.needLegend ? startTime : '',
         // eslint-disable-next-line no-nested-ternary
-        end_time: end_time ? moment(end_time).unix() : this.needLegend ? endTime : ''
+        end_time: end_time ? dayjs.tz(end_time).unix() : this.needLegend ? endTime : ''
       };
       const [zoomStartTime, zoomEndTime] = handleTransformToTimestamp(this.dataZoomTimeRange.timeRange);
       if (!params.start_time && zoomStartTime) {
@@ -141,8 +141,8 @@ export default class AiopsDimensionLine extends LineChart {
       }
       if (params.start_time) {
         this.cacheTimeRang = [
-          moment(params.start_time * 1000).format('YYYY-MM-DD HH:mm'),
-          moment(params.end_time * 1000).format('YYYY-MM-DD HH:mm')
+          dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm'),
+          dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm')
         ];
         if (this.needLegend && !this.inited) {
           this.needLegendTimeRange = [...this.cacheTimeRang];
@@ -203,8 +203,8 @@ export default class AiopsDimensionLine extends LineChart {
         /** 只缓存 */
         if (datapoints.length && !params.startTime && this.fullScreenCustomTimeRange.length === 0) {
           this.fullScreenCustomTimeRange = [
-            moment(datapoints[0][1]).format('YYYY-MM-DD HH:mm'),
-            moment(datapoints[datapoints.length - 1][1]).format('YYYY-MM-DD HH:mm')
+            dayjs.tz(datapoints[0][1]).format('YYYY-MM-DD HH:mm'),
+            dayjs.tz(datapoints[datapoints.length - 1][1]).format('YYYY-MM-DD HH:mm')
           ];
         }
         const seriesList = this.handleTransformSeries(

@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 /* eslint-disable camelcase */
-import VueI18n from 'vue-i18n';
+import type { Composer } from 'vue-i18n';
+import type { Dayjs } from 'dayjs';
 
-import { IBizItem, ISpaceItem } from './typings';
+import type { IBizItem, ISpaceItem } from './typings';
 
 declare global {
   interface Window {
@@ -34,6 +35,7 @@ declare global {
     static_url: string;
     user_name: string;
     username: string;
+    timezone: string;
     uin: string;
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];
@@ -44,11 +46,12 @@ declare global {
     bklogsearch_host: string;
     bk_url: string;
     source_app: 'trace';
-    i18n: VueI18n.Composer | any;
+    i18n: Composer;
     __BK_WEWEB_DATA__?: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
     mermaidClick?: (id: string) => void;
     apm_ebpf_enabled: boolean;
+    dayjs?: Dayjs;
     enable_apm_profiling: boolean;
   }
 }

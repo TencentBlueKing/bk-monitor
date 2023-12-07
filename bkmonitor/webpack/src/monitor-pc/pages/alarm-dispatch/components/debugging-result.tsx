@@ -205,6 +205,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
           <TimeRange
             class='right'
             value={this.curTimeRange}
+            needTimezone={false}
             onChange={this.handleTimeRangeChange}
           ></TimeRange>
         </div>

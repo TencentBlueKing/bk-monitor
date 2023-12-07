@@ -2,6 +2,7 @@ export {};
 
 declare global {
   interface Window {
-    mainComponent: any
+    mainComponent: any;
+    timezone: string;
   }
 }
