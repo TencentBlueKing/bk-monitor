@@ -229,7 +229,7 @@ def push_and_publish_space_router(
 
     # 获取空间下的结果表，如果不存在，则获取空间下的所有
     if not table_id_list:
-        table_id_list = get_space_table_id_data_id(space_type, space_id)
+        table_id_list = list(get_space_table_id_data_id(space_type, space_id).keys())
 
     space_client = SpaceTableIDRedis()
     # 更新数据

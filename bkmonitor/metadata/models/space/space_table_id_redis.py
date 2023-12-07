@@ -22,6 +22,7 @@ from metadata import models
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     BKCI_1001_TABLE_ID_PREFIX,
+    BKCI_SYSTEM_TABLE_ID_PREFIX,
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
     DBM_1001_TABLE_ID_PREFIX,
@@ -225,12 +226,8 @@ class SpaceTableIDRedis:
             space_id,
         )
 
-    def _compose_bcs_space_biz_table_ids(
-        self,
-        space_type: str,
-        space_id: str,
-    ) -> Dict:
-        """推送 bcs 类型空间下的集群数据"""
+    def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str) -> Dict:
+        """推送 bcs 类型关联业务的数据，现阶段仅包含主机信息"""
         logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 首先获取关联业务的数据
         resource_type = SpaceTypes.BKCC.value
@@ -241,15 +238,10 @@ class SpaceTableIDRedis:
             logger.error("space: %s__%s, resource_type: %s not found", space_type, space_id, resource_type)
             return {}
         # 获取空间关联的业务，注意这里业务 ID 为字符串类型
-        biz_id_str = obj.resource_id
-        # 获取对应业务下的数据
-        return self._compose_data(
-            resource_type,
-            biz_id_str,
-            include_platform_data_id=True,
-            from_authorization=False,
-            default_filters=[{"bk_biz_id": biz_id_str}],
+        tids = models.ResultTable.objects.filter(table_id__startswith=BKCI_SYSTEM_TABLE_ID_PREFIX).values_list(
+            "table_id", flat=True
         )
+        return {tid: {"filters": [{"bk_biz_id": str(obj.resource_id)}]} for tid in tids}
 
     def _compose_bcs_space_cluster_table_ids(
         self,
