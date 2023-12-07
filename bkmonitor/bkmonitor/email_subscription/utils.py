@@ -12,11 +12,11 @@ import datetime
 
 import arrow
 
-from alarm_backends.core.context import logger
-from bkmonitor.models import HourFrequencyTime
+from bkmonitor.models import logger
 from bkmonitor.utils.range import TIME_MATCH_CLASS_MAP
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
+from constants.email_subscription import HourFrequencyTime
 
 
 def parse_frequency(frequency, last_send_time=None) -> list:
@@ -93,20 +93,6 @@ def get_data_range(frequency) -> dict:
         else:
             from_time = now_time + datetime.timedelta(hours=-24)
     return {"start_time": from_time, "end_time": now_time}
-
-
-def is_invalid(subscription) -> bool:
-    """
-    是否已失效
-    """
-    now_timestamp = arrow.now().timestamp
-    # 超出有效时间
-    if now_timestamp > subscription.end_time or now_timestamp < subscription.start_time:
-        return True
-    # 仅发送一次类型订阅的已有上一次发送时间
-    if subscription.frequency["type"] == 1 and subscription.last_send_time:
-        return True
-    return False
 
 
 def send_email(context: dict, subscribers: list) -> dict:

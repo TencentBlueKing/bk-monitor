@@ -8,103 +8,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import arrow
 from django.db import models
-from django.utils.translation import ugettext_lazy as _lazy
 
-from bkmonitor.utils.enum import ChoicesEnum
 from bkmonitor.utils.itsm import APPROVAL_STATUS_CHOICES
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
-
-
-class ChannelEnum(ChoicesEnum):
-    # 订阅渠道
-    EMAIL = "email"
-    WXBOT = "wxbot"
-    USER = "user"
-
-    _choices_labels = ((EMAIL, _lazy("外部邮件")), (WXBOT, _lazy("企业微信机器人")), (USER, _lazy("内部用户")))
-
-
-class ScenarioEnum(ChoicesEnum):
-    # 订阅场景
-    CLUSTERING = "clustering"
-    DASHBOARD = "dashboard"
-    SCENE = "scene"
-
-    _choices_labels = ((CLUSTERING, _lazy("日志聚类")), (DASHBOARD, _lazy("仪表盘")), (SCENE, _lazy("观测场景")))
-
-
-class SendStatusEnum(ChoicesEnum):
-    # 订阅发送状态
-    NO_STATUS = "no_status"
-    SUCCESS = "success"
-    FAILED = "failed"
-    PARTIAL_FAILED = "partial_failed"
-
-    _choices_labels = (
-        (SUCCESS, _lazy("成功")),
-        (FAILED, _lazy("失败")),
-        (PARTIAL_FAILED, _lazy("部分失败")),
-        (NO_STATUS, _lazy("无")),
-    )
-
-
-class SendModeEnum(ChoicesEnum):
-    # 订阅模式
-    PERIODIC = "periodic"
-    ONE_TIME = "one_time"
-
-
-class HourFrequencyTime:
-    HALF_HOUR = {"minutes": ["00", "30"]}
-    HOUR = {"minutes": ["00"]}
-    HOUR_2 = {"hours": ["00", "02", "04", "06", "08", "10", "12", "14", "16", "18", "20", "22"]}
-    HOUR_6 = {"hours": ["00", "06", "12", "18"]}
-    HOUR_12 = {"hours": ["09", "21"]}
-
-    TIME_CONFIG = {"0.5": HALF_HOUR, "1": HOUR, "2": HOUR_2, "6": HOUR_6, "12": HOUR_12}
-
-
-class YearOnYearEnum(ChoicesEnum):
-    NOT = 0
-    ONE_HOUR = 1
-    TWO_HOUR = 2
-    THREE_HOUR = 3
-    SIX_HOUR = 6
-    HALF_DAY = 12
-    ONE_DAY = 24
-
-    _choices_labels = (
-        (NOT, _lazy("不比对")),
-        (ONE_HOUR, _lazy("1小时前")),
-        (TWO_HOUR, _lazy("2小时前")),
-        (THREE_HOUR, _lazy("3小时前")),
-        (SIX_HOUR, _lazy("6小时前")),
-        (HALF_DAY, _lazy("12小时前")),
-        (ONE_DAY, _lazy("24小时前")),
-    )
-
-
-class YearOnYearChangeEnum(ChoicesEnum):
-    ALL = "all"
-    RISE = "rise"
-    DECLINE = "decline"
-
-    _choices_labels = (
-        (ALL, _lazy("所有")),
-        (RISE, _lazy("上升")),
-        (DECLINE, _lazy("下降")),
-    )
-
-
-class LogColShowTypeEnum(ChoicesEnum):
-    PATTERN = "pattern"
-    LOG = "log"
-
-    _choices_labels = (
-        (PATTERN, _lazy("PATTERN模式")),
-        (LOG, _lazy("采样日志")),
-    )
+from constants.email_subscription import (
+    ChannelEnum,
+    ScenarioEnum,
+    SendModeEnum,
+    SendStatusEnum,
+    SubscriberTypeEnum,
+)
 
 
 class SubscriptionChannel(Model):
@@ -134,11 +49,14 @@ class SubscriptionSendRecord(Model):
     send_results = models.JSONField(verbose_name="发送结果详情", default=list)
     send_status = models.CharField(verbose_name="发送状态", max_length=32, choices=SendStatusEnum.get_choices())
     send_time = models.DateTimeField(verbose_name="发送时间")
+    send_round = models.IntegerField(verbose_name="发送轮次", default=0)
 
     class Meta:
         verbose_name = "订阅发送记录"
         verbose_name_plural = "订阅发送记录"
         db_table = "subscription_send_record"
+        unique_together = ["subscription_id", "channel_name", "send_round"]
+        index_together = ["subscription_id", "send_round"]
 
 
 class EmailSubscription(AbstractRecordModel):
@@ -147,14 +65,16 @@ class EmailSubscription(AbstractRecordModel):
     """
 
     name = models.CharField(verbose_name="订阅名称", max_length=64)
-    bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
+    bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, db_index=True)
     scenario = models.CharField(verbose_name="订阅场景", max_length=32, choices=ScenarioEnum.get_choices())
     frequency = models.JSONField(verbose_name="发送频率", default=dict)
     content_config = models.JSONField(verbose_name="内容配置", default=dict)
     scenario_config = models.JSONField(verbose_name="场景配置", default=dict)
-    start_time = models.IntegerField(verbose_name="开始时间")
-    end_time = models.IntegerField(verbose_name="结束时间")
-    last_send_time = models.DateTimeField(verbose_name="发送时间", null=True, default=None)
+    start_time = models.IntegerField(verbose_name="开始时间", null=True)
+    end_time = models.IntegerField(verbose_name="结束时间", null=True)
+    send_mode = models.CharField(verbose_name="发送模式", max_length=32, choices=SendModeEnum.get_choices())
+    subscriber_type = models.CharField(verbose_name="订阅人类型", max_length=32, choices=SubscriberTypeEnum.get_choices())
+    send_round = models.IntegerField(verbose_name="最近一次发送轮次", default=0)
     is_manager_created = models.BooleanField(verbose_name="是否管理员创建", default=False)
 
     class Meta:
@@ -162,24 +82,11 @@ class EmailSubscription(AbstractRecordModel):
         verbose_name_plural = "邮件订阅"
         db_table = "email_subscription"
 
-    @property
-    def send_mode(self):
-        if self.frequency["type"] != 1:
-            return SendModeEnum.PERIODIC
-        return SendModeEnum.ONE_TIME
-
-    def get_failed_subscribers(self):
-        send_results = list(
-            SubscriptionSendRecord.objects.filter(send_time=self.last_send_time, subscription_id=self.id).values()
-        )
-        failed_subscribers = []
-        for result in send_results:
-            if result["send_status"] != "success":
-                for send_result in result["send_result"]:
-                    if send_result["result"]:
-                        continue
-                    failed_subscribers.append(send_result["id"])
-        return failed_subscribers
+    def is_invalid(self):
+        now_timestamp = arrow.now().timestamp
+        if now_timestamp > self.end_time or now_timestamp < self.start_time:
+            return True
+        return False
 
 
 class SubscriptionApplyRecord(AbstractRecordModel):
