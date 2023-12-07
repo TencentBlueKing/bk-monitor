@@ -56,8 +56,6 @@ const state = {
   isSuperUser: false,
   navId: '',
   navTitle: '',
-  enableMessageQueue: false,
-  messageQueueDSN: '',
   mcMainLoading: false, // 框架内容loading
   maxAvailableDurationLimit: 3000, // 拨测超时设置最大值
   cmdbUrl: '',
@@ -100,8 +98,6 @@ const mutations = {
     state.bizList = data.bizList.map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
     state.siteUrl = data.siteUrl;
     state.bkPaasHost = data.bkPaasHost;
-    state.enableMessageQueue = data.enableMessageQueue;
-    state.messageQueueDSN = data.messageQueueDSN;
     state.maxAvailableDurationLimit = data.maxAvailableDurationLimit;
     state.cmdbUrl = data.cmdbUrl;
     state.bkLogSearchUrl = data.bkLogSearchUrl;
@@ -120,10 +116,6 @@ const mutations = {
   },
   [SET_MAIN_LOADING](state, loading) {
     state.mcMainLoading = loading;
-  },
-  [SET_MESSAGE_QUEUE](state, data) {
-    state.enableMessageQueue = data.enable || false;
-    state.messageQueueDSN = data.dsn || '';
   },
   [SET_LOGIN_URL](state, url) {
     state.loginUrl = url;

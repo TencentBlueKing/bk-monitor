@@ -86,7 +86,7 @@ declare global {
     userInfo: { isSuperuser: boolean };
     message_queue_dsn: string;
     max_available_duration_limit: number;
-    cmdb_url: string;
+    bk_cc_url: string;
     bk_log_search_url: string;
     cluster_setup_url: string;
     bk_docs_site_url: string;
