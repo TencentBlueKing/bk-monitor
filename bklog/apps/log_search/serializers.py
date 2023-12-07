@@ -318,8 +318,8 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
 
 
 class UnionSearchFieldsSerializer(serializers.Serializer):
-    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
     )
