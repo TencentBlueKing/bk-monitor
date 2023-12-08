@@ -59,7 +59,7 @@ from monitor_web.constants import (
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
-from utils import business
+from utils import business, count_md5
 
 logger = logging.getLogger("monitor_web")
 
@@ -265,7 +265,9 @@ def append_metric_list_cache(result_table_id_list):
     from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
 
     def update_or_create_metric_list_cache(metric_list):
+        # 这里可以考虑 删除 + 创建逻辑
         for metric in metric_list:
+            metric["metric_md5"] = count_md5(metric)
             MetricListCache.objects.update_or_create(
                 metric_field=metric["metric_field"],
                 result_table_id=metric["result_table_id"],
@@ -275,19 +277,29 @@ def append_metric_list_cache(result_table_id_list):
                 defaults=metric,
             )
 
+    if settings.ROLE == "api":
+        # api 调用不做指标实时更新。
+        return
+
     set_local_username(settings.COMMON_USERNAME)
     if not result_table_id_list:
         return
     one_result_table_id = result_table_id_list[0]
     db_name = one_result_table_id.split(".")[0]
     group_list = api.metadata.query_time_series_group.request.refresh(time_series_group_name=db_name)
+    plugin = None
     if group_list:
-        plugin_type, plugin_id = db_name.split("_", 1)
-        plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
+        # 单指标单表模式, 指标会被打散成group list 返回
+        # -> metadata.models.custom_report.time_series.TimeSeriesGroup.to_split_json
+        new_metric_list = []
+        if plugin is None:
+            plugin_type, plugin_id = db_name.split("_", 1)
+            plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
         for result in group_list:
             result["bk_biz_id"] = plugin.bk_biz_id
             create_msg = BkmonitorMetricCacheManager().get_plugin_ts_metric(result)
-            update_or_create_metric_list_cache(create_msg)
+            new_metric_list.extend(list(create_msg))
+        update_or_create_metric_list_cache(new_metric_list)
     else:
         for result_table_id in result_table_id_list:
             result_table_msg = api.metadata.get_result_table(table_id=result_table_id)
