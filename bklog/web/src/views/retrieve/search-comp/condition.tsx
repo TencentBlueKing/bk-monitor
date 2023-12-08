@@ -230,6 +230,8 @@ export default class Condition extends tsc<IProps> {
       const matchVal = Number(matchList.join(',')); // 拿到数字的值进行一个大小对比
       this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType);  // 判断数字最大值 超出则使用最大值
     }
+
+    this.handleAdditionChange({ value: this.localValue });
   }
 
   /**
@@ -248,9 +250,9 @@ export default class Condition extends tsc<IProps> {
   // 当有对比的操作时 值改变
   handleValueBlur(val: string) {
     if (val !== '' && this.isHaveCompared) this.localValue = [val];
-    if (this.localValue.length) {
-      this.handleAdditionChange({ value: this.localValue });
-    }
+    // if (this.localValue.length) {
+    //   this.handleAdditionChange({ value: this.localValue });
+    // }
   }
 
   handleValueRemoveAll() {
