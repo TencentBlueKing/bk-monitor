@@ -26,6 +26,7 @@
 
 import { defineComponent, PropType } from 'vue';
 
+import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
@@ -47,8 +48,12 @@ export default defineComponent({
       default: () => []
     },
     timeRange: {
-      type: Array as PropType<TimeRangeType[]>,
+      type: Array as PropType<TimeRangeType>,
       default: () => ['now-1h', 'now']
+    },
+    timezone: {
+      type: String,
+      default: getDefautTimezone()
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
@@ -69,6 +74,7 @@ export default defineComponent({
     'deleteCollect',
     'selectCollect',
     'timeRangeChange',
+    'timezoneChange',
     'refleshIntervalChange',
     'menuSelectChange',
     'immediateReflesh'
@@ -80,8 +86,11 @@ export default defineComponent({
     function handleSelectCollectItem(id: number | string) {
       emit('selectCollect', id);
     }
-    function handleTimeRangeChange(time: TimeRangeType[]) {
+    function handleTimeRangeChange(time: TimeRangeType) {
       emit('timeRangeChange', time);
+    }
+    function handleTimezoneChange(timezone: string) {
+      emit('timezoneChange', timezone);
     }
     return () => (
       <div class='inquire-header-wrap'>
@@ -110,8 +119,10 @@ export default defineComponent({
         <div class='inquire-header-append'>
           <span class='inquire-header-append-item'>
             <TimeRange
-              v-model={props.timeRange}
-              onTimeChange={(v: TimeRangeType[]) => handleTimeRangeChange(v)}
+              modelValue={props.timeRange}
+              timezone={props.timezone}
+              onUpdate:modelValue={handleTimeRangeChange}
+              onUpdate:timezone={handleTimezoneChange}
             />
           </span>
           <span class='inquire-header-append-item'>

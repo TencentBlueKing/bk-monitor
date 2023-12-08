@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { dateTime, toDuration as duration, toUtc } from '../datetime/moment_wrapper';
+import dayjs from 'dayjs';
+
 import { DecimalCount } from '../types/displayValue';
 
 import { FormattedValue, toFixed, toFixedScaled, ValueFormatter } from './valueFormats';
@@ -290,7 +291,7 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
   // < 1 second
   if (size < 1000) {
     return {
-      text: toUtc(size).format('SSS\\m\\s')
+      text: dayjs.utc(size).format('SSS\\m\\s')
     };
   }
 
@@ -300,7 +301,7 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
     if (decimals === 0) {
       format = 'ss\\s';
     }
-    return { text: toUtc(size).format(format) };
+    return { text: dayjs.utc(size).format(format) };
   }
 
   // < 1 hour
@@ -311,12 +312,12 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
     } else if (decimals === 1) {
       format = 'mm\\m:ss\\s';
     }
-    return { text: toUtc(size).format(format) };
+    return { text: dayjs.utc(size).format(format) };
   }
 
   let format = 'mm\\m:ss\\s:SSS\\m\\s';
 
-  const hours = `${`0${Math.floor(duration(size, 'milliseconds').asHours())}`.slice(-2)}h`;
+  const hours = `${`0${Math.floor(dayjs.duration(size, 'milliseconds').asHours())}`.slice(-2)}h`;
 
   if (decimals === 0) {
     format = '';
@@ -326,7 +327,7 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
     format = 'mm\\m:ss\\s';
   }
 
-  const text = format ? `${hours}:${toUtc(size).format(format)}` : hours;
+  const text = format ? `${hours}:${dayjs.utc(size).format(format)}` : hours;
   return { text };
 }
 
@@ -372,9 +373,9 @@ export function toClockSeconds(size: number, decimals: DecimalCount): FormattedV
 export function toDateTimeValueFormatter(pattern: string, todayPattern?: string): ValueFormatter {
   return (value: number, decimals: DecimalCount, scaledDecimals: DecimalCount, timeZone?): FormattedValue => {
     const isUtc = timeZone === 'utc';
-    const time = isUtc ? toUtc(value) : dateTime(value);
+    const time = isUtc ? dayjs.utc(value) : dayjs.tz(value);
     if (todayPattern) {
-      if (dateTime().isSame(value, 'day')) {
+      if (dayjs.tz().isSame(value, 'day')) {
         return { text: time.format(todayPattern) };
       }
     }
@@ -392,6 +393,6 @@ export function dateTimeFromNow(
   timeZone?
 ): FormattedValue {
   const isUtc = timeZone === 'utc';
-  const time = isUtc ? toUtc(value) : dateTime(value);
+  const time = isUtc ? dayjs.utc(value) : dayjs.tz(value);
   return { text: time.fromNow() };
 }

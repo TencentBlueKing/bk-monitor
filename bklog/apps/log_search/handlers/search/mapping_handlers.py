@@ -47,7 +47,6 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
-    SearchGetSchemaException,
     SearchNotTimeFieldType,
 )
 from apps.log_search.models import (
@@ -662,7 +661,7 @@ class MappingHandlers(object):
             data: dict = BkDataStorekitApi.get_schema_and_sql({"result_table_id": index})
             field_list: list = data["storage"]["es"]["fields"]
             return field_list
-        except SearchGetSchemaException:
+        except Exception:  # pylint: disable=broad-except
             return []
 
     @staticmethod

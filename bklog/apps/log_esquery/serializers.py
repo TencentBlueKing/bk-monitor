@@ -412,6 +412,8 @@ def _init_index_info(*, index_set_id, is_clustered_fields):
                     index_set_id=index_set_id, raise_exception=False
                 )
                 if clustering_config and clustering_config.clustered_rt:
+                    # 如果是查询bkbase端的表，即场景需要对应改为bkdata
+                    scenario_id = Scenario.BKDATA
                     indices = clustering_config.clustered_rt
             return {
                 "indices": indices,

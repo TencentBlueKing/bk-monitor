@@ -27,7 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Exception, Option, Select } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import Viewer from '../../../../fta-solutions/pages/event/event-detail/custom-view';
 import { IDetail } from '../../../../fta-solutions/pages/event/event-detail/type';
@@ -371,9 +371,9 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
 
   getUpdataInfo(item: IExperience) {
     if (item.update_user) {
-      return this.$t('{0} 于 {1} 更新', [item.update_user, moment(item.update_time).format('YYYY-MM-DD HH:mm:ss')]);
+      return this.$t('{0} 于 {1} 更新', [item.update_user, dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ss')]);
     }
-    return this.$t('{0} 于 {1} 创建', [item.create_user, moment(item.create_time).format('YYYY-MM-DD HH:mm:ss')]);
+    return this.$t('{0} 于 {1} 创建', [item.create_user, dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ss')]);
   }
 
   render() {

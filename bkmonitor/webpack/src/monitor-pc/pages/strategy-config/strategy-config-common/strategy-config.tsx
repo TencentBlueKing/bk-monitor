@@ -38,7 +38,7 @@ import {
   Table,
   TableColumn
 } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
@@ -2010,7 +2010,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       default: props => (
         <div class='col-name'>
           <div class='col-name-label'>{props.row.updator || '--'}</div>
-          <div>{moment(props.row.updateTime).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
+          <div>{dayjs.tz(props.row.updateTime).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
         </div>
       )
     };
