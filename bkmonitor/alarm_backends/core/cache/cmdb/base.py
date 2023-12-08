@@ -15,11 +15,14 @@ import json
 import time
 
 import six.moves.cPickle as pickle
+from django.core.cache import caches
 
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.cache.base import CacheManager
 from core.drf_resource import api
 from core.prometheus import metrics
+
+mem_cache = caches["locmem"]
 
 
 class CMDBCacheManager(CacheManager):
@@ -86,14 +89,17 @@ class CMDBCacheManager(CacheManager):
         获取单个对象
         """
         key = cls.key_to_internal_value(*args, **kwargs)
+        if key in mem_cache:
+            return mem_cache.get(key)
 
         obj = cls.cache.hget(cls.CACHE_KEY, key)
 
         if not obj:
             cls.logger.warning("unknown {}: {}".format(cls.__name__.replace("Manager", ""), key))
-            return None
-
-        return cls.deserialize(obj)
+        else:
+            obj = cls.deserialize(obj)
+        mem_cache.set(key, obj)
+        return obj
 
     @classmethod
     def multi_get_with_dict(cls, keys):
