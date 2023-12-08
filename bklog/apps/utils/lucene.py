@@ -1093,7 +1093,7 @@ class LuceneRangeChecker(LuceneCheckerBase):
 
     @staticmethod
     def remove_left_consecutive_brackets(s: str):
-        matches = re.findall(r'\[+\{+|\{+\[+', s)
+        matches = re.findall(r'\[+\{+|\{+\[+|\[+|\{+', s)
         max_match = max(matches, key=len) if matches else None
         if not max_match:
             return s
@@ -1101,7 +1101,7 @@ class LuceneRangeChecker(LuceneCheckerBase):
 
     @staticmethod
     def remove_right_consecutive_brackets(s: str):
-        matches = re.findall(r'\]+\}+|\}+\]+', s)
+        matches = re.findall(r'\]+\}+|\}+\]+|\]+|\}+', s)
         max_match = max(matches, key=len) if matches else None
         if not max_match:
             return s
