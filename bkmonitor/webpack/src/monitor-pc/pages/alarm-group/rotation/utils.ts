@@ -539,6 +539,7 @@ interface IDutyPlans {
     type: string;
   }[];
   user_index?: number;
+  order?: number;
   work_times: {
     start_time: string;
     end_time: string;
@@ -561,7 +562,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
     name: item.name,
     data: []
   }));
-  uniqueByDutyUsers(params).forEach(item => {
+  uniqueByDutyUsers(userIndexResetOfpreviewData(params)).forEach(item => {
     const id = item.rule_id;
     const dataItem = data.find(d => d.id === id);
     item.duty_plans.forEach((plans, pIndex) => {
@@ -646,4 +647,39 @@ export function getDutyPlansDetails(data: IDutyPlansItem[], isHistory: boolean) 
   return result
     .filter(d => new Date(d.endTime).getTime() > new Date().getTime())
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+}
+
+/**
+ * @description 重新配置user_index  以user_index + order 判断其唯一性
+ * @param params
+ */
+export function userIndexResetOfpreviewData(params: IDutyPreviewParams[]) {
+  const userIndexCount = (all: { [key: string]: Set<number> }, curIndex, order) => {
+    let count = 0;
+    for (let i = 0; i < order; i++) {
+      if (all?.[i]?.size) {
+        count += Math.max(...Array.from(all[i])) + 1;
+      }
+    }
+    return curIndex + count;
+  };
+  return params.map(item => {
+    const temp: { [key: string]: Set<number> } = {};
+    item.duty_plans.forEach(plan => {
+      const o = plan?.order || 0;
+      if (!temp?.[o]) {
+        temp[o] = new Set();
+      }
+      temp[o].add(plan.user_index);
+    });
+    return {
+      ...item,
+      duty_plans: item.duty_plans.map(plan => {
+        return {
+          ...plan,
+          user_index: userIndexCount(temp, plan.user_index, plan?.order || 0)
+        };
+      })
+    };
+  });
 }

@@ -321,6 +321,7 @@ export function calendarDataConversion(data: ICalendarData) {
 
 interface IDutyPlans {
   user_index?: number;
+  order?: number;
   users: {
     id: string;
     display_name: string;
@@ -385,7 +386,7 @@ export function timeRangeMerger(timePeriods: { start_time: string; end_time: str
  */
 export function setPreviewDataOfServer(params: IDutyPlans[]) {
   const data = [];
-  params.forEach((item, index) => {
+  userIndexResetOfpreviewData(params).forEach((item, index) => {
     const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
     if (item.work_times.length) {
       timeRangeMerger(item.work_times).forEach(work => {
@@ -398,4 +399,34 @@ export function setPreviewDataOfServer(params: IDutyPlans[]) {
     }
   });
   return data;
+}
+
+/**
+ * @description 重新配置user_index  以user_index + order 判断其唯一性
+ * @param params
+ */
+export function userIndexResetOfpreviewData(params: IDutyPlans[]) {
+  const userIndexCount = (all: { [key: string]: Set<number> }, curIndex, order) => {
+    let count = 0;
+    for (let i = 0; i < order; i++) {
+      if (all?.[i]?.size) {
+        count += Math.max(...Array.from(all[i])) + 1;
+      }
+    }
+    return curIndex + count;
+  };
+  const temp: { [key: string]: Set<number> } = {};
+  params.forEach(plan => {
+    const o = plan?.order || 0;
+    if (!temp?.[o]) {
+      temp[o] = new Set();
+    }
+    temp[o].add(plan.user_index);
+  });
+  return params.map(plan => {
+    return {
+      ...plan,
+      user_index: userIndexCount(temp, plan.user_index, plan?.order || 0)
+    };
+  });
 }
