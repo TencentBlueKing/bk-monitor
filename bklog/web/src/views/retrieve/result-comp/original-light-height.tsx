@@ -37,7 +37,6 @@ export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array, required: true }) kvShowFieldsList;
   @Prop({ type: Array, required: true }) totalFields;
-  ;
 
   segmentReg = /<mark>(.*?)<\/mark>/g;
 
