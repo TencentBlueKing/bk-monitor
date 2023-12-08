@@ -72,6 +72,31 @@
         white-space: nowrap;
       }
 
+      .duty-item-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 16px;
+        padding: 4px;
+        margin: 0 12px 0 auto;
+        font-size: 12px;
+        white-space: nowrap;
+
+        & > span {
+          transform: scale(.83);
+        }
+
+        &.deactivated {
+          color: #ea3536;
+          background: #fee;
+        }
+
+        &.noeffective {
+          color: #63656e;
+          background: #f0f1f5;
+        }
+      }
+
       .duty-item-type {
         margin: 0 8px;
         font-size: 12px;
@@ -99,6 +124,14 @@
         .icon-bianji,
         .icon-mc-close {
           display: block;
+        }
+
+        .duty-item-status {
+          display: none;
+        }
+
+        .duty-item-name {
+          color: #3a84ff; 
         }
       }
     }

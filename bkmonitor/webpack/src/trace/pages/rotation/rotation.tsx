@@ -33,24 +33,11 @@ import { useAppStore } from '../../store/modules/app';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import { IAuthority } from '../../typings/authority';
 
+import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 import * as authMap from './authority-map';
 import RotationDetail from './rotation-detail';
 
 import './rotation.scss';
-
-enum EStatus {
-  Effective = 'Effective', // 生效中
-  NoEffective = 'NoEffective', // 已失效
-  WaitEffective = 'WaitEffective', // 待生效
-  Deactivated = 'Deactivated' // 已停用
-}
-
-const statusMap = {
-  [EStatus.Effective]: window.i18n.t('生效中'),
-  [EStatus.NoEffective]: window.i18n.t('已失效'),
-  [EStatus.WaitEffective]: window.i18n.t('待生效'),
-  [EStatus.Deactivated]: window.i18n.t('已停用')
-};
 
 function getTimeStr(time: string) {
   if (time === 'null' || !time) {
@@ -62,23 +49,6 @@ function getTimeStr(time: string) {
   }:${date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes()}:${
     date.getSeconds() < 10 ? `${0}${date.getSeconds()}` : date.getSeconds()
   }`;
-}
-
-function getEffectiveStatus(timeRange: string[], enabled: boolean) {
-  if (!enabled) {
-    return EStatus.Deactivated;
-  }
-  const timeRangeNum = timeRange.map(item => (item === 'null' || !item ? Infinity : new Date(item).getTime()));
-  const curTime = new Date().getTime();
-  if (curTime < timeRangeNum[0]) {
-    return EStatus.WaitEffective;
-  }
-  if (curTime >= timeRangeNum[0] && curTime <= timeRangeNum[1]) {
-    return EStatus.Effective;
-  }
-  if (curTime > timeRangeNum[1]) {
-    return EStatus.NoEffective;
-  }
 }
 
 enum Ecategory {
