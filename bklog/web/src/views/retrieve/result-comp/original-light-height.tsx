@@ -27,28 +27,18 @@ import './original-light-height.scss';
 
 interface IProps {
   originJson: Object;
-  kvShowFieldsList: string[];
 }
 
 @Component
 export default class QueryStatement extends tsc<IProps> {
   /** 原始日志 */
   @Prop({ type: Object, required: true }) originJson;
-  @Prop({ type: Array, required: true }) kvShowFieldsList;
-  @Prop({ type: Array, required: true }) totalFields;
 
   segmentReg = /<mark>(.*?)<\/mark>/g;
 
+  // 扁平化对象所有数据
   get fieldMapData() {
-    // 与kv列表同步展示字段
-    const showObject = this.totalFields
-      .filter(item => this.kvShowFieldsList.includes(item.field_name))
-      .reduce((pre, cur) => {
-        pre[cur.field_name] = this.originJson[cur.field_name];
-        return pre;
-      }, {});
-    // 扁平化对象所有数据
-    const { newObject } = getFlatObjValues(showObject || {});
+    const { newObject } = getFlatObjValues(this.originJson || {});
     return Object.entries(newObject);
   }
 
@@ -67,8 +57,7 @@ export default class QueryStatement extends tsc<IProps> {
     let markVal = str.toString().match(this.segmentReg);
     if (markVal?.length) {
       splitList.forEach((el) => {
-        markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        );
+        markVal = markVal.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''));
         markVal.includes(el.str) && (el.isMark = true); // 给匹配到的数据 mark高亮设置为true
       });
     }

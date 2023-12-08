@@ -21,7 +21,7 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
-def fetch_sub_statistics_nodeman_2_1(config_data_list):
+def fetch_sub_statistics(config_data_list):
     subscription_id_config_map = {config.deployment_config.subscription_id: config for config in config_data_list}
 
     # 避免对节点管理造成巨大压力，这里分组请求，每组20份
