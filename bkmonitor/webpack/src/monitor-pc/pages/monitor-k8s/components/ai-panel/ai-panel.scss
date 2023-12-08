@@ -1,9 +1,19 @@
 .ai-panel-component {
+  // border-top: 1px solid #eaebf0;
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 0 8px 0 16px;
   font-size: 12px;
-  border-top: 1px solid #eaebf0;
+
+  &::after {
+    position: absolute;
+    top: 0;
+    width: calc(100% - 32px);
+    height: 1px;
+    content: '';
+    background: #eaebf0;
+  }
 
   .ai-panel-title {
     display: flex;

@@ -287,7 +287,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       // 智能异常检测
       IntelligentDetect: this.intelligentDetectTpl,
       // 部分节点数
-      // PartialNodes: this.partialNodesTpl,
+      PartialNodes: this.partialNodesTpl,
       // 环比振幅
       RingRatioAmplitude: this.ringRatioAmplitudeTpl,
       // 环比策略（简易）
@@ -299,7 +299,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       // 同比振幅
       YearRoundAmplitude: this.yearRoundAmplitudeTpl,
       // 同比区间
-      // YearRoundRange: this.yearRoundRangeTpl,
+      YearRoundRange: this.yearRoundRangeTpl,
       // 时序预测
       TimeSeriesForecasting: this.timeSeriesForecastingTpl,
       // 离群检测

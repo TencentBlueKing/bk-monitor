@@ -22,11 +22,10 @@
 
 /* eslint-disable max-len */
 /* eslint-disable id-blacklist, no-restricted-imports, @typescript-eslint/ban-types */
-import moment, { Moment, MomentInput, DurationInputArg1 } from 'moment'
+import dayjs from 'dayjs';
 export interface DateTimeBuiltinFormat {
   __momentBuiltinFormatBrand: any;
 }
-export const { ISO_8601 } = moment
 export type DateTimeInput = Date | string | number | Array<string | number> | DateTime; // null | undefined
 export type FormatInput = string | DateTimeBuiltinFormat | undefined;
 export type DurationInput = string | number | DateTimeDuration;
@@ -97,20 +96,16 @@ export interface DateTime extends Object {
 }
 
 export const setLocale = (language: string) => {
-  moment.locale(language)
+  dayjs.locale();
 }
 
-export const getLocaleData = (): DateTimeLocale => moment.localeData()
+export const toUtc = (input?, formatInput?): DateTime => dayjs.utc(input, formatInput) as unknown as DateTime;
 
-export const isDateTime = (value: any): value is DateTime => moment.isMoment(value)
+export const toDuration = (input?, unit?): DateTimeDuration => dayjs.duration(input, unit) as DateTimeDuration;
 
-export const toUtc = (input?: DateTimeInput, formatInput?: FormatInput): DateTime => moment.utc(input as MomentInput, formatInput) as DateTime
+export const dateTime = (input?, formatInput?): DateTime => dayjs(input, formatInput) as unknown as DateTime;
 
-export const toDuration = (input?: DurationInput, unit?: DurationUnit): DateTimeDuration => moment.duration(input as DurationInputArg1, unit) as DateTimeDuration
-
-export const dateTime = (input?: DateTimeInput, formatInput?: FormatInput): DateTime => moment(input as MomentInput, formatInput) as DateTime
-
-export const dateTimeAsMoment = (input?: DateTimeInput) => dateTime(input) as Moment
+export const dateTimeAsMoment = (input?: DateTimeInput) => dateTime(input);
 
 export const dateTimeForTimeZone = (
   timezone?,
@@ -118,8 +113,8 @@ export const dateTimeForTimeZone = (
   formatInput?: FormatInput
 ): DateTime => {
   if (timezone === 'utc') {
-    return toUtc(input, formatInput)
+    return toUtc(input, formatInput);
   }
 
-  return dateTime(input, formatInput)
+  return dateTime(input, formatInput);
 }

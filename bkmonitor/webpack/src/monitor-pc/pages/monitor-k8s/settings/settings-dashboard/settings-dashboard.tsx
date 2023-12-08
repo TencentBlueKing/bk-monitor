@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Input, Option, Select, Tab } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { deepClone } from '../../../../../monitor-common/utils/utils';
 import MonitorImport from '../../../../components/monitor-import/monitor-import.vue';
@@ -533,7 +533,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
       tdArr.push(row);
     });
     const csvStr = transformTableDataToCsvStr(thArr, tdArr);
-    downCsvFile(csvStr, `${this.title}-${moment().format('YYYY-MM-DD HH-mm-ss')}.csv`);
+    downCsvFile(csvStr, `${this.title}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.csv`);
   }
   /* 添加组 */
   handleAddGroupChange(group) {

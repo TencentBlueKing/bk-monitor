@@ -481,13 +481,17 @@ class ExternalPermission(OperateRecordModel):
 
     @classmethod
     def _get_log_search_resource(cls, space_uid: str) -> List[Dict[str, Any]]:
+        from apps.log_search.handlers.index_set import IndexSetHandler
         from apps.log_search.models import LogIndexSet
 
+        related_space_uids = []
         if not space_uid:
             space_uid_list = ExternalPermission.objects.all().values_list("space_uid", flat=True).distinct()
-            qs = LogIndexSet.objects.filter(space_uid__in=space_uid_list)
+            for _space_uid in space_uid_list:
+                related_space_uids.extend(IndexSetHandler.get_all_related_space_uids(space_uid=_space_uid))
         else:
-            qs = LogIndexSet.objects.filter(space_uid=space_uid)
+            related_space_uids = IndexSetHandler.get_all_related_space_uids(space_uid=space_uid)
+        qs = LogIndexSet.objects.filter(space_uid__in=related_space_uids)
         return [
             {
                 "id": index_set.index_set_id,

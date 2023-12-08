@@ -38,7 +38,7 @@ import {
   TableColumn,
   TableSettingContent
 } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
 import { random } from '../../../../monitor-common/utils/utils';
@@ -262,8 +262,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   timeFormatter(time: ITableItem<'time'>) {
     if (!time) return '--';
     if (typeof time !== 'number') return time;
-    if (time.toString().length < 13) return moment(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-    return moment(time).format('YYYY-MM-DD HH:mm:ss');
+    if (time.toString().length < 13) return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
   }
   // list类型格式化
   listFormatter(val: ITableItem<'list'>) {

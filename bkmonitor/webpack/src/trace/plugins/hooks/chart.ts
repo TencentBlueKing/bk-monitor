@@ -31,6 +31,7 @@ import { isShadowEqual } from '../../utils';
 import { IViewOptions } from '../typings';
 
 export const TIME_RANGE_KEY = 'timeRange';
+export const TIMEZONE_KEY = 'timezone';
 export const REFLESH_INTERVAL_KEY = 'refleshInterval';
 export const VIEWOPTIONS_KEY = 'viewOptions';
 export const REFLESH_IMMEDIATE_KEY = 'refleshImmediate';
@@ -43,6 +44,8 @@ export const READONLY = 'readonly';
 export interface IChartProvider {
   // 数据时间间隔
   readonly timeRange: Ref<TimeRangeType>;
+  // 时区
+  readonly timezone: Ref<string>;
   // 图表数据刷新间隔
   readonly refleshInterval: Ref<number>;
   // 通用图表查询数据配置
@@ -77,6 +80,12 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
   let unWatchTimeRange: WatchStopHandle | null = null;
   if (timeRange) {
     unWatchTimeRange = watch(timeRange, () => getPanelData());
+  }
+  // 时区
+  const timezone = useTimezoneInject();
+  let unWatchTimezone: WatchStopHandle | null = null;
+  if (timezone) {
+    unWatchTimezone = watch(timezone, () => getPanelData());
   }
 
   // 数据时间间隔
@@ -118,6 +127,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
     unWatchRefleshInterval?.();
     unWatchRefleshImmediate?.();
     unWatchTimeOffset?.();
+    unWatchTimezone?.();
     window.clearInterval(refleshIntervalTimer);
   }
   onBeforeUnmount(() => {
@@ -126,6 +136,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
     unWatchRefleshInterval?.();
     unWatchRefleshImmediate?.();
     unWatchTimeOffset?.();
+    unWatchTimezone?.();
     window.clearInterval(refleshIntervalTimer);
   });
   return {
@@ -134,6 +145,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
     unWatchRefleshInterval,
     unWatchRefleshImmediate,
     unWatchTimeOffset,
+    unWatchTimezone,
     refleshIntervalTimer,
     beforeUnmount
   };
@@ -143,6 +155,11 @@ export const useTimeRangeProvider = (timeRange: Ref<TimeRangeType>) => {
   provide(TIME_RANGE_KEY, timeRange);
 };
 export const useTimeRanceInject = () => inject<Ref<TimeRangeType>>(TIME_RANGE_KEY);
+
+export const useTimezoneProvider = (timezone: Ref<string>) => {
+  provide(TIMEZONE_KEY, timezone);
+};
+export const useTimezoneInject = () => inject<Ref<string>>(TIMEZONE_KEY);
 
 export const useRefleshIntervalProvider = (refleshInterval: Ref<number>) => {
   provide(REFLESH_INTERVAL_KEY, refleshInterval);

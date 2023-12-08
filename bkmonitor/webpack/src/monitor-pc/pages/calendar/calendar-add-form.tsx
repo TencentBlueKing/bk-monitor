@@ -25,7 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { editItem, saveItem } from '../../../monitor-api/modules/calendar';
 
@@ -180,10 +180,10 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     title: '', // 事项
     calendar: '', // 归属日历
     timeZone: null, // 时区
-    startDate: moment().format('YYYY-MM-DD'), // 开始日期
+    startDate: dayjs.tz().format('YYYY-MM-DD'), // 开始日期
     startTime: '00:00:00', // 开始时间
     isAllDay: false, // 是否全天
-    endDate: moment().format('YYYY-MM-DD'), // 结束日期
+    endDate: dayjs.tz().format('YYYY-MM-DD'), // 结束日期
     endTime: '23:59:59', // 结束时间
     repeat: ERepeatKey.noRepeat // 重复
   };
@@ -261,10 +261,10 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
       title: '', // 事项
       calendar: '', // 归属日历
       timeZone: getTimezoneOffset(), // 时区
-      startDate: moment().format('YYYY-MM-DD'), // 开始日期
+      startDate: dayjs.tz().format('YYYY-MM-DD'), // 开始日期
       startTime: '09:00:00', // 开始时间
       isAllDay: false, // 是否全天
-      endDate: moment().format('YYYY-MM-DD'), // 结束日期
+      endDate: dayjs.tz().format('YYYY-MM-DD'), // 结束日期
       endTime: '10:00:00', // 结束时间
       repeat: ERepeatKey.noRepeat // 重复
     };
@@ -303,7 +303,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     if (this.repeatFormData.endDateNoRepeat) {
       this.repeatFormData.endDate = '';
     } else {
-      this.repeatFormData.endDate = moment().format('YYYY-MM-DD 23:59:59');
+      this.repeatFormData.endDate = dayjs.tz().format('YYYY-MM-DD 23:59:59');
     }
   }
 
@@ -388,8 +388,8 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     const params = {
       name: title,
       calendar_id: calendar,
-      start_time: moment(`${startDate} ${startTime}`).unix(),
-      end_time: moment(`${endDate} ${endTime}`).unix(),
+      start_time: dayjs.tz(`${startDate} ${startTime}`).unix(),
+      end_time: dayjs.tz(`${endDate} ${endTime}`).unix(),
       time_zone: getTimezoneOffset(),
       repeat: repeat === ERepeatKey.custom ? this.getCustomRepeat() : repeatParamsMap[repeat],
       // all_day: isAllDay,
@@ -410,7 +410,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     return {
       freq: repeatType,
       interval: repeatNum, // 间隔
-      until: endDateNoRepeat ? null : moment(endDate).unix(), // 结束日期
+      until: endDateNoRepeat ? null : dayjs.tz(endDate).unix(), // 结束日期
       every: repeatDays, // 区间
       exclude_date: [] // 排除事项日期
     };
@@ -433,8 +433,8 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
    */
   handleEditData() {
     const { name, calendar_id, time_zone, start_time, end_time, repeat } = this.editData;
-    const startDate = moment(start_time * 1000);
-    const endDate = moment(end_time * 1000);
+    const startDate = dayjs.tz(start_time * 1000);
+    const endDate = dayjs.tz(end_time * 1000);
     const startDateStr = startDate.format('YYYY-MM-DD');
     const endDateStr = endDate.format('YYYY-MM-DD');
     const startTimeStr = startDate.format('HH:mm:ss');
@@ -446,7 +446,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
       repeatType: freq,
       repeatNum: interval,
       repeatDays: every,
-      endDate: !!until ? moment(until * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
+      endDate: !!until ? dayjs.tz(until * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
       endDateNoRepeat: !until
     };
     if (!freq) {
@@ -704,7 +704,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
                 placeholder={this.$t('永不结束')}
                 format='yyyy-MM-dd HH:mm:ss'
                 value={this.repeatFormData.endDate}
-                onChange={val => (this.repeatFormData.endDate = moment(val).format('YYYY-MM-DD 23:59:59'))}
+                onChange={val => (this.repeatFormData.endDate = dayjs.tz(val).format('YYYY-MM-DD 23:59:59'))}
               >
                 <div
                   slot='footer'

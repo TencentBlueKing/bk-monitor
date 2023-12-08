@@ -61,7 +61,12 @@
     <!-- <div class="result-text"></div> -->
     <!-- 检索日期 -->
     <div class="result-right">
-      <time-range :value="datePickerValue" @change="handleTimeRangeChange" />
+      <time-range
+        :value="datePickerValue"
+        :timezone="timezone"
+        @change="handleTimeRangeChange"
+        @timezoneChange="handleTimezoneChange"
+      />
       <!-- 自动刷新 -->
       <bk-popover
         ref="autoRefreshPopper"
@@ -162,10 +167,6 @@ export default {
       type: Object,
       required: true,
     },
-    timeRange: {
-      type: String,
-      required: true,
-    },
     datePickerValue: {
       type: Array,
       required: true,
@@ -184,6 +185,10 @@ export default {
     },
     isShowCollect: {
       type: Boolean,
+      required: true,
+    },
+    timezone: {
+      type: String,
       required: true,
     },
   },
@@ -329,6 +334,10 @@ export default {
     handleTimeRangeChange(val) {
       this.$emit('update:datePickerValue', val);
       this.setRefreshTime(0);
+      this.$emit('datePickerChange');
+    },
+    handleTimezoneChange(timezone) {
+      this.$emit('timezoneChange', timezone);
       this.$emit('datePickerChange');
     },
     handleChangeTimeByChart(val) {
