@@ -27,32 +27,19 @@ import './original-light-height.scss';
 
 interface IProps {
   originJson: Object;
-  kvShowFieldsList: string[];
-  totalFields: any[];
 }
 
 @Component
 export default class QueryStatement extends tsc<IProps> {
   /** 原始日志 */
   @Prop({ type: Object, required: true }) originJson;
-  @Prop({ type: Array, required: true }) kvShowFieldsList;
-  @Prop({ type: Array, required: true }) totalFields;
 
   segmentReg = /<mark>(.*?)<\/mark>/g;
-
-  // 与kv列表相同展示
-  get fieldKeyMap() {
-    return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name)).map(el => el.field_name);
-  }
 
   // 扁平化对象所有数据
   get fieldMapData() {
     const { newObject } = getFlatObjValues(this.originJson || {});
-    const filterShowOriginObj = Object.entries(newObject).reduce((pre, [curKey, curValue]) => {
-      if (this.fieldKeyMap.includes(curKey)) pre[curKey] = curValue; // 包含的才展示
-      return pre;
-    }, {});
-    return Object.entries(filterShowOriginObj);
+    return Object.entries(newObject);
   }
 
   /** 检索的高亮列表 */
