@@ -119,7 +119,7 @@ class SpaceTableIDRedis:
         logger.info("start to push table_id detail data, table_id_list: %s", json.dumps(table_id_list))
         table_id_detail = get_table_info_for_influxdb_and_vm(table_id_list)
         if not table_id_detail:
-            logger.info("not found table from influxdb or vm")
+            logger.info("table_id_list: %s not found table from influxdb or vm", json.dumps(table_id_list))
             return
 
         table_ids = set(table_id_detail.keys())
