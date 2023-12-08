@@ -59,7 +59,7 @@ const errorHandle = (response, config) => {
               // 初始化api 用于转换登入
               if (config.url.includes('/commons/context/enhanced') && config.params.context_type === 'basic') {
                 const url = `${data.login_url.split('c_url=')[0]}c_url=${encodeURIComponent(location.href)}`;
-                window.open(url.href, '_self');
+                window.open(url, '_self');
                 return;
               }
               const url = new URL(data.login_url);
