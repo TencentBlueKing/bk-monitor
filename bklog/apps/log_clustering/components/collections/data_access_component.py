@@ -220,7 +220,7 @@ class CreateBkdataDataIdService(BaseService):
     def _execute(self, data, parent_data):
         collector_config_id = data.get_one_of_inputs("collector_config_id")
         collector_config = CollectorConfig.objects.filter(
-            collector_config_id=collector_config_id, bkdata_data_id__isnull=True
+            collector_config_id=collector_config_id,
         ).first()
         create_bkdata_data_id(collector_config, raise_exception=True)
         return True
