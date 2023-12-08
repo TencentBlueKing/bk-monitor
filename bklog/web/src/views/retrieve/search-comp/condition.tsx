@@ -172,8 +172,8 @@ export default class Condition extends tsc<IProps> {
 
   @Debounce(300)
   @Emit('additionValueChange')
-  handleAdditionChange(v: any, key: string, isQuery = true) {
-    return { v, key, isQuery };
+  handleAdditionChange(newReplaceObj: object, isQuery = true) {
+    return { newReplaceObj, isQuery };
   }
 
   @Emit('ipChange')
@@ -185,7 +185,7 @@ export default class Condition extends tsc<IProps> {
     !!this.tagInputRef && (this.tagInputRef.$refs.input.onkeyup = (v) => {
       if (v.code === 'Enter' || v.code === 'NumpadEnter') {
         if (this.localValue.length && !this.isValueChange) {
-          this.handleAdditionChange(this.localValue, 'value');
+          this.handleAdditionChange({ value: this.localValue });
         }
       }
     });
@@ -217,7 +217,7 @@ export default class Condition extends tsc<IProps> {
       this.isValueChange = false;
     }, 500); // 这个是enter检索判断
     if (!val.length) {
-      this.handleAdditionChange([], 'value');
+      this.handleAdditionChange({ value: [] });
       return;
     }
     const newVal = val[val.length - 1];
@@ -231,7 +231,7 @@ export default class Condition extends tsc<IProps> {
       this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType);  // 判断数字最大值 超出则使用最大值
     }
 
-    this.handleAdditionChange(this.localValue, 'value');
+    this.handleAdditionChange({ value: this.localValue });
   }
 
   /**
@@ -251,13 +251,13 @@ export default class Condition extends tsc<IProps> {
   handleValueBlur(val: string) {
     if (val !== '' && this.isHaveCompared) this.localValue = [val];
     // if (this.localValue.length) {
-    //   this.handleAdditionChange(this.localValue, 'value');
+    //   this.handleAdditionChange({ value: this.localValue });
     // }
   }
 
   handleValueRemoveAll() {
     this.localValue = [];
-    this.handleAdditionChange([], 'value');
+    this.handleAdditionChange({ value: [] });
   }
 
   /**
@@ -278,9 +278,14 @@ export default class Condition extends tsc<IProps> {
     }
     if (isCompared) this.localValue = this.localValue[0] ? [this.localValue[0]] : []; // 多输入的值变为单填时 拿下标为0的值
     const isQuery = !!this.localValue.length || isExists; // 值不为空 或 存在与不存在 的情况下才自动检索请求
-    this.handleAdditionChange(isExists ? [''] : queryValue, 'value', false);  // 更新值
-    this.handleAdditionChange(operatorItem, 'operatorItem', false);  // 更新操作符Item
-    this.handleAdditionChange(operatorItem.operator, 'operator', isQuery);  // 更新操作符
+    this.handleAdditionChange(
+      {
+        value: isExists ? [''] : queryValue,  // 更新值
+        operatorItem,  // 更新操作元素
+        operator: operatorItem.operator,  // 更新操作符
+      },
+      isQuery,
+    );
   }
 
   /**
@@ -290,7 +295,7 @@ export default class Condition extends tsc<IProps> {
   handleMatchChange(matchStatus: boolean) {
     const { wildcard_operator: wildcardOperator, operator } = this.operatorItem;
     const newOperator = matchStatus ? wildcardOperator : operator;
-    this.handleAdditionChange(newOperator, 'operator', false);  // 更新操作符
+    this.handleAdditionChange({ operator: newOperator }, false);  // 更新操作符
   }
 
   getIsExists(operator: string) {
