@@ -342,6 +342,9 @@ export interface IDutyPreviewParams {
  * @param times
  */
 export function timeRangeMerger(timePeriods: { start_time: string; end_time: string }[]) {
+  if (!timePeriods?.length) {
+    return [];
+  }
   // 先对时间段按照开始时间进行排序
   timePeriods.sort((a, b) => {
     return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
