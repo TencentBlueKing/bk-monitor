@@ -30,7 +30,6 @@ import { unmount } from '@blueking/bk-weweb';
 import './alarm-shield.scss';
 
 const wewebId = 'trace';
-
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TraceRetrieval extends tsc<{}> {
@@ -65,7 +64,7 @@ export default class TraceRetrieval extends tsc<{}> {
           class='alarm-shield-wrap-iframe'
           url={this.alarmShieldUrl}
           showSourceCode={true}
-          id='trace'
+          id={wewebId}
           data={this.alarmShieldData}
         />
       </div>

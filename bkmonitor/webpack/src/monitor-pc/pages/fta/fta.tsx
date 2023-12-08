@@ -25,10 +25,12 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { unmount } from '@blueking/bk-weweb';
 
 import './fta.scss';
-import { unmount } from '@blueking/bk-weweb';
+
 Component.registerHooks(['beforeRouteLeave']);
+
 @Component
 export default class FTA extends tsc<{}> {
   @Prop() a: number;

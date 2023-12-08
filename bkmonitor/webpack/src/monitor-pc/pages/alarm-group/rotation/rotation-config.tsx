@@ -31,6 +31,7 @@ import { listDutyRule } from '../../../../monitor-api/modules/model';
 import { previewUserGroupPlan } from '../../../../monitor-api/modules/user_groups';
 import { Debounce, random } from '../../../../monitor-common/utils';
 import loadingIcon from '../../../../monitor-ui/chart-plugins/icons/spinner.svg';
+import { EStatus, getEffectiveStatus, statusMap } from '../../../../trace/pages/rotation/typings/common';
 import { IGroupListItem } from '../duty-arranges/user-selector';
 
 import { dutyNoticeConfigToParams, paramsToDutyNoticeConfig } from './data';
@@ -150,7 +151,8 @@ export default class RotationConfig extends tsc<IProps> {
         ...item,
         isCheck: false,
         show: true,
-        typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
+        typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值'),
+        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
       }));
       this.setDutyList();
       this.dutyLoading = false;
@@ -460,7 +462,8 @@ export default class RotationConfig extends tsc<IProps> {
         ...item,
         isCheck: sets.has(item.id),
         show: item.labels.some(l => l.indexOf(this.search) >= 0) || item.name.indexOf(this.search) >= 0,
-        typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值')
+        typeLabel: item.category === 'regular' ? this.$t('固定值班') : this.$t('交替轮值'),
+        status: getEffectiveStatus([item.effective_time, item.end_time], item.enabled)
       };
       maps.set(item.id, obj);
       return obj;
@@ -533,6 +536,11 @@ export default class RotationConfig extends tsc<IProps> {
                   {item.name}
                 </span>
                 <span class='duty-item-type'>{item.typeLabel}</span>
+                {[EStatus.NoEffective, EStatus.Deactivated].includes(item.status) && (
+                  <span class={['duty-item-status', item.status.toLowerCase()]}>
+                    <span>{statusMap[item.status]}</span>
+                  </span>
+                )}
                 <span
                   class='icon-monitor icon-bianji'
                   onClick={e => {

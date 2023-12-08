@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { EStatus } from '../../../../trace/pages/rotation/typings/common';
+
 export interface IDutyListItem {
   id: string | number;
   name: string;
@@ -37,4 +40,5 @@ export interface IDutyItem {
   id: string | number;
   name: string;
   typeLabel: string;
+  status: EStatus;
 }

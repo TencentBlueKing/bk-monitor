@@ -23,6 +23,7 @@ from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.version import compare_versions, get_max_version
 from core.drf_resource import api
 from metadata import models
+from metadata.config import PERIODIC_TASK_DEFAULT_TTL
 from metadata.utils import es_tools
 
 logger = logging.getLogger("metadata")
@@ -142,7 +143,7 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
         logger.exception("refresh custom report config to colletor error: %s" % e)
 
 
-@share_lock(ttl=7200, identify="metadata_refreshTimeSeriesMetrics")
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshTimeSeriesMetrics")
 def check_update_ts_metric():
     logger.info("check_update_ts_metric:start")
     s_time = time.time()
