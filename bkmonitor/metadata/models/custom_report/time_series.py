@@ -1031,7 +1031,7 @@ class TimeSeriesMetric(models.Model):
             # 标识是否需要更新
             is_need_update = False
             # 先设置最后更新时间 1 天更新一次，减少对 db 的操作
-            if (last_modify_time - obj.last_modify_time).days <= 1:
+            if (last_modify_time - obj.last_modify_time).days >= 1:
                 is_need_update = True
                 obj.last_modify_time = last_modify_time
 
@@ -1081,7 +1081,7 @@ class TimeSeriesMetric(models.Model):
         is_create = False
         need_create_metrics = _metrics - set(metrics_by_group_id)
         # 获取已经存在的指标，然后进行批量更新
-        need_update_metrics = set(_metrics_dict.keys()) - need_create_metrics
+        need_update_metrics = _metrics - need_create_metrics
         # 如果存在，则批量创建
         if need_create_metrics:
             is_create = cls._bulk_create_metrics(
