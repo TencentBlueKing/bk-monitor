@@ -54,9 +54,18 @@ const transformAppDir = (app) => {
 };
 const mobileBuildVariates = `
 <script>
-window.site_url = "\${SITE_URL}"
-window.static_url = "\${STATIC_URL}"
-window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
+    window.site_url = "\${WEIXIN_SITE_URL}"
+    window.static_url = "\${WEIXIN_STATIC_URL}"
+    window.cc_biz_id = \${BK_BIZ_ID}
+    window.user_name = "\${UIN}"
+    window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
+    window.csrf_token = "\${csrf_token}"
+    window.userInfo = {
+        username: "\${UIN}",
+        isSuperuser: \${IS_SUPERUSER},
+    }
+    window.ageisId = "\${TAM_ID}"
+    window.graph_watermark = "\${GRAPH_WATERMARK}" == "True" ? true : false
 </script>`;
 
 const pcBuildVariates = `
