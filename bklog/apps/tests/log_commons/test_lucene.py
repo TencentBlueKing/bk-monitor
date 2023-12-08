@@ -15,6 +15,7 @@ from apps.utils.lucene import (
     LuceneFieldExprChecker,
     LuceneFullWidthChecker,
     LuceneNumericOperatorChecker,
+    LuceneNumericValueChecker,
     LuceneParenthesesChecker,
     LuceneQuotesChecker,
     LuceneRangeChecker,
@@ -394,6 +395,16 @@ NUMERIC_OPERATOR_CHECK_TEST_CASES = [LEGAL_CASE] + [
     }
 ]
 
+NUMERIC_VALUE_CHECK_TEST_CASES = [LEGAL_CASE] + [
+    {
+        "keyword": """id: aaaaa""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": """该字段id为数值类型, 请确认值的类型""",
+    }
+]
+
+
 FULL_CHECK_TEST_CASES = [
     {
         "keyword": KEYWORD,
@@ -411,11 +422,18 @@ FULL_CHECK_TEST_CASES = [
         "check_result": {
             "is_legal": False,
             "is_resolved": False,
-            "message": (
-                """字段id_1不存在,字段id无查询内容,引号不匹配,缺少 ), 你可能想输入: log: ("INFO" AND (a OR b """
-                """AND c OR "d" AND id: AND id_1: 1))"""
-            ),
+            "message": """字段id_1不存在,字段id无查询内容,引号不匹配,缺少 )""",
             "keyword": """log: ("INFO" AND (a OR b AND c OR "d" AND id: AND id_1: 1))""",
+        },
+    },
+    {
+        "keyword": """log: [1 TO 9]}""",
+        "fields": FIELDS,
+        "check_result": {
+            "is_legal": False,
+            "is_resolved": True,
+            "message": """RANGE语法异常, 格式错误, 你可能想输入: log: [1 TO 9]""",
+            "keyword": """log: [1 TO 9]""",
         },
     },
 ]
@@ -574,6 +592,14 @@ class TestLuceneChecker(TestCase):
     def test_numeric_operator_checker(self):
         for case in NUMERIC_OPERATOR_CHECK_TEST_CASES:
             checker = LuceneNumericOperatorChecker(case["keyword"], case.get("fields", []))
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_numeric_value_checker(self):
+        for case in NUMERIC_VALUE_CHECK_TEST_CASES:
+            checker = LuceneNumericValueChecker(case["keyword"], case.get("fields", []))
             checker.check()
             self.assertEqual(checker.check_result.legal, case["check_result"])
             checker.fix()

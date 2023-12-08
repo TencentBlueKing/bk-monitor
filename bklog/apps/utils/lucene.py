@@ -1091,6 +1091,22 @@ class LuceneRangeChecker(LuceneCheckerBase):
     def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
         super().__init__(query_string=query_string, fields=fields)
 
+    @staticmethod
+    def remove_left_consecutive_brackets(s: str):
+        matches = re.findall(r'\[+\{+|\{+\[+', s)
+        max_match = max(matches, key=len) if matches else None
+        if not max_match:
+            return s
+        return s.replace(max_match, max_match[-1])
+
+    @staticmethod
+    def remove_right_consecutive_brackets(s: str):
+        matches = re.findall(r'\]+\}+|\}+\]+', s)
+        max_match = max(matches, key=len) if matches else None
+        if not max_match:
+            return s
+        return s.replace(max_match, max_match[0])
+
     def _check(self):
         """
         在最小化子语句中按TO拆分, 检查左边和右边是否缺失边界以及边界符号
@@ -1105,15 +1121,15 @@ class LuceneRangeChecker(LuceneCheckerBase):
                 __, start = parts[0].split(':')
                 start = start.strip()
                 end = parts[1].strip()
-                if not (re.match(r"\[\d+|\{\d+|\{.\*", start) and re.match(r"\d+}|\d+]|.\*}", end)):
+                if not (re.match(r"^(?:\[\d+|\{\d+|\{\*)$", start) and re.match(r"^(?:\d+}|\d+]|.\*})$", end)):
                     self.check_result.error = _("RANGE语法异常, 格式错误")
                     return False
 
         return True
 
-    @staticmethod
-    def _fix_range(sub_query: str) -> str:
+    def _fix_range(self, sub_query: str) -> str:
         def process_left_part(_left_part: str):
+            _left_part = self.remove_left_consecutive_brackets(_left_part)
             field_name, upper_bound = _left_part.split(':')
             field_name = field_name.strip()
             upper_bound = upper_bound.strip()
@@ -1135,6 +1151,7 @@ class LuceneRangeChecker(LuceneCheckerBase):
             return field_name, upper_bound
 
         def process_right_part(_right_part: str):
+            _right_part = self.remove_right_consecutive_brackets(_right_part)
             # 兼容 [ 1 这种情况
             if _right_part and _right_part[0] in (']', '}'):
                 _right_part = _right_part[1:].strip() + _right_part[0]
@@ -1397,6 +1414,63 @@ class LuceneNumericOperatorChecker(LuceneCheckerBase):
         return True
 
 
+class LuceneNumericValueChecker(LuceneCheckerBase):
+    """
+    检查数值类型的值, 数值类型只支持整形和浮点数, 该类的所有场景均无法修复
+    """
+
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields, force_check=True)
+
+    @staticmethod
+    def is_number(field_value: str):
+        # force_check没办法知道sub_query的语法, 当值中存在RANGE语法的边界符时, 跳过检查
+        for char in field_value:
+            if char in ["[", "]", "{", "}"]:
+                return True
+
+        # 检查字符串是否为整数
+        if field_value.isdigit():
+            return True
+
+        # 检查字符串是否为浮点数
+        float_pattern = r'^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$'
+        if re.match(float_pattern, field_value):
+            return True
+
+        return False
+
+    def _check(self):
+        try:
+            fields = LuceneParser(keyword=self.query_string).parsing()
+            for field in fields:
+                if field.is_full_text_field:
+                    continue
+                if field.field_name in self.numeric_field_list:
+                    if field.type in ["Word", "Phrase"] and not self.is_number(field.value):
+                        self.check_result.error = _("该字段{field_name}为数值类型").format(field_name=field.field_name)
+                        self.check_result.suggestion = _("请确认值的类型")
+                        self.check_result.fixable = False
+                        return False
+        except Exception:  # pylint: disable=broad-except
+            for sub_query in self.sub_query_list:
+                if ':' not in sub_query:
+                    continue
+                field_name, field_expr = sub_query.split(':')
+                if "(" in field_name:
+                    field_name = field_name.split("(")[0]
+                field_name = field_name.strip()
+                field_expr = field_expr.strip()
+                if field_name and field_name in self.numeric_field_list and field_expr:
+                    if not self.is_number(field_expr):
+                        self.check_result.error = _("该字段{field_name}为数值类型").format(field_name=field_name)
+                        self.check_result.suggestion = _("请确认值的类型")
+                        self.check_result.fixable = False
+                        return False
+
+        return True
+
+
 class LuceneChecker(object):
     """
     Lucene语法检查器
@@ -1439,7 +1513,7 @@ class LuceneChecker(object):
         if self.messages:
             is_legal = False
         self.messages = ",".join(sorted(list(set(self.messages))))
-        if not is_legal:
+        if not is_legal and is_resolved:
             self.messages = self.messages + _(", 你可能想输入: ") + self.query_string
         return {
             "is_legal": is_legal,
