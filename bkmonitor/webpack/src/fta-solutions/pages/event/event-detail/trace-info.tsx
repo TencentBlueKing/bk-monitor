@@ -25,7 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { errorListByTraceIds } from '../../../../monitor-api/modules/apm_metric';
 import { traceListById } from '../../../../monitor-api/modules/apm_trace';
@@ -126,8 +126,8 @@ export default class TraceInfo extends tsc<IProps> {
     this.loading = true;
     const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
     const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
-    this.startTime = moment(startTime).unix();
-    this.endTime = moment(endTime).unix();
+    this.startTime = dayjs.tz(startTime).unix();
+    this.endTime = dayjs.tz(endTime).unix();
     traceListById({
       bk_biz_id: this.detail.bk_biz_id,
       trace_ids: this.traceIds,

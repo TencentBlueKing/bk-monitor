@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { throttle } from 'throttle-debounce';
 
 import { alertDetail, listAlertFeedback, searchAction } from '../../../../monitor-api/modules/alert';
@@ -33,6 +33,7 @@ import { graphTraceQuery } from '../../../../monitor-api/modules/grafana';
 import { checkAllowedByActionIds } from '../../../../monitor-api/modules/iam';
 import { getPluginInfoByResultTable } from '../../../../monitor-api/modules/scene_view';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
+import { destroyTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import * as eventAuth from '../../../../monitor-pc/pages/event-center/authority-map';
 import LogRetrievalDialog from '../../../../monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
 import authorityStore from '../../../../monitor-pc/store/modules/authority';
@@ -66,6 +67,7 @@ const authMap = ['manage_rule_v2', 'manage_event_v2', 'manage_downtime_v2'];
 //   onCloseSlider?: boolean;
 //   onInfo?: (v: IDetail) => void;
 // }
+Component.registerHooks(['beforeRouteLeave']);
 @Component({
   name: 'EventDetail'
 })
@@ -180,8 +182,13 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.scrollInit();
     this.logRetrieval.isMounted = true;
   }
-
-  beforeDestory() {
+  beforeRouteLeave(to, from, next) {
+    next(() => {
+      destroyTimezone();
+    });
+  }
+  beforeDestroy() {
+    destroyTimezone();
     this.scrollEl?.removeEventListener('scroll', this.throttledScroll);
   }
 
@@ -418,8 +425,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const params: any = {
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
-      start_time: moment(startTime).unix(),
-      end_time: moment(endTime).unix()
+      start_time: dayjs.tz(startTime).unix(),
+      end_time: dayjs.tz(endTime).unix()
     };
     if (graph_panel) {
       const [{ data: queryConfig }] = graph_panel.targets;

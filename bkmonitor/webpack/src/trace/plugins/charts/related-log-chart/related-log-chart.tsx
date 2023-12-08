@@ -28,10 +28,10 @@ import { computed, ComputedRef, defineComponent, inject, PropType, reactive, Ref
 import { TranslateResult } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 import { Alert, Button, Exception, Input, Popover, Select, Table } from 'bkui-vue';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
 import { toPng } from 'html-to-image';
-import moment from 'moment';
 
 // 原先绑定 Vue 原型的 $api
 import api from '../../../../monitor-api/api';
@@ -341,8 +341,8 @@ export default defineComponent({
       try {
         unregisterOberver();
         const params = {
-          start_time: start_time ? moment(start_time).unix() : formattedStartTime,
-          end_time: end_time ? moment(end_time).unix() : formattedEndTime,
+          start_time: start_time ? dayjs.tz(start_time).unix() : formattedStartTime,
+          end_time: end_time ? dayjs.tz(end_time).unix() : formattedEndTime,
           interval: chartInterval.value,
           index_set_id: relatedIndexSetId.value,
           keyword: keyword.value

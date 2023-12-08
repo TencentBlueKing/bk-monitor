@@ -12,7 +12,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Dict
 
-from common.log import logger
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -33,6 +32,7 @@ from bkmonitor.models import (
     StrategyActionConfigRelation,
     UserGroup,
 )
+from common.log import logger
 from constants.action import NoticeChannel
 from constants.common import IsoWeekDay, MonthDay, RotationType
 from core.drf_resource import api, resource
@@ -182,14 +182,14 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
         return receivers
 
     @staticmethod
-    def translate_user_display(display_users, all_users,  user_list):
+    def translate_user_display(display_users, all_users, user_list):
         """
         前端用户信息转换
         """
         return_users = []
         all_users_id = []
         for user in display_users:
-            user_type_id = "{}--{}".format(user["type"], user["id"], user_list)
+            user_type_id = "{}--{}".format(user["type"], user["id"])
             if user_type_id in all_users_id:
                 continue
             all_users_id.append(user_type_id)
@@ -390,6 +390,7 @@ class UserGroupSlz(serializers.ModelSerializer):
         data["users"] = self.group_user_mappings.get(instance.id, [])
         data["channels"] = data.get("channels") or NoticeChannel.DEFAULT_CHANNELS
         data["strategy_count"] = len(set(self.strategy_count_of_given_type.get(instance.id, [])))
+        data["rules_count"] = len(set(self.rule_count.get(instance.id, [])))
         data["delete_allowed"] = (
             len(set(self.strategy_count_of_all.get(instance.id, []))) == 0
             and len(set(self.rule_count.get(instance.id, []))) == 0
@@ -429,7 +430,7 @@ class UserGroupDetailSlz(UserGroupSlz):
             "path",
             "channels",
             "mention_list",
-            "mention_type"
+            "mention_type",
         )
 
     def validate_name(self, value):
@@ -587,4 +588,3 @@ class UserGroupDetailSlz(UserGroupSlz):
 
         DutyPlan.objects.bulk_create(new_duty_plans)
         DutyPlan.objects.filter(id__in=old_duty_plans).delete()
-

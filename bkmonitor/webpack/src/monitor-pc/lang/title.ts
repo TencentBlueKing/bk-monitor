@@ -118,5 +118,6 @@ export default {
   分钟数据量: 'Minute data volume',
   日数据量: 'Daily data volume',
   集群状态: 'Cluster status',
-  索引状态: 'Index status'
+  索引状态: 'Index status',
+  '主机智能异常检测发现{0}个主机异常': 'Host intelligent exception detection found {0} host exceptions'
 };

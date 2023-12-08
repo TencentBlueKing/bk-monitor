@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './alarm-shield.scss';
 
+const wewebId = 'alarmShield';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TraceRetrieval extends tsc<{}> {
-  @Prop() a: number;
   get alarmShieldHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -47,11 +47,7 @@ export default class TraceRetrieval extends tsc<{}> {
     });
   }
   beforeRouteLeave(to, from, next) {
-    (document.body as any).___zrEVENTSAVED = null;
     next();
-  }
-  created() {
-    console.log('created');
   }
   render() {
     return (
@@ -61,7 +57,7 @@ export default class TraceRetrieval extends tsc<{}> {
           class='alarm-shield-wrap-iframe'
           url={this.alarmShieldUrl}
           showSourceCode={true}
-          id='trace'
+          id={wewebId}
           data={this.alarmShieldData}
         />
       </div>

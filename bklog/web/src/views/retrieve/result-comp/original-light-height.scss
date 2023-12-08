@@ -1,6 +1,17 @@
 .origin-content {
   .black-mark {
-    background: #f0f1f5;
+    background: #e6e6e6;
     color: #313238;
+    margin-right: 2px;
+    border-radius: 2px;
+  }
+
+  .origin-value {
+    margin: 0 4px 0 2px;
+  }
+
+  mark {
+    padding: 0 2px;
+    border-radius: 2px;
   }
 }

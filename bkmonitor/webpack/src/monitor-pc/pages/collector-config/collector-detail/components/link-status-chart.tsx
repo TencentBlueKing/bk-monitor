@@ -31,7 +31,7 @@ import echarts from 'echarts';
 import loadingIcon from '../../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import BaseEchart from '../../../../../monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range';
+import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range-old';
 import { DEFAULT_TIME_RANGE, shortcuts } from '../../../../components/time-range/utils';
 
 import './link-status-chart.scss';

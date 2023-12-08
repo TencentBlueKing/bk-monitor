@@ -118,6 +118,31 @@ class GetProjectClustersResource(BcsClusterManagerBaseResource):
         ]
 
 
+class GetProjectK8sNonSharedClustersResource(BcsClusterManagerBaseResource):
+    """获取项目下的非共享的K8S集群信息, 返回必要数据"""
+
+    action = "cluster"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        project_id = serializers.CharField(required=False, label="项目 ID", default="")
+
+    def perform_request(self, validated_request_data):
+        clusters = super(GetProjectK8sNonSharedClustersResource, self).perform_request(
+            {"projectID": validated_request_data["project_id"]}
+        )
+        # 过滤掉共享集群
+        return [
+            {
+                "project_id": c["projectID"],
+                "cluster_id": c["clusterID"],
+                "bk_biz_id": c["businessID"],
+            }
+            for c in clusters or []
+            if not c.get("is_shared") and c.get("engineType") == "k8s"
+        ]
+
+
 class GetSharedClustersResource(BcsClusterManagerBaseResource):
     """获取共享集群"""
 
