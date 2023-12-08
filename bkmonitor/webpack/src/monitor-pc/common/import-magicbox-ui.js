@@ -78,6 +78,7 @@ import {
   bkTableColumn,
   bkTableSettingContent,
   bkTabPanel,
+  bkTag,
   bkTagInput,
   bkTimeline,
   bkTimePicker,
@@ -147,6 +148,7 @@ Vue.use(bkComposeFormItem);
 Vue.use(bkResizeLayout);
 Vue.use(bkRadioButton);
 Vue.use(bkTableSettingContent);
+Vue.use(bkTag);
 
 // directives use
 Vue.use(bkClickoutside);

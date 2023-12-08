@@ -189,5 +189,14 @@ export default {
   主机当前状态: 'Host current status',
   采集状态: 'Collection status',
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
-    'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail'
+    'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
+  '已成功发送 {0} 个内部用户': '{0} internal users successfully sent',
+  '已成功发送 {0} 个外部邮件': '{0} external messages sent successfully',
+  '已成功发送 {0} 个企业微信机器人': '{0} enterprise WeChat robots have been sent successfully',
+  '已成功发送 {0} 个，失败 {1} 个内部用户': '{0} successfully sent, {1} failed internal users',
+  '已成功发送 {0} 个，失败 {1} 个外部邮件': '{0} successfully sent, {1} failed external messages',
+  '已成功发送 {0} 个，失败 {1} 个企业微信机器人':
+    '{0} have been sent successfully, {1} enterprise WeChat robots have failed',
+  '当前已存在相同索引集的订阅 {0} ，请确认是否要创建新订阅或是直接修改已有订阅内容？':
+    'There is currently a subscription {0} for the same index set. Please confirm whether you want to create a new subscription or directly modify the existing subscription content?'
 };
