@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { Scenario, YearOnYearHour } from '../email-subscription-config';
 
@@ -88,8 +88,8 @@ export default defineComponent({
 
     const getTimeRange = computed(() => {
       if (!props?.detailInfo?.start_time) return '';
-      const startTime = moment.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = moment.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
+      const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
       return `${startTime} ~ ${endTime}`;
     });
     return {

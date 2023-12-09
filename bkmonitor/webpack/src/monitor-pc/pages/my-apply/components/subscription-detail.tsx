@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent } from 'vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import './subscription-detail.scss';
 
@@ -99,8 +99,8 @@ export default defineComponent({
     }
     const getTimeRange = computed(() => {
       if (!props?.detailInfo?.start_time) return '';
-      const startTime = moment.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = moment.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
+      const startTime = dayjs.unix(props.detailInfo.start_time).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
       return `${startTime} ~ ${endTime}`;
     });
     return {

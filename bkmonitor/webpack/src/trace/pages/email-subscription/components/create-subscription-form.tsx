@@ -42,7 +42,7 @@ import {
   Table,
   TimePicker
 } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { getExistSubscriptions, getVariables } from '../../../../monitor-api/modules/email_subscription';
@@ -274,8 +274,8 @@ export default defineComponent({
     const frequency = reactive({
       type: 5,
       hour: 0.5,
-      run_time: moment().format('HH:mm:ss'),
-      only_once_run_time: moment().format('YYYY-MM-DD HH:mm:ss'),
+      run_time: dayjs().format('HH:mm:ss'),
+      only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       week_list: [],
       day_list: []
     });
@@ -332,7 +332,7 @@ export default defineComponent({
       }
       formData.timerange = deepClone(v);
       const result = v.map(date => {
-        return moment(date).unix();
+        return dayjs(date).unix();
       });
       console.log(result);
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -548,7 +548,7 @@ export default defineComponent({
         f: '',
         g: true,
         h: '2',
-        j: moment(new Date()).format('HH:mm:ss'),
+        j: dayjs(new Date()).format('HH:mm:ss'),
         k: [1],
         l: [1],
         m: '',

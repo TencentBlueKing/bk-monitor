@@ -37,7 +37,7 @@ import {
 } from '@api/modules/email_subscription';
 import { deepClone } from '@common/utils';
 import { Button, Dialog, Dropdown, Input, Message, Popover, Radio, Sideslider, Switcher, Table, Tag } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
@@ -722,8 +722,8 @@ export default defineComponent({
 
     function formatTimeRange(s, e) {
       if (!s) return '';
-      const startTime = moment.unix(s).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = moment.unix(e).format('YYYY-MM-DD HH:mm:ss');
+      const startTime = dayjs.unix(s).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.unix(e).format('YYYY-MM-DD HH:mm:ss');
       return `${startTime} ~ ${endTime}`;
     }
 
