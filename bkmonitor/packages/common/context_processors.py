@@ -9,12 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.utils.translation import get_language
 from django.utils.translation import ugettext as _
 
+from bkm_space.define import Space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
@@ -32,18 +33,27 @@ class Platform(object):
     ce = settings.BKAPP_DEPLOY_PLATFORM == "community"
 
 
-def get_default_biz_id(request, biz_list, id_key):
+def get_default_biz_id(request, biz_list: Optional[List[Dict[str, Any]]] = None, id_key: Optional[str] = None) -> int:
 
-    sorted(biz_list, key=lambda biz: biz[id_key])
-
-    if hasattr(request, "biz_id"):
+    if getattr(request, "biz_id"):
+        # 如果 request 存在业务缓存字段，优先返回
         biz_id = request.biz_id
     else:
+        # 从请求参数中获取业务 ID
         biz_id = fetch_biz_id_from_request(request, {})
+        # bizId 是前端业务选择器选中业务后会携带的参数
+        # Cookie(bk_biz_id) 请求前端环境变量时，会 set：bkmonitor/packages/monitor_web/commons/context/views.py
+        biz_id_or_none: Optional[str] = (
+            request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
+        )
+        # 优先级：参数(bk_biz_id) -> 参数(bizId) = Cookie(bk_biz_id) -> biz_list -> -1
         if biz_id:
             biz_id = biz_id
+        elif biz_id_or_none:
+            biz_id = safe_int(str(biz_id_or_none).strip("/"), dft=None)
         elif biz_list:
-            biz_id = biz_id[0][id_key]
+            sorted(biz_list, key=lambda biz: biz[id_key])
+            biz_id = biz_list[0][id_key]
         else:
             biz_id = -1
 
@@ -78,9 +88,7 @@ def json_formatter(context: Dict[str, Any]):
     for key in ["gettext", "_"]:
         context.pop(key, None)
 
-    bool_context: Dict[
-        str,
-    ] = {}
+    bool_context: Dict[str, bool] = {}
     for key, value in context.items():
         if isinstance(value, str) and value in ["false", "False", "true", "True"]:
             bool_context[key] = True if value in {"True", "true"} else False
@@ -133,9 +141,9 @@ def get_core_context(request):
     }
 
 
-def get_basic_context(request, space_list, bk_biz_id):
+def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int) -> Dict[str, Any]:
 
-    context = get_core_context(request)
+    context: Dict[str, Any] = get_core_context(request)
     context.update(
         {
             "uin": request.user.username,
@@ -179,7 +187,7 @@ def get_basic_context(request, space_list, bk_biz_id):
     return context
 
 
-def get_extra_context(request, space):
+def get_extra_context(request, space: Optional[Space]) -> Dict[str, Any]:
     context = {
         # 首页跳转到文档配置页面需要
         "AGENT_SETUP_URL": settings.AGENT_SETUP_URL,
@@ -187,7 +195,7 @@ def get_extra_context(request, space):
         "COLLECTING_CONFIG_FILE_MAXSIZE": settings.COLLECTING_CONFIG_FILE_MAXSIZE,
         # 用于仪表盘迁移
         "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
-        # 用于healz判断是否容器化部署
+        # 用于 healthz 判断是否容器化部署
         "IS_CONTAINER_MODE": settings.IS_CONTAINER_MODE,
         # "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
         # 用于新增空间是否展示其他
@@ -221,18 +229,14 @@ def get_extra_context(request, space):
     return context
 
 
-def _get_full_monitor_context(request):
-    return _get_monitor_context(request)
-
-
-def _get_monitor_context(request):
+def _get_full_monitor_context(request) -> Dict[str, Any]:
     """
     渲染APP基础信息
     :param request:
     :return:
     """
 
-    context = {
+    context: Dict[str, Any] = {
         # 基础信息
         "RUN_MODE": settings.RUN_MODE,
         "APP_CODE": settings.APP_CODE,
@@ -298,14 +302,14 @@ def _get_monitor_context(request):
     return context
 
 
-def _get_full_fta_context(request):
-    context = _get_full_monitor_context(request)
+def _get_full_fta_context(request) -> Dict[str, Any]:
+    context: Dict[str, Any] = _get_full_monitor_context(request)
     # context["SITE_URL"] = f'{context["SITE_URL"]}fta/'
     context["PAGE_TITLE"] = _("故障自愈 | 蓝鲸智云")
     return context
 
 
-def get_full_context(request):
+def get_full_context(request) -> Dict[str, Any]:
     # 如果 old，仍走老路由
     if "fta" in request.get_full_path().split("/"):
         # 针对自愈的页面，进行特殊处理
@@ -314,16 +318,40 @@ def get_full_context(request):
         return _get_full_monitor_context(request)
 
 
-def get_context(request):
-    # return get_full_context(request)
-    try:
-        if "old" in request.GET:
-            get_full_context(request)
-        else:
-            # 背景：原来的 context 集成了全量业务列表拉取、用户有权限业务拉取，导致首屏打开耗时较长
-            # 改造：前端仅拉取基础 context，待页面初始化后再拉取剩余 context
-            return get_core_context(request)
+def get_fta_core_context(request) -> Dict[str, Any]:
+    context: Dict[str, Any] = get_core_context(request)
+    context["PAGE_TITLE"] = _("故障自愈 | 蓝鲸智云")
+    return context
 
+
+def get_weixin_core_context(request) -> Dict[str, Any]:
+    context: Dict[str, Any] = get_core_context(request)
+    context.update(
+        {
+            "WEIXIN_STATIC_URL": settings.WEIXIN_STATIC_URL,
+            "WEIXIN_SITE_URL": settings.WEIXIN_SITE_URL,
+            "UIN": request.user.username,
+            "IS_SUPERUSER": str(request.user.is_superuser).lower(),
+            "TAM_ID": settings.TAM_ID,
+            # 所有图表渲染必须
+            "GRAPH_WATERMARK": settings.GRAPH_WATERMARK,
+            "BK_BIZ_ID": get_default_biz_id(request),
+        }
+    )
+    return context
+
+
+def get_context(request) -> Dict[str, Any]:
+    try:
+        # 背景：原来的 context 集成了全量业务列表拉取、用户有权限业务拉取，导致首屏打开耗时较长
+        # 改造：前端仅拉取基础 context，待页面初始化后再拉取剩余 context
+        req_path: str = request.get_full_path().split("/")
+        if "fta" in req_path:
+            return get_fta_core_context(request)
+        elif "weixin" in req_path:
+            return get_weixin_core_context(request)
+        else:
+            return get_core_context(request)
     except Exception as e:
         logger.exception(f"get_context error: {e}")
         raise e
