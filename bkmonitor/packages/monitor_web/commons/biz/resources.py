@@ -116,6 +116,11 @@ class ListSpacesResource(Resource):
         show_all = serializers.BooleanField(required=False, default=False, allow_null=True)
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
+    @classmethod
+    def get_space_by_user(cls, username):
+        perm_client = Permission(username)
+        return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+
     def perform_request(self, validated_request_data) -> [dict]:
         request = get_request()
         username = request.user.username
@@ -123,12 +128,12 @@ class ListSpacesResource(Resource):
         if validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息
             if settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username):
-                return []
-
-            all_space_list = SpaceApi.list_spaces()
+                all_space_list = self.get_space_by_user(username)
+            else:
+                all_space_list = SpaceApi.list_spaces()
         else:
-            perm_client = Permission(username)
-            all_space_list = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+            all_space_list = self.get_space_by_user(username)
+
         spaces = [s.to_dict() for s in all_space_list]
         if validated_request_data["show_detail"]:
             list(map(self.enrich_space_func, spaces))
