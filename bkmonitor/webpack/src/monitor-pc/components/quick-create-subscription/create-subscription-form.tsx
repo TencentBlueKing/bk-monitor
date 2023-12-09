@@ -29,7 +29,7 @@ import moment from 'moment';
 
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import MemberSelector from '../../pages/alarm-group/alarm-group-add/member-selector';
-// import {  } from '../../../monitor-api/modules/email_subscription';
+// import {  } from '../../../monitor-api/modules/new_report';
 // import { Scenario } from '../email-subscription-config';
 import { Scenario } from '../../pages/my-apply/components/subscription-detail';
 

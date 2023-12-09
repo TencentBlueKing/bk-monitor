@@ -10,19 +10,19 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 
-from bkmonitor.email_subscription.utils import send_email, send_wxbot
-from bkmonitor.models.email_subscription import (
+from bkmonitor.models.report import (
     ChannelEnum,
-    EmailSubscription,
+    Report,
+    ReportChannel,
+    ReportSendRecord,
     SendStatusEnum,
-    SubscriptionChannel,
-    SubscriptionSendRecord,
 )
+from bkmonitor.report.utils import send_email, send_wxbot
 from constants.report import StaffChoice
 from core.drf_resource import api
 
 
-class BaseSubscriptionHandler(object):
+class BaseReportHandler(object):
     """
     基础订阅管理器
     """
@@ -33,12 +33,12 @@ class BaseSubscriptionHandler(object):
     # 订阅配置校验类
     serializer_class = None
 
-    def __init__(self, subscription: EmailSubscription):
+    def __init__(self, report: Report):
         """
         初始化对应订阅配置
         """
-        self.subscription = subscription
-        self.channels = SubscriptionChannel.objects.filter(subscription_id=subscription.id)
+        self.report = report
+        self.channels = ReportChannel.objects.filter(report_id=report.id)
 
     def run(self, channels=None):
         """
@@ -50,13 +50,13 @@ class BaseSubscriptionHandler(object):
         context = self.render(render_params)
 
         # 根据渠道分别发送，记录最新发送轮次
-        send_round = self.subscription.send_round + 1 if self.subscription.send_round else 1
-        self.subscription.send_round = send_round
-        self.subscription.save()
+        send_round = self.report.send_round + 1 if self.report.send_round else 1
+        self.report.send_round = send_round
+        self.report.save()
         if not channels:
             channels = self.channels
         for channel in channels:
-            SendChannelHandler(channel).send(context, send_round, self.subscription.bk_biz_id)
+            SendChannelHandler(channel).send(context, send_round, self.report.bk_biz_id)
 
     def get_render_params(self) -> dict:
         """
@@ -82,7 +82,7 @@ class SendChannelHandler(object):
         ChannelEnum.WXBOT.value: send_wxbot,
     }
 
-    def __init__(self, channel: SubscriptionChannel):
+    def __init__(self, channel: ReportChannel):
         """
         初始化对应订阅配置
         """
@@ -115,14 +115,14 @@ class SendChannelHandler(object):
             send_status = SendStatusEnum.PARTIAL_FAILED.value
 
         send_record = {
-            "subscription_id": self.channel.subscription_id,
+            "report_id": self.channel.report_id,
             "channel_name": self.channel.channel_name,
             "send_results": send_results,
             "send_status": send_status,
             "send_time": send_time,
             "send_round": send_round,
         }
-        SubscriptionSendRecord.objects.create(**send_record)
+        ReportSendRecord.objects.create(**send_record)
 
     def fetch_subscribers(self, bk_biz_id=None):
         """

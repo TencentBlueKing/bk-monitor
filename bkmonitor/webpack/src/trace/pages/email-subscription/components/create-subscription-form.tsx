@@ -45,7 +45,7 @@ import {
 import moment from 'moment';
 
 import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
-import { getExistSubscriptions, getVariables } from '../../../../monitor-api/modules/email_subscription';
+import { getExistReports, getVariables } from '../../../../monitor-api/modules/new_report';
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../email-subscription-config';
 
@@ -616,7 +616,7 @@ export default defineComponent({
 
     const isShowExistSubscriptionTips = ref(false);
     function checkExistSubscriptions() {
-      getExistSubscriptions({
+      getExistReports({
         scenario: formData.scenario,
         index_set_id: formData.scenario_config.index_set_id
       })

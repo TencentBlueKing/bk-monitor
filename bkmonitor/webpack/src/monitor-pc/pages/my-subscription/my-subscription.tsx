@@ -26,11 +26,11 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 import {
-  cancelSubscription,
+  cancelReport,
   getSendRecords,
-  getSubscriptionList,
-  sendSubscription
-} from '@api/modules/email_subscription';
+  getReportList,
+  sendReport
+} from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
 import moment from 'moment';
 
@@ -83,7 +83,7 @@ class MySubscription extends tsc<{}> {
   }
 
   fetchSubscriptionList() {
-    getSubscriptionList(this.queryData)
+    getReportList(this.queryData)
       .then(response => {
         console.log(response);
         this.tableData = response;
@@ -96,7 +96,7 @@ class MySubscription extends tsc<{}> {
       title: this.$t('是否取消订阅？'),
       confirmLoading: true,
       confirmFn: () => {
-        return cancelSubscription({
+        return cancelReport({
           subscription_id
         })
           .then(() => {
@@ -117,7 +117,7 @@ class MySubscription extends tsc<{}> {
 
   getSendingRecordList() {
     getSendRecords({
-      subscription_id: this.detailInfo.id
+      report_id: this.detailInfo.id
     })
       .then(response => {
         console.log(response);
@@ -195,8 +195,8 @@ class MySubscription extends tsc<{}> {
         })
       }
     ];
-    sendSubscription({
-      subscription_id: this.currentTableRowOfSendingRecord.subscription_id,
+    sendReport({
+      report_id: this.currentTableRowOfSendingRecord.subscription_id,
       channels
     })
       .then(() => {
@@ -218,7 +218,7 @@ class MySubscription extends tsc<{}> {
   }
 
   mounted() {
-    getSubscriptionList(this.queryData)
+    getReportList(this.queryData)
       .then(response => {
         console.log(response);
       })

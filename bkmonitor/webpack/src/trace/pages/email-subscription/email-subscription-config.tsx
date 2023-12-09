@@ -27,14 +27,14 @@ import { defineComponent, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
-  cloneSubscription,
-  createOrUpdateSubscription,
-  deleteSubscription,
+  cloneReport,
+  createOrUpdateReport,
+  deleteReport,
   getSendRecords,
-  getSubscription,
-  getSubscriptionList,
-  sendSubscription
-} from '@api/modules/email_subscription';
+  getReport,
+  getReportList,
+  sendReport
+} from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
 import { Button, Dialog, Dropdown, Input, Message, Popover, Radio, Sideslider, Switcher, Table, Tag } from 'bkui-vue';
 import moment from 'moment';
@@ -101,8 +101,8 @@ export default defineComponent({
     }
     function handleClone() {
       cloneDialog.loading = true;
-      cloneSubscription({
-        subscription_id: cloneDialog.subscription_id
+      cloneReport({
+        report_id: cloneDialog.subscription_id
       })
         .then(() => {
           fetchSubscriptionList();
@@ -115,8 +115,8 @@ export default defineComponent({
     }
     function handleDeleteRow() {
       deleteDialog.loading = true;
-      deleteSubscription({
-        subscription_id: deleteDialog.subscription_id
+      deleteReport({
+        report_id: deleteDialog.subscription_id
       })
         .then(() => {
           fetchSubscriptionList();
@@ -570,8 +570,8 @@ export default defineComponent({
     function testSending(to) {
       if (to === 'self') {
         isSending.value = true;
-        sendSubscription({
-          subscription_id: subscriptionDetail.value?.id,
+        sendReport({
+          report_id: subscriptionDetail.value?.id,
           channels: [
             {
               is_enabled: true,
@@ -599,8 +599,8 @@ export default defineComponent({
       }
       if (to === 'all') {
         console.log(refOfCreateSubscriptionForm.value);
-        sendSubscription({
-          subscription_id: subscriptionDetail.value?.id,
+        sendReport({
+          report_id: subscriptionDetail.value?.id,
           channels: refOfCreateSubscriptionForm.value?.formData?.channels || []
         })
           .then(() => {
@@ -624,7 +624,7 @@ export default defineComponent({
       fetchSubscriptionList();
     }
     function fetchSubscriptionList() {
-      getSubscriptionList(queryData)
+      getReportList(queryData)
         .then(response => {
           console.log(response);
           table.data = response;
@@ -634,7 +634,7 @@ export default defineComponent({
 
     const subscriptionDetail = ref({});
     function getSubscriptionDetail(subscription_id) {
-      getSubscription({
+      getReport({
         subscription_id
       })
         .then(response => {
@@ -646,7 +646,7 @@ export default defineComponent({
 
     function handleSetEnable(index) {
       const data = table.data[index];
-      createOrUpdateSubscription(data)
+      createOrUpdateReport(data)
         .then(() => {})
         .catch(() => {
           // eslint-disable-next-line no-param-reassign
@@ -668,7 +668,7 @@ export default defineComponent({
 
     function getSendingRecordList() {
       getSendRecords({
-        subscription_id: subscriptionDetail.value.id
+        report_id: subscriptionDetail.value.id
       })
         .then(response => {
           console.log(response);
@@ -755,8 +755,8 @@ export default defineComponent({
             })
         }
       ];
-      sendSubscription({
-        subscription_id: data.subscription_id,
+      sendReport({
+        report_id: data.subscription_id,
         channels
       })
         .then(() => {
@@ -1038,7 +1038,7 @@ export default defineComponent({
                     .validateAllForms()
                     .then(response => {
                       console.log(response);
-                      createOrUpdateSubscription(response)
+                      createOrUpdateReport(response)
                         .then(() => {
                           console.log('success');
                         })

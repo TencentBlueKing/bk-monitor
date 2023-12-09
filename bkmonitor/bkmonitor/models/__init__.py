@@ -22,10 +22,10 @@ from .bcs_service import *  # noqa
 from .bcs_service_monitor import *  # noqa
 from .bcs_workload import *  # noqa
 from .config import GlobalConfig  # noqa
-from .email_subscription import *  # noqa
 from .fta import *  # noqa
 from .healthz import *  # noqa
 from .metric_list_cache import *  # noqa
+from .report import *  # noqa
 from .statistics import *  # noqa
 from .strategy import *  # noqa
 from .token import *  # noqa

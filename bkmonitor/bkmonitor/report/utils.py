@@ -16,7 +16,7 @@ from bkmonitor.models import logger
 from bkmonitor.utils.range import TIME_MATCH_CLASS_MAP
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
-from constants.email_subscription import HourFrequencyTime
+from constants.new_report import HourFrequencyTime
 
 
 def parse_frequency(frequency, last_send_time=None) -> list:

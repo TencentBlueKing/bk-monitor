@@ -16,12 +16,10 @@ from django.conf import settings
 from django.templatetags.i18n import language
 
 from alarm_backends.core.context import logger
-from alarm_backends.service.email_subscription.handler.base import (
-    BaseSubscriptionHandler,
-)
-from bkmonitor.email_subscription.utils import get_data_range
-from bkmonitor.models import EmailSubscription
-from constants.email_subscription import (
+from alarm_backends.service.new_report.handler.base import BaseReportHandler
+from bkmonitor.models import Report
+from bkmonitor.report.utils import get_data_range
+from constants.new_report import (
     LogColShowTypeEnum,
     YearOnYearChangeEnum,
     YearOnYearEnum,
@@ -29,7 +27,7 @@ from constants.email_subscription import (
 from core.drf_resource import api
 
 
-class ClusteringSubscriptionHandler(BaseSubscriptionHandler):
+class ClusteringReportHandler(BaseReportHandler):
     """
     日志聚类订阅管理器
     """
@@ -38,15 +36,15 @@ class ClusteringSubscriptionHandler(BaseSubscriptionHandler):
     serializer_class = None
     AGGS_FIELD_PREFIX = "__dist"
 
-    def __init__(self, subscription: EmailSubscription):
-        super(ClusteringSubscriptionHandler, self).__init__(subscription)
+    def __init__(self, report: Report):
+        super(ClusteringReportHandler, self).__init__(report)
         self.log_prefix = (
-            f"[clustering_subscription] space_uid: {self.subscription.bk_biz_id}"
-            f" index_set_id: {self.subscription.scenario_config['index_set_id']}"
+            f"[clustering_report] space_uid: {self.report.bk_biz_id}"
+            f" index_set_id: {self.report.scenario_config['index_set_id']}"
         )
 
     def query_patterns(self, time_config: dict) -> list:
-        config = self.subscription.scenario_config
+        config = self.report.scenario_config
         query_params = {
             "start_time": time_config["start_time"],
             "end_time": time_config["end_time"],
@@ -171,7 +169,7 @@ class ClusteringSubscriptionHandler(BaseSubscriptionHandler):
 
     def generate_log_search_url(self, config: dict, time_config: dict, signature: str = "") -> str:
         params = {
-            "spaceUid": self.subscription.bk_biz_id,
+            "spaceUid": self.report.bk_biz_id,
             "keyword": config.get("query_string", "*"),
             "addition": config.get("addition", []),
             "host_scopes": config.get("host_scopes", {}),
@@ -196,10 +194,10 @@ class ClusteringSubscriptionHandler(BaseSubscriptionHandler):
         """
         # TODO: 激活时区
 
-        time_config = get_data_range(self.subscription.frequency)
+        time_config = get_data_range(self.report.frequency)
         result = self.query_patterns(time_config)
-        content_config = self.subscription.content_config
-        scenario_config = self.subscription.scenario_config
+        content_config = self.report.content_config
+        scenario_config = self.report.scenario_config
 
         # TODO: 获取索引集信息
         log_index_set = {"index_set_name": ""}
@@ -233,6 +231,6 @@ class ClusteringSubscriptionHandler(BaseSubscriptionHandler):
         return {
             "title_template_path": self.title_template_path,
             "content_template_path": self.content_template_path,
-            "title": self.subscription.content_config["title"],
+            "title": self.report.content_config["title"],
             "content": "test",
         }

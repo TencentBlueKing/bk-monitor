@@ -19,25 +19,24 @@ from django.db.models import Q
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from bkmonitor.email_subscription.serializers import (
+from bkmonitor.models import Report, ReportApplyRecord, ReportChannel, ReportSendRecord
+from bkmonitor.report.serializers import (
     ChannelSerializer,
     ContentConfigSerializer,
     FrequencySerializer,
     ScenarioConfigSerializer,
 )
-from bkmonitor.models import (
-    EmailSubscription,
-    SubscriptionApplyRecord,
-    SubscriptionChannel,
-    SubscriptionSendRecord,
-)
 from bkmonitor.utils.request import get_request
-from constants.email_subscription import ChannelEnum, SendModeEnum, SendStatusEnum
-from constants.report import StaffChoice
+from constants.new_report import (
+    SUBSCRIPTION_VARIABLES_MAP,
+    ChannelEnum,
+    SendModeEnum,
+    SendStatusEnum,
+    StaffEnum,
+)
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.drf_resource.exceptions import CustomException
-from packages.monitor_web.email_subscription.constants import SUBSCRIPTION_VARIABLES_MAP
 
 logger = logging.getLogger(__name__)
 GlobalConfig = apps.get_model("bkmonitor.GlobalConfig")
@@ -58,7 +57,7 @@ def get_send_mode(frequency):
     return SendModeEnum.ONE_TIME.value
 
 
-class GetSubscriptionListResource(Resource):
+class GetReportListResource(Resource):
     """
     获取订阅列表
     """
@@ -67,7 +66,7 @@ class GetSubscriptionListResource(Resource):
         bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
         search_key = serializers.CharField(required=False, label="搜索关键字", default="", allow_null=True, allow_blank=True)
         query_type = serializers.CharField(required=False, label="查询类型", default="all")
-        create_type = serializers.CharField(required=False, label="创建类型", default="manager")
+        create_type = serializers.CharField(required=False, label="创建类型", default="self")
         conditions = serializers.ListField(required=False, child=serializers.DictField(), default=[], label="查询条件")
         page = serializers.IntegerField(required=False, default=1, label="页数")
         page_size = serializers.IntegerField(required=False, default=10, label="每页数量")
@@ -79,44 +78,57 @@ class GetSubscriptionListResource(Resource):
 
     @staticmethod
     def filter_by_search_key(qs, search_key):
-        origin_subscription_ids = set(qs.values_list("id", flat=1))
+        origin_report_ids = set(qs.values_list("id", flat=1))
         # 搜索订阅名称
-        filter_subscription_ids = set(qs.filter(name__contains=search_key).values_list("id", flat=1))
+        filter_report_ids = set(qs.filter(name__contains=search_key).values_list("id", flat=1))
         # 搜索订阅人
-        filter_subscription_ids |= set(
-            SubscriptionChannel.objects.filter(
-                subscribers__contains={"id": search_key}, subscription_id__in=origin_subscription_ids
-            ).values_list("subscription_id", flat=1)
+        filter_report_ids |= set(
+            ReportChannel.objects.filter(
+                subscribers__contains={"id": search_key}, report_id__in=origin_report_ids
+            ).values_list("report_id", flat=1)
         )
 
-        return qs.filter(id__in=filter_subscription_ids)
+        return qs.filter(id__in=filter_report_ids)
 
     def filter_by_query_type(self, qs, query_type):
-        filter_subscription_ids = set()
-        subscription_ids = set(qs.values_list("id", flat=1))
+        filter_report_ids = set()
+        report_ids = set(qs.values_list("id", flat=1))
         username = self.get_request_username()
         # 已失效订阅列表
         if query_type == "is_invalid":
-            for subscription in qs:
-                if subscription.is_invalid():
-                    filter_subscription_ids.add(subscription.id)
+            for report in qs:
+                if report.is_invalid():
+                    filter_report_ids.add(report.id)
         # 已取消订阅列表
         elif query_type == "is_cancelled":
-            filter_subscription_ids = set(
-                SubscriptionChannel.objects.filter(
-                    subscribers__contains=[{"id": username, "type": StaffChoice.user, "is_enabled": False}],
-                    subscription_id__in=subscription_ids,
-                ).values_list("subscription_id", flat=1)
+            filter_report_ids = set(
+                ReportChannel.objects.filter(
+                    subscribers__contains=[{"id": username, "type": StaffEnum.USER.value, "is_enabled": False}],
+                    report_id__in=report_ids,
+                ).values_list("report_id", flat=1)
             )
         else:
-            filter_subscription_ids = subscription_ids
+            filter_report_ids = report_ids
 
-        return qs.filter(id__in=filter_subscription_ids)
+        return qs.filter(id__in=filter_report_ids)
 
-    def filter_by_user(self, subscription_qs):
+    @staticmethod
+    def filter_by_create_type(create_type, report_qs):
+        if create_type == "self":
+            # 当前用户的订阅
+            report_qs = GetReportListResource.filter_by_user(report_qs)
+        else:
+            # 管理员创建/用户创建的订阅
+            is_manager_created = True if create_type == "manager" else False
+            report_qs = report_qs.filter(is_manager_created=is_manager_created)
+
+        return report_qs
+
+    @staticmethod
+    def filter_by_user(report_qs):
         target_groups = []
         groups_data = {group_data["id"]: group_data["children"] for group_data in resource.report.group_list()}
-        username = self.get_request_username()
+        username = GetReportListResource.get_request_username()
         # 找到用户所属的组别
         for group, usernames in groups_data.items():
             if username in usernames:
@@ -125,7 +137,7 @@ class GetSubscriptionListResource(Resource):
         # 针对用户所有所属组别生成Q
         total_Q_query = Q()
         Q_receivers_list = [
-            Q(subscribers__contains=[{"id": group, "type": StaffChoice.group}]) for group in target_groups
+            Q(subscribers__contains=[{"id": group, "type": StaffEnum.GROUP.value}]) for group in target_groups
         ]
 
         Q_user_list = [
@@ -136,13 +148,11 @@ class GetSubscriptionListResource(Resource):
             total_Q_query |= Q_item
 
         # 筛选出对应的items
-        subscription_ids = list(subscription_qs.values_list("id", flat=1))
-        filter_subscription_ids = list(
-            SubscriptionChannel.objects.filter(total_Q_query & Q(subscription_id__in=subscription_ids)).values_list(
-                "subscription_id", flat=1
-            )
+        report_ids = list(report_qs.values_list("id", flat=1))
+        filter_report_ids = list(
+            ReportChannel.objects.filter(total_Q_query & Q(report_id__in=report_ids)).values_list("report_id", flat=1)
         )
-        return subscription_qs.filter(id__in=filter_subscription_ids)
+        return report_qs.filter(id__in=filter_report_ids)
 
     def get_filter_dict_by_conditions(self, conditions: list) -> (dict, dict):
         db_fields = ["send_mode", "scenario"]
@@ -160,94 +170,87 @@ class GetSubscriptionListResource(Resource):
                 external_filter_dict[key] = value
         return db_filter_dict, external_filter_dict
 
-    def sort_subscriptions(self, subscriptions, order):
+    def sort_reports(self, reports, order):
         reverse_order = False
         if order.startswith('-'):
             reverse_order = True
             order = order[1:]  # 去掉负号
 
-        sorted_subscriptions = sorted(subscriptions, key=lambda x: x[order] or datetime.min, reverse=reverse_order)
-        return sorted_subscriptions
+        sorted_reports = sorted(reports, key=lambda x: x[order] or datetime.min, reverse=reverse_order)
+        return sorted_reports
 
-    def fill_external_info(self, subscriptions, external_filter_dict, subscription_channels_map, last_send_record_map):
-        new_subscriptions = []
+    def fill_external_info(self, reports, external_filter_dict, report_channels_map, last_send_record_map):
+        new_reports = []
         current_user = self.get_request_username()
-        for subscription in subscriptions:
-            subscription["channels"] = subscription_channels_map.get(subscription["id"], [])
-            subscription["is_self_subscribed"] = True if subscription["create_user"] == current_user else False
-            record_info = last_send_record_map[subscription["id"]]
+        for report in reports:
+            report["channels"] = report_channels_map.get(report["id"], [])
+            report["is_self_subscribed"] = True if report["create_user"] == current_user else False
+            record_info = last_send_record_map[report["id"]]
             if record_info:
-                subscription["last_send_time"] = record_info["send_time"]
-                subscription["send_status"] = get_send_status(record_info["records"])
+                report["last_send_time"] = record_info["send_time"]
+                report["send_status"] = get_send_status(record_info["records"])
             else:
-                subscription["last_send_time"] = None
-                subscription["send_status"] = SendStatusEnum.NO_STATUS.value
+                report["last_send_time"] = None
+                report["send_status"] = SendStatusEnum.NO_STATUS.value
 
             # 过滤conditions中额外字段
             need_filter = False
             for key, value in external_filter_dict.items():
-                if not subscription[key] in value:
+                if not report[key] in value:
                     need_filter = True
                     break
             if not need_filter:
-                new_subscriptions.append(subscription)
+                new_reports.append(report)
 
-        return new_subscriptions
+        return new_reports
 
     def perform_request(self, validated_request_data):
-        subscription_qs = EmailSubscription.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        report_qs = Report.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
 
         # 根据角色过滤
-        if validated_request_data["create_type"] == "self":
-            # 当前用户的订阅
-            subscription_qs = self.filter_by_user(subscription_qs)
-        else:
-            # 管理员创建/用户创建的订阅
-            is_manager_created = True if validated_request_data["create_type"] == "manager" else False
-            subscription_qs = subscription_qs.filter(is_manager_created=is_manager_created)
+        if validated_request_data["create_type"]:
+            report_qs = self.filter_by_create_type(validated_request_data["create_type"], report_qs)
 
         # 根据搜索关键字过滤
         if validated_request_data["search_key"]:
-            subscription_qs = self.filter_by_search_key(subscription_qs, validated_request_data["search_key"])
+            report_qs = self.filter_by_search_key(report_qs, validated_request_data["search_key"])
 
         if validated_request_data["query_type"]:
-            subscription_qs = self.filter_by_query_type(subscription_qs, validated_request_data["query_type"])
+            report_qs = self.filter_by_query_type(report_qs, validated_request_data["query_type"])
 
         # 获取订阅最后一次发送记录
         last_send_record_map = defaultdict(lambda: {"send_time": None, "records": []})
         total_Q = Q()
         Q_list = [
-            Q(id=subscription_info["id"], send_round=subscription_info["send_round"])
-            for subscription_info in list(subscription_qs.values("id", "send_round"))
+            Q(id=report_info["id"], send_round=report_info["send_round"])
+            for report_info in list(report_qs.values("id", "send_round"))
         ]
         for Q_item in Q_list:
             total_Q |= Q_item
-        for record in SubscriptionSendRecord.objects.filter(total_Q).order_by("-send_time").values():
-            last_send_record_map[record["subscription_id"]]["records"].append(record)
+        for record in ReportSendRecord.objects.filter(total_Q).order_by("-send_time").values():
+            last_send_record_map[record["report_id"]]["records"].append(record)
 
         db_filter_dict, external_filter_dict = self.get_filter_dict_by_conditions(validated_request_data["conditions"])
 
         if db_filter_dict:
-            subscription_qs = subscription_qs.filter(Q(**db_filter_dict))
+            report_qs = report_qs.filter(Q(**db_filter_dict))
 
-        subscriptions = list(subscription_qs.values())
-        subscription_ids = list(subscription_qs.values_list("id", flat=1))
+        reports = list(report_qs.values())
+        report_ids = list(report_qs.values_list("id", flat=1))
 
         # 获取订阅渠道列表
-        subscription_channels_map = defaultdict(list)
-        for channel in list(SubscriptionChannel.objects.filter(subscription_id__in=subscription_ids).values()):
+        report_channels_map = defaultdict(list)
+        for channel in list(ReportChannel.objects.filter(report_id__in=report_ids).values()):
             channel.pop("id")
-            subscription_id = channel.pop("subscription_id")
-            subscription_channels_map[subscription_id].append(channel)
+            report_id = channel.pop("report_id")
+            report_channels_map[report_id].append(channel)
 
         # 补充订阅信息
-        subscriptions = self.fill_external_info(
-            subscriptions, external_filter_dict, subscription_channels_map, last_send_record_map
-        )
+        reports = self.fill_external_info(reports, external_filter_dict, report_channels_map, last_send_record_map)
 
         # 分页
         if validated_request_data.get("page") and validated_request_data.get("page_size"):
-            subscriptions = subscriptions[
+            reports = reports[
                 (validated_request_data["page"] - 1)
                 * validated_request_data["page_size"] : validated_request_data["page"]
                 * validated_request_data["page_size"]
@@ -255,69 +258,65 @@ class GetSubscriptionListResource(Resource):
 
         # 根据排序字段进行排序
         if validated_request_data["order"]:
-            subscriptions = self.sort_subscriptions(subscriptions, validated_request_data["order"])
+            reports = self.sort_reports(reports, validated_request_data["order"])
 
-        return subscriptions
+        return reports
 
 
-class GetSubscriptionResource(Resource):
+class GetReportResource(Resource):
     """
     获取订阅
     """
 
     class RequestSerializer(serializers.Serializer):
-        subscription_id = serializers.IntegerField(required=True)
+        report_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
-        subscription = EmailSubscription.objects.values().get(id=validated_request_data["subscription_id"])
-        subscription["channels"] = list(
-            SubscriptionChannel.objects.filter(subscription_id=subscription["id"]).values(
+        report = Report.objects.values().get(id=validated_request_data["report_id"])
+        report["channels"] = list(
+            ReportChannel.objects.filter(report_id=report["id"]).values(
                 "channel_name", "is_enabled", "subscribers", "send_text"
             )
         )
-        subscription["is_self_subscribed"] = get_request().user.username == subscription["create_user"]
-        return subscription
+        report["is_self_subscribed"] = get_request().user.username == report["create_user"]
+        return report
 
 
-class CloneSubscriptionResource(Resource):
+class CloneReportResource(Resource):
     """
     订阅报表克隆接口
     """
 
     class RequestSerializer(serializers.Serializer):
-        subscription_id = serializers.IntegerField(required=True)
+        report_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
-        subscription_qs = EmailSubscription.objects.filter(id=validated_request_data["subscription_id"])
-        if not subscription_qs.exists():
-            raise CustomException(
-                f"[email_subscription] subscription id: {validated_request_data['subscription_id']} not exists."
-            )
-        subscription = subscription_qs.values()[0]
-        new_name = f'{subscription["name"]}_clone'
+        report_qs = Report.objects.filter(id=validated_request_data["report_id"])
+        if not report_qs.exists():
+            raise CustomException(f"[report] report id: {validated_request_data['report_id']} not exists.")
+        report = report_qs.values()[0]
+        new_name = f'{report["name"]}_clone'
 
         i = 1
-        while EmailSubscription.objects.filter(name=new_name):
-            new_name = f"{subscription['name']}_clone({i})"  # noqa
+        while Report.objects.filter(name=new_name):
+            new_name = f"{report['name']}_clone({i})"  # noqa
             i += 1
 
-        subscription.pop("id")
-        subscription["name"] = new_name
-        subscription_channels = list(
-            SubscriptionChannel.objects.filter(subscription_id=validated_request_data["subscription_id"]).values()
-        )
-        subscription_channels_to_create = []
+        report.pop("id")
+        report["name"] = new_name
+        report_channels = list(ReportChannel.objects.filter(report_id=validated_request_data["report_id"]).values())
+        report_channels_to_create = []
         with transaction.atomic():
-            new_subscription_obj = EmailSubscription.objects.create(**subscription)
-            for channel in subscription_channels:
+            new_report_obj = Report.objects.create(**report)
+            for channel in report_channels:
                 channel.pop("id")
-                channel["subscription_id"] = new_subscription_obj.id
-                subscription_channels_to_create.append(SubscriptionChannel(**channel))
-            SubscriptionChannel.objects.bulk_create(subscription_channels_to_create)
-        return new_subscription_obj.id
+                channel["report_id"] = new_report_obj.id
+                report_channels_to_create.append(ReportChannel(**channel))
+            ReportChannel.objects.bulk_create(report_channels_to_create)
+        return new_report_obj.id
 
 
-class CreateOrUpdateSubscriptionResource(Resource):
+class CreateOrUpdateReportResource(Resource):
     """
     创建/编辑订阅报表
     """
@@ -338,7 +337,7 @@ class CreateOrUpdateSubscriptionResource(Resource):
         is_enabled = serializers.BooleanField(required=False, default=True)
 
     def perform_request(self, validated_request_data):
-        subscription_channels = validated_request_data.pop("channels", [])
+        report_channels = validated_request_data.pop("channels", [])
         validated_request_data["send_mode"] = get_send_mode(validated_request_data["frequency"])
         frequency = validated_request_data["frequency"]
         if frequency["type"] == 1:
@@ -347,51 +346,51 @@ class CreateOrUpdateSubscriptionResource(Resource):
         if validated_request_data.get("id"):
             # 编辑
             try:
-                subscription = EmailSubscription.objects.get(id=validated_request_data["id"])
-            except EmailSubscription.DoesNotExist:
-                raise Exception("subscription_id: %s not found", validated_request_data["id"])
-            subscription.__dict__.update(validated_request_data)
-            subscription.save()
+                report = Report.objects.get(id=validated_request_data["id"])
+            except Report.DoesNotExist:
+                raise Exception("report_id: %s not found", validated_request_data["id"])
+            report.__dict__.update(validated_request_data)
+            report.save()
         else:
             # 创建
-            subscription = EmailSubscription(**validated_request_data)
-            subscription.save()
+            report = Report(**validated_request_data)
+            report.save()
         with transaction.atomic():
             # 更新订阅渠道
-            SubscriptionChannel.objects.filter(subscription_id=subscription.id).delete()
-            subscription_channels_to_create = []
-            for channel in subscription_channels:
-                channel["subscription_id"] = subscription.id
-                subscription_channels_to_create.append(SubscriptionChannel(**channel))
-            SubscriptionChannel.objects.bulk_create(subscription_channels_to_create)
-        return subscription.id
+            ReportChannel.objects.filter(report_id=report.id).delete()
+            report_channels_to_create = []
+            for channel in report_channels:
+                channel["report_id"] = report.id
+                report_channels_to_create.append(ReportChannel(**channel))
+            ReportChannel.objects.bulk_create(report_channels_to_create)
+        return report.id
 
 
-class DeleteSubscriptionResource(Resource):
+class DeleteReportResource(Resource):
     """
     删除订阅
     """
 
     class RequestSerializer(serializers.Serializer):
-        subscription_id = serializers.IntegerField(required=True)
+        report_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
         try:
-            EmailSubscription.objects.filter(id=validated_request_data["subscription_id"]).delete()
-            SubscriptionChannel.objects.filter(subscription_id=validated_request_data["subscription_id"]).delete()
+            Report.objects.filter(id=validated_request_data["report_id"]).delete()
+            ReportChannel.objects.filter(report_id=validated_request_data["report_id"]).delete()
             return "success"
         except Exception as e:
             logger.exception(e)
             raise CustomException(e)
 
 
-class SendSubscriptionResource(Resource):
+class SendReportResource(Resource):
     """
     发送订阅：测试发送/重新发送
     """
 
     class RequestSerializer(serializers.Serializer):
-        subscription_id = serializers.IntegerField(required=False)
+        report_id = serializers.IntegerField(required=False)
         name = serializers.CharField(required=False)
         bk_biz_id = serializers.IntegerField(required=False)
         scenario = serializers.CharField(label="订阅场景", required=False)
@@ -405,28 +404,27 @@ class SendSubscriptionResource(Resource):
         is_enabled = serializers.BooleanField(required=False, default=True)
 
     def perform_request(self, validated_request_data):
-        # result = api.monitor.send_subscription(**validated_request_data)
+        # result = api.monitor.send_report(**validated_request_data)
         return "success"
 
 
-class CancelSubscriptionResource(Resource):
+class CancelReportResource(Resource):
     """
     取消订阅
     """
 
     class RequestSerializer(serializers.Serializer):
-        subscription_id = serializers.IntegerField(required=True)
+        report_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
         try:
-            channel = SubscriptionChannel.objects.get(
-                subscription_id=validated_request_data["subscription_id"], channel_name=ChannelEnum.USER.value
+            channel = ReportChannel.objects.get(
+                report_id=validated_request_data["report_id"], channel_name=ChannelEnum.USER.value
             )
-        except SubscriptionChannel.DoesNotExist:
+        except ReportChannel.DoesNotExist:
             raise CustomException(
-                f"[email_subscription] subscription id: "
-                f"{validated_request_data['subscription_id']} user channel not exists."
+                f"[report] report id: " f"{validated_request_data['report_id']} user channel not exists."
             )
 
         for subscriber in channel.subscribers:
@@ -434,7 +432,7 @@ class CancelSubscriptionResource(Resource):
                 subscriber["is_enabled"] = False
                 channel.save()
                 return "success"
-        channel.subscribers.append({"id": username, "type": StaffChoice.user, "is_enabled": False})
+        channel.subscribers.append({"id": username, "type": StaffEnum.USER.value, "is_enabled": False})
         channel.save()
         return "success"
 
@@ -445,12 +443,10 @@ class GetSendRecordsResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        subscription_id = serializers.IntegerField(required=True)
+        report_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
-        return list(
-            SubscriptionSendRecord.objects.filter(subscription_id=validated_request_data["subscription_id"]).values()
-        )
+        return list(ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"]).values())
 
 
 class GetApplyRecordsResource(Resource):
@@ -460,7 +456,7 @@ class GetApplyRecordsResource(Resource):
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
-        return list(SubscriptionApplyRecord.objects.filter(create_user=username).values())
+        return list(ReportApplyRecord.objects.filter(create_user=username).values())
 
 
 class GetVariablesResource(Resource):
@@ -475,28 +471,29 @@ class GetVariablesResource(Resource):
         return SUBSCRIPTION_VARIABLES_MAP[validated_request_data["scenario"]]
 
 
-class GetExistSubscriptionsResource(Resource):
+class GetExistReportsResource(Resource):
     """
     根据条件获取已存在的订阅
     """
 
     class RequestSerializer(serializers.Serializer):
         scenario = serializers.CharField(label="订阅场景", required=True)
+        query_type = serializers.CharField(required=False, label="查询类型")
         bk_biz_id = serializers.IntegerField(required=True)
         # CLUSTERING ONLY
         index_set_id = serializers.IntegerField(required=False)
 
     def perform_request(self, validated_request_data):
-        qs = list(
-            EmailSubscription.objects.filter(
-                bk_biz_id=validated_request_data["bk_biz_id"], scenario=validated_request_data["scenario"]
-            ).values()
+        qs = Report.objects.filter(
+            bk_biz_id=validated_request_data["bk_biz_id"], scenario=validated_request_data["scenario"]
         )
-
-        exist_subscription_list = []
-        for subscription in qs:
+        if validated_request_data.get("create_type"):
+            qs = GetReportListResource.filter_by_create_type(validated_request_data["create_type"], qs)
+        reports = list(qs.values())
+        exist_report_list = []
+        for report in reports:
             if validated_request_data["index_set_id"]:
-                if subscription["scenario_config"].get("index_set_id", None) == validated_request_data["index_set_id"]:
-                    exist_subscription_list.append(subscription)
+                if report["scenario_config"].get("index_set_id", None) == validated_request_data["index_set_id"]:
+                    exist_report_list.append(report)
 
-        return exist_subscription_list
+        return exist_report_list

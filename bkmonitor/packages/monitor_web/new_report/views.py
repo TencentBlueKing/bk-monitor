@@ -12,33 +12,31 @@ from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class EmailSubscriptionViewSet(ResourceViewSet):
+class NewReportViewSet(ResourceViewSet):
     def get_permissions(self):
         return []
 
     resource_routes = [
         # 获取订阅列表
-        ResourceRoute("POST", resource.email_subscription.get_subscription_list, endpoint="get_subscription_list"),
+        ResourceRoute("POST", resource.new_report.get_report_list, endpoint="get_report_list"),
         # 获取订阅详情
-        ResourceRoute("GET", resource.email_subscription.get_subscription, endpoint="get_subscription"),
+        ResourceRoute("GET", resource.new_report.get_report, endpoint="get_report"),
         # 克隆订阅
-        ResourceRoute("POST", resource.email_subscription.clone_subscription, endpoint="clone_subscription"),
+        ResourceRoute("POST", resource.new_report.clone_report, endpoint="clone_report"),
         # 创建/编辑订阅
-        ResourceRoute(
-            "POST", resource.email_subscription.create_or_update_subscription, endpoint="create_or_update_subscription"
-        ),
+        ResourceRoute("POST", resource.new_report.create_or_update_report, endpoint="create_or_update_report"),
         # 删除订阅
-        ResourceRoute("POST", resource.email_subscription.delete_subscription, endpoint="delete_subscription"),
+        ResourceRoute("POST", resource.new_report.delete_report, endpoint="delete_report"),
         # 发送订阅
-        ResourceRoute("POST", resource.email_subscription.send_subscription, endpoint="send_subscription"),
+        ResourceRoute("POST", resource.new_report.send_report, endpoint="send_report"),
         # 根据用户取消订阅
-        ResourceRoute("POST", resource.email_subscription.cancel_subscription, endpoint="cancel_subscription"),
+        ResourceRoute("POST", resource.new_report.cancel_report, endpoint="cancel_report"),
         # 获取订阅发送记录列表
-        ResourceRoute("GET", resource.email_subscription.get_send_records, endpoint="get_send_records"),
+        ResourceRoute("GET", resource.new_report.get_send_records, endpoint="get_send_records"),
         # 根据用户获取订阅审批记录列表
-        ResourceRoute("GET", resource.email_subscription.get_apply_records, endpoint="get_apply_records"),
+        ResourceRoute("GET", resource.new_report.get_apply_records, endpoint="get_apply_records"),
         # 获取变量列表
-        ResourceRoute("GET", resource.email_subscription.get_variables, endpoint="get_variables"),
+        ResourceRoute("GET", resource.new_report.get_variables, endpoint="get_variables"),
         # 根据查询条件获取已存在的订阅列表
-        ResourceRoute("GET", resource.email_subscription.get_exist_subscriptions, endpoint="get_exist_subscriptions"),
+        ResourceRoute("GET", resource.new_report.get_exist_reports, endpoint="get_exist_reports"),
     ]

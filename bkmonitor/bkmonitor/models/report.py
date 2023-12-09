@@ -13,7 +13,7 @@ from django.db import models
 
 from bkmonitor.utils.itsm import APPROVAL_STATUS_CHOICES
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
-from constants.email_subscription import (
+from constants.new_report import (
     ChannelEnum,
     ScenarioEnum,
     SendModeEnum,
@@ -22,12 +22,12 @@ from constants.email_subscription import (
 )
 
 
-class SubscriptionChannel(Model):
+class ReportChannel(Model):
     """
     订阅渠道
     """
 
-    subscription_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
+    report_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
     channel_name = models.CharField(verbose_name="渠道名称", max_length=32, choices=ChannelEnum.get_choices())
     is_enabled = models.BooleanField(verbose_name="是否启用", default=True)
     subscribers = models.JSONField(verbose_name="订阅人", default=list)
@@ -36,15 +36,15 @@ class SubscriptionChannel(Model):
     class Meta:
         verbose_name = "订阅渠道"
         verbose_name_plural = "订阅渠道"
-        db_table = "subscription_channel"
+        db_table = "report_channel"
 
 
-class SubscriptionSendRecord(Model):
+class ReportSendRecord(Model):
     """
     订阅发送记录
     """
 
-    subscription_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
+    report_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
     channel_name = models.CharField(verbose_name="渠道名称", max_length=32, choices=ChannelEnum.get_choices())
     send_results = models.JSONField(verbose_name="发送结果详情", default=list)
     send_status = models.CharField(verbose_name="发送状态", max_length=32, choices=SendStatusEnum.get_choices())
@@ -54,14 +54,14 @@ class SubscriptionSendRecord(Model):
     class Meta:
         verbose_name = "订阅发送记录"
         verbose_name_plural = "订阅发送记录"
-        db_table = "subscription_send_record"
-        unique_together = ["subscription_id", "channel_name", "send_round"]
-        index_together = ["subscription_id", "send_round"]
+        db_table = "report_send_record"
+        unique_together = ["report_id", "channel_name", "send_round"]
+        index_together = ["report_id", "send_round"]
 
 
-class EmailSubscription(AbstractRecordModel):
+class Report(AbstractRecordModel):
     """
-    邮件订阅
+    订阅报表
     """
 
     name = models.CharField(verbose_name="订阅名称", max_length=64)
@@ -80,7 +80,7 @@ class EmailSubscription(AbstractRecordModel):
     class Meta:
         verbose_name = "邮件订阅"
         verbose_name_plural = "邮件订阅"
-        db_table = "email_subscription"
+        db_table = "report"
 
     def is_invalid(self):
         now_timestamp = arrow.now().timestamp
@@ -89,12 +89,12 @@ class EmailSubscription(AbstractRecordModel):
         return False
 
 
-class SubscriptionApplyRecord(AbstractRecordModel):
+class ReportApplyRecord(AbstractRecordModel):
     """
     订阅审批记录
     """
 
-    subscription_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
+    report_id = models.IntegerField(verbose_name="订阅ID", db_index=True)
     bk_biz_id = models.IntegerField(verbose_name="业务ID", db_index=True)
     approvers = models.JSONField("审批人", default=list)
     expire_time = models.DateTimeField("过期时间", null=True, default=None)
@@ -106,4 +106,4 @@ class SubscriptionApplyRecord(AbstractRecordModel):
     class Meta:
         verbose_name = "订阅审批记录"
         verbose_name_plural = "订阅审批记录"
-        db_table = "subscription_apply_record"
+        db_table = "report_apply_record"

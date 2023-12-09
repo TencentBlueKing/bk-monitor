@@ -10,46 +10,38 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
-from alarm_backends.service.email_subscription.factory import SubscriptionFactory
+from alarm_backends.service.new_report.factory import ReportFactory
 from alarm_backends.service.scheduler.app import app
-from bkmonitor.email_subscription.utils import is_run_time, parse_frequency
-from bkmonitor.models import EmailSubscription
+from bkmonitor.models import Report
+from bkmonitor.report.utils import is_run_time, parse_frequency
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
 
 @app.task(ignore_result=True, queue="celery_report_cron")
-def send_email_subscriptions(subscription, channels=None):
+def send_reports(report, channels=None):
     """
     发送邮件订阅
     """
-    SubscriptionFactory.get_handler(subscription).run(channels)
+    ReportFactory.get_handler(report).run(channels)
 
 
 @app.task(ignore_result=True, queue="celery_report_cron")
-def test_send_email_subscriptions(subscription, channels=None):
-    """
-    发送邮件订阅
-    """
-    SubscriptionFactory.get_handler(subscription).test(channels)
-
-
-@app.task(ignore_result=True, queue="celery_report_cron")
-def detect_email_subscriptions():
+def detect_email_reports():
     """
     检测邮件订阅
     """
-    subscriptions = EmailSubscription.objects.filter(is_enabled=True)
-    for subscription in subscriptions:
+    reports = Report.objects.filter(is_enabled=True)
+    for report in reports:
         # 判断订阅是否有效
-        if subscription.is_invalid():
-            logger.info(f"subscription{subscription.id} is invalid.")
+        if report.is_invalid():
+            logger.info(f"report{report.id} is invalid.")
             continue
         # 判断订阅是否到执行时间
-        frequency = subscription.frequency
+        frequency = report.frequency
         run_time_strings = parse_frequency(frequency)
         if not is_run_time(frequency, run_time_strings):
-            logger.info(f"subscription{subscription.id} not at sending time.")
+            logger.info(f"report{report.id} not at sending time.")
             continue
         # 异步执行订阅发送任务
-        send_email_subscriptions.delay(subscription)
+        send_reports.delay(report)

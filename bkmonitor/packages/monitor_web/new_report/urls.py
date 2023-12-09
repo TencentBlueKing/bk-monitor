@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 from django.conf.urls import include, url
 
 from core.drf_resource.routers import ResourceRouter
-from monitor_web.email_subscription import views
+from monitor_web.new_report import views
 
 router = ResourceRouter()
 router.register_module(views)

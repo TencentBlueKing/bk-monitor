@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from rest_framework import serializers
 
-from constants.email_subscription import StaffEnum
+from constants.new_report import StaffEnum
 
 
 class SubscriberSerializer(serializers.Serializer):

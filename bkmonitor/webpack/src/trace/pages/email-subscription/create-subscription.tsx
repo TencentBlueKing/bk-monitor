@@ -26,7 +26,7 @@
 import { defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { createOrUpdateSubscription, sendSubscription } from '@api/modules/email_subscription';
+import { createOrUpdateReport, sendReport } from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
 import { Button, Dropdown, Message } from 'bkui-vue';
 
@@ -65,7 +65,7 @@ export default defineComponent({
         console.log(refOfCreateSubscriptionForm.value);
       }
       isSending.value = true;
-      await sendSubscription(formData)
+      await sendReport(formData)
         .then(() => {
           Message({
             theme: 'success',
@@ -86,7 +86,7 @@ export default defineComponent({
           // TODO: 提交数据即可
           console.log(response);
           isSaving.value = true;
-          createOrUpdateSubscription(response)
+          createOrUpdateReport(response)
             .then(() => {
               Message({
                 theme: 'success',

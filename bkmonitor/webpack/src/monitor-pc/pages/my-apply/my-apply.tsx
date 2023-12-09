@@ -25,7 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
-import { getApplyRecords, getSubscription } from '@api/modules/email_subscription';
+import { getApplyRecords, getReport } from '@api/modules/new_report';
 
 import QuickCreateSubscription from '../../components/quick-create-subscription/quick-create-subscription';
 
@@ -53,7 +53,7 @@ class MyApply extends tsc<{}> {
   isShowQCSSlider = false;
   detailInfo = {};
   handleGetSubscriptionID(subscription_id) {
-    getSubscription({ subscription_id })
+    getReport({ subscription_id })
       .then(response => {
         this.detailInfo = response;
         this.isShowSideslider = true;
