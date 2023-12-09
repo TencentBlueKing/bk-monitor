@@ -111,9 +111,8 @@ class EnhancedGetContextResource(Resource):
                 )
                 if settings.DEMO_BIZ_ID:
                     bk_biz_id = settings.DEMO_BIZ_ID
-        else:
-            if not bk_biz_id:
-                bk_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
+        elif not bk_biz_id:
+            bk_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
 
         context = get_basic_context(request, space_list, bk_biz_id)
         context["SPACE_LIST"] = space_list
