@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import concurrent
 import operator
 import re
 from dataclasses import dataclass
@@ -60,6 +61,9 @@ class DeepflowDatasourceInfo:
 
 
 class DeepflowInstaller:
+    # 请求超时时间
+    _REQUEST_TIMEOUT = 10
+
     def __init__(self, cluster_id):
         self.cluster_id = cluster_id
         self.k8s_client = BcsKubeClient(self.cluster_id)
@@ -68,36 +72,78 @@ class DeepflowInstaller:
         """
         检查集群是否安装了ebpf
         """
-
         # 获取Deployment
-        try:
-            deployments = self.k8s_client.api.list_namespaced_deployment(namespace=DeepflowComp.NAMESPACE)
-            for deployment in deployments.items:
-                content = WorkloadContent.deployment_to(deployment)
-                if self._check_deployment(content):
-                    logger.info(
-                        f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid deployment: {content.name}"
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            try:
+                deployments_future = executor.submit(
+                    self.k8s_client.api.list_namespaced_deployment, namespace=DeepflowComp.NAMESPACE
+                )
+                deployments = deployments_future.result(self._REQUEST_TIMEOUT)
+                for deployment in deployments.items:
+                    content = WorkloadContent.deployment_to(deployment)
+                    if self._check_deployment(content):
+                        logger.info(
+                            f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid deployment: {content.name}"
+                        )
+                        WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
+            except concurrent.futures.TimeoutError:
+                logger.warning(
+                    f"[DeepflowInstaller] "
+                    f"list deployments of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) timeout"
+                )
+            except ApiException as e:
+                status = getattr(e, "status")
+                if status == 404:
+                    logger.warning(
+                        f"[DeepflowInstaller] "
+                        f"list deployments of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) 404"
                     )
-                    WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
-        except ApiException as e:
-            logger.error(
-                f"[DeepflowInstaller] failed to list deployments "
-                f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
-            )
+                elif status == 403:
+                    logger.warning(
+                        f"[DeepflowInstaller] "
+                        f"list deployments of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) forbidden"
+                    )
+                else:
+                    logger.error(
+                        f"[DeepflowInstaller] failed to list deployments "
+                        f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
+                    )
 
-        # 获取Service
-        try:
-            services = self.k8s_client.core_api.list_namespaced_service(namespace=DeepflowComp.NAMESPACE)
-            for service in services.items:
-                content = WorkloadContent.service_to(service)
-                if self._check_service(content):
-                    logger.info(f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid service: {content.name}")
-                    WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
-        except ApiException as e:
-            logger.error(
-                f"[DeepflowInstaller] failed to list services "
-                f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
-            )
+            # 获取Service
+            try:
+                services_future = executor.submit(
+                    self.k8s_client.core_api.list_namespaced_service, namespace=DeepflowComp.NAMESPACE
+                )
+                services = services_future.result(self._REQUEST_TIMEOUT)
+                for service in services.items:
+                    content = WorkloadContent.service_to(service)
+                    if self._check_service(content):
+                        logger.info(
+                            f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid service: {content.name}"
+                        )
+                        WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
+            except concurrent.futures.TimeoutError:
+                logger.warning(
+                    f"[DeepflowInstaller] "
+                    f"list services of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) timeout"
+                )
+            except ApiException as e:
+                status = getattr(e, "status")
+                if status == 404:
+                    logger.warning(
+                        f"[DeepflowInstaller] "
+                        f"list services of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) 404"
+                    )
+                elif status == 403:
+                    logger.warning(
+                        f"[DeepflowInstaller] "
+                        f"list services of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) forbidden"
+                    )
+                else:
+                    logger.error(
+                        f"[DeepflowInstaller] failed to list services "
+                        f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
+                    )
 
     @classmethod
     def check_deployment(cls, content, required_deployment):

@@ -111,6 +111,7 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 )
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
+from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.log_search.models import LogIndexSet
 from apps.utils.log import logger
 
@@ -1513,7 +1514,10 @@ class DataFlowHandler(BaseAiopsHandler):
                         continue
             else:
                 if field != mapping_all_fields_dict[field]:
-                    format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
+                    if mapping_all_fields_dict[field] == DEFAULT_TIME_FIELD:
+                        format_transform_fields.append(f"`{field}`")
+                    else:
+                        format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
                 else:
                     format_transform_fields.append(f"`{field}`")
 

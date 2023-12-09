@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 from django.conf.urls import url
+
 from monitor_adapter.home import views
 
 urlpatterns = [
@@ -23,4 +24,5 @@ urlpatterns = [
     url(r"^dispatch_external_proxy/$", views.dispatch_external_proxy),
     url(r"^service-worker.js$", views.service_worker),
     url(r"^manifest.json$", views.manifest),
+    url(r"^logout/?$", views.user_exit),
 ]
