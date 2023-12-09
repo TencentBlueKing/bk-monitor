@@ -71,9 +71,7 @@ def basic_context(request):
         space_list = []
         logger.exception("[basic_context] list_spaces failed")
 
-    default_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
-
-    cc_biz_id = 0
+    cc_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
     # 新增space_uid的支持
     if request.GET.get("space_uid", None):
         try:
@@ -89,12 +87,6 @@ def basic_context(request):
             )
             if settings.DEMO_BIZ_ID:
                 cc_biz_id = settings.DEMO_BIZ_ID
-    else:
-        cc_biz_id = request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
-        if not cc_biz_id:
-            cc_biz_id = default_biz_id
-        else:
-            cc_biz_id = safe_int(cc_biz_id.strip("/"), dft=None)
 
     request.biz_id = cc_biz_id
     context = get_basic_context(request, space_list, cc_biz_id)
