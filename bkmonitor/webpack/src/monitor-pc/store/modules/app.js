@@ -91,22 +91,29 @@ const mutations = {
     state.bizId = id;
   },
   [SET_APP_STATE](state, data) {
-    state.userName = data.userName;
-    state.bizId = data.bizId;
-    state.isSuperUser = data.isSuperUser;
-    // eslint-disable-next-line max-len
-    state.bizList = data.bizList.map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
-    state.siteUrl = data.siteUrl;
-    state.bkPaasHost = data.bkPaasHost;
-    state.maxAvailableDurationLimit = data.maxAvailableDurationLimit;
-    state.cmdbUrl = data.cmdbUrl;
-    state.bkLogSearchUrl = data.bkLogSearchUrl;
-    state.bkUrl = data.bkUrl;
-    state.bkNodemanHost = data.bkNodemanHost;
-    state.collectingConfigFileMaxSize = data.collectingConfigFileMaxSize;
-    state.enable_cmdb_level = data.enable_cmdb_level;
-    state.jobUrl = data.jobUrl;
-    state.bkBcsUrl = data.bkBcsUrl;
+    Object.keys(data).forEach(key => {
+      if(key === 'bizList') {
+        state[key] = data[key].map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
+        return;
+      }
+      state[key] = data[key];
+    });
+    // state.userName = data.userName;
+    // state.bizId = data.bizId;
+    // state.isSuperUser = data.isSuperUser;
+    // // eslint-disable-next-line max-len
+    // state.bizList = data.bizList.map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
+    // state.siteUrl = data.siteUrl;
+    // state.bkPaasHost = data.bkPaasHost;
+    // state.maxAvailableDurationLimit = data.maxAvailableDurationLimit;
+    // state.cmdbUrl = data.cmdbUrl;
+    // state.bkLogSearchUrl = data.bkLogSearchUrl;
+    // state.bkUrl = data.bkUrl;
+    // state.bkNodemanHost = data.bkNodemanHost;
+    // state.collectingConfigFileMaxSize = data.collectingConfigFileMaxSize;
+    // state.enable_cmdb_level = data.enable_cmdb_level;
+    // state.jobUrl = data.jobUrl;
+    // state.bkBcsUrl = data.bkBcsUrl;
   },
   [SET_NAV_ID](state, id) {
     state.navId = id;
