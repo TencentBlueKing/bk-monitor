@@ -18,6 +18,10 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 class ContextViewSet(GenericViewSet):
+
+    # context 无需鉴权
+    permission_classes = []
+
     @action(methods=["GET"], detail=False)
     def enhanced(self, request):
         params = request.query_params.copy()
