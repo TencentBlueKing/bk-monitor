@@ -25,7 +25,7 @@
  */
 import Vue, { defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { copyText, deepClone, transformDataKey } from '@common/utils';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import MemberSelector from '../../pages/alarm-group/alarm-group-add/member-selector';
@@ -282,8 +282,8 @@ export default defineComponent({
     const frequency = reactive({
       type: 5,
       hour: 0.5,
-      run_time: moment().format('HH:mm:ss'),
-      only_once_run_time: moment().format('YYYY-MM-DD HH:mm:ss'),
+      run_time: dayjs().format('HH:mm:ss'),
+      only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       week_list: [],
       day_list: []
     });
@@ -340,7 +340,7 @@ export default defineComponent({
       }
       formData.timerange = deepClone(v);
       const result = v.map(date => {
-        return moment(date).unix();
+        return dayjs(date).unix();
       });
       console.log(result);
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -571,7 +571,7 @@ export default defineComponent({
         f: '',
         g: true,
         h: '2',
-        j: moment(new Date()).format('HH:mm:ss'),
+        j: dayjs(new Date()).format('HH:mm:ss'),
         k: [1],
         l: [1],
         m: '',

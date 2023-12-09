@@ -32,7 +32,7 @@ import {
   sendReport
 } from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import SubscriptionDetail, { Scenario } from '../my-apply/components/subscription-detail';
 
@@ -171,8 +171,8 @@ class MySubscription extends tsc<{}> {
 
   formatTimeRange(s, e) {
     if (!s) return '';
-    const startTime = moment.unix(s).format('YYYY-MM-DD HH:mm:ss');
-    const endTime = moment.unix(e).format('YYYY-MM-DD HH:mm:ss');
+    const startTime = dayjs.unix(s).format('YYYY-MM-DD HH:mm:ss');
+    const endTime = dayjs.unix(e).format('YYYY-MM-DD HH:mm:ss');
     return `${startTime} ~ ${endTime}`;
   }
 
