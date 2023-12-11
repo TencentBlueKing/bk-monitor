@@ -184,7 +184,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                     >
                       <span class="bk-icon log-icon icon-shixiao"></span>
                       <div slot="content">
-                        {this.isMultiIndex ? (
+                        {this.isMultiIndex(item) ? (
                           <ul>
                             {item.index_set_names.map((setItem, setIndex) => (
                               <li
