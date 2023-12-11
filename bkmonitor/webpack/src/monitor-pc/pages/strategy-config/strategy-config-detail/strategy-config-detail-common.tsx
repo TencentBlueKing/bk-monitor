@@ -981,6 +981,11 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
           <span
             slot='append'
             class={['icon-monitor icon-audit', { active: this.strategyView.show }]}
+            v-bk-tooltips={{
+              content: this.$t(this.strategyView.show ? '收起' : '展开'),
+              delay: 200,
+              appendTo: () => document.body
+            }}
             onClick={() => (this.strategyView.show = !this.strategyView.show)}
           />
         </CommonNavBar>

@@ -365,7 +365,7 @@ export default {
       return this.exportStatusList[status];
     },
     getFormatDate(time) {
-      return formatDate(time);
+      return formatDate(new Date(time).getTime());
     },
     handleRetrieve($row) {
       const spaceUid = this.$store.state.spaceUid;
