@@ -85,13 +85,14 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         user_group = request_data.pop("instance", None)
         if request_data["source_type"] == PreviewSerializer.SourceType.DB:
             # 如果从DB获取配置，通过DB获取信息
-            duty_rules = user_group.duty_rules
+            duty_rule_ids = user_group.duty_rules
         else:
-            duty_rules = request_data["config"]["duty_rules"]
-        if not duty_rules:
+            duty_rule_ids = request_data["config"]["duty_rules"]
+        if not duty_rule_ids:
             raise ValidationError(detail="duty_rules is empty")
-        duty_rules = DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=duty_rules), many=True).data
+        duty_rules = DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=duty_rule_ids), many=True).data
         request_data["duty_rules"] = duty_rules
+        request_data["duty_rule_ids"] = duty_rule_ids
         request_data["user_group"] = user_group
         return request_data
 
@@ -164,11 +165,11 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
             all_duty_plans.extend(plans)
         self.get_all_plan_users(all_duty_plans)
         response_plans = []
-        for rule in validated_request_data["duty_rules"]:
-            rule_duty_plans = duty_plans.get(rule["id"], [])
+        for rule_id in validated_request_data["duty_rule_ids"]:
+            rule_duty_plans = duty_plans.get(rule_id, [])
             for duty_plan in rule_duty_plans:
                 duty_plan["users"] = self.translate_user_display(duty_plan)
-            response_plans.append({"rule_id": rule["id"], "duty_plans": rule_duty_plans})
+            response_plans.append({"rule_id": rule_id, "duty_plans": rule_duty_plans})
         return response_plans
 
 

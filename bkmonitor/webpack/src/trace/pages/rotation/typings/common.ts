@@ -92,3 +92,34 @@ export const WeekDataList = [
   { id: 6, label: window.i18n.t('周六') },
   { id: 7, label: window.i18n.t('周日') }
 ];
+
+export enum EStatus {
+  Effective = 'Effective', // 生效中
+  NoEffective = 'NoEffective', // 已失效
+  WaitEffective = 'WaitEffective', // 待生效
+  Deactivated = 'Deactivated' // 已停用
+}
+
+export const statusMap = {
+  [EStatus.Effective]: window.i18n.t('生效中'),
+  [EStatus.NoEffective]: window.i18n.t('已失效'),
+  [EStatus.WaitEffective]: window.i18n.t('待生效'),
+  [EStatus.Deactivated]: window.i18n.t('已停用')
+};
+
+export function getEffectiveStatus(timeRange: string[], enabled: boolean) {
+  if (!enabled) {
+    return EStatus.Deactivated;
+  }
+  const timeRangeNum = timeRange.map(item => (item === 'null' || !item ? Infinity : new Date(item).getTime()));
+  const curTime = new Date().getTime();
+  if (curTime < timeRangeNum[0]) {
+    return EStatus.WaitEffective;
+  }
+  if (curTime >= timeRangeNum[0] && curTime <= timeRangeNum[1]) {
+    return EStatus.Effective;
+  }
+  if (curTime > timeRangeNum[1]) {
+    return EStatus.NoEffective;
+  }
+}

@@ -30,7 +30,6 @@ import { unmount } from '@blueking/bk-weweb';
 import './alarm-shield.scss';
 
 const wewebId = 'trace';
-
 Component.registerHooks(['beforeRouteLeave']);
 
 Component.registerHooks(['beforeRouteLeave']);
