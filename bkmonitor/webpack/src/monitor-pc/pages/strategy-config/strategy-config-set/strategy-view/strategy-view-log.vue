@@ -116,7 +116,7 @@ export default class StrategyViewLog extends Vue {
       return dayjs.tz(+time).format('YYYY-MM-DD HH:mm:ss');
     } if (typeof time === 'number') {
       if (time.toString().length === 10) {
-        return dayjs.tz.unix(time).format('YYYY-MM-DD HH:mm:ss');
+        return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
       }
       return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
     }

@@ -292,6 +292,10 @@ export default class Aipanel extends tsc<ICommonListProps> {
             onClick={this.handleToAddStrategy}
           ></span>
           <i
+            v-bk-tooltips={{
+              content: this.$t('AI设置'),
+              delay: 200
+            }}
             class='bk-icon icon-cog-shape setting-icon'
             onClick={this.handlerGoAiSettings}
           ></i>

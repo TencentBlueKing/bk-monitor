@@ -299,6 +299,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                       trigger='focus'
                       allow-next-focus={false}
                       allow-create={true}
+                      search-key={['name', 'id']}
                       tpl={this.aggDimensionOptionTpl}
                       tag-tpl={this.aggDimensionTagTpl}
                       // tooltip-key="id"
