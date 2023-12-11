@@ -25,12 +25,7 @@
  */
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
-import {
-  cancelReport,
-  getSendRecords,
-  getReportList,
-  sendReport
-} from '@api/modules/new_report';
+import { cancelReport, getReportList, getSendRecords, sendReport } from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
 import dayjs from 'dayjs';
 
@@ -355,18 +350,45 @@ class MySubscription extends tsc<{}> {
 
             <div class='tag-content'>
               {this.currentTableRowOfSendingRecord?.tempSendResult?.map((item, index) => {
-                return (
-                  <bk-tag
-                    key={item.id}
-                    closable
-                    onClose={() => {
-                      console.log('onClose');
-                      this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
-                    }}
-                  >
-                    {item.id}
-                  </bk-tag>
-                );
+                if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
+                  return (
+                    <bk-tag
+                      closable
+                      onClose={() => {
+                        this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
+                      }}
+                    >
+                      {item.id}
+                    </bk-tag>
+                  );
+                }
+                if (
+                  ['partial_failed', 'failed'].includes(this.currentTableRowOfSendingRecord.send_status) &&
+                  !item.result
+                ) {
+                  return (
+                    <bk-tag
+                      closable
+                      onClose={() => {
+                        this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
+                      }}
+                    >
+                      {item.id}
+                    </bk-tag>
+                  );
+                }
+                // return (
+                //   <bk-tag
+                //     key={item.id}
+                //     closable
+                //     onClose={() => {
+                //       console.log('onClose');
+                //       this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
+                //     }}
+                //   >
+                //     {item.id}
+                //   </bk-tag>
+                // );
               })}
             </div>
 
@@ -442,12 +464,18 @@ class MySubscription extends tsc<{}> {
                   return item.key === targetKey;
                 });
                 if (result.length) {
-                  this.queryData.conditions[targetIndex].value = filters[targetKey];
+                  if (filters[targetKey]?.length) {
+                    this.queryData.conditions[targetIndex].value = filters[targetKey];
+                  } else {
+                    this.queryData.conditions.splice(targetIndex, 1);
+                  }
                 } else {
-                  this.queryData.conditions.push({
-                    key: targetKey,
-                    value: filters[targetKey]
-                  });
+                  if (filters[targetKey]?.length) {
+                    this.queryData.conditions.push({
+                      key: targetKey,
+                      value: filters[targetKey]
+                    });
+                  }
                 }
                 this.resetAndGetSubscriptionList();
               },

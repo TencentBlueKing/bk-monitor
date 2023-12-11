@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,28 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IRouteConfig {
-  id: string;
-  name: string;
-  route: string;
-  children?: any[];
-}
-export const allRouteConfig: IRouteConfig[] = [
-  {
-    id: 'home',
-    name: 'route-首页',
-    route: 'home'
-  },
-  {
-    id: 'alarm-shield',
-    name: 'route-屏蔽',
-    route: 'alarm-shield'
-  },
-  {
-    id: 'new-report-config',
-    name: 'route-订阅配置',
-    route: 'new-report-config'
-  }
-];
+/* eslint-disable max-len */
+import { RouteConfig } from 'vue-router';
 
-export const createRouteConfig = () => allRouteConfig;
+const NewReport = () => import(/* webpackChunkName: 'NewReport' */ '../../pages/new-report/new-report');
+export default [
+  {
+    path: '/trace/new-report-config',
+    name: 'new-report-config',
+    components: {
+      noCache: NewReport
+    },
+    meta: {
+      title: '邮件订阅',
+      navId: 'new-report-config',
+      noNavBar: true,
+      route: {
+        parent: 'manager'
+      }
+    }
+  }
+] as RouteConfig[];

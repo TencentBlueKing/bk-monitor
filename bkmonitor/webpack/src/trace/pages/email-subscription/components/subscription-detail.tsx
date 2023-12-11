@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, reactive, ref } from 'vue';
+import { computed, defineComponent, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { logServiceRelationBkLogIndexSet } from '@api/modules/apm_service';
 import dayjs from 'dayjs';
 
 import { Scenario, YearOnYearHour } from '../email-subscription-config';
@@ -92,10 +93,24 @@ export default defineComponent({
       const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
       return `${startTime} ~ ${endTime}`;
     });
+
+    const indexSetIDList = ref([]);
+    const indexSetName = computed(() => {
+      return indexSetIDList.value.find(item => item.id === props.detailInfo?.scenario_config?.index_set_id)?.name || '';
+    });
+
+    onMounted(() => {
+      logServiceRelationBkLogIndexSet()
+        .then(response => {
+          indexSetIDList.value = response;
+        })
+        .catch(console.log);
+    });
     return {
       t,
       formatFrequency,
-      getTimeRange
+      getTimeRange,
+      indexSetName
     };
   },
   render() {
@@ -114,7 +129,7 @@ export default defineComponent({
             <div class='label'>
               <span>{window.i18n.t('索引集')}</span>
             </div>
-            <span class='value'>{this.detailInfo?.scenario_config?.index_set_id}</span>
+            <span class='value'>{this.indexSetName}</span>
           </div>
 
           {/* 暂时不显示 */}

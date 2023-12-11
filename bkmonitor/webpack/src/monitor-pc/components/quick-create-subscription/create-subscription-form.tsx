@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue, { defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
+import Vue, { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
+import { logServiceRelationBkLogIndexSet } from '@api/modules/apm_service';
 import { copyText, deepClone, transformDataKey } from '@common/utils';
 import dayjs from 'dayjs';
 
@@ -53,23 +54,35 @@ export default defineComponent({
       default: () => {
         return {};
       }
+    },
+    indexSetId: {
+      type: Number,
+      default: 0
+    },
+    scenario: {
+      type: String,
+      default: 'clustering'
     }
   },
   setup(props) {
     const formData = reactive({
       scenario: 'clustering',
-      name: '',
+      name: 'testing',
       start_time: '',
       end_time: '',
       // 给他人/自己 订阅 。self, others 仅自己/给他人
-      subscripber_type: 'others',
+      subscriber_type: 'others',
       scenario_config: {
         index_set_id: '',
         // 需要从 slider 上进行转换
         pattern_level: '01',
         log_display_count: 0,
         year_on_year_hour: 0,
-        generate_attachment: true
+        generate_attachment: true,
+        // 展示范围，暂不需要？
+        is_show_new_pattern: false,
+        // 这个同比配置也不需要前端展示，暂不开放配置入口 （不用管）
+        year_on_year_change: 'all'
       },
       // 这里不可以直接对组件赋值，不然最后会带上不必要的参数。
       frequency: {
@@ -93,6 +106,7 @@ export default defineComponent({
         {
           is_enabled: true,
           subscribers: [],
+          send_text: '',
           channel_name: 'email'
         },
         {
@@ -126,6 +140,7 @@ export default defineComponent({
       channels: [
         {
           validator: () => {
+            if (formData.subscriber_type === 'self') return true;
             console.log('channels v');
 
             const enabledList = formData.channels.filter(item => item.is_enabled);
@@ -160,6 +175,15 @@ export default defineComponent({
       content_config__title: [
         {
           required: true,
+          message: window.i18n.t('必填项'),
+          trigger: 'change'
+        }
+      ],
+      timerange: [
+        {
+          validator: () => {
+            return formData.timerange.length >= 2 && formData.timerange.every(item => item);
+          },
           message: window.i18n.t('必填项'),
           trigger: 'change'
         }
@@ -333,6 +357,7 @@ export default defineComponent({
     function handleTimeRangeChange(v) {
       console.log('handleTimeRangeChange', v);
       console.log(v.filter(item => !!item));
+      console.log('this.formData.timerange', formData.timerange);
 
       if (v.filter(item => !!item).length < 2) {
         formData.timerange = [];
@@ -590,6 +615,10 @@ export default defineComponent({
 
     function setFormData() {
       Object.assign(formData, deepClone(props.detailInfo));
+      console.log(props);
+
+      formData.scenario = props.scenario;
+      formData.scenario_config.index_set_id = props.indexSetId;
       // 时间范围
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { data_range } = formData.frequency;
@@ -657,13 +686,55 @@ export default defineComponent({
         })
         .finally(() => {});
     }
+    function handleNoticeReceiver() {
+      const result = [];
+      const groupMap = new Map();
+      allRecerverData.value.forEach(item => {
+        const isGroup = item.type === 'group';
+        isGroup &&
+          item.children.forEach(chil => {
+            groupMap.set(chil.id, chil);
+          });
+      });
+      subscriberInput.user.forEach(id => {
+        const isGroup = groupMap.has(id);
+        result.push({
+          // display_name: isGroup ? groupMap.get(id)?.display_name : id,
+          // logo: '',
+          id,
+          type: isGroup ? 'group' : 'user',
+          subscribers: isGroup ? groupMap.get(id)?.members : undefined
+        });
+      });
+      console.log(result);
+      // return result;
+    }
 
     const isGenerateAttach = ref(1);
 
     onMounted(() => {
       if (props.mode === 'quick') setFormData();
       getReceiverGroup();
+      logServiceRelationBkLogIndexSet()
+        .then(response => {
+          indexSetIDList.value = response;
+        })
+        .catch(console.log);
     });
+
+    const indexSetName = computed(() => {
+      return indexSetIDList.value.find(item => item.id === formData?.scenario_config?.index_set_id)?.name || '';
+    });
+
+    watch(
+      () => formData.frequency.type,
+      () => {
+        if (formData.frequency.type === 1) {
+          formData.start_time = null;
+          formData.end_time = null;
+        }
+      }
+    );
 
     // defineExpose({
     //   validateAllForms
@@ -686,6 +757,8 @@ export default defineComponent({
       YOYList,
       isGenerateAttach,
       defaultGroupList,
+      indexSetName,
+      handleNoticeReceiver,
 
       refOfContentForm,
       refOfEmailSubscription,
@@ -717,10 +790,10 @@ export default defineComponent({
             }}
             label-width={200}
           >
-            {/* TODO：该项可能需要从当前 URL 获取 */}
             {this.mode === 'quick' && (
-              <bk-form-item label={window.i18n.t('订阅场景')}>{Scenario[this.formData.scenario]}</bk-form-item>
+              <bk-form-item label={window.i18n.t('订阅场景')}>{Scenario[this.formData?.scenario]}</bk-form-item>
             )}
+            {this.mode === 'quick' && <bk-form-item label={window.i18n.t('索引集')}>{this.indexSetName}</bk-form-item>}
             {/* TODO：这是 观测对象 场景用的 */}
             {/* {this.mode === 'quick' && <bk-form-item label={window.i18n.t('观测类型')}>{'观测类型'}</bk-form-item>} */}
             {/* TODO：该项可能需要从当前 URL 获取 */}
@@ -1251,7 +1324,7 @@ export default defineComponent({
               {this.mode === 'quick' && (
                 <div>
                   <bk-radio-group
-                    v-model={this.formData.subscripber_type}
+                    v-model={this.formData.subscriber_type}
                     style={{ display: 'inline' }}
                   >
                     <bk-radio-button value='self'>{window.i18n.t('仅自己')}</bk-radio-button>
@@ -1267,17 +1340,18 @@ export default defineComponent({
                 </div>
               )}
 
-              {this.formData.subscripber_type === 'others' && (
+              {this.formData.subscriber_type === 'others' && (
                 <div>
                   <bk-checkbox v-model={this.formData.channels[0].is_enabled}>{window.i18n.t('内部邮件')}</bk-checkbox>
                   <br />
                   <div>
                     <MemberSelector
                       v-model={this.subscriberInput.user}
-                      // group-list={this.defaultGroupList}
-                      // on-select-user={v => {
-                      //   console.log(v);
-                      // }}
+                      group-list={this.defaultGroupList}
+                      on-select-user={v => {
+                        console.log(v);
+                        this.handleNoticeReceiver();
+                      }}
                       style={{ width: '465px' }}
                     ></MemberSelector>
                   </div>
@@ -1308,7 +1382,7 @@ export default defineComponent({
                   </bk-popover>
                   {/* 后期补上 */}
                   <bk-input
-                    v-model={this.sendingConfigurationForm.model.d}
+                    v-model={this.formData.channels[1].send_text}
                     disabled={!this.formData.channels[1].is_enabled}
                     placeholder={window.i18n.t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
                     style={{ width: '465px', marginTop: '10px' }}
@@ -1467,18 +1541,20 @@ export default defineComponent({
               )}
             </bk-form-item>
 
-            {this.mode === 'normal' && (
+            {this.formData.frequency.type !== 1 && (
               <bk-form-item
                 label={window.i18n.t('有效时间范围')}
                 property='timerange'
                 required
+                error-display-type='normal'
               >
                 <bk-date-picker
-                  v-model={this.sendingConfigurationForm.model.timerange}
+                  v-model={this.formData.timerange}
                   type='datetimerange'
                   format={'yyyy-MM-dd HH:mm:ss'}
                   clearable
                   style='width: 465px;'
+                  onChange={this.handleTimeRangeChange}
                 ></bk-date-picker>
               </bk-form-item>
             )}

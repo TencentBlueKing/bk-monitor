@@ -323,9 +323,6 @@ export default defineComponent({
     }
     // 备用方案
     function handleTimeRangeChange(v) {
-      console.log('handleTimeRangeChange', v);
-      console.log(v.filter(item => !!item));
-
       if (v.filter(item => !!item).length < 2) {
         formData.timerange = [];
         return;
@@ -577,13 +574,13 @@ export default defineComponent({
         pattenLevelSlider.value = PatternLevelEnum[formData.scenario_config.pattern_level] || 0;
       });
       // 处理 订阅人 的数据
-      subscriberInput.user = formData.channels[0].subscribers;
-      subscriberInput.email = formData.channels[1].subscribers
+      subscriberInput.user = formData.channels.find(item => item.channel_name === 'user')?.subscribers || [];
+      subscriberInput.email = (formData.channels.find(item => item.channel_name === 'email')?.subscribers || [])
         .map(item => {
           return item.id;
         })
         .toString();
-      subscriberInput.wxbot = formData.channels[2].subscribers
+      subscriberInput.wxbot = (formData.channels.find(item => item.channel_name === 'wxbot')?.subscribers || [])
         .map(item => {
           return item.id;
         })
@@ -641,9 +638,23 @@ export default defineComponent({
       { immediate: true }
     );
 
+    watch(
+      () => formData.frequency.type,
+      () => {
+        if (formData.frequency.type === 1) {
+          formData.start_time = null;
+          formData.end_time = null;
+        }
+      }
+    );
+
     const duplicatedIndexIdName = computed(() => {
       const result = indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id);
       return result.name || '';
+    });
+
+    const indexSetName = computed(() => {
+      return indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id)?.name || '';
     });
 
     onMounted(() => {
@@ -678,6 +689,7 @@ export default defineComponent({
       checkExistSubscriptions,
       isShowExistSubscriptionTips,
       duplicatedIndexIdName,
+      indexSetName,
 
       refOfContentForm,
       refOfEmailSubscription,
@@ -704,9 +716,11 @@ export default defineComponent({
             model={this.formData}
             label-width='200'
           >
-            {/* TODO：该项可能需要从当前 URL 获取 */}
             {this.mode === 'quick' && (
               <Form.FormItem label={window.i18n.t('订阅场景')}>{Scenario[this.formData.scenario]}</Form.FormItem>
+            )}
+            {this.mode === 'quick' && (
+              <Form.FormItem label={window.i18n.t('索引集')}>{this.indexSetName}</Form.FormItem>
             )}
             {/* TODO：这是 观测对象 场景用的*/}
             {/* {this.mode === 'quick' && <Form.FormItem label={window.i18n.t('观测类型')}>{'观测类型'}</Form.FormItem>} */}
@@ -1353,7 +1367,7 @@ export default defineComponent({
               )}
             </Form.FormItem>
 
-            {this.mode === 'normal' && (
+            {this.mode === 'normal' && this.formData.frequency.type !== 1 && (
               <Form.FormItem
                 label={window.i18n.t('有效时间范围')}
                 property='timerange'
