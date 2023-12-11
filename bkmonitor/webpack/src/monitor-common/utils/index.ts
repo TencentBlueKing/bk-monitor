@@ -40,7 +40,7 @@ export function mergeSpaceList(spaceList: ISpaceItem[], bizList: IBizItem[]) {
     id: item.bk_biz_id,
     text: item.space_name,
     name: item.space_name,
-    is_demo: bizList.some(set => +set.id === item.bk_biz_id && set.is_demo)
+    is_demo: bizList?.some(set => +set.id === item.bk_biz_id && set.is_demo)
   }));
   window.space_list = list;
   return list;

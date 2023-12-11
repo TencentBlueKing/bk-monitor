@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
+import { logServiceRelationBkLogIndexSet } from '@api/modules/apm_service';
 import dayjs from 'dayjs';
 
 import './subscription-detail.scss';
@@ -103,9 +104,24 @@ export default defineComponent({
       const endTime = dayjs.unix(props.detailInfo.end_time).format('YYYY-MM-DD HH:mm:ss');
       return `${startTime} ~ ${endTime}`;
     });
+
+    const indexSetIDList = ref([]);
+    const indexSetName = computed(() => {
+      return indexSetIDList.value.find(item => item.id === props.detailInfo?.scenario_config?.index_set_id)?.name || '';
+    });
+
+    onMounted(() => {
+      logServiceRelationBkLogIndexSet()
+        .then(response => {
+          indexSetIDList.value = response;
+        })
+        .catch(console.log);
+    });
+
     return {
       formatFrequency,
-      getTimeRange
+      getTimeRange,
+      indexSetName
     };
   },
   render() {
@@ -124,7 +140,7 @@ export default defineComponent({
             <div class='label'>
               <span>{window.i18n.t('索引集')}</span>
             </div>
-            <span class='value'>{this.detailInfo?.scenario_config?.index_set_id}</span>
+            <span class='value'>{this.indexSetName}</span>
           </div>
 
           {/* 暂时不显示 */}

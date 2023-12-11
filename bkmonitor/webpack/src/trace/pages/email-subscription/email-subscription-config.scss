@@ -107,6 +107,11 @@
     background: #ffe8c3;
     border: 1px solid #ff9c01;
   }
+
+  &.cancelled {
+    background: #E1ECFF;
+    border: 1px solid #699DF4;
+  }
 }
 
 .resend-popover-container {

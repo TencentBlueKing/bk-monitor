@@ -41,7 +41,7 @@ export default defineComponent({
     const router = useRouter();
     const isSending = ref(false);
     async function testSending(to) {
-      const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms();
+      const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
       console.log('testSending', tempFormData);
       if (!tempFormData) return;
       const formData = deepClone(tempFormData);
@@ -51,7 +51,7 @@ export default defineComponent({
             is_enabled: true,
             subscribers: [
               {
-                id: window.username,
+                id: window.user_name || window.username,
                 type: 'user',
                 is_enabled: true
               }

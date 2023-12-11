@@ -30,15 +30,18 @@ import {
   cloneReport,
   createOrUpdateReport,
   deleteReport,
-  getSendRecords,
   getReport,
   getReportList,
+  getSendRecords,
   sendReport
 } from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
 import { Button, Dialog, Dropdown, Input, Message, Popover, Radio, Sideslider, Switcher, Table, Tag } from 'bkui-vue';
 import dayjs from 'dayjs';
 
+import { useAppStore } from '../../store/modules/app';
+
+// import { useAppStore } from '@/store/modules/app';
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 
@@ -81,6 +84,7 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const router = useRouter();
+    const appStore = useAppStore();
     const queryData = reactive({
       create_type: 'manager',
       query_type: 'all',
@@ -188,44 +192,6 @@ export default defineComponent({
           {
             label: `${window.i18n.t('发送时间')}`,
             render: ({ data }) => {
-              // const hourTextMap = {
-              //   0.5: window.i18n.tc('每个小时整点,半点发送'),
-              //   1: window.i18n.tc('每个小时整点发送'),
-              //   2: window.i18n.tc('从0点开始,每隔2小时整点发送'),
-              //   6: window.i18n.tc('从0点开始,每隔6小时整点发送'),
-              //   12: window.i18n.tc('每天9:00,21:00发送')
-              // };
-              // const weekMap = [
-              //   window.i18n.t('周一'),
-              //   window.i18n.t('周二'),
-              //   window.i18n.t('周三'),
-              //   window.i18n.t('周四'),
-              //   window.i18n.t('周五'),
-              //   window.i18n.t('周六'),
-              //   window.i18n.t('周日')
-              // ];
-              // let str = '';
-              // switch (data.frequency.type) {
-              //   case 3: {
-              //     const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
-              //     const weekStr = weekStrArr.join(', ');
-              //     str = `${weekStr} ${data.frequency.run_time}`;
-              //     break;
-              //   }
-              //   case 4: {
-              //     const dayArr = data.frequency.day_list.map(item => `${item}号`);
-              //     const dayStr = dayArr.join(', ');
-              //     str = `${dayStr} ${data.frequency.run_time}`;
-              //     break;
-              //   }
-              //   case 5: {
-              //     str = hourTextMap[data.frequency.hour];
-              //     break;
-              //   }
-              //   default:
-              //     str = data.frequency.runTime;
-              //     break;
-              // }
               return <div>{getSendFrequencyText(data)}</div>;
             }
           },
@@ -570,14 +536,14 @@ export default defineComponent({
     function testSending(to) {
       if (to === 'self') {
         isSending.value = true;
-        sendReport({
+        return sendReport({
           report_id: subscriptionDetail.value?.id,
           channels: [
             {
               is_enabled: true,
               subscribers: [
                 {
-                  id: window.username,
+                  id: window.user_name || window.username,
                   type: 'user',
                   is_enabled: true
                 }
@@ -591,6 +557,7 @@ export default defineComponent({
               theme: 'success',
               message: window.i18n.t('发送成功')
             });
+            return;
           })
           .catch(console.log)
           .finally(() => {
@@ -599,7 +566,7 @@ export default defineComponent({
       }
       if (to === 'all') {
         console.log(refOfCreateSubscriptionForm.value);
-        sendReport({
+        return sendReport({
           report_id: subscriptionDetail.value?.id,
           channels: refOfCreateSubscriptionForm.value?.formData?.channels || []
         })
@@ -771,6 +738,16 @@ export default defineComponent({
         });
     }
 
+    const sendMyselfDialog = reactive({
+      isShow: false
+    });
+    function handleSendMyself() {
+      // console.log(appStore);
+      testSending('self').then(() => {
+        sendMyselfDialog.isShow = false;
+      });
+    }
+
     onMounted(() => {
       fetchSubscriptionList();
     });
@@ -796,7 +773,9 @@ export default defineComponent({
       isSending,
       getSendingRecordList,
       getSendFrequencyText,
-      formatTimeRange
+      formatTimeRange,
+      sendMyselfDialog,
+      handleSendMyself
     };
   },
   render() {
@@ -845,6 +824,13 @@ export default defineComponent({
                 />
                 <span>{this.t('已失效')}</span>
               </Radio.Button>
+              <Radio.Button label='cancelled'>
+                <i
+                  class='icon-circle cancelled'
+                  style='margin-right: 4px;'
+                />
+                <span>{this.t('已取消')}</span>
+              </Radio.Button>
             </Radio.Group>
             <Input
               v-model={this.queryData.search_key}
@@ -890,16 +876,25 @@ export default defineComponent({
             console.log({ checked, column, index });
             let currentIndex = -1;
             const result = this.queryData.conditions.filter((item, index) => {
-              currentIndex = index;
-              return item.key === column.field;
+              if (item.key === column.field) {
+                currentIndex = index;
+                return item;
+              }
+              return false;
             });
             if (result.length) {
-              this.queryData.conditions[currentIndex].value = checked;
+              if (checked.length) {
+                this.queryData.conditions[currentIndex].value = checked;
+              } else {
+                this.queryData.conditions.splice(currentIndex, 1);
+              }
             } else {
-              this.queryData.conditions.push({
-                key: column.field,
-                value: checked
-              });
+              if (checked.length) {
+                this.queryData.conditions.push({
+                  key: column.field,
+                  value: checked
+                });
+              }
             }
             this.fetchSubscriptionList();
           }}
@@ -963,7 +958,14 @@ export default defineComponent({
                   </div>
 
                   <div class='operation-container'>
-                    <Button style='margin-right: 8px;'>{window.i18n.t('发送给自己')}</Button>
+                    <Button
+                      style='margin-right: 8px;'
+                      onClick={() => {
+                        this.sendMyselfDialog.isShow = true;
+                      }}
+                    >
+                      {window.i18n.t('发送给自己')}
+                    </Button>
                     <Button
                       outline
                       theme='primary'
@@ -1116,6 +1118,20 @@ export default defineComponent({
           onConfirm={this.handleDeleteRow}
         >
           <div>{window.i18n.t('是否删除?')}</div>
+        </Dialog>
+
+        <Dialog
+          isShow={this.sendMyselfDialog.isShow}
+          isLoading={this.isSending}
+          title={window.i18n.t('提示')}
+          confirmText={window.i18n.t('确认')}
+          cancelText={window.i18n.t('取消')}
+          onClosed={() => {
+            this.sendMyselfDialog.isShow = false;
+          }}
+          onConfirm={this.handleSendMyself}
+        >
+          <div>{window.i18n.t('是否发送给自己?')}</div>
         </Dialog>
       </div>
     );

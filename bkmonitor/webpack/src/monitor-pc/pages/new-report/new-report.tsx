@@ -23,28 +23,41 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IRouteConfig {
-  id: string;
-  name: string;
-  route: string;
-  children?: any[];
-}
-export const allRouteConfig: IRouteConfig[] = [
-  {
-    id: 'home',
-    name: 'route-首页',
-    route: 'home'
-  },
-  {
-    id: 'alarm-shield',
-    name: 'route-屏蔽',
-    route: 'alarm-shield'
-  },
-  {
-    id: 'new-report-config',
-    name: 'route-订阅配置',
-    route: 'new-report-config'
-  }
-];
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-export const createRouteConfig = () => allRouteConfig;
+const wewebId = 'newReport';
+Component.registerHooks(['beforeRouteLeave']);
+@Component
+export default class TraceNewReport extends tsc<{}> {
+  get newReportHost() {
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : location.origin;
+  }
+  get newReportUrl() {
+    return process.env.NODE_ENV === 'development'
+      ? `${this.newReportHost}/?bizId=${this.$store.getters.bizId}/#/trace/new-report-config`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/new-report-config`;
+  }
+  get newReportData() {
+    return JSON.stringify({
+      host: this.newReportHost,
+      baseroute: '/trace/'
+    });
+  }
+  beforeRouteLeave(to, from, next) {
+    next();
+  }
+  render() {
+    return (
+      <div>
+        <bk-weweb
+          setShodowDom={true}
+          url={this.newReportUrl}
+          showSourceCode={true}
+          id={wewebId}
+          data={this.newReportData}
+        />
+      </div>
+    );
+  }
+}

@@ -25,6 +25,8 @@
  */
 import { Component, Model } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
+import { createOrUpdateReport, sendReport } from '@api/modules/new_report';
+import { deepClone } from '@common/utils';
 
 import CreateSubscriptionForm from './create-subscription-form';
 
@@ -41,13 +43,65 @@ interface IProps {
 })
 class QuickCreateSubscription extends tsc<IProps> {
   @Model('change', { type: Boolean }) value: IProps['value'];
+  isSaving = false;
+  isSending = true;
   handleSave() {
     (this.$refs.refOfCreateSubscriptionForm as any)
       ?.validateAllForms?.()
       .then(response => {
         console.log(response);
+        this.isSaving = true;
+        createOrUpdateReport(response)
+          .then(() => {
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('保存成功')
+            });
+          })
+          .catch(console.log)
+          .finally(() => {
+            this.isSaving = false;
+          });
       })
       .catch(console.log);
+  }
+
+  async testSending(to) {
+    const tempFormData = await (this.$refs.refOfCreateSubscriptionForm as any)?.validateAllForms?.().catch(console.log);
+    console.log('testSending', tempFormData);
+    if (!tempFormData) return;
+    const formData = deepClone(tempFormData);
+    if (to === 'self') {
+      const selfChannels = [
+        {
+          is_enabled: true,
+          subscribers: [
+            {
+              id: window.user_name || window.username,
+              type: 'user',
+              is_enabled: true
+            }
+          ],
+          channel_name: 'user'
+        }
+      ];
+      formData.channels = selfChannels;
+    }
+    if (to === 'all') {
+      console.log(tempFormData);
+    }
+    this.isSending = true;
+    await sendReport(formData)
+      .then(() => {
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('发送成功')
+        });
+      })
+      .catch(console.log)
+      .finally(() => {
+        this.isSending = false;
+      });
   }
   render() {
     return (
@@ -68,11 +122,15 @@ class QuickCreateSubscription extends tsc<IProps> {
               <CreateSubscriptionForm
                 ref='refOfCreateSubscriptionForm'
                 mode='quick'
+                // 这里填 订阅场景、索引集 等已知参数
+                scenario='clustering'
+                index-set-id={496080}
               ></CreateSubscriptionForm>
             </div>
             <div class='footer-bar'>
               <bk-button
                 theme='primary'
+                loading={this.isSaving}
                 style={{ width: '88px', marginRight: '8px' }}
                 onClick={this.handleSave}
               >
@@ -96,10 +154,20 @@ class QuickCreateSubscription extends tsc<IProps> {
                   slot='dropdown-content'
                 >
                   <li>
-                    <a href='javascript:;'>{window.i18n.t('给自己')}</a>
+                    <a
+                      href='javascript:;'
+                      onClick={() => this.testSending('self')}
+                    >
+                      {window.i18n.t('给自己')}
+                    </a>
                   </li>
                   <li>
-                    <a href='javascript:;'>{window.i18n.t('给全员')}</a>
+                    <a
+                      href='javascript:;'
+                      onClick={() => this.testSending('all')}
+                    >
+                      {window.i18n.t('给全员')}
+                    </a>
                   </li>
                 </ul>
               </bk-dropdown-menu>

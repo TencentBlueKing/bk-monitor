@@ -27,8 +27,8 @@ import { RouteRecordRaw } from 'vue-router';
 
 export default [
   {
-    path: '/email-subscription-config',
-    name: 'email-subscription-config',
+    path: '/new-report-config',
+    name: 'new-report-config',
     component: () =>
       import(/* webpackChunkName: "alarm-shield" */ '../../pages/email-subscription/email-subscription-config')
   },
