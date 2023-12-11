@@ -27,20 +27,13 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST
 
 from bkm_space.api import SpaceApi
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
-from common.context_processors import (
-    field_formatter,
-    get_basic_context,
-    get_default_biz_id,
-    json_formatter,
-)
 from common.log import logger
-from core.drf_resource import resource
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
 from monitor_web.iam.resources import CallbackResource
@@ -59,49 +52,6 @@ def home(request):
     """统一入口 ."""
 
     response = render(request, "monitor/index.html", {"cc_biz_id": 0})
-    return response
-
-
-@require_GET
-def basic_context(request):
-
-    try:
-        space_list = resource.commons.list_spaces()
-    except Exception:  # noqa
-        space_list = []
-        logger.exception("[basic_context] list_spaces failed")
-
-    cc_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
-    # 新增space_uid的支持
-    if request.GET.get("space_uid", None):
-        try:
-            space = {}
-            for space in space_list:
-                if space["space_uid"] == request.GET["space_uid"]:
-                    break
-            cc_biz_id = space["bk_biz_id"]
-        except KeyError:
-            logger.warning(
-                f"[basic_context] space_uid not found: "
-                f"uid -> {request.GET['space_uid']} not in space_list -> {space_list}"
-            )
-            if settings.DEMO_BIZ_ID:
-                cc_biz_id = settings.DEMO_BIZ_ID
-
-    request.biz_id = cc_biz_id
-    context = get_basic_context(request, space_list, cc_biz_id)
-    context.update(
-        {
-            "SPACE_LIST": space_list,
-        }
-    )
-
-    field_formatter(context)
-    json_formatter(context)
-
-    response = JsonResponse(context, status=200)
-    response.set_cookie("bk_biz_id", str(cc_biz_id))
-
     return response
 
 
