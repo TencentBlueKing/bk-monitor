@@ -668,9 +668,10 @@ class CreateActionProcessor:
             return alert_users
 
         if set(users) == set(alert_users):
-            # 如果用户内容一致
+            # 如果用户内容一致， 以最近产生的用户顺序为准
             alert_users = users
         else:
+            # 不一致的情况下，去重，在添加到原有用户后面
             alert_users.extend([man for man in users if man not in alert_users])
         return alert_users
 
