@@ -28,7 +28,6 @@ from alarm_backends.tests.service.alert.manager.checker import (
 )
 from bkmonitor.documents import ActionInstanceDocument
 from bkmonitor.models import ActionInstance, ActionPlugin
-from bkmonitor.utils import time_tools
 from constants.action import ActionPluginType, ActionSignal
 
 pytestmark = pytest.mark.django_db
