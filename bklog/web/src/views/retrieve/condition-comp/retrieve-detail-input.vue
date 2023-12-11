@@ -454,7 +454,7 @@ export default {
       const lastFragments = value.split(this.separator);
       const lastFragment = lastFragments[lastFragments.length - 1];
       // 以 name:"arman" OR age:18 为例，还没开始输入字段
-      if (!trimValue || trimValue === '*' || /\s+AND\s+$/.test(value) || /\s+OR\s+$/.test(value)) {
+      if (!trimValue || trimValue === '*' || /\s+AND\s+$/.test(value) || /\s+OR\s+$/.test(value) || /\s+and\s+$/.test(value) || /\s+or\s+$/.test(value)) {
         this.showWhichDropdown('Fields');
         this.fieldList = [...this.originFieldList];
         return;

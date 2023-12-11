@@ -66,10 +66,32 @@ export default class UiQuery extends Mixins(classDragMixin) {
     hideCursorInOverviewRuler: true,
     // 隐藏小尺子
     overviewRulerLanes: 0,
+    renderLineHighlightOnlyWhenFocus: false,
+    autoClosingBrackets: 'never',
+    autoClosingDelete: 'never',
+    autoClosingOvertype: 'never',
+    autoClosingQuotes: 'never',
+    autoIndent: 'None',
+    autoSurround: 'never',
+    copyWithSyntaxHighlighting: false,
+    selectionHighlight: false,
+    occurrencesHighlight: false,
+    foldingHighlight: false,
+    highlightActiveBracketPair: false,
+    highlightActiveIndentation: false,
+    quickSuggestions: false,
+    suggestions: false,
+    wordBasedSuggestions: false,
+    wordBasedSuggestionsOnlySameLanguage: false,
+    unicodeHighlight: {
+      ambiguousCharacters: false,
+    },
+    autoDetectHighContrast: false,
+    roundedSelection: false,
   };
   /** 提示样式 */
   placeholderStyle = {
-    top: '-1px',
+    top: '1px',
     left: '10px',
     fontSize: '12px',
   };
@@ -84,6 +106,13 @@ export default class UiQuery extends Mixins(classDragMixin) {
 
   @Emit('blur')
   emitBlur(value) {
+    // 清空选中的文本高亮背景
+    this.editor.setSelection({
+      startLineNumber: 0,
+      startColumn: 0,
+      endLineNumber: 0,
+      endColumn: 0,
+    });
     return value;
   }
 
@@ -100,8 +129,15 @@ export default class UiQuery extends Mixins(classDragMixin) {
   }
   blur() {
     const model = this.editor.getModel();
-    this.editor.blur();
     this.editor.setPosition(model.getPositionAt(model.getValueLength() + 1));
+    // 清空选中的文本高亮背景
+    this.editor.setSelection({
+      startLineNumber: 0,
+      startColumn: 0,
+      endLineNumber: 0,
+      endColumn: 0,
+    });
+    (document.activeElement as any).blur();
   }
   /** 语法初始化 */
   initMonacoBeforeFun(monaco) {
@@ -121,14 +157,10 @@ export default class UiQuery extends Mixins(classDragMixin) {
       // 设置语法规则
       tokenizer: {
         root: [
-          [/\b(AND|OR)\b/i, 'AND-OR-color'],
+          [/\b(AND|OR|and|or)\b/i, 'AND-OR-color'],
           [/\b(NOT)\b/i, 'NOT-color'],
         ],
       },
-    });
-    // 禁用提示
-    monaco.languages.registerCompletionItemProvider('mySpecialLanguage', {
-      provideCompletionItems: () => ({ suggestions: [] }),
     });
     return monaco;
   }
