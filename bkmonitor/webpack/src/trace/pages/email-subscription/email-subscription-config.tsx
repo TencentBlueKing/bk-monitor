@@ -49,7 +49,7 @@ import './email-subscription-config.scss';
 
 enum SendMode {
   periodic = window.i18n.t('周期发送'),
-  'only-time' = window.i18n.t('仅发一次')
+  'one_time' = window.i18n.t('仅发一次')
 }
 
 enum SendStatus {
@@ -183,7 +183,7 @@ export default defineComponent({
                 },
                 {
                   text: window.i18n.t('仅发一次'),
-                  value: 'only-time'
+                  value: 'one_time'
                 }
               ],
               filterFn: () => true
@@ -302,6 +302,7 @@ export default defineComponent({
                               toggleMap[row.index] = false;
                               cloneDialog.subscription_id = row.data.id;
                               cloneDialog.isShow = true;
+                              cloneDialog.name = row.data.name;
                             }}
                           >
                             {window.i18n.t('克隆')}
@@ -312,6 +313,7 @@ export default defineComponent({
                               toggleMap[row.index] = false;
                               deleteDialog.subscription_id = row.data.id;
                               deleteDialog.isShow = true;
+                              deleteDialog.name = row.data.name;
                             }}
                           >
                             {window.i18n.t('删除')}
@@ -624,13 +626,15 @@ export default defineComponent({
     const cloneDialog = reactive({
       isShow: false,
       loading: false,
-      subscription_id: 0
+      subscription_id: 0,
+      name: ''
     });
 
     const deleteDialog = reactive({
       isShow: false,
       loading: false,
-      subscription_id: 0
+      subscription_id: 0,
+      name: ''
     });
 
     function getSendingRecordList() {
@@ -681,7 +685,7 @@ export default defineComponent({
           break;
         }
         default:
-          str = data.frequency.runTime;
+          str = data.frequency.run_time;
           break;
       }
       return str;
@@ -1040,9 +1044,13 @@ export default defineComponent({
                     .validateAllForms()
                     .then(response => {
                       console.log(response);
+                      delete response.timerange;
                       createOrUpdateReport(response)
                         .then(() => {
-                          console.log('success');
+                          Message({
+                            theme:'success',
+                            message: window.i18n.t('保存成功')
+                          })
                         })
                         .catch(console.log);
                     })
@@ -1102,7 +1110,7 @@ export default defineComponent({
           }}
           onConfirm={this.handleClone}
         >
-          <div>{window.i18n.t('是否克隆?')}</div>
+          <div>{window.i18n.t('是否克隆 {0} ?', [this.cloneDialog.name])}</div>
         </Dialog>
 
         {/* 删除确认 */}
@@ -1117,7 +1125,7 @@ export default defineComponent({
           }}
           onConfirm={this.handleDeleteRow}
         >
-          <div>{window.i18n.t('是否删除?')}</div>
+          <div>{window.i18n.t('是否删除 {0} ?', [this.deleteDialog.name])}</div>
         </Dialog>
 
         <Dialog

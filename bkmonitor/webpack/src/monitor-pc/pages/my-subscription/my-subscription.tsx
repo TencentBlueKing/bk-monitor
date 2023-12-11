@@ -35,7 +35,7 @@ import './my-subscription.scss';
 
 enum SendMode {
   periodic = window.i18n.t('周期发送'),
-  'only-time' = window.i18n.t('仅发一次')
+  one_time = window.i18n.t('仅发一次')
 }
 
 enum SendStatus {
@@ -60,6 +60,7 @@ class MySubscription extends tsc<{}> {
     conditions: []
   };
   tableData = [];
+  isTableLoading = false;
   isShowSideslider = false;
   isShowSendRecord = false;
   sendRecordTable = {
@@ -78,21 +79,25 @@ class MySubscription extends tsc<{}> {
   }
 
   fetchSubscriptionList() {
+    this.isTableLoading = true;
     getReportList(this.queryData)
       .then(response => {
         console.log(response);
         this.tableData = response;
       })
-      .catch(console.log);
+      .catch(console.log)
+      .finally(() => {
+        this.isTableLoading = false;
+      });
   }
 
-  handleCancelSubscription(subscription_id) {
+  handleCancelSubscription(report_id) {
     this.$bkInfo({
       title: this.$t('是否取消订阅？'),
       confirmLoading: true,
       confirmFn: () => {
         return cancelReport({
-          subscription_id
+          report_id
         })
           .then(() => {
             this.$bkMessage({
@@ -158,7 +163,7 @@ class MySubscription extends tsc<{}> {
         break;
       }
       default:
-        str = data.frequency.runTime;
+        str = data.frequency.run_time;
         break;
     }
     return str;
@@ -213,11 +218,7 @@ class MySubscription extends tsc<{}> {
   }
 
   mounted() {
-    getReportList(this.queryData)
-      .then(response => {
-        console.log(response);
-      })
-      .catch(console.log);
+    this.fetchSubscriptionList();
   }
   render() {
     const sendingRecord = () => {
@@ -427,8 +428,8 @@ class MySubscription extends tsc<{}> {
               {this.$t('生效中')}
             </div>
             <div
-              class={['radio', this.queryData.query_type === 'cancel' && 'selected']}
-              onClick={() => (this.queryData.query_type = 'cancel')}
+              class={['radio', this.queryData.query_type === 'cancelled' && 'selected']}
+              onClick={() => (this.queryData.query_type = 'cancelled')}
             >
               <i class='circle canceled'></i>
               {this.$t('已取消')}
@@ -453,6 +454,9 @@ class MySubscription extends tsc<{}> {
 
         <bk-table
           data={this.tableData}
+          v-bkloading={{
+            isLoading: this.isTableLoading
+          }}
           style={{ marginTop: '24px' }}
           {...{
             on: {
@@ -554,7 +558,7 @@ class MySubscription extends tsc<{}> {
               },
               {
                 text: window.i18n.t('仅发一次'),
-                value: 'only-time'
+                value: 'one_time'
               }
             ]}
             scopedSlots={{
