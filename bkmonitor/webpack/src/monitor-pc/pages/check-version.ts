@@ -30,7 +30,7 @@ let interval = null; // 定时器
  * @param {number} checkInterval 检测间隔
  * @description 检测是否有新版本
  */
-export const checkHasNewVersion = (checkInterval = 20000) => {
+export const checkHasNewVersion = (checkInterval = 2 * 60 * 1000) => {
   if (interval || document.visibilityState !== 'visible') return;
   function checkVersion() {
     window.requestIdleCallback(() => {

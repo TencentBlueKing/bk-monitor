@@ -25,7 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import CollectionDialog from '../../../../monitor-pc/pages/data-retrieval/components/collection-view-dialog';
@@ -81,7 +81,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange as any);
       const interval = reviewInterval(
         this.viewOptions.interval,
-        moment(endTime).unix() - moment(startTime).unix(),
+        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
         panel.collect_interval
       );
       return {

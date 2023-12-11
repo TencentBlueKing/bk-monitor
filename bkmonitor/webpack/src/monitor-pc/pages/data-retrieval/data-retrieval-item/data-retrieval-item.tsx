@@ -129,13 +129,8 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
   @Watch('compareValue.tools.timeRange')
   timeRangeChange(v) {
     const [startTime, endTime] = handleTransformToTimestamp(v);
-    const interval = recheckInterval(
-      this.localValue.agg_interval,
-      endTime - startTime,
-      this.localValue.collect_interval
-    );
+    recheckInterval(this.localValue.agg_interval, endTime - startTime, this.localValue.collect_interval);
     // this.localValue.agg_interval
-    console.info(v, this.localValue.collect_interval, interval, '=========');
   }
 
   @Emit('change')

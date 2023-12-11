@@ -43,3 +43,5 @@ export const APP_NAV_COLORS = {
 export const LOCAL_BIZ_STORE_KEY = '__biz_id__';
 // bk lang cookie name
 export const LANGUAGE_COOKIE_KEY = 'blueking_language';
+
+export const TIMEZONE_STORE_KEY = 'blueking_timezone';

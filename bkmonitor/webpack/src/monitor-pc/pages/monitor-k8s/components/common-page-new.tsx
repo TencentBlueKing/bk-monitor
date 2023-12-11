@@ -41,9 +41,10 @@ import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
-import { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
+import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
 import { IIndexListItem } from '../../data-retrieval/index-list/index-list';
 // import { CHART_INTERVAL } from '../../../constant/constant';
@@ -474,6 +475,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 派发到子孙组件内的一些视图配置变量
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
+  // 时区
+  @ProvideReactive('timezone') timezone: string = getDefautTimezone();
   // 刷新间隔
   @ProvideReactive('refleshInterval') refleshInterval = -1;
   // 视图变量
@@ -514,8 +517,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
     this.showRestore = false;
   }
-
   mounted() {
+    this.timezone = getDefautTimezone();
     this.initData();
     bus.$on('dashboardModeChange', this.handleDashboardModeChange);
     bus.$on('switch_scenes_type', this.handleLinkToDetail);
@@ -638,6 +641,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
             this.compareType = key === 'compares' ? 'target' : 'time';
           } catch (err) {
             console.log(err);
+          }
+        } else if (key === 'timezone') {
+          if (val?.length) {
+            this.timezone = val as string;
+            updateTimezone(val as string);
           }
         } else {
           this[key] = val;
@@ -1146,8 +1154,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         selectortTarget.compareFieldsSort
       );
       // eslint-disable-next-line max-len
-      compareTargets = targets?.map(item =>
-        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+      compareTargets = targets?.map(
+        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {
@@ -1205,6 +1213,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         // timeRange: this.timeRange as string,
         from: this.timeRange[0],
         to: this.timeRange[1],
+        timezone: this.timezone,
         refleshInterval: this.refleshInterval.toString(),
         // selectorSearchCondition: encodeURIComponent(JSON.stringify(this.selectorSearchCondition)),
         queryData: queryDataStr,
@@ -1284,7 +1293,12 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     this.handleResetRouteQuery();
     this.$emit('timeRangeChange', v);
   }
-
+  /** 时区变更 */
+  handleTimezoneChange(timezone: string) {
+    this.timezone = timezone;
+    this.handleResetRouteQuery();
+    this.$emit('timezoneChange', timezone);
+  }
   handleSelectorPanelChange(viewOptions: IViewOptions) {
     this.selectorReady = true;
     this.handleViewOptionsChange(viewOptions);
@@ -1604,6 +1618,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 isSplitPanel={this.isSplitPanel}
                 refleshInterval={this.refleshInterval}
                 timeRange={this.timeRange}
+                timezone={this.timezone}
                 showSplitPanel={this.isShowSplitPanel}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}
                 menuList={this.sceneData.dasbordToolMenuList}
@@ -1616,6 +1631,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 onSplitPanelChange={this.handleSplitPanel}
                 onSelectedMenu={this.handleShowSettingModel}
                 onDownSampleRangeChange={this.handleDownSampleRangeChange}
+                onTimezoneChange={this.handleTimezoneChange}
               >
                 {this.$slots.dashboardTools}
               </DashboardTools>

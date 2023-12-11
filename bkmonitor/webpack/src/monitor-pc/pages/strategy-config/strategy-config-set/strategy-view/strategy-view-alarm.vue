@@ -57,7 +57,7 @@
 </template>
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { handleTimeRange } from '../../../../utils/index';
 
@@ -85,7 +85,7 @@ export default class StrategyViewAlarm extends Vue {
     let curTime = startTime;
     while (curTime <= endTime) {
       curTime = curTime + step;
-      labels.push(moment(curTime * 1000).format('hh:mm'));
+      labels.push(dayjs.tz(curTime * 1000).format('hh:mm'));
     }
     return labels;
   }
@@ -125,31 +125,37 @@ export default class StrategyViewAlarm extends Vue {
   .alarm-title {
     font-weight: 700;
   }
+
   .alarm-content-wrap {
-    height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    height: 100%;
     padding: 0 22px;
+
     .alarm-bar {
       height: 16px;
       background: red;
     }
+
     .alarm-label {
       display: flex;
       justify-content: space-between;
     }
+
     .alarm-legend {
       display: flex;
       justify-content: center;
+
       &-item {
         display: flex;
         align-items: center;
         margin-right: 8px;
+
         .legend-icon {
+          display: inline-block;
           width: 12px;
           height: 12px;
-          display: inline-block;
           margin-right: 3px;
         }
       }

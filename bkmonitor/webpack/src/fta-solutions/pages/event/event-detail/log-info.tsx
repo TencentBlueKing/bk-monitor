@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getSceneView } from '../../../../monitor-api/modules/scene_view';
 import { random } from '../../../../monitor-common/utils';
-import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
+import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
 import { IQueryData } from '../../../../monitor-pc/pages/monitor-k8s/typings';
 import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';

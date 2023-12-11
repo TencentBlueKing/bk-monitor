@@ -28,13 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
+import { destroyTimezone } from '../../i18n/dayjs';
 import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
 import CommonPage from '../monitor-k8s/components/common-page';
 import { IMenuItem, INavItem, IViewOptions } from '../monitor-k8s/typings';
 
 import './custom-scenes-view.scss';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 enum ESceneType {
   plugin = 'plugin',
@@ -83,7 +84,10 @@ export default class CustomScenesView extends tsc<{}> {
       vm.routeList[0].name = to.query.name || '';
     });
   }
-
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
+  }
   handleMenuSelect({ id }) {
     if (id === 'source-manage') {
       this.handleToCollect();

@@ -225,6 +225,7 @@ export declare namespace PanelHeaderType {
   interface IProps {
     timeRange: TimeRangeValue;
     refleshInterval: number;
+    timezone: string;
     timeRangeList?: OptionsItem[];
     refleshList?: OptionsItem[];
     favoritesList?: IFavList.favList[];
@@ -240,5 +241,6 @@ export declare namespace PanelHeaderType {
     onSelectFav: any;
     onDeleteFav: number;
     onDownSampleChange: string;
+    onTimezoneChange: string;
   }
 }
