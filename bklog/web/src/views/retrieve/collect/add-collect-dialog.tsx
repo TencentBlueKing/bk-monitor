@@ -218,6 +218,14 @@ export default class CollectDialog extends tsc<IProps> {
     return this.favoriteData.is_enable_display_fields ? this.$t('显示字段') : this.$t('当前字段');
   }
 
+  get unionIndexList() {
+    return this.$store.state.unionIndexList;
+  }
+
+  get isUnionSearch() {
+    return this.$store.getters.isUnionSearch;
+  }
+
   mounted() {
     this.positionTop = Math.floor(document.body.clientHeight * 0.1);
   }
@@ -365,7 +373,6 @@ export default class CollectDialog extends tsc<IProps> {
       is_enable_display_fields,
     } = subData;
     const {
-      // host_scopes,
       ip_chooser,
       addition,
       keyword,
@@ -376,7 +383,6 @@ export default class CollectDialog extends tsc<IProps> {
       group_id,
       display_fields,
       visible_type,
-      // host_scopes,
       ip_chooser,
       addition,
       keyword,
@@ -387,6 +393,12 @@ export default class CollectDialog extends tsc<IProps> {
       Object.assign(data, {
         index_set_id,
         space_uid: this.spaceUid,
+      });
+    }
+    if (this.isUnionSearch) {
+      Object.assign(data, {
+        index_set_ids: this.unionIndexList,
+        index_set_type: 'union',
       });
     }
     const requestStr = this.isCreateFavorite ? 'createFavorite' : 'updateFavorite';
