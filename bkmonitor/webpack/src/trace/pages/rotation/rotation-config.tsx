@@ -27,7 +27,7 @@ import { computed, defineComponent, onMounted, provide, reactive, readonly, ref 
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Button, DatePicker, Input, Switcher, TagInput } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
@@ -65,7 +65,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: moment().format('YYYY-MM-DD 00:00:00'),
+        startTime: dayjs().format('YYYY-MM-DD 00:00:00'),
         endTime: ''
       }
     });

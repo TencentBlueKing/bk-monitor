@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import dayjs from 'dayjs';
 import { random } from 'lodash';
-import moment from 'moment';
 
 import { FixedDataModel } from './components/fixed-rotation-tab';
 import { ItemDataModel } from './components/replace-rotation-tab';
@@ -37,8 +37,8 @@ import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common'
  */
 export function generateTimeSlots(): string[] {
   const timeSlots = [];
-  const currentTime = moment().startOf('day');
-  const endTime = moment().endOf('day');
+  const currentTime = dayjs().startOf('day');
+  const endTime = dayjs().endOf('day');
 
   // 循环生成时间段，直到到达第二天的 00:00:00
   while (currentTime.isSameOrBefore(endTime)) {
@@ -74,7 +74,7 @@ export const randomColor = (index: number) => {
 
 export function timeRangeTransform(val: string) {
   const [start, end] = val.split('--');
-  return moment(start, 'hh:mm').isBefore(moment(end, 'hh:mm')) ? val : `${start} - ${window.i18n.t('次日')}${end}`;
+  return dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm')) ? val : `${start} - ${window.i18n.t('次日')}${end}`;
 }
 
 /**
@@ -275,7 +275,7 @@ export function fixedRotationTransform<T extends 'params' | 'data'>(
         break;
       }
       case RotationSelectTypeEnum.DateRange: {
-        const dateRange = item.workDateRange.map(date => moment(date).format('YYYY-MM-DD')).join('--');
+        const dateRange = item.workDateRange.map(date => dayjs(date).format('YYYY-MM-DD')).join('--');
         dutyTimeItem = {
           work_type: item.type,
           work_date_range: dateRange ? [dateRange] : [],
