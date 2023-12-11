@@ -159,5 +159,6 @@ export default {
   单选: 'Single',
   收藏该组合: 'Favorite this set',
   确认收藏: 'Confirm',
-  取消收藏: 'Cancel'
+  取消收藏: 'Cancel',
+  新增备注: 'Add New Label',
 };

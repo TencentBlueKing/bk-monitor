@@ -110,6 +110,12 @@ const unionDeleteHistory = {
   method: 'post',
 };
 
+/** 联合查询删除历史记录 */
+const unionTerms = {
+  url: '/search/index_set/aggs/union_search/terms/',
+  method: 'post',
+};
+
 export {
   unionSearch,
   unionMapping,
@@ -126,4 +132,5 @@ export {
   unionFavoriteList,
   unionHistoryList,
   unionDeleteHistory,
+  unionTerms,
 };
