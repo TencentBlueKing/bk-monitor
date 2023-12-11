@@ -135,7 +135,7 @@ import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { addListener, removeListener, ResizeCallback } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
@@ -503,8 +503,8 @@ export default class MonitorEcharts extends Vue {
               this.loading = true;
               const [batch] = event.batch;
               if (batch.startValue && batch.endValue) {
-                const timeFrom = moment(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                const timeTo = moment(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
                 this.timeRange = [timeFrom, timeTo];
                 if (this.getSeriesData) {
                   this.chart.dispatchAction({
@@ -538,7 +538,7 @@ export default class MonitorEcharts extends Vue {
         });
       return;
     }
-    const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
@@ -609,7 +609,7 @@ export default class MonitorEcharts extends Vue {
         this.annotation = {
           x: setPixel[0] + 10 + 220 > chartWidth ? setPixel[0] - 10 - 220 : setPixel[0] + 10,
           y: setPixel[1] + 5,
-          title: moment(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+          title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
           name: this.curValue.name,
           color: this.curValue.color,
           show: true
@@ -780,44 +780,44 @@ export default class MonitorEcharts extends Vue {
 <style lang="scss" scoped>
 .monitor-echart-wrap {
   position: relative;
-  background-repeat: repeat;
-  background-position: top;
-  background-color: #fff;
-  border-radius: 2px;
   width: 100%;
   height: 100%;
   color: #63656e;
+  background-color: #fff;
+  background-repeat: repeat;
+  background-position: top;
+  border-radius: 2px;
 
   .echart-header {
     display: flex;
     align-items: center;
-    height: 36px;
     min-width: 100%;
+    height: 36px;
     padding-left: 16px;
-    color: #63656e;
     font-weight: 700;
+    color: #63656e;
 
     .header-title {
-      font-weight: 700;
       flex: 1;
+      font-weight: 700;
     }
 
     .header-tools {
-      margin-left: auto;
       display: flex;
       align-items: center;
       min-height: 36px;
-      font-size: 16px;
       margin-right: 10px;
-      color: #979ba5;
+      margin-left: auto;
+      font-size: 16px;
       font-weight: normal;
+      color: #979ba5;
 
       .tools-icon {
         margin-right: 8px;
 
         &:hover {
-          cursor: pointer;
           color: #3a84ff;
+          cursor: pointer;
         }
       }
     }
@@ -828,9 +828,9 @@ export default class MonitorEcharts extends Vue {
     display: flex;
 
     .echart-instance {
+      flex: 1;
       min-width: 100px;
       height: 310px;
-      flex: 1;
     }
 
     .echart-legend {
@@ -840,21 +840,21 @@ export default class MonitorEcharts extends Vue {
 
     .echart-pie-center {
       position: absolute;
-      left: 50%;
       top: 50%;
-      transform: translate3d(-50%, -50%, 0);
+      left: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      transform: translate3d(-50%, -50%, 0);
     }
   }
 
   .echart-content {
     position: absolute;
-    left: 1px;
-    right: 1px;
     top: 36px;
+    right: 1px;
     bottom: 1px;
+    left: 1px;
     display: flex;
     align-items: center;
     justify-content: center;

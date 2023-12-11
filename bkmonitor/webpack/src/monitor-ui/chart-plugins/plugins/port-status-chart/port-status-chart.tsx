@@ -25,7 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import ChartTitle from '../../components/chart-title/chart-title';
@@ -67,8 +67,8 @@ class PortStatusChart extends CommonSimpleChart {
       this.unregisterOberver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime,
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         bk_biz_id: this.bkBizId || window.cc_biz_id
       };
       const variablesService = new VariablesService({

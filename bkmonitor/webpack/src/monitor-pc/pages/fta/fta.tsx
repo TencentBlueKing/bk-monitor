@@ -25,7 +25,6 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { unmount } from '@blueking/bk-weweb';
 
 import './fta.scss';
 
@@ -51,7 +50,6 @@ export default class FTA extends tsc<{}> {
     });
   }
   beforeRouteLeave(to, from, next) {
-    unmount('fta');
     next();
   }
   mounted() {

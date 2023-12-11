@@ -53,6 +53,7 @@ declare module 'vue/types/vue' {
     $bkMessage?: (p: Partial<{}>) => void;
     $bkPopover?: (...Object) => void;
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
+    $bkLoading?: any;
     $api?: any;
   }
 }
@@ -116,6 +117,7 @@ declare global {
     };
     host_data_fields: string[];
     bkchat_manage_url: string;
+    timezone: string;
     show_realtime_strategy: boolean;
   }
   namespace VueTsxSupport.JSX {

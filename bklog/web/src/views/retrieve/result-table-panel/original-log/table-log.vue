@@ -387,7 +387,7 @@ export default {
       }
 
       .bk-table-column-expand .bk-icon {
-        top: 17px;
+        top: 21px;
       }
 
       &.is-wrap td .cell {
@@ -402,7 +402,7 @@ export default {
       .visiable-field {
         .str-content {
           &.is-limit {
-            max-height: 74px;
+            max-height: 100px;
           }
         }
 
@@ -411,11 +411,11 @@ export default {
         }
 
         &.is-wrap .cell {
-          padding: 12px 15px 8px;
+          padding: 12px 14px 8px;
         }
 
         .show-whole-btn {
-          top: 56px;
+          top: 83px;
         }
       }
 

@@ -27,7 +27,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Editor, Viewer } from '@toast-ui/editor';
 
-// import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight';
+// import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 // import Prism from 'prismjs';
 // import 'prismjs/components/prism-python.js';
 // import 'prismjs/themes/prism.css';
@@ -70,6 +70,7 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
       initialValue: this.value,
       height: this.height,
       viewer: true
+      // plugins: [codeSyntaxHighlight]
     });
   }
 

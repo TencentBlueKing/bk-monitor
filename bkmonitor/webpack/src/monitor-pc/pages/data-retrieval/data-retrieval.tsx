@@ -59,12 +59,13 @@ import MetricSelector from '../../components/metric-selector/metric-selector';
 import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
-import { TimeRangeType } from '../../components/time-range/time-range';
+import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
   handleTransformToTimestamp,
   timestampTransformStr
 } from '../../components/time-range/utils';
+import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
@@ -204,7 +205,8 @@ export default class DataRetrieval extends tsc<{}> {
     },
     tools: {
       refleshInterval: -1,
-      timeRange: DEFAULT_TIME_RANGE
+      timeRange: DEFAULT_TIME_RANGE,
+      timezone: getDefautTimezone()
     }
   };
 
@@ -534,10 +536,17 @@ export default class DataRetrieval extends tsc<{}> {
       targets,
       type,
       from: fromTime,
-      to: toTime
+      to: toTime,
+      timezone
     } = this.$route.query.targets ? this.$route.query : this.$route.params;
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
+    this.compareValue.tools.timezone = getDefautTimezone();
+    console.info(this.compareValue.tools.timezone, '----------');
+    if (timezone) {
+      this.compareValue.tools.timezone = timezone as string;
+      updateTimezone(timezone as string);
+    }
     if (targets) {
       try {
         targetsList = JSON.parse(decodeURIComponent(targets as string));
@@ -1060,7 +1069,14 @@ export default class DataRetrieval extends tsc<{}> {
     this.compareValue.tools.timeRange = timeRange;
     this.handleQueryProxy();
   }
-
+  /**
+   * @description: 变更时区
+   * @param {string} timezone
+   */
+  handleTimezoneChange(timezone: string) {
+    this.compareValue.tools.timezone = timezone;
+    this.handleQueryProxy();
+  }
   /**
    * @description: 合并视图
    * @param {boolean} val
@@ -3137,11 +3153,13 @@ export default class DataRetrieval extends tsc<{}> {
               {!this.onlyShowView && (
                 <PanelHeader
                   timeRange={this.compareValue.tools?.timeRange}
+                  timezone={this.compareValue.tools?.timezone}
                   refleshInterval={this.compareValue.tools.refleshInterval}
                   showDownSample={false}
                   eventSelectTimeRange={this.eventSelectTimeRange}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
+                  onTimezoneChange={this.handleTimezoneChange}
                 >
                   {
                     // url 带有 onlyShowView=false 的时候，不显示该按钮

@@ -51,7 +51,7 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
     window.open(
       location.href.replace(
         location.hash,
-        `#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}`
+        `#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}&timezone=${window.timezone}`
       )
     );
 };

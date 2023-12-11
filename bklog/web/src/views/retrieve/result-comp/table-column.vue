@@ -160,10 +160,10 @@ export default {
 <style lang="scss" scoped>
   .td-log-container {
     position: relative;
-    line-height: 14px;
+    line-height: 21px;
 
     &.is-wrap {
-      padding-bottom: 4px;
+      padding-bottom: 3px;
     }
 
     .field-container {

@@ -27,6 +27,7 @@
 
 import html2canvas from 'html2canvas';
 import JSONBigNumber from 'json-bignumber';
+import dayjs from 'dayjs';
 
 import store from '../store';
 /**
@@ -487,12 +488,16 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   * @param {Number | String | Date} val
   * @return {String}
   */
-export function formatDate(val) {
+export function formatDate(val, isTimzone = true) {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
     console.warn('无效的时间');
     return '';
+  }
+
+  if (isTimzone) {
+    return dayjs.tz(Number(val)).format('YYYY-MM-DD HH:mm:ss');
   }
 
   const yyyy = date.getFullYear();

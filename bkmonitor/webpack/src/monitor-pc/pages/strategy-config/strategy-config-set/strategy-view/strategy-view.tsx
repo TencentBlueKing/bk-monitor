@@ -29,7 +29,7 @@
 import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Radio, RadioGroup } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from '../../../../../monitor-api/modules/grafana';
 import { fetchItemStatus, getUnitInfo } from '../../../../../monitor-api/modules/strategies';
@@ -38,7 +38,7 @@ import { Debounce, deepClone, random, typeTools } from '../../../../../monitor-c
 import Viewer from '../../../../../monitor-ui/markdown-editor/viewer';
 import MonitorEcharts from '../../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import MonitorDivider from '../../../../components/divider/divider.vue';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
@@ -581,8 +581,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 获取图表查询参数设置
   getQueryParams(startTime: string | number, endTime: string | number, hasIntelligentDetect = false) {
     const timePrams = {
-      start_time: typeof startTime === 'string' || String(startTime).length > 10 ? moment(startTime).unix() : startTime,
-      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? moment(endTime).unix() : endTime
+      start_time:
+        typeof startTime === 'string' || String(startTime).length > 10 ? dayjs.tz(startTime).unix() : startTime,
+      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime
     };
     if (this.editMode === 'Source') {
       const params = {
@@ -924,6 +925,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               ref='tool'
               on-change={this.handleToolPanelChange}
               on-on-immediate-reflesh={this.handleRefreshView}
+              onTimezoneChange={this.handleRefreshView}
             ></strategy-view-tool>,
             <div class='strategy-view-content'>
               {(this.metricQueryData.length > 0 &&

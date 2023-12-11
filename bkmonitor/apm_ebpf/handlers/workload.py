@@ -181,7 +181,15 @@ class WorkloadHandler:
         )
 
     @classmethod
-    def list_services(cls, bk_biz_id, namespace, cluster_id):
-        return DeepflowWorkload.objects.filter(
+    def list_services(cls, bk_biz_id, namespace, cluster_id, service_name=None):
+        f = DeepflowWorkload.objects.filter(
             bk_biz_id=bk_biz_id, cluster_id=cluster_id, namespace=namespace, type=WorkloadType.SERVICE.value
         )
+        if service_name:
+            f = f.filter(name=service_name)
+
+        return f
+
+    @classmethod
+    def list_deepflow_cluster_ids(cls, bk_biz_id):
+        return list(set(DeepflowWorkload.objects.filter(bk_biz_id=bk_biz_id).values_list("cluster_id", flat=True)))

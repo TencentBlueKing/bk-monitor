@@ -29,6 +29,7 @@ from apps.api.modules.bkdata_access import BkDataAccessApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_BKDATA_DATAID, SCENARIO_BKDATA
+from apps.log_clustering.exceptions import CreateBkdataDataIdException
 from apps.log_databus.constants import (
     ADMIN_REQUEST_USER,
     BKDATA_DATA_REGION,
@@ -54,7 +55,7 @@ def async_create_bkdata_data_id(collector_config_id: int, platform_username: str
     create_bkdata_data_id(CollectorConfig.objects.get(collector_config_id=collector_config_id), platform_username)
 
 
-def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: str = None):
+def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: str = None, raise_exception=False):
     # 对应开关未开启
     toggle_switch = FeatureToggleObject.switch(name=FEATURE_BKDATA_DATAID)
     if not toggle_switch:
@@ -124,6 +125,10 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
             )
         )
     except Exception as e:
+        if raise_exception:
+            raise CreateBkdataDataIdException(
+                CreateBkdataDataIdException.MESSAGE.format(index_set_id=collector_config.index_set_id)
+            )
         logger.error(
             "sync data_id:{data_id} to bkdata failed, collector_config_id: {collector_config_id}, err: {error}".format(
                 data_id=collector_config.bkdata_data_id,

@@ -689,6 +689,7 @@ class UserGroupSlz(serializers.ModelSerializer):
         data["users"] = self.group_user_mappings.get(instance.id, [])
         data["channels"] = data.get("channels") or NoticeChannel.DEFAULT_CHANNELS
         data["strategy_count"] = len(set(self.strategy_count_of_given_type.get(instance.id, [])))
+        data["rules_count"] = len(set(self.rule_count.get(instance.id, [])))
         data["delete_allowed"] = (
             len(set(self.strategy_count_of_all.get(instance.id, []))) == 0
             and len(set(self.rule_count.get(instance.id, []))) == 0

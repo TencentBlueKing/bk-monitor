@@ -32,7 +32,7 @@ import { graphUnifyQuery, logQuery } from '../../../../monitor-api/modules/grafa
 import { Debounce, deepClone, random } from '../../../../monitor-common/utils/utils';
 import MonitorEcharts from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import BackTop from '../../../components/back-top/back-top';
-import { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { CHART_INTERVAL } from '../../../constant/constant';
 import authorityStore from '../../../store/modules/authority';

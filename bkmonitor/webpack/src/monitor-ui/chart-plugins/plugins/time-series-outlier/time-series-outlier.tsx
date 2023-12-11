@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { EChartOption } from 'echarts/lib/echarts';
-import moment from 'moment';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { Debounce, deepClone, random } from '../../../../monitor-common/utils/utils';
@@ -216,8 +216,8 @@ export default class TimeSeriesOutlier extends LineChart {
       // mock 数据 暂时注释接口
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {
@@ -542,7 +542,7 @@ export default class TimeSeriesOutlier extends LineChart {
     }
     let liHtmls = [];
     const ulStyle = '';
-    const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     if (params[0]?.data?.tooltips) {
       liHtmls.push(params[0].data.tooltips);
     } else {

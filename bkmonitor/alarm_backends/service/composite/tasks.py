@@ -6,20 +6,40 @@ from celery.task import task
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.alert.alert import AlertKey
 from alarm_backends.service.composite.processor import CompositeProcessor
+from core.errors.alert import AlertNotFoundError
 from core.prometheus import metrics
 
 logger = logging.getLogger("composite")
 
 
 @task(ignore_result=True, queue="celery_composite")
-def check_action_and_composite(alert_key: AlertKey, alert_status: str, composite_strategy_ids: list = None):
+def check_action_and_composite(
+    alert_key: AlertKey, alert_status: str, composite_strategy_ids: list = None, retry_times: int = 0
+):
     """
     :param alert_key: 告警标识
     :param alert_status: 告警状态
     :param composite_strategy_ids: 待检测关联策略ID列表
+    :param retry_times: 重试次数，最大为2
     :return:
     """
-    alert = Alert.get(alert_key)
+    try:
+        alert = Alert.get(alert_key)
+    except AlertNotFoundError:
+        # 如果从redis和ES都找不到告警，可以推迟一分钟之后再次检测
+        logger.info("[composite] alert(%s) found error, try again 5 seconds later", alert_key)
+        if retry_times <= 2:
+            # 异常情况下最多重试2次
+            check_action_and_composite.apply_async(
+                kwargs={
+                    "alert_key": alert_key,
+                    "alert_status": alert_status,
+                    "composite_strategy_ids": composite_strategy_ids,
+                    "retry_times": retry_times + 1,
+                },
+                countdown=5,
+            )
+        return
 
     if not alert:
         logger.info("[composite] alert(%s) not found, skip it", alert_key)
