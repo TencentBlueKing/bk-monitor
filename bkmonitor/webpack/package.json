@@ -6,7 +6,7 @@
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
-    "debug": "node --inspect-brk  node_modules/@blueking/bkmonitor-cli/bin/index.js dev -t",
+    "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "npm run change:modules",
     "install-build": "pnpm i",
@@ -56,18 +56,18 @@
     "babel-plugin-import": "^1.13.5",
     "babel-plugin-import-bkui-vue": "^0.0.9-beta.0",
     "eslint": "^8.47.0",
-    "lint-staged": "^12.3.7",
-    "nodemon": "^2.0.9",
+    "lint-staged": "^15.2.0",
+    "nodemon": "^3.0.2",
     "npm-run-all": "^4.1.5",
     "picocolors": "^1.0.0",
     "portfinder": "^1.0.28",
-    "prettier": "^3.0.2",
+    "prettier": "^3.1.0",
     "simple-git-hooks": "^2.7.0",
     "stylelint": "^15.10.3"
   },
   "dependencies": {
-    "@blueking/bkmonitor-cli": "1.0.0-beta.47",
-    "core-js": "^3.21.1",
+    "@blueking/bkmonitor-cli": "2.0.0-beta.6",
+    "core-js": "^3.34.0",
     "cross-env": "^7.0.3"
   },
   "nodemonConfig": {
@@ -79,12 +79,11 @@
     "extentions": []
   },
   "engines": {
-    "node": ">= 14.18.0",
-    "npm": ">= 6.14.0"
+    "node": ">= 18"
   },
   "pnpm": {
     "overrides": {
-      "@blueking/date-picker": "^0.0.69",
+      "@blueking/date-picker": "^0.0.71",
       "@blueking/stylelint-config": "0.0.3",
       "@blueking/user-selector>vue": "2.7.14",
       "@typescript-eslint/eslint-plugin": "^5.20.0",
@@ -99,7 +98,7 @@
       "eslint-plugin-vue": "^9.17.0",
       "postcss-html": "^1.5.0",
       "postcss-scss": "^4.0.7",
-      "prettier": "^3.0.2",
+      "prettier": "^3.1.0",
       "stylelint": "^15.10.3",
       "stylelint-config-recess-order": "^4.3.0",
       "stylelint-config-recommended-vue": "1.5.0",

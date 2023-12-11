@@ -10,10 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import math
-import os
 import time
 import traceback
-from collections import OrderedDict, defaultdict, namedtuple
+from collections import OrderedDict, defaultdict
 from copy import copy
 from distutils.version import StrictVersion
 from functools import reduce
@@ -64,7 +63,7 @@ from monitor_web.collecting.constant import (
     TaskStatus,
 )
 from monitor_web.collecting.lock import CacheLock, lock
-from monitor_web.collecting.utils import fetch_sub_statistics_nodeman_2_1
+from monitor_web.collecting.utils import fetch_sub_statistics
 from monitor_web.commons.cc.utils import foreach_topo_tree, topo_tree_tools
 from monitor_web.commons.data_access import ResultTable
 from monitor_web.models import (
@@ -119,14 +118,14 @@ class CollectConfigListResource(Resource):
         biz_data = {"host_list": host_list, "topo_tree": topo_tree}
         return biz_data
 
-    def get_realtime_data_nodeman_v2_1(self, config_data_list):
+    def get_realtime_data(self, config_data_list):
         """
         获取节点管理订阅实时状态
         :param config_data_list: 采集配置数据列表
         :return: self.realtime_data
         """
 
-        subscription_id_config_map, statistics_data = fetch_sub_statistics_nodeman_2_1(config_data_list)
+        subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
 
         # 节点管理返回的状态数量
         for subscription_status in statistics_data:
@@ -172,101 +171,6 @@ class CollectConfigListResource(Resource):
                 # 更新内存数据
                 config.cache_data = cache_data
                 config.operation_result = operation_result
-
-    def get_realtime_data(self, config_data_list):
-        """
-        节点管理2.0获取实时数据
-        :param config_data_list: 配置数据
-        """
-        # 如果是节点类型的采集配置，需要结合CMDB的实时数据去判断具体的主机总数和异常数，以保持和检查视图页的数据统一
-        # 过滤出采集目标为TOPO的配置
-        topo_config_list = [x for x in config_data_list if x.deployment_config.target_node_type == TargetNodeType.TOPO]
-
-        target_scope_data = {}
-        # 采集配置的对象和包含的模块信息，实例类型只需要前两个，主机类型需要这三个参数
-        ConfigInfo = namedtuple("ConfigInfo", ["target_object_type", "contained_modules", "host_id_list"])
-        biz_data_cache = {}
-        for config in topo_config_list:
-            if config.bk_biz_id not in biz_data_cache:
-                ret_data = self.get_biz_data(config.bk_biz_id)
-                biz_data_cache[config.bk_biz_id] = ret_data
-            biz_data = biz_data_cache[config.bk_biz_id]
-            contained_modules = topo_tree_tools.get_module_by_node_list(
-                config.deployment_config.target_nodes, biz_data["topo_tree"]
-            )
-            if config.target_object_type == TargetObjectType.HOST:
-                host_list = biz_data["host_list"]
-                host_id_list = [host.host_id for host in host_list if set(host.bk_module_ids) & contained_modules]
-            else:
-                host_id_list = None
-            config_info = ConfigInfo(
-                target_object_type=config.target_object_type,
-                contained_modules=contained_modules,
-                host_id_list=host_id_list,
-            )
-            target_scope_data[config.deployment_config.subscription_id] = config_info
-
-        # 获取采集配置实时运行状态
-        multi_results = []
-        if config_data_list:
-            multi_results = api.node_man.subscription_instance_status.bulk_request(
-                [{"subscription_id_list": [config.deployment_config.subscription_id]} for config in config_data_list],
-                ignore_exceptions=True,
-            )
-
-        result = []
-        # 结果聚合
-        for r in multi_results:
-            if r:
-                result += r
-
-        # 结合CMDB的数据，统计节点管理订阅的正常数、异常数、是否有任务在运行、正在运行的任务
-        for item in result:
-            auto_running_tasks = []
-            target_data = target_scope_data.get(item["subscription_id"])
-            if target_data:
-                total_instance_count = 0
-                error_instance_count = 0
-                if target_data.target_object_type == TargetObjectType.HOST:
-                    for instance in item["instances"]:
-                        # 如果是主机，判断主机的host_id是否在CMDB的主机范围里面
-                        host_id = "{}|{}".format(
-                            instance["instance_info"]["host"]["bk_host_innerip"],
-                            instance["instance_info"]["host"]["bk_cloud_id"],
-                        )
-
-                        if host_id in target_data.host_id_list:
-                            total_instance_count += 1
-                            if instance["status"] == CollectStatus.FAILED:
-                                error_instance_count += 1
-                            if instance["running_task"] and instance["running_task"].get("is_auto_trigger"):
-                                auto_running_tasks.append(instance["running_task"]["id"])
-                else:
-                    for instance in item["instances"]:
-                        # 如果是实例，判断实例的module_id是否在CMDB的module范围里面
-                        bk_module_id = instance["instance_info"]["service"].get("bk_module_id", -1)
-                        if bk_module_id in target_data.contained_modules:
-                            total_instance_count += 1
-                            if instance["status"] == CollectStatus.FAILED:
-                                error_instance_count += 1
-                            if instance["running_task"] and instance["running_task"].get("is_auto_trigger"):
-                                auto_running_tasks.append(instance["running_task"]["id"])
-            else:
-                total_instance_count = len(item["instances"])
-                error_instance_count = [instance["status"] for instance in item["instances"]].count(
-                    CollectStatus.FAILED
-                )
-
-            self.realtime_data.update(
-                {
-                    item["subscription_id"]: {
-                        "error_instance_count": error_instance_count,
-                        "total_instance_count": total_instance_count,
-                        "is_auto_deploying": len(auto_running_tasks) > 0,
-                        "auto_running_tasks": auto_running_tasks,
-                    }
-                }
-            )
 
     def update_cache_data(self, config):
         # 更新采集配置的缓存数据（总数、异常数）
@@ -356,8 +260,6 @@ class CollectConfigListResource(Resource):
 
     def perform_request(self, validated_request_data):
         try:
-            nodeman_version = os.getenv("BKAPP_NODEMAN_VERSION", "2.1")
-            is_nodeman_2_1 = StrictVersion(nodeman_version) >= StrictVersion("2.1")
             bk_biz_id = validated_request_data.get("bk_biz_id")
             refresh_status = validated_request_data.get("refresh_status")
             search_dict = validated_request_data.get("search", {})
@@ -434,24 +336,16 @@ class CollectConfigListResource(Resource):
             else:
                 config_data_list = list(config_list)
 
-            # 如果refresh_status为true，则获取实时运行状态和服务分类
-
             if refresh_status:
                 try:
-                    if is_nodeman_2_1:
-                        self.get_realtime_data_nodeman_v2_1(config_data_list)
-                    else:
-                        self.get_realtime_data(config_data_list)
+                    self.get_realtime_data(config_data_list)
                 except Exception:
                     # 尝试实时获取，获取失败就用缓存数据
                     pass
 
             search_list = []
             for item in config_data_list:
-                if is_nodeman_2_1:
-                    status = self.get_status(item)
-                else:
-                    status = self.update_status_and_operation_v2_0(item, refresh_status)
+                status = self.get_status(item)
                 space = bk_biz_id_space_dict.get(item.bk_biz_id)
                 search_list.append(
                     {
@@ -1091,7 +985,7 @@ class SaveCollectConfigResource(Resource):
             try:
                 config_meta = CollectConfigMeta.objects.get(id=data["id"])
             except CollectConfigMeta.DoesNotExist:
-                raise CollectConfigNotExist
+                raise CollectConfigNotExist({"msg": data["id"]})
             for item in config_meta.plugin.current_version.config.config_json:
                 if item["mode"] != "collector":
                     item["mode"] = "plugin"
@@ -2477,41 +2371,21 @@ class UpdateConfigInstanceCountResource(Resource):
         else:
             return
 
-        if StrictVersion(os.getenv("BKAPP_NODEMAN_VERSION", "2.1")) >= StrictVersion("2.1"):
-            try:
-                __, collect_statistics_data = fetch_sub_statistics_nodeman_2_1(config_list)
-            except BKAPIError as e:
-                logger.error("请求节点管理状态统计接口失败: {}".format(e))
-                return
-            # 统计节点管理订阅的正常数、异常数
-            result_dict = {}
-            for item in collect_statistics_data:
-                status_number = {}
-                for status_result in item.get("status", []):
-                    status_number[status_result["status"]] = status_result["count"]
-                result_dict[item["subscription_id"]] = {
-                    "total_instance_count": item.get("instances", 0),
-                    "error_instance_count": status_number.get(CollectStatus.FAILED, 0),
-                }
-        else:
-            try:
-                result = api.node_man.subscription_instance_status(
-                    subscription_id_list=[config.deployment_config.subscription_id for config in config_list]
-                )
-            except BKAPIError as e:
-                logger.error("请求节点管理主机运行状态接口失败: {}".format(e))
-                return
-            # 统计节点管理订阅的正常数、异常数
-            result_dict = {}
-            for item in result:
-                total_instance_count = len(item["instances"])
-                error_instance_count = [instance["status"] for instance in item["instances"]].count(
-                    CollectStatus.FAILED
-                )
-                result_dict[item["subscription_id"]] = {
-                    "total_instance_count": total_instance_count,
-                    "error_instance_count": error_instance_count,
-                }
+        try:
+            __, collect_statistics_data = fetch_sub_statistics(config_list)
+        except BKAPIError as e:
+            logger.error("请求节点管理状态统计接口失败: {}".format(e))
+            return
+        # 统计节点管理订阅的正常数、异常数
+        result_dict = {}
+        for item in collect_statistics_data:
+            status_number = {}
+            for status_result in item.get("status", []):
+                status_number[status_result["status"]] = status_result["count"]
+            result_dict[item["subscription_id"]] = {
+                "total_instance_count": item.get("instances", 0),
+                "error_instance_count": status_number.get(CollectStatus.FAILED, 0),
+            }
 
         for config in config_list:
             cache_data = result_dict.get(config.deployment_config.subscription_id)
@@ -2687,16 +2561,12 @@ class ListLegacySubscription(Resource):
             # 查询属于监控插件采集的订阅列表
             # 插件采集的 step_id 固定是 bkmonitorbeat
             # 其他有 bkmonitorproxy, bkmonitorbeat_http。需要特别注意不要把这些计算在内
-            nodeman_version = os.getenv("BKAPP_NODEMAN_VERSION", "2.1")
             # 节点管理2.1及之后，新增category字段
-            has_category_column = StrictVersion(nodeman_version) >= StrictVersion("2.1")
             all_monitor_subscription_query_sql = '''
             select a.subscription_id from node_man_subscriptionstep as a
             inner join node_man_subscription as b on a.subscription_id = b.id
             where a.step_id IN ("bkmonitorbeat","bkmonitorlog") and b.is_deleted = 0
-            and config not like "%MAIN_%_PLUGIN%"'''
-            extend_where_sql = " and b.category is null;" if has_category_column else ";"
-            all_monitor_subscription_query_sql += extend_where_sql
+            and config not like "%MAIN_%_PLUGIN%" and b.category is null;'''
             cursor.execute(all_monitor_subscription_query_sql)
             all_monitor_subscription_ids = {item[0] for item in cursor.fetchall()}
 
