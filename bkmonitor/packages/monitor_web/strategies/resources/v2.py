@@ -1038,7 +1038,7 @@ class GetStrategyListV2Resource(Resource):
             )
             algorithms = strategy["items"][0]["algorithms"][0]
             strategy["add_allowed"] = (target != DataTarget.NONE_TARGET) or (
-                algorithms == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
+                algorithms["type"] == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
             )
 
     def perform_request(self, params):
