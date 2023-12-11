@@ -65,7 +65,7 @@ class ApmApplication(AbstractRecordModel):
             datasource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name, **es_storage_config)
 
         # 创建和更新性能分析数据源
-        if options.get("enabled_profiling", False):
+        if options and options.get("enabled_profiling", False):
             ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name, **es_storage_config)
 
         configs = {
