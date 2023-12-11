@@ -29,7 +29,7 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Checkbox, Pagination, Popover, Table, TableColumn, TableSettingContent } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { checkAllowedByActionIds } from '../../../monitor-api/modules/iam';
 import { random } from '../../../monitor-common/utils/utils';
@@ -939,8 +939,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   formatterTime(time: number | string): string {
     if (!time) return '--';
     if (typeof time !== 'number') return time;
-    if (time.toString().length < 13) return moment(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-    return moment(time).format('YYYY-MM-DD HH:mm:ss');
+    if (time.toString().length < 13) return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
   }
 
   handleDescEnter(e: MouseEvent, dimensions, description) {

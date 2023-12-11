@@ -49,7 +49,7 @@
 
 <script>
 import * as echarts from 'echarts';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import SelectDate from './select-date';
 import { formatDate } from '@/common/util';
 import { mapGetters } from 'vuex';
@@ -169,7 +169,7 @@ export default {
           axisLabel: {
             align: 'center',
             formatter(value) {
-              return moment(value).format('MM-DD');
+              return dayjs.tz(value).format('MM-DD');
             },
           },
           axisLine: {

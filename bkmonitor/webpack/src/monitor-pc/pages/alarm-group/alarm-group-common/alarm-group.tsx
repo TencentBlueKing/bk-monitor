@@ -26,8 +26,7 @@
 import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { SearchSelect } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { debounce } from 'throttle-debounce';
 
 import { destroyUserGroup, listUserGroup } from '../../../../monitor-api/modules/model';
@@ -105,7 +104,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 220,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? moment(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
+      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
     },
     {
       label: i18n.t('配置来源'),
@@ -193,7 +192,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     return (
       <div class='col-name'>
         <div class='col-name-label'>{row.update_user || '--'}</div>
-        <div>{moment(row.update_time).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
+        <div>{dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
       </div>
     );
   }

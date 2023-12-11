@@ -147,7 +147,7 @@
 </template>
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { Button, Cell, Collapse, CollapseItem, Dialog, List, PullRefresh } from 'vant';
 
 import { ackEvent } from '../../../monitor-api/modules/mobile_event';
@@ -275,9 +275,9 @@ export default class AlarmDetail extends Vue {
   async handleGetChartData(item: IEventItem) {
     const data = await AlarmModule.getChartData({
       event_id: item.id,
-      start_time: moment().add(-1, 'h')
+      start_time: dayjs().add(-1, 'h')
         .unix(),
-      end_time: moment().unix()
+      end_time: dayjs().unix()
     });
     let series = data.filter(item => item?.metric?.metric_field === 'value');
     series = series.length ? series : data;

@@ -91,6 +91,7 @@ declare global {
     enable_aiops: boolean;
     enable_apm: boolean;
     ce_url?: string;
+    timezone?: string;
     LoginModal?: any;
     enable_message_queue: boolean;
     is_superuser: boolean;

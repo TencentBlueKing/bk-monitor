@@ -58,6 +58,7 @@ export class CommonSimpleChart
   @InjectReactive('refleshInterval') readonly refleshInterval!: number;
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('timezone') readonly timezone: string;
   @InjectReactive('queryData') readonly queryData!: IQueryData;
   /** 更新queryData */
   @Inject('handleUpdateQueryData') handleUpdateQueryData: (queryData: IQueryData) => void;
@@ -102,6 +103,11 @@ export class CommonSimpleChart
   @Watch('refleshImmediate')
   // 立刻刷新
   handleRefleshImmediateChange(v: string) {
+    if (v) this.getPanelData();
+  }
+  @Watch('timezone')
+  // 时区变更刷新图表
+  handleTimezoneChange(v: string) {
     if (v) this.getPanelData();
   }
   beforeGetPanelData(...p: any) {

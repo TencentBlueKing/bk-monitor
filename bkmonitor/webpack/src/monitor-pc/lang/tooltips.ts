@@ -268,5 +268,6 @@ export default {
   当前为全局的: 'Currently global',
   存在关联的用户组: 'There are associated user groups',
   起始日: 'Start date',
-  设为起始日: 'Set as start date'
+  设为起始日: 'Set as start date',
+  AI设置: 'AI settings'
 };

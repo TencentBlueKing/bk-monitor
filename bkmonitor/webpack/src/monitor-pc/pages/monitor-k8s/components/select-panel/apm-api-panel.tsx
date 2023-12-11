@@ -31,7 +31,7 @@ import { Debounce, deepClone } from '../../../../../monitor-common/utils/utils';
 import StatusTab from '../../../../../monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
 import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
