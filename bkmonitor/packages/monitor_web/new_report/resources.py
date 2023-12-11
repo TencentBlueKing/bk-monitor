@@ -95,12 +95,12 @@ class GetReportListResource(Resource):
         report_ids = set(qs.values_list("id", flat=1))
         username = self.get_request_username()
         # 已失效订阅列表
-        if query_type == "is_invalid":
+        if query_type == "invalid":
             for report in qs:
                 if report.is_invalid():
                     filter_report_ids.add(report.id)
         # 已取消订阅列表
-        elif query_type == "is_cancelled":
+        elif query_type == "cancelled":
             filter_report_ids = set(
                 ReportChannel.objects.filter(
                     subscribers__contains=[{"id": username, "type": StaffEnum.USER.value, "is_enabled": False}],
@@ -117,10 +117,9 @@ class GetReportListResource(Resource):
         if create_type == "self":
             # 当前用户的订阅
             report_qs = GetReportListResource.filter_by_user(report_qs)
-        else:
-            # 管理员创建/用户创建的订阅
-            is_manager_created = True if create_type == "manager" else False
-            report_qs = report_qs.filter(is_manager_created=is_manager_created)
+        elif create_type == "manager":
+            # 管理员创建的订阅
+            report_qs = report_qs.filter(is_manager_created=True)
 
         return report_qs
 
@@ -331,8 +330,8 @@ class CreateOrUpdateReportResource(Resource):
         frequency = FrequencySerializer(required=True)
         content_config = ContentConfigSerializer(required=True)
         scenario_config = ScenarioConfigSerializer(required=True)
-        start_time = serializers.IntegerField(label="开始时间", required=False, default=None)
-        end_time = serializers.IntegerField(label="结束时间", required=False, default=None)
+        start_time = serializers.IntegerField(label="开始时间", required=False, default=None, allow_null=True)
+        end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
         is_manager_created = serializers.BooleanField(required=False, default=False)
         is_enabled = serializers.BooleanField(required=False, default=True)
 
@@ -398,8 +397,8 @@ class SendReportResource(Resource):
         frequency = FrequencySerializer(required=False)
         content_config = ContentConfigSerializer(required=False)
         scenario_config = ScenarioConfigSerializer(required=False)
-        start_time = serializers.IntegerField(label="开始时间", required=False, default=None)
-        end_time = serializers.IntegerField(label="结束时间", required=False, default=None)
+        start_time = serializers.IntegerField(label="开始时间", required=False, default=None, allow_null=True)
+        end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
         is_manager_created = serializers.BooleanField(required=False, default=False)
         is_enabled = serializers.BooleanField(required=False, default=True)
 

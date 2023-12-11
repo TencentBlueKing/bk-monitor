@@ -139,8 +139,8 @@ class SendReport(Resource):
         frequency = FrequencySerializer(required=False)
         content_config = ContentConfigSerializer(required=False)
         scenario_config = ScenarioConfigSerializer(required=False)
-        start_time = serializers.IntegerField(label="开始时间", required=False, default=None)
-        end_time = serializers.IntegerField(label="结束时间", required=False, default=None)
+        start_time = serializers.IntegerField(label="开始时间", required=False, default=None, allow_null=True)
+        end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
         is_manager_created = serializers.BooleanField(required=False, default=False)
         is_enabled = serializers.BooleanField(required=False, default=True)
 
