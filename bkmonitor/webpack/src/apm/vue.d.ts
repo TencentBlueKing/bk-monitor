@@ -66,6 +66,7 @@ declare global {
     csrf_cookie_name: string;
     cc_biz_id: string | number;
     bk_biz_id: string | number;
+    timezone: string;
     bk_log_search_url: string;
     bklogsearch_host: string;
     space_list: ISpaceItem[];

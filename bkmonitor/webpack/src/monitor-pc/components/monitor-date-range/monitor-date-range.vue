@@ -81,7 +81,7 @@
   </div>
 </template>
 <script>
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 export default {
   name: 'MonitorDateRange',
@@ -121,8 +121,8 @@ export default {
       date: '',
       isFoucs: false,
       showDropdown: false,
-      initDateTimeRange: [moment().subtract(1, 'hours')
-        .format(), moment().format()]
+      initDateTimeRange: [dayjs.tz().subtract(1, 'hours')
+        .format(), dayjs.tz().format()]
     };
   },
   computed: {
@@ -182,7 +182,7 @@ export default {
     },
     handleConfirm() {
       // eslint-disable-next-line vue/max-len
-      this.date = `${moment(this.initDateTimeRange[0]).format('YYYY-MM-DD HH:mm:ss')} -- ${moment(this.initDateTimeRange[1]).format('YYYY-MM-DD HH:mm:ss')}`;
+      this.date = `${dayjs.tz(this.initDateTimeRange[0]).format('YYYY-MM-DD HH:mm:ss')} -- ${dayjs.tz(this.initDateTimeRange[1]).format('YYYY-MM-DD HH:mm:ss')}`;
       if (!this.options.some(set => set.value === this.date)) {
         // 重复的不新增
         this.$emit('add-option', { name: this.date, value: this.date });

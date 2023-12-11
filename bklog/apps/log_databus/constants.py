@@ -20,10 +20,11 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import markdown
-from apps.utils import ChoicesEnum
 from django.conf import settings
 from django.db.models import TextChoices
 from django.utils.translation import ugettext_lazy as _
+
+from apps.utils import ChoicesEnum
 
 META_PARAMS_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 RESTORE_INDEX_SET_PREFIX = "restore_"
@@ -547,6 +548,10 @@ class ArchiveInstanceType(TextChoices):
     COLLECTOR_CONFIG = "collector_config", _("采集项")
     COLLECTOR_PLUGIN = "collector_plugin", _("采集插件")
     INDEX_SET = "index_set", _("索引集")
+
+
+class ArchiveExpireTime(object):
+    PERMANENT = _("永久")
 
 
 # 一键检测工具执行脚本超时时间

@@ -19,15 +19,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.api import BkDataAuthApi
-from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
-from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
-from apps.log_clustering.models import ClusteringConfig
-from apps.utils.pipline import BaseService
 from django.utils.translation import ugettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
 from pipeline.core.flow.activity import Service
+
+from apps.api import BkDataAuthApi
+from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
+from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.models import CollectorConfig
+from apps.log_databus.tasks.bkdata import create_bkdata_data_id
+from apps.utils.pipline import BaseService
 
 
 class ChangeDataStreamService(BaseService):
@@ -204,3 +207,43 @@ class AddResourceGroupSet(object):
             type=Var.SPLICE, value="${collector_config_id}"
         )
         self.add_resource_group.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
+
+
+class CreateBkdataDataIdService(BaseService):
+    name = _("创建bkdata_data_id")
+
+    def inputs_format(self):
+        return [
+            Service.InputItem(name="collector config id", key="collector_config_id", type="int", required=True),
+        ]
+
+    def _execute(self, data, parent_data):
+        collector_config_id = data.get_one_of_inputs("collector_config_id")
+        collector_config = CollectorConfig.objects.filter(
+            collector_config_id=collector_config_id,
+        ).first()
+        create_bkdata_data_id(collector_config, raise_exception=True)
+
+        # 更新聚类配置表中的bkdata_data_id
+        clustering_config = ClusteringConfig.objects.get(collector_config_id=collector_config.collector_config_id)
+        if not clustering_config.bkdata_data_id:
+            clustering_config.bkdata_data_id = collector_config.bkdata_data_id
+            clustering_config.save()
+        return True
+
+
+class CreateBkdataDataIdComponent(Component):
+    name = "CreateBkdataDataId"
+    code = "create_bkdata_data_id"
+    bound_service = CreateBkdataDataIdService
+
+
+class CreateBkdataDataId(object):
+    def __init__(self, index_set_id: int, collector_config_id: int = None):
+        self.create_bkdata_data_id = ServiceActivity(
+            component_code="create_bkdata_data_id", name=f"create_bkdata_data_id:{index_set_id}-{collector_config_id}"
+        )
+        self.create_bkdata_data_id.component.inputs.collector_config_id = Var(
+            type=Var.SPLICE, value="${collector_config_id}"
+        )
+        self.create_bkdata_data_id.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")

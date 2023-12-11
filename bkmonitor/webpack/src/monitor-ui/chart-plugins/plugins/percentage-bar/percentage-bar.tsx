@@ -25,7 +25,7 @@
  */
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import bus from '../../../../monitor-common/utils/event-bus';
 import { random } from '../../../../monitor-common/utils/utils';
@@ -108,8 +108,8 @@ class PercentageBarChart extends CommonSimpleChart {
       let metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       const interval = (this.viewOptions.interval, params.end_time - params.start_time, this.panel.collect_interval);
       const variablesService = new VariablesService({

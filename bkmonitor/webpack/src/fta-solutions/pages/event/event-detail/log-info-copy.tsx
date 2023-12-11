@@ -26,7 +26,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Exception } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { listIndexByHost } from '../../../../monitor-api/modules/alert_events';
 import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
@@ -128,9 +128,9 @@ export default class LogInfo extends tsc<IProps> {
 
   /* 跳转到日志平台 */
   handleClick(row) {
-    const startTime = encodeURIComponent(moment(this.detail.begin_time * 1000).format('YYYY-MM-DD HH:mm:ss'));
+    const startTime = encodeURIComponent(dayjs.tz(this.detail.begin_time * 1000).format('YYYY-MM-DD HH:mm:ss'));
     const endTime = encodeURIComponent(
-      moment(this.detail.end_time ? this.detail.end_time * 1000 : new Date().getTime()).format('YYYY-MM-DD HH:mm:ss')
+      dayjs.tz(this.detail.end_time ? this.detail.end_time * 1000 : new Date().getTime()).format('YYYY-MM-DD HH:mm:ss')
     );
     const host = window.bk_log_search_url || window.bklogsearch_host;
     let hostScopes = null;

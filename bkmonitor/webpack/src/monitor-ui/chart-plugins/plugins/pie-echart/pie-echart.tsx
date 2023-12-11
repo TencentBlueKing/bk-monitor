@@ -25,9 +25,9 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import type { EChartOption } from 'echarts';
-import moment from 'moment';
 
 import { deepClone } from '../../../../monitor-common/utils/utils';
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
@@ -74,34 +74,35 @@ class PieChart extends CommonSimpleChart {
       this.unregisterOberver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       const viewOptions = {
         ...this.viewOptions
       };
-      const promiseList = this.panel.targets.map(item =>
-        (this as any).$api[item.apiModule]
-          ?.[item.apiFunc](
-            {
-              ...item.data,
-              ...params,
-              view_options: {
-                ...viewOptions
-              }
-            },
-            { needMessage: false }
-          )
-          .then(res => {
-            const seriesData = res.data || [];
-            this.panelTitle = res.name;
-            this.updateChartData(seriesData);
-            this.clearErrorMsg();
-            return true;
-          })
-          .catch(error => {
-            this.handleErrorMsgChange(error.msg || error.message);
-          })
+      const promiseList = this.panel.targets.map(
+        item =>
+          (this as any).$api[item.apiModule]
+            ?.[item.apiFunc](
+              {
+                ...item.data,
+                ...params,
+                view_options: {
+                  ...viewOptions
+                }
+              },
+              { needMessage: false }
+            )
+            .then(res => {
+              const seriesData = res.data || [];
+              this.panelTitle = res.name;
+              this.updateChartData(seriesData);
+              this.clearErrorMsg();
+              return true;
+            })
+            .catch(error => {
+              this.handleErrorMsgChange(error.msg || error.message);
+            })
       );
       const res = await Promise.all(promiseList);
       if (res) {

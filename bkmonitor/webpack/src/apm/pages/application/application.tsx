@@ -28,8 +28,9 @@ import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-prope
 import { Dialog, Spin } from 'bk-magic-vue';
 
 import { random } from '../../../monitor-common/utils/utils';
-import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
+import type { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
+import { destroyTimezone } from '../../../monitor-pc/i18n/dayjs';
 import CommonAlert from '../../../monitor-pc/pages/monitor-k8s/components/common-alert';
 import CommonNavBar from '../../../monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import CommonPage, { SceneType } from '../../../monitor-pc/pages/monitor-k8s/components/common-page-new';
@@ -45,7 +46,7 @@ import NoDataGuide from './app-add/no-data-guide';
 
 import './application.scss';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class Application extends Mixins(authorityMixinCreate(authorityMap)) {
   @Prop({ type: String, default: '' }) id: string;
@@ -150,7 +151,10 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       vm.handleGetAppInfo();
     });
   }
-
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
+  }
   /** 切换时间范围重新请求以获取无数据状态 */
   handelTimeRangeChange() {
     this.handleGetAppInfo();

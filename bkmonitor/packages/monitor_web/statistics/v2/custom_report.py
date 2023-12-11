@@ -92,7 +92,7 @@ class CustomReportCollector(BaseCollector):
                 )
         return ts_metrics
 
-    @register(labelnames=("bk_biz_id", "bk_biz_name", "scenario", "is_platform"))
+    @register(labelnames=("bk_biz_id", "bk_biz_name", "scenario", "is_platform"), run_every=15 * 60)
     def custom_report_event_dataid_count(self, metric: Metric):
         """
         自定义事件组名称数
@@ -106,7 +106,7 @@ class CustomReportCollector(BaseCollector):
                 is_platform=is_platform,
             ).inc()
 
-    @register(labelnames=("bk_biz_id", "bk_biz_name", "scenario", "is_platform"))
+    @register(labelnames=("bk_biz_id", "bk_biz_name", "scenario", "is_platform"), run_every=15 * 60)
     def custom_report_metric_dataid_count(self, metric: Metric):
         """
         自定义时序数
@@ -120,7 +120,7 @@ class CustomReportCollector(BaseCollector):
                 is_platform=is_platform,
             ).inc()
 
-    @register(labelnames=("bk_biz_id", "bk_biz_name", "data_id", "data_name"))
+    @register(labelnames=("bk_biz_id", "bk_biz_name", "data_id", "data_name"), run_every=15 * 60)
     def custom_report_event_name_count(self, metric: Metric):
         """
         自定义事件名称数
@@ -131,7 +131,7 @@ class CustomReportCollector(BaseCollector):
 
             metric.labels(**event["labels"]).set(event["value"])
 
-    @register(labelnames=("bk_biz_id", "bk_biz_name", "data_id", "data_name"))
+    @register(labelnames=("bk_biz_id", "bk_biz_name", "data_id", "data_name"), run_every=15 * 60)
     def custom_report_metric_name_count(self, metric: Metric):
         """
         自定义时序指标数

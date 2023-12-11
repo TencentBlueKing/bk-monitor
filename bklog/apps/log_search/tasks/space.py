@@ -2,17 +2,18 @@
 from copy import deepcopy
 from typing import Dict, List
 
+from celery.schedules import crontab
+
 from apps.api import TransferApi
 from apps.log_search.models import Space, SpaceApi, SpaceType
 from apps.utils.lock import share_lock
 from apps.utils.log import logger
+from apps.utils.task import high_priority_periodic_task
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
-from celery.schedules import crontab
-from celery.task import periodic_task
 
 
-@periodic_task(run_every=crontab(minute="*/5"))
+@high_priority_periodic_task(run_every=crontab(minute="*/5"))
 @share_lock()
 def sync():
     """
@@ -50,7 +51,7 @@ def sync_spaces():
     # 获取类型ID到类型名称的映射
     type_names = {t["type_id"]: t["type_name"] for t in TransferApi.list_space_types()}
 
-    spaces = TransferApi.list_spaces({"is_detail": True, "page": 0})["list"]
+    spaces = TransferApi.list_spaces({"is_detail": True, "page": 0, "include_resource_id": True})["list"]
     have_related_spaces: List[Space] = []
     space_mapping: Dict[str, Space] = {}
 
