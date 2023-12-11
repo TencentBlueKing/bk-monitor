@@ -36,7 +36,7 @@ class Config(AppConfig):
         if "test" in sys.argv or "pytest" in sys.modules:
             hack_settings(GlobalConfig, settings)
             if settings.ROLE == "worker":
-                post_migrate.connect(CacheNode.refresh_from_settings, sender=self, dispatch_uid="bkmonitor test")
+                post_migrate.connect(_refresh_cache_node, sender=self, dispatch_uid="bkmonitor test")
         elif "migrate" not in sys.argv:
             hack_settings(GlobalConfig, settings)
             if settings.ROLE == "worker":
@@ -53,3 +53,9 @@ class Config(AppConfig):
             os.getenv("BKAPP_OTLP_BK_DATA_ID") or os.getenv("BKAPP_OTLP_BK_DATA_TOKEN")
         ):
             BluekingInstrumentor().instrument()
+
+
+def _refresh_cache_node(sender, **kwargs):
+    from bkmonitor.models import CacheNode
+
+    CacheNode.refresh_from_settings()
