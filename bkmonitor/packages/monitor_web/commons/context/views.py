@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Any, Dict
+
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
@@ -15,6 +17,7 @@ from rest_framework.viewsets import GenericViewSet
 from common.context_processors import get_default_biz_id
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.commons.context.resources import ContextType
 
 
 class ContextViewSet(GenericViewSet):
@@ -24,11 +27,12 @@ class ContextViewSet(GenericViewSet):
 
     @action(methods=["GET"], detail=False)
     def enhanced(self, request):
-        params = request.query_params.copy()
+        params: Dict[str, Any] = request.query_params.copy()
         params["bk_biz_id"] = get_default_biz_id(request)
-        get_context_result = resource.commons.enhanced_get_context.request(params)
+        # resource 感知不到 response，此处复用 resource.request，并在 response 设置 cookie
+        get_context_result: Dict[str, Any] = resource.commons.enhanced_get_context.request(params)
         response = Response(get_context_result["context"])
-        if get_context_result["context_type"] == "basic":
+        if get_context_result["context_type"] == ContextType.BASIC.value:
             response.set_cookie("bk_biz_id", str(get_context_result["context"]["BK_BIZ_ID"]))
         return response
 

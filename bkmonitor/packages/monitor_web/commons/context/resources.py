@@ -8,10 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
 from django.conf import settings
 from django.middleware.csrf import get_token
 
 from bkm_space.api import SpaceApi
+from bkm_space.define import Space
 from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
 from common.context_processors import (
@@ -82,28 +86,35 @@ class GetContextResource(Resource):
         return context
 
 
+class ContextType(Enum):
+    BASIC = "basic"
+    EXTRA = "extra"
+    FULL = "full"
+
+
 class EnhancedGetContextResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID", default=0)
         space_uid = serializers.CharField(required=False, label="空间ID", default="")
-        context_type = serializers.ChoiceField(required=False, choices=["basic", "extra", "full"], default="full")
+        context_type = serializers.ChoiceField(
+            required=False,
+            choices=[ContextType.BASIC.value, ContextType.FULL.value, ContextType.EXTRA.value],
+            default=ContextType.FULL.value,
+        )
 
     @classmethod
-    def get_basic_context(cls, request, space_uid, bk_biz_id):
+    def get_basic_context(cls, request, space_uid: Optional[str], bk_biz_id: Optional[int]) -> Dict[str, Any]:
 
+        space_list: List[Dict[str, Any]] = []
         try:
             space_list = resource.commons.list_spaces()
         except Exception:  # noqa
-            space_list = []
             logger.exception("[get_basic_context] list_spaces failed")
 
         # 新增space_uid的支持
         if space_uid:
             try:
-                space = {}
-                for space in space_list:
-                    if space["space_uid"] == space_uid:
-                        break
+                space = {s["space_uid"]: s for s in space_list}[space_uid]
                 bk_biz_id = space["bk_biz_id"]
             except KeyError:
                 logger.warning(
@@ -123,8 +134,8 @@ class EnhancedGetContextResource(Resource):
         return context
 
     @classmethod
-    def get_extra_context(cls, request, space_uid, bk_biz_id):
-        space = None
+    def get_extra_context(cls, request, space_uid: Optional[str], bk_biz_id: Optional[int]) -> Dict[str, Any]:
+        space: Optional[Space] = None
         if space_uid:
             try:
                 space = SpaceApi.get_space_detail(space_uid)
@@ -134,32 +145,28 @@ class EnhancedGetContextResource(Resource):
         if space:
             bk_biz_id = space.bk_biz_id
 
-        logger.info(f"[get_extra_context] run_init_builtin has been added to the asynchronous queue；{bk_biz_id}")
-        run_init_builtin.delay(bk_biz_id=bk_biz_id)
+        # 非核心路径，加上异常捕获避免因消息队列不可用导致页面也无法打开
+        try:
+            run_init_builtin.delay(bk_biz_id=bk_biz_id)
+            logger.info(f"[get_extra_context] run_init_builtin has been added to the asynchronous queue；{bk_biz_id}")
+        except Exception as e:
+            logger.exception(f"[get_extra_context] run_init_builtin error but skipped: error -> {e}")
 
         return get_extra_context(request, space)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
 
         request = get_request()
-        context_type = validated_request_data["context_type"]
+        context_type: str = validated_request_data["context_type"]
+        bk_biz_id: Optional[int] = validated_request_data["bk_biz_id"]
+        space_uid: Optional[str] = validated_request_data["space_uid"]
 
-        if validated_request_data["context_type"] == "basic":
-            context = self.get_basic_context(
-                request, validated_request_data["space_uid"], validated_request_data["bk_biz_id"]
-            )
-        elif validated_request_data["context_type"] == "extra":
-            context = self.get_extra_context(
-                request, validated_request_data["space_uid"], validated_request_data["bk_biz_id"]
-            )
+        if context_type == ContextType.BASIC.value:
+            context = self.get_basic_context(request, space_uid, bk_biz_id)
+        elif context_type == ContextType.EXTRA.value:
+            context = self.get_extra_context(request, space_uid, bk_biz_id)
         else:
-            context = self.get_basic_context(
-                request, validated_request_data["space_uid"], validated_request_data["bk_biz_id"]
-            )
-            context.update(
-                self.get_extra_context(
-                    request, validated_request_data["space_uid"], validated_request_data["bk_biz_id"]
-                )
-            )
+            context = self.get_basic_context(request, space_uid, bk_biz_id)
+            context.update(self.get_extra_context(request, space_uid, bk_biz_id))
 
         return {"context": context, "context_type": context_type}
