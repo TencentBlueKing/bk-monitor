@@ -23,19 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { unmount } from '@blueking/bk-weweb';
 
 import './alarm-shield.scss';
 
-const wewebId = 'trace';
+const wewebId = 'alarmShield';
 Component.registerHooks(['beforeRouteLeave']);
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TraceRetrieval extends tsc<{}> {
-  @Prop() a: number;
   get alarmShieldHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -51,12 +49,7 @@ export default class TraceRetrieval extends tsc<{}> {
     });
   }
   beforeRouteLeave(to, from, next) {
-    unmount(wewebId);
-    (document.body as any).___zrEVENTSAVED = null;
     next();
-  }
-  created() {
-    console.log('created');
   }
   render() {
     return (

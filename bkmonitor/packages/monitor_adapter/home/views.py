@@ -13,10 +13,12 @@ import json
 from urllib import parse
 from urllib.parse import urlsplit
 
+from blueapps.account import ConfFixture
 from blueapps.account.decorators import login_exempt
-from common.log import logger
+from blueapps.account.handlers.response import ResponseHandler
 from django.conf import settings
 from django.contrib import auth
+from django.contrib.auth import logout
 from django.http import HttpResponseForbidden, HttpResponseNotFound, JsonResponse
 from django.shortcuts import redirect, render
 from django.test import RequestFactory
@@ -26,18 +28,27 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from fta_web.tasks import run_init_builtin_action_config
-from monitor.models import GlobalConfig
-from monitor_web.iam.resources import CallbackResource
-from monitor_web.strategies.built_in import run_build_in
 
 from bkm_space.api import SpaceApi
 from bkmonitor.models import ActionConfig
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
+from common.log import logger
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
+from fta_web.tasks import run_init_builtin_action_config
+from monitor.models import GlobalConfig
+from monitor_web.iam.resources import CallbackResource
+from monitor_web.strategies.built_in import run_build_in
+
+
+def user_exit(request):
+    logout(request)
+    # 验证不通过，需要跳转至统一登录平台
+    request.path = request.path.replace("logout", "")
+    handler = ResponseHandler(ConfFixture, settings)
+    return handler.build_401_response(request)
 
 
 def home(request):

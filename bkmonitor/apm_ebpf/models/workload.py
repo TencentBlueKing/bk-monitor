@@ -32,7 +32,8 @@ class DeepflowWorkload(models.Model):
 
 
 class ClusterRelation(models.Model):
-    bk_biz_id = models.IntegerField("业务id")
+    related_bk_biz_id = models.IntegerField("集群关联的BKCC业务id")
+    bk_biz_id = models.IntegerField("监控的容器项目业务ID 可能为负数")
     cluster_id = models.CharField("集群ID", max_length=128)
     project_id = models.CharField("BCS项目ID", max_length=128)
     last_check_time = models.DateTimeField("最近检查日期")

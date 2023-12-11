@@ -26,7 +26,7 @@
 import { computed, defineComponent, nextTick, onUnmounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message, Tag, TimePicker } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { getEventPaths } from '../../../../monitor-pc/utils';
 
@@ -123,7 +123,7 @@ export default defineComponent({
      * @returns 格式化后的名称
      */
     function tagNameFormat(time: string[]) {
-      const isBefore = moment(time[0], 'hh:mm').isBefore(moment(time[1], 'hh:mm'));
+      const isBefore = dayjs(time[0], 'hh:mm').isBefore(dayjs(time[1], 'hh:mm'));
       return isBefore ? time.join(' - ') : `${time[0]} - ${t('次日')}${time[1]}`;
     }
 
@@ -199,27 +199,33 @@ export default defineComponent({
       handleEmitData();
     }
 
+    /**
+     * 判断新日期是否在已存在的日期内
+     * @param val 新日期
+     * @param list 已有的日期
+     * @returns
+     */
     function validTimeOverlap(val, list) {
       return list.some(item => {
         const [start, end] = item;
         const [startTime, endTime] = val;
-        const isBefore = moment(start, 'hh:mm').isBefore(moment(end, 'hh:mm'));
+        const isBefore = dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm'));
         const targetTimeStamp = {
-          start: moment(start, 'hh:mm').valueOf(),
-          end: moment(end, 'hh:mm')
+          start: dayjs(start, 'hh:mm').valueOf(),
+          end: dayjs(end, 'hh:mm')
             .add(isBefore ? 0 : 1, 'day')
             .valueOf()
         };
-        const currentIsBefore = moment(startTime, 'hh:mm').isBefore(moment(endTime, 'hh:mm'));
+        const currentIsBefore = dayjs(startTime, 'hh:mm').isBefore(dayjs(endTime, 'hh:mm'));
         const currentTimeStamp = {
-          start: moment(startTime, 'hh:mm').valueOf(),
-          end: moment(endTime, 'hh:mm')
+          start: dayjs(startTime, 'hh:mm').valueOf(),
+          end: dayjs(endTime, 'hh:mm')
             .add(currentIsBefore ? 0 : 1, 'day')
             .valueOf()
         };
         return (
-          moment(currentTimeStamp.start).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
-          moment(currentTimeStamp.end).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]')
+          dayjs(currentTimeStamp.start).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
+          dayjs(currentTimeStamp.end).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]')
         );
       });
     }

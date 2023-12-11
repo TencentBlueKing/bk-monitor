@@ -45,7 +45,6 @@
     <div class="result-main">
       <result-chart
         :retrieve-params="retrieveParams"
-        :picker-time-range="pickerTimeRange"
         :date-picker-value="datePickerValue"
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount" />
@@ -99,10 +98,6 @@ export default {
     indexSetList: {
       type: Array,
       required: true,
-    },
-    pickerTimeRange: {
-      type: Array,
-      default: () => [],
     },
     datePickerValue: {
       type: Array,

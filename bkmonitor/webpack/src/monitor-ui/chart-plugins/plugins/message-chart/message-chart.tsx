@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import { ITablePagination } from '../../../../monitor-pc/pages/monitor-k8s/typings';
@@ -60,8 +60,8 @@ export default class MessageChart extends CommonSimpleChart {
     try {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime,
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         bk_biz_id: this.bkBizId || window.cc_biz_id
       };
       const variablesService = new VariablesService({

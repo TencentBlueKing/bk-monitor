@@ -26,7 +26,7 @@
  */
 import { Component, Emit } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { handleTransformToTimestamp } from '../../../../monitor-pc/components/time-range/utils';
 import CommonTable from '../../../../monitor-pc/pages/monitor-k8s/components/common-table';
@@ -110,8 +110,8 @@ class EventLogChart extends CommonSimpleChart {
           data_format: 'scene_view',
           limit: this.pagination.limit,
           offset: (this.pagination.current - 1) * this.pagination.limit,
-          start_time: start_time ? moment(start_time).unix() : startTime,
-          end_time: end_time ? moment(end_time).unix() : endTime
+          start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+          end_time: end_time ? dayjs.tz(end_time).unix() : endTime
         };
         const variablesService = new VariablesService({
           ...this.scopedVars,
