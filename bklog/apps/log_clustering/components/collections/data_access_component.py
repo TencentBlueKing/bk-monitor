@@ -220,9 +220,15 @@ class CreateBkdataDataIdService(BaseService):
     def _execute(self, data, parent_data):
         collector_config_id = data.get_one_of_inputs("collector_config_id")
         collector_config = CollectorConfig.objects.filter(
-            collector_config_id=collector_config_id, bkdata_data_id__isnull=True
+            collector_config_id=collector_config_id,
         ).first()
         create_bkdata_data_id(collector_config, raise_exception=True)
+
+        # 更新聚类配置表中的bkdata_data_id
+        clustering_config = ClusteringConfig.objects.get(collector_config_id=collector_config.collector_config_id)
+        if not clustering_config.bkdata_data_id:
+            clustering_config.bkdata_data_id = collector_config.bkdata_data_id
+            clustering_config.save()
         return True
 
 

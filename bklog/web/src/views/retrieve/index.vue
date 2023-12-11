@@ -1337,6 +1337,7 @@ export default {
 
       const { currentPage, pageSize } = this.$refs.resultMainRef;
       const begin = currentPage === 1 ? 0 : (currentPage - 1) * pageSize;
+      this.formatTimeRange();
       try {
         const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
         // 区分联合查询和单选查询
@@ -1493,6 +1494,7 @@ export default {
     },
     // 图表
     requestChart() {
+      this.formatTimeRange();
       this.$store.commit('retrieve/updateChartKey');
     },
     // 图表款选或双击回正时请求相关数据

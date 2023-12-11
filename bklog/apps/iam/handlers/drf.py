@@ -150,12 +150,7 @@ class InstanceActionPermission(IAMPermission):
 
 
 class InstanceActionForDataPermission(InstanceActionPermission):
-    def __init__(
-        self,
-        iam_instance_id_key,
-        *args,
-        get_instance_id: Callable = lambda _id: _id,
-    ):
+    def __init__(self, iam_instance_id_key, *args, get_instance_id: Callable = lambda _id: _id):
         self.iam_instance_id_key = iam_instance_id_key
         self.get_instance_id = get_instance_id
         super(InstanceActionForDataPermission, self).__init__(*args)
