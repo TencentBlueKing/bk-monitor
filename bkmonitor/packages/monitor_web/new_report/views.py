@@ -29,8 +29,10 @@ class NewReportViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.new_report.delete_report, endpoint="delete_report"),
         # 发送订阅
         ResourceRoute("POST", resource.new_report.send_report, endpoint="send_report"),
-        # 根据用户取消订阅
-        ResourceRoute("POST", resource.new_report.cancel_report, endpoint="cancel_report"),
+        # 根据用户取消/重新订阅
+        ResourceRoute(
+            "POST", resource.new_report.cancel_or_resubscribe_report, endpoint="cancel_or_resubscribe_report"
+        ),
         # 获取订阅发送记录列表
         ResourceRoute("GET", resource.new_report.get_send_records, endpoint="get_send_records"),
         # 根据用户获取订阅审批记录列表

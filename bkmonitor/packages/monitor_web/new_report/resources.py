@@ -91,26 +91,28 @@ class GetReportListResource(Resource):
         return qs.filter(id__in=filter_report_ids)
 
     def filter_by_query_type(self, qs, query_type):
-        filter_report_ids = set()
+        invalid_report_ids = set()
         report_ids = set(qs.values_list("id", flat=1))
         username = self.get_request_username()
         # 已失效订阅列表
-        if query_type == "invalid":
-            for report in qs:
-                if report.is_invalid():
-                    filter_report_ids.add(report.id)
+        for report in qs:
+            if report.is_invalid():
+                invalid_report_ids.add(report.id)
         # 已取消订阅列表
-        elif query_type == "cancelled":
-            filter_report_ids = set(
-                ReportChannel.objects.filter(
-                    subscribers__contains=[{"id": username, "type": StaffEnum.USER.value, "is_enabled": False}],
-                    report_id__in=report_ids,
-                ).values_list("report_id", flat=1)
-            )
-        else:
-            filter_report_ids = report_ids
-
-        return qs.filter(id__in=filter_report_ids)
+        cancelled_report_ids = set(
+            ReportChannel.objects.filter(
+                subscribers__contains=[{"id": username, "type": StaffEnum.USER.value, "is_enabled": False}],
+                report_id__in=report_ids,
+            ).values_list("report_id", flat=1)
+        )
+        available_report_ids = report_ids - cancelled_report_ids - invalid_report_ids
+        query_type_map = {
+            "invalid": invalid_report_ids,
+            "cancelled": cancelled_report_ids,
+            "available": available_report_ids,
+            "all": report_ids,
+        }
+        return qs.filter(id__in=query_type_map[query_type])
 
     @staticmethod
     def filter_by_create_type(create_type, report_qs):
@@ -407,16 +409,18 @@ class SendReportResource(Resource):
         return "success"
 
 
-class CancelReportResource(Resource):
+class CancelOrResubscribeReportResource(Resource):
     """
-    取消订阅
+    取消/重新订阅
     """
 
     class RequestSerializer(serializers.Serializer):
         report_id = serializers.IntegerField(required=True)
+        is_enabled = serializers.BooleanField(required=True)
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
+        is_enabled = validated_request_data["is_enabled"]
         try:
             channel = ReportChannel.objects.get(
                 report_id=validated_request_data["report_id"], channel_name=ChannelEnum.USER.value
@@ -428,10 +432,10 @@ class CancelReportResource(Resource):
 
         for subscriber in channel.subscribers:
             if subscriber["id"] == username and subscriber["type"] == "user":
-                subscriber["is_enabled"] = False
+                subscriber["is_enabled"] = is_enabled
                 channel.save()
                 return "success"
-        channel.subscribers.append({"id": username, "type": StaffEnum.USER.value, "is_enabled": False})
+        channel.subscribers.append({"id": username, "type": StaffEnum.USER.value, "is_enabled": is_enabled})
         channel.save()
         return "success"
 

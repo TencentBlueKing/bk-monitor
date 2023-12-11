@@ -6,7 +6,7 @@ export const cloneReport = request('POST', 'rest/v2/new_report/clone_report/');
 export const createOrUpdateReport = request('POST', 'rest/v2/new_report/create_or_update_report/');
 export const deleteReport = request('POST', 'rest/v2/new_report/delete_report/');
 export const sendReport = request('POST', 'rest/v2/new_report/send_report/');
-export const cancelReport = request('POST', 'rest/v2/new_report/cancel_report/');
+export const cancelOrResubscribeReport = request('POST', 'rest/v2/new_report/cancel_or_resubscribe_report/');
 export const getSendRecords = request('GET', 'rest/v2/new_report/get_send_records/');
 export const getApplyRecords = request('GET', 'rest/v2/new_report/get_apply_records/');
 export const getVariables = request('GET', 'rest/v2/new_report/get_variables/');
@@ -19,7 +19,7 @@ export default {
   createOrUpdateReport,
   deleteReport,
   sendReport,
-  cancelReport,
+  cancelOrResubscribeReport,
   getSendRecords,
   getApplyRecords,
   getVariables,
