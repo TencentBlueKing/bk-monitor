@@ -92,13 +92,15 @@ def get_data_range(frequency) -> dict:
             from_time = now_time - datetime.timedelta(minutes=frequency["hour"] * 60)
         else:
             from_time = now_time + datetime.timedelta(hours=-24)
-    return {"start_time": from_time, "end_time": now_time}
+
+    time_fmt = "%Y-%m-%d %H:%M:%S"
+    return {"start_time": from_time.strftime(time_fmt), "end_time": now_time.strftime(time_fmt)}
 
 
 def send_email(context: dict, subscribers: list) -> dict:
     sender = Sender(
-        title_template_path=context["title_template_path"],
-        content_template_path=context["content_template_path"],
+        title_template_path=context.get("title_template_path", ""),
+        content_template_path=context["mail_template_path"],
         context=context,
     )
     if context.get("title"):

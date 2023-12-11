@@ -28,10 +28,8 @@ class BaseReportHandler(object):
     """
 
     # 订阅模板路径
-    title_template_path = ""
-    content_template_path = ""
-    # 订阅配置校验类
-    serializer_class = None
+    mail_template_path = ""
+    wechat_template_path = ""
 
     def __init__(self, report: Report):
         """

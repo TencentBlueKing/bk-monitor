@@ -31,6 +31,15 @@ class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return self.__doc__
 
 
+class IndexSetResource(LogSearchAPIGWResource):
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
 class ESQuerySearchResource(LogSearchAPIGWResource):
     """
     日志查询接口
@@ -77,7 +86,7 @@ class ESQuerySearchResource(LogSearchAPIGWResource):
         include_end_time = serializers.BooleanField(required=False, label="end_time__gt or gte", default=False)
 
 
-class SearchPatternResource(LogSearchAPIGWResource):
+class SearchPatternResource(IndexSetResource):
     """
     聚类查询接口
     """
@@ -86,11 +95,11 @@ class SearchPatternResource(LogSearchAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        index_set_id = serializers.IntegerField(required=False, label="索引集ID")
+        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
         host_scopes = serializers.DictField(default={}, required=False)
         addition = serializers.ListField(allow_empty=True, required=False, default=[])
-        start_time = serializers.DateTimeField(required=False)
-        end_time = serializers.DateTimeField(required=False)
+        start_time = serializers.CharField(required=False)
+        end_time = serializers.CharField(required=False)
         time_range = serializers.CharField(required=False, default="customized")
         keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
         size = serializers.IntegerField(required=False, default=10000)
@@ -99,6 +108,14 @@ class SearchPatternResource(LogSearchAPIGWResource):
         year_on_year_hour = serializers.IntegerField(required=False, default=0, min_value=0)
         group_by = serializers.ListField(required=False, default=[])
         filter_not_clustering = serializers.BooleanField(required=False, default=True)
+
+
+class GetClusteringConfigResource(IndexSetResource):
+    action = "/clustering_config/{index_set_id}/config/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
 
 
 class SearchIndexFieldsResource(LogSearchAPIGWResource):
@@ -132,6 +149,35 @@ class SearchIndexSetResource(LogSearchAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+
+
+class SearchIndexSetLogResource(IndexSetResource):
+    """
+    搜索索引集日志内容
+    """
+
+    action = "/search/index_set/{index_set_id}/search/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False, default=None)
+        ip_chooser = serializers.DictField(default={}, required=False)
+        addition = serializers.ListField(allow_empty=True, required=False, default="")
+        start_time = serializers.CharField(required=False)
+        end_time = serializers.CharField(required=False)
+        time_range = serializers.CharField(required=False, default=None)
+        keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        begin = serializers.IntegerField(required=False, default=0)
+        size = serializers.IntegerField(required=False, default=10)
+        aggs = serializers.DictField(required=False, default=dict)
+        # 支持用户自定义排序
+        sort_list = serializers.ListField(
+            required=False, allow_null=True, allow_empty=True, child=serializers.ListField()
+        )
+        is_scroll_search = serializers.BooleanField(label="是否scroll查询", required=False, default=False)
+        scroll_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        is_return_doc_id = serializers.BooleanField(label="是否返回文档ID", required=False, default=False)
+        is_desensitize = serializers.BooleanField(label="是否脱敏", required=False, default=True)
 
 
 class OperatorsResource(LogSearchAPIGWResource):
@@ -265,7 +311,7 @@ class CreateIndexSetResource(LogSearchAPIGWResource):
     method = "POST"
 
 
-class UpdateIndexSetResource(LogSearchAPIGWResource):
+class UpdateIndexSetResource(IndexSetResource):
     """
     更新索引集
     """

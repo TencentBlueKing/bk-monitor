@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -32,20 +33,21 @@ class ClusteringReportHandler(BaseReportHandler):
     日志聚类订阅管理器
     """
 
-    content_template_path = "clustering_mail_en.html"
-    serializer_class = None
+    mail_template_path = "new_report/clustering/clustering_mail.html"
+    wechat_template_path = "new_report/clustering/clustering_wechat.md"
     AGGS_FIELD_PREFIX = "__dist"
 
     def __init__(self, report: Report):
         super(ClusteringReportHandler, self).__init__(report)
         self.log_prefix = (
-            f"[clustering_report] space_uid: {self.report.bk_biz_id}"
+            f"[clustering_report] bk_biz_id: {self.report.bk_biz_id}"
             f" index_set_id: {self.report.scenario_config['index_set_id']}"
         )
 
     def query_patterns(self, time_config: dict) -> list:
         config = self.report.scenario_config
         query_params = {
+            "index_set_id": config["index_set_id"],
             "start_time": time_config["start_time"],
             "end_time": time_config["end_time"],
             "keyword": config.get("query_string", "*"),
@@ -58,8 +60,7 @@ class ClusteringReportHandler(BaseReportHandler):
             "group_by": config.get("group_by", []),
         }
         logger.info(f"{self.log_prefix} search pattern params: {query_params}")
-        # result = api.log_search.search_pattern(query_params)
-        result = []
+        result = api.log_search.search_pattern(query_params)
         logger.info(f"{self.log_prefix} search pattern result: {result}")
         return result
 
@@ -108,19 +109,14 @@ class ClusteringReportHandler(BaseReportHandler):
             },
         }
 
-        if config["log_col_show_type"] == LogColShowTypeEnum.LOG.value and (patterns or new_patterns):
+        if config.get("log_col_show_type", LogColShowTypeEnum.PATTERN.value) == LogColShowTypeEnum.LOG.value and (
+            patterns or new_patterns
+        ):
             # 查询pattern对应的log, 将pattern替换为log
             log_map = {}
             with ThreadPoolExecutor() as ex:
                 tasks = [
-                    ex.submit(
-                        self.query_logs,
-                        config,
-                        time_config,
-                        pattern,
-                        clustering_config.clustering_fields,
-                        self.log_prefix,
-                    )
+                    ex.submit(self.query_logs, config, time_config, pattern, clustering_config["clustering_fields"])
                     for pattern in result["new_patterns"]["data"] + result["patterns"]["data"]
                 ]
                 for feature in as_completed(tasks):
@@ -135,14 +131,7 @@ class ClusteringReportHandler(BaseReportHandler):
 
         return result
 
-    def query_logs(
-        self,
-        config: dict,
-        time_config: dict,
-        pattern: dict,
-        clustering_field: list,
-        log_prefix: str,
-    ) -> dict:
+    def query_logs(self, config: dict, time_config: dict, pattern: dict, clustering_field: list) -> dict:
         addition = config.get("addition", [])
         addition.append(
             {
@@ -152,6 +141,7 @@ class ClusteringReportHandler(BaseReportHandler):
             }
         )
         params = {
+            "index_set_id": config["index_set_id"],
             "start_time": time_config["start_time"],
             "end_time": time_config["end_time"],
             "keyword": config.get("query_string", "*"),
@@ -159,9 +149,9 @@ class ClusteringReportHandler(BaseReportHandler):
             "host_scopes": config.get("host_scopes", {}),
             "size": 1,
         }
-        logger.info(f"{log_prefix} Query signature log params: {params}")
-        result = api.log_search.es_query_search(params)
-        logger.info(f"{log_prefix} Query signature log result: {result}")
+        logger.info(f"{self.log_prefix} Query signature log params: {params}")
+        result = api.log_search.search_index_set_log(params)
+        logger.info(f"{self.log_prefix} Query signature log result: {result}")
         if not result.get("list", []):
             return {}
 
@@ -185,7 +175,7 @@ class ClusteringReportHandler(BaseReportHandler):
         params["addition"] = json.dumps(params["addition"])
         params["host_scopes"] = json.dumps(params["host_scopes"])
 
-        url = f"{'test' or settings.BK_BKLOG_HOST}#/retrieve/{config['index_set_id']}?{urlencode(params)}"
+        url = f"{settings.BKLOGSEARCH_HOST}#/retrieve/{config['index_set_id']}?{urlencode(params)}"
         return url
 
     def get_render_params(self) -> dict:
@@ -193,32 +183,44 @@ class ClusteringReportHandler(BaseReportHandler):
         获取渲染参数
         """
         # TODO: 激活时区
-
         time_config = get_data_range(self.report.frequency)
         result = self.query_patterns(time_config)
+        if not result:
+            logger.info("[{}] Query pattern is empty.".format(self.log_prefix))
         content_config = self.report.content_config
         scenario_config = self.report.scenario_config
 
-        # TODO: 获取索引集信息
-        log_index_set = {"index_set_name": ""}
-        # TODO: 获取cluster信息
-        clustering_config = {"clustering_fields": []}
-        all_patterns = result
-        log_col_show_type = None
+        # 获取索引集信息
+        index_set_name = ""
+        log_index_sets = api.log_search.search_index_set(bk_biz_id=self.report.bk_biz_id)
+        for index_set in log_index_sets:
+            if index_set["index_set_id"] == scenario_config["index_set_id"]:
+                index_set_name = index_set["index_set_name"]
+        # 获取cluster信息
+        clustering_config = api.log_search.get_clustering_config(index_set_id=scenario_config["index_set_id"])
+        try:
+            all_patterns = self.clean_pattern(scenario_config, time_config, result, clustering_config)
+        except Exception as e:
+            logger.exception(f"{self.log_prefix} clean pattern error: {e}")
+            return {}
+        logger.info(f"{self.log_prefix} clean pattern result: {all_patterns}")
+        log_col_show_type = scenario_config.get("log_col_show_type", LogColShowTypeEnum.PATTERN.value).capitalize()
 
         render_params = {
             "language": language,
             "title": content_config["title"],
             "time_config": time_config,
             "show_year_on_year": False if scenario_config["year_on_year_hour"] == YearOnYearEnum.NOT.value else True,
-            "space_name": "",
-            "index_set_name": log_index_set["index_set_name"],
+            "space_name": "",  # TODO: 获取业务集名称
+            "index_set_name": index_set_name,
             "log_search_url": self.generate_log_search_url(scenario_config, time_config),
             "all_patterns": all_patterns,
             "log_col_show_type": log_col_show_type,
             "group_by": scenario_config.get("group_by", []),
             "percentage": 1 or round(max([i["percentage"] for i in result]), 2),
             "clustering_fields": clustering_config["clustering_fields"],
+            "time": datetime.now().strftime("%Y%m%d"),
+            "username": "",  # TODO: 获取用户名称
         }
 
         logger.info(f"{self.log_prefix} Before sending notification params: {render_params}")
@@ -228,9 +230,7 @@ class ClusteringReportHandler(BaseReportHandler):
         """
         渲染订阅
         """
-        return {
-            "title_template_path": self.title_template_path,
-            "content_template_path": self.content_template_path,
-            "title": self.report.content_config["title"],
-            "content": "test",
-        }
+        render_params["title"] = render_params["title"].format(**render_params)
+        render_params["mail_template_path"] = self.mail_template_path
+        render_params["wechat_template_path"] = self.wechat_template_path
+        return render_params
