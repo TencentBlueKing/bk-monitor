@@ -35,7 +35,7 @@ class Platform(object):
 
 def get_default_biz_id(request, biz_list: Optional[List[Dict[str, Any]]] = None, id_key: Optional[str] = None) -> int:
 
-    if getattr(request, "biz_id"):
+    if getattr(request, "biz_id", None):
         # 如果 request 存在业务缓存字段，优先返回
         biz_id = request.biz_id
     else:

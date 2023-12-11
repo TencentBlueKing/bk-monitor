@@ -169,4 +169,28 @@ class EnhancedGetContextResource(Resource):
             context = self.get_basic_context(request, space_uid, bk_biz_id)
             context.update(self.get_extra_context(request, space_uid, bk_biz_id))
 
+        external_fields: List[str] = [
+            "PLATFORM",
+            "SPACE_LIST",
+            "SITE_URL",
+            "STATIC_URL",
+            "BK_BIZ_ID",
+            "CSRF_COOKIE_NAME",
+            "CSRF_TOKEN",
+            "UIN",
+            "IS_SUPERUSER",
+            "MAX_AVAILABLE_DURATION_LIMIT",
+            "GRAPH_WATERMARK",
+            "ENABLE_AIOPS",
+            "ENABLE_APM",
+            "ENABLE_CMDB_LEVEL",
+            "HOST_DATA_FIELDS",
+            "WXWORK_BOT_SEND_IMAGE",
+            # extra
+            "COLLECTING_CONFIG_FILE_MAXSIZE",
+            "IS_CONTAINER_MODE",
+            "MONITOR_MANAGERS",
+        ]
+        if getattr(request, "external_user", None):
+            context = {k: v for k, v in context.items() if k in external_fields}
         return {"context": context, "context_type": context_type}

@@ -136,7 +136,6 @@ def external(request):
         "external/index.html",
         {
             "cc_biz_id": cc_biz_id,
-            "SPACE_LIST": [s for s in SpaceApi.list_spaces() if s.bk_biz_id in biz_id_list],
             "external_user": external_user,
         },
     )
@@ -208,6 +207,8 @@ def dispatch_external_proxy(request):
         setattr(fake_request, "external_user", external_user)
         setattr(request, "external_user", external_user)
         setattr(fake_request, "session", request.session)
+        # use in get_core_context
+        setattr(fake_request, "LANGUAGE_CODE", request.LANGUAGE_CODE)
         setattr(local, "current_request", fake_request)
 
         # resolve view_func
