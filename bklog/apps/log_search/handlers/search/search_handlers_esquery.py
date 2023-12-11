@@ -26,6 +26,7 @@ import json
 import operator
 from typing import Any, Dict, List, Union
 
+import arrow
 import pytz
 from django.conf import settings
 from django.core.cache import cache
@@ -562,9 +563,11 @@ class SearchHandler(object):
 
         if self.start_time:
             try:
-                # TODO: 需要判断时间格式，时间戳会报错
                 tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-                start_time = datetime.datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_info)
+                if type(self.start_time) in [int, float]:
+                    start_time = arrow.get(self.start_time).to(tz=tz_info).datetime
+                else:
+                    start_time = arrow.get(self.start_time).replace(tzinfo=tz_info).datetime
                 storage_cluster_record_objs = StorageClusterRecord.objects.filter(
                     index_set_id=int(self.index_set_id), created_at__gt=(start_time - datetime.timedelta(hours=1))
                 ).exclude(storage_cluster_id=self.storage_cluster_id)
@@ -1291,6 +1294,8 @@ class SearchHandler(object):
                         index_set_id=index_set_id, raise_exception=False
                     )
                     if clustering_config and clustering_config.clustered_rt:
+                        # 如果是查询bkbase端的表，即场景需要对应改为bkdata
+                        self.scenario_id = Scenario.BKDATA
                         return clustering_config.clustered_rt
             index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
             if len(index_set_data_obj_list) > 0:

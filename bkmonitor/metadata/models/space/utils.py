@@ -47,6 +47,7 @@ def list_spaces(
     page: Optional[int] = DEFAULT_PAGE,
     page_size: Optional[int] = DEFAULT_PAGE_SIZE,
     exclude_platform_space: Optional[bool] = True,
+    include_resource_id: Optional[bool] = False,
 ) -> Dict:
     """查询空间实例信息
 
@@ -59,6 +60,7 @@ def list_spaces(
     :param page: 分页
     :param page_size: 每页的数量
     :param exclude_platform_space: 过滤掉平台级的空间
+    :param include_resource_id: 包含资源 id
     :return: 空间列表信息
     """
     # 获取空间类型 ID 和 空间类型名称
@@ -74,8 +76,20 @@ def list_spaces(
         exclude_platform_space,
         space_type_id_name,
     )
-    if not is_detail:
+    # 如果不需要详情，也不需要资源 id 时，直接忽略
+    if not (is_detail or include_resource_id):
         return space_info
+
+    # 包含资源 id 优先级高于查询详情, 如果需要资源 id, 则直接返回
+    spaces = [(space["space_type_id"], space["space_id"]) for space in space_info["list"]]
+    if include_resource_id:
+        # 组装空间列表，分组过滤关联的资源 ID，避免单次过滤时，where 条件太多，导致慢查询
+        space_resource = _filter_space_resource_by_page(spaces)
+        for space in space_info["list"]:
+            key = (space["space_type_id"], space["space_id"])
+            space["resources"] = space_resource.get(key, [])
+        return space_info
+
     # 追加空间关联的资源信息
     # 用于后续资源的匹配，组装数据格式: {(空间类型ID, 空间ID): 空间信息}
     space_type_ids, space_ids = [], []
@@ -121,6 +135,43 @@ def list_spaces(
         s["resources"] = space_resource_dict.get(key, [])
     # 返回带有更详细信息的空间列表
     return space_info
+
+
+def _filter_space_resource_by_page(spaces: List) -> Dict:
+    """过滤关联空间资源
+    :param spaces: 空间列表
+    :return: 过滤到的空间资源数据
+    """
+    default_ret_data = {}
+    if not spaces:
+        return default_ret_data
+    # NOTE: 这里不要设置太大
+    page_size = 500
+    chunk_list = [spaces[i : i + page_size] for i in range(0, len(spaces), page_size)]
+
+    # 空间关联的资源数据
+    space_resource_data = []
+    for chunk in chunk_list:
+        # 组装过滤数据
+        filter_q = Q()
+        for space in chunk:
+            filter_q |= Q(space_type_id=space[0], space_id=space[1])
+        space_resource_data.extend(
+            list(
+                SpaceResource.objects.filter(filter_q).values(
+                    "space_type_id", "space_id", "resource_type", "resource_id"
+                )
+            )
+        )
+
+    # 组装空间和资源的映射
+    space_resource_dict = {}
+    for space_resource in space_resource_data:
+        space_resource_dict.setdefault((space_resource["space_type_id"], space_resource["space_id"]), []).append(
+            {"resource_type": space_resource["resource_type"], "resource_id": space_resource["resource_id"]}
+        )
+
+    return space_resource_dict
 
 
 def get_space_detail(

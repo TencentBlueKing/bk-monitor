@@ -518,6 +518,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       has-delete-icon
                       allow-create
                       allow-next-focus={false}
+                      search-key={['name', 'id']}
                       tag-tpl={this.handleRenderDimensionTag}
                       tpl={this.handleRenderDimensionList}
                     ></bk-tag-input>

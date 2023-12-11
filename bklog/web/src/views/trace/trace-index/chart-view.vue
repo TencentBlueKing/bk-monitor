@@ -49,7 +49,7 @@
 </template>
 <script>
 import { convertDomToPng } from '@/common/util';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import {
   BkLine,
 } from '@/components/bk-chart-vue/component/index.js';
@@ -118,7 +118,7 @@ export default {
       conumData: {},
       ticks: {
         callback(label) {
-          return moment(label).format('YY-MM-DD HH:mm:ss');
+          return dayjs.tz(label).format('YY-MM-DD HH:mm:ss');
         },
       },
     };

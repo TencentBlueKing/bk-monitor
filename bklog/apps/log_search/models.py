@@ -34,6 +34,7 @@ from django.utils.html import format_html
 from django.utils.translation import ugettext_lazy as _
 from jinja2 import Environment, FileSystemLoader
 
+from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
@@ -1218,6 +1219,15 @@ class SpaceApi(AbstractSpaceApi):
             space = Space.objects.filter(id=id).first()
         if space:
             return cls._init_space(space)
+
+        # 如果 db 中找不到，则直接请求 metadata
+        if space_uid:
+            space_type, space_id = cls.parse_space_uid(space_uid)
+            return SpaceDefine.from_dict(
+                TransferApi.get_space_detail({"space_type_id": space_type, "space_id": space_id})
+            )
+        if id:
+            return SpaceDefine.from_dict(TransferApi.get_space_detail({"id": id}))
 
     @classmethod
     def list_spaces(cls) -> List[SpaceDefine]:

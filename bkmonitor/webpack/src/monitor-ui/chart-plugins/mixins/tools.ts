@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { Component, InjectReactive, Vue } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 import { toPng } from 'html-to-image';
-import moment from 'moment';
 
 import { getDataSourceConfig } from '../../../monitor-api/modules/grafana';
 import { deepClone } from '../../../monitor-common/utils/utils';
@@ -130,7 +130,7 @@ export default class ToolsMixin extends Vue {
           panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
         }#/data-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
           this.toolTimeRange[1]
-        }`;
+        }&timezone=${(this as any).timezone || window.timezone}`;
         window.open(url);
       });
       return;
@@ -168,7 +168,7 @@ export default class ToolsMixin extends Vue {
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
       }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(removeUndefined(targets)))}&from=${
         this.toolTimeRange[0]
-      }&to=${this.toolTimeRange[1]}`;
+      }&to=${this.toolTimeRange[1]}&timezone=${(this as any).timezone || window.timezone}`;
       window.open(url);
     }
   }
@@ -193,7 +193,7 @@ export default class ToolsMixin extends Vue {
       const [startTime, endTime] = handleTransformToTimestamp(this.toolTimeRange as any);
       const interval = reviewInterval(
         scopedVars.interval,
-        moment(endTime).unix() - moment(startTime).unix(),
+        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
         panel.collect_interval
       );
       const variablesService = new VariablesService({ ...scopedVars, interval });
@@ -228,7 +228,9 @@ export default class ToolsMixin extends Vue {
       }
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-      }#/strategy-config/add/?data=${JSON.stringify(result)}`;
+      }#/strategy-config/add/?data=${JSON.stringify(result)}&from=${this.toolTimeRange[0]}&to=${
+        this.toolTimeRange[1]
+      }&timezone=${(this as any).timezone || window.timezone}`;
       window.open(url);
     } catch (e) {
       console.info(e);

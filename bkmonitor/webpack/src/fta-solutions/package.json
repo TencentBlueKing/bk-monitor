@@ -10,11 +10,11 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.24",
+    "@blueking/bk-weweb": "0.0.2-5.beta.1",
     "async-validator": "^3.5.2",
     "bk-magic-vue": "^2.5.8-beta.5",
+    "dayjs": "^1.11.10",
     "deepmerge": "^4.2.2",
-    "moment": "^2.29.2",
     "resize-detector": "^0.3.0",
     "throttle-debounce": "^3.0.1",
     "vue": "2.7.14",

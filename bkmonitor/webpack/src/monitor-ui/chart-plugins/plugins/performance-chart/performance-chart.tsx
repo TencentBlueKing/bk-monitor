@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { EChartOption } from 'echarts';
-import moment from 'moment';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
@@ -74,8 +74,8 @@ export default class PerformanceChart extends TimeSeries {
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       if (this.bkBizId) {
         params = Object.assign({}, params, {

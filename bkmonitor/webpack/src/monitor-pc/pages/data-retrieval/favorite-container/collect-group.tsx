@@ -26,7 +26,7 @@
 
 import { Component, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { FavoriteIndexType, IFavList } from '../typings';
 
@@ -68,7 +68,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
 
   /** 获取展示时间 */
   getShowTime(timeStr: string) {
-    return moment(timeStr).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ss');
   }
   /** 鼠标移动到名称时 获取更新信息 */
   handleHoverFavoriteName(e, item) {
