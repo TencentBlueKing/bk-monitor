@@ -16,16 +16,17 @@
     }
 
     .chart-tools {
+      display: flex;
+      align-items: center;
       font-size: 12px;
 
       .operate {
-        display: inline-block;
         width: 20px;
         margin-left: 26px;
 
         .refresh {
           cursor: pointer;
-  
+
           &:hover {
             color: #3a84ff;
           }

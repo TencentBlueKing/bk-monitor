@@ -31,7 +31,7 @@ import echarts from 'echarts';
 import loadingIcon from '../../../../../monitor-ui/chart-plugins/icons/spinner.svg';
 import BaseEchart from '../../../../../monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import TimeRange, { TimeRangeType } from '../../../../components/time-range/time-range-old';
+import TimeRange, { DateValue, TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, shortcuts } from '../../../../components/time-range/utils';
 
 import './link-status-chart.scss';
@@ -149,25 +149,13 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     };
   }
 
-  get defaultShortcuts() {
-    if (this.type === 'minute') return shortcuts;
+  get defaultShortcuts(): DateValue[] {
+    if (this.type === 'minute') return shortcuts.map(item => item.value) as DateValue[];
     return [
-      {
-        text: window.i18n.t('近 {n} 天', { n: 3 }),
-        value: ['now-3d', 'now']
-      },
-      {
-        text: window.i18n.t('近 {n} 天', { n: 7 }),
-        value: ['now-7d', 'now']
-      },
-      {
-        text: window.i18n.t('近 {n} 天', { n: 14 }),
-        value: ['now-14d', 'now']
-      },
-      {
-        text: window.i18n.t('近 {n} 天', { n: 30 }),
-        value: ['now-30d', 'now']
-      }
+      ['now-3d', 'now'],
+      ['now-7d', 'now'],
+      ['now-14d', 'now'],
+      ['now-30d', 'now']
     ];
   }
 
@@ -202,7 +190,8 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
             <TimeRange
               value={this.timeRange}
               onChange={val => this.handleTimeRange(val)}
-              defaultShortcuts={this.defaultShortcuts}
+              commonUseList={this.defaultShortcuts}
+              needTimezone={false}
             >
               {this.type === 'day' && <div slot='header'></div>}
             </TimeRange>
