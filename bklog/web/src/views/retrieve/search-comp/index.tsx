@@ -90,7 +90,7 @@ export default class SearchComp extends tsc<IProps> {
   @Ref('uiQuery') private readonly uiQueryRef; // 操作列表实例
 
   inputSearchList = []; // ui模式检索语句生成的键名
-  filedSelectedValue = []; // 添加条件下拉框的key
+  filedSelectedValue = null; // 添加条件下拉框的key
   conditionList = []; // 条件列表
   isShowFilterOption = false; // 添加条件下拉框是否是展开状态
   aggsItems = []; // 接口返回输入框可选值
@@ -247,9 +247,10 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   handleSelectFiled(v) {
-    const condition = this.filterFields.find(fItem => fItem.id === v[0]);
+    const condition = this.filterFields.find(fItem => fItem.id === v);
     this.conditionList.push(deepClone(condition));
-    this.filedSelectedValue = [];
+    this.filedSelectedValue = null;
+    this.isShowFilterOption = false;
   }
 
   /**
@@ -405,8 +406,8 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   handleAdditionValueChange(index, additionVal) {
-    const { v, key, isQuery } = additionVal;
-    this.conditionList[index][key] = v; // 更新操作符和数据
+    const { newReplaceObj, isQuery } = additionVal;
+    Object.assign(this.conditionList[index], newReplaceObj); // 更新操作符和数据
     if (this.conditionList[index].isInclude) this.searchAdditionQuery(isQuery); // 操作需要请求且条件为打开时请求
     this.setRouteParams();
   }
@@ -538,7 +539,7 @@ export default class SearchComp extends tsc<IProps> {
 
           <Select
             class='inquire-cascader'
-            multiple
+            // multiple
             searchable
             v-model={this.filedSelectedValue}
             onToggle={this.handleToggleChange}

@@ -36,7 +36,7 @@ import {
   watch
 } from 'vue';
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab } from 'bkui-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { traceDetail } from '../../../../monitor-api/modules/apm_trace';
@@ -784,7 +784,7 @@ export default defineComponent({
         >
           <div class='message-item'>
             <label>{this.$t('产生时间')}</label>
-            <span>{moment(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
+            <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
           </div>
           <div class='message-item'>
             <label>{this.$t('总耗时')}</label>

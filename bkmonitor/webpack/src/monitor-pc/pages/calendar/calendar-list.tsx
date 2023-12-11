@@ -26,8 +26,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { VirtualRender } from 'bk-magic-vue';
-import moment from 'moment';
-import timezone from 'moment-timezone';
+import dayjs from 'dayjs';
 
 import { deleteItem, itemList } from '../../../monitor-api/modules/calendar';
 import { Debounce } from '../../../monitor-common/utils/utils';
@@ -96,8 +95,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   loading = false;
 
   /** 列表数据的时区 默认当前时区 */
-  timeZone = timezone.tz.guess(true);
-
+  timeZone = dayjs.tz.guess();
   /** 搜索关键字 */
   searchKeyword = '';
 
@@ -150,8 +148,8 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   /** 时间范围 */
   get timeRange(): { startTime: number; endTime: number } {
     return {
-      startTime: moment().startOf(this.timeRangeId).unix(),
-      endTime: moment().endOf(this.timeRangeId).unix()
+      startTime: dayjs.tz().startOf(this.timeRangeId).unix(),
+      endTime: dayjs.tz().endOf(this.timeRangeId).unix()
     };
   }
 
@@ -192,13 +190,13 @@ export default class CalendarList extends tsc<IProps, IEvents> {
         label: window.i18n.tc('开始时间'),
         id: 'start_time',
         width: 90,
-        formatter: row => timezone.tz(row.start_time * 1000, this.timeZone).format('MM-DD HH:mm')
+        formatter: row => dayjs.tz(row.start_time * 1000, this.timeZone).format('MM-DD HH:mm')
       },
       {
         label: window.i18n.tc('结束时间'),
         id: 'end_time',
         width: 80,
-        formatter: row => timezone.tz(row.end_time * 1000, this.timeZone).format('MM-DD HH:mm')
+        formatter: row => dayjs.tz(row.end_time * 1000, this.timeZone).format('MM-DD HH:mm')
       },
       {
         label: window.i18n.tc('重复'),
@@ -213,7 +211,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           row.repeat.freq
             ? // eslint-disable-next-line newline-per-chained-call
               row.repeat.until
-              ? timezone.tz(row.repeat.until * 1000, this.timeZone).format('YYYY-MM-DD')
+              ? dayjs.tz(row.repeat.until * 1000, this.timeZone).format('YYYY-MM-DD')
               : this.$t('永不结束')
             : '--'
       },

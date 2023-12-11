@@ -133,7 +133,7 @@
 
 <script lang="ts">
 import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { EType, IRadioMap, ITimePeriodValue } from '../types';
 /** 按天频率 包含周末 */
@@ -159,8 +159,8 @@ export default class TimePeriod extends Vue {
   value: ITimePeriodValue;
 
   // 时间数据
-  private typeValue: EType = 2;
-  private weekList: IRadioMap[] = [
+  typeValue: EType = 2;
+  weekList: IRadioMap[] = [
     { name: window.i18n.t('星期一'), id: 1 },
     { name: window.i18n.t('星期二'), id: 2 },
     { name: window.i18n.t('星期三'), id: 3 },
@@ -169,24 +169,24 @@ export default class TimePeriod extends Vue {
     { name: window.i18n.t('星期六'), id: 6 },
     { name: window.i18n.t('星期日'), id: 7 }
   ];
-  private week: number[] = [1];
-  private month: number[] = [1];
-  private hour = 0.5;
-  private hourList = [
+  week: number[] = [1];
+  month: number[] = [1];
+  hour = 0.5;
+  hourList = [
     { name: 0.5, id: 0.5 },
     { name: 1, id: 1 },
     { name: 2, id: 2 },
     { name: 6, id: 6 },
     { name: 12, id: 12 }
   ];
-  //   private dayTime: Date | string = new Date()
-  private dayTime: Date | string = moment(new Date()).format('HH:mm:ss');
+  //   dayTime: Date | string = new Date()
+  dayTime: Date | string = dayjs.tz(new Date()).format('HH:mm:ss');
 
-  private includeWeekend = true;
-  private onceTime: Date = new Date();
+  includeWeekend = true;
+  onceTime: Date = new Date();
 
   // datePicker配置
-  private datePickerOptions: any = {
+  datePickerOptions: any = {
     disabledDate: (v: string) => {
       const item: number = +new Date(v);
       const cur: Date = new Date();
@@ -197,7 +197,7 @@ export default class TimePeriod extends Vue {
   };
 
   // 时间类型选择
-  private radioMap: IRadioMap[] = [
+  radioMap: IRadioMap[] = [
     { id: 5, name: window.i18n.t('按小时') },
     { id: 2, name: window.i18n.t('按天') },
     { id: 3, name: window.i18n.t('按周') },
@@ -219,7 +219,7 @@ export default class TimePeriod extends Vue {
    * 数据回显展示
    * @params val 外部传入数据
    */
-  private displayBack(val: ITimePeriodValue) {
+  displayBack(val: ITimePeriodValue) {
     if (!val) return;
     const { type, runTime, weekList, dayList, hour } = val;
     this.typeValue = type;
@@ -248,7 +248,7 @@ export default class TimePeriod extends Vue {
    * 双向绑定的值更新
    */
   @Emit('updateValue')
-  private getValue(v?, type?: 'time' | 'datetime'): ITimePeriodValue {
+  getValue(v?, type?: 'time' | 'datetime'): ITimePeriodValue {
     const value: ITimePeriodValue = {
       type: this.typeValue,
       runTime: '',
@@ -259,7 +259,7 @@ export default class TimePeriod extends Vue {
     if ([2, 3, 4].includes(this.typeValue)) value.runTime = `${type === 'time' ? v : this.dayTime}`;
     switch (this.typeValue) {
       case 1: // 仅一次
-        value.runTime = moment(type === 'datetime' ? v : this.onceTime).format('YYYY-MM-DD HH:mm:ss');
+        value.runTime = dayjs.tz(type === 'datetime' ? v : this.onceTime).format('YYYY-MM-DD HH:mm:ss');
         break;
       case 2: // 按天
         // value.runTime = this.dayTime

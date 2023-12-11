@@ -28,7 +28,7 @@ import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { createShareToken, deleteShareToken, updateShareToken } from '../../../monitor-api/modules/share';
 import { copyText } from '../../../monitor-common/utils/utils';
@@ -71,6 +71,8 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   show = false;
   // 查询时间段
   timeRange: string[] = [];
+  // 时区
+  timezone: string = window.timezone;
   // 缓存查询时间段
   oldTimeRange: string[] = [];
   // 是否锁定查询时间
@@ -87,7 +89,15 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   shortcuts = shortcuts;
   timeRangePanelShow = false;
   /* 查询设置 */
-  querySettings = [{ id: 'time', name: window.i18n.t('变量选择'), canChange: true, timeRange: ['now-7d', 'now'] }];
+  querySettings = [
+    {
+      id: 'time',
+      name: window.i18n.t('变量选择'),
+      canChange: true,
+      timeRange: [],
+      timezone: window.timezone
+    }
+  ];
   /* 管理历史分享 */
   historyData = {
     show: false
@@ -121,6 +131,20 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       }
     ];
   }
+  setDefaultSettings() {
+    const { from, to, timezone } = this.$route.query as Record<string, string>;
+    console.info(from, to, '-----------');
+    this.querySettings = [
+      {
+        id: 'time',
+        name: window.i18n.t('变量选择'),
+        canChange: true,
+        timeRange: [from || 'now-7d', to || 'now'],
+        timezone: timezone || window.timezone
+      }
+    ];
+    console.info(this.querySettings, from, to, '-----------');
+  }
   // 通用api查询参数
   getShareTokenParams() {
     const period = this.validityPeriod.match(/([0-9]+)/)?.[0] || 1;
@@ -130,22 +154,27 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       const { $baseStore = null, ...data } = { ...window.__BK_WEWEB_DATA__ };
       weWebData = { ...data };
     }
-    const { canChange, timeRange } = this.querySettings[0];
-    const isDefaultTimeRange = timeRange.every(item => CUSTOM_TIME_RANGE_REG.test(item));
+    const { canChange, timeRange, timezone } = this.querySettings[0];
+    // const isDefaultTimeRange = timeRange.every(item => CUSTOM_TIME_RANGE_REG.test(item));
     return {
       type: this.$route.name === 'event-center' ? 'event' : this.$route.query.sceneId,
-      expire_time: moment()
+      expire_time: dayjs
+        .tz()
         .add(period, (this.validityPeriod.split(period.toString())?.[1] || 'h') as any)
         .unix(),
       expire_period: this.validityPeriod,
       lock_search: !canChange,
-      start_time: moment(this.timeRange[0]).unix(),
-      end_time: moment(this.timeRange[1]).unix(),
-      default_time_range: isDefaultTimeRange ? timeRange : undefined,
+      start_time: dayjs(this.timeRange[0]).unix(),
+      end_time: dayjs(this.timeRange[1]).unix(),
+      timezone,
+      default_time_range: timeRange,
       data: {
         query: Object.assign(
           {},
-          this.$route.query,
+          {
+            ...this.$route.query,
+            timezone
+          },
           !canChange
             ? {
                 from: timeRange[0],
@@ -188,6 +217,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     // const { from = 'now-1h', to = 'now' } = this.$route.query;
     // this.timeRange = new TimeRange([from.toString(), to.toString()]).format();
     // this.oldTimeRange = this.timeRange.slice();
+    this.setDefaultSettings();
     await this.createShareToken();
     this.show = true;
   }
@@ -419,7 +449,11 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     row.timeRange = [...val];
     this.updateShareToken();
   }
-
+  handleTableTimezoneChange(val: string, row) {
+    row.timezone = val;
+    console.info('row', row, val);
+    this.updateShareToken();
+  }
   handleCanChange(v, row) {
     row.canChange = v;
     this.updateShareToken();
@@ -499,41 +533,45 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
             <div class='share-wrap'>
               {this.commonItem(
                 this.$t('查询设置'),
-                <Table data={this.querySettings}>
-                  <TableColumn
-                    label={this.$t('变量名称')}
-                    scopedSlots={{
-                      default: () => <span>{this.$t('时间选择')}</span>
-                    }}
-                  ></TableColumn>
-                  <TableColumn
-                    label={this.$t('是否可更改')}
-                    scopedSlots={{
-                      default: ({ row }) => (
-                        <bk-switcher
-                          value={row.canChange}
-                          theme='primary'
-                          onChange={v => this.handleCanChange(v, row)}
-                        ></bk-switcher>
-                      )
-                    }}
-                  ></TableColumn>
-                  <TableColumn
-                    label={this.$t('默认选项')}
-                    width={356}
-                    scopedSlots={{
-                      default: ({ row }) => (
-                        <div class='time-warp'>
-                          <TimeRangeComponent
-                            type={'input'}
-                            value={row.timeRange}
-                            onChange={v => this.handleTableTimeRangeChange(v, row)}
-                          ></TimeRangeComponent>
-                        </div>
-                      )
-                    }}
-                  ></TableColumn>
-                </Table>
+                this.show && (
+                  <Table data={this.querySettings}>
+                    <TableColumn
+                      label={this.$t('变量名称')}
+                      scopedSlots={{
+                        default: () => <span>{this.$t('时间选择')}</span>
+                      }}
+                    ></TableColumn>
+                    <TableColumn
+                      label={this.$t('是否可更改')}
+                      scopedSlots={{
+                        default: ({ row }) => (
+                          <bk-switcher
+                            value={row.canChange}
+                            theme='primary'
+                            onChange={v => this.handleCanChange(v, row)}
+                          ></bk-switcher>
+                        )
+                      }}
+                    ></TableColumn>
+                    <TableColumn
+                      label={this.$t('默认选项')}
+                      width={386}
+                      scopedSlots={{
+                        default: ({ row }) => (
+                          <div class='time-warp'>
+                            <TimeRangeComponent
+                              type={'normal'}
+                              value={row.timeRange}
+                              timezone={row.timezone || this.timezone}
+                              onTimezoneChange={v => this.handleTableTimezoneChange(v, row)}
+                              onChange={v => this.handleTableTimeRangeChange(v, row)}
+                            ></TimeRangeComponent>
+                          </div>
+                        )
+                      }}
+                    ></TableColumn>
+                  </Table>
+                )
               )}
             </div>
             {/* {

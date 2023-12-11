@@ -59,12 +59,7 @@ class BaseSender(object):
     Utf8Encoding = "utf-8"
 
     def __init__(
-        self,
-        context=None,
-        title_template_path="",
-        content_template_path="",
-        notice_type=NoticeType.ALERT_NOTICE,
-        mentioned_users=None,
+        self, context=None, title_template_path="", content_template_path="", notice_type=NoticeType.ALERT_NOTICE
     ):
         """
         :param context: EventContext or dict
@@ -76,7 +71,7 @@ class BaseSender(object):
             self.bk_biz_id = int(self.context.get("target").business.bk_biz_id)
         except Exception as error:
             logger.info("failed to get notice business id: %s", str(error))
-            self.bk_biz_id = 0
+            self.bk_biz_id = self.context.get("bk_biz_id", 0)
 
         # todo: 这里是公共模块，不应该依赖alarm_backends
         if i18n:
@@ -232,7 +227,7 @@ class BaseSender(object):
         """
         if notice_way != self.notice_way:
             # 需要判断真正通知的方式是否与默认的一致，不一致的话要重置msg_type
-            self.msg_type = "markdown" if notice_way in settings.MD_SUPPORTED_NOTICE_WAYS else notice_way
+            self.msg_type = "markdown" if notice_way in settings.MD_SUPPORTED_NOTICE_WAYS else "text"
             self.encoding = None if notice_way in self.NoEncoding else self.Utf8Encoding
         if isinstance(self.content, Exception):
             return {
@@ -278,9 +273,12 @@ class Sender(BaseSender):
         }
         :rtype: dict
         """
+        sender_name = settings.WECOM_APP_ACCOUNT.get(str(self.context.get("alert_level")))
+
         if (
             settings.IS_WECOM_ROBOT_ENABLED
             and Platform.te
+            and sender_name
             and (not settings.WECOM_ROBOT_BIZ_WHITE_LIST or self.bk_biz_id in settings.WECOM_ROBOT_BIZ_WHITE_LIST)
         ):
             logger.info(
@@ -291,9 +289,10 @@ class Sender(BaseSender):
             # 复用企业微信机器人的配置
             # 如果启用了并且是te环境，可以使用
             # 用白名单控制
+            # 需要判断是否有通知人员，才进行通知发送
             api_result = api.cmsi.send_wecom_app(
                 receiver=notice_receivers,
-                sender=settings.WECOM_APP_ACCOUNT.get(str(self.context.get("alert_level"))),
+                sender=sender_name,
                 content=self.content,
                 type=self.msg_type,
             )
@@ -610,6 +609,7 @@ class NoneTemplateSender(Sender):
         self.msg_type = "text"
         self.notice_way = None
         self.encoding = self.Utf8Encoding
+        self.bk_biz_id = None
 
 
 class ChannelBkchatSender(BaseSender):

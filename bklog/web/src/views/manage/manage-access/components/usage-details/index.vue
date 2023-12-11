@@ -26,7 +26,11 @@
       <div class="main-title">
         {{ $t('使用统计') }}
         <!-- :disabled="timesChartLoading || frequencyChartLoading || spentChartLoading" -->
-        <time-range :value="chartDateValue" @change="handleDateValueChange" />
+        <time-range
+          :value="chartDateValue"
+          :need-timezone="false"
+          @change="handleDateValueChange"
+        />
       </div>
       <div class="charts-container">
         <chart-component
@@ -48,7 +52,12 @@
       <div class="main-title">
         {{ $t('检索记录') }}
         <!-- :disabled="tableLoading" -->
-        <time-range :value="tableDateValue" @change="handleTableDateValueChange" />
+        <time-range
+          :value="tableDateValue"
+          :timezone="timezone"
+          @change="handleTableDateValueChange"
+          @timezoneChange="handleTimezoneChange"
+        />
       </div>
       <bk-table
         v-bkloading="{ isLoading: tableLoading }"
@@ -59,7 +68,7 @@
         @page-limit-change="handlePageLimitChange">
         <bk-table-column :label="$t('时间')" min-width="10">
           <template slot-scope="{ row }">
-            {{ formatDate(row.created_at) }}
+            {{ formatDate(new Date(row.created_at).getTime()) }}
           </template>
         </bk-table-column>
         <bk-table-column
@@ -90,6 +99,8 @@ import ChartComponent from './chart-component';
 import TimeRange from '@/components/time-range/time-range';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import EmptyStatus from '@/components/empty-status';
+import dayjs from 'dayjs';
+import { updateTimezone } from '../../../../../language/dayjs';
 
 export default {
   components: {
@@ -121,10 +132,14 @@ export default {
         limit: 10,
       },
       tableDateValue: ['now-2d', 'now'],
+      timezone: dayjs.tz.guess(),
     };
   },
   created() {
     this.initPage();
+  },
+  beforeDestroy() {
+    updateTimezone();
   },
   methods: {
     initPage() {
@@ -138,8 +153,8 @@ export default {
           index_set_id: this.indexSetId,
         },
         query: {
-          start_time: formatDate(tempList[0] * 1000),
-          end_time: formatDate(tempList[1] * 1000),
+          start_time: tempList[0],
+          end_time: tempList[1],
         },
       };
       this.fetchTimesChart(payload);
@@ -160,6 +175,11 @@ export default {
      */
     handleTableDateValueChange(val) {
       this.tableDateValue = val;
+      this.fetchTableData();
+    },
+    handleTimezoneChange(timezone) {
+      this.timezone = timezone;
+      updateTimezone(timezone);
       this.fetchTableData();
     },
     async fetchTimesChart(payload) {
@@ -207,8 +227,8 @@ export default {
             index_set_id: this.indexSetId,
           },
           query: {
-            start_time: formatDate(tempList[0] * 1000),
-            end_time: formatDate(tempList[1] * 1000),
+            start_time: tempList[0],
+            end_time: tempList[1],
             page: this.pagination.current,
             pagesize: this.pagination.limit,
           },

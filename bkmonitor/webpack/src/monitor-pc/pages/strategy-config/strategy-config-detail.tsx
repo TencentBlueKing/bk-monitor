@@ -26,16 +26,22 @@
 // import { Component as tsc } from 'vue-tsx-support';
 import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
 
+import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 
 import StrategyConfigDetailCommon from './strategy-config-detail/strategy-config-detail-common';
 import * as authorityMap from './authority-map';
 
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class StrategyConfigDetail extends Mixins(authorityMixinCreate(authorityMap)) {
   @ProvideReactive('authority') authority: Record<string, boolean> = {};
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap = authorityMap;
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
+  }
   render() {
     return <StrategyConfigDetailCommon {...{ props: { ...this.$route.params, ...this.$route.query } }} />;
   }
