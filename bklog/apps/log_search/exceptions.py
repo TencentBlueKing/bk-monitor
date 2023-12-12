@@ -250,7 +250,7 @@ class IndexSetInnerTagOperatorException(BaseIndexSetException):
 
 class IndexSetTagNameExistException(BaseIndexSetException):
     ERROR_CODE = "329"
-    MESSAGE = _("标签名称: [{tag_id}] 已存在")
+    MESSAGE = _("标签名称: [{name}] 已存在")
 
 
 # =================================================
