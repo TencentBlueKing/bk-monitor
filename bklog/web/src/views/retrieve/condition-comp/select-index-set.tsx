@@ -126,12 +126,12 @@ export default class QueryStatement extends tsc<IProps> {
     favoriteName: [
       {
         validator: this.checkFavoriteName,
-        message: this.$t('已有同名收藏'),
+        message: window.mainComponent.$t('已有同名收藏'),
         trigger: 'blur',
       },
       {
         required: true,
-        message: this.$t('必填项'),
+        message: window.mainComponent.$t('必填项'),
         trigger: 'blur',
       },
     ],

@@ -201,13 +201,16 @@
       }
 
       .tag-box {
-        width: 560px;
-        padding-right: 4px;
+        width: 550px;
         overflow-x: auto;
         align-items: center;
         flex-wrap: nowrap;
 
         @include flex-justify(start);
+
+        div {
+          flex-shrink: 0;
+        }
       }
 
       ::-webkit-scrollbar {
