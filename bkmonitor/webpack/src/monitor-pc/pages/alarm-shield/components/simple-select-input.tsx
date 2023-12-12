@@ -68,7 +68,6 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
       return this.list.filter(
         item => item.name.indexOf(this.value) > -1 || item.id.indexOf(this.value) > -1 || isCheck
       );
-      // return this.list.filter(item => item.name.indexOf(this.value) > -1);
     }
     return this.list;
   }
@@ -106,12 +105,12 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   // 提交，click 和 blur 统一调一个方法
   handleCommit(item) {
     this.handleChange(item.name);
+    this.isSelected = false;
   }
 
   @Debounce(300)
   @Emit('change')
   handleChange(value) {
-    this.isSelected = false;
     this.popoverInstance?.show(100);
     return value;
   }
@@ -128,7 +127,10 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
             value={this.value}
             ref='input'
             placeholder={this.placeholder}
-            onInput={this.handleChange}
+            onInput={value => {
+              this.handleChange(value);
+              this.isSelected = false;
+            }}
             onBlur={this.handleBlur}
           />
         </span>
@@ -141,6 +143,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
               <ul class='list-wrap'>
                 {this.searchList.map(item => (
                   <li
+                    key={item.id}
                     v-bk-tooltips={{
                       content: item.id,
                       placement: 'right',
