@@ -78,15 +78,19 @@ export default class IntelligenceScene extends tsc<IProps> {
     this.showRestore = false;
   }
 
+  timeRangeInit() {
+    const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
+    const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
+    this.timeRange = [startTime, endTime];
+  }
+
   async created() {
     this.loading = true;
     const data = await multiAnomalyDetectGraph({
       alert_id: this.params.id,
       bk_biz_id: this.params.bk_biz_id
     }).catch(() => []);
-    const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
-    this.timeRange = [startTime, endTime];
+    this.timeRangeInit();
     const result = data.map(item => {
       return {
         ...item,
@@ -111,6 +115,12 @@ export default class IntelligenceScene extends tsc<IProps> {
     this.loading = false;
   }
 
+  handledblClick() {
+    this.timeRangeInit();
+    // this.timeRange = DEFAULT_TIME_RANGE;
+    this.showRestore = false;
+  }
+
   render() {
     return (
       <div
@@ -127,6 +137,7 @@ export default class IntelligenceScene extends tsc<IProps> {
             <ChartWrapper
               panel={panel}
               needCheck={false}
+              onDblClick={this.handledblClick}
             ></ChartWrapper>
           </div>
         ))}
