@@ -961,7 +961,7 @@ export default {
             this.messageSuccess(this.$t('保存成功'));
             // 清洗模板编辑则返回模板列表
             if(this.isTempField) {
-              this.$emit('change-submit', true)
+              this.$emit('changeSubmit', true)
               this.handleCancel(false)
             }
           }
@@ -1085,7 +1085,7 @@ export default {
           const id = this.curCollect.bkdata_data_id;
           const jumpUrl = `${window.BKDATA_URL}/#/data-hub-detail/clean/list/${id}/index`;
           window.open(jumpUrl, '_blank');
-          this.$emit('change-submit', true);
+          this.$emit('changeSubmit', true);
           // 前往高级清洗刷新页
           this.$emit('changeClean');
         },

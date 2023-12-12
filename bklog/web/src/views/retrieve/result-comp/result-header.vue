@@ -226,12 +226,12 @@ export default {
       ],
       accessList: [
         {
-          id: 'logInfo',
-          name: this.$t('采集详情'),
-        },
-        {
           id: 'logMasking',
           name: this.$t('日志脱敏'),
+        },
+        {
+          id: 'logInfo',
+          name: this.$t('采集详情'),
         },
       ],
       routeNameList: { // 路由跳转name

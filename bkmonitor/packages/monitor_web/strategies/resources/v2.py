@@ -1036,8 +1036,10 @@ class GetStrategyListV2Resource(Resource):
                 data_source_label=query_config["data_source_label"],
                 data_type_label=query_config["data_type_label"],
             )
-
-            strategy["add_allowed"] = target != DataTarget.NONE_TARGET
+            algorithms = strategy["items"][0]["algorithms"][0]
+            strategy["add_allowed"] = (target != DataTarget.NONE_TARGET) or (
+                algorithms["type"] == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
+            )
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
