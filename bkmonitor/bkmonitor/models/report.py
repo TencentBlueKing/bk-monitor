@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import arrow
 from django.db import models
 
-from bkmonitor.utils.itsm import APPROVAL_STATUS_CHOICES
+from bkmonitor.utils.itsm import ApprovalStatusEnum
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
 from constants.new_report import (
     ChannelEnum,
@@ -101,7 +101,9 @@ class ReportApplyRecord(AbstractRecordModel):
     approval_step = models.JSONField("当前步骤", default=list)
     approval_sn = models.CharField("审批单号", max_length=128, default="", null=True, blank=True)
     approval_url = models.CharField("审批地址", default="", max_length=1024, null=True, blank=True)
-    status = models.CharField("审批状态", max_length=32, choices=APPROVAL_STATUS_CHOICES)
+    status = models.CharField(
+        "审批状态", max_length=32, choices=ApprovalStatusEnum.get_choices(), default=ApprovalStatusEnum.RUNNING.value
+    )
 
     class Meta:
         verbose_name = "订阅审批记录"

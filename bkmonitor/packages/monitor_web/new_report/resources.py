@@ -11,14 +11,17 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import defaultdict
 from datetime import datetime
+from urllib.parse import urljoin
 
 import arrow
 from django.apps import apps
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from api.itsm.default import TokenVerifyResource
 from bkmonitor.models import Report, ReportApplyRecord, ReportChannel, ReportSendRecord
 from bkmonitor.report.serializers import (
     ChannelSerializer,
@@ -26,7 +29,9 @@ from bkmonitor.report.serializers import (
     FrequencySerializer,
     ScenarioConfigSerializer,
 )
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.itsm import ApprovalStatusEnum
+from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.user import get_local_username
 from constants.new_report import (
     SUBSCRIPTION_VARIABLES_MAP,
     ChannelEnum,
@@ -34,7 +39,7 @@ from constants.new_report import (
     SendStatusEnum,
     StaffEnum,
 )
-from core.drf_resource import resource
+from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.exceptions import CustomException
 
@@ -337,7 +342,45 @@ class CreateOrUpdateReportResource(Resource):
         is_manager_created = serializers.BooleanField(required=False, default=False)
         is_enabled = serializers.BooleanField(required=False, default=True)
 
+    def create_approval_ticket(self, params):
+        """
+        创建ITSM审批单据并创建审批记录，保存单据号和跳转url
+        """
+        subscribers = []
+        for channel in params["channels"]:
+            subscribers.extend(channel["subscribers"])
+        subscriber_ids = [subscriber["id"] for subscriber in subscribers]
+        ticket_data = {
+            "creator": get_request_username() or get_local_username(),
+            "fields": [
+                {"key": "bk_biz_id", "value": params["bk_biz_id"]},
+                {"key": "subscribers", "value": subscriber_ids},
+                {"key": "title", "value": "邮件订阅创建审批"},
+                {"key": "report_name", "value": params["name"]},
+                {"key": "scenario", "value": params["scenario"]},
+            ],
+            "service_id": settings.REPORT_APPROVAL_SERVICE_ID,
+            "fast_approval": False,
+            "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/report_callback/")},
+        }
+        try:
+            data = api.itsm.create_fast_approval_ticket(ticket_data)
+        except Exception as e:
+            logger.error(f"审批创建异常: {e}")
+            raise e
+        record = ReportApplyRecord(
+            **params,
+            approval_url=data.get("ticket_url", ""),
+            operate="create",
+            approval_sn=data.get("sn", ""),
+            approval_step=data.get("current_step", ""),
+            status=ApprovalStatusEnum.RUNNING.value,
+        )
+        record.save()
+
     def perform_request(self, validated_request_data):
+        # if validated_request_data["subscriber_type"] == "others" and not validated_request_data["is_manager_created"]:
+        # self.create_approval_ticket()
         report_channels = validated_request_data.pop("channels", [])
         validated_request_data["send_mode"] = get_send_mode(validated_request_data["frequency"])
         frequency = validated_request_data["frequency"]
@@ -500,3 +543,23 @@ class GetExistReportsResource(Resource):
                     exist_report_list.append(report)
 
         return exist_report_list
+
+
+class CallbackResource(Resource):
+    """
+    获取审批结果
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        sn = serializers.CharField(required=True, label="工单号")
+        title = serializers.CharField(required=True, label="工单标题")
+        updated_by = serializers.CharField(required=True, label="更新人")
+        approve_result = serializers.BooleanField(required=True, label="审批结果")
+        token = serializers.CharField(required=False, label="校验token")
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("token"):
+            verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
+            if not verify_data.get("is_passed", False):
+                return {"message": "Error Token", "result": False}
+        return dict(result=True, message="approval success")

@@ -8,8 +8,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-APPROVAL_STATUS_CHOICES = (
-    ("RUNNING", "RUNNING"),
-    ("SUCCESS", "SUCCESS"),
-    ("FAILED", "FAILED"),
-)
+from django.utils.translation import ugettext_lazy as _lazy
+
+from bklog.apps.utils import ChoicesEnum
+
+
+class ApprovalStatusEnum(ChoicesEnum):
+    # 订阅模式
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+    _choices_labels = ((RUNNING, _lazy("审批中")), (SUCCESS, _lazy("审批成功")), (FAILED, _lazy("审批失败")))
