@@ -1048,9 +1048,9 @@ export default defineComponent({
                       createOrUpdateReport(response)
                         .then(() => {
                           Message({
-                            theme:'success',
+                            theme: 'success',
                             message: window.i18n.t('保存成功')
-                          })
+                          });
                         })
                         .catch(console.log);
                     })
