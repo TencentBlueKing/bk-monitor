@@ -569,4 +569,18 @@ class ReportCallbackResource(Resource):
             verify_data = TokenVerifyResource().request({"token": validated_request_data["token"]})
             if not verify_data.get("is_passed", False):
                 return {"message": "Error Token", "result": False}
+        try:
+            apply_record = ReportApplyRecord.objects.get(approval_sn=validated_request_data["sn"])
+        except ReportApplyRecord.DoesNotExist:
+            raise Exception("approval_sn: %s apply record not found", validated_request_data["sn"])
+        # 审批
+        if not validated_request_data["approve_result"]:
+            apply_record.status = ApprovalStatusEnum.FAILED.vlaue
+            apply_record.save()
+            return dict(result=True, message=f"approval failed by {validated_request_data['updated_by']}")
+        # 审批通过则订阅生效
+        apply_record.status = ApprovalStatusEnum.SUCCESS.vlaue
+        apply_record.save()
+        report_id = apply_record.report_id
+        Report.origin_objects.filter(report_id=report_id).update(is_deleted=False)
         return dict(result=True, message="approval success")
