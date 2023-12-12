@@ -86,6 +86,7 @@ export default defineComponent({
           // TODO: 提交数据即可
           console.log(response);
           isSaving.value = true;
+          delete response.timerange;
           createOrUpdateReport(response)
             .then(() => {
               Message({

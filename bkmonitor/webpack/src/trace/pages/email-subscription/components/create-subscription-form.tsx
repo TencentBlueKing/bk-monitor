@@ -720,7 +720,50 @@ export default defineComponent({
               <Form.FormItem label={window.i18n.t('订阅场景')}>{Scenario[this.formData.scenario]}</Form.FormItem>
             )}
             {this.mode === 'quick' && (
-              <Form.FormItem label={window.i18n.t('索引集')}>{this.indexSetName}</Form.FormItem>
+              // <Form.FormItem label={window.i18n.t('索引集')}>{this.indexSetName}</Form.FormItem>
+              <Form.FormItem
+                label={window.i18n.t('索引集')}
+                property='scenario_config.index_set_id'
+                required
+              >
+                <Select
+                  v-model={this.formData.scenario_config.index_set_id}
+                  clearable={false}
+                  filterable
+                  style='width: 465px;'
+                  onChange={this.checkExistSubscriptions}
+                >
+                  {this.indexSetIDList.map(item => {
+                    return (
+                      <Select.Option
+                        id={item.id}
+                        name={item.name}
+                      ></Select.Option>
+                    );
+                  })}
+                </Select>
+                {this.isShowExistSubscriptionTips && (
+                  <div style='margin-top: 8px;width: 800px;'>
+                    <Alert
+                      theme='warning'
+                      v-slots={{
+                        title: () => {
+                          return (
+                            <div>
+                              <i18n-t keypath='当前已存在相同索引集的订阅 {0} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'>
+                                <span style={{ color: '#3A84FF' }}>{this.duplicatedIndexIdName}</span>
+                              </i18n-t>
+                            </div>
+                          );
+                        }
+                      }}
+                      style={{
+                        width: '465px'
+                      }}
+                    ></Alert>
+                  </div>
+                )}
+              </Form.FormItem>
             )}
             {/* TODO：这是 观测对象 场景用的*/}
             {/* {this.mode === 'quick' && <Form.FormItem label={window.i18n.t('观测类型')}>{'观测类型'}</Form.FormItem>} */}

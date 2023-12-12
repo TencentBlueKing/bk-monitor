@@ -25,7 +25,7 @@
  */
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
-import { cancelReport, getReportList, getSendRecords, sendReport } from '@api/modules/new_report';
+import { cancelOrResubscribeReport, getReportList, getSendRecords, sendReport } from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
 import dayjs from 'dayjs';
 
@@ -35,7 +35,7 @@ import './my-subscription.scss';
 
 enum SendMode {
   periodic = window.i18n.t('周期发送'),
-  'only-time' = window.i18n.t('仅发一次')
+  one_time = window.i18n.t('仅发一次')
 }
 
 enum SendStatus {
@@ -60,6 +60,7 @@ class MySubscription extends tsc<{}> {
     conditions: []
   };
   tableData = [];
+  isTableLoading = false;
   isShowSideslider = false;
   isShowSendRecord = false;
   sendRecordTable = {
@@ -78,26 +79,56 @@ class MySubscription extends tsc<{}> {
   }
 
   fetchSubscriptionList() {
+    this.isTableLoading = true;
     getReportList(this.queryData)
       .then(response => {
         console.log(response);
         this.tableData = response;
       })
-      .catch(console.log);
+      .catch(console.log)
+      .finally(() => {
+        this.isTableLoading = false;
+      });
   }
 
-  handleCancelSubscription(subscription_id) {
+  handleCancelSubscription(data) {
     this.$bkInfo({
-      title: this.$t('是否取消订阅？'),
+      title: this.$t('是否取消 {0} 的订阅?', [data?.name]),
       confirmLoading: true,
       confirmFn: () => {
-        return cancelReport({
-          subscription_id
+        return cancelOrResubscribeReport({
+          report_id: data?.id,
+          is_enabled: false
         })
           .then(() => {
             this.$bkMessage({
               theme: 'success',
               message: this.$t('取消订阅成功')
+            });
+            this.fetchSubscriptionList();
+            return true;
+          })
+          .catch(error => {
+            console.log(error);
+            return false;
+          });
+      }
+    });
+  }
+
+  handleResubscribeReport(data) {
+    this.$bkInfo({
+      title: this.$t('是否重新订阅 {0} ?', [data?.name]),
+      confirmLoading: true,
+      confirmFn: () => {
+        return cancelOrResubscribeReport({
+          report_id: data?.id,
+          is_enabled: true
+        })
+          .then(() => {
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('重新订阅成功')
             });
             this.fetchSubscriptionList();
             return true;
@@ -158,7 +189,7 @@ class MySubscription extends tsc<{}> {
         break;
       }
       default:
-        str = data.frequency.runTime;
+        str = data.frequency.run_time;
         break;
     }
     return str;
@@ -178,16 +209,38 @@ class MySubscription extends tsc<{}> {
       {
         is_enabled: true,
         channel_name: this.currentTableRowOfSendingRecord.channel,
-        subscribers: this.currentTableRowOfSendingRecord.tempSendResult.map(item => {
-          const o = {
-            id: item.id,
-            is_enabled: true
-          };
-          if (item.type) {
-            o.type = item.type;
-          }
-          return o;
-        })
+        // subscribers: this.currentTableRowOfSendingRecord.tempSendResult.map(item => {
+        //   const o = {
+        //     id: item.id,
+        //     is_enabled: true
+        //   };
+        //   if (item.type) {
+        //     o.type = item.type;
+        //   }
+        //   return o;
+        // })
+        subscribers: this.currentTableRowOfSendingRecord.tempSendResult
+          .filter(item => {
+            if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
+              return item;
+            }
+            if (
+              ['partial_failed', 'failed'].includes(this.currentTableRowOfSendingRecord.send_status) &&
+              !item.result
+            ) {
+              return item;
+            }
+          })
+          .map(item => {
+            const o = {
+              id: item.id,
+              is_enabled: true
+            };
+            if (item.type) {
+              o.type = item.type;
+            }
+            return o;
+          })
       }
     ];
     sendReport({
@@ -213,11 +266,7 @@ class MySubscription extends tsc<{}> {
   }
 
   mounted() {
-    getReportList(this.queryData)
-      .then(response => {
-        console.log(response);
-      })
-      .catch(console.log);
+    this.fetchSubscriptionList();
   }
   render() {
     const sendingRecord = () => {
@@ -427,8 +476,8 @@ class MySubscription extends tsc<{}> {
               {this.$t('生效中')}
             </div>
             <div
-              class={['radio', this.queryData.query_type === 'cancel' && 'selected']}
-              onClick={() => (this.queryData.query_type = 'cancel')}
+              class={['radio', this.queryData.query_type === 'cancelled' && 'selected']}
+              onClick={() => (this.queryData.query_type = 'cancelled')}
             >
               <i class='circle canceled'></i>
               {this.$t('已取消')}
@@ -453,6 +502,9 @@ class MySubscription extends tsc<{}> {
 
         <bk-table
           data={this.tableData}
+          v-bkloading={{
+            isLoading: this.isTableLoading
+          }}
           style={{ marginTop: '24px' }}
           {...{
             on: {
@@ -538,7 +590,7 @@ class MySubscription extends tsc<{}> {
             label={this.$t('来源')}
             scopedSlots={{
               default: ({ row }) => {
-                return <div>{true ? this.$t('主动订阅') : this.$t('他人订阅')}</div>;
+                return <div>{row.is_self_subscribed ? this.$t('主动订阅') : this.$t('他人订阅')}</div>;
               }
             }}
           ></bk-table-column>
@@ -554,7 +606,7 @@ class MySubscription extends tsc<{}> {
               },
               {
                 text: window.i18n.t('仅发一次'),
-                value: 'only-time'
+                value: 'one_time'
               }
             ]}
             scopedSlots={{
@@ -638,12 +690,12 @@ class MySubscription extends tsc<{}> {
                       {this.$t('发送记录')}
                     </bk-button>
 
-                    {this.queryData.query_type !== 'invalid' && (
+                    {['available', 'invalid'].includes(this.queryData.query_type) && (
                       <bk-button
                         text
                         theme='primary'
                         style={{ marginLeft: '10px' }}
-                        onClick={() => this.handleCancelSubscription(row.id)}
+                        onClick={() => this.handleCancelSubscription(row)}
                       >
                         {this.$t('取消订阅')}
                       </bk-button>
@@ -654,6 +706,7 @@ class MySubscription extends tsc<{}> {
                         text
                         theme='primary'
                         style={{ marginLeft: '10px' }}
+                        onClick={() => this.handleResubscribeReport(row)}
                       >
                         {this.$t('重新订阅')}
                       </bk-button>
@@ -689,7 +742,7 @@ class MySubscription extends tsc<{}> {
                   <bk-button
                     theme='primary'
                     outline
-                    onClick={() => this.handleCancelSubscription(this.detailInfo?.id)}
+                    onClick={() => this.handleCancelSubscription(this.detailInfo)}
                   >
                     {this.$t('取消订阅')}
                   </bk-button>
