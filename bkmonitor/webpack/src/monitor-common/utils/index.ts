@@ -104,16 +104,20 @@ export const setGlobalBizId = () => {
     bizId = newBizId;
   }
   if (!isSpicialEvent && !hasRouteHash && !isEmailSubscriptions) {
+    debugger;
     const isDemoBizId = isDemo(bizId);
     if (!isDemoBizId && (!bizId || !hasAuth(bizId))) {
       if (!hasBizId() && localBizId && bizList.length && hasAuth(localBizId)) {
         bizId = +localBizId;
         location.href = `${location.origin}${location.pathname}?bizId=${localBizId}#/`;
+        setBizId(bizId);
         return false;
       }
       if (!authList?.length) {
         if (!bizId && bizList.length) {
-          location.href = `${location.origin}${location.pathname}?bizId=${bizList[0].bk_biz_id}#/`;
+          bizId = bizList[0].bk_biz_id;
+          location.href = `${location.origin}${location.pathname}?bizId=${bizId}#/`;
+          setBizId(bizId);
           return;
         }
         if (!bizId) bizId = -1;
