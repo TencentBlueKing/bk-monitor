@@ -832,7 +832,7 @@ class IndexSetHandler(APIModel):
         """
         # 名称校验
         if (
-            params["name"] in list(InnerTag.get_dict_choices().keys())
+            params["name"] in list(InnerTag.get_dict_choices().values())
             or IndexSetTag.objects.filter(name=params["name"]).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
@@ -857,6 +857,7 @@ class IndexSetHandler(APIModel):
                 _data["is_built_in"] = True
             else:
                 _data["is_built_in"] = False
+            _data["name"] = InnerTag.get_choice_label(obj.name)
             ret.append(_data)
 
         return ret
