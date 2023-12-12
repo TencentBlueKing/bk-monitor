@@ -32,6 +32,10 @@ class Platform(object):
     ee = settings.BKAPP_DEPLOY_PLATFORM == "enterprise"
     ce = settings.BKAPP_DEPLOY_PLATFORM == "community"
 
+    @classmethod
+    def to_dict(cls) -> Dict[str, str]:
+        return {"te": cls.te, "ee": cls.ee, "ce": cls.ce}
+
 
 def get_default_biz_id(request, biz_list: Optional[List[Dict[str, Any]]] = None, id_key: Optional[str] = None) -> int:
 
@@ -41,21 +45,19 @@ def get_default_biz_id(request, biz_list: Optional[List[Dict[str, Any]]] = None,
     else:
         # 从请求参数中获取业务 ID
         biz_id = fetch_biz_id_from_request(request, {})
-        # bizId 是前端业务选择器选中业务后会携带的参数
-        # Cookie(bk_biz_id) 请求前端环境变量时，会 set：bkmonitor/packages/monitor_web/commons/context/views.py
-        biz_id_or_none: Optional[str] = (
-            request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
-        )
+
         # 优先级：参数(bk_biz_id) -> 参数(bizId) = Cookie(bk_biz_id) -> biz_list -> -1
-        if biz_id:
-            biz_id = biz_id
-        elif biz_id_or_none:
-            biz_id = safe_int(str(biz_id_or_none).strip("/"), dft=None)
-        elif biz_list:
-            sorted(biz_list, key=lambda biz: biz[id_key])
-            biz_id = biz_list[0][id_key]
-        else:
-            biz_id = -1
+        if not biz_id:
+            # bizId 是前端业务选择器选中业务后会携带的参数
+            # Cookie(bk_biz_id) 请求前端环境变量时，会 set：bkmonitor/packages/monitor_web/commons/context/views.py
+            biz_id_or_none: Optional[str] = request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
+            if biz_id_or_none:
+                biz_id = safe_int(str(biz_id_or_none).strip("/"), dft=None)
+            elif biz_list:
+                sorted(biz_list, key=lambda biz: biz[id_key])
+                biz_id = biz_list[0]["bk_biz_id"]
+            else:
+                biz_id = -1
 
     # 检查业务ID是否合法
     try:
@@ -82,7 +84,7 @@ def field_formatter(context: Dict[str, Any]):
 
 def json_formatter(context: Dict[str, Any]):
     # JSON 返回预处理
-    context["PLATFORM"] = {key: getattr(context["PLATFORM"], key) for key in ["ce", "ee", "te"]}
+    context["PLATFORM"] = Platform.to_dict()
     context["LANGUAGES"] = dict(context["LANGUAGES"])
 
     for key in ["gettext", "_"]:
@@ -197,30 +199,10 @@ def get_extra_context(request, space: Optional[Space]) -> Dict[str, Any]:
         "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
         # 用于 healthz 判断是否容器化部署
         "IS_CONTAINER_MODE": settings.IS_CONTAINER_MODE,
-        # "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
         # 用于新增空间是否展示其他
         "MONITOR_MANAGERS": settings.MONITOR_MANAGERS,
-        # "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
         "CLUSTER_SETUP_URL": f"{settings.BK_BCS_HOST.rstrip('/')}/bcs/",
     }
-
-    # 格式化业务列表并排序
-    # 暂时不返回
-    # try:
-    #     context["BK_BIZ_LIST"] = [
-    #         {"id": biz.bk_biz_id, "text": biz.display_name, "is_demo": biz.bk_biz_id == int(settings.DEMO_BIZ_ID)}
-    #         for biz in resource.cc.get_app_by_user(request.user)
-    #     ]
-    # except:  # noqa
-    #     context["BK_BIZ_LIST"] = []
-    #
-    # # 有权限的空间列表
-    # try:
-    #     context["SPACE_LIST"] = resource.commons.list_spaces()
-    # except:  # noqa
-    #     pass
-    #
-    # default_biz_id = get_default_biz_id(request, context["SPACE_LIST"], "id")
 
     # 用于新增容器空间地址
     if space and space.space_code:
@@ -241,7 +223,6 @@ def _get_full_monitor_context(request) -> Dict[str, Any]:
         "RUN_MODE": settings.RUN_MODE,
         "APP_CODE": settings.APP_CODE,
         "SPACE_LIST": [],
-        # "MAIL_REPORT_BIZ": int(settings.MAIL_REPORT_BIZ),
         "STATIC_VERSION": settings.STATIC_VERSION,
         "BK_BCS_URL": settings.BK_BCS_HOST,
         # 当前页面，主要为了login_required做跳转用
@@ -259,28 +240,13 @@ def _get_full_monitor_context(request) -> Dict[str, Any]:
         "AGENT_SETUP_URL": settings.AGENT_SETUP_URL,
         # 用于仪表盘迁移
         "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
-        # "UTC_OFFSET": time_tools.utcoffset_in_seconds() // 60,
-        # "ENABLE_MESSAGE_QUEUE": "true" if settings.MESSAGE_QUEUE_DSN else "false",
-        # "MESSAGE_QUEUE_DSN": settings.MESSAGE_QUEUE_DSN,
-        # "ENABLE_GRAFANA": bool(settings.GRAFANA_URL),
         # 用于导入导出配置
         "COLLECTING_CONFIG_FILE_MAXSIZE": settings.COLLECTING_CONFIG_FILE_MAXSIZE,
         # 用于healz判断是否容器化部署
         "IS_CONTAINER_MODE": settings.IS_CONTAINER_MODE,
         # 用于新增空间是否展示其他
         "MONITOR_MANAGERS": settings.MONITOR_MANAGERS,
-        # "UPTIMECHECK_OUTPUT_FIELDS": settings.UPTIMECHECK_OUTPUT_FIELDS,
     }
-
-    # 格式化业务列表并排序
-    # 暂时不返回
-    # try:
-    #     context["BK_BIZ_LIST"] = [
-    #         {"id": biz.bk_biz_id, "text": biz.display_name, "is_demo": biz.bk_biz_id == int(settings.DEMO_BIZ_ID)}
-    #         for biz in resource.cc.get_app_by_user(request.user)
-    #     ]
-    # except:  # noqa
-    #     context["BK_BIZ_LIST"] = []
 
     # 有权限的空间列表
     try:
