@@ -210,83 +210,83 @@ export default class QueryStatement extends tsc<IProps> {
               </span>
             </Tag>
           ))}
-        </div>
-        <Select
-          searchable
-          popover-min-width={240}
-          popover-options={{ boundary: 'window', distance: 30 }}
-          disabled={this.isDisabledAddNewTag}
-          onSelected={this.addLabelToIndexSet}
-          onToggle={this.toggleSelect}
-          scopedSlots={{
-            trigger: () => (
-              <div
-                class={[
-                  'add-label-btn',
-                  {
-                    disabled: this.isDisabledAddNewTag,
-                  },
-                ]}
-              >
-                <i class="bk-icon icon-plus-line"></i>
-              </div>
-            ),
-          }}
-        >
-          <div class="new-label-container" slot="extension">
-            {this.isShowNewGroupInput ? (
-              <div class="new-label-input">
-                <Form
-                  labelWidth={0}
-                  style={{ width: '100%' }}
-                  ref="checkInputForm"
-                  {...{
-                    props: {
-                      model: this.verifyData,
-                      rules: this.rules,
+          <Select
+            searchable
+            popover-min-width={240}
+            popover-options={{ boundary: 'window', distance: 30 }}
+            disabled={this.isDisabledAddNewTag}
+            onSelected={this.addLabelToIndexSet}
+            onToggle={this.toggleSelect}
+            scopedSlots={{
+              trigger: () => (
+                <div
+                  class={[
+                    'add-label-btn',
+                    {
+                      disabled: this.isDisabledAddNewTag,
                     },
-                  }}
+                  ]}
                 >
-                  <FormItem property="labelEditName">
-                    <Input
-                      clearable
-                      vModel={this.verifyData.labelEditName}
-                      onEnter={v => this.handleLabelKeyDown(v)}
-                    ></Input>
-                  </FormItem>
-                </Form>
-                <div class="operate-button">
-                  <span
-                    class="bk-icon icon-check-line"
-                    onClick={() => this.handleChangeLabelStatus('add')}
-                  ></span>
-                  <span
-                    class="bk-icon icon-close-line-2"
-                    onClick={() => this.handleChangeLabelStatus('cancel')}
-                  ></span>
+                  <i class="bk-icon icon-plus-line"></i>
                 </div>
-              </div>
-            ) : (
-              <div
-                class="add-new-label"
-                onClick={() => (this.isShowNewGroupInput = true)}
-              >
-                <i class="bk-icon icon-plus-circle"></i>
-                <span>{this.$t('新增标签')}</span>
-              </div>
-            )}
-          </div>
-          <div class="group-list">
-            {this.showGroupSelectLabelList.map(item => (
-              <Option
-                class="label-option"
-                id={item.tag_id}
-                name={item.name}
-                disabled={item.disabled}
-              ></Option>
-            ))}
-          </div>
-        </Select>
+              ),
+            }}
+          >
+            <div class="new-label-container" slot="extension">
+              {this.isShowNewGroupInput ? (
+                <div class="new-label-input">
+                  <Form
+                    labelWidth={0}
+                    style={{ width: '100%' }}
+                    ref="checkInputForm"
+                    {...{
+                      props: {
+                        model: this.verifyData,
+                        rules: this.rules,
+                      },
+                    }}
+                  >
+                    <FormItem property="labelEditName">
+                      <Input
+                        clearable
+                        vModel={this.verifyData.labelEditName}
+                        onEnter={v => this.handleLabelKeyDown(v)}
+                      ></Input>
+                    </FormItem>
+                  </Form>
+                  <div class="operate-button">
+                    <span
+                      class="bk-icon icon-check-line"
+                      onClick={() => this.handleChangeLabelStatus('add')}
+                    ></span>
+                    <span
+                      class="bk-icon icon-close-line-2"
+                      onClick={() => this.handleChangeLabelStatus('cancel')}
+                    ></span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  class="add-new-label"
+                  onClick={() => (this.isShowNewGroupInput = true)}
+                >
+                  <i class="bk-icon icon-plus-circle"></i>
+                  <span>{this.$t('新增标签')}</span>
+                </div>
+              )}
+            </div>
+            <div class="group-list">
+              {this.showGroupSelectLabelList.map(item => (
+                <Option
+                  class="label-option"
+                  id={item.tag_id}
+                  name={item.name}
+                  disabled={item.disabled}
+                ></Option>
+              ))}
+            </div>
+          </Select>
+        </div>
       </div>
     );
   }
