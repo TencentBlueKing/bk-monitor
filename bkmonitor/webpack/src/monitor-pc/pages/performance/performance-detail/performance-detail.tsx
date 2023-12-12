@@ -109,6 +109,17 @@ export default class PerformanceDetail extends tsc<{}> {
     destroyTimezone();
     next();
   }
+
+  handleBack() {
+    if (window.history.length <= 1) {
+      this.$router.push({
+        name: 'performance'
+      });
+    } else {
+      this.$router.back();
+    }
+  }
+
   render() {
     if (this.showGuidePage) return <GuidePage guideData={introduce.data.performance.introduce} />;
     return (
@@ -131,6 +142,7 @@ export default class PerformanceDetail extends tsc<{}> {
               needCopyLink
               needBack={true}
               navMode={'share'}
+              callbackRouterBack={this.handleBack}
             />
           </CommonPage>
         )}

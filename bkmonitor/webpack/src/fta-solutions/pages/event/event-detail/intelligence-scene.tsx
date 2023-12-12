@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import echarts from 'echarts';
 
 import { multiAnomalyDetectGraph } from '../../../../monitor-api/modules/alert';
 import { random } from '../../../../monitor-common/utils';
@@ -51,10 +52,38 @@ export default class IntelligenceScene extends tsc<IProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
+  // 是否展示复位
+  @ProvideReactive('showRestore') showRestore = false;
+  // 是否开启（框选/复位）全部操作
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
 
   panels: PanelModel[] = [];
   dashboardId = random(10);
+
+  // 时间范围缓存用于复位功能
+  cacheTimeRange = [];
+
   loading = false;
+
+  // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+    this.timeRange = value;
+    this.showRestore = true;
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    const cacheTime = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.timeRange = cacheTime;
+    this.showRestore = false;
+  }
+
+  timeRangeInit() {
+    const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
+    const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
+    this.timeRange = [startTime, endTime];
+  }
 
   async created() {
     this.loading = true;
@@ -62,14 +91,11 @@ export default class IntelligenceScene extends tsc<IProps> {
       alert_id: this.params.id,
       bk_biz_id: this.params.bk_biz_id
     }).catch(() => []);
-    const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
-    this.timeRange = [startTime, endTime];
+    this.timeRangeInit();
     const result = data.map(item => {
       return {
         ...item,
         dashboardId: this.dashboardId,
-        id: this.dashboardId,
         targets: item.targets.map(target => ({
           ...target,
           data: {
@@ -78,11 +104,27 @@ export default class IntelligenceScene extends tsc<IProps> {
             bk_biz_id: this.params.bk_biz_id
           },
           datasource: 'time_series'
-        }))
+        })),
+        options: {
+          time_series: {
+            custom_timerange: true
+          }
+        }
       };
     });
     this.panels = result.map(item => new PanelModel(item));
+    echarts.connect(this.dashboardId.toString());
     this.loading = false;
+  }
+
+  handledblClick() {
+    this.timeRangeInit();
+    // this.timeRange = DEFAULT_TIME_RANGE;
+    this.showRestore = false;
+  }
+
+  destroyed() {
+    echarts.disConnect(this.dashboardId.toString());
   }
 
   render() {
@@ -101,6 +143,7 @@ export default class IntelligenceScene extends tsc<IProps> {
             <ChartWrapper
               panel={panel}
               needCheck={false}
+              onDblClick={this.handledblClick}
             ></ChartWrapper>
           </div>
         ))}
