@@ -344,7 +344,7 @@ export default {
           placement: 'top',
           offset: '0, -50',
           theme: 'light',
-          allowHTML: true,
+          // allowHTML: true,
           interactive: true,
           appendTo: 'parent',
           boundary: this.scrollContent,

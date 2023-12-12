@@ -1,0 +1,140 @@
+@import '@/scss/mixins/flex.scss';
+
+.label-select {
+  padding: 4px 0;
+  position: relative;
+  align-items: center;
+
+  @include flex-justify(start);
+
+  .bk-select {
+    margin-left: 4px;
+    flex-shrink: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .is-focus,
+  &:hover {
+    .add-label-btn {
+      visibility: visible;
+
+      &::after {
+        background: #e1ecff;
+      }
+    }
+  }
+}
+
+.label-tag-container {
+  flex-wrap: wrap;
+  align-items: center;
+
+  @include flex-justify(start);
+
+  .bk-tag {
+    position: relative;
+    flex-shrink: 0;
+
+    &:hover {
+      padding: 0 2px 0 10px;
+
+      .icon-close {
+        display: block;
+      }
+    }
+  }
+
+  .icon-close {
+    display: none;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  .is-disabled {
+    background: transparent;
+  }
+}
+
+.label-tag {
+  @include flex-center();
+}
+
+.new-label-container {
+  height: 40px;
+  box-sizing: border-box;
+  font-size: 12px;
+
+  @include flex-center();
+
+  .new-label-input {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    padding: 0;
+    width: 100%;
+  }
+
+  .add-new-label {
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    color: #63656e;
+
+    @include flex-center();
+
+    .icon-plus-circle {
+      margin-right: 4px;
+    }
+  }
+
+  .operate-button {
+    font-size: 16px;
+    margin-left: 6px;
+    color: #979ba5;
+
+    span {
+      cursor: pointer;
+    }
+
+    > :first-child {
+      color: #33d05c;
+      margin-right: 12px;
+    }
+
+    > :last-child {
+      color: #979ba5;
+    }
+  }
+}
+
+.add-label-btn {
+  visibility: hidden;
+  position: relative;
+  z-index: 999;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+
+  @include flex-center();
+
+  &::after {
+    content: ' ';
+    z-index: -1;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: transparent;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+  }
+
+  .icon-plus-line {
+    color: #3a84ff;
+  }
+}

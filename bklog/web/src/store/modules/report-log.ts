@@ -54,7 +54,7 @@ class ReportLogStore extends VuexModule {
     oldNavId = params.nav_id;
 
     const username = store.state.userMeta?.username;
-    const space = spaceList?.find(item => +item.space_uid === +spaceUid);
+    const space = spaceList?.find(item => item.space_uid === spaceUid);
     const routeConfig = getRouteConfigById(params.nav_id);
 
     $http.request('report/frontendEventReport', 
