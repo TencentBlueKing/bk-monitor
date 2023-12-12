@@ -41,6 +41,7 @@ from fta_web.tasks import run_init_builtin_action_config
 from monitor.models import GlobalConfig
 from monitor_web.iam.resources import CallbackResource
 from monitor_web.strategies.built_in import run_build_in
+from packages.monitor_web.new_report.resources import ReportCallbackResource
 
 
 def user_exit(request):
@@ -287,5 +288,19 @@ def external_callback(request):
         "[{}]: dispatch_grafana with header({}) and params({})".format("external_callback", request.META, params)
     )
     result = CallbackResource().perform_request(params)
+    if result["result"]:
+        return JsonResponse(result, status=200)
+
+
+@login_exempt
+@method_decorator(csrf_exempt)
+@require_POST
+def report_callback(request):
+    try:
+        params = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"result": False, "message": "invalid json format"}, status=400)
+
+    result = ReportCallbackResource().perform_request(params)
     if result["result"]:
         return JsonResponse(result, status=200)

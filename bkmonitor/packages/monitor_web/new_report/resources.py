@@ -354,7 +354,7 @@ class CreateOrUpdateReportResource(Resource):
             "creator": get_request_username() or get_local_username(),
             "fields": [
                 {"key": "bk_biz_id", "value": params["bk_biz_id"]},
-                {"key": "subscribers", "value": subscriber_ids},
+                {"key": "subscribers", "value": ", ".join(subscriber_ids)},
                 {"key": "title", "value": "邮件订阅创建审批"},
                 {"key": "report_name", "value": params["name"]},
                 {"key": "scenario", "value": params["scenario"]},
@@ -379,8 +379,12 @@ class CreateOrUpdateReportResource(Resource):
         record.save()
 
     def perform_request(self, validated_request_data):
-        # if validated_request_data["subscriber_type"] == "others" and not validated_request_data["is_manager_created"]:
-        # self.create_approval_ticket()
+        if validated_request_data["subscriber_type"] == "others" and not validated_request_data["is_manager_created"]:
+            # 订阅审批 & 提前创建
+            self.create_approval_ticket(validated_request_data)
+            report = Report(is_deleted=True, **validated_request_data)
+            report.save()
+            return report.id
         report_channels = validated_request_data.pop("channels", [])
         validated_request_data["send_mode"] = get_send_mode(validated_request_data["frequency"])
         frequency = validated_request_data["frequency"]
@@ -548,7 +552,7 @@ class GetExistReportsResource(Resource):
         return exist_report_list
 
 
-class CallbackResource(Resource):
+class ReportCallbackResource(Resource):
     """
     获取审批结果
     """
