@@ -71,15 +71,15 @@ export default class UiQuery extends Mixins(classDragMixin) {
     autoClosingDelete: 'never',
     autoClosingOvertype: 'never',
     autoClosingQuotes: 'never',
-    autoIndent: 'None',
     autoSurround: 'never',
+    autoIndent: 'None',
     copyWithSyntaxHighlighting: false,
     selectionHighlight: false,
     occurrencesHighlight: false,
     foldingHighlight: false,
     highlightActiveBracketPair: false,
     highlightActiveIndentation: false,
-    quickSuggestions: false,
+    quickSuggestions: true,
     suggestions: false,
     wordBasedSuggestions: false,
     wordBasedSuggestionsOnlySameLanguage: false,
@@ -120,6 +120,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
   emitKeyDown(event) {
     return event;
   }
+
   focus() {
     const model = this.editor.getModel();
     // 聚焦
@@ -127,18 +128,11 @@ export default class UiQuery extends Mixins(classDragMixin) {
     // 光标跟随
     this.editor.setPosition(model.getPositionAt(model.getValueLength() + 1));
   }
+
   blur() {
-    const model = this.editor.getModel();
-    this.editor.setPosition(model.getPositionAt(model.getValueLength() + 1));
-    // 清空选中的文本高亮背景
-    this.editor.setSelection({
-      startLineNumber: 0,
-      startColumn: 0,
-      endLineNumber: 0,
-      endColumn: 0,
-    });
     (document.activeElement as any).blur();
   }
+
   /** 语法初始化 */
   initMonacoBeforeFun(monaco) {
     monaco.editor.defineTheme('myTheme', {

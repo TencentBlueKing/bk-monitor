@@ -309,7 +309,7 @@ export default {
         this.inputTimer = setTimeout(this.calculateDropdown, 300);
       }
     },
-    handleKeydown(val, e) {
+    handleKeydown(e) {
       const { code } = e;
       if (code === 'Escape') {
         this.closeDropdown();
@@ -441,7 +441,7 @@ export default {
     },
     closeDropdown() {
       this.showDropdown = false;
-      this.$refs.editorElement.blur();
+      this.handleBlur(this.$refs.editorElement.editor.getValue());
     },
 
     // 根据当前输入关键字计算提示内容
