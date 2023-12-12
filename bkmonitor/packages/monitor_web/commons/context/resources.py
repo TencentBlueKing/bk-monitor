@@ -193,4 +193,5 @@ class EnhancedGetContextResource(Resource):
         ]
         if getattr(request, "external_user", None):
             context = {k: v for k, v in context.items() if k in external_fields}
+            context["UIN"] = request.external_user
         return {"context": context, "context_type": context_type}
