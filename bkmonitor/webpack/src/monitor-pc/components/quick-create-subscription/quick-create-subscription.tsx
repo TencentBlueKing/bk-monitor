@@ -173,7 +173,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               </bk-dropdown-menu>
               <bk-button
                 style={{ width: '88px' }}
-                onClick={() => (this.value = false)}
+                onClick={() => this.$emit('change', false)}
               >
                 {window.i18n.t('取消')}
               </bk-button>
