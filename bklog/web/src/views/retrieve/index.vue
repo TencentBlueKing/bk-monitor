@@ -758,7 +758,7 @@ export default {
     searchAddChange(addObj) {
       const { addition, isQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery && this.isAutoQuery) this.retrieveLog();
+      if (isQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);
@@ -1047,12 +1047,10 @@ export default {
       // 进入检索详情页
       const queryObj = {
         ...this.$route.query,
-        ...queryParamsStr,
         spaceUid: this.$store.state.spaceUid,
         bizId: this.$store.state.bkBizId,
-        // 由于要缓存过滤条件 解构route的query时会把缓存的pickerTimeRange参数携带上，故重新更新pickerTimeRange参数
-        // pickerTimeRange: queryParamsStr?.pickerTimeRange,
         keyword: queryParamsStr?.keyword,
+        ...queryParamsStr,
       };
       this.$router.push({
         name: 'retrieve',
@@ -1351,7 +1349,7 @@ export default {
         // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
         if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
 
-        if (this.tableData.list.length && this.visibleFields.length) {
+        if (this.tableData?.list.length && this.visibleFields.length) {
           this.visibleFields.forEach((field) => {
             field.width = calculateTableColsWidth(field, this.tableData.list);
           });

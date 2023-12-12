@@ -56,6 +56,16 @@ interface IStatusDataSubValue {
   text: string;
 }
 
+// 由于本地的 vue-i18n 库导致无法正常调试，这里做了一个特殊处理去解决后端的文本强制转成中文作为判断。
+const textMapping = {
+  采集状态: '采集状态',
+  'Collection Status': '采集状态',
+  运营状态: '运营状态',
+  'Operation Status': '运营状态',
+  所属模块: '所属模块',
+  Modules: '所属模块'
+};
+
 @Component
 export default class HostDetailView extends tsc<IProps, IEvents> {
   @InjectReactive('readonly') readonly readonly: boolean;
@@ -296,8 +306,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   get statusData(): { [key: string]: IStatusData } {
     const o = {};
     this.data.forEach(item => {
-      if (this.targetStatusName.includes(item.name)) {
-        o[item.name] = item;
+      if (this.targetStatusName.includes(textMapping[item.name])) {
+        o[textMapping[item.name]] = item;
       }
     });
     return o;
@@ -305,12 +315,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   /** 中间纯文本的表格 */
   get labelListData(): IDetailItem[] {
     return this.data.filter(item => {
-      return !(this.targetStatusName.includes(item.name) || this.targetListName.includes(item.name));
+      return !(
+        this.targetStatusName.includes(textMapping[item.name]) || this.targetListName.includes(textMapping[item.name])
+      );
     });
   }
   /** 所属模块 的信息 */
   get moduleData(): { name: string; type: string; value: any | string[] }[] {
-    const result = this.data.find(item => item.name === '所属模块');
+    const result = this.data.find(item => textMapping[item.name] === '所属模块');
     if (result) return [result];
     return [];
   }
@@ -352,8 +364,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
     ) {
       iconClass = 'icon-inform-circle';
     }
-
-    return <i class={`icon-monitor ${iconClass}`}></i>;
+    return iconClass;
   }
   get maintainStatusText() {
     const statusType = this.statusData[this.targetStatusName[0]]?.type;
@@ -380,7 +391,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 boundary: 'window'
               }}
             >
-              {this.maintainStatusIcon}
+              <i class={`icon-monitor ${this.maintainStatusIcon}`}></i>
               <span class='text'>{this.maintainStatusText}</span>
             </div>
           )}
@@ -464,7 +475,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {/* 所属模块 */}
           {(this.moduleData as IDetailItem[]).map(item => (
             <div key={item.name}>
-              {this.targetListName.includes(item.name) && <div class='divider'></div>}
+              {this.targetListName.includes(textMapping[item.name]) && <div class='divider'></div>}
               <div class='module-data-panel-item'>
                 <div class={['module-data-item-title']}>{item.name}</div>
                 <div class='module-data-item-value'>{this.handleTransformVal(item)}</div>

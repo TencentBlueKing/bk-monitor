@@ -29,13 +29,13 @@
         :is-clean-field="true"
         @stepChange="stepChange"
         @changeClean="isCleaning = true"
-        @change-submit="changeSubmit" />
+        @changeSubmit="changeSubmit" />
       <step-storage
         v-if="curStep === 2"
         :cur-step="curStep"
         :is-clean-field="true"
         @stepChange="stepChange"
-        @change-submit="changeSubmit" />
+        @changeSubmit="changeSubmit" />
     </article>
 
     <article class="article clean-landing" v-else>
