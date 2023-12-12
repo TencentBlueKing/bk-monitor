@@ -49,6 +49,7 @@ class MyApply extends tsc<{}> {
   approvalStatus = 'ALL';
   searchValue = '';
   tableData = [];
+  isTableLoading = false;
   isShowSideslider = false;
   isShowQCSSlider = false;
   detailInfo = {};
@@ -84,12 +85,16 @@ class MyApply extends tsc<{}> {
   }
 
   mounted() {
+    this.isTableLoading = true;
     getApplyRecords()
       .then(response => {
         console.log(response);
         this.tableData = response;
       })
-      .catch(console.log);
+      .catch(console.log)
+      .finally(() => {
+        this.isTableLoading = false;
+      })
   }
 
   render() {
@@ -137,6 +142,9 @@ class MyApply extends tsc<{}> {
 
         <bk-table
           data={this.computedTableData}
+          v-bkloading={{
+            isLoading: this.isTableLoading
+          }}
           style={{ marginTop: '24px' }}
         >
           <bk-table-column
