@@ -582,6 +582,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         variables[key] = this.defaultViewOptions.variables[key];
       });
     this.groups = this.defaultViewOptions?.groups || [];
+    console.log(this.$route.query);
     Object.keys(this.$route.query || {}).forEach(key => {
       const val = this.$route.query[key];
       if (key.match(/^filter-/)) {
