@@ -60,7 +60,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   isShowPop = false;
 
   /* 输入完毕，关闭弹出层时 下次弹出全部选项 */
-  isSelected = false;
+  isSelected = true;
 
   get searchList() {
     if (this.value) {
