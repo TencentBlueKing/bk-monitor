@@ -758,7 +758,7 @@ export default {
     searchAddChange(addObj) {
       const { addition, isQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery && this.isAutoQuery) this.retrieveLog();
+      if (isQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);
@@ -1368,6 +1368,29 @@ export default {
       } catch (error) {
         this.isSetDefaultTableColumn = false;
       }
+    },
+    // 首次加载设置表格默认宽度自适应
+    setDefaultTableColumn() {
+      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
+      const { params: { indexId }, query: { bizId } } = this.$route;
+      // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
+      if (columnObj[bizId] && columnObj[bizId].indexsetIds.includes(indexId)) return;
+
+      if (this.tableData.list.length && this.visibleFields.length) {
+        this.visibleFields.forEach((field) => {
+          field.width = calculateTableColsWidth(field, this.tableData.list);
+        });
+        const columnsWidth = this.visibleFields.reduce((prev, next) => prev + next.width, 0);
+        const tableElem = document.querySelector('.original-log-panel');
+        // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
+        if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
+          this.visibleFields.forEach((field) => {
+            field.width = field.width < 300 ? 'default' : field.width;
+          });
+        }
+      }
+
+      this.isSetDefaultTableColumn = true;
     },
     // 根据表格数据统计字段值及出现次数
     getStatisticalFieldsData(listData) {
