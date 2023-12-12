@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { multiAnomalyDetectGraph } from '../../../../monitor-api/modules/alert';
@@ -51,10 +51,32 @@ export default class IntelligenceScene extends tsc<IProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
+  // 是否展示复位
+  @ProvideReactive('showRestore') showRestore = false;
+  // 是否开启（框选/复位）全部操作
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
 
   panels: PanelModel[] = [];
   dashboardId = random(10);
+
+  // 时间范围缓存用于复位功能
+  cacheTimeRange = [];
+
   loading = false;
+
+  // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+    this.timeRange = value;
+    this.showRestore = true;
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    const cacheTime = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.timeRange = cacheTime;
+    this.showRestore = false;
+  }
 
   async created() {
     this.loading = true;
@@ -69,7 +91,6 @@ export default class IntelligenceScene extends tsc<IProps> {
       return {
         ...item,
         dashboardId: this.dashboardId,
-        id: this.dashboardId,
         targets: item.targets.map(target => ({
           ...target,
           data: {
@@ -78,7 +99,12 @@ export default class IntelligenceScene extends tsc<IProps> {
             bk_biz_id: this.params.bk_biz_id
           },
           datasource: 'time_series'
-        }))
+        })),
+        options: {
+          time_series: {
+            custom_timerange: true
+          }
+        }
       };
     });
     this.panels = result.map(item => new PanelModel(item));
