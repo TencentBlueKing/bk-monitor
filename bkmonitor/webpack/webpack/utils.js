@@ -74,11 +74,18 @@ window.site_url = "\${SITE_URL}"
 window.static_url = "\${STATIC_URL}"
 window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
 </script>`;
+
 const externalBuildVariates = `
 <script>
+<%
+import json
+def to_json(val):
+    return json.dumps(val)
+%>
 window.site_url = "\${SITE_URL}"
 window.static_url = "\${STATIC_URL}"
 window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
+window.bk_biz_ids = \${to_json(BK_BIZ_IDS) | n}
 </script>`;
 
 const mobileBuildVariatesOld = `
