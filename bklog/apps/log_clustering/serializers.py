@@ -206,3 +206,17 @@ class GetExistReportsSerlaizer(serializers.Serializer):
     query_type = serializers.CharField(required=False, label="查询类型")
     bk_biz_id = serializers.IntegerField(required=True)
     index_set_id = serializers.IntegerField(required=True)
+
+
+class TestSendReportSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False)
+    bk_biz_id = serializers.IntegerField(required=False)
+    scenario = serializers.CharField(label="订阅场景", required=False)
+    channels = ChannelSerializer(many=True, required=False)
+    frequency = FrequencySerializer(required=False)
+    content_config = ContentConfigSerializer(required=False)
+    scenario_config = ScenarioConfigSerializer(required=False)
+    start_time = serializers.IntegerField(label="开始时间", required=False, default=None, allow_null=True)
+    end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
+    is_manager_created = serializers.BooleanField(required=False, default=False)
+    is_enabled = serializers.BooleanField(required=False, default=True)

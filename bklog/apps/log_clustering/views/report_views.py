@@ -30,6 +30,7 @@ from apps.log_clustering.serializers import (
     GetExistReportsSerlaizer,
 )
 from apps.utils.drf import detail_route
+from bklog.apps.log_clustering.serializers import TestSendReportSerializer
 
 
 class ReportViewSet(APIViewSet):
@@ -55,9 +56,16 @@ class ReportViewSet(APIViewSet):
         @api {post} /report/create_or_update_report/ 日志聚类-创建或更新订阅报表
         @apiName create_or_update_report
         @apiGroup log_clustering
-        @apiParam {String} signature 数据指纹
-        @apiParam {String} label 标签内容
-        @apiSuccessExample {json} 成功返回: null
         """
         params = self.params_valid(CreateOrUpdateReportSerializer)
         return MonitorApi.create_or_update_report(params)
+
+    @detail_route(methods=["POST"], url_path="test_send_report")
+    def test_send_report(self, request):
+        """
+        @api {post} /report/test_send_report/ 日志聚类-测试发送订阅报表
+        @apiName test_send_report
+        @apiGroup log_clustering
+        """
+        params = self.params_valid(TestSendReportSerializer)
+        return MonitorApi.send_report(params)
