@@ -522,7 +522,15 @@ class AlertAssignee:
                             notify_configs[f"{notice_way_type}|{real_notice_way}"].append(receiver_id)
                     else:
                         # 企业微信机器人的，直接扩展
-                        notify_configs[notice_way_type].extend(notice_way["receivers"])
+                        # 先去重
+                        receivers = [
+                            receiver
+                            for receiver in notice_way["receivers"]
+                            if receiver not in notify_configs[notice_way_type]
+                        ]
+                        if receivers:
+                            notify_configs[notice_way_type].extend(receivers)
+
                         if mention_users:
                             # 如果当前对应的组有需要提醒的人员信息，保存起来
                             for receiver in notice_way["receivers"]:
