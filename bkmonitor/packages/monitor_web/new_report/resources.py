@@ -448,7 +448,10 @@ class SendReportResource(Resource):
         is_enabled = serializers.BooleanField(required=False, default=True)
 
     def perform_request(self, validated_request_data):
-        # result = api.monitor.send_report(**validated_request_data)
+        try:
+            api.monitor.send_report(**validated_request_data)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(f"send report {validated_request_data['name']} error:{e}")
         return "success"
 
 

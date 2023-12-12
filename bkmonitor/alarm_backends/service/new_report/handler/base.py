@@ -18,8 +18,10 @@ from bkmonitor.models.report import (
     SendStatusEnum,
 )
 from bkmonitor.report.utils import send_email, send_wxbot
+from constants.new_report import StaffEnum
 from constants.report import StaffChoice
 from core.drf_resource import api
+from core.errors import logger
 
 
 class BaseReportHandler(object):
@@ -101,7 +103,9 @@ class SendChannelHandler(object):
             else:
                 has_failed = True
             if self.channel.channel_name == ChannelEnum.USER.value:
-                send_results.append({"id": receiver, "type": StaffChoice.user, "result": result[receiver]["result"]})
+                send_results.append(
+                    {"id": receiver, "type": StaffEnum.USER.value, "result": result[receiver]["result"]}
+                )
             else:
                 send_results.append({"id": receiver, "result": result[receiver]["result"]})
 
@@ -131,7 +135,11 @@ class SendChannelHandler(object):
             return [subscriber["id"] for subscriber in self.channel.subscribers]
         user_channel = self.channel
         user_subscribers = user_channel.subscribers
-        groups_data = api.monitor.group_list(bk_biz_id)
+        groups_data = []
+        try:
+            groups_data = api.monitor.group_list(bk_biz_id=bk_biz_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(f"get group list[{bk_biz_id}] error:{e}")
         for user in user_subscribers:
             # 解析用户组
             if user["is_enabled"] and user["type"] == StaffChoice.group:
