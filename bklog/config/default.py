@@ -87,6 +87,7 @@ INSTALLED_APPS += (
     "bkm_ipchooser",
     "apps.log_desensitize",
     "log_adapter",
+    "bkm_search_module",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -1016,6 +1017,11 @@ if os.getenv("BKAPP_GSE_VERSION"):
     GSE_VERSION = os.getenv("BKAPP_GSE_VERSION", "v1")
 else:
     GSE_VERSION = "v2" if ENABLE_DHCP else "v1"
+
+# 日志检索组件配置
+# ===============
+BKM_SEARCH_MODULE_BKAPI_CLASS = "apps.utils.search_module.BkApi"
+
 
 # 国际化切换语言设置
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")
