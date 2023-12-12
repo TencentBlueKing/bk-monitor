@@ -56,19 +56,18 @@ export default class QueryStatement extends tsc<IProps> {
     labelEditName: [
       {
         validator: this.checkTagName,
-        message: this.$t('已有同名标签'),
+        message: window.mainComponent.$t('已有同名标签'),
         trigger: 'blur',
       },
       {
         required: true,
-        message: this.$t('必填项'),
+        message: window.mainComponent.$t('必填项'),
         trigger: 'blur',
       },
     ],
   };
 
   get isDisabledAddNewTag() {
-    // console.log(this.rowData);
     return this.rowData.status === 'terminated';
   }
 
