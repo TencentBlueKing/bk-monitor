@@ -359,7 +359,7 @@ class CreateOrUpdateReportResource(Resource):
                 {"key": "report_name", "value": params["name"]},
                 {"key": "scenario", "value": params["scenario"]},
             ],
-            "service_id": settings.REPORT_APPROVAL_SERVICE_ID,
+            "service_id": 509 or settings.REPORT_APPROVAL_SERVICE_ID,
             "fast_approval": False,
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/report_callback/")},
         }
@@ -368,23 +368,21 @@ class CreateOrUpdateReportResource(Resource):
         except Exception as e:
             logger.error(f"审批创建异常: {e}")
             raise e
+        current_step = [{"id": 42, "tag": "DEFAULT", "name": "test"}]
+        business = api.cmdb.get_business(bk_biz_ids=[params["bk_biz_id"]])
+        bk_biz_maintainer = getattr(business[0], "bk_biz_maintainer", [])
         record = ReportApplyRecord(
-            **params,
+            report_id=params["id"],
+            bk_biz_id=params["bk_biz_id"],
             approval_url=data.get("ticket_url", ""),
-            operate="create",
             approval_sn=data.get("sn", ""),
-            approval_step=data.get("current_step", ""),
+            approval_step=current_step,
+            approvers=bk_biz_maintainer,
             status=ApprovalStatusEnum.RUNNING.value,
         )
         record.save()
 
     def perform_request(self, validated_request_data):
-        if validated_request_data["subscriber_type"] == "others" and not validated_request_data["is_manager_created"]:
-            # 订阅审批 & 提前创建
-            self.create_approval_ticket(validated_request_data)
-            report = Report(is_deleted=True, **validated_request_data)
-            report.save()
-            return report.id
         report_channels = validated_request_data.pop("channels", [])
         validated_request_data["send_mode"] = get_send_mode(validated_request_data["frequency"])
         frequency = validated_request_data["frequency"]
@@ -401,7 +399,18 @@ class CreateOrUpdateReportResource(Resource):
             report.save()
         else:
             # 创建
-            report = Report(**validated_request_data)
+            need_apply = False
+            if (
+                validated_request_data["subscriber_type"] == "others"
+                and not validated_request_data["is_manager_created"]
+            ):
+                # 订阅审批 & 提前创建
+                need_apply = True
+                self.create_approval_ticket(validated_request_data)
+            create_params = validated_request_data
+            if need_apply:
+                create_params["is_deleted"] = True
+            report = Report(**create_params)
             report.save()
         with transaction.atomic():
             # 更新订阅渠道
@@ -509,7 +518,16 @@ class GetApplyRecordsResource(Resource):
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
-        return list(ReportApplyRecord.objects.filter(create_user=username).values())
+        qs = ReportApplyRecord.objects.filter(create_user=username)
+        report_ids = qs.values_list("report_id", flat=1)
+        apply_records = list(qs.values())
+        report_infos = Report.objects.filter(id__in=report_ids).values("id", "name")
+        report_id_to_name = {}
+        for report_info in report_infos:
+            report_id_to_name[report_info["id"]] = report_info["name"]
+        for apply_record in apply_records:
+            apply_record["content_title"] = report_id_to_name[apply_record["report_id"]]
+        return apply_records
 
 
 class GetVariablesResource(Resource):
@@ -582,5 +600,5 @@ class ReportCallbackResource(Resource):
         apply_record.status = ApprovalStatusEnum.SUCCESS.value
         apply_record.save()
         report_id = apply_record.report_id
-        Report.origin_objects.filter(report_id=report_id).update(is_deleted=False)
+        Report.origin_objects.filter(id=report_id).update(is_deleted=False)
         return dict(result=True, message="approval success")

@@ -208,7 +208,7 @@ class MySubscription extends tsc<{}> {
     const channels = [
       {
         is_enabled: true,
-        channel_name: this.currentTableRowOfSendingRecord.channel,
+        channel_name: this.currentTableRowOfSendingRecord.channel_name,
         // subscribers: this.currentTableRowOfSendingRecord.tempSendResult.map(item => {
         //   const o = {
         //     id: item.id,
@@ -329,7 +329,7 @@ class MySubscription extends tsc<{}> {
                         onClick={e => {
                           this.currentTableRowOfSendingRecord = row;
                           this.sendRecordTable.data.forEach(item => {
-                            this.$set(item, 'tempSendResult', deepClone(item.send_result));
+                            this.$set(item, 'tempSendResult', deepClone(item.send_results));
                           });
                           this.$nextTick(() => {
                             if (this.popoverInstance) {
@@ -368,7 +368,7 @@ class MySubscription extends tsc<{}> {
             class='resend-popover-container'
           >
             <div class='success-header-text'>
-              {/* 根据 data.channel 如果为 success 就选这些文本
+              {/* 根据 data.channel_name 如果为 success 就选这些文本
                   1. 已成功发送 {0} 个内部用户
                   2. 已成功发送 {0} 个外部邮件
                   3. 已成功发送 {0} 个企业微信群
@@ -379,12 +379,12 @@ class MySubscription extends tsc<{}> {
                   3. 已成功发送 {0} 个，失败 {1} 个内部用户
                   */}
               <i18n path='已成功发送 {0} 个内部用户'>
-                <span class='success-text'>{this.currentTableRowOfSendingRecord?.send_result?.length}</span>
+                <span class='success-text'>{this.currentTableRowOfSendingRecord?.send_results?.length}</span>
               </i18n>
             </div>
 
             <div class='header-confirm-text'>
-              {/* 根据 data.channel 如果为 success 就选这些文本
+              {/* 根据 data.channel_name 如果为 success 就选这些文本
               1. 确定重新发送给以下用户
               2. 确定重新发送给以下邮件
               3. 确定重新发送给以下企微群

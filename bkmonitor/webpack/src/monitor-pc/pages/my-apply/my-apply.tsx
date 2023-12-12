@@ -77,7 +77,7 @@ class MyApply extends tsc<{}> {
           item.content_title.includes(this.searchValue) ||
           item.approval_sn.includes(this.searchValue) ||
           item.approvers.find(item => item.includes(this.searchValue)) ||
-          item.created_time.includes(this.searchValue)
+          item.create_time.includes(this.searchValue)
         ) {
           return item;
         }
@@ -206,7 +206,7 @@ class MyApply extends tsc<{}> {
 
           <bk-table-column
             label={this.$t('提单时间')}
-            prop='created_time'
+            prop='create_time'
           ></bk-table-column>
 
           <bk-table-column
