@@ -478,7 +478,9 @@ export default defineComponent({
         refOfEmailSubscription.value?.validate?.(),
         refOfSendingConfigurationForm.value?.validate?.()
       ]).then(() => {
-        return formData;
+        const clonedFormData = deepClone(formData);
+        delete clonedFormData.timerange;
+        return clonedFormData;
       });
     }
 
@@ -608,6 +610,12 @@ export default defineComponent({
 
         default:
           break;
+      }
+      if (formData.start_time && formData.end_time) {
+        formData.timerange = [
+          dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ss'),
+          dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss')
+        ];
       }
     }
 
@@ -1410,7 +1418,7 @@ export default defineComponent({
               )}
             </Form.FormItem>
 
-            {this.mode === 'normal' && this.formData.frequency.type !== 1 && (
+            {this.formData.frequency.type !== 1 && (
               <Form.FormItem
                 label={window.i18n.t('有效时间范围')}
                 property='timerange'

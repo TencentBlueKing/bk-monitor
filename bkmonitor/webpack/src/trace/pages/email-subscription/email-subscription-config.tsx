@@ -36,12 +36,22 @@ import {
   sendReport
 } from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
-import { Button, Dialog, Dropdown, Input, Message, Popover, Radio, Sideslider, Switcher, Table, Tag } from 'bkui-vue';
+import {
+  Button,
+  Dialog,
+  Dropdown,
+  Input,
+  Loading,
+  Message,
+  Popover,
+  Radio,
+  Sideslider,
+  Switcher,
+  Table,
+  Tag
+} from 'bkui-vue';
 import dayjs from 'dayjs';
 
-import { useAppStore } from '../../store/modules/app';
-
-// import { useAppStore } from '@/store/modules/app';
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 
@@ -84,7 +94,6 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const router = useRouter();
-    const appStore = useAppStore();
     const queryData = reactive({
       create_type: 'manager',
       query_type: 'all',
@@ -98,7 +107,6 @@ export default defineComponent({
       router.push({
         name: 'create-subscription'
       });
-      console.log('handleGoToCreateConfigPage');
     }
     function handleInputKeydown() {
       resetAndGetSubscriptionList();
@@ -334,7 +342,8 @@ export default defineComponent({
           }
         ],
         limit: 0
-      }
+      },
+      isLoading: false
     });
 
     const toggleMapForSendRecord = reactive({});
@@ -593,12 +602,16 @@ export default defineComponent({
       fetchSubscriptionList();
     }
     function fetchSubscriptionList() {
+      table.isLoading = true;
       getReportList(queryData)
         .then(response => {
           console.log(response);
           table.data = response;
         })
-        .catch(console.log);
+        .catch(console.log)
+        .finally(() => {
+          table.isLoading = false;
+        });
     }
 
     const subscriptionDetail = ref({});
@@ -828,13 +841,13 @@ export default defineComponent({
                 />
                 <span>{this.t('已失效')}</span>
               </Radio.Button>
-              <Radio.Button label='cancelled'>
+              {/* <Radio.Button label='cancelled'>
                 <i
                   class='icon-circle cancelled'
                   style='margin-right: 4px;'
                 />
                 <span>{this.t('已取消')}</span>
-              </Radio.Button>
+              </Radio.Button> */}
             </Radio.Group>
             <Input
               v-model={this.queryData.search_key}
@@ -858,60 +871,62 @@ export default defineComponent({
       <div class='email-subscription-config-container'>
         {/* 头部搜索 部分 */}
         {headerTmpl()}
-        <Table
-          data={this.table.data}
-          columns={this.table.columns.fields}
-          border={['outer']}
-          style='margin-top: 16px;background-color: white;'
-          pagination={{
-            current: this.queryData.page,
-            limit: this.queryData.page_size,
-            count: this.table.data.length,
-            onChange: pageNum => {
-              console.log(pageNum);
-              this.queryData.page = pageNum;
-            },
-            onLimitChange: limit => {
-              console.log(limit);
-              this.queryData.page_size = limit;
-            }
-          }}
-          onColumnFilter={({ checked, column, index }) => {
-            console.log({ checked, column, index });
-            let currentIndex = -1;
-            const result = this.queryData.conditions.filter((item, index) => {
-              if (item.key === column.field) {
-                currentIndex = index;
-                return item;
+        <Loading loading={this.table.isLoading}>
+          <Table
+            data={this.table.data}
+            columns={this.table.columns.fields}
+            border={['outer']}
+            style='margin-top: 16px;background-color: white;'
+            pagination={{
+              current: this.queryData.page,
+              limit: this.queryData.page_size,
+              count: this.table.data.length,
+              onChange: pageNum => {
+                console.log(pageNum);
+                this.queryData.page = pageNum;
+              },
+              onLimitChange: limit => {
+                console.log(limit);
+                this.queryData.page_size = limit;
               }
-              return false;
-            });
-            if (result.length) {
-              if (checked.length) {
-                this.queryData.conditions[currentIndex].value = checked;
+            }}
+            onColumnFilter={({ checked, column, index }) => {
+              console.log({ checked, column, index });
+              let currentIndex = -1;
+              const result = this.queryData.conditions.filter((item, index) => {
+                if (item.key === column.field) {
+                  currentIndex = index;
+                  return item;
+                }
+                return false;
+              });
+              if (result.length) {
+                if (checked.length) {
+                  this.queryData.conditions[currentIndex].value = checked;
+                } else {
+                  this.queryData.conditions.splice(currentIndex, 1);
+                }
               } else {
-                this.queryData.conditions.splice(currentIndex, 1);
+                if (checked.length) {
+                  this.queryData.conditions.push({
+                    key: column.field,
+                    value: checked
+                  });
+                }
               }
-            } else {
-              if (checked.length) {
-                this.queryData.conditions.push({
-                  key: column.field,
-                  value: checked
-                });
+              this.fetchSubscriptionList();
+            }}
+            onColumnSort={({ column, index, type }) => {
+              console.log({ column, index, type });
+              if (type !== 'null') {
+                this.queryData.order = `${type === 'asc' ? '' : '-'}${column.field}`;
+              } else {
+                this.queryData.order = '';
               }
-            }
-            this.fetchSubscriptionList();
-          }}
-          onColumnSort={({ column, index, type }) => {
-            console.log({ column, index, type });
-            if (type !== 'null') {
-              this.queryData.order = `${type === 'asc' ? '' : '-'}${column.field}`;
-            } else {
-              this.queryData.order = '';
-            }
-            this.fetchSubscriptionList();
-          }}
-        ></Table>
+              this.fetchSubscriptionList();
+            }}
+          ></Table>
+        </Loading>
         <Dialog
           is-show={this.isShowSendRecord}
           title={this.t('发送记录')}
@@ -1044,7 +1059,6 @@ export default defineComponent({
                     .validateAllForms()
                     .then(response => {
                       console.log(response);
-                      delete response.timerange;
                       createOrUpdateReport(response)
                         .then(() => {
                           Message({
