@@ -23,11 +23,48 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { MANAGE_AUTH as GROUP_MANAGE } from '../alarm-group/authority-map';
-import { MANAGE_AUTH as PLUGIN_MANAGE } from '../plugin-manager/authority-map';
+import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-export const VIEW_AUTH = 'view_collection_v2';
-export const MANAGE_AUTH = 'manage_collection_v2';
-export const PLUGIN_MANAGE_AUTH = PLUGIN_MANAGE;
-export const STRATEGY_VIEW_AUTH = 'view_rule_v2';
-export const ALARM_GROUP_MANAGE_AUTH = GROUP_MANAGE; // 告警组管理权限
+import './expand-wrapper.scss';
+
+interface IProps {
+  value: boolean;
+  onChange?: (v: boolean) => void;
+}
+
+@Component
+export default class ExpandWrapper extends tsc<IProps> {
+  @Prop({ type: Boolean, default: false }) value: boolean;
+
+  isExpan = false;
+
+  @Watch('value', { immediate: true })
+  handleWatchValue(v: boolean) {
+    if (this.isExpan !== v) {
+      this.isExpan = v;
+    }
+  }
+
+  handleExpan() {
+    this.isExpan = !this.isExpan;
+    this.$emit('change', this.isExpan);
+  }
+
+  render() {
+    return (
+      <div class='expand-wrapper-component'>
+        <div
+          class={['wrap-header', { active: this.isExpan }]}
+          onClick={this.handleExpan}
+        >
+          <div class='expan-btn'>
+            <span class={['icon-monitor icon-mc-triangle-down', { active: this.isExpan }]}></span>
+          </div>
+          <div class='wrap-header-slot'>{this.$slots?.header}</div>
+        </div>
+        <div class={['wrap-content', { show: this.isExpan }]}>{this.$slots?.content}</div>
+      </div>
+    );
+  }
+}
