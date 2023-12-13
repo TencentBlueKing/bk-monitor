@@ -486,7 +486,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
                 }
               >
-                {' '}
+                <span class='icon-monitor icon-plus-line mr-6'></span>
                 {this.$t('新建')}
               </bk-button>
               <SearchSelect
