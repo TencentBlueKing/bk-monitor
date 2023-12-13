@@ -2332,6 +2332,9 @@ class UnionSearchHandler(object):
             time_field_type = list(union_time_fields_type)[0]
             time_field_unit = list(union_time_fields_unit)[0]
 
+        if not union_display_fields:
+            union_display_fields.append(time_field)
+
         index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
 
         sort_list = [[time_field, "desc"]]
