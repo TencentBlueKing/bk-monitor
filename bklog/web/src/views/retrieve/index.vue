@@ -1346,28 +1346,26 @@ export default {
     setDefaultTableColumn() {
       try {
         const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-        console.log(columnObj, 11);
-        // const { params: { indexId }, query: { bizId } } = this.$route;
+        const { params: { indexId }, query: { bizId } } = this.$route;
         // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-        // if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
+        if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
 
-        // if (this.tableData.list.length && this.visibleFields.length) {
-        //   this.visibleFields.forEach((field) => {
-        //     field.width = calculateTableColsWidth(field, this.tableData.list);
-        //   });
-        //   const columnsWidth = this.visibleFields.reduce((prev, next) => prev + next.width, 0);
-        //   const tableElem = document.querySelector('.original-log-panel');
-        //   // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-        //   if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
-        //     this.visibleFields.forEach((field) => {
-        //       field.width = field.width < 300 ? 'default' : field.width;
-        //     });
-        //   }
-        // }
+        if (this.tableData.list.length && this.visibleFields.length) {
+          this.visibleFields.forEach((field) => {
+            field.width = calculateTableColsWidth(field, this.tableData.list);
+          });
+          const columnsWidth = this.visibleFields.reduce((prev, next) => prev + next.width, 0);
+          const tableElem = document.querySelector('.original-log-panel');
+          // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
+          if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
+            this.visibleFields.forEach((field) => {
+              field.width = field.width < 300 ? 'default' : field.width;
+            });
+          }
+        }
 
         this.isSetDefaultTableColumn = true;
       } catch (error) {
-        console.log(error);
         this.isSetDefaultTableColumn = false;
       }
     },
