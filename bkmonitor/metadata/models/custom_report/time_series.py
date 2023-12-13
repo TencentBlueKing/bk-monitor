@@ -13,7 +13,7 @@ import json
 import logging
 import math
 import time
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
 from django.db import models
@@ -222,11 +222,11 @@ class TimeSeriesGroup(CustomGroupBase):
                         continue
                     tag_map[tag["field_name"]] = tag["description"]
 
-            return {
-                "is_update_description": is_update_description,
-                "metric_dict": metric_dict,
-                "tag_map": tag_map,
-            }
+        return {
+            "is_update_description": is_update_description,
+            "metric_dict": metric_dict,
+            "tag_map": tag_map,
+        }
 
     def _bulk_create_or_update_metrics(
         self,
@@ -977,7 +977,12 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _bulk_create_metrics(
-        cls, metrics_dict: Dict, need_create_metrics: List, group_id: int, table_id: str, is_auto_discovery: bool
+        cls,
+        metrics_dict: Dict,
+        need_create_metrics: Union[List, Set],
+        group_id: int,
+        table_id: str,
+        is_auto_discovery: bool,
     ) -> bool:
         """批量创建指标"""
         records = []
