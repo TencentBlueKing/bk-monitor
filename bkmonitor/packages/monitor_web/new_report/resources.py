@@ -22,6 +22,7 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.itsm.default import TokenVerifyResource
+from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.models import Report, ReportApplyRecord, ReportChannel, ReportSendRecord
 from bkmonitor.report.serializers import (
     ChannelSerializer,
@@ -80,6 +81,12 @@ class GetReportListResource(Resource):
     @staticmethod
     def get_request_username():
         return get_request().user.username
+
+    @staticmethod
+    def check_permission(bk_biz_id):
+        Permission().is_allowed(
+            ActionEnum.MANAGE_REPORT, [ResourceEnum.BUSINESS.create_instance(bk_biz_id)], raise_exception=True
+        )
 
     @staticmethod
     def filter_by_search_key(qs, search_key):
@@ -215,6 +222,8 @@ class GetReportListResource(Resource):
 
         # 根据角色过滤
         if validated_request_data["create_type"]:
+            if validated_request_data["create_type"] == "manager":
+                self.check_permission(validated_request_data["bk_biz_id"])
             report_qs = self.filter_by_create_type(validated_request_data["create_type"], report_qs)
 
         # 根据搜索关键字过滤
@@ -466,7 +475,7 @@ class SendReportResource(Resource):
         try:
             api.monitor.send_report(**validated_request_data)
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"send report {validated_request_data['name']} error:{e}")
+            logger.exception("send report error:{}".format(e))
         return "success"
 
 
