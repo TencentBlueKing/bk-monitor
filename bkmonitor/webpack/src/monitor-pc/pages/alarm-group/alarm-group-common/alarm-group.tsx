@@ -72,19 +72,41 @@ export default class AlarmGroup extends tsc<IGroupList> {
   emptyType: EmptyStatusType = 'empty';
   // 表格列数据
   tableCloumnsList = [
-    { label: 'ID', prop: 'id', minWidth: null, width: 90, props: {}, formatter: row => `#${row.id}` },
+    {
+      label: 'ID',
+      prop: 'id',
+      disabled: true,
+      checked: true,
+      minWidth: null,
+      width: 90,
+      props: {},
+      formatter: row => `#${row.id}`
+    },
     {
       label: i18n.t('名称'),
       prop: 'name',
+      disabled: true,
+      checked: true,
       minWidth: 100,
       width: null,
       props: { 'show-overflow-tooltip': true },
       formatter: () => {}
     },
-    { label: i18n.t('应用策略数'), prop: 'strategy_count', minWidth: null, width: 200, props: {}, formatter: () => {} },
+    {
+      label: i18n.t('应用策略数'),
+      prop: 'strategy_count',
+      disabled: false,
+      checked: true,
+      minWidth: null,
+      width: 200,
+      props: {},
+      formatter: () => {}
+    },
     {
       label: i18n.t('说明'),
       prop: 'desc',
+      disabled: false,
+      checked: true,
       minWidth: 180,
       width: null,
       props: { 'show-overflow-tooltip': true },
@@ -94,6 +116,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
     {
       label: i18n.t('最近更新人'),
       prop: 'update_user',
+      disabled: false,
+      checked: true,
       minWidth: 120,
       width: 120,
       props: {},
@@ -102,6 +126,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
     {
       label: i18n.t('最近更新时间'),
       prop: 'update_time',
+      disabled: false,
+      checked: true,
       minWidth: 220,
       width: 220,
       props: {},
@@ -110,14 +136,38 @@ export default class AlarmGroup extends tsc<IGroupList> {
     {
       label: i18n.t('配置来源'),
       prop: 'config_source',
+      disabled: false,
+      checked: false,
       minWidth: 70,
       width: 170,
       props: {},
       formatter: row => row.config_source || '--'
     },
-    { label: i18n.t('配置分组'), prop: 'app', minWidth: 70, width: 170, props: {}, formatter: row => row.app || '--' },
-    { label: i18n.t('操作'), prop: 'handle', minWidth: null, width: 130, props: {}, formatter: () => {} }
+    {
+      label: i18n.t('配置分组'),
+      prop: 'app',
+      disabled: false,
+      checked: false,
+      minWidth: 70,
+      width: 170,
+      props: {},
+      formatter: row => row.app || '--'
+    },
+    {
+      label: i18n.t('操作'),
+      prop: 'handle',
+      disabled: true,
+      checked: true,
+      minWidth: null,
+      width: 130,
+      props: {},
+      formatter: () => {}
+    }
   ];
+
+  settingFields = [];
+  selectedFields = [];
+  tableSize = 'small';
 
   searchCondition = [];
 
@@ -125,6 +175,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   get isMonitor(): boolean {
     return this.type === 'monitor';
+  }
+
+  get selectedColumn() {
+    return this.selectedFields.map(item => item.id);
   }
 
   created() {
@@ -161,6 +215,17 @@ export default class AlarmGroup extends tsc<IGroupList> {
       // eslint-disable-next-line no-param-reassign
       fnMap[prop] && (column.formatter = fnMap[prop]);
     });
+    this.settingFields = this.tableCloumnsList.map(item => ({
+      label: item.label,
+      id: item.prop,
+      disabled: item.disabled
+    }));
+    this.selectedFields = this.tableCloumnsList
+      .filter(item => item.checked)
+      .map(item => ({
+        label: item.label,
+        id: item.prop
+      }));
   }
   cellName(row) {
     return (
@@ -395,6 +460,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
     this.tableData = this.tableInstance.getTableData();
   }
 
+  handleSettingChange({ fields, size }) {
+    this.selectedFields = fields;
+    this.tableSize = size;
+  }
+
   render(): VNode {
     return (
       <div class='alarm-group-list-page'>
@@ -454,6 +524,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
               data={this.tableData}
               outer-border={false}
               header-border={false}
+              size={this.tableSize}
             >
               <div slot='empty'>
                 <EmptyStatus
@@ -461,16 +532,30 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   onOperation={this.handleOperation}
                 />
               </div>
-              {this.tableCloumnsList.map(item => (
-                <bk-table-column
-                  label={item.label}
-                  prop={item.prop}
-                  {...{ props: item.props }}
-                  width={item.width}
-                  min-width={item.minWidth}
-                  formatter={item.formatter}
-                />
-              ))}
+              {this.tableCloumnsList
+                .filter(item => this.selectedColumn.includes(item.prop))
+                .map(item => (
+                  <bk-table-column
+                    key={item.prop}
+                    label={item.label}
+                    prop={item.prop}
+                    {...{ props: item.props }}
+                    width={item.width}
+                    min-width={item.minWidth}
+                    formatter={item.formatter}
+                  />
+                ))}
+              <bk-table-column
+                type='setting'
+                tippy-options={{ zIndex: 999 }}
+              >
+                <bk-table-setting-content
+                  fields={this.settingFields}
+                  selected={this.selectedFields}
+                  size={this.tableSize}
+                  on-setting-change={this.handleSettingChange}
+                ></bk-table-setting-content>
+              </bk-table-column>
             </bk-table>
             <div class='alarm-group-pagination'>
               {this.tableInstance ? (

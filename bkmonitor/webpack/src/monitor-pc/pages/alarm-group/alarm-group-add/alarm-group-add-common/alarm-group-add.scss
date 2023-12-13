@@ -80,6 +80,10 @@ $minWidth: 1036px;
     }
   }
 
+  .bk-label-text {
+    font-size: 12px;
+  }
+
   .input-duty {
     display: flex;
     align-items: center;
@@ -88,6 +92,7 @@ $minWidth: 1036px;
       margin-left: 9px;
     }
   }
+
 
   .alert-type {
     display: flex;
@@ -102,6 +107,7 @@ $minWidth: 1036px;
       height: 48px;
       margin-right: 16px;
       cursor: pointer;
+      background: #fff;
       border: 1px solid #c4c6cc;
       border-radius: 2px;
 
