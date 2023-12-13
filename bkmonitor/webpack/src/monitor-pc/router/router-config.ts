@@ -82,311 +82,311 @@ export interface IRouteConfigItem {
   query?: any;
 }
 // route config
-// nav list 
-const routeConfig: IRouteConfigItem[] = [
-  {
-    id: 'home',
-    name: '首页',
-    route: 'home'
-  },
-  {
-    id: 'dashboard',
-    name: '仪表盘',
-    route: 'grafana'
-  },
-  {
-    id: 'data',
-    name: '数据探索',
-    route: 'data-retrieval',
-    children: [
-      {
-        name: '指标检索',
-        icon: 'icon-monitor icon-trend menu-icon',
-        navName: '指标检索',
-        id: 'data-retrieval',
-        path: '/data-retrieval',
-        href: '#/data-retrieval',
-        canStore: true
-      },
-      {
-        name: '日志检索',
-        icon: 'icon-monitor icon-mc-log-retrieval menu-icon',
-        navName: '日志检索',
-        id: 'log-retrieval',
-        path: '/log-retrieval',
-        href: '#/log-retrieval',
-        canStore: true
-      },
-      {
-        name: '事件检索',
-        icon: 'icon-monitor icon-shijian1 menu-icon',
-        navName: '事件检索',
-        id: 'event-retrieval',
-        path: '/event-retrieval',
-        href: '#/event-retrieval',
-        canStore: true
-      },
-      {
-        name: 'Trace检索',
-        icon: 'icon-monitor icon-mc-menu-trace menu-icon',
-        navName: 'Trace检索',
-        id: 'trace-retrieval',
-        path: '/trace/home',
-        href: '#/trace/home',
-        usePath: true,
-        // isBeta: window.platform?.te === false,
-        canStore: true
-      }
-    ]
-  },
-  {
-    id: 'event',
-    name: '告警事件',
-    route: 'event-center',
-    canStore: true
-  },
-  {
-    id: 'scenes',
-    name: '观测场景',
-    route: 'performance',
-    children: [
-      {
-        name: '用户体验',
-        shortName: '体验',
-        id: 'monitor-experience',
-        children: [
-          {
-            name: '综合拨测',
-            icon: 'icon-monitor icon-menu-uptime menu-icon',
-            navName: '综合拨测',
-            id: 'uptime-check',
-            path: '/uptime-check',
-            href: '#/uptime-check',
-            canStore: true
-          },
-          {
-            name: 'APM',
-            icon: 'icon-monitor icon-mc-menu-apm menu-icon',
-            navName: 'APM',
-            id: 'apm-home',
-            path: '/apm/home',
-            href: '#/apm/home',
-            hidden: process.env.NODE_ENV === 'production' && !window.enable_apm,
-            // isBeta: window.platform?.te === false,
-            canStore: true
-          }
-        ]
-      },
-      {
-        name: '主机&云平台',
-        shortName: '主机',
-        id: 'monitor-serivice',
-        children: [
-          {
-            name: 'Kubernetes',
-            icon: 'icon-monitor icon-mc-mainboard menu-icon',
-            id: 'k8s',
-            path: '/k8s',
-            href: '#/k8s',
-            // isBeta: window.platform?.te === false,
-            canStore: true
-          },
-          {
-            name: '主机监控',
-            icon: 'icon-monitor icon-menu-performance menu-icon',
-            id: 'performance',
-            path: '/performance',
-            href: '#/performance',
-            canStore: true
-          }
-        ]
-      },
-      {
-        name: '其他',
-        shortName: '其他',
-        id: 'other',
-        children: [
-          {
-            name: '自定义场景',
-            icon: 'icon-monitor icon-mc-custom-scene menu-icon',
-            id: 'custom-scenes',
-            path: '/custom-scenes',
-            href: '#/custom-scenes',
-            canStore: true
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'manager',
-    name: '配置',
-    route: 'strategy-config',
-    children: [
-      {
-        name: '告警配置',
-        shortName: '告警配置',
-        id: 'monitor',
-        children: [
-          {
-            name: '告警策略',
-            icon: 'icon-monitor icon-mc-strategy menu-icon',
-            id: 'strategy-config',
-            path: '/strategy-config',
-            href: '#/strategy-config',
-            canStore: true
-          },
-          {
-            name: '告警分派',
-            icon: 'icon-monitor icon-fenpai menu-icon',
-            id: 'alarm-dispatch',
-            path: '/alarm-dispatch',
-            href: '#/alarm-dispatch',
-            canStore: true
-          },
-          {
-            name: '告警组',
-            icon: 'icon-monitor icon-menu-group menu-icon',
-            id: 'alarm-group',
-            path: '/alarm-group',
-            canStore: true,
-            href: '#/alarm-group'
-          },
-          {
-            name: '指标管理',
-            icon: 'icon-monitor icon-mc-custom-scene menu-icon',
-            id: 'metrics-manager',
-            path: '/metrics-manager',
-            href: '#/metrics-manager',
-            canStore: true,
-            hidden: true
-          }
-        ]
-      },
-      {
-        name: '告警处理',
-        shortName: '处理',
-        id: 'alert-set',
-        children: [
-          {
-            name: '告警屏蔽',
-            icon: 'icon-monitor icon-menu-shield menu-icon',
-            id: 'alarm-shield',
-            path: '/trace/alarm-shield',
-            href: '#/trace/alarm-shield',
-            canStore: true
-          },
-          {
-            name: '处理套餐',
-            icon: 'icon-monitor icon-chulitaocan menu-icon',
-            id: 'set-meal',
-            path: '/set-meal',
-            href: '#/set-meal',
-            canStore: true
-          }
-        ]
-      },
-      window.enable_aiops
-        ? {
-            name: '智能设置',
-            shortName: '智能',
-            id: 'ai',
-            children: [
-              {
-                name: 'AI设置',
-                icon: 'icon-monitor icon-chulitaocan menu-icon',
-                id: 'ai-settings',
-                path: '/ai-settings',
-                href: '#/ai-settings',
-                canStore: true
-              }
-            ]
-          }
-        : undefined
-    ].filter(Boolean)
-  },
-  {
-    id: 'integrated',
-    name: '集成',
-    route: 'plugin-manager',
-    children: [
-      {
-        name: '插件',
-        shortName: '插件',
-        id: 'intergrations',
-        children: [
-          {
-            name: '指标插件',
-            icon: 'icon-monitor icon-menu-plugin menu-icon',
-            id: 'plugin-manager',
-            path: '/plugin-manager',
-            href: '#/plugin-manager',
-            canStore: true
-          },
-          {
-            name: '告警源',
-            icon: 'icon-monitor icon-menu-aler-source menu-icon',
-            id: 'fta-integrated',
-            path: '/fta/intergrations',
-            href: '#/fta/intergrations',
-            usePath: true,
-            canStore: true
-          }
-        ]
-      },
-      {
-        name: '数据采集',
-        shortName: '采集',
-        id: 'monitor-collect',
-        children: [
-          {
-            name: '数据采集',
-            icon: 'icon-monitor icon-menu-collect menu-icon',
-            id: 'collect-config',
-            path: '/collect-config',
-            href: '#/collect-config',
-            canStore: true
-          },
-          {
-            name: '自定义指标',
-            icon: 'icon-monitor icon-menu-custom menu-icon',
-            id: 'custom-metric',
-            path: '/custom-metric',
-            href: '#/custom-metric',
-            hidden: false,
-            canStore: true
-          },
-          {
-            name: '自定义事件',
-            icon: 'icon-monitor icon-mc-custom-event menu-icon',
-            id: 'custom-event',
-            path: '/custom-event',
-            href: '#/custom-event',
-            canStore: true
-          }
-        ]
-      },
-      {
-        name: '共享',
-        shortName: '共享',
-        id: 'share',
-        children: [
-          {
-            name: '导入导出',
-            icon: 'icon-monitor icon-menu-export menu-icon',
-            id: 'export-import',
-            path: '/export-import',
-            href: '#/export-import',
-            canStore: true
-          }
-        ]
-      }
-    ]
-  }
-].filter(item => (process.env.APP === 'external' ? item.id === 'dashboard' : true));
+// nav list
 export const getRouteConfig = () => {
+  const routeConfig: IRouteConfigItem[] = [
+    {
+      id: 'home',
+      name: '首页',
+      route: 'home'
+    },
+    {
+      id: 'dashboard',
+      name: '仪表盘',
+      route: 'grafana'
+    },
+    {
+      id: 'data',
+      name: '数据探索',
+      route: 'data-retrieval',
+      children: [
+        {
+          name: '指标检索',
+          icon: 'icon-monitor icon-trend menu-icon',
+          navName: '指标检索',
+          id: 'data-retrieval',
+          path: '/data-retrieval',
+          href: '#/data-retrieval',
+          canStore: true
+        },
+        {
+          name: '日志检索',
+          icon: 'icon-monitor icon-mc-log-retrieval menu-icon',
+          navName: '日志检索',
+          id: 'log-retrieval',
+          path: '/log-retrieval',
+          href: '#/log-retrieval',
+          canStore: true
+        },
+        {
+          name: '事件检索',
+          icon: 'icon-monitor icon-shijian1 menu-icon',
+          navName: '事件检索',
+          id: 'event-retrieval',
+          path: '/event-retrieval',
+          href: '#/event-retrieval',
+          canStore: true
+        },
+        {
+          name: 'Trace检索',
+          icon: 'icon-monitor icon-mc-menu-trace menu-icon',
+          navName: 'Trace检索',
+          id: 'trace-retrieval',
+          path: '/trace/home',
+          href: '#/trace/home',
+          usePath: true,
+          // isBeta: window.platform?.te === false,
+          canStore: true
+        }
+      ]
+    },
+    {
+      id: 'event',
+      name: '告警事件',
+      route: 'event-center',
+      canStore: true
+    },
+    {
+      id: 'scenes',
+      name: '观测场景',
+      route: 'performance',
+      children: [
+        {
+          name: '用户体验',
+          shortName: '体验',
+          id: 'monitor-experience',
+          children: [
+            {
+              name: '综合拨测',
+              icon: 'icon-monitor icon-menu-uptime menu-icon',
+              navName: '综合拨测',
+              id: 'uptime-check',
+              path: '/uptime-check',
+              href: '#/uptime-check',
+              canStore: true
+            },
+            {
+              name: 'APM',
+              icon: 'icon-monitor icon-mc-menu-apm menu-icon',
+              navName: 'APM',
+              id: 'apm-home',
+              path: '/apm/home',
+              href: '#/apm/home',
+              hidden: !window.enable_apm,
+              // isBeta: window.platform?.te === false,
+              canStore: true
+            }
+          ]
+        },
+        {
+          name: '主机&云平台',
+          shortName: '主机',
+          id: 'monitor-serivice',
+          children: [
+            {
+              name: 'Kubernetes',
+              icon: 'icon-monitor icon-mc-mainboard menu-icon',
+              id: 'k8s',
+              path: '/k8s',
+              href: '#/k8s',
+              // isBeta: window.platform?.te === false,
+              canStore: true
+            },
+            {
+              name: '主机监控',
+              icon: 'icon-monitor icon-menu-performance menu-icon',
+              id: 'performance',
+              path: '/performance',
+              href: '#/performance',
+              canStore: true
+            }
+          ]
+        },
+        {
+          name: '其他',
+          shortName: '其他',
+          id: 'other',
+          children: [
+            {
+              name: '自定义场景',
+              icon: 'icon-monitor icon-mc-custom-scene menu-icon',
+              id: 'custom-scenes',
+              path: '/custom-scenes',
+              href: '#/custom-scenes',
+              canStore: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'manager',
+      name: '配置',
+      route: 'strategy-config',
+      children: [
+        {
+          name: '告警配置',
+          shortName: '告警配置',
+          id: 'monitor',
+          children: [
+            {
+              name: '告警策略',
+              icon: 'icon-monitor icon-mc-strategy menu-icon',
+              id: 'strategy-config',
+              path: '/strategy-config',
+              href: '#/strategy-config',
+              canStore: true
+            },
+            {
+              name: '告警分派',
+              icon: 'icon-monitor icon-fenpai menu-icon',
+              id: 'alarm-dispatch',
+              path: '/alarm-dispatch',
+              href: '#/alarm-dispatch',
+              canStore: true
+            },
+            {
+              name: '告警组',
+              icon: 'icon-monitor icon-menu-group menu-icon',
+              id: 'alarm-group',
+              path: '/alarm-group',
+              canStore: true,
+              href: '#/alarm-group'
+            },
+            {
+              name: '指标管理',
+              icon: 'icon-monitor icon-mc-custom-scene menu-icon',
+              id: 'metrics-manager',
+              path: '/metrics-manager',
+              href: '#/metrics-manager',
+              canStore: true,
+              hidden: true
+            }
+          ]
+        },
+        {
+          name: '告警处理',
+          shortName: '处理',
+          id: 'alert-set',
+          children: [
+            {
+              name: '告警屏蔽',
+              icon: 'icon-monitor icon-menu-shield menu-icon',
+              id: 'alarm-shield',
+              path: '/trace/alarm-shield',
+              href: '#/trace/alarm-shield',
+              canStore: true
+            },
+            {
+              name: '处理套餐',
+              icon: 'icon-monitor icon-chulitaocan menu-icon',
+              id: 'set-meal',
+              path: '/set-meal',
+              href: '#/set-meal',
+              canStore: true
+            }
+          ]
+        },
+        window.enable_aiops
+          ? {
+              name: '智能设置',
+              shortName: '智能',
+              id: 'ai',
+              children: [
+                {
+                  name: 'AI设置',
+                  icon: 'icon-monitor icon-chulitaocan menu-icon',
+                  id: 'ai-settings',
+                  path: '/ai-settings',
+                  href: '#/ai-settings',
+                  canStore: true
+                }
+              ]
+            }
+          : undefined
+      ].filter(Boolean)
+    },
+    {
+      id: 'integrated',
+      name: '集成',
+      route: 'plugin-manager',
+      children: [
+        {
+          name: '插件',
+          shortName: '插件',
+          id: 'intergrations',
+          children: [
+            {
+              name: '指标插件',
+              icon: 'icon-monitor icon-menu-plugin menu-icon',
+              id: 'plugin-manager',
+              path: '/plugin-manager',
+              href: '#/plugin-manager',
+              canStore: true
+            },
+            {
+              name: '告警源',
+              icon: 'icon-monitor icon-menu-aler-source menu-icon',
+              id: 'fta-integrated',
+              path: '/fta/intergrations',
+              href: '#/fta/intergrations',
+              usePath: true,
+              canStore: true
+            }
+          ]
+        },
+        {
+          name: '数据采集',
+          shortName: '采集',
+          id: 'monitor-collect',
+          children: [
+            {
+              name: '数据采集',
+              icon: 'icon-monitor icon-menu-collect menu-icon',
+              id: 'collect-config',
+              path: '/collect-config',
+              href: '#/collect-config',
+              canStore: true
+            },
+            {
+              name: '自定义指标',
+              icon: 'icon-monitor icon-menu-custom menu-icon',
+              id: 'custom-metric',
+              path: '/custom-metric',
+              href: '#/custom-metric',
+              hidden: false,
+              canStore: true
+            },
+            {
+              name: '自定义事件',
+              icon: 'icon-monitor icon-mc-custom-event menu-icon',
+              id: 'custom-event',
+              path: '/custom-event',
+              href: '#/custom-event',
+              canStore: true
+            }
+          ]
+        },
+        {
+          name: '共享',
+          shortName: '共享',
+          id: 'share',
+          children: [
+            {
+              name: '导入导出',
+              icon: 'icon-monitor icon-menu-export menu-icon',
+              id: 'export-import',
+              path: '/export-import',
+              href: '#/export-import',
+              canStore: true
+            }
+          ]
+        }
+      ]
+    }
+  ].filter(item => (process.env.APP === 'external' ? item.id === 'dashboard' : true));
   return routeConfig;
-}
+};
 /**
  * @description: set page route show
  * @param {*} routeId
