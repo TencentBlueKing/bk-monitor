@@ -155,7 +155,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
     function formItem(label: string | any, content: any, cls?: string, err?) {
       return (
         <div class={['form-item', cls]}>
-          <span class='form-item-label'>{label}</span>
+          <span class={['form-item-label', { en: isEnFn() }]}>{label}</span>
           <div>
             <span class='form-item-content'>{content}</span>
             {!!err && <div class='err-msg'>{err}</div>}

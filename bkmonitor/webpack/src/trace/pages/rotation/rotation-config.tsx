@@ -438,9 +438,10 @@ export default defineComponent({
           <FormItem
             label={this.t('轮值预览')}
             class='mt-24'
+            contentCls={'flex1'}
           >
             <RotationCalendarPreview
-              class='width-974'
+              class='min-width-974'
               value={this.previewData}
             ></RotationCalendarPreview>
           </FormItem>
