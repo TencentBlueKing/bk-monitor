@@ -358,7 +358,7 @@ export default defineComponent({
           {
             label: `${window.i18n.t('类型')}`,
             render: ({ data }) => {
-              return ChannelName[data.channel_name];
+              return ChannelName[data.channel];
             }
           },
           {
@@ -367,7 +367,7 @@ export default defineComponent({
               return (
                 // 显示的内容量会很多，这里样式调整一下。
                 <div style='white-space: normal;line-height: 16px;padding: 14px 0;'>
-                  {data.send_results.map(item => item.id).toString()}
+                  {data.send_result.map(item => item.id).toString()}
                 </div>
               );
             }
@@ -403,32 +403,32 @@ export default defineComponent({
                           email: '已成功发送 {0} 个外部邮件',
                           wxbot: '已成功发送 {0} 个企业微信机器人'
                         };
-                        headerText = headerTextMap[data.channel_name];
+                        headerText = headerTextMap[data.channel];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下用户',
                           email: '确定重新发送给以下邮件',
                           wxbot: '确定重新发送给以下企业微信机器人'
                         };
-                        headerConfirmText = headerConfirmTextMap[data.channel_name];
+                        headerConfirmText = headerConfirmTextMap[data.channel];
                       } else if (['partial_failed', 'failed'].includes(data.send_status)) {
                         const headerTextMap = {
                           user: '已成功发送 {0} 个，失败 {1} 个内部用户',
                           email: '已成功发送 {0} 个，失败 {1} 个外部邮件',
                           wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信机器人'
                         };
-                        headerText = headerTextMap[data.channel_name];
+                        headerText = headerTextMap[data.channel];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下失败用户',
                           email: '确定重新发送给以下失败邮件',
                           wxbot: '确定重新发送给以下失败企业微信机器人'
                         };
-                        headerConfirmText = headerConfirmTextMap[data.channel_name];
+                        headerConfirmText = headerConfirmTextMap[data.channel];
                       }
 
                       return (
                         <div class='resend-popover-container'>
                           <div class='success-header-text'>
-                            {/* 根据 data.channel_name 如果为 success 就选这些文本
+                            {/* 根据 data.channel 如果为 success 就选这些文本
                             1. 已成功发送 {0} 个内部用户
                             2. 已成功发送 {0} 个外部邮件
                             3. 已成功发送 {0} 个企业微信群
@@ -439,15 +439,15 @@ export default defineComponent({
                             3. 已成功发送 {0} 个，失败 {1} 个内部用户
                           */}
                             <i18n-t keypath={headerText}>
-                              <span class='success-text'>{data.send_results.filter(item => item.result).length}</span>
+                              <span class='success-text'>{data.send_result.filter(item => item.result).length}</span>
                               {['partial_failed', 'failed'].includes(data.send_status) && (
-                                <span class='fail-text'>{data.send_results.filter(item => !item.result).length}</span>
+                                <span class='fail-text'>{data.send_result.filter(item => !item.result).length}</span>
                               )}
                             </i18n-t>
                           </div>
 
                           <div class='header-confirm-text'>
-                            {/* 根据 data.channel_name 如果为 success 就选这些文本
+                            {/* 根据 data.channel 如果为 success 就选这些文本
                               1. 确定重新发送给以下用户
                               2. 确定重新发送给以下邮件
                               3. 确定重新发送给以下企微群
@@ -526,7 +526,7 @@ export default defineComponent({
                       // 每次重新发送都会重置一次 tag 列表。不知道是否实用。
                       sendRecordTable.data.forEach(item => {
                         // eslint-disable-next-line no-param-reassign
-                        item.tempSendResult = deepClone(item.send_results);
+                        item.tempSendResult = deepClone(item.send_result);
                       });
                     }}
                   >
@@ -537,7 +537,8 @@ export default defineComponent({
             }
           }
         ]
-      }
+      },
+      isLoading: false
     });
 
     const isShowSubscriptionDetailSideslider = ref(false);
@@ -651,6 +652,7 @@ export default defineComponent({
     });
 
     function getSendingRecordList() {
+      sendRecordTable.isLoading = true;
       getSendRecords({
         report_id: subscriptionDetail.value.id
       })
@@ -658,7 +660,10 @@ export default defineComponent({
           console.log(response);
           sendRecordTable.data = response;
         })
-        .catch(console.log);
+        .catch(console.log)
+        .finally(() => {
+          sendRecordTable.isLoading = false;
+        });
     }
 
     function getSendFrequencyText(data) {
@@ -717,7 +722,7 @@ export default defineComponent({
       const channels = [
         {
           is_enabled: true,
-          channel_name: data.channel_name,
+          channel_name: data.channel,
           subscribers: data.tempSendResult
             .filter(item => {
               if (['success'].includes(data.send_status) && item.result) {
@@ -740,7 +745,7 @@ export default defineComponent({
         }
       ];
       sendReport({
-        report_id: data.subscription_id,
+        report_id: data.report_id,
         channels
       })
         .then(() => {
@@ -953,11 +958,13 @@ export default defineComponent({
               </div>
             </div>
 
-            <Table
-              data={this.sendRecordTable.data}
-              columns={this.sendRecordTable.columns.fields}
-              style='margin-top: 16px;'
-            />
+            <Loading loading={this.sendRecordTable.isLoading}>
+              <Table
+                data={this.sendRecordTable.data}
+                columns={this.sendRecordTable.columns.fields}
+                style='margin-top: 16px;'
+              />
+            </Loading>
           </div>
         </Dialog>
 
