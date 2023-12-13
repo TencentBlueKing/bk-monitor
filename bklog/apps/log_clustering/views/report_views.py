@@ -28,44 +28,43 @@ from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.serializers import (
     CreateOrUpdateReportSerializer,
     GetExistReportsSerlaizer,
+    SendReportSerializer,
 )
-from apps.utils.drf import detail_route
-from bklog.apps.log_clustering.serializers import TestSendReportSerializer
+from apps.utils.drf import list_route
 
 
 class ReportViewSet(APIViewSet):
-    lookup_field = "index_set_id"
     serializer_class = serializers.Serializer
 
     def get_permissions(self):
         return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
-    @detail_route(methods=["GET"])
-    def get_exist_reports(self, request):
+    @list_route(methods=["GET"], url_path="get_reports")
+    def get_reports(self, request):
         """
-        @api {post} /report/get_exist_reports/ 日志聚类-已存在订阅列表
-        @apiName get_exist_reports
+        @api {post} /report/get_reports/ 日志聚类-已存在订阅列表
+        @apiName get_reports
         @apiGroup log_clustering
         """
         params = self.params_valid(GetExistReportsSerlaizer)
-        return MonitorApi.create_or_update_report(params)
+        return MonitorApi.get_reports(params)
 
-    @detail_route(methods=["POST"], url_path="create_or_update_report")
-    def create_or_update_report(self, request):
+    @list_route(methods=["POST"], url_path="create_or_update")
+    def create_or_update(self, request):
         """
-        @api {post} /report/create_or_update_report/ 日志聚类-创建或更新订阅报表
-        @apiName create_or_update_report
+        @api {post} /report/create_or_update/ 日志聚类-创建或更新订阅报表
+        @apiName create_or_update
         @apiGroup log_clustering
         """
         params = self.params_valid(CreateOrUpdateReportSerializer)
         return MonitorApi.create_or_update_report(params)
 
-    @detail_route(methods=["POST"], url_path="test_send_report")
-    def test_send_report(self, request):
+    @list_route(methods=["POST"], url_path="send")
+    def send(self, request):
         """
-        @api {post} /report/test_send_report/ 日志聚类-测试发送订阅报表
-        @apiName test_send_report
+        @api {post} /report/send/ 日志聚类-测试发送订阅报表
+        @apiName send
         @apiGroup log_clustering
         """
-        params = self.params_valid(TestSendReportSerializer)
+        params = self.params_valid(SendReportSerializer)
         return MonitorApi.send_report(params)

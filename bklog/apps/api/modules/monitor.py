@@ -114,7 +114,7 @@ class _MonitorApi(object):
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )
-        self.get_exist_reports = DataAPI(
+        self.get_reports = DataAPI(
             method="GET",
             url=MONITOR_APIGATEWAY_ROOT + "get_exist_reports/",
             module=self.MODULE,
