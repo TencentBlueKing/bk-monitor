@@ -801,7 +801,7 @@ class IndexSetHandler(APIModel):
         if str(tag_id) not in tag_ids:
             tag_ids.append(str(tag_id))
 
-            index_set_obj.tag_ids = list(tag_ids)
+            index_set_obj.tag_ids = tag_ids
 
             index_set_obj.save()
 
@@ -821,7 +821,7 @@ class IndexSetHandler(APIModel):
 
         if tag_ids and str(tag_id) in tag_ids:
             tag_ids.remove(str(tag_id))
-            index_set_obj.tag_ids = list(tag_ids)
+            index_set_obj.tag_ids = tag_ids
             index_set_obj.save()
 
         return
