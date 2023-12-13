@@ -26,6 +26,7 @@
 import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import { SearchSelect } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import { debounce } from 'throttle-debounce';
 
@@ -396,90 +397,98 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   render(): VNode {
     return (
-      <div
-        class={['alarm-group-list-wrap', { pd0: this.isMonitor }]}
-        v-bkloading={{ isLoading: this.loading }}
-      >
-        <div class='alarm-group-tool'>
-          <bk-button
-            class='tool-btn mc-btn-add'
-            theme='primary'
-            v-authority={{ active: !this.authority.MANAGE_AUTH }}
-            onClick={() =>
-              this.authority.MANAGE_AUTH
-                ? this.handleShowAddView('add')
-                : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
-            }
+      <div class='alarm-group-list-page'>
+        <div class='alarm-group-list-page-header'>{this.$t('告警组')}</div>
+        <div class='alarm-group-list-page-content'>
+          <div
+            // class={['alarm-group-list-wrap', { pd0: this.isMonitor }]}
+            class='alarm-group-list-wrap'
+            v-bkloading={{ isLoading: this.loading }}
           >
-            {' '}
-            {this.$t('新建')}
-          </bk-button>
-          <SearchSelect
-            class='tool-search'
-            values={this.searchCondition}
-            placeholder={this.$t('ID / 告警组名称')}
-            data={[
-              {
-                name: 'ID',
-                id: 'id'
-              },
-              {
-                name: this.$t('告警组名称'),
-                id: 'name'
-              },
-              {
-                name: this.$t('轮值规则ID'),
-                id: 'rule'
-              }
-            ]}
-            strink={false}
-            show-condition={false}
-            onChange={this.handleSearchCondition}
-          ></SearchSelect>
-          {/* <bk-input
+            <div class='alarm-group-tool'>
+              <bk-button
+                class='tool-btn mc-btn-add'
+                theme='primary'
+                v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                onClick={() =>
+                  this.authority.MANAGE_AUTH
+                    ? this.handleShowAddView('add')
+                    : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
+                }
+              >
+                {' '}
+                {this.$t('新建')}
+              </bk-button>
+              <SearchSelect
+                class='tool-search'
+                values={this.searchCondition}
+                placeholder={this.$t('ID / 告警组名称')}
+                data={[
+                  {
+                    name: 'ID',
+                    id: 'id'
+                  },
+                  {
+                    name: this.$t('告警组名称'),
+                    id: 'name'
+                  },
+                  {
+                    name: this.$t('轮值规则ID'),
+                    id: 'rule'
+                  }
+                ]}
+                strink={false}
+                show-condition={false}
+                onChange={this.handleSearchCondition}
+              ></SearchSelect>
+              {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}
             value={this.keyword}
             onChange={this.handleSearch}
             right-icon='bk-icon icon-search'
           ></bk-input> */}
-        </div>
-        <bk-table
-          class='alarm-group-table'
-          data={this.tableData}
-        >
-          <div slot='empty'>
-            <EmptyStatus
-              type={this.emptyType}
-              onOperation={this.handleOperation}
-            />
+            </div>
+            <bk-table
+              class='alarm-group-table'
+              data={this.tableData}
+              outer-border={false}
+              header-border={false}
+            >
+              <div slot='empty'>
+                <EmptyStatus
+                  type={this.emptyType}
+                  onOperation={this.handleOperation}
+                />
+              </div>
+              {this.tableCloumnsList.map(item => (
+                <bk-table-column
+                  label={item.label}
+                  prop={item.prop}
+                  {...{ props: item.props }}
+                  width={item.width}
+                  min-width={item.minWidth}
+                  formatter={item.formatter}
+                />
+              ))}
+            </bk-table>
+            <div class='alarm-group-pagination'>
+              {this.tableInstance ? (
+                <bk-pagination
+                  class='config-pagination list-pagination'
+                  align='right'
+                  size='small'
+                  current={this.tableInstance.page}
+                  limit={this.tableInstance.pageSize}
+                  count={this.tableInstance.total}
+                  limit-list={this.tableInstance.pageList}
+                  on-change={this.handlePageChange}
+                  on-limit-change={this.handleLimitChange}
+                  show-total-count
+                ></bk-pagination>
+              ) : undefined}
+            </div>
           </div>
-          {this.tableCloumnsList.map(item => (
-            <bk-table-column
-              label={item.label}
-              prop={item.prop}
-              {...{ props: item.props }}
-              width={item.width}
-              min-width={item.minWidth}
-              formatter={item.formatter}
-            />
-          ))}
-        </bk-table>
-        <div class='alarm-group-pagination'>
-          {this.tableInstance ? (
-            <bk-pagination
-              class='config-pagination list-pagination'
-              align='right'
-              size='small'
-              current={this.tableInstance.page}
-              limit={this.tableInstance.pageSize}
-              count={this.tableInstance.total}
-              limit-list={this.tableInstance.pageList}
-              on-change={this.handlePageChange}
-              on-limit-change={this.handleLimitChange}
-              show-total-count
-            ></bk-pagination>
-          ) : undefined}
         </div>
         <AlarmGroupDetail
           id={this.detail.id}
