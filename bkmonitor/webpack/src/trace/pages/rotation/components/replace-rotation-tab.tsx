@@ -51,7 +51,7 @@ export default defineComponent({
       default: undefined
     }
   },
-  emits: ['change', 'drop', 'preview'],
+  emits: ['change', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -80,7 +80,7 @@ export default defineComponent({
         id: localValue.id,
         key: random(8, true),
         date: {
-          type: RotationSelectTypeEnum.WorkDay,
+          type: RotationSelectTypeEnum.Daily,
           workTimeType: 'time_range',
           isCustom: false,
           customTab: 'duration',
@@ -105,10 +105,9 @@ export default defineComponent({
       };
     }
 
-    function handleDataChange(val: ItemDataModel, index: number, hasPreview: boolean) {
+    function handleDataChange(val: ItemDataModel, index: number) {
       localValue.data[index] = val;
       handleEmitData();
-      if (hasPreview) handleEmitPreview();
     }
 
     function handleAddItem() {
@@ -118,15 +117,10 @@ export default defineComponent({
     function handleDelItem(index: number) {
       localValue.data.splice(index, 1);
       handleEmitData();
-      handleEmitPreview();
     }
 
     function handleEmitDrop() {
       emit('drop');
-    }
-
-    function handleEmitPreview() {
-      emit('preview');
     }
 
     function handleEmitData() {
@@ -158,7 +152,7 @@ export default defineComponent({
           <th class='title-content'>
             <div class='flex step2'>
               <span class='step-text'>Step2:</span>
-              <span class='step-title'>{this.t('添加用户')}</span>
+              <span class='step-title'>{this.t('添加轮值人员')}</span>
             </div>
           </th>
         </tr>
@@ -167,7 +161,7 @@ export default defineComponent({
             class='table-item'
             data={item}
             key={item.key}
-            onChange={(val, hasPreview) => this.handleDataChange(val, index, hasPreview)}
+            onChange={val => this.handleDataChange(val, index)}
             onDrop={this.handleEmitDrop}
           >
             {this.localValue.data.length > 1 && (

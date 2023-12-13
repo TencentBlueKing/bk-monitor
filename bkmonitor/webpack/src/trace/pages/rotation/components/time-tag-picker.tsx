@@ -69,7 +69,9 @@ export default defineComponent({
       if (sourceValue.value.length !== localValue.length) return true;
       return localValue.some(val => !sourceValue.value.some(source => source[0] === val[0] && source[1] === val[1]));
     });
+    const isShowMsg = ref(false);
 
+    const contentRef = ref<HTMLDivElement>();
     const inputRef = ref();
     const currentTime = reactive<CurrentTimeModel>({
       /** 当前输入的时间 */
@@ -104,17 +106,17 @@ export default defineComponent({
      */
     function handleShowTime(e: Event, time?: string[], ind?: number) {
       currentTime.index = ind ?? -1;
-      currentTime.value = time ? [...time] : [];
+      currentTime.value = ind ? [...time] : [];
       currentTime.show = true;
       currentTime.showInput = !time;
-      currentTime.inputValue = '';
-      if (currentTime.showInput) {
-        nextTick(() => {
-          inputRef.value?.focus?.();
-        });
-      }
+      currentTime.inputValue = time ? time.join(' - ') : '';
+      nextTick(() => {
+        if (time) {
+          inputWidth.value = textTestRef.value.offsetWidth;
+        }
+        inputRef.value?.focus?.();
+      });
       sourceValue.value = JSON.parse(JSON.stringify(localValue));
-      e.stopPropagation();
     }
 
     /**
@@ -139,6 +141,7 @@ export default defineComponent({
 
     function handleTimeChange(val) {
       currentTime.inputValue = val.join(' - ');
+      localValue[currentTime.index] = val;
       resetInputWidth();
     }
 
@@ -154,18 +157,17 @@ export default defineComponent({
      * 确认选择时间
      */
     function handleConfirm(e: Event) {
-      if (getEventPaths(e, '.time-picker-popover').length) return;
+      isShowMsg.value = false;
+      if (getEventPaths(e, '.time-picker-popover').length || contentRef.value.contains(e.target as Node)) return;
       if (!currentTime.value.length && !currentTime.inputValue) {
-        currentTime.show = false;
-        currentTime.showInput = false;
+        initCurrentTime();
         return;
       }
 
       const reg = /^(([0-1][0-9]|2[0-3]):[0-5][0-9])(?: ?)-(?: ?)(([0-1][0-9]|2[0-3]):[0-5][0-9])$/;
       if (currentTime.inputValue) {
         if (!reg.test(currentTime.inputValue)) {
-          currentTime.show = false;
-          currentTime.showInput = false;
+          initCurrentTime();
           return;
         }
         const match = currentTime.inputValue.match(reg);
@@ -178,8 +180,7 @@ export default defineComponent({
           localValue.filter((item, index) => index !== currentTime.index)
         )
       ) {
-        currentTime.show = false;
-        currentTime.showInput = false;
+        initCurrentTime();
         Message({
           theme: 'warning',
           message: t('时间段重叠了')
@@ -194,9 +195,16 @@ export default defineComponent({
         // 编辑时间
         localValue.splice(currentTime.index, 1, [...currentTime.value]);
       }
+      initCurrentTime();
+      handleEmitData();
+    }
+
+    function initCurrentTime() {
       currentTime.show = false;
       currentTime.showInput = false;
-      handleEmitData();
+      currentTime.value = [];
+      currentTime.inputValue = '';
+      currentTime.index = -1;
     }
 
     /**
@@ -225,7 +233,9 @@ export default defineComponent({
         };
         return (
           dayjs(currentTimeStamp.start).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
-          dayjs(currentTimeStamp.end).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]')
+          dayjs(currentTimeStamp.end).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
+          dayjs(targetTimeStamp.start).isBetween(currentTimeStamp.start, currentTimeStamp.end, null, '[]') ||
+          dayjs(targetTimeStamp.end).isBetween(currentTimeStamp.start, currentTimeStamp.end, null, '[]')
         );
       });
     }
@@ -245,6 +255,7 @@ export default defineComponent({
       localValue,
       currentTime,
       inputWidth,
+      contentRef,
       inputRef,
       textTestRef,
       resetInputWidth,
@@ -280,6 +291,7 @@ export default defineComponent({
           {{
             trigger: () => (
               <div
+                ref='contentRef'
                 class='content'
                 onClick={e => this.handleShowTime(e)}
               >
@@ -292,7 +304,17 @@ export default defineComponent({
                       onClick={e => this.handleShowTime(e, item, ind)}
                       onClose={() => this.handleTagClose(ind)}
                     >
-                      {this.tagNameFormat(item)}
+                      {this.currentTime.index === ind ? (
+                        <input
+                          class='edit-custom-input'
+                          ref='inputRef'
+                          style={{ width: `${this.inputWidth}px` }}
+                          v-model={this.currentTime.inputValue}
+                          onInput={this.resetInputWidth}
+                        />
+                      ) : (
+                        <span>{this.tagNameFormat(item)}</span>
+                      )}
                     </Tag>
                   ))}
                   {this.currentTime.showInput && (
@@ -301,13 +323,12 @@ export default defineComponent({
                       class='custom-input'
                       style={{ width: `${this.inputWidth}px` }}
                       v-model={this.currentTime.inputValue}
-                      onClick={e => e.stopPropagation()}
                       onInput={this.resetInputWidth}
                     ></input>
                   )}
-                  {!this.localValue.length && !this.currentTime.showInput && (
-                    <span class='placeholder'>{this.t('如')}：01:00 - 02:00</span>
-                  )}
+                  <span class={['placeholder', !this.localValue.length && !this.currentTime.showInput && 'show']}>
+                    {this.t('如')}：01:00 - 02:00
+                  </span>
                 </div>
               </div>
             )

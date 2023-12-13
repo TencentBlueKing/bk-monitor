@@ -51,28 +51,29 @@
         display: flex;
 
         &-item {
-          width: 120px;
-          height: 32px;
+          box-sizing: content-box;
+          width: 119px;
+          height: 30px;
           line-height: 32px;
           text-align: center;
           cursor: pointer;
           background: #fff;
           border: 1px solid #c4c6cc;
-          border-radius: 0 2px 2px 0;
 
           &.fixed {
             border-right: none;
+            border-radius: 2px 0 0 2px;
           }
 
           &.replace {
             border-left: none;
+            border-radius: 0 2px 2px 0;
           }
 
           &.active {
             color: #3a84ff;
             background: #e1ecff;
             border: 1px solid #3a84ff;
-            border-radius: 2px 0 0 2px;
           }
         }
       }
@@ -89,11 +90,11 @@
 
   .bk-switcher.is-checked.bk-switcher-default:after {
     top: 50%;
-    transform: translate(-100%,-50%);
+    transform: translate(-100%, -50%);
   }
 
   .bk-switcher.bk-switcher-default:after {
     top: 50%;
-    transform: translate(0,-50%);
+    transform: translate(0, -50%);
   }
 }

@@ -55,7 +55,7 @@ export default defineComponent({
       default: () => []
     }
   },
-  emits: ['change', 'preview'],
+  emits: ['change'],
   setup(props, { emit }) {
     // --------公共------------
     const { t } = useI18n();
@@ -93,15 +93,16 @@ export default defineComponent({
       }
     );
     const handleDateTypeChange = (item: FixedDataModel) => {
-      if (item.type === RotationSelectTypeEnum.DateRange) {
+      if (item.type !== RotationSelectTypeEnum.DateRange) {
         item.workDays = [1];
       } else {
         item.workDateRange = [];
       }
-      handleEmitData(false);
+      handleEmitData();
     };
     function handleAddItem() {
       localValue.push(createDefaultData());
+      handleEmitData();
     }
     function handleDelItem(ind: number) {
       localValue.splice(ind, 1);
@@ -111,12 +112,8 @@ export default defineComponent({
       item.users = val;
       handleEmitData();
     }
-    function handleEmitData(isPreview = true) {
+    function handleEmitData() {
       emit('change', localValue);
-      if (isPreview) handleEmitPreview();
-    }
-    function handleEmitPreview() {
-      emit('preview');
     }
 
     return {
@@ -145,7 +142,7 @@ export default defineComponent({
           </th>
           <th class='title-content'>
             <span class='step-text'>Step2:</span>
-            <span class='step-title'>{this.t('添加用户')}</span>
+            <span class='step-title'>{this.t('添加轮值人员')}</span>
           </th>
         </tr>
 

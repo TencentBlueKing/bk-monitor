@@ -96,12 +96,20 @@
         }
       }
 
+      .auto-group {
+        margin-bottom: 8px;
+      }
+
       .notice-user-list {
         .notice-user-item {
           position: relative;
           display: flex;
           flex-wrap: wrap;
           padding-left: 12px;
+
+          &.no-pl {
+            padding-left: 0;
+          }
 
           .has-color {
             position: absolute;

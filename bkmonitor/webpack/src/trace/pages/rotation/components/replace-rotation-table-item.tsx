@@ -57,10 +57,15 @@ export interface ReplaceItemDataModel {
   id?: number;
   date: {
     type: RotationSelectTypeEnum;
+    /** 每周、每月：时间范围/起止时间 */
     workTimeType: WorkTimeType;
+    /** 是否是自定义轮值类型 */
     isCustom: boolean;
+    /** 自定义：指定时长/指定班次 */
     customTab: CustomTabType;
+    /** 自定义轮值有效日期 */
     customWorkDays: number[];
+    /** 单班时长 */
     periodSettings: { unit: 'hour' | 'day'; duration: number };
     value: ReplaceRotationDateModel[];
   };
@@ -81,11 +86,11 @@ export default defineComponent({
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
 
     const rotationTypeList: { label: string; value: RotationSelectTypeEnum }[] = [
-      { label: t('工作日(周一至周五)'), value: RotationSelectTypeEnum.WorkDay },
-      { label: t('周末(周六、周日)'), value: RotationSelectTypeEnum.Weekend },
       { label: t('每天'), value: RotationSelectTypeEnum.Daily },
       { label: t('每周'), value: RotationSelectTypeEnum.Weekly },
       { label: t('每月'), value: RotationSelectTypeEnum.Monthly },
+      { label: t('每工作日(周一至周五)'), value: RotationSelectTypeEnum.WorkDay },
+      { label: t('每周末(周六、周日)'), value: RotationSelectTypeEnum.Weekend },
       { label: t('自定义'), value: RotationSelectTypeEnum.Custom }
     ];
 
@@ -127,7 +132,7 @@ export default defineComponent({
           localValue.date.customWorkDays = [];
         }
         localValue.date.value = [createDefaultDate(val)];
-        handleEmitData(false);
+        handleEmitData();
       }
     });
 
@@ -196,7 +201,7 @@ export default defineComponent({
       function handleDateTypeChange(type: WorkTimeType) {
         localValue.date.workTimeType = type;
         localValue.date.value = [createDefaultDate(localValue.date.type)];
-        handleEmitData(false);
+        handleEmitData();
       }
 
       /**
@@ -328,11 +333,11 @@ export default defineComponent({
       function handleTypeChange(type: CustomTabType) {
         localValue.date.customTab = type;
         type === 'duration' && (localValue.date.value = [value[0]]);
-        handleEmitData(false);
+        handleEmitData();
       }
       function handleDateTypeChange() {
         localValue.date.customWorkDays = [];
-        handleEmitData(false);
+        handleEmitData();
       }
 
       return [
@@ -389,6 +394,35 @@ export default defineComponent({
             </div>
           </div>
         </FormItem>,
+
+        localValue.date.customTab === 'duration' && (
+          <FormItem
+            label={t('单班时长')}
+            labelWidth={70}
+            class='classes-duration-form-item'
+          >
+            <Input
+              v-model={localValue.date.periodSettings.duration}
+              type='number'
+              min={1}
+              onChange={handleEmitData}
+            />
+            <Select
+              v-model={localValue.date.periodSettings.unit}
+              clearable={false}
+              onChange={handleEmitData}
+            >
+              {/* <Select.Option
+                label={t('小时')}
+                value='hour'
+              /> */}
+              <Select.Option
+                label={t('天')}
+                value='day'
+              />
+            </Select>
+          </FormItem>
+        ),
         <FormItem
           label={localValue.date.customTab === 'duration' ? t('有效时间') : t('单班时间')}
           labelWidth={70}
@@ -424,35 +458,7 @@ export default defineComponent({
               </Button>
             )}
           </div>
-        </FormItem>,
-        localValue.date.customTab === 'duration' && (
-          <FormItem
-            label={t('单班时长')}
-            labelWidth={70}
-            class='classes-duration-form-item'
-          >
-            <Input
-              v-model={localValue.date.periodSettings.duration}
-              type='number'
-              min={1}
-              onChange={handleEmitData}
-            />
-            <Select
-              v-model={localValue.date.periodSettings.unit}
-              clearable={false}
-              onChange={handleEmitData}
-            >
-              {/* <Select.Option
-                label={t('小时')}
-                value='hour'
-              /> */}
-              <Select.Option
-                label={t('天')}
-                value='day'
-              />
-            </Select>
-          </FormItem>
-        )
+        </FormItem>
       ];
     }
     /**
@@ -532,7 +538,7 @@ export default defineComponent({
         }, new Map());
         localValue.users.value = [{ key: localValue.users.value[0].key, value: Array.from(res.values()) }];
       }
-      handleEmitData(true);
+      handleEmitData();
     }
 
     /**
@@ -578,11 +584,8 @@ export default defineComponent({
       emit('drop');
     }
 
-    /**
-     * @param hasPreview 是否需要请求预览轮值接口
-     */
-    function handleEmitData(hasPreview = true) {
-      emit('change', localValue, hasPreview);
+    function handleEmitData() {
+      emit('change', localValue);
     }
 
     return {

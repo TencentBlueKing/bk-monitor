@@ -26,16 +26,22 @@
         line-height: 26px;
         background: #fff;
         border: 1px solid #c4c6cc;
-      }
 
-      .duration {
-        border-right: none;
-        border-radius: 2px 0 0 2px;
-      }
+        &:first-child {
+          border-right: none;
+          border-radius: 2px 0 0 2px;
+        }
 
-      .classes {
-        border-left: none;
-        border-radius: 0 2px 2px 0;
+        &:last-child {
+          border-left: none;
+          border-radius: 0 2px 2px 0;
+        }
+
+        &.active {
+          color: #3a84ff;
+          background: #e1ecff;
+          border: 1px solid #3a84ff;
+        }
       }
     }
 

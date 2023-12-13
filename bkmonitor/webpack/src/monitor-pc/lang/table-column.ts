@@ -120,5 +120,6 @@ export default {
   'Async 数量': 'Async quantity',
   关联告警组: 'Related alarm group',
   设计值班时间: 'Design duty time',
-  设置轮值规则: 'Set rotation rules'
+  设置轮值规则: 'Set Rotation Rules',
+  添加轮值人员: 'Add Rotation Members'
 };

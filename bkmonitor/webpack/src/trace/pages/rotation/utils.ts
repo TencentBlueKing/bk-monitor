@@ -37,7 +37,7 @@ import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common'
  */
 export function generateTimeSlots(): string[] {
   const timeSlots = [];
-  const currentTime = dayjs().startOf('day');
+  let currentTime = dayjs().startOf('day');
   const endTime = dayjs().endOf('day');
 
   // 循环生成时间段，直到到达第二天的 00:00:00
@@ -45,7 +45,7 @@ export function generateTimeSlots(): string[] {
     const formattedTime = currentTime.format('HH:mm');
     timeSlots.push(formattedTime);
     // 增加15分钟
-    currentTime.add(15, 'minutes');
+    currentTime = currentTime.add(15, 'minutes');
   }
   return timeSlots;
 }
@@ -94,13 +94,15 @@ export function replaceRotationTransform(originData, type) {
             pre.isCustom = cur.is_custom || false;
             pre.type = cur.work_type;
             pre.workTimeType = cur.work_time_type || 'time_range';
-            if (pre.isCustom) {
-              pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
-              pre.customWorkDays = cur.work_days;
-            }
-            pre.periodSettings = cur.period_settings || {
-              unit: 'day',
+            pre.customTab = cur.period_settings ? 'duration' : 'classes';
+            pre.customWorkDays = cur.work_days;
+            const { window_unit, duration } = cur.period_settings || {
+              window_unit: 'day',
               duration: 1
+            };
+            pre.periodSettings = {
+              unit: window_unit,
+              duration
             };
           }
           const time = cur.work_time.map(item => item.split('--'));
@@ -164,6 +166,7 @@ export function replaceRotationTransform(originData, type) {
       data: res
     };
   }
+
   return originData.data.map((item: ItemDataModel) => {
     const data = item.date;
     const rotationType: RotationSelectTypeEnum = data.isCustom ? RotationSelectTypeEnum.Custom : data.type;
@@ -208,16 +211,22 @@ export function replaceRotationTransform(originData, type) {
       case RotationSelectTypeEnum.Custom: {
         dutyTime = data.value.map(item => {
           const { unit, duration } = data.periodSettings;
+          const periodSetting =
+            data.customTab === 'duration'
+              ? {
+                  period_settings: {
+                    window_unit: unit,
+                    duration
+                  }
+                }
+              : {};
           return {
             is_custom: true,
             work_type: data.type,
             work_days: data.customWorkDays,
             work_time: item.workTime.map(val => val.join('--')),
             work_time_type: 'time_range',
-            period_settings: {
-              window_unit: unit,
-              duration
-            }
+            ...periodSetting
           };
         });
         break;
@@ -240,10 +249,7 @@ export function replaceRotationTransform(originData, type) {
  * @param type params 实际数据转接口数据 data: 接口数据转实际数据
  * @returns 转化后的数据
  */
-export function fixedRotationTransform<T extends 'params' | 'data'>(
-  data: T extends 'data' ? any : FixedDataModel[],
-  type: T
-): T extends 'data' ? FixedDataModel[] : any {
+export function fixedRotationTransform(data, type) {
   if (type === 'data')
     return data.map(item => {
       const obj: FixedDataModel = {
@@ -262,7 +268,9 @@ export function fixedRotationTransform<T extends 'params' | 'data'>(
       return obj;
     });
 
-  return data.map((item: FixedDataModel) => {
+  const filterData: FixedDataModel[] = data.filter(item => item.users.length);
+
+  return filterData.map(item => {
     let dutyTimeItem;
     switch (item.type) {
       case RotationSelectTypeEnum.Weekly:
@@ -320,6 +328,8 @@ export interface RuleDetailModel {
     periodSettings: string;
   }[];
   ruleUser: { type: 'group' | 'user'; display_name: string; logo: string }[][];
+  isAuto: boolean;
+  groupNumber: number;
 }
 export function transformRulesDetail(data: any[]): RuleDetailModel[] {
   return data.map(rule => {
@@ -335,7 +345,7 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
       }
 
       let periodSettings = '';
-      if (time.is_custom && rule.duty_time.length > 1) {
+      if (time.is_custom && time.period_settings) {
         const { duration, window_unit } = time.period_settings;
         periodSettings = window.i18n.t('单班 {num} {type}', {
           num: duration,
@@ -351,7 +361,9 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
     });
     return {
       ruleTime,
-      ruleUser: rule.duty_users
+      ruleUser: rule.duty_users,
+      isAuto: rule.group_type === 'auto',
+      groupNumber: rule.group_number
     };
   });
 }

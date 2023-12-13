@@ -235,13 +235,22 @@ export default defineComponent({
                           {time.periodSettings && <span class='rule-item-period'>{time.periodSettings}</span>}
                         </div>
                       ))}
+                      {rule.isAuto && (
+                        <div class='auto-group'>
+                          <span>{this.t('单次值班')}</span>
+                          {rule.groupNumber}
+                          <span>{this.t('人')}</span>
+                        </div>
+                      )}
                       <div class='notice-user-list'>
                         {rule.ruleUser.map((item, ind) => (
-                          <div class='notice-user-item'>
-                            <div
-                              class='has-color'
-                              style={{ background: randomColor(ind) }}
-                            ></div>
+                          <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
+                            {!rule.isAuto && (
+                              <div
+                                class='has-color'
+                                style={{ background: randomColor(ind) }}
+                              ></div>
+                            )}
                             {item.map(user => (
                               <div class='personnel-choice'>
                                 {this.renderUserLogo(user)}

@@ -58,8 +58,8 @@ export enum RotationSelectTypeEnum {
  * 轮值类型文本枚举
  */
 export const RotationSelectTextMap = {
-  [RotationSelectTypeEnum.WorkDay]: window.i18n.t('工作日'),
-  [RotationSelectTypeEnum.Weekend]: window.i18n.t('周末'),
+  [RotationSelectTypeEnum.WorkDay]: window.i18n.t('每工作日'),
+  [RotationSelectTypeEnum.Weekend]: window.i18n.t('每周末'),
   [RotationSelectTypeEnum.Daily]: window.i18n.t('每天'),
   [RotationSelectTypeEnum.Weekly]: window.i18n.t('每周'),
   [RotationSelectTypeEnum.Monthly]: window.i18n.t('每月'),
