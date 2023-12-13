@@ -112,7 +112,7 @@ class DutyRuleManager:
         self.enabled = bool(duty_rule.get("enabled"))
         self.last_user_index = last_user_index
         self.last_time_index = last_time_index
-        self.rule_end_time = time_tools.str2datetime(duty_rule["end_time"]) if duty_rule.get("end_time") else None
+        self.rule_end_time = time_tools.str2datetime(duty_rule.get("end_time") or "9999-12-31 23:59:59")
         if end_time:
             self.end_time = time_tools.str2datetime(end_time)
         else:
