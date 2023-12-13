@@ -204,7 +204,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
     def _refine_metric_tags(self, metric_info: List) -> Dict:
         """去除重复的维度"""
-        metric_dict, tag_map = {}, {}
+        metric_dict, tag_dict = {}, {}
         # 标识是否需要更新描述
         is_update_description = True
         for item in metric_info:
@@ -214,18 +214,18 @@ class TimeSeriesGroup(CustomGroupBase):
             if "tag_value_list" in item:
                 is_update_description = False
                 for tag in item["tag_value_list"].keys():
-                    tag_map[tag] = ""
+                    tag_dict[tag] = ""
             else:
                 for tag in item.get("tag_list", []):
                     # 取第一个值，后面重复的直接忽略
-                    if tag in tag_map:
+                    if tag in tag_dict:
                         continue
-                    tag_map[tag["field_name"]] = tag["description"]
+                    tag_dict[tag["field_name"]] = tag["description"]
 
         return {
             "is_update_description": is_update_description,
             "metric_dict": metric_dict,
-            "tag_map": tag_map,
+            "tag_dict": tag_dict,
         }
 
     def _bulk_create_or_update_metrics(
