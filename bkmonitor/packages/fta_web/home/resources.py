@@ -9,6 +9,7 @@ from elasticsearch_dsl import Q
 from rest_framework import serializers
 
 from api.cmdb.define import Business
+from bkm_space.api import SpaceApi
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.cache import CacheType
@@ -230,9 +231,15 @@ class StatisticsResource(Resource):
         username = get_request_username()
         permission = Permission(username)
 
-        # 优化思路： api.cmdb.get_business 存在对象 <-> dict 来回转换的性能损失，监控目前的管理粒度为「空间」
-        # 故采用请求耗时较短的 list_spaces 替换
-        space_list: List[Dict[str]] = resource.commons.list_spaces(show_all=True)
+        # 优化思路： api.cmdb.get_business 存在对象 <-> dict 来回转换的性能损失
+        # 监控目前的管理粒度为「空间」，采用请求耗时较短的 list_spaces 替换
+        # 逻辑优化：空间总量可能过万，大部分用户都非超管，拉取全部业务 -> 改为拉取有权限的空间，减少带宽损失
+        space_list: List[Dict[str, Any]] = []
+        try:
+            space_list = resource.commons.list_spaces()
+        except Exception:  # noqa
+            logger.exception("[StatisticsResource] list_spaces failed")
+
         biz_id__space_map: Dict[int, Dict[str, Any]] = {space["bk_biz_id"]: space for space in space_list}
         total_biz_ids: Set[int] = set(biz_id__space_map.keys())
         allowed_biz_ids: Set[int] = set(
@@ -266,6 +273,10 @@ class StatisticsResource(Resource):
         filtered_biz_ids = self._filter_by_sticky_only(validated_request_data, filtered_biz_ids, sticky_biz_ids)
         filtered_biz_ids = self._filter_by_life_cycle(validated_request_data, filtered_biz_ids)
         filtered_biz_ids = self._filter_by_alert_filter(validated_request_data, filtered_biz_ids, all_data)
+
+        demo_biz_id: int = int(settings.DEMO_BIZ_ID)
+        if demo_biz_id and demo_biz_id in filtered_biz_ids and demo_biz_id not in biz_id__space_map:
+            biz_id__space_map[demo_biz_id] = SpaceApi.get_space_detail(bk_biz_id=demo_biz_id).to_dict()
 
         # 排序：当前业务 > 置顶业务 > 有权限的任务 > 普通业务 > DEMO 业务
         def _get_biz_weight(_biz_id: int):
