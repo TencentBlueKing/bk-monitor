@@ -1,14 +1,14 @@
 @import '@/scss/mixins/flex.scss';
 
 .label-select {
-  width: 100%;
-  height: 42px;
+  padding: 4px 0;
   position: relative;
   align-items: center;
 
   @include flex-justify(start);
 
   .bk-select {
+    margin-left: 4px;
     flex-shrink: 0;
     border: none;
     box-shadow: none;
@@ -17,8 +17,7 @@
   .is-focus,
   &:hover {
     .add-label-btn {
-      /* stylelint-disable-next-line declaration-no-important */
-      display: flex !important;
+      visibility: visible;
 
       &::after {
         background: #e1ecff;
@@ -28,6 +27,7 @@
 }
 
 .label-tag-container {
+  flex-wrap: wrap;
   align-items: center;
 
   @include flex-justify(start);
@@ -49,6 +49,10 @@
     display: none;
     font-size: 18px;
     cursor: pointer;
+  }
+
+  .is-disabled {
+    background: transparent;
   }
 }
 
@@ -106,18 +110,13 @@
 }
 
 .add-label-btn {
-  position: absolute;
-  right: -26px;
-  top: -12px;
+  visibility: hidden;
+  position: relative;
   z-index: 999;
-  flex-shrink: 0;
   cursor: pointer;
   width: 24px;
   height: 24px;
   font-size: 14px;
-
-  /* stylelint-disable-next-line declaration-no-important */
-  display: none !important;
 
   @include flex-center();
 

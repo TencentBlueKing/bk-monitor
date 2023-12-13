@@ -798,11 +798,12 @@ class IndexSetHandler(APIModel):
 
         tag_ids = list(index_set_obj.tag_ids)
 
-        tag_ids.append(str(tag_id))
+        if str(tag_id) not in tag_ids:
+            tag_ids.append(str(tag_id))
 
-        index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.tag_ids = tag_ids
 
-        index_set_obj.save()
+            index_set_obj.save()
 
         return
 
@@ -820,7 +821,7 @@ class IndexSetHandler(APIModel):
 
         if tag_ids and str(tag_id) in tag_ids:
             tag_ids.remove(str(tag_id))
-            index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.tag_ids = tag_ids
             index_set_obj.save()
 
         return
@@ -832,7 +833,7 @@ class IndexSetHandler(APIModel):
         """
         # 名称校验
         if (
-            params["name"] in list(InnerTag.get_dict_choices().keys())
+            params["name"] in list(InnerTag.get_dict_choices().values())
             or IndexSetTag.objects.filter(name=params["name"]).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
@@ -857,6 +858,7 @@ class IndexSetHandler(APIModel):
                 _data["is_built_in"] = True
             else:
                 _data["is_built_in"] = False
+            _data["name"] = InnerTag.get_choice_label(obj.name)
             ret.append(_data)
 
         return ret

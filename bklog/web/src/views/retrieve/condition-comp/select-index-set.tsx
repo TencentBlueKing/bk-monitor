@@ -21,7 +21,7 @@
  */
 
 import { Component as tsc } from 'vue-tsx-support';
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import {
   Select,
   Option,
@@ -42,7 +42,7 @@ import './select-index-set.scss';
 
 interface IProps {}
 
-type IndexSetType = 'alone' | 'multiple';
+type IndexSetType = 'single' | 'union';
 type ActiveType = 'favorite' | 'history';
 
 @Component
@@ -59,8 +59,8 @@ export default class QueryStatement extends tsc<IProps> {
   /** 表示集合数据是否正在加载 */
   isCollectionLoading = false;
 
-  /** 表示当前检索类型，可选值为 'alone' 或 'multiple' */
-  indexSearchType: IndexSetType = 'multiple';
+  /** 表示当前检索类型，可选值为 'single' 或 'union' */
+  indexSearchType: IndexSetType = 'single';
 
   /** 表示单选收藏夹列表 */
   aloneFavorite = [];
@@ -93,11 +93,11 @@ export default class QueryStatement extends tsc<IProps> {
 
   typeBtnSelectList = [
     {
-      id: 'alone',
+      id: 'single',
       label: window.mainComponent.$t('单选'),
     },
     {
-      id: 'multiple',
+      id: 'union',
       label: window.mainComponent.$t('多选'),
     },
   ];
@@ -126,12 +126,12 @@ export default class QueryStatement extends tsc<IProps> {
     favoriteName: [
       {
         validator: this.checkFavoriteName,
-        message: this.$t('已有同名收藏'),
+        message: window.mainComponent.$t('已有同名收藏'),
         trigger: 'blur',
       },
       {
         required: true,
-        message: this.$t('必填项'),
+        message: window.mainComponent.$t('必填项'),
         trigger: 'blur',
       },
     ],
@@ -158,14 +158,9 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 多选的选中的索引集值 */
   get selectedItemList() {
-    return this.indexSetList.filter(item => this.selectTagCatchIDList.includes(item.index_set_id),
-    );
+    return this.indexSetList.filter(item => this.selectTagCatchIDList.includes(item.index_set_id));
   }
 
-  /** 当前的索引集的选择 包括多选 */
-  get selectValue() {
-    return this.isAloneType ? this.indexId : this.selectTagCatchIDList;
-  }
 
   get spaceUid() {
     return this.$store.state.spaceUid;
@@ -251,25 +246,21 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 获取分组的高度样式 */
   get groupListStyle() {
+    const isUnion = this.selectedItemList.length && !this.isAloneType;
     return {
-      height: this.selectedItemList.length ? '214px' : '314px',
-      marginTop: this.selectedItemList.length ? '0' : '46px',
+      height: isUnion ? '214px' : '314px',
+      marginTop: isUnion ? '0' : '46px',
     };
   }
 
   /** 当前是否是单选 */
   get isAloneType() {
-    return this.indexSearchType === 'alone';
-  }
-
-  get getQueryIndexSetType() {
-    return this.isAloneType ? 'single' : 'union';
+    return this.indexSearchType === 'single';
   }
 
   /** 全选是否展示 */
   get getIsAllCheck() {
-    return this.havValRenderIDSetList.every(item => this.selectTagCatchIDList.includes(item),
-    );
+    return this.havValRenderIDSetList.every(item => this.selectTagCatchIDList.includes(item));
   }
 
   /** 当前标签过滤后的有数据的索引集ID列表 */
@@ -291,6 +282,12 @@ export default class QueryStatement extends tsc<IProps> {
     return this.selectTagCatchIDList.length >= 10;
   }
 
+  @Watch('unionIndexList', { immediate: true, deep: true })
+  initUnionList(val) {
+    this.indexSearchType = !!val.length ? 'union' : 'single';
+    this.selectTagCatchIDList = !!val.length ? val : [this.indexId];
+  }
+
   @Emit('selected')
   emitSelected() {
     return {
@@ -310,7 +307,8 @@ export default class QueryStatement extends tsc<IProps> {
   /** 选中索引集 */
   handleSelectIndex(val) {
     if (this.isAloneType) {
-      this.selectAloneVal = val; // 单选赋值
+      this.selectAloneVal = [val[1]]; // 单选赋值
+      this.handleCloseSelectPopover();
     } else {
       this.selectTagCatchIDList = val.filter(item => item !== '-1');
       this.multipleFavoriteSelectID = null;
@@ -342,19 +340,19 @@ export default class QueryStatement extends tsc<IProps> {
   toggleSelect(val: boolean) {
     if (val) {
       // 打开索引集下拉框 初始化单选的数据
-      this.selectAloneVal = this.indexId;
+      this.selectAloneVal = [this.indexId];
       if (this.isUnionSearch) {
-        this.indexSearchType = 'multiple';
+        this.indexSearchType = 'union';
         this.selectTagCatchIDList = this.unionIndexList;
       } else {
-        this.indexSearchType = 'alone';
-        this.selectTagCatchIDList = [];
+        this.indexSearchType = 'single';
+        this.selectTagCatchIDList = [this.indexId];
       }
       this.getMultipleFavoriteList();
-      this.getIndexSetHistoryList();
+      this.getIndexSetHistoryList(this.indexSearchType);
     } else {
       if (!this.selectTagCatchIDList.length) {
-        this.indexSearchType = 'alone';
+        this.indexSearchType = 'single';
       }
       this.aloneHistory = [];
       this.multipleHistory = [];
@@ -424,15 +422,18 @@ export default class QueryStatement extends tsc<IProps> {
     this.selectTagCatchIDList = this.selectTagCatchIDList.filter(
       catchVal => catchVal !== item.index_set_id,
     );
+    this.multipleFavoriteSelectID = null;
   }
 
   /** 切换多选或者单选 */
   handleClickSetType(type: IndexSetType) {
     this.indexSearchType = type;
     this.multipleHistorySelectID = null;
-    this.getIndexSetHistoryList();
+    this.getIndexSetHistoryList(type);
 
-    if (type === 'alone') {
+    if (type === 'single') {
+      this.selectTagCatchIDList = [this.indexId];
+    } else {
       this.selectTagCatchIDList = [];
     }
   }
@@ -475,13 +476,13 @@ export default class QueryStatement extends tsc<IProps> {
         .request('unionSearch/unionDeleteHistory', {
           data: {
             space_uid: this.spaceUid,
-            index_set_type: this.getQueryIndexSetType,
+            index_set_type: this.indexSearchType,
             history_id: item?.id,
             is_delete_all: isDeleteAll,
           },
         })
         .then(() => {
-          this.getIndexSetHistoryList(true);
+          this.getIndexSetHistoryList(this.indexSearchType, true);
         });
     } catch {}
   }
@@ -542,7 +543,6 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 获取多选时候的列表 */
   async getMultipleFavoriteList() {
-    this.historyLoading = true;
     await $http
       .request('unionSearch/unionFavoriteList', {
         params: {
@@ -551,9 +551,6 @@ export default class QueryStatement extends tsc<IProps> {
       })
       .then((res) => {
         this.multipleFavorite = res.data;
-      })
-      .finally(() => {
-        this.historyLoading = false;
       });
   }
 
@@ -582,20 +579,32 @@ export default class QueryStatement extends tsc<IProps> {
       : item.id === this.multipleFavoriteSelectID;
   }
 
-  async getIndexSetHistoryList(isRequest = false) {
+  /**
+   * @desc: 获取历史记录
+   * @param {IndexSetType} queryType 历史记录类型
+   * @param {Boolean} isForceRequest 是否强制请求
+   */
+  async getIndexSetHistoryList(
+    queryType: IndexSetType = 'single',
+    isForceRequest = false,
+  ) {
+    // 判断当前历史记录数组是否需要请求
+    const isShouldQuery =      queryType === 'single'
+      ? !!this.aloneHistory.length
+      : !!this.multipleHistory.length;
     // 判断是否需要更新历史记录
-    if (!isRequest && this.historyListNum) return;
+    if ((!isForceRequest && isShouldQuery) || this.historyLoading) return;
 
     this.historyLoading = true;
     await $http
       .request('unionSearch/unionHistoryList', {
         data: {
           space_uid: this.spaceUid,
-          index_set_type: this.getQueryIndexSetType,
+          index_set_type: queryType,
         },
       })
       .then((res) => {
-        if (this.isAloneType) {
+        if (queryType === 'single') {
           this.aloneHistory = res.data;
         } else {
           this.multipleHistory = res.data;
@@ -611,6 +620,10 @@ export default class QueryStatement extends tsc<IProps> {
     return !this.multipleFavorite.some(
       item => item.name === this.verifyData.favoriteName.trim(),
     );
+  }
+
+  getOptionName(item) {
+    return `${item.indexName}${item.lightenName}${item.tagSearchName ? `(${item.tagSearchName})` : ''}`;
   }
 
   render() {
@@ -734,7 +747,7 @@ export default class QueryStatement extends tsc<IProps> {
                   onClick={() => this.handleClickHistory(item)}
                 >
                   <div class="tag-box">
-                    {item.index_set_names.map(setName => (
+                    {item.index_set_names?.map(setName => (
                       <Tag>{setName}</Tag>
                     ))}
                   </div>
@@ -774,7 +787,7 @@ export default class QueryStatement extends tsc<IProps> {
     };
     const selectIndexContainer = () => (
       <div
-        v-show={!!this.selectedItemList.length}
+        v-show={!!this.selectedItemList.length && !this.isAloneType}
         class="select-index-container"
         ref="selectIndexBox"
       >
@@ -795,6 +808,7 @@ export default class QueryStatement extends tsc<IProps> {
             }}
             placement="bottom-start"
             ext-cls="new-favorite-popover"
+            disabled={!!this.multipleFavoriteSelectID}
           >
             <span class="favorite-btn">
               <i
@@ -897,8 +911,8 @@ export default class QueryStatement extends tsc<IProps> {
               {group.children.map(item => (
                 <Option
                   class="custom-no-padding-option"
-                  id={item.index_set_id}
-                  name={item.indexName + item.lightenName + item.tagSearchName}
+                  id={String(item.index_set_id)}
+                  name={this.getOptionName(item)}
                   disabled={this.getDisabled(item.index_set_id)}
                 >
                   {this.isHaveAuthority(item) ? (
@@ -950,32 +964,37 @@ export default class QueryStatement extends tsc<IProps> {
         </div>
       );
     };
+    const triggerSlot = () => {
+      if (this.isAloneType) {
+        return (
+          <div
+            class="bk-select-name"
+            v-bk-overflow-tips={{ placement: 'right' }}
+          >
+            <span>{this.selectedItem.indexName}</span>
+            <span style="color: #979ba5;">{this.selectedItem.lightenName}</span>
+          </div>
+        );
+      }
+    };
     return (
       <Select
         searchable
-        multiple={!this.isAloneType}
+        multiple={true}
+        display-tag={!this.isAloneType}
         ext-popover-cls="retrieve-index-select-popover"
+        class="retrieve-index-select"
         data-test-id="dataQuery_div_indexSetSelect"
         ref="selectInput"
         clearable={false}
-        value={this.selectValue}
+        v-model={this.selectTagCatchIDList}
         popover-min-width={600}
         popover-options={{ boundary: 'window' }}
         scroll-height={400}
         onSelected={this.handleSelectIndex}
         onToggle={this.toggleSelect}
         scopedSlots={{
-          trigger: () => (
-            <div
-              class="bk-select-name"
-              v-bk-overflow-tips={{ placement: 'right' }}
-            >
-              <span>{this.selectedItem.indexName}</span>
-              <span style="color: #979ba5;">
-                {this.selectedItem.lightenName}
-              </span>
-            </div>
-          ),
+          trigger: () => triggerSlot(),
         }}
       >
         {labelFilter()}

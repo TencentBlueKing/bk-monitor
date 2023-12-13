@@ -400,6 +400,7 @@ export default {
       isSetDefaultTableColumn: false,
       /** 是否还需要分页 */
       finishPolling: false,
+      catchUnionBeginList: [],
       timezone: dayjs.tz.guess(),
       logSourceField: {
         description: null,
@@ -734,6 +735,7 @@ export default {
      * @returns {*}
      */
     handleSelectIndex(val, params = {}, isFavoriteSearch = false) {
+      this.catchUnionBeginList = [];
       const { ids, selectIsUnionSearch } = val;
       if (!isFavoriteSearch) {
         this.activeFavorite = {};
@@ -749,13 +751,13 @@ export default {
           this.retrieveLog(params);
         }
       } else { // 单选时弹窗关闭时 判断之前是否是多选 如果是多选 则直接检索
-        const isChangeIndexId = this.indexId !== ids;
+        const isChangeIndexId = this.indexId !== ids[0];
         if (this.isUnionSearch) { // 之前是多选
-          if (isChangeIndexId) this.indexId = ids; // 与缓存的id不同 更新
-          if (!isChangeIndexId) this.initIndexSetChangeFn(ids);// 多选切换到单选必初始化索引集的数据
+          if (isChangeIndexId) this.indexId = ids[0]; // 与缓存的id不同 更新
+          if (!isChangeIndexId) this.initIndexSetChangeFn(ids[0]);// 多选切换到单选必初始化索引集的数据
           this.retrieveLog(params);
         } else { // 之前是单选
-          this.indexId = ids;
+          this.indexId = ids[0];
           if (isChangeIndexId) this.retrieveLog(params);
         };
         this.$store.commit('updateUnionIndexList', []);
@@ -1045,8 +1047,10 @@ export default {
                 }
                   break;
                 case 'unionList': {
+                  this.catchUnionBeginList = [];
                   const unionParamsList = JSON.parse(decodeURIComponent(param));
-                  this.$store.commit('updateUnionIndexList', unionParamsList);
+                  const resetUnionList = this.isUnionSearch ? this.unionIndexList : unionParamsList;
+                  this.$store.commit('updateUnionIndexList', resetUnionList);
                 }
                   break;
                 case 'ip_chooser': {
@@ -1364,6 +1368,7 @@ export default {
       }
 
       const { currentPage, pageSize } = this.$refs.resultMainRef;
+      // 单选检索的begin
       const begin = currentPage === 1 ? 0 : (currentPage - 1) * pageSize;
       this.formatTimeRange();
       try {
@@ -1375,13 +1380,15 @@ export default {
           size: pageSize,
           interval: this.interval,
         };
+        // 更新联合查询的begin
+        const unionConfigs = this.unionIndexList.map(item => ({
+          begin: this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0,
+          index_set_id: item,
+        }));
         const queryData = Object.assign(baseData, !this.isUnionSearch ? {
           begin,
         } : {
-          union_configs: this.unionIndexList.map(item => ({
-            begin,
-            index_set_id: item,
-          })),
+          union_configs: unionConfigs,
         });
         const params = {
           method: 'post',
@@ -1408,6 +1415,7 @@ export default {
         }
         // 判断分页
         this.finishPolling = res.data?.list?.length < pageSize;
+        this.catchUnionBeginList = parseBigNumberList(res.data?.union_configs || []);
 
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
