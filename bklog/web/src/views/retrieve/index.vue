@@ -727,7 +727,6 @@ export default {
         }
       } else { // 单选时弹窗关闭时 判断之前是否是多选 如果是多选 则直接检索
         const isChangeIndexId = this.indexId !== ids[0];
-        this.$store.commit('updateUnionIndexList', []);
         if (this.isUnionSearch) { // 之前是多选
           if (isChangeIndexId) this.indexId = ids[0]; // 与缓存的id不同 更新
           if (!isChangeIndexId) this.initIndexSetChangeFn(ids[0]);// 多选切换到单选必初始化索引集的数据
@@ -736,6 +735,7 @@ export default {
           this.indexId = ids[0];
           if (isChangeIndexId) this.retrieveLog(params);
         };
+        this.$store.commit('updateUnionIndexList', []);
       }
     },
     // 切换索引时重置检索数据
@@ -1387,7 +1387,7 @@ export default {
         }
         // 判断分页
         this.finishPolling = res.data?.list?.length < pageSize;
-        this.catchUnionBeginList = parseBigNumberList(res.data?.union_configs);
+        this.catchUnionBeginList = parseBigNumberList(res.data?.union_configs || []);
 
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
