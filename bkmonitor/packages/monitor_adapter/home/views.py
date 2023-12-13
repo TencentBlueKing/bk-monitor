@@ -30,17 +30,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from bkm_space.api import SpaceApi
-from bkmonitor.models import ActionConfig
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.log import logger
-from core.drf_resource import resource
 from core.errors.api import BKAPIError
-from fta_web.tasks import run_init_builtin_action_config
 from monitor.models import GlobalConfig
 from monitor_web.iam.resources import CallbackResource
-from monitor_web.strategies.built_in import run_build_in
 
 
 def user_exit(request):
@@ -51,53 +47,11 @@ def user_exit(request):
     return handler.build_401_response(request)
 
 
+@login_exempt
 def home(request):
     """统一入口 ."""
-    cc_biz_id = 0
-    # 新增space_uid的支持
-    if request.GET.get("space_uid", None):
-        try:
-            space = SpaceApi.get_space_detail(request.GET["space_uid"])
-            cc_biz_id = space.bk_biz_id
-        except BKAPIError as e:
-            logger.exception(f"获取空间信息({request.GET['space_uid']})失败：{e}")
-            if settings.DEMO_BIZ_ID:
-                cc_biz_id = settings.DEMO_BIZ_ID
-    else:
-        cc_biz_id = request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
-        if not cc_biz_id:
-            biz_id_list = [s["bk_biz_id"] for s in resource.commons.list_spaces()]
-            if biz_id_list:
-                cc_biz_id = biz_id_list[0]
-        else:
-            cc_biz_id = safe_int(cc_biz_id.strip("/"), dft=None)
 
-    if cc_biz_id is not None and settings.ENVIRONMENT != "development":
-        # 创建默认内置策略
-        run_build_in(int(cc_biz_id))
-
-        # 创建k8s内置策略
-        run_build_in(int(cc_biz_id), mode="k8s")
-        if (
-            settings.ENABLE_DEFAULT_STRATEGY
-            and int(cc_biz_id) > 0
-            and not ActionConfig.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists()
-        ):
-            logger.warning("home run_init_builtin_action_config")
-            # 如果当前页面没有出现内置套餐，则会进行快捷套餐的初始化
-            try:
-                run_init_builtin_action_config.delay(cc_biz_id)
-            except Exception as error:
-                # 直接忽略
-                logger.exception("run_init_builtin_action_config failed ", str(error))
-        # TODO 先关闭，后面稳定了直接打开
-        # if not AlertAssignGroup.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists():
-        #     # 如果当前页面没有出现内置的规则组
-        #     run_init_builtin_assign_group(cc_biz_id)
-
-    request.biz_id = cc_biz_id
-    response = render(request, "monitor/index.html", {"cc_biz_id": cc_biz_id})
-    response.set_cookie("bk_biz_id", str(cc_biz_id))
+    response = render(request, "monitor/index.html", {"cc_biz_id": 0})
     return response
 
 
@@ -180,11 +134,7 @@ def external(request):
     response = render(
         request,
         "external/index.html",
-        {
-            "cc_biz_id": cc_biz_id,
-            "SPACE_LIST": [s for s in SpaceApi.list_spaces() if s.bk_biz_id in biz_id_list],
-            "external_user": external_user,
-        },
+        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": biz_id_list},
     )
     response.set_cookie("bk_biz_id", str(cc_biz_id))
     return response
@@ -254,6 +204,8 @@ def dispatch_external_proxy(request):
         setattr(fake_request, "external_user", external_user)
         setattr(request, "external_user", external_user)
         setattr(fake_request, "session", request.session)
+        # use in get_core_context
+        setattr(fake_request, "LANGUAGE_CODE", request.LANGUAGE_CODE)
         setattr(local, "current_request", fake_request)
 
         # resolve view_func

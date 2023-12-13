@@ -82,8 +82,8 @@ export interface IRouteConfigItem {
   query?: any;
 }
 // route config
-// nav list
-export const routeConfig: IRouteConfigItem[] = [
+// nav list 
+const routeConfig: IRouteConfigItem[] = [
   {
     id: 'home',
     name: '首页',
@@ -384,6 +384,9 @@ export const routeConfig: IRouteConfigItem[] = [
     ]
   }
 ].filter(item => (process.env.APP === 'external' ? item.id === 'dashboard' : true));
+export const getRouteConfig = () => {
+  return routeConfig;
+}
 /**
  * @description: set page route show
  * @param {*} routeId
@@ -391,7 +394,7 @@ export const routeConfig: IRouteConfigItem[] = [
  * @return {*}
  */
 export const handleSetPageShow = (routeId: string, isShow: boolean) => {
-  const globalConfigParentRoute = routeConfig.find(item => item.children?.some(set => set.id === routeId));
+  const globalConfigParentRoute = getRouteConfig().find(item => item.children?.some(set => set.id === routeId));
   if (globalConfigParentRoute) {
     const globalConfigRoute = globalConfigParentRoute.children.find(item => item.id === routeId);
     globalConfigRoute.hidden = !isShow;
@@ -409,7 +412,7 @@ export const LOCAL_COMMON_ROUTE_STORE_KEY = 'local_monitor_store_route_key'.toLo
 // 默认常用路由列表
 export const DEFAULT_ROUTE_LIST = ['strategy-config', 'collect-config', 'performance'];
 // 常用路由列表
-export const COMMON_ROUTE_LIST = routeConfig
+export const COMMON_ROUTE_LIST = getRouteConfig()
   .filter(item => item.id !== 'home')
   .map(item => {
     if (item.id === 'event') {
@@ -519,7 +522,7 @@ export function setLocalStoreRoute(id: string) {
  * @returns 路由配置
  */
 export function getRouteConfigById(id: string) {
-  const flatConfig = routeConfig.flatMap(config => {
+  const flatConfig = getRouteConfig().flatMap(config => {
     if (config.children?.length) {
       return config.children.flatMap(set => {
         if (set.children?.length) {
@@ -530,5 +533,5 @@ export function getRouteConfigById(id: string) {
     }
     return config;
   });
-  return flatConfig.find(item => item.id === id) || routeConfig.find(item => item.route === id);
+  return flatConfig.find(item => item.id === id) || getRouteConfig().find(item => item.route === id);
 }

@@ -40,10 +40,10 @@ export default [
       navId: 'grafana',
       navName: '仪表盘',
       noNavBar: true,
-      // authority: {
-      //   map: grafanaAuth,
-      //   page: grafanaAuth.VIEW_AUTH
-      // },
+      authority: {
+        map: grafanaAuth,
+        page: grafanaAuth.VIEW_AUTH
+      },
       route: {
         parent: 'dashboard'
       },
@@ -165,10 +165,10 @@ export default [
       navName: '仪表盘',
       noNavBar: true,
       navId: 'grafana',
-      // authority: {
-      //   map: grafanaAuth,
-      //   page: grafanaAuth.VIEW_AUTH
-      // },
+      authority: {
+        map: grafanaAuth,
+        page: grafanaAuth.VIEW_AUTH
+      },
       route: {
         parent: 'dashboard'
       },
@@ -189,10 +189,10 @@ export default [
       navId: 'grafana',
       navName: '仪表盘',
       noNavBar: true,
-      // authority: {
-      //   map: grafanaAuth,
-      //   page: grafanaAuth.VIEW_AUTH
-      // },
+      authority: {
+        map: grafanaAuth,
+        page: grafanaAuth.VIEW_AUTH
+      },
       route: {
         parent: 'dashboard'
       },
