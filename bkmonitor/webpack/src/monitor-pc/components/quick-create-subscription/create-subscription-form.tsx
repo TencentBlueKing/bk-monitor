@@ -25,13 +25,12 @@
  */
 import Vue, { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { logServiceRelationBkLogIndexSet } from '@api/modules/apm_service';
+import { getVariables } from '@api/modules/new_report';
 import { copyText, deepClone, transformDataKey } from '@common/utils';
 import dayjs from 'dayjs';
 
 import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import MemberSelector from '../../pages/alarm-group/alarm-group-add/member-selector';
-// import {  } from '../../../monitor-api/modules/new_report';
-// import { Scenario } from '../email-subscription-config';
 import { Scenario } from '../../pages/my-apply/components/subscription-detail';
 
 import './create-subscription-form.scss';
@@ -243,24 +242,24 @@ export default defineComponent({
       email: '',
       wxbot: ''
     });
-    watch(
-      () => subscriberInput.user,
-      () => {
-        const result = subscriberInput.user
-          .map(item => {
-            return {
-              id: item,
-              is_enabled: true,
-              type: 'user'
-            };
-          })
-          .filter(item => item.id);
-        formData.channels[0].subscribers = result;
-      },
-      {
-        deep: true
-      }
-    );
+    // watch(
+    //   () => subscriberInput.user,
+    //   () => {
+    //     const result = subscriberInput.user
+    //       .map(item => {
+    //         return {
+    //           id: item,
+    //           is_enabled: true,
+    //           type: 'user'
+    //         };
+    //       })
+    //       .filter(item => item.id);
+    //     formData.channels[0].subscribers = result;
+    //   },
+    //   {
+    //     deep: true
+    //   }
+    // );
     watch(
       () => subscriberInput.email,
       () => {
@@ -513,7 +512,27 @@ export default defineComponent({
         refOfEmailSubscription.value?.validate?.(),
         refOfSendingConfigurationForm.value?.validate?.()
       ]).then(() => {
-        return formData;
+        const cloneFormData = deepClone(formData);
+        // scenario_config__log_display_count content_config__title
+        delete cloneFormData.scenario_config__log_display_count;
+        delete cloneFormData.content_config__title;
+        delete cloneFormData.timerange;
+        if (cloneFormData.subscriber_type === 'self') {
+          cloneFormData.channels = [
+            {
+              is_enabled: true,
+              subscribers: [
+                {
+                  id: window.user_name || window.username,
+                  type: 'user',
+                  is_enabled: true
+                }
+              ],
+              channel_name: 'user'
+            }
+          ];
+        }
+        return cloneFormData;
       });
     }
 
@@ -521,23 +540,7 @@ export default defineComponent({
     const isShowYOY = ref(true);
 
     const variableTable = reactive({
-      data: [
-        {
-          variable: '{username}',
-          description: '用户名称',
-          example: 'Peter'
-        },
-        {
-          variable: '{time}',
-          description: '系统时间',
-          example: '2023.10.1'
-        },
-        {
-          variable: '{indicesname}',
-          description: '索引集名称',
-          example: 'apm_demo_app_8004'
-        }
-      ],
+      data: [],
       columns: {
         fields: [
           {
@@ -689,6 +692,8 @@ export default defineComponent({
     function handleNoticeReceiver() {
       const result = [];
       const groupMap = new Map();
+      // console.log(allRecerverData);
+      // console.log(subscriberInput);
       allRecerverData.value.forEach(item => {
         const isGroup = item.type === 'group';
         isGroup &&
@@ -703,11 +708,15 @@ export default defineComponent({
           // logo: '',
           id,
           type: isGroup ? 'group' : 'user',
-          subscribers: isGroup ? groupMap.get(id)?.members : undefined
+          is_enabled: true
+          // subscribers: isGroup ? groupMap.get(id)?.members : undefined
         });
       });
       console.log(result);
-      // return result;
+      const userChannel = formData.channels.find(item => item.channel_name === 'user');
+      if (userChannel) {
+        userChannel.subscribers = result;
+      }
     }
 
     const isGenerateAttach = ref(1);
@@ -734,6 +743,20 @@ export default defineComponent({
           formData.end_time = null;
         }
       }
+    );
+
+    watch(
+      () => formData.scenario,
+      () => {
+        getVariables({
+          scenario: formData.scenario
+        })
+          .then(response => {
+            variableTable.data = response;
+          })
+          .catch(console.log);
+      },
+      { immediate: true }
     );
 
     // defineExpose({
@@ -1156,7 +1179,7 @@ export default defineComponent({
                     >
                       <bk-table-column
                         label={window.i18n.t('变量名')}
-                        prop='variable'
+                        prop='name'
                         scopedSlots={{
                           default: ({ row }) => {
                             return (
@@ -1166,7 +1189,7 @@ export default defineComponent({
                                   class='icon-monitor icon-mc-copy'
                                   style={{ fontSize: '16px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
                                   onClick={() => {
-                                    this.handleCopy(row.variable);
+                                    this.handleCopy(row.name);
                                   }}
                                 ></i>
                               </div>
@@ -1270,12 +1293,12 @@ export default defineComponent({
                             default: ({ row }) => {
                               return (
                                 <div>
-                                  {row.variable}
+                                  {row.name}
                                   <i
                                     class='icon-monitor icon-mc-copy'
                                     style={{ fontSize: '16px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
                                     onClick={() => {
-                                      this.handleCopy(row.variable);
+                                      this.handleCopy(row.name);
                                     }}
                                   ></i>
                                 </div>
@@ -1552,7 +1575,7 @@ export default defineComponent({
                   v-model={this.formData.timerange}
                   type='datetimerange'
                   format={'yyyy-MM-dd HH:mm:ss'}
-                  clearable
+                  clearable={false}
                   style='width: 465px;'
                   onChange={this.handleTimeRangeChange}
                 ></bk-date-picker>
