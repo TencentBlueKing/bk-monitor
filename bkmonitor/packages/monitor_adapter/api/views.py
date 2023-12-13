@@ -8,3 +8,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import os
+
+from blueapps.account.decorators import login_exempt
+from django.conf import settings
+from django.http import HttpResponse
+
+
+@login_exempt
+def version_info(request):
+    version_file = os.path.join(settings.BASE_DIR, 'VERSION')
+    version = ""
+    if os.path.exists(version_file):
+        with open(version_file, 'r') as f:
+            version = f.read()
+
+    return HttpResponse(version.strip(), content_type='text/plain')
