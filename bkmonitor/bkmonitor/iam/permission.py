@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Union
+from typing import Dict, Iterable, List, Union
 
 from django.conf import settings
 from iam import (
@@ -583,7 +583,7 @@ class Permission(object):
 
         return results
 
-    def filter_biz_ids_by_action(self, action: Union[ActionMeta, str], bk_biz_ids: List[int] = None) -> List[int]:
+    def filter_biz_ids_by_action(self, action: Union[ActionMeta, str], bk_biz_ids: Iterable[int] = None) -> List[int]:
         """
         过滤只包含数值的业务ID列表，filter_business_list_by_action 的进一步封装
         """
