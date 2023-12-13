@@ -2298,6 +2298,7 @@ class UnionSearchHandler(object):
                 field_name = field_info["field_name"]
                 field_type = field_info["field_type"]
                 if field_name not in union_field_names:
+                    field_info["index_set_ids"] = [index_set_id]
                     total_fields.append(field_info)
                     union_field_names.append(field_info["field_name"])
                 else:
@@ -2305,6 +2306,7 @@ class UnionSearchHandler(object):
                     _index = union_field_names.index(field_name)
                     if field_type != total_fields[_index]["field_type"]:
                         total_fields[_index]["field_type"] = "conflict"
+                    total_fields[_index]["index_set_ids"].append(index_set_id)
 
             # 处理默认显示字段
             union_display_fields.extend(display_fields)
@@ -2331,6 +2333,9 @@ class UnionSearchHandler(object):
             time_field = list(union_time_fields)[0]
             time_field_type = list(union_time_fields_type)[0]
             time_field_unit = list(union_time_fields_unit)[0]
+
+        if not union_display_fields:
+            union_display_fields.append(time_field)
 
         index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
 
