@@ -189,7 +189,9 @@ class TestActionFakeESProcessor(TestCase):
         action_config_patch.start()
         actions = create_actions(1, "abnormal", alerts=[job_alert])
         self.assertEqual(len(actions), 1)
-        self.assertEqual({"admin", "lisa"}, set(ActionInstance.objects.get(id=actions[0]).assignee))
+
+        # assignee一定是一个有序的列表
+        self.assertEqual(["admin", "lisa"], ActionInstance.objects.get(id=actions[0]).assignee)
         action_config_patch.stop()
 
     def test_shield_config_dimension_match_and(self):

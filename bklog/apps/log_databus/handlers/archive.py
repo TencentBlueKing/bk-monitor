@@ -24,7 +24,11 @@ from django.utils import timezone
 from django.utils.translation import ugettext as _
 
 from apps.api import TransferApi
-from apps.log_databus.constants import RESTORE_INDEX_SET_PREFIX, ArchiveInstanceType
+from apps.log_databus.constants import (
+    RESTORE_INDEX_SET_PREFIX,
+    ArchiveExpireTime,
+    ArchiveInstanceType,
+)
 from apps.log_databus.exceptions import (
     ArchiveIndexSetInfoNotFound,
     ArchiveIndexSetStatusError,
@@ -136,15 +140,18 @@ class ArchiveHandler:
         indices = []
         for snapshot in snapshot_info:
             for _snapshot in snapshot:
+                expired_time = (
+                    ArchiveExpireTime.PERMANENT
+                    if self.archive.snapshot_days == 0
+                    else format_user_time_zone_humanize(_snapshot.get("expired_time"), get_local_param("time_zone"))
+                )
                 indices.extend(
                     [
                         {
                             **indice,
                             "start_time": self.to_user_time_format(indice.get("start_time")),
                             "end_time": self.to_user_time_format(indice.get("end_time")),
-                            "expired_time": format_user_time_zone_humanize(
-                                _snapshot.get("expired_time"), get_local_param("time_zone")
-                            ),
+                            "expired_time": expired_time,
                             "state": _snapshot.get("state"),
                         }
                         for indice in _snapshot.get("indices", [])

@@ -28,7 +28,7 @@ import { TranslateResult } from 'vue-i18n';
 
 import { random } from '../../../../monitor-common/utils/utils';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { TimeRangeType } from '../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 import { PanelHeaderType, PanelToolsType } from '../../monitor-k8s/typings';
 import { IFunctionItem } from '../../strategy-config/strategy-config-set-new/monitor-data/function-menu';
 import { IFunctionsValue } from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
@@ -187,6 +187,7 @@ export declare namespace IDataRetrievalView {
   interface ITools {
     refleshInterval: number;
     timeRange: TimeRangeType;
+    timezone: string;
   }
   interface ICompareValue {
     compare: ICompare;

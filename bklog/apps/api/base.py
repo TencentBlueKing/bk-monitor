@@ -207,6 +207,7 @@ class DataAPI(object):
         cache_time=0,
         default_timeout=60,
         data_api_retry_cls=None,
+        use_superuser=False,
     ):
         """
         初始化一个请求句柄
@@ -253,6 +254,7 @@ class DataAPI(object):
         self.cache_time = cache_time
         self.default_timeout = default_timeout
         self.data_api_retry_cls = data_api_retry_cls
+        self.use_superuser = use_superuser
 
     def __call__(
         self,
@@ -273,6 +275,11 @@ class DataAPI(object):
             params = {}
 
         timeout = timeout or self.default_timeout
+
+        # 当该DataAPI在定义为全局使用超级用户来避免权限问题时，统一使用admin账户且不再透传用户的cookies(CC, Job等场景)
+        if self.use_superuser:
+            request_cookies = False
+            params["no_request"] = True
 
         # 重试操作
         if data_api_retry_cls:

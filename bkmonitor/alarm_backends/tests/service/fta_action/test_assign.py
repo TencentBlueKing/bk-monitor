@@ -122,11 +122,39 @@ def setup():
     }
     yield AlertAssignRule.objects.create(**rule)
 
+
+@pytest.fixture()
+def condition_rule():
+    ActionInstance.objects.all().delete()
     AlertAssignGroup.objects.all().delete()
     AlertAssignRule.objects.all().delete()
-    ActionInstance.objects.all().delete()
-    ConvergeInstance.objects.all().delete()
     ConvergeRelation.objects.all().delete()
+
+    assign_group = AlertAssignGroup.objects.create(name="test cache", bk_biz_id=2, priority=1)
+    rule = {
+        "assign_group_id": assign_group.id,
+        "user_groups": [3],
+        "conditions": [
+            {
+                "field": "ip",
+                "value": "127.0.0.1",
+                "method": "eq",
+            }
+        ],
+        "actions": [
+            {
+                "action_type": ActionPluginType.NOTICE,
+                "is_enabled": True,
+                "upgrade_config": {"is_enabled": True, "user_groups": [2, 1], "upgrade_interval": 30},
+            },
+            {"action_type": ActionPluginType.ITSM, "action_id": 4444},
+        ],
+        "alert_severity": 2,
+        "additional_tags": [{"key": "ip123", "value": "127.0.0.1"}],
+        "bk_biz_id": 2,
+        "is_enabled": True,
+    }
+    yield AlertAssignRule.objects.create(**rule)
 
 
 @pytest.fixture()
@@ -225,10 +253,20 @@ def user_group_setup():
                 "users": [{"id": "admin", "display_name": "管理员", "logo": "", "type": "user"}],
             }
         ),
+        DutyArrange(
+            **{
+                "user_group_id": 3,
+                "order": 1,
+                "users": [
+                    {"id": "lisa", "display_name": "lisa", "logo": "", "type": "user"},
+                    {"id": "lisa1", "display_name": "lisa1", "logo": "", "type": "user"},
+                ],
+            }
+        ),
     ]
     DutyArrange.objects.bulk_create(duty_arranges)
     group_data = copy.deepcopy(USER_GROUP_DATA)
-    for group_id in [1, 2]:
+    for group_id in [1, 2, 3]:
         group_data["id"] = group_id
         user_groups = UserGroup.objects.create(**group_data)
     yield user_groups
@@ -832,7 +870,7 @@ class TestAssignManager:
         assert p_ai.inputs["notify_info"] == {'weixin': ['lisa']}
         assert alert.severity == 3
 
-    def test_ignore_origin_notice(self, setup, alert, user_group_setup, biz_mock, init_configs):
+    def test_ignore_origin_notice(self, condition_rule, alert, user_group_setup, biz_mock, init_configs):
         """
         测试适配到告警条件之后原来的告警不会产生
         """
@@ -840,13 +878,13 @@ class TestAssignManager:
         AlertDocument.bulk_create([alert])
         assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
-        assert len(actions) == 3
+        assert len(actions) == 4
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"] == {'mail': ['lisa']}
+        assert p_ai.inputs["notify_info"] == {'mail': ['lisa', 'lisa1']}
         new_alert = AlertDocument.get(id=alert.id)
+        assert new_alert.appointee == ["lisa", "lisa1"]
         assert new_alert.severity == 2
-        assert new_alert.assign_tags == setup.additional_tags
 
     def test_default_assign_notice(self, setup, alert, user_group_setup, biz_mock, init_configs):
         """

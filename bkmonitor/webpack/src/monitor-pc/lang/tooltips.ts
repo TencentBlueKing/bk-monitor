@@ -264,5 +264,6 @@ export default {
   点击复制变量: 'Click to copy variables',
   '已有相同算法,设置为{name}级别': 'Same algorithm already exists, set to {name} level',
   '支持将告警信息发送至外部，包括企业微信群机器人、QQ、Slack、钉钉、飞书、微信公众号以及外部邮箱等多种告警通知方式。':
-    'It supports sending alarm information to the outside, including enterprise WeChat group robots, QQ, Slack, nail, fly book, WeChat official account, external mailbox and other alarm notification methods.'
+    'It supports sending alarm information to the outside, including enterprise WeChat group robots, QQ, Slack, nail, fly book, WeChat official account, external mailbox and other alarm notification methods.',
+  AI设置: 'AI settings'
 };

@@ -20,13 +20,15 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import arrow
+from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
+from pipeline.parser import PipelineParser
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.components.collections.data_access_component import (
     AddProjectData,
     AddResourceGroupSet,
-    ChangeDataStream,
-    CreateBkdataAccess,
+    CreateBkdataDataId,
     SyncBkdataEtl,
 )
 from apps.log_clustering.components.collections.flow_component import (
@@ -38,9 +40,6 @@ from apps.log_clustering.handlers.pipline_service.base_pipline_service import (
 )
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.models import ClusteringConfig
-from django.conf import settings
-from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
-from pipeline.parser import PipelineParser
 
 
 class AiopsLogOnlineService(BasePipeLineService):
@@ -59,7 +58,6 @@ class AiopsLogOnlineService(BasePipeLineService):
         data_context.inputs["${project_id}"] = Var(type=Var.PLAIN, value=params["project_id"])
         data_context.inputs["${bk_biz_id}"] = Var(type=Var.PLAIN, value=params["bk_biz_id"])
         data_context.inputs["${index_set_id}"] = Var(type=Var.PLAIN, value=params["index_set_id"])
-        data_context.inputs["${topic_name}"] = Var(type=Var.PLAIN, value=params["topic_name"])
         data_context.inputs["${collector_config_id}"] = Var(type=Var.PLAIN, value=params["collector_config_id"])
 
         return data_context
@@ -70,9 +68,7 @@ class AiopsLogOnlineService(BasePipeLineService):
         collector_config_id = kwargs.get("collector_config_id")
         index_set_id = kwargs.get("index_set_id")
         start.extend(
-            ChangeDataStream(index_set_id=index_set_id, collector_config_id=collector_config_id).change_data_stream
-        ).extend(
-            CreateBkdataAccess(index_set_id=index_set_id, collector_config_id=collector_config_id).create_bkdata_access
+            CreateBkdataDataId(index_set_id=index_set_id, collector_config_id=collector_config_id).create_bkdata_data_id
         ).extend(
             SyncBkdataEtl(index_set_id=index_set_id, collector_config_id=collector_config_id).sync_bkdata_etl
         ).extend(
@@ -107,7 +103,6 @@ class AiopsBkdataOnlineService(BasePipeLineService):
         data_context.inputs["${project_id}"] = Var(type=Var.PLAIN, value=params["project_id"])
         data_context.inputs["${bk_biz_id}"] = Var(type=Var.PLAIN, value=params["bk_biz_id"])
         data_context.inputs["${index_set_id}"] = Var(type=Var.PLAIN, value=params["index_set_id"])
-        data_context.inputs["${topic_name}"] = Var(type=Var.PLAIN, value=params["topic_name"])
         data_context.inputs["${collector_config_id}"] = Var(type=Var.PLAIN, value=params["collector_config_id"])
 
         return data_context
@@ -149,7 +144,6 @@ def operator_aiops_service_online(index_set_id, operator=OperatorServiceEnum.CRE
         "bk_biz_id": conf["bk_biz_id"],
         "description": f"{clustering_config.bk_biz_id}_bklog_{rt_name}",
         "collector_config_id": clustering_config.collector_config_id,
-        "topic_name": f"queue_{conf['bk_biz_id']}_bklog_{settings.ENVIRONMENT}_{rt_name}",
         "project_id": conf["project_id"],
         "is_case_sensitive": clustering_config.is_case_sensitive,
         "max_log_length": clustering_config.max_log_length,

@@ -132,6 +132,7 @@ window.bk_component_api_url = "\${BK_COMPONENT_API_URL}"
 window.bk_domain = "\${BK_DOMAIN}"
 window.show_realtime_strategy = "\${SHOW_REALTIME_STRATEGY}" == "True" ? true : false
 window.apm_ebpf_enabled = \${APM_EBPF_ENABLED}
+window.enable_apm_profiling = \${ENABLE_APM_PROFILING}
 </script>`;
 const externalBuildVariates = `
 <script>

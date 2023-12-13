@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 
 
-import logging
 import os
 
 from django.core.management import call_command
@@ -20,8 +19,6 @@ from django.db.transaction import atomic
 
 from metadata import config, models
 from metadata.utils import env
-
-logger = logging.getLogger("metadata")
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
@@ -34,7 +31,6 @@ def refresh_influxdb_info():
         message = (
             "cluster->[%s] is already exists, nothing will be inited." % models.InfluxDBClusterInfo.DEFAULT_CLUSTER_NAME
         )
-        logger.info(message)
         print(message)
         return True
 
@@ -47,7 +43,6 @@ def refresh_influxdb_info():
     except KeyError as error:
         message = "failed to get environ->[%s] maybe something go wrong on init?" % error
 
-        logger.error(message)
         print(message)
         return False
 
@@ -70,7 +65,6 @@ def refresh_influxdb_info():
         models.InfluxDBClusterInfo.objects.create(host_name=host_name, cluster_name="default")
 
         message = "host->[%s] for cluster->[default] is add." % host_name
-        logger.info(message)
         print(message)
 
     # 4. influxdb proxy的信息写入
@@ -93,10 +87,9 @@ def refresh_influxdb_info():
         influx_cluster.domain_name = influxdb_host
         influx_cluster.port = influxdb_port
         influx_cluster.save()
-        logger.info("update influx domain & port success.")
+        print("update influx domain & port success.")
 
     message = "all influxdb host is added to database."
-    logger.info(message)
     print(message)
 
     return True
@@ -109,7 +102,6 @@ def refresh_es7_config():
     # 0. 判断是否存在ES7的信息，如果不存在，则直接退出，不做刷新
     if os.environ.get("BK_MONITOR_ES7_HOST", None) is None:
         message = "cannot found ES7 info nothing will insert."
-        logger.info(message)
         print(message)
 
         return True
@@ -117,7 +109,6 @@ def refresh_es7_config():
     # 1. 判断默认的ES集群是ES7的，则直接返回
     if models.ClusterInfo.objects.filter(version__startswith="7.", cluster_type=models.ClusterInfo.TYPE_ES).exists():
         message = "ES version 7 cluster is exists, nothing will do."
-        logger.info(message)
         print(message)
 
         return True
@@ -125,7 +116,6 @@ def refresh_es7_config():
     # 2. 将之前的其他的配置改为非默认集群
     models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_ES).update(is_default_cluster=False)
     message = "ALL ES CLUSTER NOT version 7 is unset is_default cluster"
-    logger.warning(message)
     print(message)
 
     # 3. 需要创建一个新的ES7配置，写入ES7的域名密码等
@@ -138,7 +128,6 @@ def refresh_es7_config():
     except KeyError as error:
         message = "failed to get environ->[%s] for ES7 cluster maybe something go wrong on init?" % error
 
-        logger.error(message)
         print(message)
         return False
 
@@ -154,7 +143,6 @@ def refresh_es7_config():
         version="7.2",
     )
     message = "cluster for es7 is add to default cluster."
-    logger.info(message)
     print(message)
 
 
@@ -168,7 +156,6 @@ def refresh_kafka_config():
         is_default_cluster=True,
     ):
         message = "kafka cluster is already exists, nothing will add."
-        logger.info(message)
         print(message)
 
         return True
@@ -190,7 +177,7 @@ def refresh_kafka_config():
         kafka_cluster.domain_name = kafka_host
         kafka_cluster.port = kafka_port
         kafka_cluster.save()
-        logger.info("update kafka domain & port success.")
+        print("update kafka domain & port success.")
 
     return True
 
@@ -220,5 +207,4 @@ class Command(BaseCommand):
         except Exception as e:
             print(f"add dbm system data error: {e}")
 
-        logger.info("all cluster init done.")
         print("all cluster init done.")

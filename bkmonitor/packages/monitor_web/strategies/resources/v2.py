@@ -32,6 +32,7 @@ from bkmonitor.models import (
     ActionConfig,
     ActionSignal,
     AlgorithmModel,
+    DetectModel,
     ItemModel,
     MetricListCache,
     QueryConfigModel,
@@ -39,7 +40,6 @@ from bkmonitor.models import (
     StrategyLabel,
     StrategyModel,
     UserGroup,
-    DetectModel,
 )
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
@@ -350,12 +350,14 @@ class GetStrategyListV2Resource(Resource):
     def filter_strategy_ids_by_plugin_id(
         cls, filter_dict: dict, filter_strategy_ids_list: list, bk_biz_id: Optional[str] = None
     ):
+        # 无业务id，不支持搜索(RequestSerializer 明确bk_biz_id 必填)
+        if not bk_biz_id:
+            return
+
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id)
-            if bk_biz_id is not None:
-                plugins = plugins.filter(bk_biz_id__in=[0, bk_biz_id])
+            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id])
             plugin_table_ids = []
             for plugin in plugins:
                 version = plugin.current_version
@@ -364,19 +366,14 @@ class GetStrategyListV2Resource(Resource):
 
             plugin_strategy_ids = []
             if plugin_table_ids:
-                plugin_strategy_ids = set(
-                    QueryConfigModel.objects.filter(
-                        reduce(
-                            lambda x, y: x | y, (Q(config__result_table_id=table_id) for table_id in plugin_table_ids)
-                        )
-                        if len(plugin_table_ids) > 1
-                        else Q(config__result_table_id=plugin_table_ids[0]),
-                        data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-                        data_type_label=DataTypeLabel.TIME_SERIES,
-                    )
-                    .values_list("strategy_id", flat=True)
-                    .distinct()
+                strategy_ids = list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True))
+                query_configs = QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).only(
+                    "config", "strategy_id"
                 )
+                for qc in query_configs:
+                    if qc.config.get("result_table_id") in plugin_table_ids:
+                        plugin_strategy_ids.append(qc.strategy_id)
+
             filter_strategy_ids_list.append(plugin_strategy_ids)
 
     @classmethod
@@ -418,9 +415,9 @@ class GetStrategyListV2Resource(Resource):
     def filter_strategy_ids_by_level(cls, filter_dict: dict, filter_strategy_ids_list: list):
         """过滤告警级别"""
         if filter_dict["level"]:
-            level_strategy_ids = DetectModel.objects.filter(
-                level__in=filter_dict["level"]
-            ).values_list('strategy_id', flat=True)
+            level_strategy_ids = DetectModel.objects.filter(level__in=filter_dict["level"]).values_list(
+                'strategy_id', flat=True
+            )
             filter_strategy_ids_list.append(level_strategy_ids)
 
     @classmethod
@@ -1039,8 +1036,10 @@ class GetStrategyListV2Resource(Resource):
                 data_source_label=query_config["data_source_label"],
                 data_type_label=query_config["data_type_label"],
             )
-
-            strategy["add_allowed"] = target != DataTarget.NONE_TARGET
+            algorithms = strategy["items"][0]["algorithms"][0]
+            strategy["add_allowed"] = (target != DataTarget.NONE_TARGET) or (
+                algorithms["type"] == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
+            )
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]

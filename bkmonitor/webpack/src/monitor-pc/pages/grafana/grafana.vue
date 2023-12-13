@@ -158,7 +158,21 @@ export default class Grafana extends Vue {
     // event.stopPropagation();
     bus.$emit('handle-keyup-search', event);
   }
+  isAllowedUrl(url: string) {
+  // 验证URL格式是否合法
+    let parsedUrl: string | URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch (e) {
+      return false; // 不是合法的URL
+    }
+    if (!parsedUrl.protocol.match(/^https?:$/)) {
+      return false; // 不安全的协议
+    }
+    return true;
+  }
   handleMessage(e: IMessageEvent) {
+    if (e.origin !== location.origin) return;
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
@@ -177,7 +191,7 @@ export default class Grafana extends Vue {
     }
     // 302跳转
     if (e?.data?.redirected) {
-      if (e.data.href) {
+      if (this.isAllowedUrl(e.data.href)) {
         const url = new URL(location.href);
         const curl = url.searchParams.get('c_url');
         if (curl) {

@@ -23,6 +23,7 @@ from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
+from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.dataflow.constant import (
     METRIC_RECOMMENDATION_SCENE_NAME,
     AccessStatus,
@@ -46,6 +47,7 @@ from bkmonitor.utils.user import set_local_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
+from core.errors.api import BKAPIError
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.constants import (
@@ -57,7 +59,7 @@ from monitor_web.constants import (
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
-from utils import business
+from utils import business, count_md5
 
 logger = logging.getLogger("monitor_web")
 
@@ -116,14 +118,6 @@ def update_metric_list():
 
     set_local_username(settings.COMMON_USERNAME)
 
-    # 查询第三方应用是否部署，如果未部署，则不请求
-    source_type_to_app_code = {
-        "BKDATA": "bk_dataweb",
-        "LOGTIMESERIES": "bk_log_search",
-    }
-
-    apps = list(source_type_to_app_code.values())
-
     # 获取上次执行分发任务时间戳
     metric_cache_task_last_timestamp, _ = GlobalConfig.objects.get_or_create(
         key="METRIC_CACHE_TASK_LAST_TIMESTAMP", defaults={"value": 0}
@@ -137,7 +131,10 @@ def update_metric_list():
     source_type_use_biz = ["BKDATA", "LOGTIMESERIES", "BKMONITORALERT"]
     source_type_all_biz = ["BASEALARM", "BKMONITORLOG"]
     source_type_add_biz_0 = ["BKMONITOR", "CUSTOMEVENT", "CUSTOMTIMESERIES", "BKFTAALERT", "BKMONITORK8S"]
+    # 非业务空间不需要执行
     source_type_gt_0 = ["BKDATA"]
+    # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
+    extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
     businesses = SpaceApi.list_spaces()
 
     # 记录分发任务轮次
@@ -174,19 +171,33 @@ def update_metric_list():
         for source_type in source_type_all_biz:
             update_metric(source_type)
 
+    # 记录有容器集群的cmdb业务列表
+    k8s_biz_set = set()
     for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
         biz_count += 1
         for source_type in source_type_use_biz + source_type_add_biz_0:
+            # 非容器平台项目，不需要缓存容器指标：
+            if not biz.space_code and source_type == "BKMONITORK8S":
+                continue
+            else:
+                # 记录容器平台项目空间关联的业务id
+                try:
+                    k8s_biz: Space = SpaceApi.get_related_space(biz.space_uid, SpaceTypeEnum.BKCC.value)
+                    if k8s_biz:
+                        k8s_biz_set.add(k8s_biz.bk_biz_id)
+                except BKAPIError:
+                    pass
             # 部分环境可用禁用数据平台指标缓存
             if not settings.ENABLE_BKDATA_METRIC_CACHE and source_type == "BKDATA":
                 continue
-            # 如果数据源对应的应用没有部署，则不请求
-            if source_type in source_type_to_app_code and source_type_to_app_code[source_type] not in apps:
-                continue
             # 数据平台指标缓存仅支持更新大于0业务
-            if source_type in source_type_gt_0 and biz.bk_biz_id <= 0:
+            if source_type in (source_type_gt_0 + extr_source_type_gt_0) and biz.bk_biz_id <= 0:
                 continue
             update_metric(source_type, biz.bk_biz_id)
+
+    # 关联容器平台的业务，批量跑容器指标
+    for k8s_biz_id in k8s_biz_set:
+        update_metric("BKMONITORK8S", k8s_biz_id)
 
     logger.info("$update metric list(round {}), biz count: {}, cost: {}".format(offset, biz_count, time.time() - start))
 
@@ -195,14 +206,6 @@ def update_metric_list():
 def update_metric_list_by_biz(bk_biz_id):
     from monitor.models import ApplicationConfig
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
-
-    # 查询第三方应用是否部署，如果未部署，则不请求
-    source_type_to_app_code = {
-        "BKDATA": "bk_dataweb",
-        "LOGTIMESERIES": "bk_log_search",
-    }
-
-    apps = list(source_type_to_app_code.values())
 
     source_type_use_biz = [
         "BKDATA",
@@ -219,10 +222,6 @@ def update_metric_list_by_biz(bk_biz_id):
     for source_type, source in list(SOURCE_TYPE.items()):
         # 部分环境可用禁用数据平台指标缓存
         if not settings.ENABLE_BKDATA_METRIC_CACHE and source_type == "BKDATA":
-            continue
-
-        # 如果数据源对应的应用没有部署，则不请求
-        if source_type in source_type_to_app_code and source_type_to_app_code[source_type] not in apps:
             continue
 
         try:
@@ -266,7 +265,9 @@ def append_metric_list_cache(result_table_id_list):
     from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
 
     def update_or_create_metric_list_cache(metric_list):
+        # 这里可以考虑 删除 + 创建逻辑
         for metric in metric_list:
+            metric["metric_md5"] = count_md5(metric)
             MetricListCache.objects.update_or_create(
                 metric_field=metric["metric_field"],
                 result_table_id=metric["result_table_id"],
@@ -276,19 +277,29 @@ def append_metric_list_cache(result_table_id_list):
                 defaults=metric,
             )
 
+    if settings.ROLE == "api":
+        # api 调用不做指标实时更新。
+        return
+
     set_local_username(settings.COMMON_USERNAME)
     if not result_table_id_list:
         return
     one_result_table_id = result_table_id_list[0]
     db_name = one_result_table_id.split(".")[0]
     group_list = api.metadata.query_time_series_group.request.refresh(time_series_group_name=db_name)
+    plugin = None
     if group_list:
-        plugin_type, plugin_id = db_name.split("_", 1)
-        plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
+        # 单指标单表模式, 指标会被打散成group list 返回
+        # -> metadata.models.custom_report.time_series.TimeSeriesGroup.to_split_json
+        new_metric_list = []
+        if plugin is None:
+            plugin_type, plugin_id = db_name.split("_", 1)
+            plugin = CollectorPluginMeta.objects.filter(plugin_type=plugin_type, plugin_id=plugin_id).first()
         for result in group_list:
             result["bk_biz_id"] = plugin.bk_biz_id
             create_msg = BkmonitorMetricCacheManager().get_plugin_ts_metric(result)
-            update_or_create_metric_list_cache(create_msg)
+            new_metric_list.extend(list(create_msg))
+        update_or_create_metric_list_cache(new_metric_list)
     else:
         for result_table_id in result_table_id_list:
             result_table_msg = api.metadata.get_result_table(table_id=result_table_id)

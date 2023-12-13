@@ -26,7 +26,9 @@ import re
 import time
 
 import arrow
+import pytz
 from dateutil.parser import parse
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
@@ -387,18 +389,26 @@ class SearchUserIndexSetConfigSerializer(serializers.Serializer):
 class SearchExportSerializer(serializers.Serializer):
     export_dict = serializers.CharField(required=False, allow_blank=False, allow_null=False)
 
+    @classmethod
+    def parse_datetime_with_epoch(cls, t):
+        try:
+            datetime_obj = datetime.datetime.fromtimestamp(
+                int(t), pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+            )
+        except Exception:  # pylint: disable=broad-except
+            datetime_obj = parse(t)
+        return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         export_dict_str = attrs["export_dict"]
         export_dict: dict = json.loads(export_dict_str)
 
-        # deal time
-        start_time = export_dict.get("start_time")
-        start_time = parse(start_time)
-        end_time = export_dict.get("end_time")
-        end_time = parse(end_time)
         export_dict.update(
-            {"start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"), "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S")}
+            {
+                "start_time": self.parse_datetime_with_epoch(export_dict.get("start_time")),
+                "end_time": self.parse_datetime_with_epoch(export_dict.get("end_time")),
+            }
         )
 
         if export_dict.get("index_set_ids"):
@@ -419,8 +429,8 @@ class SearchAsyncExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
-    start_time = serializers.CharField(label=_("起始时间"), required=True)
-    end_time = serializers.CharField(label=_("结束时间"), required=True)
+    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("起始时间"), required=True)
+    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("结束时间"), required=True)
     ip_chooser = serializers.DictField(label=_("检索IP条件"), required=False, default={})
     addition = serializers.ListField(label=_("搜索条件"), required=False)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=True)
@@ -428,18 +438,6 @@ class SearchAsyncExportSerializer(serializers.Serializer):
     interval = serializers.CharField(label=_("匹配规则"), required=False)
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-
-        # deal time
-        start_time = attrs.get("start_time")
-        start_time = parse(start_time)
-        end_time = attrs.get("end_time")
-        end_time = parse(end_time)
-        attrs["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
-        attrs["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-        return attrs
 
 
 class GetExportHistorySerializer(serializers.Serializer):
