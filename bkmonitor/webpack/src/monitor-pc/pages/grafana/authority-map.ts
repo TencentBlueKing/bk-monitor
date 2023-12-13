@@ -27,3 +27,4 @@
 // export const MANAGE_AUTH = 'manage_dashboard_v2';
 export const DATASOURCE_AUTH = 'manage_datasource_v2';
 export const NEW_DASHBOARD_AUTH = 'new_dashboard';
+export const VIEW_AUTH = 'view_business_v2';

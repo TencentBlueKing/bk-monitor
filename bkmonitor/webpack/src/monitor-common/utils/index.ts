@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { IBizItem, ISpaceItem } from '../typings';
+import { ISpaceItem } from '../typings';
 
 import { LOCAL_BIZ_STORE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
 // merge space list width biz list
-export function mergeSpaceList(spaceList: ISpaceItem[], bizList: IBizItem[]) {
+export function mergeSpaceList(spaceList: ISpaceItem[]) {
   spaceList.sort((a, b) => {
     if (a.bk_biz_id > 0 && b.bk_biz_id > 0) return a.bk_biz_id - b.bk_biz_id;
     return b.bk_biz_id - a.bk_biz_id;
@@ -39,8 +39,7 @@ export function mergeSpaceList(spaceList: ISpaceItem[], bizList: IBizItem[]) {
     ...item,
     id: item.bk_biz_id,
     text: item.space_name,
-    name: item.space_name,
-    is_demo: bizList.some(set => +set.id === item.bk_biz_id && set.is_demo)
+    name: item.space_name
   }));
   window.space_list = list;
   return list;
@@ -105,16 +104,20 @@ export const setGlobalBizId = () => {
     bizId = newBizId;
   }
   if (!isSpicialEvent && !hasRouteHash && !isEmailSubscriptions) {
+    debugger;
     const isDemoBizId = isDemo(bizId);
     if (!isDemoBizId && (!bizId || !hasAuth(bizId))) {
       if (!hasBizId() && localBizId && bizList.length && hasAuth(localBizId)) {
         bizId = +localBizId;
         location.href = `${location.origin}${location.pathname}?bizId=${localBizId}#/`;
+        setBizId(bizId);
         return false;
       }
       if (!authList?.length) {
         if (!bizId && bizList.length) {
-          location.href = `${location.origin}${location.pathname}?bizId=${bizList[0].bk_biz_id}#/`;
+          bizId = bizList[0].bk_biz_id;
+          location.href = `${location.origin}${location.pathname}?bizId=${bizId}#/`;
+          setBizId(bizId);
           return;
         }
         if (!bizId) bizId = -1;
