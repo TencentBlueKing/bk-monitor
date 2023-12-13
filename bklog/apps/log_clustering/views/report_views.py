@@ -37,7 +37,7 @@ class ReportViewSet(APIViewSet):
     serializer_class = serializers.Serializer
 
     def get_permissions(self):
-        return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+        return []
 
     @list_route(methods=["GET"], url_path="get_reports")
     def get_reports(self, request):
