@@ -530,6 +530,52 @@ class TestDutyPreview:
         assert duty_plan[2]["user_index"] == 2
         assert duty_plan[3]["user_index"] == 0
 
+    def test_weekly_handoff_with_end(self, rotation_duty_rule):
+        rotation_duty_rule["duty_arranges"] = [
+            {
+                "duty_time": [
+                    {
+                        "work_type": "weekly",
+                        "work_days": [1, 2, 3, 4, 5],
+                        "work_time_type": "time_range",
+                        "work_time": ["10:00--23:00"],
+                    },
+                    {
+                        "work_type": "weekly",
+                        "work_days": [1, 2, 3, 4, 5],
+                        "work_time_type": "time_range",
+                        "work_time": ["00:00--10:00"],
+                    },
+                ],
+                "duty_users": [
+                    [
+                        {"id": "Alan", "type": "user"},
+                        {"id": "Frances", "type": "user"},
+                        {"id": "Lucile", "type": "user"},
+                    ],
+                    [{"id": "Brian", "type": "user"}, {"id": "Danny", "type": "user"}, {"id": "Alice", "type": "user"}],
+                ],
+                "group_type": "specified",
+                "group_number": 0,
+            }
+        ]
+
+        rotation_duty_rule["effective_time"] = "2023-12-11 00:00:00"
+
+        # 有一个结束时间，所以15号应该是没有数据的
+        rotation_duty_rule["end_time"] = "2023-12-15 00:00:00"
+
+        m = DutyRuleManager(duty_rule=rotation_duty_rule, days=21)
+        duty_plan = m.get_duty_plan()
+        print(duty_plan)
+
+        assert len(duty_plan) == 2
+        assert duty_plan[0]["user_index"] == 0
+        assert len(duty_plan[0]["work_times"]) == 4
+
+        assert duty_plan[1]["user_index"] == 1
+        assert len(duty_plan[1]["work_times"]) == 4
+
     def test_weekly_datetime_range_handoff(self, rotation_duty_rule):
         """
         周一 至 可以工作周五
