@@ -64,7 +64,8 @@ class MySubscription extends tsc<{}> {
   isShowSideslider = false;
   isShowSendRecord = false;
   sendRecordTable = {
-    data: []
+    data: [],
+    isLoading: false
   };
   popoverInstance: unknown = null;
   currentTableRowOfSendingRecord: unknown = {};
@@ -142,6 +143,7 @@ class MySubscription extends tsc<{}> {
   }
 
   getSendingRecordList() {
+    this.sendRecordTable.isLoading = true;
     getSendRecords({
       report_id: this.detailInfo.id
     })
@@ -149,7 +151,10 @@ class MySubscription extends tsc<{}> {
         console.log(response);
         this.sendRecordTable.data = response;
       })
-      .catch(console.log);
+      .catch(console.log)
+      .finally(() => {
+        this.sendRecordTable.isLoading = false;
+      });
   }
 
   getSendFrequencyText(data) {
@@ -297,6 +302,9 @@ class MySubscription extends tsc<{}> {
 
             <bk-table
               data={this.sendRecordTable.data}
+              v-bkloading={{
+                isLoading: this.sendRecordTable.isLoading
+              }}
               style='margin-top: 16px;'
             >
               <bk-table-column

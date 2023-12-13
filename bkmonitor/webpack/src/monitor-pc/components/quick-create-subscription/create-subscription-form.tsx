@@ -66,7 +66,7 @@ export default defineComponent({
   setup(props) {
     const formData = reactive({
       scenario: 'clustering',
-      name: 'testing',
+      name: '',
       start_time: '',
       end_time: '',
       // 给他人/自己 订阅 。self, others 仅自己/给他人
@@ -532,6 +532,8 @@ export default defineComponent({
             }
           ];
         }
+        // 调整 订阅名称 ，这里 订阅名称 由于没有录入的地方将是用默认方式组合。
+        cloneFormData.name = `${cloneFormData.content_config.title}-${window.user_name || window.username}`;
         return cloneFormData;
       });
     }
