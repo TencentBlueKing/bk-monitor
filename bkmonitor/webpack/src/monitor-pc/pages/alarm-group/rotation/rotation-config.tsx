@@ -131,7 +131,7 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   get showNoData() {
-    return !this.allDutyList.filter(item => !!item.show).length;
+    return !this.allDutyList.filter(item => !!item.show && item.status !== EStatus.Deactivated).length;
   }
 
   created() {
@@ -645,7 +645,7 @@ export default class RotationConfig extends tsc<IProps> {
             <div class='content-wrap'>
               {!this.showNoData ? (
                 this.allDutyList
-                  .filter(item => !!item.show)
+                  .filter(item => !!item.show && item.status !== EStatus.Deactivated)
                   .map(item => (
                     <div
                       class='duty-select-item'

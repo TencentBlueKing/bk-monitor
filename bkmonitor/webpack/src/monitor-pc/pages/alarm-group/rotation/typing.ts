@@ -34,6 +34,7 @@ export interface IDutyListItem {
   labels: string[];
   isCheck: boolean;
   show: boolean;
+  status: EStatus;
 }
 
 export interface IDutyItem {

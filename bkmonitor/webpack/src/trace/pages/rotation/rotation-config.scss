@@ -35,8 +35,7 @@
   .rotation-config-page-content {
     max-height: calc(100% - 52px);
     padding-bottom: 32px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: auto;
 
     .enabled-switch {
       display: flex;
