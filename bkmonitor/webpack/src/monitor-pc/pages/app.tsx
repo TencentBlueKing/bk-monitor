@@ -38,7 +38,7 @@ import bus from '../../monitor-common/utils/event-bus';
 import { docCookies, getUrlParam } from '../../monitor-common/utils/utils';
 import AuthorityModal from '../../monitor-ui/authority-modal';
 import UserConfigMixin from '../mixins/userStoreConfig';
-import { GLOAB_FEATURE_LIST, IRouteConfigItem, routeConfig } from '../router/router-config';
+import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
 import { ISpaceItem } from '../types';
 
@@ -73,7 +73,7 @@ export default class App extends tsc<{}> {
   @Ref('menuSearchInput') menuSearchInputRef: Input;
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
   @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
-  routeList = routeConfig;
+  routeList = getRouteConfig();
   bizId = window.cc_biz_id;
   showBizList = false;
   keyword = '';

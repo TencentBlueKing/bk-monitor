@@ -25,6 +25,7 @@
  */
 const getters = {
   bizId: state => state.app.bizId,
+  bizName: state => state.app.bizList.find(item => +item.bizId === (+state.app.bizId || +window.bk_biz_id))?.name,
   bizList: state => state.app.bizList.slice(),
   spaceUid: state => state.app.bizList.find(item => +item.bizId === +state.app.bizId)?.space_uid,
   title: state => state.app.title,
@@ -36,8 +37,6 @@ const getters = {
   bkPaasHost: state => state.app.bkPaasHost,
   navId: state => state.app.navId,
   navTitle: state => state.app.navTitle,
-  enableMessageQueue: state => state.app.enableMessageQueue,
-  messageQueueDSN: state => state.app.messageQueueDSN,
   mcMainLoading: state => state.app.mcMainLoading,
   maxAvailableDurationLimit: state => state.app.maxAvailableDurationLimit,
   cmdbUrl: state => state.app.cmdbUrl,
