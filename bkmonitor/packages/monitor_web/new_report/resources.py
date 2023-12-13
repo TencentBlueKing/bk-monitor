@@ -79,13 +79,11 @@ class GetReportListResource(Resource):
         order = serializers.CharField(required=False, label="排序", default="", allow_null=True, allow_blank=True)
 
     @staticmethod
-    def get_request_username():
-        return get_request().user.username
-
-    @staticmethod
-    def check_permission(bk_biz_id):
-        Permission().is_allowed(
-            ActionEnum.MANAGE_REPORT, [ResourceEnum.BUSINESS.create_instance(bk_biz_id)], raise_exception=True
+    def check_permission(bk_biz_id, raise_exception=False):
+        return Permission().is_allowed(
+            ActionEnum.MANAGE_REPORT,
+            [ResourceEnum.BUSINESS.create_instance(bk_biz_id)],
+            raise_exception=raise_exception,
         )
 
     @staticmethod
@@ -102,10 +100,11 @@ class GetReportListResource(Resource):
 
         return qs.filter(id__in=filter_report_ids)
 
-    def filter_by_query_type(self, qs, query_type):
+    @staticmethod
+    def filter_by_query_type(qs, query_type):
         invalid_report_ids = set()
         report_ids = set(qs.values_list("id", flat=1))
-        username = self.get_request_username()
+        username = get_request_username()
         # 已失效订阅列表
         for report in qs:
             if report.is_invalid():
@@ -141,7 +140,7 @@ class GetReportListResource(Resource):
     def filter_by_user(report_qs):
         target_groups = []
         groups_data = {group_data["id"]: group_data["children"] for group_data in resource.report.group_list()}
-        username = GetReportListResource.get_request_username()
+        username = get_request_username()
         # 找到用户所属的组别
         for group, usernames in groups_data.items():
             if username in usernames:
@@ -194,7 +193,7 @@ class GetReportListResource(Resource):
 
     def fill_external_info(self, reports, external_filter_dict, report_channels_map, last_send_record_map):
         new_reports = []
-        current_user = self.get_request_username()
+        current_user = get_request_username()
         for report in reports:
             report["channels"] = report_channels_map.get(report["id"], [])
             report["is_self_subscribed"] = True if report["create_user"] == current_user else False
@@ -223,7 +222,7 @@ class GetReportListResource(Resource):
         # 根据角色过滤
         if validated_request_data["create_type"]:
             if validated_request_data["create_type"] == "manager":
-                self.check_permission(validated_request_data["bk_biz_id"])
+                self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             report_qs = self.filter_by_create_type(validated_request_data["create_type"], report_qs)
 
         # 根据搜索关键字过滤
@@ -355,7 +354,7 @@ class CreateOrUpdateReportResource(Resource):
 
     def create_approval_ticket(self, params):
         """
-        创建ITSM审批单据并创建审批记录，保存单据号和跳转url
+        创建ITSM审批单据并创建审批记录
         """
         subscribers = []
         for channel in params["channels"]:
@@ -370,23 +369,25 @@ class CreateOrUpdateReportResource(Resource):
                 {"key": "report_name", "value": params["name"]},
                 {"key": "scenario", "value": params["scenario"]},
             ],
-            "service_id": 509 or settings.REPORT_APPROVAL_SERVICE_ID,
+            "service_id": settings.REPORT_APPROVAL_SERVICE_ID,
             "fast_approval": False,
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/report_callback/")},
         }
         try:
-            data = api.itsm.create_fast_approval_ticket(ticket_data)
+            return api.itsm.create_fast_approval_ticket(ticket_data)
         except Exception as e:
             logger.error(f"审批创建异常: {e}")
             raise e
-        current_step = [{"id": 42, "tag": "DEFAULT", "name": "test"}]
-        business = api.cmdb.get_business(bk_biz_ids=[params["bk_biz_id"]])
+
+    def create_apply_reocrd(self, report, approval_data):
+        current_step = [{"id": 42, "tag": "DEFAULT", "name": "apply"}]
+        business = api.cmdb.get_business(bk_biz_ids=[report.bk_biz_id])
         bk_biz_maintainer = getattr(business[0], "bk_biz_maintainer", [])
         record = ReportApplyRecord(
-            report_id=params["id"],
-            bk_biz_id=params["bk_biz_id"],
-            approval_url=data.get("ticket_url", ""),
-            approval_sn=data.get("sn", ""),
+            report_id=report.id,
+            bk_biz_id=report.bk_biz_id,
+            approval_url=approval_data.get("ticket_url", ""),
+            approval_sn=approval_data.get("sn", ""),
             approval_step=current_step,
             approvers=bk_biz_maintainer,
             status=ApprovalStatusEnum.RUNNING.value,
@@ -394,35 +395,39 @@ class CreateOrUpdateReportResource(Resource):
         record.save()
 
     def perform_request(self, validated_request_data):
-        report_channels = validated_request_data.pop("channels", [])
-        validated_request_data["send_mode"] = get_send_mode(validated_request_data["frequency"])
-        frequency = validated_request_data["frequency"]
+        params = validated_request_data
+        is_manager_created = GetReportListResource.check_permission(validated_request_data["bk_biz_id"])
+        params["is_manager_created"] = is_manager_created
+        report_channels = params.pop("channels", [])
+        validated_request_data["send_mode"] = get_send_mode(params["frequency"])
+        frequency = params["frequency"]
         if frequency["type"] == 1:
-            validated_request_data["start_time"] = arrow.now().timestamp
-            validated_request_data["end_time"] = arrow.get(frequency["run_time"]).timestamp
-        if validated_request_data.get("id"):
+            params["start_time"] = arrow.now().timestamp
+            params["end_time"] = arrow.get(frequency["run_time"]).timestamp
+        if params.get("id"):
             # 编辑
             try:
-                report = Report.objects.get(id=validated_request_data["id"])
+                report = Report.objects.get(id=params["id"])
             except Report.DoesNotExist:
-                raise Exception("report_id: %s not found", validated_request_data["id"])
-            report.__dict__.update(validated_request_data)
+                raise Exception("report_id: %s not found", params["id"])
+            report.__dict__.update(params)
             report.save()
         else:
             # 创建
+            # 判断是否需要审批
             need_apply = False
-            if (
-                validated_request_data["subscriber_type"] == "others"
-                and not validated_request_data["is_manager_created"]
-            ):
-                # 订阅审批 & 提前创建
+            approval_data = None
+            if params["subscriber_type"] == "others" and not params["is_manager_created"]:
+                # 创建订阅itsm审批单据
                 need_apply = True
-                self.create_approval_ticket(validated_request_data)
-            create_params = validated_request_data
+                approval_data = self.create_approval_ticket(validated_request_data)
             if need_apply:
-                create_params["is_deleted"] = True
-            report = Report(**create_params)
+                params["is_deleted"] = True
+            report = Report(**params)
             report.save()
+            # 创建审批记录
+            if approval_data:
+                self.create_apply_reocrd(report, approval_data)
         with transaction.atomic():
             # 更新订阅渠道
             ReportChannel.objects.filter(report_id=report.id).delete()
@@ -519,7 +524,11 @@ class GetSendRecordsResource(Resource):
         report_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
-        return list(ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"]).values())
+        return list(
+            ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"])
+            .order_by("-send_time")
+            .values()
+        )
 
 
 class GetApplyRecordsResource(Resource):
@@ -529,10 +538,10 @@ class GetApplyRecordsResource(Resource):
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
-        qs = ReportApplyRecord.objects.filter(create_user=username)
+        qs = ReportApplyRecord.objects.filter(create_user=username).order_by("-create_time")
         report_ids = qs.values_list("report_id", flat=1)
         apply_records = list(qs.values())
-        report_infos = Report.objects.filter(id__in=report_ids).values("id", "name")
+        report_infos = Report.origin_objects.filter(id__in=report_ids).values("id", "name")
         report_id_to_name = {}
         for report_info in report_infos:
             report_id_to_name[report_info["id"]] = report_info["name"]
