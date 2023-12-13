@@ -93,8 +93,14 @@ def get_data_range(frequency) -> dict:
         else:
             from_time = now_time + datetime.timedelta(hours=-24)
 
+    interval = now_time - from_time
+    if interval.days:
+        interval = "{}天".format(interval.days)
+    else:
+        hour = interval.seconds / 60 / 60
+        interval = "{}小时".format(int(hour)) if hour > 1 else "{}分钟".format(int(hour * 60))
     time_fmt = "%Y-%m-%d %H:%M:%S"
-    return {"start_time": from_time.strftime(time_fmt), "end_time": now_time.strftime(time_fmt)}
+    return {"start_time": from_time.strftime(time_fmt), "end_time": now_time.strftime(time_fmt), "interval": interval}
 
 
 def send_email(context: dict, subscribers: list) -> dict:
@@ -116,14 +122,10 @@ def send_email(context: dict, subscribers: list) -> dict:
 
 def send_wxbot(context: dict, chatids: list):
     sender = Sender(
-        title_template_path=context["title_template_path"],
-        content_template_path=context["content_template_path"],
+        title_template_path=context.get("title_template_path", ""),
+        content_template_path=context["wechat_template_path"],
         context=context,
     )
-    if context.get("title"):
-        sender.title = context["title"]
-    if context.get("content"):
-        sender.content = context["content"]
     try:
         result = sender.send_wxwork_content("markdown", sender.content, chatids)
         return result

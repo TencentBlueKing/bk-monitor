@@ -18,6 +18,7 @@ from django.templatetags.i18n import language
 
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
+from bkm_space.api import SpaceApi
 from bkmonitor.models import Report
 from bkmonitor.report.utils import get_data_range
 from constants.new_report import (
@@ -33,8 +34,8 @@ class ClusteringReportHandler(BaseReportHandler):
     日志聚类订阅管理器
     """
 
-    mail_template_path = "new_report/clustering/clustering_mail.html"
-    wechat_template_path = "new_report/clustering/clustering_wechat.md"
+    mail_template_path = "new_report/clustering/clustering_mail.jinja"
+    wechat_template_path = "new_report/clustering/clustering_wechat.jinja"
     AGGS_FIELD_PREFIX = "__dist"
 
     def __init__(self, report: Report):
@@ -206,12 +207,19 @@ class ClusteringReportHandler(BaseReportHandler):
         logger.info(f"{self.log_prefix} clean pattern result: {all_patterns}")
         log_col_show_type = scenario_config.get("log_col_show_type", LogColShowTypeEnum.PATTERN.value).capitalize()
 
+        space_name = ""
+        try:
+            space = SpaceApi.get_space_detail(bk_biz_id=self.report.bk_biz_id)
+            space_name = space.space_name
+        except Exception as e:  # pylint:disable=broad-except
+            logger.exception("get space info error: {}".format(e))
+
         render_params = {
             "language": language,
             "title": content_config["title"],
             "time_config": time_config,
             "show_year_on_year": False if scenario_config["year_on_year_hour"] == YearOnYearEnum.NOT.value else True,
-            "space_name": "",  # TODO: 获取业务集名称
+            "space_name": space_name,
             "index_set_name": index_set_name,
             "log_search_url": self.generate_log_search_url(scenario_config, time_config),
             "all_patterns": all_patterns,
@@ -220,7 +228,6 @@ class ClusteringReportHandler(BaseReportHandler):
             "percentage": 1 or round(max([i["percentage"] for i in result]), 2),
             "clustering_fields": clustering_config["clustering_fields"],
             "time": datetime.now().strftime("%Y%m%d"),
-            "username": "",  # TODO: 获取用户名称
         }
 
         logger.info(f"{self.log_prefix} Before sending notification params: {render_params}")

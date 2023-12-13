@@ -20,11 +20,10 @@ the project delivered to anyone in the future.
 """
 
 from rest_framework import serializers
+from rest_framework.response import Response
 
 from apps.api import MonitorApi
 from apps.generic import APIViewSet
-from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.serializers import (
     CreateOrUpdateReportSerializer,
     GetExistReportsSerlaizer,
@@ -47,7 +46,8 @@ class ReportViewSet(APIViewSet):
         @apiGroup log_clustering
         """
         params = self.params_valid(GetExistReportsSerlaizer)
-        return MonitorApi.get_reports(params)
+        result = MonitorApi.get_reports(params)
+        return Response(result)
 
     @list_route(methods=["POST"], url_path="create_or_update")
     def create_or_update(self, request):
@@ -57,7 +57,8 @@ class ReportViewSet(APIViewSet):
         @apiGroup log_clustering
         """
         params = self.params_valid(CreateOrUpdateReportSerializer)
-        return MonitorApi.create_or_update_report(params)
+        result = MonitorApi.create_or_update_report(params)
+        return Response(result)
 
     @list_route(methods=["POST"], url_path="send")
     def send(self, request):
@@ -67,4 +68,5 @@ class ReportViewSet(APIViewSet):
         @apiGroup log_clustering
         """
         params = self.params_valid(SendReportSerializer)
-        return MonitorApi.send_report(params)
+        result = MonitorApi.send_report(params)
+        return Response(result)

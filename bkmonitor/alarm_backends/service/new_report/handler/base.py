@@ -92,6 +92,12 @@ class SendChannelHandler(object):
     def send(self, context, send_round, bk_biz_id=None):
         subscribers = self.fetch_subscribers(bk_biz_id)
         result = self.send_cls(context, subscribers)
+        if not result:
+            logger.exception(
+                f"report: {self.channel.report_id} channel: {self.channel.channel_name} send failed,"
+                f" send result is null"
+            )
+            return
         send_time = datetime.datetime.now()
         # 解析发送结果并记录
         send_results = []

@@ -228,12 +228,14 @@ class GetReportListResource(Resource):
         last_send_record_map = defaultdict(lambda: {"send_time": None, "records": []})
         total_Q = Q()
         Q_list = [
-            Q(id=report_info["id"], send_round=report_info["send_round"])
+            Q(report_id=report_info["id"], send_round=report_info["send_round"])
             for report_info in list(report_qs.values("id", "send_round"))
         ]
         for Q_item in Q_list:
             total_Q |= Q_item
         for record in ReportSendRecord.objects.filter(total_Q).order_by("-send_time").values():
+            if not last_send_record_map[record["report_id"]]["send_time"]:
+                last_send_record_map[record["report_id"]]["send_time"] = record["send_time"]
             last_send_record_map[record["report_id"]]["records"].append(record)
 
         db_filter_dict, external_filter_dict = self.get_filter_dict_by_conditions(validated_request_data["conditions"])
