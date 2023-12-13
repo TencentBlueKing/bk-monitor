@@ -121,6 +121,7 @@ export default {
     }),
     ...mapState('globals', ['fieldTypeMap']),
   },
+  inject: ['showUnionSource'],
   watch: {
     clearTableWidth() {
       const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
@@ -213,6 +214,7 @@ export default {
         this.openLogDialog(dialogNewParams, event);
       } else if (event === 'monitorWeb') this.openMonitorWeb(row);
       else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.showUnionSource();
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {

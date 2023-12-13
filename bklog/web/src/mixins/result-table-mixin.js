@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import { formatDate, random, copyMessage } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import EventPopover from '@/views/retrieve/result-comp/event-popover.vue';
@@ -114,6 +114,10 @@ export default {
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      unionIndexItemList: 'unionIndexItemList',
+    }),
     showHandleOption() {
       return Boolean(this.visibleFields.length);
     },
@@ -368,6 +372,12 @@ export default {
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
       this.$emit('shouldRetrieve', { sort_list: sortList }, false);
+    },
+    getTableColumnContent(row, field) {
+      if (field.tag === 'union-source') {
+        return this.unionIndexItemList.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ?? '';
+      }
+      return this.tableRowDeepView(row, field.field_name, field.field_type);
     },
   },
 };

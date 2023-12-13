@@ -134,7 +134,6 @@
                   :show-field-alias="showFieldAlias"
                   :statistical-fields-data="statisticalFieldsData"
                   :parent-loading="tableLoading"
-                  :index-set-list="indexSetList"
                   @fieldsUpdated="handleFieldsUpdated" />
               </div>
             </div>
@@ -182,6 +181,7 @@
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
               @addFilterCondition="addFilterCondition"
+              @showUnionSource="showUnionSource"
               @backFillClusterRouteParams="backFillClusterRouteParams"
               @showSettingLog="handleSettingMenuClick('clustering')" />
           </template>
@@ -401,6 +401,22 @@ export default {
       /** 是否还需要分页 */
       finishPolling: false,
       timezone: dayjs.tz.guess(),
+      logSourceField: {
+        description: null,
+        es_doc_values: false,
+        field_alias: '',
+        field_name: this.$t('日志来源'),
+        field_operator: [],
+        field_type: 'keyword',
+        filterExpand: false,
+        filterVisible: true,
+        is_analyzed: false,
+        is_display: false,
+        is_editable: false,
+        minWidth: 0,
+        tag: 'union-source',
+        width: 230,
+      },
     };
   },
   computed: {
@@ -438,6 +454,7 @@ export default {
   provide() {
     return {
       addFilterCondition: this.addFilterCondition,
+      showUnionSource: this.showUnionSource,
     };
   },
   watch: {
@@ -475,6 +492,14 @@ export default {
       if (this.isSetDefaultTableColumn) {
         this.setDefaultTableColumn();
       }
+    },
+    unionIndexList: {
+      deep: true,
+      immediate: true,
+      handler(val) {
+        const filterIndexSetList = this.indexSetList.filter(item => val.includes(String(item.index_set_id)));
+        this.$store.commit('updateUnionIndexItemList', filterIndexSetList);
+      },
     },
   },
   created() {
@@ -830,7 +855,10 @@ export default {
       this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
       this.$refs.searchCompRef.setRouteParams();
     },
-
+    showUnionSource() {
+      if (this.visibleFields.some(item => item.tag === 'union-source')) return;
+      this.visibleFields.unshift(this.logSourceField);
+    },
     // 打开 ip 选择弹窗
     openIpQuick() {
       this.showIpSelectorDialog = true;
@@ -1425,29 +1453,6 @@ export default {
       } catch (error) {
         this.isSetDefaultTableColumn = false;
       }
-    },
-    // 首次加载设置表格默认宽度自适应
-    setDefaultTableColumn() {
-      const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
-      const { params: { indexId }, query: { bizId } } = this.$route;
-      // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-      if (columnObj[bizId] && columnObj[bizId].indexsetIds.includes(indexId)) return;
-
-      if (this.tableData.list.length && this.visibleFields.length) {
-        this.visibleFields.forEach((field) => {
-          field.width = calculateTableColsWidth(field, this.tableData.list);
-        });
-        const columnsWidth = this.visibleFields.reduce((prev, next) => prev + next.width, 0);
-        const tableElem = document.querySelector('.original-log-panel');
-        // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-        if (tableElem && columnsWidth && (columnsWidth < tableElem.clientWidth - 115)) {
-          this.visibleFields.forEach((field) => {
-            field.width = field.width < 300 ? 'default' : field.width;
-          });
-        }
-      }
-
-      this.isSetDefaultTableColumn = true;
     },
     // 根据表格数据统计字段值及出现次数
     getStatisticalFieldsData(listData) {

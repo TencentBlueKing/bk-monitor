@@ -191,8 +191,8 @@ export default class QueryStatement extends tsc<IProps> {
     const haveDataList = [];
     const notDataList = [];
     this.indexSetList.forEach((item) => {
-      const tagIDList = item.tags.map(tag => tag.tag_id);
-      item.tagSearchName = item.tags.map(tag => tag.name).join(' ');
+      const tagIDList = item.tags?.map(tag => tag.tag_id) || [];
+      item.tagSearchName = item.tags?.map(tag => tag.name).join(',') || '';
       if (this.filterTagID) {
         const isFilterTagItem = tagIDList.includes(this.filterTagID);
         if (!isFilterTagItem) return;
@@ -234,6 +234,8 @@ export default class QueryStatement extends tsc<IProps> {
     const favoriteList = [];
     this.indexSetList.forEach((item) => {
       item.tags?.forEach((tag) => {
+        // 无数据 不加入标签
+        if (tag.tag_id === 4) return;
         if (!labelMap.has(tag.tag_id)) labelMap.set(tag.tag_id, tag);
       });
       // 所有的收藏索引集
@@ -330,9 +332,9 @@ export default class QueryStatement extends tsc<IProps> {
         ].slice(0, 10); // 最多选10条数据
       } else {
         // 全选选中 清空 已有的过滤后的标签索引集id
-        this.selectTagCatchIDList = this.selectTagCatchIDList.filter(
-          item => !this.havValRenderIDSetList.includes(item),
-        ).slice(0, 10); // 最多选10条数据
+        this.selectTagCatchIDList = this.selectTagCatchIDList
+          .filter(item => !this.havValRenderIDSetList.includes(item))
+          .slice(0, 10); // 最多选10条数据
       }
     }
   }
