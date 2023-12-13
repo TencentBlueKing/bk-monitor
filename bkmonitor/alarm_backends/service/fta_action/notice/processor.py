@@ -251,43 +251,46 @@ class ActionProcessor(BaseActionProcessor):
                     "message": _("语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警").format(collect_action_id),
                 }
             }
-
         notify_content_outputs = {
             "title": notify_sender.title,
             "message": notify_sender.content,
         }
+        self.update_action_notice_result(notice_results, notify_content_outputs)
+        self.is_finished = True
 
-        succeed_actions = [
-            self.receiver_action_mapping.get(receiver)
-            for receiver, notice_result in notice_results.items()
-            if notice_result["result"] and self.receiver_action_mapping.get(receiver)
-        ]
-        failed_actions = [
-            self.receiver_action_mapping.get(receiver)
-            for receiver, notice_result in notice_results.items()
-            if not notice_result["result"] and self.receiver_action_mapping.get(receiver)
-        ]
+    def update_action_notice_result(self, notice_results: dict, notify_content_outputs):
+        """
+        更新处理动作的通知结果
+        """
+        succeed_actions = []
+        succeed_message = _("发送通知成功")
+
+        failed_actions = []
+        failed_message = _("发送失败")
+        failure_type = FailureType.EXECUTE_ERROR
+        for receiver, notice_result in notice_results.items():
+            related_action = self.receiver_action_mapping.get(receiver)
+            if not related_action:
+                continue
+            if notice_result["result"]:
+                succeed_actions.append(related_action)
+                succeed_message = notice_result.get("message") or succeed_message
+            else:
+                failed_actions.append(related_action)
+                failed_message = notice_result.get("message") or failed_message
+                failure_type = notice_result.get("failure_type") or failure_type
 
         if succeed_actions:
             ActionInstance.objects.filter(id__in=succeed_actions).update(
                 **{
                     "status": ActionStatus.SUCCESS,
                     "end_time": datetime.now(tz=timezone.utc),
-                    "ex_data": {"message": _("发送通知成功")},
+                    "ex_data": {"message": succeed_message},
                     "outputs": notify_content_outputs,
                 }
             )
 
         if failed_actions:
-            failed_message = _("发送失败")
-            failure_type = FailureType.EXECUTE_ERROR
-            for receiver, notice_result in notice_results.items():
-                if notice_result["result"] is False and notice_result["message"]:
-                    # 获取第一个失败的记录
-                    failed_message = notice_result["message"]
-                    failure_type = notice_result.get("failure_type") or failure_type
-                    break
-
             ActionInstance.objects.filter(id__in=failed_actions).update(
                 **{
                     "status": ActionStatus.FAILURE,
@@ -297,8 +300,6 @@ class ActionProcessor(BaseActionProcessor):
                     "outputs": notify_content_outputs,
                 }
             )
-
-        self.is_finished = True
 
     def need_send_notice(self, notice_way):
         """
