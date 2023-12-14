@@ -274,9 +274,10 @@ class StatisticsResource(Resource):
         filtered_biz_ids = self._filter_by_life_cycle(validated_request_data, filtered_biz_ids)
         filtered_biz_ids = self._filter_by_alert_filter(validated_request_data, filtered_biz_ids, all_data)
 
-        demo_biz_id: int = int(settings.DEMO_BIZ_ID)
-        if demo_biz_id and demo_biz_id in filtered_biz_ids and demo_biz_id not in biz_id__space_map:
-            biz_id__space_map[demo_biz_id] = SpaceApi.get_space_detail(bk_biz_id=demo_biz_id).to_dict()
+        # 少数场景：当 demo / 选中业务不在空间列表内时补偿获取，用于优化之前拉取全部的逻辑
+        for biz_id in [int(settings.DEMO_BIZ_ID), validated_request_data.get("bk_biz_id")]:
+            if biz_id and biz_id in filtered_biz_ids and biz_id not in biz_id__space_map:
+                biz_id__space_map[biz_id] = SpaceApi.get_space_detail(bk_biz_id=biz_id).to_dict()
 
         # 排序：当前业务 > 置顶业务 > 有权限的任务 > 普通业务 > DEMO 业务
         def _get_biz_weight(_biz_id: int):
