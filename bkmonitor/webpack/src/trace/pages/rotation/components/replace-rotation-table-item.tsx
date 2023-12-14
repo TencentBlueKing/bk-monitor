@@ -30,7 +30,7 @@ import { random } from 'lodash';
 
 import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
-import { randomColor } from '../utils';
+import { validTimeOverlap } from '../utils';
 
 import CalendarSelect from './calendar-select';
 import DataTimeSelect from './data-time-select';
@@ -50,7 +50,7 @@ export interface ReplaceRotationDateModel {
 export interface ReplaceRotationUsersModel {
   groupNumber?: number;
   groupType: 'specified' | 'auto';
-  value: { key: number; value: { type: 'group' | 'user'; id: string }[] }[];
+  value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
 }
 
 export interface ReplaceItemDataModel {
@@ -83,6 +83,8 @@ export default defineComponent({
   emits: ['change', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
 
     const rotationTypeList: { label: string; value: RotationSelectTypeEnum }[] = [
@@ -111,7 +113,7 @@ export default defineComponent({
       users: {
         groupType: 'specified',
         groupNumber: 1,
-        value: [{ key: random(8, true), value: [] }]
+        value: [{ key: random(8, true), value: [], orderIndex: 0 }]
       }
     });
 
@@ -140,7 +142,7 @@ export default defineComponent({
       () => props.data,
       val => {
         if (val) {
-          Object.assign(localValue, JSON.parse(JSON.stringify(val)));
+          Object.assign(localValue, val);
         }
       },
       {
@@ -300,7 +302,7 @@ export default defineComponent({
           labelWidth={70}
         >
           <div class='classes-list'>
-            {val.map((item, ind) => (
+            {val.map((item, ind) => [
               <div
                 class='classes-item'
                 key={item.key}
@@ -308,8 +310,9 @@ export default defineComponent({
                 {localValue.date.workTimeType === 'time_range'
                   ? renderTimeRangeItem(item, ind)
                   : renderDateTimeRangeItem(item, ind)}
-              </div>
-            ))}
+              </div>,
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+            ])}
             <Button
               class='add-btn'
               theme='primary'
@@ -428,7 +431,7 @@ export default defineComponent({
           labelWidth={70}
         >
           <div class='classes-list'>
-            {value.map((item, ind) => (
+            {value.map((item, ind) => [
               <div
                 class='classes-item'
                 key={item.key}
@@ -444,8 +447,9 @@ export default defineComponent({
                     onClick={() => handleClassesItemChange('del', ind)}
                   />
                 )}
-              </div>
-            ))}
+              </div>,
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+            ])}
             {localValue.date.customTab === 'classes' && (
               <Button
                 class='add-btn'
@@ -479,7 +483,7 @@ export default defineComponent({
               labelWidth={70}
             >
               <div class='classes-list'>
-                {val.map((item, ind) => (
+                {val.map((item, ind) => [
                   <div class='classes-item'>
                     <TimeTagPicker
                       key={item.key}
@@ -493,8 +497,9 @@ export default defineComponent({
                         onClick={() => handleClassesItemChange('del', ind)}
                       />
                     )}
-                  </div>
-                ))}
+                  </div>,
+                  validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+                ])}
                 <Button
                   class='add-btn'
                   theme='primary'
@@ -536,7 +541,9 @@ export default defineComponent({
           });
           return pre;
         }, new Map());
-        localValue.users.value = [{ key: localValue.users.value[0].key, value: Array.from(res.values()) }];
+        localValue.users.value = [
+          { key: localValue.users.value[0].key, value: Array.from(res.values()), orderIndex: 0 }
+        ];
       }
       handleEmitData();
     }
@@ -550,7 +557,8 @@ export default defineComponent({
       return list.filter(item => item.type === 'user');
     }
     function handleAddUserGroup() {
-      localValue.users.value.push({ key: random(8, true), value: [] });
+      localValue.users.value.push({ key: random(8, true), value: [], orderIndex: 0 });
+      handleEmitData();
     }
     function handleDelUserGroup(ind: number) {
       localValue.users.value.splice(ind, 1);
@@ -570,13 +578,20 @@ export default defineComponent({
     function handleDragover(e: DragEvent) {
       e.preventDefault();
     }
-    function handleDrop(e: DragEvent, index: number) {
+    function handleDrop(e: DragEvent, endIndex: number) {
       const uid = Number(e.dataTransfer.getData('uid'));
       if (dragUid !== uid) return;
       const startIndex = Number(e.dataTransfer.getData('index'));
       const user = localValue.users.value[startIndex];
       localValue.users.value.splice(startIndex, 1);
-      localValue.users.value.splice(index, 0, user);
+      localValue.users.value.splice(endIndex, 0, user);
+
+      // 重新设置轮盘颜色
+      const newColorList = [...colorList.value];
+      const color = newColorList[startIndex];
+      newColorList.splice(startIndex, 1);
+      newColorList.splice(endIndex, 0, color);
+      colorList.setValue(newColorList);
       handleEmitDrop();
     }
 
@@ -590,6 +605,7 @@ export default defineComponent({
 
     return {
       t,
+      colorList,
       defaultGroup,
       rotationTypeList,
       localValue,
@@ -670,7 +686,7 @@ export default defineComponent({
                           prefix: () => (
                             <div
                               class='member-select-prefix'
-                              style={{ 'border-left-color': randomColor(ind) }}
+                              style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
                             >
                               <span class='icon-monitor icon-mc-tuozhuai'></span>
                             </div>

@@ -39,14 +39,19 @@ import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-ta
 import FormItem from './components/form-item';
 import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
-import { RotationSelectTypeEnum, RotationTabTypeEnum } from './typings/common';
-import { fixedRotationTransform, replaceRotationTransform } from './utils';
+import { RotationTabTypeEnum } from './typings/common';
+import {
+  fixedRotationTransform,
+  replaceRotationTransform,
+  validFixedRotationData,
+  validReplaceRotationData
+} from './utils';
 
 import './rotation-config.scss';
 
 interface RotationTypeData {
   [RotationTabTypeEnum.REGULAR]: FixedDataModel[];
-  [RotationTabTypeEnum.HANDOFF]: ReplaceDataModel;
+  [RotationTabTypeEnum.HANDOFF]: ReplaceDataModel[];
 }
 
 export default defineComponent({
@@ -102,6 +107,14 @@ export default defineComponent({
       }
     }
 
+    const colorList = reactive({
+      value: ['#4152a3', '#699df4', '#74c2a8', '#b5cc8e', '#ebd57f', '#f0ad69', '#d66f6b', '#e0abc9', '#a596eb'],
+      setValue: (val: string[]) => {
+        colorList.value = val;
+      }
+    });
+    provide('colorList', colorList);
+
     // --------------轮值类型-------------------
     const defaultUserGroup = ref([]);
     provide('defaultGroup', readonly(defaultUserGroup));
@@ -111,13 +124,37 @@ export default defineComponent({
     const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
+      if (type === RotationTabTypeEnum.HANDOFF) resetUsersColor();
       getPreviewData();
+    }
+
+    function resetUsersColor() {
+      let orderIndex = 0;
+      rotationTypeData[RotationTabTypeEnum.HANDOFF].forEach(item => {
+        item.users.value.forEach(user => {
+          const { groupType, groupNumber } = item.users;
+          user.orderIndex = orderIndex;
+          if (groupType === 'specified') {
+            orderIndex += 1;
+          } else if (user.value.length % groupNumber === 0) {
+            orderIndex += user.value.length / groupNumber;
+          } else if (groupNumber < user.value.length) {
+            orderIndex += user.value.length;
+          } else {
+            orderIndex += 1;
+          }
+        });
+      });
     }
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
       rotationType.value = type;
-      Object.assign(rotationTypeData, createDefaultRotation());
       previewData.value = [];
+    }
+
+    function handleReplaceUserDrop() {
+      resetUsersColor();
+      getPreviewData();
     }
 
     function getGroupList() {
@@ -128,10 +165,7 @@ export default defineComponent({
     function createDefaultRotation(): RotationTypeData {
       return {
         regular: [],
-        handoff: {
-          id: undefined,
-          data: []
-        }
+        handoff: []
       };
     }
 
@@ -170,47 +204,22 @@ export default defineComponent({
     }
 
     function validRotationRule() {
-      const res = { err: false, msg: '' };
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
-        const data = rotationTypeData[RotationTabTypeEnum.REGULAR];
-        const hasUsers = data.filter(item => item.users.length).length;
-        if (!hasUsers) {
-          res.err = true;
-          res.msg = t('最少一条轮值规则添加人员');
+        for (const item of rotationTypeData[RotationTabTypeEnum.REGULAR]) {
+          const valid = validFixedRotationData(item);
+          if (!valid.success) {
+            return { err: true, msg: valid.msg };
+          }
         }
       } else {
-        const { data } = rotationTypeData[RotationTabTypeEnum.HANDOFF];
-        const hasUsers = data.filter(item => item.users.value.some(item => item.value.length)).length;
-        if (!hasUsers) {
-          res.err = true;
-          res.msg = t('最少一条轮值规则添加人员');
-        }
-        data.forEach(item => {
-          const type = item.date.isCustom ? RotationSelectTypeEnum.Custom : item.date.type;
-          switch (type) {
-            case RotationSelectTypeEnum.Daily:
-            case RotationSelectTypeEnum.WorkDay:
-            case RotationSelectTypeEnum.Weekend: {
-              if (!item.date.value.some(item => item.workTime.length)) {
-                res.err = true;
-                res.msg = t('每条轮值规则最少添加一个单班时间');
-              }
-            }
-            case RotationSelectTypeEnum.Weekly:
-            case RotationSelectTypeEnum.Monthly: {
-              if (item.date.workTimeType === 'time_range' && !item.date.value.some(item => item.workDays.length)) {
-                res.err = true;
-                res.msg = t('每条轮值规则最少添加一个单班时间');
-              }
-              if (item.date.workTimeType === 'datetime_range' && !item.date.value.some(item => item.workTime.length)) {
-                res.err = true;
-                res.msg = t('每条轮值规则最少添加一个单班时间');
-              }
-            }
+        for (const item of rotationTypeData[RotationTabTypeEnum.HANDOFF]) {
+          const valid = validReplaceRotationData(item);
+          if (!valid.success) {
+            return { err: true, msg: valid.msg };
           }
-        });
+        }
       }
-      return res;
+      return { err: false, msg: '' };
     }
 
     function validName() {
@@ -287,10 +296,7 @@ export default defineComponent({
      * @description 获取预览数据
      */
     async function getPreviewData(init = false) {
-      if (!validate('preview')) {
-        previewData.value = [];
-        return;
-      }
+      validate('preview');
       if (init) {
         const params = {
           ...getPreviewParams(formData.effective.startTime),
@@ -339,6 +345,7 @@ export default defineComponent({
       fixedRotationTabRef,
       replaceRotationTabRef,
       rotationTypeData,
+      handleReplaceUserDrop,
       handleRotationTabChange,
       previewData,
       getPreviewData,
@@ -427,7 +434,7 @@ export default defineComponent({
                     v-show={this.rotationType === RotationTabTypeEnum.HANDOFF}
                     data={this.rotationTypeData.handoff}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.HANDOFF)}
-                    onDrop={this.getPreviewData}
+                    onDrop={() => this.handleReplaceUserDrop()}
                   />
                 )}
               </div>

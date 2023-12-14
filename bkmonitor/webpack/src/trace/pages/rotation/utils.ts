@@ -27,7 +27,7 @@ import dayjs from 'dayjs';
 import { random } from 'lodash';
 
 import { FixedDataModel } from './components/fixed-rotation-tab';
-import { ItemDataModel } from './components/replace-rotation-tab';
+import { ReplaceDataModel } from './components/replace-rotation-tab';
 import { ReplaceItemDataModel } from './components/replace-rotation-table-item';
 import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common';
 
@@ -78,6 +78,49 @@ export function timeRangeTransform(val: string) {
 }
 
 /**
+ * 校验固定值班单条轮值规则是否符合规范
+ * @param data 轮值规则数据
+ * @returns 是否符合规范
+ */
+export function validFixedRotationData(data: FixedDataModel) {
+  if (data.users.length === 0) return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
+  if (validTimeOverlap(data.workTime)) return { success: false, msg: window.i18n.t('时间段重复了') };
+  return { success: true, msg: '' };
+}
+
+/**
+ * 校验交替轮值单条轮值规则是否符合规范
+ * @param data 轮值规则数据
+ * @returns 是否符合规范
+ */
+export function validReplaceRotationData(data: ReplaceDataModel) {
+  if (!data.users.value.some(item => item.value.length))
+    return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
+  const type = data.date.isCustom ? RotationSelectTypeEnum.Custom : data.date.type;
+  switch (type) {
+    case RotationSelectTypeEnum.Daily:
+    case RotationSelectTypeEnum.WorkDay:
+    case RotationSelectTypeEnum.Weekend: {
+      if (data.date.value.every(item => !item.workTime.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+    }
+    case RotationSelectTypeEnum.Weekly:
+    case RotationSelectTypeEnum.Monthly: {
+      if (data.date.workTimeType === 'time_range' && data.date.value.every(item => !item.workDays.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+      if (data.date.workTimeType === 'datetime_range' && data.date.value.every(item => !item.workTime.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+    }
+  }
+  if (data.date.value.some(date => validTimeOverlap(date.workTime)))
+    return { success: false, msg: window.i18n.t('时间段重复了') };
+  return { success: true, msg: '' };
+}
+
+/**
  * 交替轮值-接口数据和实际使用数据转化
  * @param originData 需要转化的数据
  * @param type params 实际数据转接口数据 data: 接口数据转实际数据
@@ -85,9 +128,7 @@ export function timeRangeTransform(val: string) {
  */
 export function replaceRotationTransform(originData, type) {
   if (type === 'data') {
-    let id;
-    const res = originData.map(data => {
-      id = data.id;
+    return originData.map(data => {
       const date = data.duty_time.reduce(
         (pre: ReplaceItemDataModel['date'], cur, ind) => {
           if (ind === 0) {
@@ -161,13 +202,11 @@ export function replaceRotationTransform(originData, type) {
       };
       return obj;
     });
-    return {
-      id,
-      data: res
-    };
   }
 
-  return originData.data.map((item: ItemDataModel) => {
+  const filterData = originData.filter(item => validReplaceRotationData(item).success);
+
+  return filterData.map((item: ReplaceDataModel) => {
     const data = item.date;
     const rotationType: RotationSelectTypeEnum = data.isCustom ? RotationSelectTypeEnum.Custom : data.type;
     let dutyTime = [];
@@ -268,7 +307,7 @@ export function fixedRotationTransform(data, type) {
       return obj;
     });
 
-  const filterData: FixedDataModel[] = data.filter(item => item.users.length);
+  const filterData: FixedDataModel[] = data.filter(item => validFixedRotationData(item).success);
 
   return filterData.map(item => {
     let dutyTimeItem;
@@ -366,4 +405,42 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
       groupNumber: rule.group_number
     };
   });
+}
+
+/**
+ * 判断两个时间段是否存在重叠
+ * @param start1 第一个时间段的起始时间
+ * @param end1 第一个时间段的结束时间
+ * @param start2 第二个时间段的起始时间
+ * @param end2 第二个时间段的结束时间
+ * @returns 是否存在重叠
+ */
+function hasOverlap(start1: number, end1: number, start2: number, end2: number) {
+  return start1 < end2 && start2 < end1;
+}
+
+/**
+ * 验证一组时间段是否存在重叠
+ * @param list 时间段列表，每个时间段由起始时间和结束时间组成
+ * @returns 是否存在重叠
+ */
+export function validTimeOverlap(list: string[][]) {
+  const timestamps = list.map(([start, end]) => {
+    const startTime = dayjs(start, 'hh:mm').valueOf();
+    const isBefore = startTime < dayjs(end, 'hh:mm').valueOf();
+    const endTime = dayjs(end, 'hh:mm')
+      .add(isBefore ? 0 : 1, 'day')
+      .valueOf();
+    return { start: startTime, end: endTime };
+  });
+
+  for (let i = 0; i < timestamps.length; i++) {
+    for (let j = i + 1; j < timestamps.length; j++) {
+      if (hasOverlap(timestamps[i].start, timestamps[i].end, timestamps[j].start, timestamps[j].end)) {
+        return true; // 发现重叠，立即返回true
+      }
+    }
+  }
+
+  return false; // 没有找到重叠
 }

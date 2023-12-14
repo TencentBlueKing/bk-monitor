@@ -30,6 +30,7 @@ import { random } from 'lodash';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum, WeekDataList } from '../typings/common';
+import { validTimeOverlap } from '../utils';
 
 import CalendarSelect from './calendar-select';
 import FormItem from './form-item';
@@ -174,7 +175,7 @@ export default defineComponent({
                   <Select
                     class='date-value-select'
                     v-model={item.workDays}
-                    onToggle={() => this.handleEmitData()}
+                    onToggle={this.handleEmitData}
                     multiple
                     clearable={false}
                   >
@@ -190,7 +191,7 @@ export default defineComponent({
                   <CalendarSelect
                     class='date-value-select'
                     v-model={item.workDays}
-                    onSelectEnd={() => this.handleEmitData()}
+                    onSelectEnd={this.handleEmitData}
                   />
                 )}
                 {item.type === RotationSelectTypeEnum.DateRange && (
@@ -198,7 +199,7 @@ export default defineComponent({
                     class='date-value-select'
                     v-model={item.workDateRange}
                     format='yyyy-MM-dd'
-                    onChange={() => this.handleEmitData()}
+                    onChange={this.handleEmitData}
                     placeholder={`${this.t('如')}: 2019-01-30 至 2019-01-30`}
                     type='daterange'
                     append-to-body
@@ -212,8 +213,9 @@ export default defineComponent({
               >
                 <TimeTagPicker
                   v-model={item.workTime}
-                  onChange={() => this.handleEmitData()}
+                  onChange={this.handleEmitData}
                 ></TimeTagPicker>
+                {validTimeOverlap(item.workTime) && <p class='err-msg'>{this.t('时间段重复')}</p>}
               </FormItem>
             </td>
             <td class='user-setting-content'>

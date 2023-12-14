@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, nextTick, onUnmounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Message, Tag, TimePicker } from 'bkui-vue';
+import { Tag, TimePicker } from 'bkui-vue';
 import dayjs from 'dayjs';
 
 import { getEventPaths } from '../../../../monitor-pc/utils';
@@ -104,12 +104,12 @@ export default defineComponent({
      * @param time 时间选择器回填的时间
      * @param ind 索引
      */
-    function handleShowTime(e: Event, time?: string[], ind?: number) {
+    function handleShowTime(e: Event, time: string[], ind?: number) {
       currentTime.index = ind ?? -1;
-      currentTime.value = ind ? [...time] : [];
+      currentTime.value = [...time];
       currentTime.show = true;
-      currentTime.showInput = !time;
-      currentTime.inputValue = time ? time.join(' - ') : '';
+      currentTime.showInput = !ind && ind !== 0;
+      currentTime.inputValue = time.join(' - ');
       nextTick(() => {
         if (time) {
           inputWidth.value = textTestRef.value.offsetWidth;
@@ -174,20 +174,6 @@ export default defineComponent({
         currentTime.value = [match[1], match[3]];
       }
 
-      if (
-        validTimeOverlap(
-          currentTime.value,
-          localValue.filter((item, index) => index !== currentTime.index)
-        )
-      ) {
-        initCurrentTime();
-        Message({
-          theme: 'warning',
-          message: t('时间段重叠了')
-        });
-        return;
-      }
-
       // 新增时间
       if (currentTime.index === -1) {
         localValue.push([...currentTime.value]);
@@ -202,42 +188,9 @@ export default defineComponent({
     function initCurrentTime() {
       currentTime.show = false;
       currentTime.showInput = false;
-      currentTime.value = [];
+      currentTime.value = ['00:00', '23:59'];
       currentTime.inputValue = '';
       currentTime.index = -1;
-    }
-
-    /**
-     * 判断新日期是否在已存在的日期内
-     * @param val 新日期
-     * @param list 已有的日期
-     * @returns
-     */
-    function validTimeOverlap(val, list) {
-      return list.some(item => {
-        const [start, end] = item;
-        const [startTime, endTime] = val;
-        const isBefore = dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm'));
-        const targetTimeStamp = {
-          start: dayjs(start, 'hh:mm').valueOf(),
-          end: dayjs(end, 'hh:mm')
-            .add(isBefore ? 0 : 1, 'day')
-            .valueOf()
-        };
-        const currentIsBefore = dayjs(startTime, 'hh:mm').isBefore(dayjs(endTime, 'hh:mm'));
-        const currentTimeStamp = {
-          start: dayjs(startTime, 'hh:mm').valueOf(),
-          end: dayjs(endTime, 'hh:mm')
-            .add(currentIsBefore ? 0 : 1, 'day')
-            .valueOf()
-        };
-        return (
-          dayjs(currentTimeStamp.start).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
-          dayjs(currentTimeStamp.end).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
-          dayjs(targetTimeStamp.start).isBetween(currentTimeStamp.start, currentTimeStamp.end, null, '[]') ||
-          dayjs(targetTimeStamp.end).isBetween(currentTimeStamp.start, currentTimeStamp.end, null, '[]')
-        );
-      });
     }
 
     /**
@@ -293,7 +246,7 @@ export default defineComponent({
               <div
                 ref='contentRef'
                 class='content'
-                onClick={e => this.handleShowTime(e)}
+                onClick={e => this.handleShowTime(e, ['00:00', '23:59'])}
               >
                 <i class='icon-monitor icon-mc-time icon'></i>
                 <div class='time-tag-list'>

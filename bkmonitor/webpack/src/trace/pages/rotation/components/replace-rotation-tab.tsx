@@ -34,20 +34,15 @@ import ReplaceRotationTableItem, { ReplaceItemDataModel } from './replace-rotati
 
 import './replace-rotation-tab.scss';
 
-export interface ItemDataModel extends ReplaceItemDataModel {
+export interface ReplaceDataModel extends ReplaceItemDataModel {
   key: number;
-}
-
-export interface ReplaceDataModel {
-  id?: number;
-  data: ItemDataModel[];
 }
 
 export default defineComponent({
   name: 'ReplaceRotationTab',
   props: {
     data: {
-      type: Object as PropType<ReplaceDataModel>,
+      type: Object as PropType<ReplaceDataModel[]>,
       default: undefined
     }
   },
@@ -55,19 +50,15 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    const localValue = reactive<ReplaceDataModel>({
-      id: undefined,
-      data: []
-    });
+    const localValue = reactive<ReplaceDataModel[]>([]);
 
     watch(
       () => props.data,
       val => {
-        if (val.data.length) {
-          Object.assign(localValue, JSON.parse(JSON.stringify(val)));
+        if (val.length) {
+          localValue.splice(0, localValue.length, ...val);
         } else {
-          localValue.data = [createDefaultItemData()];
-          handleEmitData();
+          localValue.splice(0, localValue.length, createDefaultItemData());
         }
       },
       {
@@ -75,9 +66,9 @@ export default defineComponent({
       }
     );
 
-    function createDefaultItemData(): ItemDataModel {
+    function createDefaultItemData(): ReplaceDataModel {
       return {
-        id: localValue.id,
+        id: undefined,
         key: random(8, true),
         date: {
           type: RotationSelectTypeEnum.Daily,
@@ -100,22 +91,23 @@ export default defineComponent({
         users: {
           groupType: 'specified',
           groupNumber: 1,
-          value: [{ key: random(8, true), value: [] }]
+          value: [{ key: random(8, true), value: [], orderIndex: 0 }]
         }
       };
     }
 
-    function handleDataChange(val: ItemDataModel, index: number) {
-      localValue.data[index] = val;
+    function handleDataChange(val: ReplaceDataModel, index: number) {
+      localValue.splice(index, 1, val);
       handleEmitData();
     }
 
     function handleAddItem() {
-      localValue.data.push(createDefaultItemData());
+      localValue.push(createDefaultItemData());
+      handleEmitData();
     }
 
     function handleDelItem(index: number) {
-      localValue.data.splice(index, 1);
+      localValue.splice(index, 1);
       handleEmitData();
     }
 
@@ -156,7 +148,7 @@ export default defineComponent({
             </div>
           </th>
         </tr>
-        {this.localValue.data.map((item, index) => (
+        {this.localValue.map((item, index) => (
           <ReplaceRotationTableItem
             class='table-item'
             data={item}
@@ -164,7 +156,7 @@ export default defineComponent({
             onChange={val => this.handleDataChange(val, index)}
             onDrop={this.handleEmitDrop}
           >
-            {this.localValue.data.length > 1 && (
+            {this.localValue.length > 1 && (
               <div
                 class='delete-btn'
                 onClick={() => this.handleDelItem(index)}

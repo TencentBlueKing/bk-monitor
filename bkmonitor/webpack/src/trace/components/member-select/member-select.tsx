@@ -355,7 +355,7 @@ export default defineComponent({
       if (props.filterMethod) {
         return props.filterMethod([...userAndGroupList.group, ...userAndGroupList.user], inputValue.value);
       }
-      return inputValue.value ? userAndGroupList.user : userAndGroupList.group;
+      return inputValue.value ? userAndGroupList.user : [...userAndGroupList.group, ...userAndGroupList.user];
     });
     function handleAfterHidden({ isShow }) {
       popoverShow.value = isShow;
