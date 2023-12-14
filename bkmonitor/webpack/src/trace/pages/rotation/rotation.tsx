@@ -350,6 +350,7 @@ export default defineComponent({
       return new Promise((resolve, reject) => {
         InfoBox({
           title: value ? t('确认启用') : t('确认停用'),
+          subTitle: `${t('规则名称')}: ${row.name}`,
           onConfirm: () => {
             switchDutyRule({
               ids: [row.id],
@@ -472,6 +473,7 @@ export default defineComponent({
     function handleDelete(row) {
       InfoBox({
         title: t('确认删除'),
+        subTitle: `${t('规则名称')}: ${row.name}`,
         onConfirm: () => {
           const delIndex = allRotationList.value.findIndex(item => item.id === row.id);
           if (delIndex >= 0) {

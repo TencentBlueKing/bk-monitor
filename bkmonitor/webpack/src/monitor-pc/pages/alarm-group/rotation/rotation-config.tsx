@@ -131,7 +131,7 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   get showNoData() {
-    return !this.allDutyList.filter(item => !!item.show).length;
+    return !this.allDutyList.filter(item => !!item.show && item.status !== EStatus.Deactivated).length;
   }
 
   created() {
@@ -503,7 +503,7 @@ export default class RotationConfig extends tsc<IProps> {
             onClick={e => !this.dutyLoading && this.handleAddRotation(e)}
           >
             <span class='icon-monitor icon-plus-line'></span>
-            <span>{this.$t('值班规则')}</span>
+            <span class='fs-12'>{this.$t('值班规则')}</span>
           </Button>
           <span class='icon-monitor icon-tishi'></span>
           <span class='tip-text'>{this.$t('排在前面的规则优先级高')}</span>
@@ -645,7 +645,7 @@ export default class RotationConfig extends tsc<IProps> {
             <div class='content-wrap'>
               {!this.showNoData ? (
                 this.allDutyList
-                  .filter(item => !!item.show)
+                  .filter(item => !!item.show && item.status !== EStatus.Deactivated)
                   .map(item => (
                     <div
                       class='duty-select-item'

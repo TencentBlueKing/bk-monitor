@@ -218,28 +218,27 @@ export default class RotationPreview extends tsc<IProps> {
             ></Switcher>
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
-          {!!this.alarmGroupId && [
-            <span
-              class='text-btn mr-24 ml-auto'
-              onClick={(e: Event) => {
-                e.stopPropagation();
-                this.handleShowDetail(true, this.$t('排班明细'));
-              }}
-            >
-              <span class='icon-monitor icon-mc-detail mr-6'></span>
-              <span>{this.$t('排班明细')}</span>
-            </span>,
-            <span
-              class='text-btn'
-              onClick={(e: Event) => {
-                e.stopPropagation();
-                this.handleShowDetail(true, this.$t('轮值历史'), true);
-              }}
-            >
-              <span class='icon-monitor icon-lishijilu mr-6'></span>
-              <span>{this.$t('轮值历史')}</span>
-            </span>
-          ]}
+          <span
+            class='text-btn mr-24 ml-auto'
+            onClick={(e: Event) => {
+              e.stopPropagation();
+              this.handleShowDetail(true, this.$t('排班明细'));
+            }}
+          >
+            <span class='icon-monitor icon-mc-detail mr-6'></span>
+            <span>{this.$t('排班明细')}</span>
+          </span>
+          ,
+          <span
+            class='text-btn'
+            onClick={(e: Event) => {
+              e.stopPropagation();
+              this.handleShowDetail(true, this.$t('轮值历史'), true);
+            }}
+          >
+            <span class='icon-monitor icon-lishijilu mr-6'></span>
+            <span>{this.$t('轮值历史')}</span>
+          </span>
         </div>
         <div class={['preview-content', { expan: this.isExpan }]}>
           <div class='preview-content-left'>

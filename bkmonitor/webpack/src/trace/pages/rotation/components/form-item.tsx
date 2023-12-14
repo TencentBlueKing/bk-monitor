@@ -49,6 +49,10 @@ export default defineComponent({
     hasColon: {
       type: Boolean,
       default: false
+    },
+    contentCls: {
+      type: String,
+      default: ''
     }
   },
   setup(props, { slots }) {
@@ -61,7 +65,7 @@ export default defineComponent({
           {props.label}
           {props.hasColon ? ' : ' : undefined}
         </div>
-        <div class='form-item-content'>
+        <div class={['form-item-content', props.contentCls]}>
           {slots?.default?.()}
           {!!props?.errMsg && <div class='form-item-errmsg'>{props.errMsg}</div>}
         </div>

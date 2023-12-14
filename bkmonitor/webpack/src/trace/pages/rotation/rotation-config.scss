@@ -26,6 +26,14 @@
     width: 974px;
   }
 
+  .min-width-974 {
+    min-width: 974px;
+  }
+
+  .flex1 {
+    flex: 1;
+  }
+
   .split-line {
     margin: 0 8px;
     font-size: 14px;
@@ -34,9 +42,9 @@
 
   .rotation-config-page-content {
     max-height: calc(100% - 52px);
+    padding-right: 160px;
     padding-bottom: 32px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: auto;
 
     .enabled-switch {
       display: flex;
