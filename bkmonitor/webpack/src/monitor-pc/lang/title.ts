@@ -108,7 +108,7 @@ export default {
   DB设置: 'DB settings',
   DB类型: 'DB type',
   '{0}月': '{0} month',
-  轮值规则: 'Rotation rules',
+  轮值规则: 'Rotation Rules',
   轮值详情: 'Details of rotation',
   '主机智能异常检测发现{0}个主机异常': 'Host intelligent exception detection found {0} host exceptions'
 };
