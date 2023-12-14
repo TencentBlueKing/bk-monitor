@@ -128,6 +128,7 @@ export function validReplaceRotationData(data: ReplaceDataModel) {
  */
 export function replaceRotationTransform(originData, type) {
   if (type === 'data') {
+    let orderIndex = 0;
     return originData.map(data => {
       const date = data.duty_time.reduce(
         (pre: ReplaceItemDataModel['date'], cur, ind) => {
@@ -194,10 +195,23 @@ export function replaceRotationTransform(originData, type) {
         users: {
           groupNumber: data.group_number,
           groupType: data.group_type,
-          value: data.duty_users.map(item => ({
-            key: random(8, true),
-            value: item
-          }))
+          value: data.duty_users.map(item => {
+            const res = {
+              key: random(8, true),
+              value: item,
+              orderIndex
+            };
+            if (data.group_type === 'specified') {
+              orderIndex += 1;
+            } else if (item.length % data.group_number === 0) {
+              orderIndex += item.length / data.group_number;
+            } else if (data.group_number < item.length) {
+              orderIndex += item.length;
+            } else {
+              orderIndex += 1;
+            }
+            return res;
+          })
         }
       };
       return obj;
@@ -366,11 +380,12 @@ export interface RuleDetailModel {
     timer: string[];
     periodSettings: string;
   }[];
-  ruleUser: { type: 'group' | 'user'; display_name: string; logo: string }[][];
+  ruleUser: { users: { type: 'group' | 'user'; display_name: string; logo: string }[]; orderIndex: number }[];
   isAuto: boolean;
   groupNumber: number;
 }
 export function transformRulesDetail(data: any[]): RuleDetailModel[] {
+  let orderIndex = 0;
   return data.map(rule => {
     const ruleTime = rule.duty_time.map(time => {
       let day = RotationSelectTextMap[time.work_type];
@@ -400,7 +415,19 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
     });
     return {
       ruleTime,
-      ruleUser: rule.duty_users,
+      ruleUser: rule.duty_users.map(item => {
+        const res = { users: item, orderIndex };
+        if (rule.group_type === 'specified') {
+          orderIndex += 1;
+        } else if (item.length % rule.group_number === 0) {
+          orderIndex += item.length / rule.group_number;
+        } else if (rule.group_number < item.length) {
+          orderIndex += item.length;
+        } else {
+          orderIndex += 1;
+        }
+        return res;
+      }),
       isAuto: rule.group_type === 'auto',
       groupNumber: rule.group_number
     };

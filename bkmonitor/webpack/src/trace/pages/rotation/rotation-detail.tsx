@@ -243,15 +243,15 @@ export default defineComponent({
                         </div>
                       )}
                       <div class='notice-user-list'>
-                        {rule.ruleUser.map((item, ind) => (
+                        {rule.ruleUser.map(item => (
                           <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
                             {!rule.isAuto && (
                               <div
                                 class='has-color'
-                                style={{ background: randomColor(ind) }}
+                                style={{ background: randomColor(item.orderIndex) }}
                               ></div>
                             )}
-                            {item.map(user => (
+                            {item.users.map(user => (
                               <div class='personnel-choice'>
                                 {this.renderUserLogo(user)}
                                 <span>{user.display_name}</span>
