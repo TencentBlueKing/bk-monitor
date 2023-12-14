@@ -44,13 +44,14 @@ class SendReport(Resource):
         channels = []
         # 若订阅id不存在则为测试发送，使用缺省值绑定测试发送记录
         report_id = validated_request_data.get("report_id", -1)
-        for channel in validated_request_data["channels"]:
+        channels_params = validated_request_data.pop("channels", [])
+        for channel in channels_params:
             channel["report_id"] = report_id
             channels.append(ReportChannel(**channel))
-        if validated_request_data["report_id"]:
+        if validated_request_data.get("report_id"):
             report = Report.objects.get(id=validated_request_data["report_id"])
         else:
-            report = Report(validated_request_data)
+            report = Report(**validated_request_data)
         send_report.delay(report, channels)
         return "success"
 
