@@ -172,11 +172,10 @@ normalization_config:
 
 clean_configs:
   # 腾讯云的清洗配置
-  - alerts: []
-  - rules:   # 匹配规则，可选。不提供为全部匹配
+  - rules: # 匹配规则，可选。不提供为全部匹配
     - key: alarmType
       value:
-      - "metric"
+        - "metric"
       method: eq
       condition: and
     - key: headers.source
@@ -184,38 +183,85 @@ clean_configs:
         - "tencent"
       method: eq
       condition: and
-
+    alert_config: []
   # 清洗配置
-  - normalization_config:
-    - field: alert_name
-      expr: PolicyName
-    - field: event_id
-      expr: AlarmId
-    - field: description
-      expr: Content
-    - field: metric
-      expr: MetricsInfo[0].MetricName
-    - field: category
-      expr: MonitorType
-    - field: assignee
-      expr: assignee
-    - field: status
-      expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', NO_CONF: 'CLOSED'}, AlarmStatus)"
-    - field: target
-      expr: "regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || [AlarmObject] | [0]"
-    - field: target_type
-      expr: "!regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || ['HOST'] | get_field({HOST: 'HOST'}, [0])"
-    - field: severity
-      expr: "1"
-    - field: bk_biz_id
-      expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
-    - field: tags
-      expr: '{"monitor_type":MonitorType, "namespace": Namespace,"region": Region,"alarm_type":AlarmType, "metrics": to_string(MetricsInfo), "policy_id": PolicyId, "alarm_object": AlarmObject}'
-    - field: time
-      expr: LastOccurTime
-    - field: source_time
-      expr: FirstOccurTime
-    - field: anomaly_time
-      expr: FirstOccurTime
-    - field: dedupe_md5
-      expr: dedupe_md5
+    normalization_config:
+      - field: alert_name
+        expr: PolicyName
+      - field: event_id
+        expr: AlarmId
+      - field: description
+        expr: Content
+      - field: metric
+        expr: MetricsInfo[0].MetricName
+      - field: category
+        expr: MonitorType
+      - field: assignee
+        expr: assignee
+      - field: status
+        expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', NO_CONF: 'CLOSED'}, AlarmStatus)"
+      - field: target
+        expr: "regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || [AlarmObject] | [0]"
+      - field: target_type
+        expr: "!regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || ['HOST'] | get_field({HOST: 'HOST'}, [0])"
+      - field: severity
+        expr: "1"
+      - field: bk_biz_id
+        expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+      - field: tags
+        expr: '{"monitor_type":MonitorType, "namespace": Namespace,"region": Region,"alarm_type":AlarmType, "metrics": to_string(MetricsInfo), "policy_id": PolicyId, "alarm_object": AlarmObject}'
+      - field: time
+        expr: LastOccurTime
+      - field: source_time
+        expr: FirstOccurTime
+      - field: anomaly_time
+        expr: FirstOccurTime
+      - field: dedupe_md5
+        expr: dedupe_md5
+
+  - alert_config: [ ]
+    rules: # 匹配规则，可选。不提供为全部匹配
+      - key: alarmType
+        value:
+          - "metric"
+        method: eq
+        condition: and
+      - key: headers.source
+        value:
+          - "google-alert"
+        method: eq
+        condition: and
+    # 清洗配置
+    normalization_config:
+      - field: alert_name
+        expr: PolicyName
+      - field: event_id
+        expr: AlarmId
+      - field: description
+        expr: Content
+      - field: metric
+        expr: MetricsInfo[0].MetricName
+      - field: category
+        expr: MonitorType
+      - field: assignee
+        expr: assignee
+      - field: status
+        expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', NO_CONF: 'CLOSED'}, AlarmStatus)"
+      - field: target
+        expr: "regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || [AlarmObject] | [0]"
+      - field: target_type
+        expr: "!regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || ['HOST'] | get_field({HOST: 'HOST'}, [0])"
+      - field: severity
+        expr: "1"
+      - field: bk_biz_id
+        expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+      - field: tags
+        expr: '{"monitor_type":MonitorType, "namespace": Namespace,"region": Region,"alarm_type":AlarmType, "metrics": to_string(MetricsInfo), "policy_id": PolicyId, "alarm_object": AlarmObject}'
+      - field: time
+        expr: LastOccurTime
+      - field: source_time
+        expr: FirstOccurTime
+      - field: anomaly_time
+        expr: FirstOccurTime
+      - field: dedupe_md5
+        expr: dedupe_md5

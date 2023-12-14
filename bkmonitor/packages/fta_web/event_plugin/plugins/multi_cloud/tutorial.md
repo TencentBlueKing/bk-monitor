@@ -1,6 +1,9 @@
 #### 1. 根据配置自动拉取一天以内的腾讯云告警历史
 
 #### 2.返回数据格式
+腾讯云回调地址： www.webhook.com
+
+配置告警回调方法、： https://cloud.tencent.com/document/product/248/50409
 ```json
     {"Histories": [
             {
