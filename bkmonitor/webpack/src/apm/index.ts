@@ -35,7 +35,6 @@ import '../monitor-ui/directive/index';
 import '../monitor-static/svg-icons';
 
 import Api from '../monitor-api/api';
-import { getContext } from '../monitor-api/modules/commons';
 import { setVue } from '../monitor-api/utils/index';
 import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
@@ -50,48 +49,28 @@ import './static/scss/global.scss';
 
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
+const spaceUid = getUrlParam('space_uid');
+const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
 setVue(Vue);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
-  const spaceUid = getUrlParam('space_uid');
-  const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
-  getContext({
+}
+Api.model
+  .enhancedContext({
     space_uid: spaceUid || undefined,
-    bk_biz_id: !spaceUid ? bizId || process.env.defaultBizId : undefined
-  }).then(data => {
+    bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
+    context_type: 'basic'
+  })
+  .then(data => {
     Object.keys(data).forEach(key => {
       window[key.toLocaleLowerCase()] = data[key];
     });
-    mergeSpaceList(window.space_list, window.bk_biz_list);
+    mergeSpaceList(window.space_list);
     window.username = window.uin;
-    window.bk_log_search_url = window.bklogsearch_host;
     window.cc_biz_id = +window.bk_biz_id;
+    window.bk_log_search_url = data.BKLOGSEARCH_HOST;
     const bizId = setGlobalBizId();
     if (bizId === false) return;
-    store.commit('app/SET_APP_STATE', {
-      userName: data.UIN,
-      bizId,
-      bizList: window.space_list,
-      csrfCookieName: data.CSRF_COOKIE_NAME,
-      siteUrl: data.SITE_URL,
-      bkUrl: data.BK_URL
-    });
-    // eslint-disable-next-line no-new
-    new Vue({
-      el: '#app',
-      router,
-      store,
-      i18n,
-      render: h => h(App)
-    });
-    Vue.prototype.$bus = new Vue();
-    Vue.prototype.$api = Api;
-    Vue.prototype.$authorityStore = Authority;
-    serviceWorker.unregister();
-  });
-} else {
-  mergeSpaceList(window.space_list, window.bk_biz_list);
-  if (setGlobalBizId() !== false) {
     store.commit('app/SET_APP_STATE', {
       userName: window.user_name,
       bizId: window.cc_biz_id,
@@ -111,6 +90,17 @@ if (process.env.NODE_ENV === 'development') {
     Vue.prototype.$bus = new Vue();
     Vue.prototype.$api = Api;
     Vue.prototype.$authorityStore = Authority;
+    Api.model
+      .enhancedContext({
+        space_uid: spaceUid || undefined,
+        bk_biz_id: bizId,
+        context_type: 'extra'
+      })
+      .then(data => {
+        Object.keys(data).forEach(key => {
+          window[key.toLocaleLowerCase()] = data[key];
+        });
+      });
     serviceWorker.register();
-  }
-}
+  })
+  .catch(e => console.error(e));

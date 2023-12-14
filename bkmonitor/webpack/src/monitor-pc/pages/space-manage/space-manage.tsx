@@ -248,7 +248,7 @@ export default class SpaceManage extends tsc<{}> {
   }
   // 更新全局space_list bizList bk_biz_list
   handleMergeBizList(spaceList: ISpaceItem[]) {
-    mergeSpaceList(spaceList, window.space_list as any);
+    mergeSpaceList(spaceList);
     this.$store.commit('app/SET_APP_STATE', {
       bizList: window.space_list,
       bizId: this.$store.getters.bizId

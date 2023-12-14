@@ -827,7 +827,7 @@ export default {
     searchAddChange(addObj) {
       const { addition, isQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery) this.retrieveLog();
+      if (isQuery && this.isAutoQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);

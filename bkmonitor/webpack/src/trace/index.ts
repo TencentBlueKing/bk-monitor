@@ -32,7 +32,6 @@ import { createApp } from 'vue';
 import { Message } from 'bkui-vue';
 
 import Api from '../monitor-api/api';
-import { getContext } from '../monitor-api/modules/commons';
 import { setVue } from '../monitor-api/utils/index';
 import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
 import { getUrlParam, setGlobalBizId } from '../monitor-common/utils';
@@ -46,20 +45,26 @@ import store from './store/store';
 import '../monitor-static/icons/monitor-icons.css';
 import './static/scss/global.scss';
 
+window.source_app = 'trace';
+const spaceUid = getUrlParam('space_uid');
+const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
-  const spaceUid = getUrlParam('space_uid');
-  const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
-  getContext({
+}
+Api.model
+  .enhancedContext({
     space_uid: spaceUid || undefined,
-    bk_biz_id: !spaceUid ? bizId || process.env.defaultBizId : undefined
-  }).then(data => {
+    bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
+    context_type: 'basic'
+  })
+  .then(data => {
     Object.keys(data).forEach(key => {
-      (window as any)[key.toLocaleLowerCase()] = data[key];
+      window[key.toLocaleLowerCase()] = data[key];
     });
     window.username = window.uin;
-    window.bk_log_search_url = window.bklogsearch_host;
-    setGlobalBizId();
+    window.cc_biz_id = +window.bk_biz_id;
+    window.bk_log_search_url = data.BKLOGSEARCH_HOST;
+    const bizId = setGlobalBizId();
     const app = createApp(App);
     setVue(app);
     app.use(store).use(router).use(i18n).use(directives).mount('#app');
@@ -68,17 +73,18 @@ if (process.env.NODE_ENV === 'development') {
       $api: Api,
       $Message: Message,
       $authorityStore: useAuthorityStore()
-    };
-  });
-} else {
-  setGlobalBizId();
-  const app = createApp(App);
-  setVue(app);
-  app.use(store).use(router).use(i18n).use(directives).mount('#app');
-  serviceWorker.register();
-  app.config.globalProperties = {
-    $api: Api,
-    $Message: Message,
-    $authorityStore: useAuthorityStore()
-  };
-}
+    } as any;
+    Api.model
+      .enhancedContext({
+        space_uid: spaceUid || undefined,
+        bk_biz_id: bizId,
+        context_type: 'extra'
+      })
+      .then(data => {
+        Object.keys(data).forEach(key => {
+          window[key.toLocaleLowerCase()] = data[key];
+        });
+      });
+    serviceWorker.register();
+  })
+  .catch(e => console.error(e));

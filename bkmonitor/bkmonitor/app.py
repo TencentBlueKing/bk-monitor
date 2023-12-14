@@ -14,6 +14,7 @@ import sys
 
 from django.apps import AppConfig, apps
 from django.conf import settings
+from django.db.models.signals import post_migrate
 
 from bkmonitor.log_trace import BluekingInstrumentor
 from bkmonitor.utils.dynamic_settings import hack_settings
@@ -31,7 +32,12 @@ class Config(AppConfig):
 
         global_config.run(apps)
 
-        if "migrate" not in sys.argv:
+        # 检测是否运行测试（python manage.py test 或 pytest）
+        if "test" in sys.argv or "pytest" in sys.modules:
+            hack_settings(GlobalConfig, settings)
+            if settings.ROLE == "worker":
+                post_migrate.connect(_refresh_cache_node, sender=self, dispatch_uid="bkmonitor test")
+        elif "migrate" not in sys.argv:
             hack_settings(GlobalConfig, settings)
             if settings.ROLE == "worker":
                 CacheNode.refresh_from_settings()
@@ -47,3 +53,9 @@ class Config(AppConfig):
             os.getenv("BKAPP_OTLP_BK_DATA_ID") or os.getenv("BKAPP_OTLP_BK_DATA_TOKEN")
         ):
             BluekingInstrumentor().instrument()
+
+
+def _refresh_cache_node(sender, **kwargs):
+    from bkmonitor.models import CacheNode
+
+    CacheNode.refresh_from_settings()

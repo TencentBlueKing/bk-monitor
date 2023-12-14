@@ -149,7 +149,7 @@ def condition_rule():
             },
             {"action_type": ActionPluginType.ITSM, "action_id": 4444},
         ],
-        "alert_severity": 2,
+        "alert_severity": 1,
         "additional_tags": [{"key": "ip123", "value": "127.0.0.1"}],
         "bk_biz_id": 2,
         "is_enabled": True,
@@ -875,16 +875,18 @@ class TestAssignManager:
         测试适配到告警条件之后原来的告警不会产生
         """
         alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE, AssignMode.BY_RULE]
+        alert.severity = 1
+        alert.appointee = ['lisa', 'lisa1']
         AlertDocument.bulk_create([alert])
         assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 4
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"] == {'mail': ['lisa', 'lisa1']}
+        assert p_ai.inputs["notify_info"]['voice'] == [['lisa', 'lisa1']]
         new_alert = AlertDocument.get(id=alert.id)
         assert new_alert.appointee == ["lisa", "lisa1"]
-        assert new_alert.severity == 2
+        assert new_alert.severity == 1
 
     def test_default_assign_notice(self, setup, alert, user_group_setup, biz_mock, init_configs):
         """
