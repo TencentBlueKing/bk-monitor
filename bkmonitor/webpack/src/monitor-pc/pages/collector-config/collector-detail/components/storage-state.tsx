@@ -82,15 +82,7 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
 
   infoData: LocalInfoField[] = [];
 
-  clusterStatusTable = {
-    columns: [],
-    data: []
-  };
-
-  indexStatusTable = {
-    columns: [],
-    data: []
-  };
+  tableList: StatusItem[] = [];
 
   @Watch('data')
   handleDataChange(val: DataInterface) {
@@ -105,14 +97,8 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
       }
       return item;
     });
-    this.clusterStatusTable = {
-      columns: val.status[0].content.keys,
-      data: val.status[0].content.values
-    };
-    this.indexStatusTable = {
-      columns: val.status[1].content.keys,
-      data: val.status[1].content.values
-    };
+
+    this.tableList = val.status;
   }
 
   handleInfoEditStatusChange(field: LocalInfoField) {
@@ -196,52 +182,32 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
           <div class='title'>{this.$t('存储信息')}</div>
           <div class='info-form'>{this.infoData.map(field => this.renderInfoField(field))}</div>
         </div>
-        <Divider class='divider' />
-        <div class='cluster-status'>
-          <div class='title'>{this.$t('集群状态')}</div>
-          <div class='table-content'>
-            <Table
-              class='data-table'
-              data={this.clusterStatusTable.data}
-              outer-border={false}
-              header-border={false}
-              max-height={350}
-            >
-              {this.clusterStatusTable.columns.map(column => {
-                return (
-                  <TableColumn
-                    key={column.key}
-                    label={column.name}
-                    prop={column.key}
-                  />
-                );
-              })}
-            </Table>
+
+        {this.tableList.map(table => [
+          <Divider class='divider' />,
+          <div class='table-wrap'>
+            <div class='title'>{table.name}</div>
+            <div class='table-content'>
+              <Table
+                class='data-table'
+                data={table.content.values}
+                outer-border={false}
+                header-border={false}
+                max-height={350}
+              >
+                {table.content.keys.map(column => {
+                  return (
+                    <TableColumn
+                      key={column.key}
+                      label={column.name}
+                      prop={column.key}
+                    />
+                  );
+                })}
+              </Table>
+            </div>
           </div>
-        </div>
-        <Divider class='divider' />
-        <div class='index-status'>
-          <div class='title'>{this.$t('索引状态')}</div>
-          <div class='table-content'>
-            <Table
-              class='data-table'
-              data={this.indexStatusTable.data}
-              outer-border={false}
-              header-border={false}
-              max-height={350}
-            >
-              {this.indexStatusTable.columns.map(column => {
-                return (
-                  <TableColumn
-                    key={column.key}
-                    label={column.name}
-                    prop={column.key}
-                  />
-                );
-              })}
-            </Table>
-          </div>
-        </div>
+        ])}
       </div>
     );
   }

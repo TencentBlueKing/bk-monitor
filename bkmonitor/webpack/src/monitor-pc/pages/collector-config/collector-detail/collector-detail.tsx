@@ -113,6 +113,10 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     this.getCollectConfigListItem();
     this.getAlarmGroupList();
     this.getDetails();
+    this.$store.commit('app/SET_NAV_ROUTE_LIST', [
+      { name: this.$t('route-数据采集'), id: 'collect-config' },
+      { name: this.$t('route-采集详情'), id: 'collect-config-detail' }
+    ]);
   }
 
   handleTabChange(v: TabEnum) {
@@ -347,7 +351,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             />
           </TabPanel>
           <TabPanel
-            label={this.$t('字段详情')}
+            label={this.$t('指标/维度')}
             name={TabEnum.FieldDetails}
           >
             <FieldDetails detailData={this.detailData} />

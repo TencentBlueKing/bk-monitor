@@ -60,7 +60,7 @@ export default applyGuidePage(
       name: 'collect-config',
       component: CollectorConfig,
       meta: {
-        title: '采集配置',
+        title: '数据采集',
         navId: 'collect-config',
         authority: {
           map: collectConfigAuth,
