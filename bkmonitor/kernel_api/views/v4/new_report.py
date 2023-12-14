@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from alarm_backends.service.new_report.factory import ReportFactory
+from alarm_backends.service.new_report.tasks import send_report
 from bkmonitor.action.serializers.report import FrequencySerializer
 from bkmonitor.models import Report, ReportChannel
 from bkmonitor.report.serializers import (
@@ -51,7 +51,7 @@ class SendReport(Resource):
             report = Report.objects.get(id=validated_request_data["report_id"])
         else:
             report = Report(validated_request_data)
-        ReportFactory.get_handler(report).run(channels)
+        send_report.delay(report, channels)
         return "success"
 
 

@@ -21,7 +21,7 @@ logger = logging.getLogger("bkmonitor.cron_report")
 
 
 @app.task(ignore_result=True, queue="celery_report_cron")
-def send_reports(report, channels=None):
+def send_report(report, channels=None):
     """
     发送邮件订阅
     """
@@ -48,4 +48,4 @@ def new_report_detect():
             logger.info(f"report{report.id} not at sending time.")
             continue
         # 异步执行订阅发送任务
-        send_reports.delay(report)
+        send_report.delay(report)
