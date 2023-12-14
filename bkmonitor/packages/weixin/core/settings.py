@@ -36,10 +36,10 @@ WEIXIN_APP_EXTERNAL_HOST = os.environ.get("BKAPP_WEIXIN_APP_EXTERNAL_HOST", "")
 WEIXIN_SCOPE = "snsapi_userinfo"
 
 # 蓝鲸微信请求URL前缀
-WEIXIN_SITE_URL = settings.SITE_URL + "weixin/"
+WEIXIN_SITE_URL = os.environ.get("BKAPP_WEIXIN_SITE_URL", SITE_URL + "weixin/")
 # 蓝鲸微信本地静态文件请求URL前缀
-WEIXIN_STATIC_URL = settings.STATIC_URL + "weixin/"
+WEIXIN_STATIC_URL = os.environ.get("BKAPP_WEIXIN_STATIC_URL", STATIC_URL + "weixin/")
 # 蓝鲸微信登录的URL
-WEIXIN_LOGIN_URL = settings.SITE_URL + "weixin/login/"
+WEIXIN_LOGIN_URL = WEIXIN_SITE_URL + "login/"
 # 微信分享地址
-WEIXIN_SHARE_URL = WEIXIN_APP_EXTERNAL_HOST + settings.SITE_URL
+WEIXIN_SHARE_URL = WEIXIN_APP_EXTERNAL_HOST + WEIXIN_SITE_URL
