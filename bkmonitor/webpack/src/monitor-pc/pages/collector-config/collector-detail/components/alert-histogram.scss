@@ -21,3 +21,13 @@
     }
   }
 }
+
+.alert-histogram-component-pop-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  & > div {
+    font-size: 12px;
+  }
+}

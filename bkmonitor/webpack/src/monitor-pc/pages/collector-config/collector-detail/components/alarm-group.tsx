@@ -288,7 +288,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                           class='status-loading'
                         ></img>
                       ) : (
-                        <span class='icon-monitor icon-mc-retry'></span>
+                        <span class='icon-monitor icon-zhongzhi1'></span>
                       )}
                     </div>
                   )}

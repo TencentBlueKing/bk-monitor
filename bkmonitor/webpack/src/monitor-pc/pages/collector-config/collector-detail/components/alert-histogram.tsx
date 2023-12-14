@@ -59,6 +59,7 @@ export default class AlertHistogram extends tsc<IProps> {
   popInstance = null;
   /* 当前hover的时间 */
   curHoverTime = '';
+  cruHoverLevel = 0;
 
   mounted() {
     this.resizeObserver = new ResizeObserver(entries => {
@@ -143,6 +144,7 @@ export default class AlertHistogram extends tsc<IProps> {
     } else {
       this.curHoverTime = this.timeStampToStr(item.times[0]);
     }
+    this.cruHoverLevel = item.level;
     this.$nextTick(() => {
       this.popInstance = this.$bkPopover(e.target, {
         content: this.timeRef,
@@ -174,7 +176,13 @@ export default class AlertHistogram extends tsc<IProps> {
           ></div>
         ))}
         <div style={{ display: 'none' }}>
-          <div ref='time'>{this.curHoverTime}</div>
+          <div
+            ref='time'
+            class='alert-histogram-component-pop-wrap'
+          >
+            <div>{this.curHoverTime}</div>
+            <div>{this.cruHoverLevel === 1 ? this.$t('有告警') : this.$t('无告警')}</div>
+          </div>
         </div>
       </div>
     );

@@ -199,16 +199,20 @@
     align-items: center;
     justify-content: center;
     width: 42px;
-    height: 100%;
+    height: 32px;
     cursor: pointer;
 
     .status-loading {
       height: 16px;
     }
 
+    .icon-zhongzhi1 {
+      font-size: 12px;
+    }
+
     &::after {
       position: absolute;
-      top: 10px;
+      top: 8px;
       left: -1px;
       width: 1px;
       height: 16px;
