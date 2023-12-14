@@ -117,10 +117,6 @@ export default {
       type: Number,
       default: 0,
     },
-    indexSetList: {
-      type: Array,
-      default: () => [],
-    },
   },
   data() {
     return {
@@ -132,6 +128,7 @@ export default {
     ...mapGetters({
       unionIndexList: 'unionIndexList',
       isUnionSearch: 'isUnionSearch',
+      unionIndexItemList: 'unionIndexItemList',
     }),
     gatherFieldsCount() { // 聚合字段有多少个
       return Object.keys(this.statisticalFieldData).length;
@@ -148,7 +145,7 @@ export default {
     },
     /** 冲突字段索引集名称*/
     unionConflictFieldsName() {
-      return this.indexSetList
+      return this.unionIndexItemList
         .filter(item => this.unionIndexList.includes(item.index_set_id))
         .map(item => item.indexName);
     },

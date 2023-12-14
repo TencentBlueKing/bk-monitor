@@ -121,6 +121,7 @@ export default {
     }),
     ...mapState('globals', ['fieldTypeMap']),
   },
+  inject: ['changeShowUnionSource'],
   watch: {
     clearTableWidth() {
       const columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
@@ -213,6 +214,7 @@ export default {
         this.openLogDialog(dialogNewParams, event);
       } else if (event === 'monitorWeb') this.openMonitorWeb(row);
       else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.changeShowUnionSource();
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
@@ -460,6 +462,11 @@ export default {
 
       .timer-formatter {
         transform: translateY(-1px);
+      }
+
+      .lack-index-filed {
+        padding-bottom: 2px;
+        border-bottom: 1px dashed #63656e;
       }
     }
 
