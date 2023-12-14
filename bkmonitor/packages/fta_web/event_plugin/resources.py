@@ -18,8 +18,6 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from fta_web.event_plugin.handler import PackageHandler
-from fta_web.event_plugin.kafka import KafkaManager
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -27,6 +25,7 @@ from bkmonitor.event_plugin import EventPluginSerializer, get_manager, get_seria
 from bkmonitor.event_plugin.constant import EVENT_NORMAL_FIELDS
 from bkmonitor.event_plugin.serializers import (
     AlertConfigSerializer,
+    CleanConfigSerializer,
     HttpPullInstOptionSerializer,
     NormalizationConfig,
 )
@@ -47,6 +46,8 @@ from core.errors.event_plugin import (
     GetKafkaConfigError,
     PluginIDExistError,
 )
+from fta_web.event_plugin.handler import PackageHandler
+from fta_web.event_plugin.kafka import KafkaManager
 
 logger = logging.getLogger("kernel_api")
 
@@ -419,6 +420,8 @@ class EventPluginInstanceBaseResource(Resource):
             validated_data["normalization_config"] = jinja_render(
                 self.event_plugin.normalization_config, config_context
             )
+        if not validated_data.get("clean_configs"):
+            validated_data["clean_configs"] = jinja_render(self.event_plugin.clean_configs, config_context)
 
         if self.event_plugin.plugin_type == PluginType.HTTP_PULL:
             self.validate_poller_data(validated_data)
@@ -432,6 +435,7 @@ class CreateEventPluginInstanceResource(EventPluginInstanceBaseResource):
         version = serializers.CharField(required=True, label="插件版本号")
         config_params = serializers.DictField(label="配置输入, kv格式")
         normalization_config = NormalizationConfig(many=True, label="字段清洗规则", required=False)
+        clean_configs = CleanConfigSerializer(many=True, required=False)
 
     def validate_request_data(self, request_data):
         validated_data = super(CreateEventPluginInstanceResource, self).validate_request_data(request_data)
