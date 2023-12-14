@@ -37,6 +37,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
+from bkmonitor.models import ActionConfig
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
@@ -49,6 +50,7 @@ from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
+from fta_web.tasks import run_init_builtin_action_config
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.constants import (
     AIOPS_ACCESS_MAX_RETRIES,
@@ -59,6 +61,7 @@ from monitor_web.constants import (
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
+from monitor_web.strategies.built_in import run_build_in
 from utils import business, count_md5
 
 logger = logging.getLogger("monitor_web")
@@ -67,6 +70,40 @@ logger = logging.getLogger("monitor_web")
 def set_client_user():
     biz_set = business.get_all_activate_business()
     local.username = business.maintainer(biz_set[0])
+
+
+@task(ignore_result=True)
+def run_init_builtin(bk_biz_id):
+    if bk_biz_id and settings.ENVIRONMENT != "development":
+        logger.info("[run_init_builtin] enter with bk_biz_id -> %s", bk_biz_id)
+        # 创建默认内置策略
+        run_build_in(int(bk_biz_id))
+
+        # 创建k8s内置策略
+        run_build_in(int(bk_biz_id), mode="k8s")
+
+        if (
+            settings.ENABLE_DEFAULT_STRATEGY
+            and int(bk_biz_id) > 0
+            and not ActionConfig.origin_objects.filter(bk_biz_id=bk_biz_id, is_builtin=True).exists()
+        ):
+            logger.warning("[run_init_builtin] home run_init_builtin_action_config: bk_biz_id -> %s", bk_biz_id)
+            # 如果当前页面没有出现内置套餐，则会进行快捷套餐的初始化
+            try:
+                run_init_builtin_action_config.delay(bk_biz_id)
+            except Exception as error:
+                # 直接忽略
+                logger.exception(
+                    "[run_init_builtin] run_init_builtin_action_config failed: bk_biz_id -> %s, error -> %s",
+                    bk_biz_id,
+                    str(error),
+                )
+        # TODO 先关闭，后面稳定了直接打开
+        # if not AlertAssignGroup.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists():
+        #     # 如果当前页面没有出现内置的规则组
+        #     run_init_builtin_assign_group(cc_biz_id)
+    else:
+        logger.info("[run_init_builtin] skipped with bk_biz_id -> %s", bk_biz_id)
 
 
 @task(ignore_result=True)

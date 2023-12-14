@@ -85,6 +85,7 @@ interface IChartWrapperEvent {
   onCollapse: boolean;
   onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
+  onDblClick?: void;
 }
 @Component
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -205,6 +206,9 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Emit('dimensionsOfSeries')
   handleDimensionsOfSeries(dimensions: string[]) {
     return dimensions;
+  }
+  handleDblClick() {
+    this.$emit('dblClick');
   }
   handlePanel2Chart() {
     switch (this.panel.type) {
@@ -480,6 +484,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onErrorMsg={this.handleErrorMsgChange}
             clearErrorMsg={this.handleClearErrorMsg}
+            onDblClick={this.handleDblClick}
           />
         );
     }
