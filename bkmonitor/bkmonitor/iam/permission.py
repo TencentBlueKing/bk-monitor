@@ -14,6 +14,14 @@ from collections import defaultdict
 from typing import Dict, List, Union
 
 from django.conf import settings
+from iam import (
+    MultiActionRequest,
+    ObjectSet,
+    Request,
+    Resource,
+    Subject,
+    make_expression,
+)
 from iam.apply.models import (
     ActionWithoutResources,
     ActionWithResources,
@@ -47,14 +55,6 @@ from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from core.errors.share import TokenValidatedError
-from iam import (
-    MultiActionRequest,
-    ObjectSet,
-    Request,
-    Resource,
-    Subject,
-    make_expression,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,6 @@ class Permission(object):
     def _make_application(
         self, action_ids: List[str], resources: List[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ) -> Application:
-
         resources = resources or []
         actions = []
 
@@ -395,7 +394,7 @@ class Permission(object):
     def prepare_apply_for_saas(self, resources):
         # PAAS空间下权限申请全家桶
         # APM相关权限暂时无法一并处理，因为空间权限申请时，不一定有APM应用
-        if (resources[0].system, resources[0].type) != (
+        if not resources or (resources[0].system, resources[0].type) != (
             BusinessResource.system_id,
             BusinessResource.id,
         ):
