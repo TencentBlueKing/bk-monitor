@@ -137,7 +137,9 @@ export default defineComponent({
           width: 134,
           disabled: false,
           checked: true,
-          sort: true
+          sort: {
+            value: ''
+          }
         },
         {
           id: EColunm.status,
@@ -162,7 +164,9 @@ export default defineComponent({
           minWidth: 330,
           disabled: false,
           checked: true,
-          sort: true
+          sort: {
+            value: ''
+          }
         },
         {
           id: EColunm.enabled,
@@ -411,6 +415,11 @@ export default defineComponent({
         sort.type = opt.type;
       }
       tableData.sort = sort;
+      const tableColumn = tableData.columns.find(item => item.id === sort.column);
+      if (tableColumn?.sort) {
+        tableColumn.sort.value = sort.type || 'null';
+      }
+
       tableData.pagination.current = 1;
       setFilterList();
     }
