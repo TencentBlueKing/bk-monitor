@@ -113,6 +113,8 @@ export default class RotationConfig extends tsc<IProps> {
   /* 即将跳转到轮值编辑页的轮值规则id */
   curToEditDutyId = 0;
 
+  previewDutyRules = [];
+
   /* 用于统计信息 */
   get userGroupData(): {
     display_name: string;
@@ -206,6 +208,7 @@ export default class RotationConfig extends tsc<IProps> {
     this.handleDutyChange();
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewDutyRules = data;
     /* 获取轮值组人员预览 */
     const tempSet = new Set();
     const userPreviewList = [];
@@ -246,6 +249,7 @@ export default class RotationConfig extends tsc<IProps> {
     };
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewDutyRules = data;
     this.previewLoading = false;
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
@@ -567,6 +571,7 @@ export default class RotationConfig extends tsc<IProps> {
             value={this.previewData}
             alarmGroupId={this.alarmGroupId}
             dutyPlans={this.dutyPlans}
+            previewDutyRules={this.previewDutyRules}
             onStartTimeChange={this.handleStartTimeChange}
             onInitStartTime={v => (this.previewStartTime = v)}
           ></RotationPreview>

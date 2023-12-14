@@ -569,13 +569,27 @@ export default defineComponent({
         }
         case EColunm.enabled: {
           return (
-            <Switcher
-              size='small'
-              theme='primary'
-              value={row.enabled}
-              beforeChange={v => handleEnableBeforeChange(v, row)}
-              onChange={v => (row.enabled = v)}
-            ></Switcher>
+            <Popover
+              placement='top'
+              arrow={true}
+              trigger={'hover'}
+              popoverDelay={[300, 0]}
+              disabled={row.enabled ? row.delete_allowed : true}
+            >
+              {{
+                default: () => (
+                  <Switcher
+                    size='small'
+                    theme='primary'
+                    value={row.enabled}
+                    disabled={!row.delete_allowed && row.enabled}
+                    beforeChange={v => handleEnableBeforeChange(v, row)}
+                    onChange={v => (row.enabled = v)}
+                  ></Switcher>
+                ),
+                content: () => <span>{t('存在关联的告警组')}</span>
+              }}
+            </Popover>
           );
         }
         case EColunm.operate: {
@@ -585,6 +599,7 @@ export default defineComponent({
                 placement='top'
                 arrow={true}
                 trigger={'hover'}
+                popoverDelay={[300, 0]}
                 disabled={row.edit_allowed}
               >
                 {{
@@ -609,6 +624,7 @@ export default defineComponent({
                 placement='top'
                 arrow={true}
                 trigger={'hover'}
+                popoverDelay={[300, 0]}
                 disabled={row.delete_allowed}
               >
                 {{
@@ -627,7 +643,7 @@ export default defineComponent({
                       {t('删除')}
                     </Button>
                   ),
-                  content: () => <span>{t('存在关联的用户组')}</span>
+                  content: () => <span>{t('存在关联的告警组')}</span>
                 }}
               </Popover>
             </span>
