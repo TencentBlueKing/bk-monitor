@@ -115,6 +115,7 @@ export default {
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
     ...mapGetters({
+      isUnionSearch: 'isUnionSearch',
       unionIndexList: 'unionIndexList',
       unionIndexItemList: 'unionIndexItemList',
     }),
@@ -254,7 +255,28 @@ export default {
         const fieldType = field.field_type;
         const fieldIcon = this.getFieldIcon(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
-
+        let unionContent = '';
+        let lackIndexNameList = [];
+        // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
+        if (this.isUnionSearch) {
+          const indexSetIDs = field.index_set_ids?.map(item => String(item)) || [];
+          lackIndexNameList = this.unionIndexItemList
+            .filter(item => !indexSetIDs.includes(item.index_set_id))
+            .map(item => item.index_set_name);
+          // 日志来源字段为自定义字段 不用判断
+          if (field.tag === 'union-source') lackIndexNameList = [];
+          if (lackIndexNameList.length) {
+            unionContent = `${this.$t('字段来源')}: <br>${lackIndexNameList.join(', <br>')}`;
+          }
+        }
+        const isLackIndexFields = (lackIndexNameList.length && this.isUnionSearch);
+        // 字段来源判断
+        const filedDirectives = isLackIndexFields
+          ? [{
+            name: 'bk-tooltips',
+            value: { content: unionContent },
+          }]
+          : { name: 'bk-overflow-tips' };
         return h('div', {
           class: 'render-header',
         }, [
@@ -270,7 +292,13 @@ export default {
               },
             ],
           }),
-          h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [fieldName]),
+          h('span',
+            {
+              directives: filedDirectives,
+              class: isLackIndexFields ? 'lack-index-filed' : 'title-overflow',
+            },
+            [fieldName],
+          ),
           h(TimeFormatterSwitcher, {
             class: 'timer-formatter',
             style: {
@@ -374,6 +402,7 @@ export default {
       this.$emit('shouldRetrieve', { sort_list: sortList }, false);
     },
     getTableColumnContent(row, field) {
+      // 日志来源 展示来源的索引集名称
       if (field.tag === 'union-source') {
         return this.unionIndexItemList.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ?? '';
       }

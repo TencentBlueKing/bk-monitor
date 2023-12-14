@@ -32,13 +32,13 @@
       ]"
       @click.stop="handleClickContent"
       v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }">
+      <span v-if="isSourceField" class="union-source-text">{{ content }}</span>
       <text-segmentation
-        v-if="isInViewPort"
+        v-else-if="isInViewPort"
         :content="content"
         :field-name="fieldName"
         :field-type="fieldType"
         :menu-click="handleMenuClick" />
-      <!-- <span v-else>{{ formatterStr(content) }}</span> -->
       <text-highlight
         v-else
         style="word-break: break-all;"
@@ -79,6 +79,10 @@ export default {
       type: String,
       default: '',
     },
+    fieldTag: {
+      type: String,
+      default: '',
+    },
   },
   data() {
     return {
@@ -101,6 +105,9 @@ export default {
           .replace(/<\/mark>/g, ''));
       }
       return markVal;
+    },
+    isSourceField() {
+      return this.fieldTag === 'union-source';
     },
   },
   mounted() {
@@ -207,6 +214,13 @@ export default {
       .icon-search-container {
         display: inline-flex;
       }
+    }
+
+    .union-source-text {
+      color: #3a84ff ;
+      background: #c9e6ff;
+      padding: 2px 4px;
+      border-radius: 2px;
     }
   }
 </style>

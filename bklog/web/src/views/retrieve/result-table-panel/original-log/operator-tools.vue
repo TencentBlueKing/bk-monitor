@@ -88,8 +88,11 @@
       </div>
     </template>
     <template v-else>
-      <span class="handle-card union-icon" v-bk-tooltips="$t('显示数据来源')" @click.stop="handleClick('logSource')">
-        <i class="bk-icon icon-handle icon-eye"></i>
+      <span
+        class="handle-card union-icon" v-bk-tooltips="$t('{0}数据来源', {
+          0: !isShowSourceField ? $t('显示') : $t('隐藏')
+        })" @click.stop="handleClick('logSource')">
+        <i :class="['bk-icon icon-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
       </span>
     </template>
   </div>
@@ -137,6 +140,9 @@ export default {
     },
     isExternal() {
       return this.$store.state.isExternal;
+    },
+    isShowSourceField() {
+      return this.operatorConfig?.isShowSourceField;
     },
     ...mapGetters({
       unionIndexList: 'unionIndexList',

@@ -73,6 +73,7 @@
                 :content="getTableColumnContent(row, field)"
                 :field-name="field.field_name"
                 :field-type="field.field_type"
+                :field-tag="field.tag"
                 @iconClick="(type, content) => handleIconClick(type, content, field, row)"
                 @computedHeight="handleOverColumn(field.field_name)" />
               <p

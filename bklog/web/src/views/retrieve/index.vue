@@ -181,7 +181,7 @@
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
               @addFilterCondition="addFilterCondition"
-              @showUnionSource="showUnionSource"
+              @changeShowUnionSource="changeShowUnionSource"
               @backFillClusterRouteParams="backFillClusterRouteParams"
               @showSettingLog="handleSettingMenuClick('clustering')" />
           </template>
@@ -367,7 +367,10 @@ export default {
       isAsIframe: false,
       localIframeQuery: {},
       isFirstLoad: true,
-      operatorConfig: {}, // 当前table item操作的值
+      operatorConfig: {
+        /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
+        isShowSourceField: false,
+      }, // 当前table item操作的值
       authPageInfo: null,
       isShowAddNewCollectDialog: false, // 是否展示新建收藏弹窗
       collectWidth: localStorage.getItem('isAutoShowCollect') === 'true' ? 240 : 0, // 收藏默认栏宽度
@@ -410,7 +413,7 @@ export default {
         field_operator: [],
         field_type: 'keyword',
         filterExpand: false,
-        filterVisible: true,
+        filterVisible: false,
         is_analyzed: false,
         is_display: false,
         is_editable: false,
@@ -455,7 +458,7 @@ export default {
   provide() {
     return {
       addFilterCondition: this.addFilterCondition,
-      showUnionSource: this.showUnionSource,
+      changeShowUnionSource: this.changeShowUnionSource,
     };
   },
   watch: {
@@ -857,9 +860,27 @@ export default {
       this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
       this.$refs.searchCompRef.setRouteParams();
     },
-    showUnionSource() {
-      if (this.visibleFields.some(item => item.tag === 'union-source')) return;
-      this.visibleFields.unshift(this.logSourceField);
+    /** 改变是否展示联合查询数据来源 */
+    changeShowUnionSource() {
+      this.operatorConfig.isShowSourceField = !this.operatorConfig.isShowSourceField;
+      this.showShowUnionSource();
+    },
+    /** 数据来源显隐操作 */
+    showShowUnionSource(keepLastTime = false) {
+      const isExist = this.visibleFields.some(item => item.tag === 'union-source');
+      // 非联合查询 不走逻辑
+      if (!this.isUnionSearch) return;
+      // 保持之前的逻辑
+      if (keepLastTime) {
+        const isShowSourceField = this.operatorConfig.isShowSourceField;
+        if (isExist) {
+          !isShowSourceField && this.visibleFields.shift();
+        } else {
+          isShowSourceField && this.visibleFields.unshift(this.logSourceField);
+        }
+        return;
+      }
+      isExist ? this.visibleFields.shift() : this.visibleFields.unshift(this.logSourceField);
     },
     // 打开 ip 选择弹窗
     openIpQuick() {
@@ -1257,12 +1278,12 @@ export default {
           apm_relation: apmRelation,
         } = localConfig;
 
-        this.operatorConfig = { // 操作按钮配置信息
+        Object.assign(this.operatorConfig, { // 操作按钮配置信息
           bkmonitor,
           bcsWebConsole,
           contextAndRealtime,
           timeField,
-        };
+        });
         // 初始化操作按钮消息
         this.operatorConfig.toolMessage = this.initToolTipsMessage(this.operatorConfig);
         this.cleanConfig = cleanConfig;
@@ -1321,6 +1342,7 @@ export default {
           }
         }
       }).filter(Boolean);
+      this.showShowUnionSource(true);
       this.isSetDefaultTableColumn = false;
       this.setDefaultTableColumn();
     },
