@@ -86,7 +86,6 @@ config_params:
     name: 接口API版本
     is_required: true
     is_sensitive: false
-    is_sensitive: false
     is_hidden: true
     default_value: "2018-07-24"
   - field: region
