@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -395,7 +396,7 @@ class CreateOrUpdateReportResource(Resource):
         record.save()
 
     def perform_request(self, validated_request_data):
-        params = validated_request_data
+        params = copy.deepcopy(validated_request_data)
         is_manager_created = GetReportListResource.check_permission(validated_request_data["bk_biz_id"])
         params["is_manager_created"] = is_manager_created
         report_channels = params.pop("channels", [])

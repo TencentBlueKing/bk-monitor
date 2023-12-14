@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
+import arrow
+
 from alarm_backends.service.new_report.factory import ReportFactory
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.models import Report
@@ -23,11 +25,13 @@ def send_reports(report, channels=None):
     """
     发送邮件订阅
     """
+
+    logger.info(f"start to send report{report.id}, current time: {arrow.now()}")
     ReportFactory.get_handler(report).run(channels)
 
 
 @app.task(ignore_result=True, queue="celery_report_cron")
-def detect_email_reports():
+def new_report_detect():
     """
     检测邮件订阅
     """

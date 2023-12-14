@@ -1320,6 +1320,15 @@
                   "id": "new_dashboard"
                 }
               ]
+            },
+            {
+              "name": "视图订阅",
+              "name_en": "Report",
+              "actions": [
+                {
+                  "id": "manage_report"
+                }
+              ]
             }
           ]
         },
