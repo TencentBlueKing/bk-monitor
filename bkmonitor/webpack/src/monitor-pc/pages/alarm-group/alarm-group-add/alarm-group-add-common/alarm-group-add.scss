@@ -16,11 +16,11 @@
 
 @mixin checkIcon() {
   position: absolute;
-  top: -4px;
+  top: -5px;
   right: -4px;
   z-index: 2;
   font-family: 'icon-monitor';
-  font-size: 22px;
+  font-size: 20px;
   line-height: normal;
   color: #fff;
   content: '\e6b7';

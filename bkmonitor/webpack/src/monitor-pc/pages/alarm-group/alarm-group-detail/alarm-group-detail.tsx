@@ -503,6 +503,7 @@ export default class AlarmGroupDetial extends tsc<IAlarmGroupDeatail, IEvent> {
                         v-bkloading={{ isLoading: this.previewLoading }}
                         value={this.previewData}
                         dutyPlans={this.dutyPlans}
+                        alarmGroupId={this.id}
                         onStartTimeChange={this.handleStartTimeChange}
                       ></RotationPreview>
                       {/* 值班通知设置 */}

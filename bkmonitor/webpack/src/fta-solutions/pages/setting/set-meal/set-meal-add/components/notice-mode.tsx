@@ -25,7 +25,9 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, Input, Option, Select } from 'bk-magic-vue';
+import { Checkbox, Option, Select } from 'bk-magic-vue';
+
+import AutoHeightTextarea from './auto-height-textarea';
 
 import './notice-mode.scss';
 
@@ -132,7 +134,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
               // bkchat的情况还要判断数据里的值是否已过期
               // 根据值是否存在bkchatlist里来判断过期
               const newReceivers = [];
-              ways.receivers.forEach(receiver => {
+              ways.receivers?.forEach(receiver => {
                 const filter = this.bkchatList.find(bkchat => bkchat.id === receiver);
                 filter && newReceivers.push(filter.id);
               });
@@ -313,15 +315,23 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                             {this.readonly ? (
                               <span>{notice.receivers}</span>
                             ) : (
-                              <Input
+                              <AutoHeightTextarea
                                 v-model={notice.receivers}
-                                placeholder={this.$t('输入群ID')}
-                                type='textarea'
+                                placeholder={this.$tc('输入群ID')}
                                 on-change={v => {
                                   notice.checked = !!v;
                                   this.handleParams();
                                 }}
-                              ></Input>
+                              ></AutoHeightTextarea>
+                              // <Input
+                              //   v-model={notice.receivers}
+                              //   placeholder={this.$t('输入群ID')}
+                              //   type='textarea'
+                              //   on-change={v => {
+                              //     notice.checked = !!v;
+                              //     this.handleParams();
+                              //   }}
+                              // ></Input>
                             )}
                           </div>
                         )}

@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
-import { dutyDataConversion, getCalendarOfNum, getDutyPlansDetails, IDutyData } from './utils';
+import { dutyDataConversion, getCalendarOfNum, getDutyPlansDetails, IDutyData, IDutyPlansItem } from './utils';
 
 import './rotation-preview.scss';
 
@@ -35,6 +35,7 @@ interface IProps {
   value?: any;
   alarmGroupId?: string | number;
   dutyPlans?: any[];
+  previewDutyRules?: any[];
   onStartTimeChange?: (v: string) => void;
   onInitStartTime?: (v: string) => void;
 }
@@ -45,6 +46,10 @@ export default class RotationPreview extends tsc<IProps> {
   @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
   /* 轮值历史 */
   @Prop({ default: () => [], type: Array }) dutyPlans: any[];
+  /* 当前预览接口数据 用于展示明细 */
+  @Prop({ default: () => [], type: Array }) previewDutyRules: {
+    duty_plans: IDutyPlansItem[];
+  }[];
 
   @Ref('previewContent') previewContentRef: HTMLDivElement;
   @Ref('userTip') userTipRef: HTMLDivElement;
@@ -166,7 +171,15 @@ export default class RotationPreview extends tsc<IProps> {
     if (!v) {
       return;
     }
-    this.detailDutyPlans = getDutyPlansDetails(this.dutyPlans, isHistory);
+    let dutyPlans = [];
+    if (!!this.alarmGroupId) {
+      dutyPlans = this.dutyPlans;
+    } else if (!isHistory) {
+      this.previewDutyRules.forEach(item => {
+        dutyPlans.push(...item.duty_plans);
+      });
+    }
+    this.detailDutyPlans = getDutyPlansDetails(dutyPlans, isHistory);
     // this.detailDutyPlans = (
     //   isHistory
     //     ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime())
@@ -228,7 +241,6 @@ export default class RotationPreview extends tsc<IProps> {
             <span class='icon-monitor icon-mc-detail mr-6'></span>
             <span>{this.$t('排班明细')}</span>
           </span>
-          ,
           <span
             class='text-btn'
             onClick={(e: Event) => {

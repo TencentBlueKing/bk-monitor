@@ -618,7 +618,7 @@ function uniqueByDutyUsers(data: IDutyPreviewParams[]) {
   return result;
 }
 
-interface IDutyPlansItem {
+export interface IDutyPlansItem {
   users: { display_name: string }[];
   work_times: { end_time: string; start_time: string }[];
 }
