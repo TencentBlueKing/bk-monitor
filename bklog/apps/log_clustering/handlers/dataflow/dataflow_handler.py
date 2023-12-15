@@ -1491,9 +1491,9 @@ class DataFlowHandler(BaseAiopsHandler):
             clustering_config.filter_rules, all_fields_dict, clustering_config.clustering_fields
         )
 
-        for index, field in enumerate(is_dimension_fields):
-            if field == clustering_fields:
-                is_dimension_fields[index] = DEFAULT_CLUSTERING_FIELD
+        is_dimension_fields = [
+            DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
+        ]
         mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
         is_dimension_fields_map = {
             i: clustering_fields if i == DEFAULT_CLUSTERING_FIELD else i for i in is_dimension_fields
