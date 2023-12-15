@@ -133,7 +133,7 @@ class AccessBeater(MonitorBeater):
         for _idx, strategy_group_key in enumerate(strategy_group_keys):
             run_access_data.delay(strategy_group_key, interval=interval_key)
             if _idx % (len(strategy_group_keys) // interval_key + 1) == 0:
-                time.sleep(0.05)
+                time.sleep(0.01)
         logger.info(
             f"[{self.display_name}](batch_access_data) publish group key with interval[{interval_key}] "
             f"total: {len(strategy_group_keys)}"

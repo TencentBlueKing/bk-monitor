@@ -22,13 +22,12 @@ from bkmonitor.utils import consul
 
 
 class ConsulServiceDiscoveryMixin(AbstractServiceDiscoveryMixin):
-
     # status
     __SESSION_ID__ = None
 
     # options
     _PATH_PREFIX_ = None
-    _SESSION_TTL_ = 120
+    _SESSION_TTL_ = 300
 
     def __init__(self, *args, **kwargs):
         super(ConsulServiceDiscoveryMixin, self).__init__(*args, **kwargs)
