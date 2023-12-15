@@ -14,7 +14,6 @@ import random
 import time
 from urllib.parse import urlparse
 
-from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import ugettext as _
 from six.moves import range, urllib
@@ -62,15 +61,12 @@ class WeixinAccount(WeixinAccountSingleton):
         是否来自微信访问
         """
         # 如果有HTTP_X_ORIGINAL_URI，则取HTTP_X_ORIGINAL_URI的值，否则，使用当前请求的路径
-        request_path = (
-            request.META.get("HTTP_X_ORIGINAL_URI") if request.META.get("HTTP_X_ORIGINAL_URI") else request.path
-        )
-        if settings.X_FORWARDED_WEIXIN_HOST in request.META:
-            request.META['HTTP_X_FORWARDED_HOST'] = request.META[settings.X_FORWARDED_WEIXIN_HOST]
+        request_path = request.META.get("HTTP_X_ORIGINAL_URI") or request.path
+        host = request.META.get(weixin_settings.X_FORWARDED_WEIXIN_HOST) or request.get_host()
         if (
             weixin_settings.USE_WEIXIN
             and request_path.startswith(weixin_settings.WEIXIN_SITE_URL)
-            and request.get_host() == weixin_settings.WEIXIN_APP_EXTERNAL_HOST
+            and host == weixin_settings.WEIXIN_APP_EXTERNAL_HOST
         ):
             return True
         return False
