@@ -69,7 +69,7 @@ def register_report_task():
             "concurrent": 5,
             "size_limit": 10485760,
             "address": report_url,
-            "auth": {"header": {"X-BK-DATA": token}},
+            "auth": {"header": {"X-BK-Token": token}},
             **job_info["filter"],
         }
         requests.post(url=url, json=params)
