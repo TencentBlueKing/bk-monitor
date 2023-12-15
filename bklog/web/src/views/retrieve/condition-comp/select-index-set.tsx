@@ -307,7 +307,7 @@ export default class QueryStatement extends tsc<IProps> {
   /** 选中索引集 */
   handleSelectIndex(val) {
     if (this.isAloneType) {
-      this.selectAloneVal = [val[1]]; // 单选赋值
+      this.selectAloneVal = val instanceof Array ? [val[1]] : [val]; // 单选赋值
       this.handleCloseSelectPopover();
     } else {
       this.selectTagCatchIDList = val.filter(item => item !== '-1');
@@ -356,6 +356,7 @@ export default class QueryStatement extends tsc<IProps> {
       }
       this.aloneHistory = [];
       this.multipleHistory = [];
+      this.filterTagID = null;
       this.emitSelected();
     }
   }
@@ -453,8 +454,7 @@ export default class QueryStatement extends tsc<IProps> {
       this.multipleFavoriteSelectID = null;
     } else {
       this.multipleFavoriteSelectID = item.id;
-      this.selectTagCatchIDList = item.index_set_ids.map(item => String(item),
-      );
+      this.selectTagCatchIDList = item.index_set_ids.map(item => String(item));
     }
   }
 
@@ -930,16 +930,7 @@ export default class QueryStatement extends tsc<IProps> {
                           {item.lightenName}
                         </span>
                       </span>
-                      <div class="index-tags">
-                        {item.tags.map((tag, tIndex) => {
-                          if (tag.tag_id === 4) return undefined; // 无数据 不显示
-                          return tIndex < 2 ? (
-                            <span class={['tag-card', `tag-card-${tag.color}`]}>
-                              {tag.name}
-                            </span>
-                          ) : undefined;
-                        })}
-                      </div>
+                      <div class="index-tags">{getLabelDom(item.tags)}</div>
                     </div>
                   ) : (
                     <div
@@ -963,6 +954,15 @@ export default class QueryStatement extends tsc<IProps> {
           ))}
         </div>
       );
+    };
+    const getLabelDom = (tags) => {
+      const showTags = tags
+        .filter(tag => (tag.tag_id !== 4))
+        .sort((a, b) => (b.tag_id === this.filterTagID ? 1 : -1))
+        .slice(0, 2);
+      return showTags.map(tag => (
+          <span class={['tag-card', `tag-card-${tag.color}`]}>{tag.name}</span>
+      ));
     };
     const triggerSlot = () => {
       if (this.isAloneType) {

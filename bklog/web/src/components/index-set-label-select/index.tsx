@@ -220,6 +220,11 @@ export default class QueryStatement extends tsc<IProps> {
             scopedSlots={{
               trigger: () => (
                 <div
+                  v-bk-tooltips={{
+                    disabled: !this.isDisabledAddNewTag,
+                    content: this.$t('停用状态下无法添加标签'),
+                    delay: 300,
+                  }}
                   class={[
                     'add-label-btn',
                     {

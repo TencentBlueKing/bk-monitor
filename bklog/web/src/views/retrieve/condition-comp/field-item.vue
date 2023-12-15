@@ -113,9 +113,9 @@ export default {
       type: Object,
       required: true,
     },
-    visibleLength: {
-      type: Number,
-      default: 0,
+    visibleFields: {
+      type: Array,
+      default: () => [],
     },
   },
   data() {
@@ -141,7 +141,7 @@ export default {
       return !['object', 'nested', 'text'].includes(this.fieldItem.field_type);
     },
     isDisabledHiddenField() {
-      return this.visibleLength === 1 && this.type === 'visible';
+      return this.visibleFields.filter(item => item.tag !== 'union-source').length === 1 && this.type === 'visible';
     },
     /** 冲突字段索引集名称*/
     unionConflictFieldsName() {

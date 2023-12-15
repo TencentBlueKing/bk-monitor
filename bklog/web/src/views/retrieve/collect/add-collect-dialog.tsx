@@ -71,7 +71,6 @@ export default class CollectDialog extends tsc<IProps> {
   searchFieldsList = []; // 表单模式显示字段
   isDisableSelect = false; // 是否禁用 所属组下拉框
   isShowAddGroup = true;
-  // groupName = '';
   verifyData = {
     groupName: '',
   };
@@ -94,7 +93,9 @@ export default class CollectDialog extends tsc<IProps> {
       search_fields: [],
     },
     is_enable_display_fields: false,
+    index_set_ids: [],
     index_set_name: '',
+    index_set_names: [],
     visible_type: 'public',
     display_fields: [],
   };
@@ -117,7 +118,9 @@ export default class CollectDialog extends tsc<IProps> {
       search_fields: [],
     },
     is_enable_display_fields: false,
+    index_set_ids: [],
     index_set_name: '',
+    index_set_names: [],
     visible_type: 'public',
     display_fields: [],
   };
@@ -454,6 +457,10 @@ export default class CollectDialog extends tsc<IProps> {
   }
 
   render() {
+    const indexSetName = () => {
+      const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
+      return !this.isUnionSearch ? indexSetName : (indexSetNames?.map(item => (<Tag>{item}</Tag>)) || '');
+    };
     return (
       <Dialog
         value={this.value}
@@ -482,7 +489,7 @@ export default class CollectDialog extends tsc<IProps> {
         >
           <div class="edit-information">
             <span>{this.$t('索引集')}</span>
-            <span>{this.favoriteData.index_set_name}</span>
+            <span>{indexSetName()}</span>
           </div>
           <div class="edit-information">
             <span>{this.$t('查询语句')}</span>
