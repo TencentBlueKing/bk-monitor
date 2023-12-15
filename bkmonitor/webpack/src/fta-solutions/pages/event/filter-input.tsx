@@ -93,7 +93,12 @@ class FilterText {
   separator = ' ';
   fieldKey: FilterText;
   fieldValue: FilterText;
-  constructor(public text: string, public startOffset: number, public dataType: string, separator?: string) {
+  constructor(
+    public text: string,
+    public startOffset: number,
+    public dataType: string,
+    separator?: string
+  ) {
     this.endOffset = startOffset + text.length;
     this.separator = separator || ' ';
     if (dataType === 'field' && /\./.test(text)) {
@@ -274,7 +279,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
       {
         id: 'plugin_id',
-        name: this.$t('告警源')
+        name: this.$t('告警来源')
       }
     ];
     // 事件建议字段列表
