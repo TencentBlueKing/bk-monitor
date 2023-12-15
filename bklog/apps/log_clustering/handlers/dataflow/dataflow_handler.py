@@ -1494,12 +1494,12 @@ class DataFlowHandler(BaseAiopsHandler):
         is_dimension_fields = [
             DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
         ]
-        mapping_all_fields_dict = {_field: field for field, _field in all_fields_dict.items()}
+        reverse_all_fields_dict = {_field: field for field, _field in all_fields_dict.items()}
         is_dimension_fields_map = {
             field: clustering_fields if field == DEFAULT_CLUSTERING_FIELD else field for field in is_dimension_fields
         }
         for field, _field in is_dimension_fields_map.items():
-            is_dimension_fields_map[field] = mapping_all_fields_dict.get(_field, _field)
+            is_dimension_fields_map[field] = reverse_all_fields_dict.get(_field, _field)
         format_transform_fields = [
             f"`{field}`" if field == _field else f"`{field}` as `{_field}`"
             for field, _field in is_dimension_fields_map.items()
