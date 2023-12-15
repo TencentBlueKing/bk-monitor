@@ -15,6 +15,15 @@ from abc import ABC
 from collections import defaultdict
 
 import networkx
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
+from django.utils.translation import ugettext as _
+from networkx import dag_longest_path_length
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import RpcGrpcStatusCodeValues, SpanAttributes
+from opentelemetry.trace import StatusCode
+from rest_framework.status import is_success
+
 from apm_web.constants import (
     OTLP_JAEGER_SPAN_KIND,
     CategoryEnum,
@@ -30,14 +39,6 @@ from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import group_by, percentile
 from constants.apm import OtlpKey, SpanKind
 from core.unit import load_unit
-from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
-from django.utils.translation import ugettext as _
-from networkx import dag_longest_path_length
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-from opentelemetry.trace import StatusCode
-from rest_framework.status import is_success
 
 
 class AttributePredicate(ABC):
@@ -87,23 +88,31 @@ class StatusCodeAttributePredicate(AttributePredicate):
         return False
 
     @classmethod
-    def get_status(cls, attributes):
+    def get_status(cls, category, attributes):
         for key in cls.STATUS_KEYS:
             status_code = attributes.get(key)
             if not status_code:
                 continue
-            return cls.predicate_error(status_code)
+            return cls.predicate_error(category, status_code)
         return None
 
     @classmethod
-    def predicate_error(cls, status_code):
-        if not status_code:
+    def predicate_error(cls, category, status_code):
+        if status_code is None:
             return None
-        has_error = not is_success(status_code)
-        if has_error:
+
+        if category == CategoryEnum.RPC:
+            if status_code == RpcGrpcStatusCodeValues.OK.value:
+                return {"type": cls.STATUS_NORMAL, "value": status_code}
+
+            return {"type": cls.STATUS_ERROR, "value": status_code}
+        elif category == CategoryEnum.HTTP:
+            if is_success(status_code):
+                return {"type": cls.STATUS_NORMAL, "value": status_code}
+
             return {"type": cls.STATUS_ERROR, "value": status_code}
 
-        return {"type": cls.STATUS_NORMAL, "value": status_code}
+        return None
 
 
 class UrlAttributePredicate(AttributePredicate):
@@ -195,7 +204,6 @@ class TraceHandler:
 
     @classmethod
     def display_filter(cls, spans, displays):
-
         has_virtual_span = False
         if TraceWaterFallDisplayKey.VIRTUAL_SPAN in displays:
             displays.remove(TraceWaterFallDisplayKey.VIRTUAL_SPAN)
@@ -343,7 +351,6 @@ class TraceHandler:
         for span_pair in time_service_pair.values():
             if span_pair["left"] and span_pair["right"]:
                 for right_span in span_pair["right"]:
-
                     # 校验1: 被调开始时间不能早于主调开始时间
                     time_delta = right_span[OtlpKey.START_TIME] - span_pair["left"][OtlpKey.START_TIME]
                     # 说明两个服务有时间偏差 以主调为基准对齐
@@ -389,7 +396,9 @@ class TraceHandler:
             trace_info["category"] = CategoryEnum.classify(root_span)
             trace_info["root_service"] = service_name
             trace_info["root_endpoint"] = root_span[OtlpKey.SPAN_NAME]
-            trace_info["status_code"] = StatusCodeAttributePredicate.get_status(root_span[OtlpKey.ATTRIBUTES])
+            trace_info["status_code"] = StatusCodeAttributePredicate.get_status(
+                trace_info["category"], root_span[OtlpKey.ATTRIBUTES]
+            )
 
         return {
             **res,
@@ -749,7 +758,6 @@ class TraceHandler:
         value_getter=lambda i: i,
         origin_value_getter=lambda i: i,
     ):
-
         result_attributes = []
         for key, value in attributes.items():
             predicate = AttributePredicate
@@ -795,7 +803,6 @@ class StatisticsHandler:
 
     @classmethod
     def get_trace_statistics(cls, spans, group_fields, _filter):
-
         if not all(i in cls.TRACE_GROUP_BY_MAPPING for i in group_fields):
             raise ValueError(_(f"存在不支持的分组字段: {group_fields}"))
 
@@ -815,7 +822,6 @@ class StatisticsHandler:
 
         res = []
         for key, key_spans in group_mapping.items():
-
             filter_spans = key_spans
             if filter_type == "service":
                 # 只筛选出属于这个服务的数据
@@ -839,7 +845,6 @@ class StatisticsHandler:
         if filter_type == "max_duration":
             return [sorted(res, key=lambda i: i["max_duration"], reverse=True)[0]]
         elif filter_type == "keyword":
-
             t_res = []
             for i in res:
                 # 全字段匹配
@@ -862,7 +867,6 @@ class StatisticsHandler:
 
     @classmethod
     def convert_kind(cls, value, *args, **kwargs):
-
         return {
             "icon": get_icon_url(value),
             "value": value,

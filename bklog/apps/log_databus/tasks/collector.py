@@ -234,8 +234,9 @@ def get_biz_storage_capacity(bk_biz_id, cluster):
 
 
 @high_priority_task(ignore_result=True)
-def create_container_release(bcs_cluster_id: str, container_config_id: int, config_name: str, config_params: dict):
-    container_config = ContainerCollectorConfig.objects.get(pk=container_config_id)
+def create_container_release(
+    bcs_cluster_id: str, container_config: ContainerCollectorConfig, config_name: str, config_params: dict
+):
     container_config.status = ContainerCollectStatus.RUNNING.value
     container_config.status_detail = _("配置下发中")
     container_config.save(update_fields=["status", "status_detail"])

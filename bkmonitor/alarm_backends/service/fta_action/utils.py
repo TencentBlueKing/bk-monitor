@@ -553,7 +553,15 @@ class AlertAssignee:
                             notify_configs[f"{notice_way_type}|{real_notice_way}"].append(receiver_id)
                     else:
                         # 企业微信机器人的，直接扩展
-                        notify_configs[notice_way_type].extend(notice_way["receivers"])
+                        # 先去重
+                        receivers = [
+                            receiver
+                            for receiver in notice_way["receivers"]
+                            if receiver not in notify_configs[notice_way_type]
+                        ]
+                        if receivers:
+                            notify_configs[notice_way_type].extend(receivers)
+
                         if mention_users:
                             # 如果当前对应的组有需要提醒的人员信息，保存起来
                             for receiver in notice_way["receivers"]:
@@ -581,9 +589,12 @@ class AlertAssignee:
         for notice_way, users in notify_configs.items():
             if notice_way in [NoticeWay.WX_BOT, "wxbot_mention_users"]:
                 continue
-            if notice_way == NoticeWay.VOICE and appointee not in users:
-                users.append(appointee)
+            if notice_way == NoticeWay.VOICE:
+                # 如果是语音通知，判断整个列表是否存在
+                if appointee not in users:
+                    users.append(appointee)
                 continue
+            # 其他情况下，直接添加个人用户至列表中
             for user in appointee:
                 if user not in users:
                     users.append(user)
