@@ -550,9 +550,6 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 # bk_monitor_proxy 自定义上报服务监听的端口
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
-# 异常记录保留天数
-ANOMALY_RECORD_SAVE_DAYS = 30
-
 # 后台celery存储配置类型rabbitmq_conf/redis_conf
 CELERY_CONF_TYPE = "rabbitmq_conf"
 
