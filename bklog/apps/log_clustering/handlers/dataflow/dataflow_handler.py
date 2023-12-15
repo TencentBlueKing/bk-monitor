@@ -1494,16 +1494,16 @@ class DataFlowHandler(BaseAiopsHandler):
         is_dimension_fields = [
             DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
         ]
-        mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
+        mapping_all_fields_dict = {_field_name: field_name for field_name, _field_name in all_fields_dict.items()}
         is_dimension_fields_map = {
-            i: clustering_fields if i == DEFAULT_CLUSTERING_FIELD else i for i in is_dimension_fields
+            field: clustering_fields if field == DEFAULT_CLUSTERING_FIELD else field for field in is_dimension_fields
         }
-        for k, v in is_dimension_fields_map.items():
-            is_dimension_fields_map[k] = mapping_all_fields_dict.get(v, v)
+        for field, _field in is_dimension_fields_map.items():
+            is_dimension_fields_map[field] = mapping_all_fields_dict.get(_field, _field)
         format_transform_fields = [
-            f"`{k}`" if k == v else f"`{k}` as `{v}`"
-            for k, v in is_dimension_fields_map.items()
-            if v not in [DEFAULT_TIME_FIELD]
+            f"`{field}`" if field == _field else f"`{field}` as `{_field}`"
+            for field, _field in is_dimension_fields_map.items()
+            if _field not in [DEFAULT_TIME_FIELD]
         ]
 
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
