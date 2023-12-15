@@ -569,6 +569,49 @@ export default defineComponent({
       handleEmitData();
     }
 
+    /**
+     * 自动分组人员tag模板
+     * @param data 人员数据
+     * @param index 人员索引
+     * @returns 模板
+     */
+    function autoGroupTagTpl(data: TagItemModel, index: number) {
+      function handleCloseTag(e: Event) {
+        e.stopPropagation();
+        localValue.users.value[0].value.splice(index, 1);
+        handleEmitData();
+      }
+      return [
+        <div
+          class='auto-group-tag-color'
+          style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
+        ></div>,
+        <span class='icon-monitor icon-mc-tuozhuai'></span>,
+        <span class='user-name'>{data?.username}</span>,
+        <span
+          class='icon-monitor icon-mc-close'
+          onClick={e => handleCloseTag(e)}
+        ></span>
+      ];
+    }
+
+    /**
+     * 根据索引获取颜色
+     * @param index
+     * @returns
+     */
+    function getOrderIndex(index: number) {
+      const { orderIndex, value } = localValue.users.value[0];
+      const { groupNumber, groupType } = localValue.users;
+      if (groupType === 'specified') return orderIndex;
+
+      if (value.length % groupNumber === 0) {
+        return orderIndex + Math.floor(index / groupNumber);
+      }
+      if (value.length <= groupNumber) return orderIndex;
+      return orderIndex + index;
+    }
+
     /** 唯一拖拽id */
     const dragUid = random(8, true);
     function handleDragstart(e: DragEvent, index: number) {
@@ -580,19 +623,33 @@ export default defineComponent({
     }
     function handleDrop(e: DragEvent, endIndex: number) {
       const uid = Number(e.dataTransfer.getData('uid'));
+      // 不进行跨组件拖拽
       if (dragUid !== uid) return;
       const startIndex = Number(e.dataTransfer.getData('index'));
       const user = localValue.users.value[startIndex];
       localValue.users.value.splice(startIndex, 1);
       localValue.users.value.splice(endIndex, 0, user);
+      setColorList(startIndex, endIndex);
+      handleEmitDrop();
+    }
 
-      // 重新设置轮盘颜色
+    /**
+     * 自动分组人员拖拽
+     * @param startIndex 起始索引
+     * @param endIndex 结束索引
+     */
+    function handleAutoGroupDrop(startIndex: number, endIndex: number) {
+      setColorList(getOrderIndex(startIndex), getOrderIndex(endIndex));
+      handleEmitDrop();
+    }
+
+    // 修改颜色轮盘
+    function setColorList(startIndex: number, endIndex: number) {
       const newColorList = [...colorList.value];
       const color = newColorList[startIndex];
       newColorList.splice(startIndex, 1);
       newColorList.splice(endIndex, 0, color);
       colorList.setValue(newColorList);
-      handleEmitDrop();
     }
 
     function handleEmitDrop() {
@@ -611,6 +668,7 @@ export default defineComponent({
       localValue,
       rotationSelectType,
       renderClassesContent,
+      autoGroupTagTpl,
       handleAddUserGroup,
       handleDelUserGroup,
       handMemberSelectChange,
@@ -618,6 +676,7 @@ export default defineComponent({
       handleDragstart,
       handleDragover,
       handleDrop,
+      handleAutoGroupDrop,
       handleEmitDrop,
       handleEmitData,
       handleGroupTabChange
@@ -728,8 +787,9 @@ export default defineComponent({
                     v-model={this.localValue.users.value[0].value}
                     hasDefaultGroup={true}
                     defaultGroup={this.defaultGroup}
+                    tagTpl={this.autoGroupTagTpl}
                     onSelectEnd={val => this.handMemberSelectChange(0, val)}
-                    onDrop={this.handleEmitDrop}
+                    onDrop={this.handleAutoGroupDrop}
                   />
                 </FormItem>
                 <FormItem
