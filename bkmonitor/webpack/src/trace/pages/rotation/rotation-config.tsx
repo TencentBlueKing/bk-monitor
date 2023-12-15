@@ -41,6 +41,7 @@ import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotat
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';
 import {
+  createColorList,
   fixedRotationTransform,
   replaceRotationTransform,
   validFixedRotationData,
@@ -108,7 +109,7 @@ export default defineComponent({
     }
 
     const colorList = reactive({
-      value: ['#4152a3', '#699df4', '#74c2a8', '#b5cc8e', '#ebd57f', '#f0ad69', '#d66f6b', '#e0abc9', '#a596eb'],
+      value: createColorList(),
       setValue: (val: string[]) => {
         colorList.value = val;
       }
@@ -128,20 +129,23 @@ export default defineComponent({
       getPreviewData();
     }
 
+    /** 重置用户组颜色 */
     function resetUsersColor() {
       let orderIndex = 0;
       rotationTypeData[RotationTabTypeEnum.HANDOFF].forEach(item => {
         item.users.value.forEach(user => {
           const { groupType, groupNumber } = item.users;
           user.orderIndex = orderIndex;
-          if (groupType === 'specified') {
-            orderIndex += 1;
-          } else if (user.value.length % groupNumber === 0) {
-            orderIndex += user.value.length / groupNumber;
-          } else if (groupNumber < user.value.length) {
-            orderIndex += user.value.length;
-          } else {
-            orderIndex += 1;
+          if (user.value.length) {
+            if (groupType === 'specified') {
+              orderIndex += 1;
+            } else if (user.value.length % groupNumber === 0) {
+              orderIndex += user.value.length / groupNumber;
+            } else if (groupNumber < user.value.length) {
+              orderIndex += user.value.length;
+            } else {
+              orderIndex += 1;
+            }
           }
         });
       });

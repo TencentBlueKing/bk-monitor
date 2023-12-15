@@ -72,6 +72,17 @@ export const randomColor = (index: number) => {
   return `rgba(${r},${g},${b},0.8)`;
 };
 
+export function createColorList(num = 100) {
+  const colorList = ['#4152a3', '#699df4', '#74c2a8', '#b5cc8e', '#ebd57f', '#f0ad69', '#d66f6b', '#e0abc9', '#a596eb'];
+  for (let i = 0; i < num; i++) {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    colorList.push(`rgba(${r},${g},${b},0.8)`);
+  }
+  return colorList;
+}
+
 export function timeRangeTransform(val: string) {
   const [start, end] = val.split('--');
   return dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm')) ? val : `${start} - ${window.i18n.t('次日')}${end}`;
