@@ -29,7 +29,7 @@ import { Popover } from 'bk-magic-vue';
 
 import { alertStatus, updateAlertUserGroups } from '../../../../../monitor-api/modules/datalink';
 import { Debounce } from '../../../../../monitor-common/utils';
-import { isEnFn } from '../../../../utils/index';
+// import { isEnFn } from '../../../../utils/index';
 import { TCollectorAlertStage } from '../typings/detail';
 
 import AlarmGroup, { IAlarmGroupList } from './alarm-group';
@@ -58,6 +58,8 @@ export default class AlertTopic extends tsc<IProps> {
   alertHistogram = [];
   hasAlert = 0;
 
+  alertQuery = '';
+
   show = false;
 
   @Watch('updateKey')
@@ -75,17 +77,21 @@ export default class AlertTopic extends tsc<IProps> {
         this.userGroupList = data.alert_config?.user_group_list?.map(item => item.id) || [];
         this.alertHistogram = data?.alert_histogram || [];
         this.hasAlert = data.has_alert;
+        this.alertQuery = data.alert_query;
       });
     }
   }
 
   handleToEvent() {
-    const strategyIds = this.strategies.map(item => item.id);
-    const isEn = isEnFn();
-    const strategyKey = isEn ? 'strategy_id' : this.$t('策略ID');
-    const query = `queryString=${strategyIds.map(id => `${strategyKey} : ${id}`).join(' OR ')}`;
+    // const strategyIds = this.strategies.map(item => item.id);
+    // const isEn = isEnFn();
+    // const strategyKey = isEn ? 'strategy_id' : this.$t('策略ID');
+    // const query = `queryString=${strategyIds.map(id => `${strategyKey} : ${id}`).join(' OR ')}`;
     const timeRange = 'from=now-30d&to=now';
-    window.open(`${location.origin}${location.pathname}${location.search}#/event-center?${query}&${timeRange}`);
+    // window.open(`${location.origin}${location.pathname}${location.search}#/event-center?${query}&${timeRange}`);
+    window.open(
+      `${location.origin}${location.pathname}${location.search}#/event-center?queryString=${this.alertQuery}&${timeRange}`
+    );
   }
 
   @Debounce(1000)
