@@ -79,7 +79,7 @@
               :retrieve-params="retrieveParams"
               :field-alias-map="fieldAliasMap"
               :show-field-alias="showFieldAlias"
-              :visible-length="visibleFields.length"
+              :visible-fields="visibleFields"
               :statistical-field-data="statisticalFieldsData[item.field_name]"
               :field-item="item"
               @toggleItem="handleToggleItem" />

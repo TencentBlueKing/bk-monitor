@@ -73,7 +73,7 @@
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import ResultChart from './result-chart';
 import ResultTablePanel from '../result-table-panel';
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 import { setFieldsWidth, parseBigNumberList } from '@/common/util';
 
 export default {
@@ -127,9 +127,13 @@ export default {
       bkBizId: state => state.bkBizId,
       isExternal: state => state.isExternal,
     }),
+    ...mapGetters({
+      isUnionSearch: 'isUnionSearch',
+    }),
     showAddMonitor() {
       return !this.isExternal
-                  && Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor'));
+                  && Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor'))
+                  && !this.isUnionSearch;
     },
   },
   watch: {

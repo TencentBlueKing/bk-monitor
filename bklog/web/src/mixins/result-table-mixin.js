@@ -253,23 +253,22 @@ export default {
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
+        const isUnionSource = field.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
         let unionContent = '';
-        let lackIndexNameList = [];
         // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
         if (this.isUnionSearch) {
           const indexSetIDs = field.index_set_ids?.map(item => String(item)) || [];
-          lackIndexNameList = this.unionIndexItemList
-            .filter(item => !indexSetIDs.includes(item.index_set_id))
-            .map(item => item.index_set_name);
-          // 日志来源字段为自定义字段 不用判断
-          if (field.tag === 'union-source') lackIndexNameList = [];
-          if (lackIndexNameList.length) {
+          const isDifferentFields = indexSetIDs.length !== this.unionIndexItemList.length;
+          if (isDifferentFields && !isUnionSource) {
+            const lackIndexNameList = this.unionIndexItemList
+              .filter(item => indexSetIDs.includes(item.index_set_id))
+              .map(item => item.index_set_name);
             unionContent = `${this.$t('字段来源')}: <br>${lackIndexNameList.join(', <br>')}`;
           }
         }
-        const isLackIndexFields = (lackIndexNameList.length && this.isUnionSearch);
+        const isLackIndexFields = (!!unionContent && this.isUnionSearch);
         // 字段来源判断
         const filedDirectives = isLackIndexFields
           ? [{
@@ -277,6 +276,8 @@ export default {
             value: { content: unionContent },
           }]
           : { name: 'bk-overflow-tips' };
+        const isHiddenToggleDisplay = this.visibleFields.filter(item => item.tag !== 'union-source').length === 1 || isUnionSource;
+
         return h('div', {
           class: 'render-header',
         }, [
@@ -306,7 +307,7 @@ export default {
             },
           }),
           h('i', {
-            class: `bk-icon icon-minus-circle-shape toggle-display ${this.visibleFields.length === 1 ? 'is-hidden' : ''}`,
+            class: `bk-icon icon-minus-circle-shape toggle-display ${isHiddenToggleDisplay ? 'is-hidden' : ''}`,
             directives: [
               {
                 name: 'bk-tooltips',
