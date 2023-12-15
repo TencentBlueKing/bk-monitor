@@ -380,7 +380,9 @@ export default class AuthorizationList extends tsc<{}, {}> {
    */
   async handleSpaceChange(v: string) {
     this.spaceUid = v;
+    this.$store.commit('updateSpace', v);
     const hasManageAuth = await this.checkBizAllow();
+    this.getResources();
     if (hasManageAuth) {
       this.getListData();
       this.getAuthUser();
@@ -491,7 +493,6 @@ export default class AuthorizationList extends tsc<{}, {}> {
     if (isSuccess) {
       this.totalListData = data;
       this.pagination.count = this.totalListData.length;
-      this.getResources();
       this.emptyStatusType = 'empty';
       this.changeEmptyStatusType();
     } else {
