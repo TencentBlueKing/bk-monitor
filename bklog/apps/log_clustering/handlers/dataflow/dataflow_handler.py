@@ -1491,35 +1491,20 @@ class DataFlowHandler(BaseAiopsHandler):
             clustering_config.filter_rules, all_fields_dict, clustering_config.clustering_fields
         )
 
-        # alias_name ==> field_name
-        format_transform_fields = []
-        dst_transform_fields = [i.replace("`", "") for i in dst_transform_fields]
-        mapping_all_fields_dict = {v: k for k, v in all_fields_dict.items()}
-        for field in dst_transform_fields:
-            if field not in mapping_all_fields_dict:
-                if field == clustering_fields:
-                    if field == DEFAULT_CLUSTERING_FIELD:
-                        format_transform_fields.append(f"`{field}`")
-                    else:
-                        format_transform_fields.append("`{}` as `{}`".format(DEFAULT_CLUSTERING_FIELD, field))
-                else:
-                    if field == DEFAULT_CLUSTERING_FIELD:
-                        if clustering_config.collector_config_id:
-                            format_transform_fields.append(f"`{field}`")
-                        else:
-                            format_transform_fields.append("`{}` as `{}`".format(field, clustering_fields))
-                    elif field not in all_fields_dict:
-                        format_transform_fields.append(f"`{field}`")
-                    else:
-                        continue
-            else:
-                if field != mapping_all_fields_dict[field]:
-                    if mapping_all_fields_dict[field] == DEFAULT_TIME_FIELD:
-                        format_transform_fields.append(f"`{field}`")
-                    else:
-                        format_transform_fields.append("`{}` as `{}`".format(field, mapping_all_fields_dict[field]))
-                else:
-                    format_transform_fields.append(f"`{field}`")
+        is_dimension_fields = [
+            DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
+        ]
+        reverse_all_fields_dict = {_field: field for field, _field in all_fields_dict.items()}
+        is_dimension_fields_map = {
+            field: clustering_fields if field == DEFAULT_CLUSTERING_FIELD else field for field in is_dimension_fields
+        }
+        for field, _field in is_dimension_fields_map.items():
+            is_dimension_fields_map[field] = reverse_all_fields_dict.get(_field, _field)
+        format_transform_fields = [
+            f"`{field}`" if field == _field else f"`{field}` as `{_field}`"
+            for field, _field in is_dimension_fields_map.items()
+            if _field not in [DEFAULT_TIME_FIELD]
+        ]
 
         # 参与聚类的 table_name  是 result_table_id去掉第一个_前的数字
         table_name_no_id = result_table_id.split("_", 1)[1]
