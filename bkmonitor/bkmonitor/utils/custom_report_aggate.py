@@ -15,6 +15,7 @@ from typing import Optional
 import requests
 from django.conf import settings
 
+from alarm_backends.core.cluster import get_cluster
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from core.prometheus.tools import get_metric_agg_gateway_url
 
@@ -39,16 +40,17 @@ def register_report_task():
     url = urllib.parse.urljoin(f"http://{agg_gateway_url}", "report")
     report_url = f"http://{settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]}:4318"
 
+    cluster_name = get_cluster().name
     job_infos = [
         {
-            "job": settings.DEFAULT_METRIC_PUSH_JOB,
+            "job": cluster_name,
             "data_id": settings.CUSTOM_REPORT_DEFAULT_DATAID,
             "filter": {
                 "exclude_labels": {"job": [settings.OPERATION_STATISTICS_METRIC_PUSH_JOB]},
             },
         },
         {
-            "job": settings.OPERATION_STATISTICS_METRIC_PUSH_JOB,
+            "job": cluster_name,
             "data_id": settings.STATISTICS_REPORT_DATA_ID,
             "filter": {
                 "include_labels": {"job": [settings.OPERATION_STATISTICS_METRIC_PUSH_JOB]},
@@ -65,6 +67,7 @@ def register_report_task():
             "interval": 60,
             "timeout": 10,
             "concurrent": 5,
+            "size_limit": 10485760,
             "address": report_url,
             "auth": {"header": {"X-BK-DATA": token}},
             **job_info["filter"],
