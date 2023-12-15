@@ -51,7 +51,12 @@ class SendReport(Resource):
         if validated_request_data.get("report_id"):
             report = Report.objects.get(id=validated_request_data["report_id"])
         else:
-            report = Report(**validated_request_data)
+            reports = Report.objects.filter(id=report_id)
+            if not reports.exists():
+                report = Report(**validated_request_data, id=report_id)
+            else:
+                reports.update(**validated_request_data)
+                report = reports[0]
         send_report.delay(report, channels)
         return "success"
 

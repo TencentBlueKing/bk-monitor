@@ -381,7 +381,7 @@ class CreateOrUpdateReportResource(Resource):
             raise e
 
     def create_apply_reocrd(self, report, approval_data):
-        current_step = [{"id": 42, "tag": "DEFAULT", "name": "apply"}]
+        current_step = [{"tag": "DEFAULT", "name": "提交审批"}]
         business = api.cmdb.get_business(bk_biz_ids=[report.bk_biz_id])
         bk_biz_maintainer = getattr(business[0], "bk_biz_maintainer", [])
         record = ReportApplyRecord(
@@ -400,7 +400,7 @@ class CreateOrUpdateReportResource(Resource):
         is_manager_created = GetReportListResource.check_permission(validated_request_data["bk_biz_id"])
         params["is_manager_created"] = is_manager_created
         report_channels = params.pop("channels", [])
-        validated_request_data["send_mode"] = get_send_mode(params["frequency"])
+        params["send_mode"] = get_send_mode(params["frequency"])
         frequency = params["frequency"]
         if frequency["type"] == 1:
             params["start_time"] = arrow.now().timestamp
@@ -547,6 +547,9 @@ class GetApplyRecordsResource(Resource):
         for report_info in report_infos:
             report_id_to_name[report_info["id"]] = report_info["name"]
         for apply_record in apply_records:
+            status_info = api.itsm.get_ticket_status(sn=apply_record["approval_sn"])
+            if status_info["current_steps"]:
+                apply_record["approval_step"] = status_info["current_steps"]
             apply_record["content_title"] = report_id_to_name[apply_record["report_id"]]
         return apply_records
 
