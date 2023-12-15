@@ -9,9 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
+import os
 from unittest import mock
 
+from django.conf import settings
 from django.test import TestCase
+
+from bkmonitor.event_plugin.serializers import HttpPullPluginInstSerializer
+from bkmonitor.models import EventPluginInstance, EventPluginV2
+from core.drf_resource.exceptions import CustomException
+from core.errors.event_plugin import PluginIDExistError
 from fta_web.event_plugin.resources import (
     CreateEventPluginInstanceResource,
     CreateEventPluginResource,
@@ -21,12 +28,6 @@ from fta_web.event_plugin.resources import (
     UpdateEventPluginInstanceResource,
     UpdateEventPluginResource,
 )
-from fta_web.event_plugin.views import event_plugin_media
-
-from bkmonitor.event_plugin.serializers import HttpPullPluginInstSerializer
-from bkmonitor.models import EventPluginInstance, EventPluginV2
-from core.drf_resource.exceptions import CustomException
-from core.errors.event_plugin import PluginIDExistError
 
 mock.patch(
     "bkmonitor.event_plugin.accessor.EventPluginInstAccessor.access",
@@ -105,6 +106,20 @@ def get_plugin_info():
         ],
         "alert_config": [
             {"name": "REST默认分类", "rules": [{"key": "alarm_type", "value": ["api_default"], "method": "eq"}]}
+        ],
+        "clean_configs": [
+            {
+                "normalization_config": [{"field": "alert_name", "expr": "AlarmTypeName", "option": {}}],
+                "alert_config": [
+                    {
+                        "rules": [
+                            {"key": "AlarmTypeName", "value": ["NVME SSD test"], "method": "eq", "condition": ""}
+                        ],
+                        "name": "NVME SSD test",
+                    }
+                ],
+                "rules": [{"key": "FeatureId", "value": ["90063"], "method": "eq", "condition": ""}],
+            }
         ],
         "description": "这是说明",
         "tutorial": "123",
@@ -235,7 +250,7 @@ SEVERITY1、SEVERITY2、SEVERITY3分别替换成Prometheus日志对应的severit
               "alertname": "hostMemUsageAlert",
               "instance": "localhost:10001",
               "job": "node_exporter",
-              "node": "10.0.1.56",
+              "node": "127.0.0.1",
               "severity": "2",
               "target_type": "db"
             },
@@ -259,6 +274,8 @@ SEVERITY1、SEVERITY2、SEVERITY3分别替换成Prometheus日志对应的severit
 
 
 class TestEventPluginMigrate(TestCase):
+    databases = {"monitor_api", "default"}
+
     def setUp(self) -> None:
         EventPluginV2.objects.all().delete()
         EventPluginInstance.objects.all().delete()
@@ -275,6 +292,7 @@ class TestEventPluginMigrate(TestCase):
         self.assertEqual(ingest_config["url"], "http://www.blueking.com/")
         self.assertIsNotNone(data["params_schema"])
         self.assertEqual(int(data["bk_biz_id"]), 0)
+        self.assertIsNotNone(data["clean_configs"])
 
         inst_info = {
             "bk_biz_id": 0,
@@ -285,6 +303,8 @@ class TestEventPluginMigrate(TestCase):
 
         inst = CreateEventPluginInstanceResource().request(inst_info)
         plugin_info["plugin_display_name"] = f"deploy{plugin_info['plugin_display_name']}"
+        ep = EventPluginInstance.objects.get(id=inst["id"])
+        self.assertTrue(bool(ep.clean_configs))
         r = DeployEventPluginResource()
         data = r.request(plugin_info)
         self.assertEqual(data["plugin_display_name"], plugin_info["plugin_display_name"])
@@ -375,6 +395,8 @@ class TestEventPluginMigrate(TestCase):
             inst_r.request(inst_info)
 
     def test_register_by_file(self):
+        document_root = os.path.join(settings.PROJECT_ROOT, "support-files/fta/event_plugins")
+        tar_count = len(os.listdir(document_root))
         pull_config_params = [
             {
                 "field": "url",
@@ -411,7 +433,7 @@ class TestEventPluginMigrate(TestCase):
         for p_id in ["rest_api", "rest_pull"]:
             install_global_event_plugin(plugins[p_id])
 
-        self.assertEqual(EventPluginV2.objects.all().count(), 4)
+        self.assertEqual(EventPluginV2.objects.all().count(), tar_count)
         self.assertEqual(EventPluginInstance.objects.filter(bk_biz_id=0).count(), 2)
 
         pull_inst = EventPluginInstance.objects.get(plugin_id="rest_pull")
@@ -508,21 +530,14 @@ class TestEventPluginMigrate(TestCase):
         self.assertEqual(new_normalization_config["bk_biz_id"]["expr"], "bk_biz_id || '2'")
 
         plugin_id = "zabbix"
-        version = "1.0.0"
+        version = "1.0.1"
         bk_biz_id = 0
         register_event_plugin()
         inst_info = {"bk_biz_id": bk_biz_id, "plugin_id": plugin_id, "version": version, "config_params": {}}
-        inst_r = CreateEventPluginInstanceResource().request(inst_info)
+        CreateEventPluginInstanceResource().request(inst_info)
 
         plugin_instances = GetEventPluginInstanceResource().request(
-            plugin_id=plugin_id, version="1.0.0", bk_biz_id=bk_biz_id
+            plugin_id=plugin_id, version=version, bk_biz_id=bk_biz_id
         )
-        self.assertEqual(
-            plugin_instances["ingest_config"].get("ingester_host"), "http://ingester.bkmonitorv3.service.consul"
-        )
+        self.assertEqual(plugin_instances["ingest_config"].get("ingester_host"), "http://ingester.bkfta.service.consul")
         self.assertIsNotNone(plugin_instances["ingest_config"].get("push_url", None))
-
-        plugin_infos = EventPluginV2.objects.get(plugin_id=plugin_id)
-        plugin_kwargs = {"plugin_id": plugin_id, "package_dir": plugin_infos.package_dir}
-
-        event_plugin_media(**plugin_kwargs)
