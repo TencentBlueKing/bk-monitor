@@ -150,7 +150,7 @@ class BeaterExecutor(object):
         # "process": concurrent.futures.ProcessPoolExecutor,
     }
 
-    def __init__(self, beat, max_workers=3, exec_type="dumy"):
+    def __init__(self, beat, max_workers=8, exec_type="dumy"):
         exector_cls = self.exec_map.get(exec_type)
         if not exector_cls:
             raise Exception(f"BeaterExecutor get unaccepted exec_type: {exec_type}")
