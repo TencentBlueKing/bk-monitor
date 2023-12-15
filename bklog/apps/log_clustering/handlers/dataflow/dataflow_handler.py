@@ -1494,7 +1494,7 @@ class DataFlowHandler(BaseAiopsHandler):
         is_dimension_fields = [
             DEFAULT_CLUSTERING_FIELD if field == clustering_fields else field for field in is_dimension_fields
         ]
-        mapping_all_fields_dict = {_field_name: field_name for field_name, _field_name in all_fields_dict.items()}
+        mapping_all_fields_dict = {_field: field for field, _field in all_fields_dict.items()}
         is_dimension_fields_map = {
             field: clustering_fields if field == DEFAULT_CLUSTERING_FIELD else field for field in is_dimension_fields
         }
