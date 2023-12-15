@@ -674,6 +674,15 @@ class NoticeType:
     ACTION_NOTICE = "action_notice"
 
 
+class UserGroupType:
+    """
+    通知组用户的类型
+    """
+
+    MAIN = "main"
+    FOLLOWER = "follower"
+
+
 class MessageQueueSignal:
     ANOMALY_PUSH = "ANOMALY_PUSH"
     RECOVERY_PUSH = "RECOVERY_PUSH"

@@ -40,6 +40,7 @@ from constants.action import (
     NoticeChannel,
     NoticeType,
     NoticeWay,
+    UserGroupType,
 )
 
 logger = logging.getLogger("fta_action.run")
@@ -320,9 +321,10 @@ class AlertAssignee:
     告警负责人
     """
 
-    def __init__(self, alert, user_groups):
+    def __init__(self, alert, user_groups, follower_groups=None):
         self.alert = alert
         self.user_groups = user_groups
+        self.follower_groups = follower_groups or []
         self.biz_group_users = self.get_biz_group_users()
         self.all_group_users = defaultdict(list)
         self.wxbot_mention_users = defaultdict(list)
@@ -361,38 +363,42 @@ class AlertAssignee:
                 UserGroup.translate_notice_ways(notify_config)
         return notify_item
 
-    def get_group_notify_configs(self, notice_type):
+    def get_group_notify_configs(self, notice_type, group_type):
         """
         获取通知组对应的通知方式内容
         @:param notice_type: alert_notice: 告警通知  action_notice： 执行通知配置
         """
         group_notify_items = defaultdict(dict)
-        for user_group in UserGroup.objects.filter(id__in=self.user_groups):
+        user_groups = self.user_groups if group_type == UserGroupType.MAIN else self.follower_groups
+        for user_group in UserGroup.objects.filter(id__in=user_groups):
             group_notify_items[user_group.id] = {
                 "notice_way": self.get_notify_item(getattr(user_group, notice_type, []), self.alert.event.bk_biz_id),
                 "mention_users": self.get_group_mention_users(user_group),
             }
         return group_notify_items
 
-    def get_all_group_users(self):
+    def get_all_group_users(
+        self,
+    ):
         """
         获取所有的用户组信息
         """
-        if not self.user_groups:
+        # 统一获取信息，可以合并处理
+        user_groups = list(set(self.user_groups + self.follower_groups))
+
+        if not user_groups:
             # 如果告警组不存在，忽略
             return
-        self.get_group_users_with_duty()
-        self.get_group_users_without_duty()
+        self.get_group_users_with_duty(user_groups)
+        self.get_group_users_without_duty(user_groups)
 
-    def get_group_users_without_duty(
-        self,
-    ):
+    def get_group_users_without_duty(self, user_groups):
         """
         获取不带轮值功能的用户
         :return:
         """
         no_duty_groups = list(
-            UserGroup.objects.filter(id__in=self.user_groups, need_duty=False).values_list("id", flat=True)
+            UserGroup.objects.filter(id__in=user_groups, need_duty=False).values_list("id", flat=True)
         )
         for duty in DutyArrange.objects.filter(user_group_id__in=no_duty_groups).order_by("id"):
             group_users = self.all_group_users[duty.user_group_id]
@@ -430,19 +436,15 @@ class AlertAssignee:
                 mention_users.append(user["id"])
         return mention_users
 
-    def get_group_users_with_duty(
-        self,
-    ):
+    def get_group_users_with_duty(self, user_groups):
         """
         获取需要轮值的用户
         :return:
         """
-        if not self.user_groups:
+        if not user_groups:
             return
         current_datetime = datetime.now(tz=timezone.utc)
-        duty_groups = list(
-            UserGroup.objects.filter(id__in=self.user_groups, need_duty=True).values_list("id", flat=True)
-        )
+        duty_groups = list(UserGroup.objects.filter(id__in=user_groups, need_duty=True).values_list("id", flat=True))
         for duty_plan in DutyPlan.objects.filter(user_group_id__in=duty_groups).order_by("order"):
             if not duty_plan.is_active_plan(current_datetime):
                 # 当前计划没有生效则不获取
@@ -470,7 +472,12 @@ class AlertAssignee:
         return all_assignee
 
     def get_notice_receivers(
-        self, notice_type=NoticeType.ALERT_NOTICE, notice_phase=None, notify_configs=None, append_appointee=True
+        self,
+        notice_type=NoticeType.ALERT_NOTICE,
+        notice_phase=None,
+        notify_configs=None,
+        append_appointee=True,
+        group_type=UserGroupType.MAIN,
     ):
         """
         根据用户组和告警获取通知方式和对应的处理人元信息
@@ -478,11 +485,14 @@ class AlertAssignee:
         :param notify_configs: 已有的通知配置
         :param notice_phase: 获取通知阶段配置
         :param notice_type:通知方式  alert_notice: 告警通知  action_notice： 执行通知配置
+        :param group_type: 通知组类型
         :return:
         """
+        if group_type != UserGroupType.MAIN:
+            append_appointee = False
 
         # step 1 通过用户组获取对应时间段的通知渠道
-        group_notify_items = self.get_group_notify_configs(notice_type)
+        group_notify_items = self.get_group_notify_configs(notice_type, group_type)
 
         # step 3 根据通知方式和用户组进行关联配置
         notify_configs = defaultdict(list) if notify_configs is None else notify_configs

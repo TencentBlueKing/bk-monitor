@@ -824,6 +824,7 @@ class StrategyActionConfigRelation(AbstractRecordModel):
     relate_type = models.CharField("关联类型", max_length=32, choices=RELATE_TYPE_CHOICES, default=RelateType.NOTICE)
     signal = models.JSONField("触发信号", default=default_list)
     user_groups = models.JSONField("用户组", default=default_list)
+    follower_groups = models.JSONField("关注人用户组", default=default_list)
     options = models.JSONField("高级设置", default=default_dict)
 
     class Meta:

@@ -22,7 +22,7 @@ from bkmonitor.action.alert_assign import (
     UpgradeRuleMatch,
 )
 from bkmonitor.documents import AlertDocument
-from constants.action import ActionNoticeType, AssignMode
+from constants.action import ActionNoticeType, AssignMode, UserGroupType
 
 logger = logging.getLogger("fta_action.run")
 
@@ -77,14 +77,28 @@ class BackendAssignMatchManager(AlertAssignMatchManager):
 
 
 class AlertAssigneeManager:
+    """
+    告警处理通知人管理模块
+    """
+
     def __init__(
-        self, alert: AlertDocument, notice_user_groups=None, assign_mode=None, upgrade_config=None, notice_type=None
+        self,
+        alert: AlertDocument,
+        notice_user_groups=None,
+        assign_mode=None,
+        upgrade_config=None,
+        notice_type=None,
+        notice_config=None,
     ):
         self.alert = alert
         self.assign_mode = assign_mode or [AssignMode.ONLY_NOTICE]
         self.notice_type = notice_type
         self.upgrade_rule = UpgradeRuleMatch(upgrade_config=upgrade_config or {})
-        self.origin_notice_users_object = self.get_origin_notice_users_object(notice_user_groups)
+        follower_groups = []
+        if notice_config:
+            notice_user_groups = notice_config["user_groups"]
+            follower_groups = notice_config["follower_groups"]
+        self.origin_notice_users_object = self.get_origin_notice_users_object(notice_user_groups, follower_groups)
         self.origin_notice_supervisor_object = self.get_origin_supervisor_object()
         self.matched_group = None
         self.is_matched = False
@@ -126,7 +140,7 @@ class AlertAssigneeManager:
         )
         return manager
 
-    def get_notify_info(self):
+    def get_notify_info(self, group_type=UserGroupType.MAIN):
         """
         获取通知渠道和通知人员信息
         """
@@ -134,10 +148,10 @@ class AlertAssigneeManager:
         if self.is_matched:
             # 如果适配到了，直接发送给分派的负责人
             if self.notice_appointees_object:
-                self.notice_appointees_object.get_notice_receivers(notify_configs=notify_configs)
+                self.notice_appointees_object.get_notice_receivers(notify_configs=notify_configs, group_type=group_type)
         elif self.origin_notice_users_object:
             # 有默认通知的话，就加上默认通知人员
-            self.origin_notice_users_object.get_notice_receivers(notify_configs=notify_configs)
+            self.origin_notice_users_object.get_notice_receivers(notify_configs=notify_configs, group_type=group_type)
         return notify_configs
 
     def get_upgrade_notify_info(self):
@@ -211,15 +225,21 @@ class AlertAssigneeManager:
         获取通知分派人的获取对象
         :return:
         """
-        if self.match_manager and self.match_manager.matched_rule_info["notice_appointees"]:
-            return AlertAssignee(self.alert, self.match_manager.matched_rule_info["notice_appointees"])
+        if not self.is_matched:
+            # 没有适配到，直接返回
+            return
+        matched_info = self.match_manager.matched_rule_info
+        return AlertAssignee(self.alert, matched_info["notice_appointees"], matched_info["follower_groups"])
 
     def get_notice_supervisors_object(self):
         """
         获取分派适配规则的关注人员对象
         """
-        if self.match_manager and self.match_manager.matched_rule_info["notice_upgrade_user_groups"]:
-            return AlertAssignee(self.alert, self.match_manager.matched_rule_info["notice_upgrade_user_groups"])
+        if not self.is_matched:
+            # 没有适配到，直接返回
+            # 没有通知升级告警组
+            return
+        return AlertAssignee(self.alert, self.match_manager.matched_rule_info["notice_upgrade_user_groups"])
 
     def get_origin_notice_receivers(self, by_group=False):
         """
@@ -281,14 +301,17 @@ class AlertAssigneeManager:
 
         return self.origin_notice_supervisor_object.get_assignee_by_user_groups(by_group)
 
-    def get_origin_notice_users_object(self, user_groups):
+    def get_origin_notice_users_object(self, user_groups, follower_groups=None):
         """
         获取仅通知的
-        :param user_groups:
+        :param user_groups: 负责人
+        :param follower_groups: 关注人
         :return:
         """
         if AssignMode.ONLY_NOTICE not in self.assign_mode:
             # 没有设置通知的情况下，默认为空
             return None
 
-        return AlertAssignee(self.alert, user_groups=user_groups)
+        follower_groups = follower_groups or []
+
+        return AlertAssignee(self.alert, user_groups=user_groups, follower_groups=follower_groups)

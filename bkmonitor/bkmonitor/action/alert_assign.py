@@ -157,6 +157,9 @@ class AssignRuleMatch:
 
     @property
     def user_groups(self):
+        if not self.notice_action:
+            # 如果没有通知配置，直接返回
+            return []
         return self.assign_rule.get("user_groups", [])
 
     @property
@@ -233,10 +236,23 @@ class AssignRuleMatch:
         return notice_groups
 
     def notice_user_groups(self):
+        """
+        告警负责人
+        """
         if not self.notice_action:
             # 没有通知事件，忽略
             return []
         return self.user_groups
+
+    @property
+    def follower_groups(self):
+        """
+        告警关注人
+        """
+        if not self.notice_action:
+            # 没有通知，直接返回空
+            return []
+        return self.assign_rule.get("follower_groups", [])
 
 
 class AlertAssignMatchManager:
@@ -272,10 +288,11 @@ class AlertAssignMatchManager:
         self.rule_snaps = extra_info.get("rule_snaps") or {}
         self.bk_biz_id = self.alert.event.bk_biz_id
         self.group_rules = group_rules or []
-        self.matched_rules = []
+        self.matched_rules: List[AssignRuleMatch] = []
         self.matched_rule_info = {
             "notice_upgrade_user_groups": [],
             "notice_appointees": [],
+            "follower_groups": [],
             "itsm_actions": {},
             "severity": 0,
             "additional_tags": [],
@@ -379,7 +396,8 @@ class AlertAssignMatchManager:
         """
         notice_user_groups = []
         for rule_obj in self.matched_rules:
-            notice_user_groups.extend(rule_obj.notice_user_groups())
+            rule_user_groups = [group_id for group_id in rule_obj.user_groups if group_id not in notice_user_groups]
+            notice_user_groups.extend(rule_user_groups)
         return set(notice_user_groups)
 
     @property
@@ -403,6 +421,7 @@ class AlertAssignMatchManager:
             return
         notice_user_groups = []
         notice_upgrade_user_groups = []
+        follower_groups = []
         itsm_user_groups = defaultdict(list)
         all_severity = []
         additional_tags = []
@@ -410,7 +429,13 @@ class AlertAssignMatchManager:
         for rule_obj in self.matched_rules:
             additional_tags.extend(rule_obj.additional_tags)
             all_severity.append(rule_obj.alert_severity or self.alert.severity)
-            notice_user_groups.extend(rule_obj.notice_user_groups())
+            new_groups = [group_id for group_id in rule_obj.user_groups if group_id not in notice_user_groups]
+
+            notice_user_groups.extend(new_groups)
+            new_follower_groups = [
+                group_id for group_id in rule_obj.follower_groups if group_id not in notice_user_groups
+            ]
+            follower_groups.extend(new_follower_groups)
             if self.notice_type == "upgrade":
                 # 当有升级变动的时候才真正进行升级获取和记录
                 notice_upgrade_user_groups.extend(rule_obj.get_upgrade_user_group())
@@ -421,9 +446,10 @@ class AlertAssignMatchManager:
                 itsm_user_groups[rule_obj.itsm_action["action_id"]].extend(rule_obj.user_groups)
 
         self.matched_rule_info = {
-            "notice_appointees": list(set(notice_user_groups)),
+            "notice_appointees": notice_user_groups,
             "notice_upgrade_user_groups": list(set(notice_upgrade_user_groups)),
-            "itsm_actions": {action_id: list(set(user_goups)) for action_id, user_goups in itsm_user_groups.items()},
+            "follower_groups": follower_groups,
+            "itsm_actions": {action_id: user_groups for action_id, user_groups in itsm_user_groups.items()},
             "severity": min(all_severity),
             "additional_tags": additional_tags,
             "rule_snaps": new_rule_snaps,
@@ -435,6 +461,9 @@ class AlertAssignMatchManager:
         }
 
     def run_match(self):
+        """
+        执行规则适配
+        """
         self.matched_rules = self.get_matched_rules()
         if self.matched_rules:
             assign_severity = max([rule_obj.alert_severity for rule_obj in self.matched_rules])
@@ -447,6 +476,9 @@ class AlertAssignMatchManager:
             self.update_assign_tags()
 
     def get_alert_log(self):
+        """
+        获取告警分派流水日志
+        """
         if not self.matched_rules:
             # 如果没有适配到告警规则，忽略
             return
