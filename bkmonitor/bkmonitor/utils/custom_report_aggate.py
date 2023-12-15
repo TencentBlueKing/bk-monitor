@@ -40,17 +40,16 @@ def register_report_task():
     url = urllib.parse.urljoin(f"http://{agg_gateway_url}", "report")
     report_url = f"http://{settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]}:4318"
 
-    cluster_name = get_cluster().name
     job_infos = [
         {
-            "job": cluster_name,
+            "job": settings.DEFAULT_METRIC_PUSH_JOB,
             "data_id": settings.CUSTOM_REPORT_DEFAULT_DATAID,
             "filter": {
                 "exclude_labels": {"job": [settings.OPERATION_STATISTICS_METRIC_PUSH_JOB]},
             },
         },
         {
-            "job": cluster_name,
+            "job": settings.OPERATION_STATISTICS_METRIC_PUSH_JOB,
             "data_id": settings.STATISTICS_REPORT_DATA_ID,
             "filter": {
                 "include_labels": {"job": [settings.OPERATION_STATISTICS_METRIC_PUSH_JOB]},
@@ -63,7 +62,7 @@ def register_report_task():
         params = {
             "name": f"bkmonitor {job_info['job']}",
             "type": "prometheus",
-            "job": job_info["job"],
+            "job": get_cluster().name,
             "interval": 60,
             "timeout": 10,
             "concurrent": 5,
