@@ -61,8 +61,10 @@ const store = new Vuex.Store({
     space: {},
     spaceUid: '',
     indexId: '',
-    /** 联合查询列表 */
+    /** 联合查询ID列表 */
     unionIndexList: [],
+    /** 联合查询元素列表 */
+    unionIndexItemList: [],
     traceIndexId: '',
     // 业务Id
     bkBizId: '',
@@ -120,7 +122,7 @@ const store = new Vuex.Store({
     isUnionSearch: state => !!state.unionIndexList.length,
     /** 联合查询索引集ID数组 */
     unionIndexList: state => state.unionIndexList,
-    // unionIndexItemList: state =>
+    unionIndexItemList: state => state.unionIndexItemList,
     traceIndexId: state => state.traceIndexId,
     bkBizId: state => state.bkBizId,
     mySpaceList: state => state.mySpaceList,
@@ -202,6 +204,9 @@ const store = new Vuex.Store({
     },
     updateUnionIndexList(state, unionIndexList) {
       state.unionIndexList = unionIndexList;
+    },
+    updateUnionIndexItemList(state, unionIndexItemList) {
+      state.unionIndexItemList = unionIndexItemList;
     },
     updateTraceIndexId(state, indexId) {
       state.traceIndexId = indexId;

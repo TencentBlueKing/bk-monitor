@@ -82,7 +82,6 @@
               :visible-length="visibleFields.length"
               :statistical-field-data="statisticalFieldsData[item.field_name]"
               :field-item="item"
-              :index-set-list="indexSetList"
               @toggleItem="handleToggleItem" />
           </template>
         </transition-group>
@@ -102,7 +101,6 @@
             :show-field-alias="showFieldAlias"
             :statistical-field-data="statisticalFieldsData[item.field_name]"
             :field-item="item"
-            :index-set-list="indexSetList"
             @toggleItem="handleToggleItem" />
         </template>
       </ul>
@@ -164,10 +162,6 @@ export default {
     retrieveParams: {
       type: Object,
       required: true,
-    },
-    indexSetList: {
-      type: Array,
-      default: () => [],
     },
   },
   data() {

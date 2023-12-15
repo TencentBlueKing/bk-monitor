@@ -59,10 +59,15 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   popoverInstance = null;
   isShowPop = false;
 
+  /* 输入完毕，关闭弹出层时 下次弹出全部选项 */
+  isSelected = true;
+
   get searchList() {
     if (this.value) {
-      const isCheck = this.list.some(item => item.name === this.value || item.id === this.value);
-      return this.list.filter(item => item.name.indexOf(this.value) > -1 || isCheck);
+      const isCheck = this.list.some(item => item.name === this.value || item.id === this.value) && this.isSelected;
+      return this.list.filter(
+        item => item.name.indexOf(this.value) > -1 || item.id.indexOf(this.value) > -1 || isCheck
+      );
     }
     return this.list;
   }
@@ -83,6 +88,9 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
           this.popoverInstance.destroy();
           this.popoverInstance = null;
           this.isShowPop = false;
+          setTimeout(() => {
+            this.isSelected = true;
+          }, 50);
         }
       });
     }
@@ -97,11 +105,13 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   // 提交，click 和 blur 统一调一个方法
   handleCommit(item) {
     this.handleChange(item.name);
+    this.isSelected = false;
   }
 
   @Debounce(300)
   @Emit('change')
   handleChange(value) {
+    this.popoverInstance?.show(100);
     return value;
   }
 
@@ -117,7 +127,10 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
             value={this.value}
             ref='input'
             placeholder={this.placeholder}
-            onInput={this.handleChange}
+            onInput={value => {
+              this.handleChange(value);
+              this.isSelected = false;
+            }}
             onBlur={this.handleBlur}
           />
         </span>
@@ -130,6 +143,7 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
               <ul class='list-wrap'>
                 {this.searchList.map(item => (
                   <li
+                    key={item.id}
                     v-bk-tooltips={{
                       content: item.id,
                       placement: 'right',

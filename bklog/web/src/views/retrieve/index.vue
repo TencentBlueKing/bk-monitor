@@ -134,7 +134,6 @@
                   :show-field-alias="showFieldAlias"
                   :statistical-fields-data="statisticalFieldsData"
                   :parent-loading="tableLoading"
-                  :index-set-list="indexSetList"
                   @fieldsUpdated="handleFieldsUpdated" />
               </div>
             </div>
@@ -182,6 +181,7 @@
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
               @addFilterCondition="addFilterCondition"
+              @changeShowUnionSource="changeShowUnionSource"
               @backFillClusterRouteParams="backFillClusterRouteParams"
               @showSettingLog="handleSettingMenuClick('clustering')" />
           </template>
@@ -367,7 +367,10 @@ export default {
       isAsIframe: false,
       localIframeQuery: {},
       isFirstLoad: true,
-      operatorConfig: {}, // 当前table item操作的值
+      operatorConfig: {
+        /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
+        isShowSourceField: false,
+      }, // 当前table item操作的值
       authPageInfo: null,
       isShowAddNewCollectDialog: false, // 是否展示新建收藏弹窗
       collectWidth: localStorage.getItem('isAutoShowCollect') === 'true' ? 240 : 0, // 收藏默认栏宽度
@@ -400,7 +403,24 @@ export default {
       isSetDefaultTableColumn: false,
       /** 是否还需要分页 */
       finishPolling: false,
+      catchUnionBeginList: [],
       timezone: dayjs.tz.guess(),
+      logSourceField: {
+        description: null,
+        es_doc_values: false,
+        field_alias: '',
+        field_name: this.$t('日志来源'),
+        field_operator: [],
+        field_type: 'keyword',
+        filterExpand: false,
+        filterVisible: false,
+        is_analyzed: false,
+        is_display: false,
+        is_editable: false,
+        minWidth: 0,
+        tag: 'union-source',
+        width: 230,
+      },
     };
   },
   computed: {
@@ -438,6 +458,7 @@ export default {
   provide() {
     return {
       addFilterCondition: this.addFilterCondition,
+      changeShowUnionSource: this.changeShowUnionSource,
     };
   },
   watch: {
@@ -475,6 +496,14 @@ export default {
       if (this.isSetDefaultTableColumn) {
         this.setDefaultTableColumn();
       }
+    },
+    unionIndexList: {
+      deep: true,
+      immediate: true,
+      handler(val) {
+        const filterIndexSetList = this.indexSetList.filter(item => val.includes(String(item.index_set_id)));
+        this.$store.commit('updateUnionIndexItemList', filterIndexSetList);
+      },
     },
   },
   created() {
@@ -709,6 +738,7 @@ export default {
      * @returns {*}
      */
     handleSelectIndex(val, params = {}, isFavoriteSearch = false) {
+      this.catchUnionBeginList = [];
       const { ids, selectIsUnionSearch } = val;
       if (!isFavoriteSearch) {
         this.activeFavorite = {};
@@ -724,13 +754,13 @@ export default {
           this.retrieveLog(params);
         }
       } else { // 单选时弹窗关闭时 判断之前是否是多选 如果是多选 则直接检索
-        const isChangeIndexId = this.indexId !== ids;
+        const isChangeIndexId = this.indexId !== ids[0];
         if (this.isUnionSearch) { // 之前是多选
-          if (isChangeIndexId) this.indexId = ids; // 与缓存的id不同 更新
-          if (!isChangeIndexId) this.initIndexSetChangeFn(ids);// 多选切换到单选必初始化索引集的数据
+          if (isChangeIndexId) this.indexId = ids[0]; // 与缓存的id不同 更新
+          if (!isChangeIndexId) this.initIndexSetChangeFn(ids[0]);// 多选切换到单选必初始化索引集的数据
           this.retrieveLog(params);
         } else { // 之前是单选
-          this.indexId = ids;
+          this.indexId = ids[0];
           if (isChangeIndexId) this.retrieveLog(params);
         };
         this.$store.commit('updateUnionIndexList', []);
@@ -797,7 +827,7 @@ export default {
     searchAddChange(addObj) {
       const { addition, isQuery } = addObj;
       this.retrieveParams.addition = addition;
-      if (isQuery) this.retrieveLog();
+      if (isQuery && this.isAutoQuery) this.retrieveLog();
     },
     getFieldType(field) {
       const target = this.totalFields.find(item => item.field_name === field);
@@ -830,7 +860,28 @@ export default {
       this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
       this.$refs.searchCompRef.setRouteParams();
     },
-
+    /** 改变是否展示联合查询数据来源 */
+    changeShowUnionSource() {
+      this.operatorConfig.isShowSourceField = !this.operatorConfig.isShowSourceField;
+      this.showShowUnionSource();
+    },
+    /** 数据来源显隐操作 */
+    showShowUnionSource(keepLastTime = false) {
+      const isExist = this.visibleFields.some(item => item.tag === 'union-source');
+      // 非联合查询 不走逻辑
+      if (!this.isUnionSearch) return;
+      // 保持之前的逻辑
+      if (keepLastTime) {
+        const isShowSourceField = this.operatorConfig.isShowSourceField;
+        if (isExist) {
+          !isShowSourceField && this.visibleFields.shift();
+        } else {
+          isShowSourceField && this.visibleFields.unshift(this.logSourceField);
+        }
+        return;
+      }
+      isExist ? this.visibleFields.shift() : this.visibleFields.unshift(this.logSourceField);
+    },
     // 打开 ip 选择弹窗
     openIpQuick() {
       this.showIpSelectorDialog = true;
@@ -1017,8 +1068,10 @@ export default {
                 }
                   break;
                 case 'unionList': {
+                  this.catchUnionBeginList = [];
                   const unionParamsList = JSON.parse(decodeURIComponent(param));
-                  this.$store.commit('updateUnionIndexList', unionParamsList);
+                  const resetUnionList = this.isUnionSearch ? this.unionIndexList : unionParamsList;
+                  this.$store.commit('updateUnionIndexList', resetUnionList);
                 }
                   break;
                 case 'ip_chooser': {
@@ -1225,12 +1278,12 @@ export default {
           apm_relation: apmRelation,
         } = localConfig;
 
-        this.operatorConfig = { // 操作按钮配置信息
+        Object.assign(this.operatorConfig, { // 操作按钮配置信息
           bkmonitor,
           bcsWebConsole,
           contextAndRealtime,
           timeField,
-        };
+        });
         // 初始化操作按钮消息
         this.operatorConfig.toolMessage = this.initToolTipsMessage(this.operatorConfig);
         this.cleanConfig = cleanConfig;
@@ -1289,6 +1342,7 @@ export default {
           }
         }
       }).filter(Boolean);
+      this.showShowUnionSource(true);
       this.isSetDefaultTableColumn = false;
       this.setDefaultTableColumn();
     },
@@ -1336,6 +1390,7 @@ export default {
       }
 
       const { currentPage, pageSize } = this.$refs.resultMainRef;
+      // 单选检索的begin
       const begin = currentPage === 1 ? 0 : (currentPage - 1) * pageSize;
       this.formatTimeRange();
       try {
@@ -1347,13 +1402,15 @@ export default {
           size: pageSize,
           interval: this.interval,
         };
+        // 更新联合查询的begin
+        const unionConfigs = this.unionIndexList.map(item => ({
+          begin: this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0,
+          index_set_id: item,
+        }));
         const queryData = Object.assign(baseData, !this.isUnionSearch ? {
           begin,
         } : {
-          union_configs: this.unionIndexList.map(item => ({
-            begin,
-            index_set_id: item,
-          })),
+          union_configs: unionConfigs,
         });
         const params = {
           method: 'post',
@@ -1380,6 +1437,7 @@ export default {
         }
         // 判断分页
         this.finishPolling = res.data?.list?.length < pageSize;
+        this.catchUnionBeginList = parseBigNumberList(res.data?.union_configs || []);
 
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;

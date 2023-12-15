@@ -457,7 +457,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'parent_span_id', operator: 'equal', value: [''] },
           entry_span: { key: 'kind', operator: 'equal', value: ['2', '5'] },
-          error: { key: 'status.code', operator: 'not_equal', value: ['0'] }
+          error: { key: 'status.code', operator: 'equal', value: ['2'] }
         };
         const result = store.spanType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -467,7 +467,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'root_span', operator: 'logic', value: [] },
           root_service_span: { key: 'root_service_span', operator: 'logic', value: [] },
-          'status.code': { key: 'status.code', operator: 'not_equal', value: ['0'] }
+          'status.code': { key: 'status.code', operator: 'equal', value: ['2'] }
         };
         const result = store.interfaceStatisticsType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -481,8 +481,8 @@ export default defineComponent({
         const filterTypeMapping = {
           error: {
             key: 'status.code',
-            operator: 'not_equal',
-            value: ['0']
+            operator: 'equal',
+            value: ['2']
           },
           sync: {
             key: 'kind',

@@ -558,4 +558,5 @@ export default {
   多索引集: 'Multiple index sets',
   已失效: 'Expired',
   该字段在以下索引集存在冲突: 'This field has a conflict in the following index set',
+  '{0}数据来源': '{0} data source',
 };
