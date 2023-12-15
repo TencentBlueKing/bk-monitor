@@ -530,12 +530,12 @@ export default defineComponent({
     function handleGroupTabChange(val: ReplaceRotationUsersModel['groupType']) {
       if (localValue.users.groupType === val) return;
       localValue.users.groupType = val;
-      // 切换成自动分组需要把所有的用户组删除
+      // 切换成自动分组需要把所有人员聚合并去重
       if (val === 'auto') {
         const res = localValue.users.value.reduce((pre, cur) => {
           cur.value.forEach(user => {
             const key = `${user.id}_${user.type}`;
-            if (!pre.has(key) && user.type === 'user') {
+            if (!pre.has(key)) {
               pre.set(key, user);
             }
           });
@@ -548,14 +548,6 @@ export default defineComponent({
       handleEmitData();
     }
 
-    /**
-     * 过滤可选的人员列表
-     * @param list 所有人员列表
-     * @returns 可选的人员列表
-     */
-    function handleMemberSelectFilter(list: TagItemModel[]) {
-      return list.filter(item => item.type === 'user');
-    }
     function handleAddUserGroup() {
       localValue.users.value.push({ key: random(8, true), value: [], orderIndex: 0 });
       handleEmitData();
@@ -672,7 +664,6 @@ export default defineComponent({
       handleAddUserGroup,
       handleDelUserGroup,
       handMemberSelectChange,
-      handleMemberSelectFilter,
       handleDragstart,
       handleDragover,
       handleDrop,
@@ -783,7 +774,6 @@ export default defineComponent({
                 >
                   <MemberSelect
                     showType='tag'
-                    filterMethod={this.handleMemberSelectFilter}
                     v-model={this.localValue.users.value[0].value}
                     hasDefaultGroup={true}
                     defaultGroup={this.defaultGroup}
