@@ -448,12 +448,13 @@ class GetBusiness(Resource):
             for field in member_fields:
                 item[field] = _split_member_list(item.get(field, ""))
 
-        business_list = [Business(**topo) for topo in self.filter_biz(response_data)]
+        business_list = [Business(**biz) for biz in self.filter_biz(response_data)]
         return business_list
 
     @classmethod
     def filter_biz(cls, bk_biz_list):
-        biz_blacklist = list(map(int, settings.DISABLE_BIZ_ID))
+        # 使用 set in 效率更高
+        biz_blacklist = set(map(int, settings.DISABLE_BIZ_ID))
         if not biz_blacklist:
             return bk_biz_list
         return [biz for biz in bk_biz_list if biz["bk_biz_id"] not in biz_blacklist]
