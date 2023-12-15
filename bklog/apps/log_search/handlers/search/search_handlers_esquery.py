@@ -1402,6 +1402,7 @@ class SearchHandler(object):
     def _init_indices_str(self, index_set_id: int) -> str:
         tmp_index_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if tmp_index_obj:
+            self.index_set_name = tmp_index_obj.index_set_name
             self.scenario_id = tmp_index_obj.scenario_id
             self.storage_cluster_id = tmp_index_obj.storage_cluster_id
             # 根据检索条件addition中的字段，判断是否需要查询聚类结果表
@@ -2033,7 +2034,7 @@ class SearchHandler(object):
 
     def _set_time_filed_type(self, time_field: str, fields_from_es: list):
         if not fields_from_es:
-            raise SearchNotTimeFieldType()
+            raise SearchNotTimeFieldType(SearchNotTimeFieldType.MESSAGE.format(index_set_name=self.index_set_name))
 
         for item in fields_from_es:
             field_name = item["field_name"]
@@ -2179,12 +2180,18 @@ class UnionSearchHandler(object):
             for info in result_log_list:
                 index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
                 num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
+                try:
+                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
+                except ValueError:
+                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
 
             for info in result_origin_log_list:
                 index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
                 num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
+                try:
+                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
+                except ValueError:
+                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
 
         if not self.sort_list:
             # 默认使用时间字段排序

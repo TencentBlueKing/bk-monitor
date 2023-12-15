@@ -370,7 +370,7 @@ class UnauthorizedResultTableException(BaseSearchException):
 
 class SearchNotTimeFieldType(BaseException):
     ERROR_CODE = "422"
-    MESSAGE = _("此索引没有找到时间字段类型")
+    MESSAGE = _("[{index_set_name}]: 此索引没有找到时间字段类型")
 
 
 class FavoriteSearchNotExists(BaseException):

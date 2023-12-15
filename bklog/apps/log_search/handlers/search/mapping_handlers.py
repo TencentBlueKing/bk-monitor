@@ -355,7 +355,7 @@ class MappingHandlers(object):
         for time_field in time_field_list:
             if time_field:
                 return time_field
-        raise SearchNotTimeFieldType()
+        raise SearchNotTimeFieldType(SearchNotTimeFieldType.MESSAGE.format(index_set_name=index_set_obj.index_set_name))
 
     def _get_object_field(self, final_fields_list):
         """获取对象字段"""
