@@ -31,7 +31,7 @@ import $http from '../../api';
 
 let oldRouteId = '';
 let oldNavId = '';
-let oldspaceUid = ''
+let oldspaceUid = '';
 @Module({ name: 'report-log', dynamic: true, namespaced: true, store })
 class ReportLogStore extends VuexModule {
   @Action
