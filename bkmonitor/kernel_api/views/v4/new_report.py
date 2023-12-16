@@ -70,4 +70,5 @@ class NewReportViewSet(ResourceViewSet):
         ResourceRoute("POST", SendReport, endpoint="send_report"),
         ResourceRoute("POST", resource.new_report.create_or_update_report, endpoint="create_or_update_report"),
         ResourceRoute("GET", resource.new_report.get_exist_reports, endpoint="get_exist_reports"),
+        ResourceRoute("GET", resource.new_report.get_variables, endpoint="get_report_variables"),
     ]

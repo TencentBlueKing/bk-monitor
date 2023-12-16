@@ -122,6 +122,14 @@ class _MonitorApi(object):
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )
+        self.get_report_variables = DataAPI(
+            method="GET",
+            url=MONITOR_APIGATEWAY_ROOT + "get_report_variables/",
+            module=self.MODULE,
+            description="获取订阅报表的变量列表",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+        )
 
 
 MonitorApi = _MonitorApi()

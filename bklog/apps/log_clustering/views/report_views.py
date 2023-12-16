@@ -27,6 +27,7 @@ from apps.generic import APIViewSet
 from apps.log_clustering.serializers import (
     CreateOrUpdateReportSerializer,
     GetExistReportsSerlaizer,
+    GetReportVariablesSerlaizer,
     SendReportSerializer,
 )
 from apps.utils.drf import list_route
@@ -41,12 +42,23 @@ class ReportViewSet(APIViewSet):
     @list_route(methods=["GET"], url_path="get_reports")
     def get_reports(self, request):
         """
-        @api {post} /report/get_reports/ 日志聚类-已存在订阅列表
+        @api {post} /report/get_reports/ 日志聚类-获取已存在订阅列表
         @apiName get_reports
         @apiGroup log_clustering
         """
         params = self.params_valid(GetExistReportsSerlaizer)
         result = MonitorApi.get_reports(params)
+        return Response(result)
+
+    @list_route(methods=["GET"], url_path="get_variables")
+    def get_variables(self, request):
+        """
+        @api {post} /report/get_variables/ 日志聚类-获取订阅报表的变量列表
+        @apiName get_variables
+        @apiGroup log_clustering
+        """
+        params = self.params_valid(GetReportVariablesSerlaizer)
+        result = MonitorApi.get_report_variables(params)
         return Response(result)
 
     @list_route(methods=["POST"], url_path="create_or_update")

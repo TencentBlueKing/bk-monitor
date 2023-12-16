@@ -208,6 +208,10 @@ class GetExistReportsSerlaizer(serializers.Serializer):
     index_set_id = serializers.IntegerField(required=True)
 
 
+class GetReportVariablesSerlaizer(serializers.Serializer):
+    scenario = serializers.CharField(label="订阅场景", required=True)
+
+
 class SendReportSerializer(serializers.Serializer):
     name = serializers.CharField(required=False)
     bk_biz_id = serializers.IntegerField(required=False)
