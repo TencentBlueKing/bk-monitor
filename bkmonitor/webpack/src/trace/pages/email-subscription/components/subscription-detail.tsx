@@ -258,7 +258,7 @@ export default defineComponent({
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
-                <span class='subscribers-label'>{window.i18n.t('企业微信机器人')}</span>
+                <span class='subscribers-label'>{window.i18n.t('企业微信群')}</span>
                 <span class='subscribers-value'>
                   {this.detailInfo?.channels
                     ?.find?.(item => item.channel_name === 'wxbot')

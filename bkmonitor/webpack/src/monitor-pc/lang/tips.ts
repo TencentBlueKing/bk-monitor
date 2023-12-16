@@ -192,11 +192,17 @@ export default {
   'tips-采集状态': 'Collection Status',
   '已成功发送 {0} 个内部用户': '{0} internal users successfully sent',
   '已成功发送 {0} 个外部邮件': '{0} external messages sent successfully',
-  '已成功发送 {0} 个企业微信机器人': '{0} enterprise WeChat robots have been sent successfully',
+  '已成功发送 {0} 个企业微信群': '{0} enterprise WeChat groups sent successfully',
   '已成功发送 {0} 个，失败 {1} 个内部用户': '{0} successfully sent, {1} failed internal users',
   '已成功发送 {0} 个，失败 {1} 个外部邮件': '{0} successfully sent, {1} failed external messages',
-  '已成功发送 {0} 个，失败 {1} 个企业微信机器人':
-    '{0} have been sent successfully, {1} enterprise WeChat robots have failed',
+  '已成功发送 {0} 个，失败 {1} 个企业微信群': '{0} successfully sent, {1} failed enterprise WeChat groups',
   '当前已存在相同索引集的订阅 {0} ，请确认是否要创建新订阅或是直接修改已有订阅内容？':
-    'There is currently a subscription {0} for the same index set. Please confirm whether you want to create a new subscription or directly modify the existing subscription content?'
+    'There is currently a subscription {0} for the same index set. Please confirm whether you want to create a new subscription or directly modify the existing subscription content?',
+  请输入搜索条件: 'Please enter the search condition',
+  确定重新发送给以下用户: 'Confirm to resend to the following users:',
+  确定重新发送给以下邮件: 'Confirm to resend to the following emails:',
+  确定重新发送给以下企业微信群: 'Confirm to resend to the following enterprise WeChat groups:',
+  确定重新发送给以下失败用户: 'Confirm to resend to the following failed users:',
+  确定重新发送给以下失败邮件: 'Confirm to resend to the following failed emails:',
+  确定重新发送给以下失败企业微信群: 'Confirm to resend to the following failed enterprise WeChat groups:'
 };

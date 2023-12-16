@@ -422,5 +422,16 @@ export default {
   原始命令: 'Original Command',
   无参数命令: 'Command Without Parameters',
   不储存: 'Do Not Save',
-  指定DB: 'Specify DB'
+  指定DB: 'Specify DB',
+
+  待审批: 'Pending',
+  审批通过: 'Approved',
+  审批驳回: 'Rejected',
+  生效中: 'Taking Effect',
+  重新发送: 'Resend',
+  发送记录: 'Send Records',
+  管理员创建的: 'Administrator Created',
+  用户订阅的: 'User Subscribed',
+  测试发送: 'Test Send',
+  跳转至场景查看: 'Jump to Scene View'
 };

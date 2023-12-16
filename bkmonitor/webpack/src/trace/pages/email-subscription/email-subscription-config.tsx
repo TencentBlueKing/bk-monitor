@@ -82,12 +82,12 @@ export enum Scenario {
 
 export enum YearOnYearHour {
   0 = window.i18n.t('不比对'),
-  1 = window.i18n.t('1小时前'),
-  2 = window.i18n.t('2小时前'),
-  3 = window.i18n.t('3小时前'),
-  6 = window.i18n.t('6小时前'),
-  12 = window.i18n.t('12小时前'),
-  24 = window.i18n.t('24小时前')
+  1 = window.i18n.t('{0}小时前', [1]),
+  2 = window.i18n.t('{0}小时前', [2]),
+  3 = window.i18n.t('{0}小时前', [3]),
+  6 = window.i18n.t('{0}小时前', [6]),
+  12 = window.i18n.t('{0}小时前', [12]),
+  24 = window.i18n.t('{0}小时前', [24])
 }
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
@@ -401,26 +401,26 @@ export default defineComponent({
                         const headerTextMap = {
                           user: '已成功发送 {0} 个内部用户',
                           email: '已成功发送 {0} 个外部邮件',
-                          wxbot: '已成功发送 {0} 个企业微信机器人'
+                          wxbot: '已成功发送 {0} 个企业微信群'
                         };
                         headerText = headerTextMap[data.channel_name];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下用户',
                           email: '确定重新发送给以下邮件',
-                          wxbot: '确定重新发送给以下企业微信机器人'
+                          wxbot: '确定重新发送给以下企业微信群'
                         };
                         headerConfirmText = headerConfirmTextMap[data.channel_name];
                       } else if (['partial_failed', 'failed'].includes(data.send_status)) {
                         const headerTextMap = {
                           user: '已成功发送 {0} 个，失败 {1} 个内部用户',
                           email: '已成功发送 {0} 个，失败 {1} 个外部邮件',
-                          wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信机器人'
+                          wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信群'
                         };
                         headerText = headerTextMap[data.channel_name];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下失败用户',
                           email: '确定重新发送给以下失败邮件',
-                          wxbot: '确定重新发送给以下失败企业微信机器人'
+                          wxbot: '确定重新发送给以下失败企业微信群'
                         };
                         headerConfirmText = headerConfirmTextMap[data.channel_name];
                       }
@@ -545,54 +545,53 @@ export default defineComponent({
     const isShowEditSideslider = ref(false);
 
     const isSending = ref(false);
-    function testSending(to) {
+    async function testSending(to) {
+      const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
+      console.log('testSending', tempFormData);
+      if (!tempFormData) return;
+      const formData = deepClone(tempFormData);
       if (to === 'self') {
-        isSending.value = true;
-        return sendReport({
-          report_id: subscriptionDetail.value?.id,
-          channels: [
-            {
-              is_enabled: true,
-              subscribers: [
-                {
-                  id: window.user_name || window.username,
-                  type: 'user',
-                  is_enabled: true
-                }
-              ],
-              channel_name: 'user'
-            }
-          ]
-        })
-          .then(() => {
-            Message({
-              theme: 'success',
-              message: window.i18n.t('发送成功')
-            });
-            return;
-          })
-          .catch(console.log)
-          .finally(() => {
-            isSending.value = false;
-          });
+        const selfChannels = [
+          {
+            is_enabled: true,
+            subscribers: [
+              {
+                id: window.user_name || window.username,
+                type: 'user',
+                is_enabled: true
+              }
+            ],
+            channel_name: 'user'
+          }
+        ];
+        formData.channels = selfChannels;
       }
       if (to === 'all') {
         console.log(refOfCreateSubscriptionForm.value);
-        return sendReport({
-          report_id: subscriptionDetail.value?.id,
-          channels: refOfCreateSubscriptionForm.value?.formData?.channels || []
-        })
-          .then(() => {
-            Message({
-              theme: 'success',
-              message: window.i18n.t('发送成功')
-            });
-          })
-          .catch(console.log)
-          .finally(() => {
-            isSending.value = false;
-          });
       }
+      delete formData.create_time;
+      delete formData.create_user;
+      delete formData.is_deleted;
+      delete formData.is_manager_created;
+      delete formData.last_send_time;
+      delete formData.send_mode;
+      delete formData.send_round;
+      delete formData.send_status;
+      delete formData.update_time;
+      delete formData.update_user;
+      delete formData.id;
+      isSending.value = true;
+      await sendReport(formData)
+        .then(() => {
+          Message({
+            theme: 'success',
+            message: window.i18n.t('发送成功')
+          });
+        })
+        .catch(console.log)
+        .finally(() => {
+          isSending.value = false;
+        });
     }
 
     const refOfCreateSubscriptionForm = ref();
@@ -1079,6 +1078,7 @@ export default defineComponent({
                             theme: 'success',
                             message: window.i18n.t('保存成功')
                           });
+                          this.fetchSubscriptionList();
                         })
                         .catch(console.log);
                     })

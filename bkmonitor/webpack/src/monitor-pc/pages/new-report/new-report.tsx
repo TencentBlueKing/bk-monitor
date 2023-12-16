@@ -31,7 +31,7 @@ Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TraceNewReport extends tsc<{}> {
   get newReportHost() {
-    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : location.origin;
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
   get newReportUrl() {
     return process.env.NODE_ENV === 'development'

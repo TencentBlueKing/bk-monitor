@@ -89,5 +89,7 @@ export default {
   内网IPv4: 'Intranet IPv4',
   外网IPv4: 'Extranet IPv4',
   内网IPv6: 'Intranet IPv6',
-  外网IPv6: 'Extranet IPv6'
+  外网IPv6: 'Extranet IPv6',
+  我申请的: 'My Application',
+  我的订阅: 'My Subscription'
 };
