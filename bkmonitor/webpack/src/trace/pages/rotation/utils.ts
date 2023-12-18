@@ -393,7 +393,7 @@ export interface RuleDetailModel {
   isAuto: boolean;
   groupNumber: number;
 }
-export function transformRulesDetail(data: any[]): RuleDetailModel[] {
+export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): RuleDetailModel[] {
   let orderIndex = 0;
   return data.map(rule => {
     const ruleTime = rule.duty_time.map(time => {
@@ -435,7 +435,7 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
         // } else {
         //   orderIndex += 1;
         // }
-        if (rule.group_type === 'specified') {
+        if (rule.group_type === 'specified' || type === 'regular') {
           orderIndex += 1;
         } else {
           orderIndex += item.length;

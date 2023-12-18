@@ -89,7 +89,7 @@ export default class RotationDetail extends tsc<IProps> {
       .then((res: any) => {
         this.detailData = res;
         this.type = res.category;
-        this.rules = transformRulesDetail(res.duty_arranges);
+        this.rules = transformRulesDetail(res.duty_arranges, res.category);
         this.getPreviewData();
       })
       .finally(() => {
@@ -188,6 +188,13 @@ export default class RotationDetail extends tsc<IProps> {
                     {time.periodSettings && <span class='rule-item-period'>{time.periodSettings}</span>}
                   </div>
                 ))}
+                {rule.isAuto && (
+                  <div class='auto-group'>
+                    <span>{this.$t('单次值班')}</span>
+                    {rule.groupNumber}
+                    <span>{this.$t('人')}</span>
+                  </div>
+                )}
                 <div class='notice-user-list'>
                   {rule.ruleUser.map(item => (
                     <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
@@ -197,8 +204,14 @@ export default class RotationDetail extends tsc<IProps> {
                           style={{ background: randomColor(item.orderIndex) }}
                         ></div>
                       )}
-                      {item.users.map(user => (
+                      {item.users.map((user, ind) => (
                         <div class='personnel-choice'>
+                          {rule.isAuto && (
+                            <span
+                              class='user-color'
+                              style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                            ></span>
+                          )}
                           {this.renderUserLogo(user)}
                           <span>{user.display_name}</span>
                         </div>

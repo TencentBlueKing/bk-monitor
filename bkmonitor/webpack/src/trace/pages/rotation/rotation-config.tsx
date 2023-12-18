@@ -101,18 +101,21 @@ export default defineComponent({
     }
 
     const effectiveEndRef = ref();
+    /** 禁止选择今天以前的日期 */
     function disabledDateFn(v) {
       const time = new Date(v).getTime();
       const curTime = new Date().getTime() - 24 * 60 * 60 * 1000;
       return time < curTime;
     }
 
+    /** 取消按钮文本设置为永久 */
     function handleDatePickerOpen(state: boolean) {
       if (state) {
         effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a').innerText = t('永久');
       }
     }
 
+    /** 颜色色板，保持人员列表组和预览一致 */
     const colorList = reactive({
       value: createColorList(),
       setValue: (val: string[]) => {
@@ -130,7 +133,7 @@ export default defineComponent({
     const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
-      if (type === RotationTabTypeEnum.HANDOFF) resetUsersColor();
+      resetUsersColor();
       getPreviewData();
     }
 
@@ -140,19 +143,28 @@ export default defineComponent({
       rotationTypeData[RotationTabTypeEnum.HANDOFF].forEach(item => {
         item.users.value.forEach(user => {
           const { groupType } = item.users;
-          user.orderIndex = orderIndex;
           if (user.value.length) {
+            user.orderIndex = orderIndex;
             if (groupType === 'specified') {
               orderIndex += 1;
             } else {
+              // 自动分组，每一个人员都算一个颜色
               orderIndex += user.value.length;
             }
           } else {
+            // 没有选择人员复用上一个人员组颜色
             user.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
           }
         });
       });
-      // rotationTypeData[RotationTabTypeEnum.REGULAR].forEach(item => {});
+      rotationTypeData[RotationTabTypeEnum.REGULAR].forEach(item => {
+        if (item.users.length) {
+          item.orderIndex = orderIndex;
+          orderIndex += 1;
+        } else {
+          item.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+        }
+      });
     }
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
@@ -270,6 +282,7 @@ export default defineComponent({
     }
 
     function handleSubmit() {
+      // 所有添加的轮值都必须填写完整
       if (!validate()) return;
       const params = getParams();
       loading.value = true;

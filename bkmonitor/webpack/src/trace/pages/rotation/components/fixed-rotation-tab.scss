@@ -75,6 +75,16 @@
     .user-setting-content {
       padding: 24px 42px 24px 24px;
       vertical-align: top;
+
+      .member-select-prefix {
+        display: flex;
+        align-items: center;
+        height: calc(100% + 2px);
+        padding-left: 4px;
+        cursor: pointer;
+        border-left: 4px solid transparent;
+        transform: translate(-1px, -1px);
+      }
     }
   }
 

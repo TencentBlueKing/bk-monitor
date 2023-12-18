@@ -45,7 +45,7 @@ export interface FixedDataModel {
   workDays: (string | number)[];
   workDateRange: [];
   workTime: string[][];
-
+  orderIndex: number;
   users: { type: 'group' | 'user'; id: string }[];
 }
 
@@ -62,6 +62,8 @@ export default defineComponent({
     // --------公共------------
     const { t } = useI18n();
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
+    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+
     const typeList = [
       { label: t('按周'), value: RotationSelectTypeEnum.Weekly },
       { label: t('按月'), value: RotationSelectTypeEnum.Monthly },
@@ -73,6 +75,7 @@ export default defineComponent({
         key: random(8, true),
         type: RotationSelectTypeEnum.Weekly,
         workDays: [1],
+        orderIndex: 0,
         workDateRange: [],
         workTime: [],
         users: []
@@ -120,6 +123,7 @@ export default defineComponent({
 
     return {
       t,
+      colorList,
       defaultGroup,
       localValue,
       typeList,
@@ -226,7 +230,16 @@ export default defineComponent({
                 hasDefaultGroup={true}
                 defaultGroup={this.defaultGroup}
                 onSelectEnd={val => this.handleUserChange(val, item)}
-              />
+              >
+                {{
+                  prefix: () => (
+                    <div
+                      class='member-select-prefix'
+                      style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
+                    ></div>
+                  )
+                }}
+              </MemberSelect>
             </td>
             {this.localValue.length > 1 && (
               <div

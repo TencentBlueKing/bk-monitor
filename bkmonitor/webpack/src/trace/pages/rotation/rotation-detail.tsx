@@ -94,7 +94,7 @@ export default defineComponent({
         .then(res => {
           detailData.value = res;
           type.value = res.category;
-          rules.value = transformRulesDetail(detailData.value.duty_arranges);
+          rules.value = transformRulesDetail(detailData.value.duty_arranges, res.category);
           historyList.value = [
             { label: t('创建人'), value: res.create_user || '--' },
             { label: t('创建时间'), value: res.create_time || '--' },
@@ -260,8 +260,14 @@ export default defineComponent({
                                 style={{ background: randomColor(item.orderIndex) }}
                               ></div>
                             )}
-                            {item.users.map(user => (
+                            {item.users.map((user, ind) => (
                               <div class='personnel-choice'>
+                                {rule.isAuto && (
+                                  <span
+                                    class='user-color'
+                                    style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                                  ></span>
+                                )}
                                 {this.renderUserLogo(user)}
                                 <span>{user.display_name}</span>
                               </div>

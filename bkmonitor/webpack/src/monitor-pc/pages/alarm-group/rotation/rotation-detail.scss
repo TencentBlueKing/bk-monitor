@@ -120,6 +120,10 @@
         }
       }
 
+      .auto-group {
+        margin-bottom: 8px;
+      }
+
       .notice-user-list {
         .notice-user-item {
           position: relative;
@@ -143,6 +147,12 @@
             display: flex;
             align-items: center;
             margin: 0 12px 8px 0;
+
+            .user-color {
+              width: 4px;
+              height: calc(100% - 4px);
+              margin-right: 10px;
+            }
 
             img {
               width: 20px;
