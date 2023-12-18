@@ -42,4 +42,5 @@ export interface IDutyItem {
   name: string;
   typeLabel: string;
   status: EStatus;
+  category: string;
 }

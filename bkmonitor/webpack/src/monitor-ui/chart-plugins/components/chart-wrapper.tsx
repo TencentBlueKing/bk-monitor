@@ -375,6 +375,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onCollectChart={this.handleCollectChart}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onLoading={this.handleChangeLoading}
+            onErrorMsg={this.handleErrorMsgChange}
+            clearErrorMsg={this.handleClearErrorMsg}
           ></AiopsDimensionLint>
         );
       case 'graphs':
