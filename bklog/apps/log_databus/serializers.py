@@ -581,8 +581,9 @@ class StorageDetectSerializer(serializers.Serializer):
         return attrs
 
 
-class StorageBathcDetectSerializer(serializers.Serializer):
+class StorageBatchDetectSerializer(serializers.Serializer):
     cluster_list = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)
+    bk_biz_id = serializers.CharField(required=False)
 
 
 class StorageUpdateSerializer(serializers.Serializer):

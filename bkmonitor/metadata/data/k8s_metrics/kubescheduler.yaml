@@ -1,0 +1,1385 @@
+- description: ''
+  field_name: scheduler_binding_duration_seconds_bucket
+  tag_list:
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: le
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_binding_duration_seconds_count
+  tag_list:
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_binding_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_pending_pods
+  tag_list:
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: queue
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_pod_scheduling_attempts_bucket
+  tag_list:
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: le
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_pod_scheduling_attempts_count
+  tag_list:
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_pod_scheduling_attempts_sum
+  tag_list:
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_preemption_attempts_total
+  tag_list:
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_preemption_victims_bucket
+  tag_list:
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: le
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_preemption_victims_count
+  tag_list:
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_preemption_victims_sum
+  tag_list:
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_queue_incoming_pods_total
+  tag_list:
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: queue
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: event
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_scheduler_cache_size
+  tag_list:
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_scheduling_algorithm_duration_seconds_bucket
+  tag_list:
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: le
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_scheduling_algorithm_duration_seconds_count
+  tag_list:
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_scheduling_algorithm_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_scheduling_algorithm_preemption_evaluation_seconds_bucket
+  tag_list:
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: le
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_scheduling_algorithm_preemption_evaluation_seconds_count
+  tag_list:
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_scheduling_algorithm_preemption_evaluation_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''

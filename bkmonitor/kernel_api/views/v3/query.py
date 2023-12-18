@@ -13,11 +13,10 @@ data query
 """
 
 
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from bkmonitor.views.renderers import MonitorJSONRenderer
-from kernel_api.resource.query import QueryEsResource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.permission import BusinessListByActions
-from kernel_api.throttling import AppCodeThrottle
+from kernel_api.resource.query import QueryEsResource
 from query_api.resources import GetTSDataResource
 
 
@@ -26,7 +25,6 @@ class GetTSDataViewSet(ResourceViewSet):
     监控新链路数据查询
     """
 
-    throttle_classes = (AppCodeThrottle,)
     renderer_classes = (MonitorJSONRenderer,)
 
     resource_routes = [
@@ -39,8 +37,6 @@ class GetEsDataViewSet(ResourceViewSet):
     从ES查询信息
     """
 
-    throttle_classes = (AppCodeThrottle,)
-
     resource_routes = [
         ResourceRoute("POST", QueryEsResource),
     ]
@@ -51,7 +47,6 @@ class PermissionViewSet(ResourceViewSet):
     权限中心相关支持
     """
 
-    throttle_classes = (AppCodeThrottle,)
     resource_routes = [
         ResourceRoute("POST", BusinessListByActions),
     ]

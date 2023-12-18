@@ -249,10 +249,10 @@ class RelatedLogChart extends CommonSimpleChart {
                 this.handleLoadingChange(false);
               })
         );
+      this.clearErrorMsg();
     } catch (error) {
       this.handleErrorMsgChange(error.msg || error.message);
     }
-    this.clearErrorMsg();
   }
   /**
    * @desc 更新表格数据

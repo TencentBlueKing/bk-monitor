@@ -17,11 +17,6 @@ to the current version of the project delivered to anyone in the future.
 """
 from dataclasses import dataclass
 
-from apm_web.constants import CategoryEnum, QueryMode
-from apm_web.handlers.trace_handler.base import (
-    SpanPredicate,
-    StatusCodeAttributePredicate,
-)
 from django.utils.translation import ugettext_lazy as _
 from elasticsearch_dsl import Q, Search
 from luqum.auto_head_tail import auto_head_tail
@@ -32,6 +27,11 @@ from luqum.tree import SearchField, Word
 from luqum.visitor import TreeTransformer
 from opentelemetry.trace import StatusCode
 
+from apm_web.constants import CategoryEnum, QueryMode
+from apm_web.handlers.trace_handler.base import (
+    SpanPredicate,
+    StatusCodeAttributePredicate,
+)
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
 from constants.apm import OtlpKey, SpanKind
 from core.drf_resource import api
@@ -50,7 +50,6 @@ class QueryBuilder(ElasticsearchQueryBuilder):
 
 
 class QueryTreeTransformer(BaseTreeTransformer):
-
     # 需要转换的嵌套KV字段，key 为匹配前缀，value 为搜索字段
     NESTED_KV_FIELDS = {}
 
@@ -134,7 +133,6 @@ class QueryTreeTransformer(BaseTreeTransformer):
 
 
 class SpanQueryTransformer(QueryTreeTransformer):
-
     NESTED_KV_FIELDS = {"events": "events", "links": "links"}
 
     # 嵌套字段配置 用于用户查询时进行DSL转换
@@ -151,7 +149,6 @@ class SpanQueryTransformer(QueryTreeTransformer):
 
 
 class TraceQueryTransformer(QueryTreeTransformer):
-
     NESTED_KV_FIELDS = {}
 
     # 嵌套字段配置 用于用户查询时进行DSL转换
@@ -177,7 +174,6 @@ class TraceQueryTransformer(QueryTreeTransformer):
 
 
 class FieldTransformer(TreeTransformer):
-
     # 如果filters包含这个字段 需要忽略 因为duration字段在TRACE/span检索中有特殊处理
     FILTERS_IGNORE_FIELDS = ["duration"]
 
@@ -188,7 +184,6 @@ class FieldTransformer(TreeTransformer):
         self.opposite = opposite
 
     def visit_search_field(self, node, _):
-
         if not self.opposite:
             if node.name not in self.fields:
                 self.is_has_field_not_in_fields = True
@@ -199,7 +194,6 @@ class FieldTransformer(TreeTransformer):
         yield node
 
     def has_file_not_in_filters(self, filters):
-
         all_fields = self.FILTERS_IGNORE_FIELDS + self.fields
 
         for i in filters:
@@ -213,7 +207,6 @@ class FieldTransformer(TreeTransformer):
 
 
 class OptionValues:
-
     API = None
     FIELDS = []
 
@@ -266,7 +259,6 @@ class OptionValues:
 
     @classmethod
     def get_field_option_values(cls, option, fields, start_time, end_time):
-
         params = {
             "bk_biz_id": option.bk_biz_id,
             "app_name": option.app_name,
@@ -287,7 +279,6 @@ class OptionValues:
 
 
 class TraceOptionValues(OptionValues):
-
     API = api.apm_api.query_trace_option_values
 
     FIELDS = [
@@ -310,7 +301,6 @@ class TraceOptionValues(OptionValues):
 
 
 class SpanOptionValues(OptionValues):
-
     API = api.apm_api.query_span_option_values
 
     FIELDS = [
@@ -385,7 +375,6 @@ class QueryHandler:
 
     @classmethod
     def query_option_values(cls, mode, bk_biz_id, app_name, start_time, end_time):
-
         if mode == QueryMode.TRACE:
             option = TraceOptionValues(bk_biz_id, app_name)
         else:
@@ -410,7 +399,7 @@ class QueryHandler:
         """对API返回的Trace列表进行额外处理"""
         for i in trace_list:
             i["root_service_status_code"] = StatusCodeAttributePredicate.predicate_error(
-                i.get("root_service_status_code")
+                i["root_service_category"], i.get("root_service_status_code")
             )
             i["root_service_category"] = {
                 "text": CategoryEnum.get_label_by_key(i["root_service_category"]),
