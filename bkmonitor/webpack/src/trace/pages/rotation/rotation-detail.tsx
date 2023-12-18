@@ -33,7 +33,7 @@ import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { IAuthority } from '../../typings/authority';
 
-import { getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
+import { getAutoOrderList, getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';
@@ -114,7 +114,8 @@ export default defineComponent({
       };
       previewDutyRulePlan(params)
         .then(data => {
-          previewData.value = setPreviewDataOfServer(data);
+          const autoOrders = getAutoOrderList(detailData.value);
+          previewData.value = setPreviewDataOfServer(data, autoOrders);
         })
         .finally(() => {
           previewLoading.value = false;

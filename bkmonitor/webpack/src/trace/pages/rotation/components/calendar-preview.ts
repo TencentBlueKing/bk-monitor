@@ -384,16 +384,23 @@ export function timeRangeMerger(timePeriods: { start_time: string; end_time: str
  * @description 根据后台接口数据转换为预览数据
  * @param params
  */
-export function setPreviewDataOfServer(params: IDutyPlans[], colorList?: string[]) {
+export function setPreviewDataOfServer(
+  params: IDutyPlans[],
+  autoOrders?: { [key: number]: number },
+  colorList?: string[]
+) {
   const hasColorList = !!colorList;
   const data = [];
   const colorFn = (userIndex: number) => {
-    if (hasColorList && userIndex > colorList?.length - 1) {
-      return randomColor(userIndex);
+    if (hasColorList) {
+      if (userIndex > colorList?.length - 1) {
+        return randomColor(userIndex);
+      }
+      return colorList[userIndex];
     }
-    return colorList[userIndex];
+    return randomColor(userIndex);
   };
-  userIndexResetOfpreviewData(params).forEach((item, index) => {
+  userIndexResetOfpreviewData(params, autoOrders).forEach((item, index) => {
     const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
     if (item.work_times.length) {
       timeRangeMerger(item.work_times).forEach(work => {
@@ -412,11 +419,13 @@ export function setPreviewDataOfServer(params: IDutyPlans[], colorList?: string[
  * @description 重新配置user_index  以user_index + order 判断其唯一性
  * @param params
  */
-export function userIndexResetOfpreviewData(params: IDutyPlans[]) {
+export function userIndexResetOfpreviewData(params: IDutyPlans[], autoOrders?: { [key: number]: number }) {
   const userIndexCount = (all: { [key: string]: Set<number> }, curIndex, order) => {
     let count = 0;
     for (let i = 0; i < order; i++) {
-      if (all?.[i]?.size) {
+      if (typeof autoOrders?.[i] !== 'undefined') {
+        count += autoOrders?.[i] || 0;
+      } else if (all?.[i]?.size) {
         count += Math.max(...Array.from(all[i])) + 1;
       }
     }
@@ -436,4 +445,18 @@ export function userIndexResetOfpreviewData(params: IDutyPlans[]) {
       user_index: userIndexCount(temp, plan.user_index, plan?.order || 0)
     };
   });
+}
+
+export function getAutoOrderList(data) {
+  const autoOrders: { [key: number]: number } = {};
+  if (data?.category === 'handoff') {
+    data?.duty_arranges?.forEach((item, index) => {
+      if (item.group_type === 'auto') {
+        autoOrders[index] = item.duty_users?.[0]?.length || 0;
+      } else {
+        autoOrders[index] = item.duty_users?.length || 0;
+      }
+    });
+  }
+  return autoOrders;
 }

@@ -426,14 +426,19 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
       ruleTime,
       ruleUser: rule.duty_users.map(item => {
         const res = { users: item, orderIndex };
+        // if (rule.group_type === 'specified') {
+        //   orderIndex += 1;
+        // } else if (item.length % rule.group_number === 0) {
+        //   orderIndex += item.length / rule.group_number;
+        // } else if (rule.group_number < item.length) {
+        //   orderIndex += item.length;
+        // } else {
+        //   orderIndex += 1;
+        // }
         if (rule.group_type === 'specified') {
           orderIndex += 1;
-        } else if (item.length % rule.group_number === 0) {
-          orderIndex += item.length / rule.group_number;
-        } else if (rule.group_number < item.length) {
-          orderIndex += item.length;
         } else {
-          orderIndex += 1;
+          orderIndex += item.length;
         }
         return res;
       }),
