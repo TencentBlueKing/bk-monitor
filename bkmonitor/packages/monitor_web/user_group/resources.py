@@ -165,11 +165,11 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
             all_duty_plans.extend(plans)
         self.get_all_plan_users(all_duty_plans)
         response_plans = []
-        for rule in validated_request_data["duty_rule_ids"]:
-            rule_duty_plans = duty_plans.get(rule["id"], [])
+        for rule_id in validated_request_data["duty_rule_ids"]:
+            rule_duty_plans = duty_plans.get(rule_id, [])
             for duty_plan in rule_duty_plans:
                 duty_plan["users"] = self.translate_user_display(duty_plan)
-            response_plans.append({"rule_id": rule["id"], "duty_plans": rule_duty_plans})
+            response_plans.append({"rule_id": rule_id, "duty_plans": rule_duty_plans})
         return response_plans
 
 

@@ -38,7 +38,6 @@ class Platform(object):
 
 
 def get_default_biz_id(request, biz_list: Optional[List[Dict[str, Any]]] = None, id_key: Optional[str] = None) -> int:
-
     if getattr(request, "biz_id", None):
         # 如果 request 存在业务缓存字段，优先返回
         biz_id = request.biz_id
@@ -144,7 +143,6 @@ def get_core_context(request):
 
 
 def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int) -> Dict[str, Any]:
-
     context: Dict[str, Any] = get_core_context(request)
     context.update(
         {
