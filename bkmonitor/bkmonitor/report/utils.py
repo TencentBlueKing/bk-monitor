@@ -8,11 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import base64
 import datetime
+from collections import defaultdict
 
 import arrow
+from django.db.models import Q
 
-from bkmonitor.models import logger
+from bkmonitor.models import ReportSendRecord, logger
 from bkmonitor.utils.range import TIME_MATCH_CLASS_MAP
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
@@ -69,6 +72,22 @@ def is_run_time(frequency, run_time_strings: list) -> bool:
     return False
 
 
+def get_last_send_record_map(report_qs):
+    last_send_record_map = defaultdict(lambda: {"send_time": None, "records": []})
+    total_Q = Q()
+    Q_list = [
+        Q(report_id=report_info["id"], send_round=report_info["send_round"])
+        for report_info in list(report_qs.values("id", "send_round"))
+    ]
+    for Q_item in Q_list:
+        total_Q |= Q_item
+    for record in ReportSendRecord.objects.filter(total_Q).order_by("-send_time").values():
+        if not last_send_record_map[record["report_id"]]["send_time"]:
+            last_send_record_map[record["report_id"]]["send_time"] = record["send_time"]
+        last_send_record_map[record["report_id"]]["records"].append(record)
+    return last_send_record_map
+
+
 def get_data_range(frequency) -> dict:
     now_time = datetime.datetime.now()
     # 如果没有频率参数，默认取最近一天的数据
@@ -113,6 +132,15 @@ def send_email(context: dict, subscribers: list) -> dict:
         sender.title = context["title"]
     if context.get("content"):
         sender.content = context["content"]
+    if context.get("generate_attachment", False):
+        sender.context["attachments"] = [
+            {
+                "filename": f"{sender.title}.html",
+                "disposition": "attachment",
+                "type": "html",
+                "content": base64.b64encode(sender.content.encode()).decode(),
+            }
+        ]
     try:
         result = sender.send_mail(subscribers)
         return result

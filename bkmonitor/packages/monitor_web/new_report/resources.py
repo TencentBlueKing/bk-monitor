@@ -31,6 +31,7 @@ from bkmonitor.report.serializers import (
     FrequencySerializer,
     ScenarioConfigSerializer,
 )
+from bkmonitor.report.utils import get_last_send_record_map
 from bkmonitor.utils.itsm import ApprovalStatusEnum
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.user import get_local_username
@@ -234,18 +235,7 @@ class GetReportListResource(Resource):
             report_qs = self.filter_by_query_type(report_qs, validated_request_data["query_type"])
 
         # 获取订阅最后一次发送记录
-        last_send_record_map = defaultdict(lambda: {"send_time": None, "records": []})
-        total_Q = Q()
-        Q_list = [
-            Q(report_id=report_info["id"], send_round=report_info["send_round"])
-            for report_info in list(report_qs.values("id", "send_round"))
-        ]
-        for Q_item in Q_list:
-            total_Q |= Q_item
-        for record in ReportSendRecord.objects.filter(total_Q).order_by("-send_time").values():
-            if not last_send_record_map[record["report_id"]]["send_time"]:
-                last_send_record_map[record["report_id"]]["send_time"] = record["send_time"]
-            last_send_record_map[record["report_id"]]["records"].append(record)
+        last_send_record_map = get_last_send_record_map(report_qs)
 
         db_filter_dict, external_filter_dict = self.get_filter_dict_by_conditions(validated_request_data["conditions"])
 

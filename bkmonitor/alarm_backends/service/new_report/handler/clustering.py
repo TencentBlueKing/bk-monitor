@@ -228,6 +228,8 @@ class ClusteringReportHandler(BaseReportHandler):
             "percentage": 1 or round(max([i["percentage"] for i in result]), 2),
             "clustering_fields": clustering_config["clustering_fields"],
             "time": datetime.now().strftime("%Y%m%d"),
+            "is_link_enabled": content_config.get("is_link_enabled", True),
+            "generate_attachment": scenario_config.get("generate_attachment", False),
         }
 
         logger.info(f"{self.log_prefix} Before sending notification params: {render_params}")
