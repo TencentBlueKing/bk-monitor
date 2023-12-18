@@ -50,9 +50,11 @@ class BaseReportHandler(object):
         context = self.render(render_params)
 
         # 根据渠道分别发送，记录最新发送轮次
-        send_round = self.report.send_round + 1 if self.report.send_round else 1
-        self.report.send_round = send_round
-        self.report.save()
+        send_round = 0
+        if self.report.id:
+            send_round = self.report.send_round + 1 if self.report.send_round else 1
+            self.report.send_round = send_round
+            self.report.save()
         if not channels:
             channels = self.channels
         for channel in channels:

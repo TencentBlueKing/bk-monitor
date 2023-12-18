@@ -126,7 +126,6 @@ class LogColShowTypeEnum(ChoicesEnum):
 
 
 CLUSTERING_VARIABLES = [
-    {"name": "username", "description": "用户名称", "example": "admin"},
     {"name": "time", "description": "系统时间", "example": "2023-10-10 22:00:00"},
     {"name": "index_set_name", "description": "索引集名称", "example": "apm_demo_app_1111"},
 ]
