@@ -40,6 +40,7 @@ from metadata.models.space.utils import (
     create_bkcc_spaces,
     get_bkci_projects,
     get_metadata_cluster_list,
+    get_project_clusters,
     get_shared_cluster_namespaces,
     get_valid_bcs_projects,
 )
@@ -350,10 +351,10 @@ def refresh_cluster_resource():
         sr["resource_id"]: sr["dimension_values"]
         for sr in SpaceResource.objects.get_resource_by_resource_type(space_type, resource_type)
     }
-    # code 映射 id
+    # code 映射 id，仅过滤到有集群的项目
     space_id_code_map = {
         s["space_id"]: s["space_code"]
-        for s in Space.objects.filter(space_type_id=space_type).values("space_id", "space_code")
+        for s in Space.objects.filter(space_type_id=space_type, is_bcs_valid=True).values("space_id", "space_code")
         if s["space_code"]
     }
     # 根据项目查询项目下资源的变化
@@ -363,7 +364,9 @@ def refresh_cluster_resource():
     metadata_clusters = get_metadata_cluster_list()
 
     for s_id, s_code in space_id_code_map.items():
-        clusters = api.bcs_cluster_manager.get_project_clusters(project_id=s_code)
+        clusters = get_project_clusters(project_id=s_code)
+        if not clusters:
+            continue
         dimension_values = []
         project_cluster, shared_cluster, shared_cluster_ns = set(), set(), {}
         used_cluster_list = set()
@@ -438,7 +441,7 @@ def refresh_cluster_resource():
 
     if space_id_list:
         # 推送 redis 功能, 包含空间到结果表，数据标签到结果表，结果表详情
-        push_and_publish_space_router(space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list)
+        push_and_publish_space_router(space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list)
 
         logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
 
@@ -591,7 +594,7 @@ def push_and_publish_space_router(
         spaces = spaces.filter(space_id=space_id)
     # 这里不应该会有太多空间 ID 的输入
     if space_id_list:
-        spaces = spaces.filter(space_id_in=space_id_list)
+        spaces = spaces.filter(space_id__in=space_id_list)
 
     # 拼装数据
     space_list = [{"space_type": space["space_type_id"], "space_id": space["space_id"]} for space in spaces]
