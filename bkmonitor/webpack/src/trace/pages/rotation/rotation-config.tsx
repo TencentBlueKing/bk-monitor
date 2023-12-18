@@ -129,26 +129,25 @@ export default defineComponent({
       getPreviewData();
     }
 
-    /** 重置用户组颜色 */
+    /** 重置用户组所对应的颜色 */
     function resetUsersColor() {
       let orderIndex = 0;
       rotationTypeData[RotationTabTypeEnum.HANDOFF].forEach(item => {
         item.users.value.forEach(user => {
-          const { groupType, groupNumber } = item.users;
+          const { groupType } = item.users;
           user.orderIndex = orderIndex;
           if (user.value.length) {
             if (groupType === 'specified') {
               orderIndex += 1;
-            } else if (user.value.length % groupNumber === 0) {
-              orderIndex += user.value.length / groupNumber;
-            } else if (groupNumber < user.value.length) {
-              orderIndex += user.value.length;
             } else {
-              orderIndex += 1;
+              orderIndex += user.value.length;
             }
+          } else {
+            user.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
           }
         });
       });
+      // rotationTypeData[RotationTabTypeEnum.REGULAR].forEach(item => {});
     }
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
@@ -292,6 +291,7 @@ export default defineComponent({
         } else {
           rotationTypeData.handoff = replaceRotationTransform(res.duty_arranges, 'data');
         }
+        resetUsersColor();
         getPreviewData(true);
       });
     }

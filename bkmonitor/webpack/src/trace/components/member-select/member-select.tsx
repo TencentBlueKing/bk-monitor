@@ -266,6 +266,7 @@ export default defineComponent({
       const tag = tags[startIndex];
       tags.splice(startIndex, 1);
       tags.splice(index, 0, tag);
+      handleEmitData();
       emit('drop', startIndex, index);
     }
 

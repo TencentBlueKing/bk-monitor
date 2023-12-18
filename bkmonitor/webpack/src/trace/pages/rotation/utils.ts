@@ -150,7 +150,6 @@ export function validReplaceRotationData(data: ReplaceDataModel) {
  */
 export function replaceRotationTransform(originData, type) {
   if (type === 'data') {
-    let orderIndex = 0;
     return originData.map(data => {
       const date = data.duty_time.reduce(
         (pre: ReplaceItemDataModel['date'], cur, ind) => {
@@ -217,23 +216,11 @@ export function replaceRotationTransform(originData, type) {
         users: {
           groupNumber: data.group_number,
           groupType: data.group_type,
-          value: data.duty_users.map(item => {
-            const res = {
-              key: random(8, true),
-              value: item,
-              orderIndex
-            };
-            if (data.group_type === 'specified') {
-              orderIndex += 1;
-            } else if (item.length % data.group_number === 0) {
-              orderIndex += item.length / data.group_number;
-            } else if (data.group_number < item.length) {
-              orderIndex += item.length;
-            } else {
-              orderIndex += 1;
-            }
-            return res;
-          })
+          value: data.duty_users.map(item => ({
+            key: random(8, true),
+            value: item,
+            orderIndex: 0
+          }))
         }
       };
       return obj;

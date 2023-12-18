@@ -45,6 +45,7 @@ export interface FixedDataModel {
   workDays: (string | number)[];
   workDateRange: [];
   workTime: string[][];
+
   users: { type: 'group' | 'user'; id: string }[];
 }
 

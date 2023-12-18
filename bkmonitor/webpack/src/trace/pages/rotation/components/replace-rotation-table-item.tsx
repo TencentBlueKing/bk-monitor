@@ -593,15 +593,12 @@ export default defineComponent({
      * @returns
      */
     function getOrderIndex(index: number) {
-      const { orderIndex, value } = localValue.users.value[0];
-      const { groupNumber, groupType } = localValue.users;
-      if (groupType === 'specified') return orderIndex;
-
-      if (value.length % groupNumber === 0) {
-        return orderIndex + Math.floor(index / groupNumber);
+      const { groupType } = localValue.users;
+      if (groupType === 'auto') {
+        const { orderIndex } = localValue.users.value[0];
+        return orderIndex + index;
       }
-      if (value.length <= groupNumber) return orderIndex;
-      return orderIndex + index;
+      return localValue.users.value[index].orderIndex;
     }
 
     /** 唯一拖拽id */
@@ -618,10 +615,11 @@ export default defineComponent({
       // 不进行跨组件拖拽
       if (dragUid !== uid) return;
       const startIndex = Number(e.dataTransfer.getData('index'));
-      const user = localValue.users.value[startIndex];
+      const startUser = localValue.users.value[startIndex];
+      const endUser = localValue.users.value[endIndex];
       localValue.users.value.splice(startIndex, 1);
-      localValue.users.value.splice(endIndex, 0, user);
-      setColorList(startIndex, endIndex);
+      localValue.users.value.splice(endIndex, 0, startUser);
+      setColorList(startUser.orderIndex, endUser.orderIndex);
       handleEmitDrop();
     }
 
@@ -659,6 +657,7 @@ export default defineComponent({
       rotationTypeList,
       localValue,
       rotationSelectType,
+      getOrderIndex,
       renderClassesContent,
       autoGroupTagTpl,
       handleAddUserGroup,
@@ -736,7 +735,7 @@ export default defineComponent({
                           prefix: () => (
                             <div
                               class='member-select-prefix'
-                              style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
+                              style={{ 'border-left-color': this.colorList.value[this.getOrderIndex(ind)] }}
                             >
                               <span class='icon-monitor icon-mc-tuozhuai'></span>
                             </div>
