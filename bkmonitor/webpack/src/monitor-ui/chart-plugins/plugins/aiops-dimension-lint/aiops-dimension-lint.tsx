@@ -177,7 +177,8 @@ export default class AiopsDimensionLine extends LineChart {
                 bk_biz_id: params.bk_biz_id
               },
               {
-                cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb))
+                cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+                needMessage: false
               }
             )
             .then(res => {
@@ -192,7 +193,11 @@ export default class AiopsDimensionLine extends LineChart {
                   }`
                 }))
               );
+              this.clearErrorMsg();
               return true;
+            })
+            .catch(error => {
+              this.handleErrorMsgChange(error.msg || error.message);
             })
         );
         promiseList.push(...list);

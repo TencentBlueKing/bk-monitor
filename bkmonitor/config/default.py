@@ -549,9 +549,6 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 # bk_monitor_proxy 自定义上报服务监听的端口
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
-# 异常记录保留天数
-ANOMALY_RECORD_SAVE_DAYS = 30
-
 # 后台celery存储配置类型rabbitmq_conf/redis_conf
 CELERY_CONF_TYPE = "rabbitmq_conf"
 
@@ -718,14 +715,6 @@ FTA_MIGRATE_BIZS = []
 DEFAULT_METRIC_PUSH_JOB = "SLI"
 # 运营指标上报任务标志
 OPERATION_STATISTICS_METRIC_PUSH_JOB = "Operation"
-
-# TODO: merge these types into one
-# 当前历史遗留问题，SLI 数据和运营数据分别送到不同的 dataID
-# 需要找时间合并二者
-JOB_DATAID_MAP = {
-    DEFAULT_METRIC_PUSH_JOB: CUSTOM_REPORT_DEFAULT_DATAID,
-    OPERATION_STATISTICS_METRIC_PUSH_JOB: STATISTICS_REPORT_DATA_ID,
-}
 
 # 是否启用计算平台处理influxdb降精度流程
 ENABLE_METADATA_DOWNSAMPLE_BY_BKDATA = False
@@ -1338,6 +1327,9 @@ BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
 
 # 获取指标的间隔时间，默认为 2 hour
 FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
+
+# 是否启用 metadata 新功能
+IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
