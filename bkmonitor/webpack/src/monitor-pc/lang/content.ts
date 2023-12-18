@@ -182,5 +182,16 @@ export default {
   均值: 'Avg',
   瞬间值: 'Last',
   '来源：{0}': 'Source: {0}',
-  内部通知人: 'Internal Notifier'
+  内部通知人: 'Internal Notifier',
+  多: 'Multi',
+  少: 'Less',
+  日志聚类: 'Log Clustering',
+  仪表盘: 'Dashboard',
+  观测场景: 'Observation Scenario',
+  给自己: 'To yourself',
+  给全员: 'To everyone',
+  不比对: 'Not Compared',
+  '{0}小时前': '{0} hours ago',
+  号: 'th',
+  '{0}小时': '{0} hours'
 };

@@ -94,7 +94,7 @@ class MyApply extends tsc<{}> {
       .catch(console.log)
       .finally(() => {
         this.isTableLoading = false;
-      })
+      });
   }
 
   render() {
@@ -256,12 +256,12 @@ class MyApply extends tsc<{}> {
         </bk-sideslider>
 
         {/* 测试代码 */}
-        <QuickCreateSubscription v-model={this.isShowQCSSlider}></QuickCreateSubscription>
+        {/* <QuickCreateSubscription v-model={this.isShowQCSSlider}></QuickCreateSubscription>
         <bk-button
           onClick={() => {
             this.isShowQCSSlider = true;
           }}
-        ></bk-button>
+        ></bk-button> */}
       </div>
     );
   }

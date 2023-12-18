@@ -26,6 +26,8 @@
 /* eslint-disable max-len */
 import { RouteConfig } from 'vue-router';
 
+import * as newReportAuth from '../../pages/new-report/authority-map';
+
 const NewReport = () => import(/* webpackChunkName: 'NewReport' */ '../../pages/new-report/new-report');
 export default [
   {
@@ -38,9 +40,33 @@ export default [
       title: '邮件订阅',
       navId: 'new-report-config',
       noNavBar: true,
+      authority: {
+        map: newReportAuth,
+        page: [newReportAuth.MANAGE_AUTH]
+      },
       route: {
         parent: 'manager'
       }
+    }
+  },
+  {
+    path: '/trace/create-subscription',
+    name: 'create-subscription',
+    components: {
+      noCache: NewReport
+    },
+    meta: {
+      title: '新建订阅',
+      needBack: true,
+      navId: 'new-report-config',
+      authority: {
+        map: newReportAuth,
+        page: [newReportAuth.MANAGE_AUTH]
+      },
+      route: {
+        parent: 'new-report-config'
+      },
+      noNavBar: true
     }
   }
 ] as RouteConfig[];

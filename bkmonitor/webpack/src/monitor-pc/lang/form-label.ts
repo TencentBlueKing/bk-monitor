@@ -1771,5 +1771,16 @@ export default {
   '共{count}个指标': 'A total of {count} metrics',
   场景智能检测: 'Scene intelligent detection',
   过滤告警级别: 'Filter alarm severity',
-  已选择更低告警级别: 'A lower alarm severity is selected'
+  已选择更低告警级别: 'A lower alarm severity is selected',
+  最大展示: 'Maximum display',
+  展示同比: 'Display ratio',
+  生成附件: 'Generate attachment',
+  发送配置: 'Send configuration',
+  附带链接: 'Attached link',
+  订阅名称: 'Subscription name',
+  内部用户: 'Internal user',
+  提示文案: 'Prompt text',
+  最大展示数量: 'Maximum display number',
+  内容配置: 'Content configuration',
+  邮件配置: 'Email configuration'
 };

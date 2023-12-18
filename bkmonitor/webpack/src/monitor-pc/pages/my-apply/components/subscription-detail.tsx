@@ -250,13 +250,13 @@ export default defineComponent({
                     ?.subscribers?.map?.(item => {
                       return (
                         <div style='display: inline-flex;align-items: center;margin-right: 24px;'>
-                          {item.src && (
+                          {/* {item.src && (
                             <img
-                              src='https://jjlau.com/img/avatar.jpg'
+                              src=''
                               alt=''
                               class='avatar'
                             />
-                          )}
+                          )} */}
                           <span style='margin-left: 5px;'>{item.id}</span>
                         </div>
                       );
@@ -282,7 +282,7 @@ export default defineComponent({
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
-                <span class='subscribers-label'>{window.i18n.t('企业微信机器人')}</span>
+                <span class='subscribers-label'>{window.i18n.t('企业微信群')}</span>
                 <span class='subscribers-value'>
                   {this.detailInfo?.channels
                     ?.find?.(item => item.channel_name === 'wxbot')
