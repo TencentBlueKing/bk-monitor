@@ -8,7 +8,7 @@ import typing
 from collections import defaultdict
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Set
 
 import arrow
 from django.conf import settings
@@ -187,7 +187,7 @@ class GetStrategyListV2Resource(Resource):
         return strategies.filter(id__in=ip_strategy_ids)
 
     @classmethod
-    def filter_strategy_ids_by_id(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤策略ID"""
         if filter_dict["id"]:
             ids = filter_dict["id"]
@@ -195,11 +195,11 @@ class GetStrategyListV2Resource(Resource):
                 ids = {int(_id) for _id in ids if _id}
             except (ValueError, TypeError):
                 raise ValidationError(_("存在非法的策略ID, {}").format(json.dumps(ids)))
-            filter_strategy_ids_list.append(ids)
+            filter_strategy_ids_set.intersection_update(ids)
 
     @classmethod
     def filter_strategy_ids_by_label(
-        cls, filter_dict: dict, filter_strategy_ids_list: list, bk_biz_id: Optional[str] = None
+        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
     ):
         """过滤策略标签"""
         if filter_dict["label"]:
@@ -208,10 +208,10 @@ class GetStrategyListV2Resource(Resource):
             if bk_biz_id is not None:
                 strategy_label_qs = strategy_label_qs.filter(bk_biz_id=bk_biz_id)
             label_strategy_ids = strategy_label_qs.values_list("strategy_id", flat=True).distinct()
-            filter_strategy_ids_list.append(label_strategy_ids)
+            filter_strategy_ids_set.intersection_update(set(label_strategy_ids))
 
     @classmethod
-    def filter_strategy_ids_by_data_source(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_data_source(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤数据源"""
         if filter_dict["data_source"]:
             data_sources: List[Tuple] = []
@@ -222,21 +222,22 @@ class GetStrategyListV2Resource(Resource):
                     data_sources.append((category["data_source_label"], category["data_type_label"]))
                     break
             if not data_sources:
-                filter_strategy_ids_list.append([])
+                filter_strategy_ids_set.intersection_update(set([]))
             else:
                 data_source_strategy_ids = (
                     QueryConfigModel.objects.filter(
                         reduce(
                             lambda x, y: x | y, [Q(data_source_label=ds, data_type_label=dt) for ds, dt in data_sources]
-                        )
+                        ),
+                        strategy_id__in=filter_strategy_ids_set
                     )
                     .values_list("strategy_id", flat=True)
                     .distinct()
                 )
-                filter_strategy_ids_list.append(data_source_strategy_ids)
+                filter_strategy_ids_set.intersection_update(set(data_source_strategy_ids))
 
     @classmethod
-    def filter_strategy_ids_by_result_table(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_result_table(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤结果表"""
         if filter_dict["result_table_id"]:
             result_table_id_strategy_ids = []
@@ -248,11 +249,11 @@ class GetStrategyListV2Resource(Resource):
                         .distinct()
                     )
                 )
-            filter_strategy_ids_list.append(set(result_table_id_strategy_ids))
+            filter_strategy_ids_set.intersection_update(set(result_table_id_strategy_ids))
 
     @classmethod
     def filter_strategy_ids_by_status(
-        cls, filter_dict: dict, filter_strategy_ids_list: list, bk_biz_id: Optional[str] = None
+        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
     ):
         """策略状态过滤"""
         if filter_dict["strategy_status"]:
@@ -263,33 +264,39 @@ class GetStrategyListV2Resource(Resource):
                     filter_status_params["bk_biz_id"] = bk_biz_id
 
                 strategy_status_ids.extend(cls.filter_by_status(**filter_status_params))
-            filter_strategy_ids_list.append(set(strategy_status_ids))
+            filter_strategy_ids_set.intersection_update(set(strategy_status_ids))
 
     @classmethod
-    def filter_strategy_ids_by_algo_type(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_algo_type(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """算法类型过滤"""
         if filter_dict["algorithm_type"]:
             algorithm_strategy_ids = (
-                AlgorithmModel.objects.filter(type__in=filter_dict["algorithm_type"])
+                AlgorithmModel.objects.filter(
+                    type__in=filter_dict["algorithm_type"],
+                    strategy_id__in=filter_strategy_ids_set
+                )
                 .values_list("strategy_id", flat=True)
                 .distinct()
             )
-            filter_strategy_ids_list.append(algorithm_strategy_ids)
+            filter_strategy_ids_set.intersection_update(set(algorithm_strategy_ids))
 
     @classmethod
-    def filter_strategy_ids_by_invalid_type(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_invalid_type(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """失效类型过滤"""
         if filter_dict["invalid_type"]:
             algorithm_strategy_ids = (
-                StrategyModel.objects.filter(invalid_type__in=filter_dict["invalid_type"])
+                StrategyModel.objects.filter(
+                    invalid_type__in=filter_dict["invalid_type"],
+                    id__in=filter_strategy_ids_set
+                )
                 .values_list("id", flat=True)
                 .distinct()
             )
-            filter_strategy_ids_list.append(algorithm_strategy_ids)
+            filter_strategy_ids_set.intersection_update(set(algorithm_strategy_ids))
 
     @classmethod
     def filter_strategy_ids_by_event_group(
-        cls, filter_dict: dict, filter_strategy_ids_list: list, bk_biz_id: Optional[str] = None
+            cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
     ):
         """过滤自定义事件组ID"""
         if filter_dict["custom_event_group_id"] or filter_dict["bk_event_group_id"]:
@@ -314,11 +321,11 @@ class GetStrategyListV2Resource(Resource):
                     .values_list("strategy_id", flat=True)
                     .distinct()
                 )
-            filter_strategy_ids_list.append(custom_event_strategy_ids)
+            filter_strategy_ids_set.intersection_update(set(custom_event_strategy_ids))
 
     @classmethod
     def filter_strategy_ids_by_series_group(
-        cls, filter_dict: dict, filter_strategy_ids_list: list, bk_biz_id: Optional[str] = None
+        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
     ):
         """过滤自定义指标ID"""
         if filter_dict["time_series_group_id"]:
@@ -344,11 +351,11 @@ class GetStrategyListV2Resource(Resource):
                     .values_list("strategy_id", flat=True)
                     .distinct()
                 )
-            filter_strategy_ids_list.append(custom_metric_strategy_ids)
+            filter_strategy_ids_set.intersection_update(set(custom_metric_strategy_ids))
 
     @classmethod
     def filter_strategy_ids_by_plugin_id(
-        cls, filter_dict: dict, filter_strategy_ids_list: list, bk_biz_id: Optional[str] = None
+        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
     ):
         # 无业务id，不支持搜索(RequestSerializer 明确bk_biz_id 必填)
         if not bk_biz_id:
@@ -366,34 +373,37 @@ class GetStrategyListV2Resource(Resource):
 
             plugin_strategy_ids = []
             if plugin_table_ids:
-                strategy_ids = list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True))
-                query_configs = QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).only(
+                query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
                     "config", "strategy_id"
                 )
                 for qc in query_configs:
                     if qc.config.get("result_table_id") in plugin_table_ids:
                         plugin_strategy_ids.append(qc.strategy_id)
 
-            filter_strategy_ids_list.append(plugin_strategy_ids)
+            filter_strategy_ids_set.intersection_update(set(plugin_strategy_ids))
 
     @classmethod
-    def filter_strategy_ids_by_metric_id(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_metric_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤指标ID"""
         if filter_dict["metric_id"]:
             metric_strategy_ids = set(
-                QueryConfigModel.objects.filter(metric_id__in=filter_dict["metric_id"])
+                QueryConfigModel.objects.filter(
+                    metric_id__in=filter_dict["metric_id"],
+                    strategy_id__in=filter_strategy_ids_set
+                )
                 .values_list("strategy_id", flat=True)
                 .distinct()
             )
-            filter_strategy_ids_list.append(metric_strategy_ids)
+            filter_strategy_ids_set.intersection_update(metric_strategy_ids)
 
     @classmethod
-    def filter_strategy_ids_by_uct_id(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_uct_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤拨测任务ID"""
         if filter_dict["uptime_check_task_id"]:
             filter_dict["uptime_check_task_id"] = [str(task_id) for task_id in filter_dict["uptime_check_task_id"]]
             uptime_check_query_configs = QueryConfigModel.objects.filter(
-                metric_id__startswith="bk_monitor.uptimecheck."
+                metric_id__startswith="bk_monitor.uptimecheck.",
+                strategy_id__in=filter_strategy_ids_set
             )
 
             uptime_check_strategy_ids = set()
@@ -409,16 +419,17 @@ class GetStrategyListV2Resource(Resource):
                         if value & set(filter_dict["uptime_check_task_id"]):
                             uptime_check_strategy_ids.add(query_config.strategy_id)
 
-            filter_strategy_ids_list.append(uptime_check_strategy_ids)
+            filter_strategy_ids_set.intersection_update(uptime_check_strategy_ids)
 
     @classmethod
-    def filter_strategy_ids_by_level(cls, filter_dict: dict, filter_strategy_ids_list: list):
+    def filter_strategy_ids_by_level(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤告警级别"""
         if filter_dict["level"]:
-            level_strategy_ids = DetectModel.objects.filter(level__in=filter_dict["level"]).values_list(
-                'strategy_id', flat=True
-            )
-            filter_strategy_ids_list.append(level_strategy_ids)
+            level_strategy_ids = DetectModel.objects.filter(
+                strategy_id__in=filter_strategy_ids_set,
+                level__in=filter_dict["level"]
+            ).values_list('strategy_id', flat=True)
+            filter_strategy_ids_set.intersection_update(set(level_strategy_ids))
 
     @classmethod
     def filter_by_conditions(cls, conditions: List[Dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
@@ -467,51 +478,32 @@ class GetStrategyListV2Resource(Resource):
                 value = [value]
             filter_dict[key].extend(value)
 
-        filter_strategy_ids_list: List = []
+        filter_strategy_ids_set: Set = set(strategies.values_list("id", flat=True).distinct())
 
-        cls.filter_strategy_ids_by_id(filter_dict, filter_strategy_ids_list)
+        filter_methods: List[Tuple] = [
+            (cls.filter_strategy_ids_by_id, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_by_label, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_strategy_ids_by_data_source, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_by_result_table, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_by_status, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_strategy_ids_by_algo_type, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_by_invalid_type, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_by_user_groups, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_by_action, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_by_metric_field, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_strategy_ids_by_event_group, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_strategy_ids_by_series_group, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_strategy_ids_by_plugin_id, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_strategy_ids_by_metric_id, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_by_uct_id, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set))
 
-        cls.filter_strategy_ids_by_label(filter_dict, filter_strategy_ids_list, bk_biz_id)
-
-        cls.filter_strategy_ids_by_data_source(filter_dict, filter_strategy_ids_list)
-
-        cls.filter_strategy_ids_by_result_table(filter_dict, filter_strategy_ids_list)
-
-        cls.filter_strategy_ids_by_status(filter_dict, filter_strategy_ids_list, bk_biz_id)
-
-        cls.filter_strategy_ids_by_algo_type(filter_dict, filter_strategy_ids_list)
-
-        cls.filter_strategy_ids_by_invalid_type(filter_dict, filter_strategy_ids_list)
-
-        filter_params = {"filter_dict": filter_dict, "filter_strategy_ids_list": filter_strategy_ids_list}
-        if bk_biz_id is not None:
-            filter_params["bk_biz_id"] = bk_biz_id
-
-        # 告警组过滤
-        cls.filter_by_user_groups(**filter_params)
-
-        # 套餐名称或者ID过滤
-        cls.filter_by_action(**filter_params)
-
-        # 过滤指标名
-        cls.filter_by_metric_field(**filter_params)
-
-        cls.filter_strategy_ids_by_event_group(filter_dict, filter_strategy_ids_list, bk_biz_id)
-
-        cls.filter_strategy_ids_by_series_group(filter_dict, filter_strategy_ids_list, bk_biz_id)
-
-        cls.filter_strategy_ids_by_plugin_id(filter_dict, filter_strategy_ids_list, bk_biz_id)
-
-        cls.filter_strategy_ids_by_metric_id(filter_dict, filter_strategy_ids_list)
-
-        cls.filter_strategy_ids_by_uct_id(filter_dict, filter_strategy_ids_list)
-        # 告警级别过滤
-        cls.filter_strategy_ids_by_level(filter_dict, filter_strategy_ids_list)
-
-        # 各种过滤条件获得的策略ID取交集
-        if filter_strategy_ids_list:
-            strategy_ids = reduce(lambda x, y: set(x) & set(y), filter_strategy_ids_list)
-            strategies = strategies.filter(id__in=strategy_ids)
+        ]
+        for filter_method, args in filter_methods:
+            filter_method(*args)
+            if not filter_strategy_ids_set:
+                return strategies.none()
+        strategies = strategies.filter(id__in=filter_strategy_ids_set)
 
         # 过滤创建人
         if filter_dict["create_user"]:
@@ -534,7 +526,10 @@ class GetStrategyListV2Resource(Resource):
                 try:
                     result_table_id_strategy_ids.extend(
                         list(
-                            QueryConfigModel.objects.filter(config__result_table_id=query)
+                            QueryConfigModel.objects.filter(
+                                config__result_table_id=query,
+                                strategy_id__in=filter_strategy_ids_set
+                            )
                             .values_list("strategy_id", flat=True)
                             .distinct()
                         )
@@ -569,7 +564,7 @@ class GetStrategyListV2Resource(Resource):
         return strategies
 
     @staticmethod
-    def filter_by_metric_field(filter_dict, filter_strategy_ids_list: List, bk_biz_id: int = None):
+    def filter_by_metric_field(filter_dict, filter_strategy_ids_set: set, bk_biz_id: int = None):
         """
         指标相关的过滤
         """
@@ -599,10 +594,10 @@ class GetStrategyListV2Resource(Resource):
             .distinct()
         )
 
-        filter_strategy_ids_list.append(metric_strategy_ids)
+        filter_strategy_ids_set.intersection_update(metric_strategy_ids)
 
     @staticmethod
-    def filter_by_user_groups(filter_dict, filter_strategy_ids_list: List, bk_biz_id: int = None):
+    def filter_by_user_groups(filter_dict, filter_strategy_ids_set: set, bk_biz_id: int = None):
         """
         根据告警组信息查询策略
         """
@@ -619,7 +614,7 @@ class GetStrategyListV2Resource(Resource):
             filter_user_group_ids.extend(user_group_qs.values_list("id", flat=True))
 
         if not filter_user_group_ids:
-            filter_strategy_ids_list.append(set())
+            filter_strategy_ids_set.intersection_update(set())
             return
 
         or_condition = reduce(
@@ -629,10 +624,10 @@ class GetStrategyListV2Resource(Resource):
         user_group_strategy_ids = set(
             StrategyActionConfigRelation.objects.filter(or_condition).values_list("strategy_id", flat=True).distinct()
         )
-        filter_strategy_ids_list.append(user_group_strategy_ids)
+        filter_strategy_ids_set.intersection_update(user_group_strategy_ids)
 
     @staticmethod
-    def filter_by_action(filter_dict, filter_strategy_ids_list: List, bk_biz_id: int = None):
+    def filter_by_action(filter_dict, filter_strategy_ids_set: set, bk_biz_id: int = None):
         if "action_name" not in filter_dict and "action_id" not in filter_dict:
             return
 
@@ -644,14 +639,14 @@ class GetStrategyListV2Resource(Resource):
             strategy_qs = StrategyModel.objects.all()
             if bk_biz_id is not None:
                 strategy_qs = strategy_qs.filter(bk_biz_id=bk_biz_id)
-                strategy_ids = list(strategy_qs.values_list("id", flat=True))
+                strategy_ids = strategy_qs.values_list("id", flat=True)
                 # 再找出关联了处理动作的策略
                 strategy_ids_with_action = StrategyActionConfigRelation.objects.filter(
                     strategy_id__in=strategy_ids,
                     relate_type=StrategyActionConfigRelation.RelateType.ACTION,
                 ).values_list("strategy_id", flat=True)
             else:
-                strategy_ids = list(strategy_qs.values_list("id", flat=True))
+                strategy_ids = strategy_qs.values_list("id", flat=True)
                 strategy_ids_with_action = StrategyActionConfigRelation.objects.filter(
                     relate_type=StrategyActionConfigRelation.RelateType.ACTION,
                 ).values_list("strategy_id", flat=True)
@@ -674,12 +669,12 @@ class GetStrategyListV2Resource(Resource):
         if not conditions:
             # 如果没有其他条件，则不需要处理
             if filter_strategy_ids:
-                filter_strategy_ids_list.append(filter_strategy_ids)
+                filter_strategy_ids_set.intersection_update(filter_strategy_ids)
             return
 
         action_ids = action_ids.filter(reduce(operator.or_, conditions))
 
-        filter_strategy_ids_list.append(
+        filter_strategy_ids_set.intersection_update(
             filter_strategy_ids
             | set(
                 StrategyActionConfigRelation.objects.filter(config_id__in=list(action_ids))

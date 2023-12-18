@@ -14,7 +14,11 @@ from __future__ import absolute_import, unicode_literals
 from blueapps.account.decorators import login_exempt
 from django.shortcuts import render
 
+from common.decorators import timezone_exempt, track_site_visit
+
 
 @login_exempt
+@timezone_exempt
+@track_site_visit
 def apm_trace_home(request):
     return render(request, "trace/index.html")

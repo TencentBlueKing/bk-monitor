@@ -9,20 +9,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.core.management import BaseCommand
 
-from django.conf.urls import url
+from monitor_web.models.collecting import CollectConfigMeta
+from monitor_web.strategies.loader.datalink_loader import (
+    DatalinkDefaultAlarmStrategyLoader,
+)
 
-from monitor_adapter.home import views
 
-urlpatterns = [
-    url(r"^$", views.home),
-    url(r"^e/$", views.event_center_proxy),
-    url(r"^route/$", views.path_route_proxy),
-    url(r"^static/monitor/$", views.home),
-    url(r"^external/$", views.external),
-    url(r"^external_callback/$", views.external_callback),
-    url(r"^dispatch_external_proxy/$", views.dispatch_external_proxy),
-    url(r"^service-worker.js$", views.service_worker),
-    url(r"^manifest.json$", views.manifest),
-    url(r"^logout/?$", views.user_exit),
-]
+class Command(BaseCommand):
+    def handle(self, *args, **kwargs):
+        collect_config_id = kwargs["c"]
+        collect_config: CollectConfigMeta = CollectConfigMeta.objects.get(id=collect_config_id)
+        loader = DatalinkDefaultAlarmStrategyLoader(collect_config, "system")
+        loader.run()
+
+    def add_arguments(self, parser):
+        parser.add_argument("-c", type=int, required=True, help="采集配置ID")

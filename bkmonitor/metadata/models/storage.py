@@ -919,6 +919,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
 
         # 将存储的修改时间去掉，防止MD5命中失败
         consul_config["cluster_config"].pop("last_modify_time")
+        consul_config["cluster_config"]["instance_cluster_name"] = self.influxdb_proxy_storage.instance_cluster_name
 
         return consul_config
 
@@ -3909,3 +3910,12 @@ class ArgusStorage(models.Model, StorageResultTable):
     def add_field(self, field):
         """增加一个新的字段"""
         pass
+
+
+class ClusterMetric(models.Model):
+    metric_name = models.CharField(verbose_name="指标名称", max_length=512, primary_key=True)
+    tags = JsonField(verbose_name="维度字段列表", default=[])
+
+    class Meta:
+        verbose_name = "集群指标配置"
+        verbose_name_plural = "集群指标配置"

@@ -10,19 +10,20 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.conf.urls import url
+from django.utils.translation import ugettext_lazy as _lazy
 
-from monitor_adapter.home import views
+from core.errors import Error
 
-urlpatterns = [
-    url(r"^$", views.home),
-    url(r"^e/$", views.event_center_proxy),
-    url(r"^route/$", views.path_route_proxy),
-    url(r"^static/monitor/$", views.home),
-    url(r"^external/$", views.external),
-    url(r"^external_callback/$", views.external_callback),
-    url(r"^dispatch_external_proxy/$", views.dispatch_external_proxy),
-    url(r"^service-worker.js$", views.service_worker),
-    url(r"^manifest.json$", views.manifest),
-    url(r"^logout/?$", views.user_exit),
-]
+
+class ResultTableMetaError(Error):
+    status_code = 500
+    code = 3344001
+    name = _lazy("结果表元数据错误")
+    message_tpl = _lazy("元数据错误：{msg}")
+
+
+class CollectorPluginMetaError(Error):
+    status_code = 500
+    code = 3344002
+    name = _lazy("采集器元数据错误")
+    message_tpl = _lazy("采集器元数据错误：{msg}")
