@@ -20,7 +20,7 @@ from django.db.transaction import atomic
 from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from metadata import config, models
-from metadata.models.constants import BULK_CREATE_BATCH_SIZE
+from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
 from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SKIP_DATA_ID_LIST_FOR_BKCC,
@@ -734,7 +734,7 @@ def create_and_update_paas_space_resource(space_cluster_namespaces: Dict):
         exist_space_set.add(obj.space_id)
         obj.dimension_values = space_cluster_namespaces.get(obj.space_id, [])
     try:
-        models.SpaceResource.objects.bulk_update(objs, ["dimension_values"], batch_size=BULK_CREATE_BATCH_SIZE)
+        models.SpaceResource.objects.bulk_update(objs, ["dimension_values"], batch_size=BULK_UPDATE_BATCH_SIZE)
     except Exception as e:
         logger.error("bulk update space resource error, space: %s, error: %s", json.dumps(exist_space_set), e)
 
