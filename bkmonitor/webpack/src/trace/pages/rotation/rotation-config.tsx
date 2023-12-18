@@ -34,7 +34,12 @@ import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import NavBar from '../../components/nav-bar/nav-bar';
 
-import { getAutoOrderList, getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
+import {
+  getAutoOrderList,
+  getPreviewParams,
+  noOrderDutyData,
+  setPreviewDataOfServer
+} from './components/calendar-preview';
 import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
 import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
@@ -308,8 +313,13 @@ export default defineComponent({
           id: id.value
         };
         const data = await previewDutyRulePlan(params).catch(() => []);
-        const autoOrders = getAutoOrderList(getParams());
-        previewData.value = setPreviewDataOfServer(data, autoOrders, colorList.value);
+        const dutyParams = getParams();
+        const autoOrders = getAutoOrderList(dutyParams);
+        previewData.value = setPreviewDataOfServer(
+          dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
+          autoOrders,
+          colorList.value
+        );
       } else {
         const dutyParams = getParams();
         const params = {
@@ -319,7 +329,11 @@ export default defineComponent({
         };
         const data = await previewDutyRulePlan(params, { needCancel: true }).catch(() => []);
         const autoOrders = getAutoOrderList(dutyParams);
-        previewData.value = setPreviewDataOfServer(data, autoOrders, colorList.value);
+        previewData.value = setPreviewDataOfServer(
+          dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
+          autoOrders,
+          colorList.value
+        );
       }
     }
 

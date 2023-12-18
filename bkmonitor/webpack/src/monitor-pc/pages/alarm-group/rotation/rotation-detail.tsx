@@ -29,7 +29,12 @@ import { Button, Sideslider } from 'bk-magic-vue';
 
 import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
 import { previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
-import { getPreviewParams, setPreviewDataOfServer } from '../../../../trace/pages/rotation/components/calendar-preview';
+import {
+  getAutoOrderList,
+  getPreviewParams,
+  noOrderDutyData,
+  setPreviewDataOfServer
+} from '../../../../trace/pages/rotation/components/calendar-preview';
 import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
 import { randomColor, RuleDetailModel, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
@@ -99,7 +104,11 @@ export default class RotationDetail extends tsc<IProps> {
       id: this.id
     };
     const data = await previewDutyRulePlan(params).catch(() => []);
-    this.previewData = setPreviewDataOfServer(data);
+    const autoOrders = getAutoOrderList(this.detailData);
+    this.previewData = setPreviewDataOfServer(
+      this.detailData.category === 'regular' ? noOrderDutyData(data) : data,
+      autoOrders
+    );
   }
 
   handleToEdit() {

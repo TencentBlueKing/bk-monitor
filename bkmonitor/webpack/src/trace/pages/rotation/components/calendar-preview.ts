@@ -460,3 +460,10 @@ export function getAutoOrderList(data) {
   }
   return autoOrders;
 }
+
+export function noOrderDutyData(data: IDutyPlans[]) {
+  return data.map(item => ({
+    ...item,
+    order: 0
+  }));
+}
