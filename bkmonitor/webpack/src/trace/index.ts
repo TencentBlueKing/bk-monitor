@@ -51,40 +51,50 @@ const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
-Api.model
-  .enhancedContext({
-    space_uid: spaceUid || undefined,
-    bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-    context_type: 'basic'
-  })
-  .then(data => {
-    Object.keys(data).forEach(key => {
-      window[key.toLocaleLowerCase()] = data[key];
-    });
-    window.username = window.uin;
-    window.cc_biz_id = +window.bk_biz_id;
-    window.bk_log_search_url = data.BKLOGSEARCH_HOST;
-    const bizId = setGlobalBizId();
-    const app = createApp(App);
-    setVue(app);
-    app.use(store).use(router).use(i18n).use(directives).mount('#app');
-    serviceWorker.unregister();
-    app.config.globalProperties = {
-      $api: Api,
-      $Message: Message,
-      $authorityStore: useAuthorityStore()
-    } as any;
-    Api.model
-      .enhancedContext({
-        space_uid: spaceUid || undefined,
-        bk_biz_id: bizId,
-        context_type: 'extra'
-      })
-      .then(data => {
-        Object.keys(data).forEach(key => {
-          window[key.toLocaleLowerCase()] = data[key];
-        });
+if (window.__POWERED_BY_BK_WEWEB__) {
+  const app = createApp(App);
+  setVue(app);
+  app.use(store).use(router).use(i18n).use(directives).mount('#app');
+  app.config.globalProperties = {
+    $api: Api,
+    $Message: Message,
+    $authorityStore: useAuthorityStore()
+  } as any;
+} else {
+  Api.model
+    .enhancedContext({
+      space_uid: spaceUid || undefined,
+      bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
+      context_type: 'basic'
+    })
+    .then(data => {
+      Object.keys(data).forEach(key => {
+        window[key.toLocaleLowerCase()] = data[key];
       });
-    serviceWorker.register();
-  })
-  .catch(e => console.error(e));
+      window.username = window.uin;
+      window.cc_biz_id = +window.bk_biz_id;
+      window.bk_log_search_url = data.BKLOGSEARCH_HOST;
+      setGlobalBizId();
+      const app = createApp(App);
+      setVue(app);
+      app.use(store).use(router).use(i18n).use(directives).mount('#app');
+      app.config.globalProperties = {
+        $api: Api,
+        $Message: Message,
+        $authorityStore: useAuthorityStore()
+      } as any;
+      Api.model
+        .enhancedContext({
+          space_uid: spaceUid || undefined,
+          bk_biz_id: window.bk_biz_id,
+          context_type: 'extra'
+        })
+        .then(data => {
+          Object.keys(data).forEach(key => {
+            window[key.toLocaleLowerCase()] = data[key];
+          });
+        });
+      serviceWorker.register();
+    })
+    .catch(e => console.error(e));
+}
