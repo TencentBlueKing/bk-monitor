@@ -29,19 +29,33 @@ class DashboardPermission(BasePermission):
     """
 
     @classmethod
-    def get_policy_dashboard_uids(cls, policy: Dict) -> Set[str]:
+    def get_policy_dashboard_uids(cls, bk_biz_id: int, policy: Dict) -> Set[str]:
         """
         从权限策略中获取仪表盘 ID
         """
+        bk_biz_id = int(bk_biz_id)
         uids = set()
         op = policy.get("op", "").lower()
         if op == "or":
             for content in policy["content"]:
-                uids.update(cls.get_policy_dashboard_uids(content))
+                uids.update(cls.get_policy_dashboard_uids(bk_biz_id, content))
         elif op == "in":
             uids.update(policy["value"])
         elif op == "eq":
             uids.add(policy["value"])
+        elif op == "and":
+            iam_biz_id = None
+            iam_uids = set()
+            for content in policy["content"]:
+                if content.get("field") == "grafana_dashboard._bk_iam_path_":
+                    result = content["value"].split(",")
+                    if len(result) == 2 and result[0] == f"/{ResourceEnum.BUSINESS.id}":
+                        iam_biz_id = int(result[1][:-1])
+                        break
+                elif content.get("field") == "grafana_dashboard.id":
+                    iam_uids.update(cls.get_policy_dashboard_uids(bk_biz_id, content))
+            if not iam_biz_id or iam_biz_id == bk_biz_id:
+                uids.update(iam_uids)
         return uids
 
     @classmethod
@@ -103,8 +117,8 @@ class DashboardPermission(BasePermission):
             return True, role, {}
 
         # 获取仪表盘权限
-        view_uids = cls.get_policy_dashboard_uids(view_policy)
-        edit_uids = cls.get_policy_dashboard_uids(edit_policy)
+        view_uids = cls.get_policy_dashboard_uids(int(org_name), view_policy)
+        edit_uids = cls.get_policy_dashboard_uids(int(org_name), edit_policy)
         dashboard_permissions = {}
 
         for uid in view_uids:
