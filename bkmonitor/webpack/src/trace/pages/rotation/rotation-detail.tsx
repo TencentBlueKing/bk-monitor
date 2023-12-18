@@ -33,7 +33,12 @@ import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import { IAuthority } from '../../typings/authority';
 
-import { getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
+import {
+  getAutoOrderList,
+  getPreviewParams,
+  noOrderDutyData,
+  setPreviewDataOfServer
+} from './components/calendar-preview';
 import FormItem from './components/form-item';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
 import { RotationTabTypeEnum } from './typings/common';
@@ -89,7 +94,7 @@ export default defineComponent({
         .then(res => {
           detailData.value = res;
           type.value = res.category;
-          rules.value = transformRulesDetail(detailData.value.duty_arranges);
+          rules.value = transformRulesDetail(detailData.value.duty_arranges, res.category);
           historyList.value = [
             { label: t('创建人'), value: res.create_user || '--' },
             { label: t('创建时间'), value: res.create_time || '--' },
@@ -114,7 +119,11 @@ export default defineComponent({
       };
       previewDutyRulePlan(params)
         .then(data => {
-          previewData.value = setPreviewDataOfServer(data);
+          const autoOrders = getAutoOrderList(detailData.value);
+          previewData.value = setPreviewDataOfServer(
+            detailData.value.category === 'regular' ? noOrderDutyData(data) : data,
+            autoOrders
+          );
         })
         .finally(() => {
           previewLoading.value = false;
@@ -235,15 +244,30 @@ export default defineComponent({
                           {time.periodSettings && <span class='rule-item-period'>{time.periodSettings}</span>}
                         </div>
                       ))}
+                      {rule.isAuto && (
+                        <div class='auto-group'>
+                          <span>{this.t('单次值班')}</span>
+                          {rule.groupNumber}
+                          <span>{this.t('人')}</span>
+                        </div>
+                      )}
                       <div class='notice-user-list'>
-                        {rule.ruleUser.map((item, ind) => (
-                          <div class='notice-user-item'>
-                            <div
-                              class='has-color'
-                              style={{ background: randomColor(ind) }}
-                            ></div>
-                            {item.map(user => (
+                        {rule.ruleUser.map(item => (
+                          <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
+                            {!rule.isAuto && (
+                              <div
+                                class='has-color'
+                                style={{ background: randomColor(item.orderIndex) }}
+                              ></div>
+                            )}
+                            {item.users.map((user, ind) => (
                               <div class='personnel-choice'>
+                                {rule.isAuto && (
+                                  <span
+                                    class='user-color'
+                                    style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                                  ></span>
+                                )}
                                 {this.renderUserLogo(user)}
                                 <span>{user.display_name}</span>
                               </div>

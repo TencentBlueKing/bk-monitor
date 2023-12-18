@@ -70,6 +70,12 @@
       justify-content: flex-end;
       width: 122px;
       padding-right: 22px;
+      line-height: 30px;
+      white-space: nowrap;
+
+      &.en {
+        width: 170px;
+      }
     }
 
     .form-item-content {
@@ -87,7 +93,9 @@
         justify-content: center;
         min-width: 28px;
         height: 100%;
+        padding: 0 4px;
         font-size: 12px;
+        white-space: nowrap;
       }
 
       .input-right-select {

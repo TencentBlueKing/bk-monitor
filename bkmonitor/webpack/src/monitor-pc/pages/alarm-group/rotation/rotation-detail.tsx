@@ -29,7 +29,12 @@ import { Button, Sideslider } from 'bk-magic-vue';
 
 import { retrieveDutyRule } from '../../../../monitor-api/modules/model';
 import { previewDutyRulePlan } from '../../../../monitor-api/modules/user_groups';
-import { getPreviewParams, setPreviewDataOfServer } from '../../../../trace/pages/rotation/components/calendar-preview';
+import {
+  getAutoOrderList,
+  getPreviewParams,
+  noOrderDutyData,
+  setPreviewDataOfServer
+} from '../../../../trace/pages/rotation/components/calendar-preview';
 import { RotationTabTypeEnum } from '../../../../trace/pages/rotation/typings/common';
 import { randomColor, RuleDetailModel, transformRulesDetail } from '../../../../trace/pages/rotation/utils';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
@@ -84,7 +89,7 @@ export default class RotationDetail extends tsc<IProps> {
       .then((res: any) => {
         this.detailData = res;
         this.type = res.category;
-        this.rules = transformRulesDetail(res.duty_arranges);
+        this.rules = transformRulesDetail(res.duty_arranges, res.category);
         this.getPreviewData();
       })
       .finally(() => {
@@ -99,7 +104,11 @@ export default class RotationDetail extends tsc<IProps> {
       id: this.id
     };
     const data = await previewDutyRulePlan(params).catch(() => []);
-    this.previewData = setPreviewDataOfServer(data);
+    const autoOrders = getAutoOrderList(this.detailData);
+    this.previewData = setPreviewDataOfServer(
+      this.detailData.category === 'regular' ? noOrderDutyData(data) : data,
+      autoOrders
+    );
   }
 
   handleToEdit() {
@@ -179,15 +188,30 @@ export default class RotationDetail extends tsc<IProps> {
                     {time.periodSettings && <span class='rule-item-period'>{time.periodSettings}</span>}
                   </div>
                 ))}
+                {rule.isAuto && (
+                  <div class='auto-group'>
+                    <span>{this.$t('单次值班')}</span>
+                    {rule.groupNumber}
+                    <span>{this.$t('人')}</span>
+                  </div>
+                )}
                 <div class='notice-user-list'>
-                  {rule.ruleUser.map((item, ind) => (
-                    <div class='notice-user-item'>
-                      <div
-                        class='has-color'
-                        style={{ background: randomColor(ind) }}
-                      ></div>
-                      {item.map(user => (
+                  {rule.ruleUser.map(item => (
+                    <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
+                      {!rule.isAuto && (
+                        <div
+                          class='has-color'
+                          style={{ background: randomColor(item.orderIndex) }}
+                        ></div>
+                      )}
+                      {item.users.map((user, ind) => (
                         <div class='personnel-choice'>
+                          {rule.isAuto && (
+                            <span
+                              class='user-color'
+                              style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                            ></span>
+                          )}
                           {this.renderUserLogo(user)}
                           <span>{user.display_name}</span>
                         </div>

@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, nextTick, onUnmounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Message, Tag, TimePicker } from 'bkui-vue';
+import { Tag, TimePicker } from 'bkui-vue';
 import dayjs from 'dayjs';
 
 import { getEventPaths } from '../../../../monitor-pc/utils';
@@ -69,7 +69,9 @@ export default defineComponent({
       if (sourceValue.value.length !== localValue.length) return true;
       return localValue.some(val => !sourceValue.value.some(source => source[0] === val[0] && source[1] === val[1]));
     });
+    const isShowMsg = ref(false);
 
+    const contentRef = ref<HTMLDivElement>();
     const inputRef = ref();
     const currentTime = reactive<CurrentTimeModel>({
       /** 当前输入的时间 */
@@ -102,19 +104,19 @@ export default defineComponent({
      * @param time 时间选择器回填的时间
      * @param ind 索引
      */
-    function handleShowTime(e: Event, time?: string[], ind?: number) {
+    function handleShowTime(e: Event, time: string[], ind?: number) {
       currentTime.index = ind ?? -1;
-      currentTime.value = time ? [...time] : [];
+      currentTime.value = [...time];
       currentTime.show = true;
-      currentTime.showInput = !time;
-      currentTime.inputValue = '';
-      if (currentTime.showInput) {
-        nextTick(() => {
-          inputRef.value?.focus?.();
-        });
-      }
+      currentTime.showInput = !ind && ind !== 0;
+      currentTime.inputValue = time.join(' - ');
+      nextTick(() => {
+        if (time) {
+          inputWidth.value = textTestRef.value.offsetWidth;
+        }
+        inputRef.value?.focus?.();
+      });
       sourceValue.value = JSON.parse(JSON.stringify(localValue));
-      e.stopPropagation();
     }
 
     /**
@@ -139,6 +141,7 @@ export default defineComponent({
 
     function handleTimeChange(val) {
       currentTime.inputValue = val.join(' - ');
+      localValue[currentTime.index] = val;
       resetInputWidth();
     }
 
@@ -154,37 +157,21 @@ export default defineComponent({
      * 确认选择时间
      */
     function handleConfirm(e: Event) {
-      if (getEventPaths(e, '.time-picker-popover').length) return;
+      isShowMsg.value = false;
+      if (getEventPaths(e, '.time-picker-popover').length || contentRef.value.contains(e.target as Node)) return;
       if (!currentTime.value.length && !currentTime.inputValue) {
-        currentTime.show = false;
-        currentTime.showInput = false;
+        initCurrentTime();
         return;
       }
 
       const reg = /^(([0-1][0-9]|2[0-3]):[0-5][0-9])(?: ?)-(?: ?)(([0-1][0-9]|2[0-3]):[0-5][0-9])$/;
       if (currentTime.inputValue) {
         if (!reg.test(currentTime.inputValue)) {
-          currentTime.show = false;
-          currentTime.showInput = false;
+          initCurrentTime();
           return;
         }
         const match = currentTime.inputValue.match(reg);
         currentTime.value = [match[1], match[3]];
-      }
-
-      if (
-        validTimeOverlap(
-          currentTime.value,
-          localValue.filter((item, index) => index !== currentTime.index)
-        )
-      ) {
-        currentTime.show = false;
-        currentTime.showInput = false;
-        Message({
-          theme: 'warning',
-          message: t('时间段重叠了')
-        });
-        return;
       }
 
       // 新增时间
@@ -194,40 +181,16 @@ export default defineComponent({
         // 编辑时间
         localValue.splice(currentTime.index, 1, [...currentTime.value]);
       }
-      currentTime.show = false;
-      currentTime.showInput = false;
+      initCurrentTime();
       handleEmitData();
     }
 
-    /**
-     * 判断新日期是否在已存在的日期内
-     * @param val 新日期
-     * @param list 已有的日期
-     * @returns
-     */
-    function validTimeOverlap(val, list) {
-      return list.some(item => {
-        const [start, end] = item;
-        const [startTime, endTime] = val;
-        const isBefore = dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm'));
-        const targetTimeStamp = {
-          start: dayjs(start, 'hh:mm').valueOf(),
-          end: dayjs(end, 'hh:mm')
-            .add(isBefore ? 0 : 1, 'day')
-            .valueOf()
-        };
-        const currentIsBefore = dayjs(startTime, 'hh:mm').isBefore(dayjs(endTime, 'hh:mm'));
-        const currentTimeStamp = {
-          start: dayjs(startTime, 'hh:mm').valueOf(),
-          end: dayjs(endTime, 'hh:mm')
-            .add(currentIsBefore ? 0 : 1, 'day')
-            .valueOf()
-        };
-        return (
-          dayjs(currentTimeStamp.start).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]') ||
-          dayjs(currentTimeStamp.end).isBetween(targetTimeStamp.start, targetTimeStamp.end, null, '[]')
-        );
-      });
+    function initCurrentTime() {
+      currentTime.show = false;
+      currentTime.showInput = false;
+      currentTime.value = ['00:00', '23:59'];
+      currentTime.inputValue = '';
+      currentTime.index = -1;
     }
 
     /**
@@ -245,6 +208,7 @@ export default defineComponent({
       localValue,
       currentTime,
       inputWidth,
+      contentRef,
       inputRef,
       textTestRef,
       resetInputWidth,
@@ -280,8 +244,9 @@ export default defineComponent({
           {{
             trigger: () => (
               <div
+                ref='contentRef'
                 class='content'
-                onClick={e => this.handleShowTime(e)}
+                onClick={e => this.handleShowTime(e, ['00:00', '23:59'])}
               >
                 <i class='icon-monitor icon-mc-time icon'></i>
                 <div class='time-tag-list'>
@@ -292,7 +257,17 @@ export default defineComponent({
                       onClick={e => this.handleShowTime(e, item, ind)}
                       onClose={() => this.handleTagClose(ind)}
                     >
-                      {this.tagNameFormat(item)}
+                      {this.currentTime.index === ind ? (
+                        <input
+                          class='edit-custom-input'
+                          ref='inputRef'
+                          style={{ width: `${this.inputWidth}px` }}
+                          v-model={this.currentTime.inputValue}
+                          onInput={this.resetInputWidth}
+                        />
+                      ) : (
+                        <span>{this.tagNameFormat(item)}</span>
+                      )}
                     </Tag>
                   ))}
                   {this.currentTime.showInput && (
@@ -301,13 +276,12 @@ export default defineComponent({
                       class='custom-input'
                       style={{ width: `${this.inputWidth}px` }}
                       v-model={this.currentTime.inputValue}
-                      onClick={e => e.stopPropagation()}
                       onInput={this.resetInputWidth}
                     ></input>
                   )}
-                  {!this.localValue.length && !this.currentTime.showInput && (
-                    <span class='placeholder'>{this.t('如')}：01:00 - 02:00</span>
-                  )}
+                  <span class={['placeholder', !this.localValue.length && !this.currentTime.showInput && 'show']}>
+                    {this.t('如')}：01:00 - 02:00
+                  </span>
                 </div>
               </div>
             )

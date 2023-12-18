@@ -25,7 +25,7 @@
  */
 
 import { timeRangeMerger } from '../../../../trace/pages/rotation/components/calendar-preview';
-import { randomColor } from '../duty-arranges/color';
+import { randomColor } from '../../../../trace/pages/rotation/utils';
 
 import { IDutyItem } from './typing';
 
@@ -562,7 +562,20 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
     name: item.name,
     data: []
   }));
-  uniqueByDutyUsers(userIndexResetOfpreviewData(params)).forEach(item => {
+  const paramsData = params.map(item => {
+    const type = dutyList.find(d => d.id === item.rule_id)?.category;
+    if (type === 'regular') {
+      return {
+        ...item,
+        duty_plans: item.duty_plans.map(d => ({
+          ...d,
+          order: 0
+        }))
+      };
+    }
+    return item;
+  });
+  uniqueByDutyUsers(userIndexResetOfpreviewData(paramsData)).forEach(item => {
     const id = item.rule_id;
     const dataItem = data.find(d => d.id === id);
     item.duty_plans.forEach((plans, pIndex) => {
@@ -618,7 +631,7 @@ function uniqueByDutyUsers(data: IDutyPreviewParams[]) {
   return result;
 }
 
-interface IDutyPlansItem {
+export interface IDutyPlansItem {
   users: { display_name: string }[];
   work_times: { end_time: string; start_time: string }[];
 }

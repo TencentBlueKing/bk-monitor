@@ -220,6 +220,8 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     rendreKey: random(8)
   };
 
+  pageTitle = '';
+
   get memberSelectorKey(): string {
     return `${random(8)}-${this.defaultGroupList.length}`;
   }
@@ -344,6 +346,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
         } = data;
         // this.type === 'monitor' && this.$store.commit('app/SET_NAV_TITLE', `${this.$t('编辑')} - #${id} ${name}`);
         this.updateNavData(`${this.$t('编辑')} ${name}`);
+        this.pageTitle = `#${this.groupId} ${name}`;
         this.formData.name = name;
         this.formData.desc = desc;
         this.formData.bizId = bizId;
@@ -862,6 +865,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     return (
       <div
         class='alarm-group-add-wrap'
+        title={!!this.groupId ? this.pageTitle : ''}
         v-bkloading={{ isLoading: this.loading }}
       >
         <bk-form label-width={this.$store.getters.lang === 'en' ? 150 : 100}>

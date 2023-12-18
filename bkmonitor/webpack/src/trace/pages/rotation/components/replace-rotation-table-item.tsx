@@ -30,7 +30,7 @@ import { random } from 'lodash';
 
 import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
-import { randomColor } from '../utils';
+import { validTimeOverlap } from '../utils';
 
 import CalendarSelect from './calendar-select';
 import DataTimeSelect from './data-time-select';
@@ -50,17 +50,22 @@ export interface ReplaceRotationDateModel {
 export interface ReplaceRotationUsersModel {
   groupNumber?: number;
   groupType: 'specified' | 'auto';
-  value: { key: number; value: { type: 'group' | 'user'; id: string }[] }[];
+  value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
 }
 
 export interface ReplaceItemDataModel {
   id?: number;
   date: {
     type: RotationSelectTypeEnum;
+    /** 每周、每月：时间范围/起止时间 */
     workTimeType: WorkTimeType;
+    /** 是否是自定义轮值类型 */
     isCustom: boolean;
+    /** 自定义：指定时长/指定班次 */
     customTab: CustomTabType;
+    /** 自定义轮值有效日期 */
     customWorkDays: number[];
+    /** 单班时长 */
     periodSettings: { unit: 'hour' | 'day'; duration: number };
     value: ReplaceRotationDateModel[];
   };
@@ -78,14 +83,16 @@ export default defineComponent({
   emits: ['change', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
 
     const rotationTypeList: { label: string; value: RotationSelectTypeEnum }[] = [
-      { label: t('工作日(周一至周五)'), value: RotationSelectTypeEnum.WorkDay },
-      { label: t('周末(周六、周日)'), value: RotationSelectTypeEnum.Weekend },
       { label: t('每天'), value: RotationSelectTypeEnum.Daily },
       { label: t('每周'), value: RotationSelectTypeEnum.Weekly },
       { label: t('每月'), value: RotationSelectTypeEnum.Monthly },
+      { label: t('每工作日(周一至周五)'), value: RotationSelectTypeEnum.WorkDay },
+      { label: t('每周末(周六、周日)'), value: RotationSelectTypeEnum.Weekend },
       { label: t('自定义'), value: RotationSelectTypeEnum.Custom }
     ];
 
@@ -106,7 +113,7 @@ export default defineComponent({
       users: {
         groupType: 'specified',
         groupNumber: 1,
-        value: [{ key: random(8, true), value: [] }]
+        value: [{ key: random(8, true), value: [], orderIndex: 0 }]
       }
     });
 
@@ -127,7 +134,7 @@ export default defineComponent({
           localValue.date.customWorkDays = [];
         }
         localValue.date.value = [createDefaultDate(val)];
-        handleEmitData(false);
+        handleEmitData();
       }
     });
 
@@ -135,7 +142,7 @@ export default defineComponent({
       () => props.data,
       val => {
         if (val) {
-          Object.assign(localValue, JSON.parse(JSON.stringify(val)));
+          Object.assign(localValue, val);
         }
       },
       {
@@ -196,7 +203,7 @@ export default defineComponent({
       function handleDateTypeChange(type: WorkTimeType) {
         localValue.date.workTimeType = type;
         localValue.date.value = [createDefaultDate(localValue.date.type)];
-        handleEmitData(false);
+        handleEmitData();
       }
 
       /**
@@ -295,7 +302,7 @@ export default defineComponent({
           labelWidth={70}
         >
           <div class='classes-list'>
-            {val.map((item, ind) => (
+            {val.map((item, ind) => [
               <div
                 class='classes-item'
                 key={item.key}
@@ -303,8 +310,9 @@ export default defineComponent({
                 {localValue.date.workTimeType === 'time_range'
                   ? renderTimeRangeItem(item, ind)
                   : renderDateTimeRangeItem(item, ind)}
-              </div>
-            ))}
+              </div>,
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+            ])}
             <Button
               class='add-btn'
               theme='primary'
@@ -328,11 +336,11 @@ export default defineComponent({
       function handleTypeChange(type: CustomTabType) {
         localValue.date.customTab = type;
         type === 'duration' && (localValue.date.value = [value[0]]);
-        handleEmitData(false);
+        handleEmitData();
       }
       function handleDateTypeChange() {
         localValue.date.customWorkDays = [];
-        handleEmitData(false);
+        handleEmitData();
       }
 
       return [
@@ -389,42 +397,7 @@ export default defineComponent({
             </div>
           </div>
         </FormItem>,
-        <FormItem
-          label={localValue.date.customTab === 'duration' ? t('有效时间') : t('单班时间')}
-          labelWidth={70}
-        >
-          <div class='classes-list'>
-            {value.map((item, ind) => (
-              <div
-                class='classes-item'
-                key={item.key}
-              >
-                <TimeTagPicker
-                  v-model={item.workTime}
-                  label={value.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
-                  onChange={handleEmitData}
-                />
-                {value.length > 1 && (
-                  <i
-                    class='icon-monitor icon-mc-delete-line del-icon'
-                    onClick={() => handleClassesItemChange('del', ind)}
-                  />
-                )}
-              </div>
-            ))}
-            {localValue.date.customTab === 'classes' && (
-              <Button
-                class='add-btn'
-                theme='primary'
-                text
-                onClick={() => handleClassesItemChange('add')}
-              >
-                <i class='icon-monitor icon-plus-line add-icon'></i>
-                {t('新增值班')}
-              </Button>
-            )}
-          </div>
-        </FormItem>,
+
         localValue.date.customTab === 'duration' && (
           <FormItem
             label={t('单班时长')}
@@ -452,7 +425,44 @@ export default defineComponent({
               />
             </Select>
           </FormItem>
-        )
+        ),
+        <FormItem
+          label={localValue.date.customTab === 'duration' ? t('有效时间') : t('单班时间')}
+          labelWidth={70}
+        >
+          <div class='classes-list'>
+            {value.map((item, ind) => [
+              <div
+                class='classes-item'
+                key={item.key}
+              >
+                <TimeTagPicker
+                  v-model={item.workTime}
+                  label={value.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
+                  onChange={handleEmitData}
+                />
+                {value.length > 1 && (
+                  <i
+                    class='icon-monitor icon-mc-delete-line del-icon'
+                    onClick={() => handleClassesItemChange('del', ind)}
+                  />
+                )}
+              </div>,
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+            ])}
+            {localValue.date.customTab === 'classes' && (
+              <Button
+                class='add-btn'
+                theme='primary'
+                text
+                onClick={() => handleClassesItemChange('add')}
+              >
+                <i class='icon-monitor icon-plus-line add-icon'></i>
+                {t('新增值班')}
+              </Button>
+            )}
+          </div>
+        </FormItem>
       ];
     }
     /**
@@ -473,7 +483,7 @@ export default defineComponent({
               labelWidth={70}
             >
               <div class='classes-list'>
-                {val.map((item, ind) => (
+                {val.map((item, ind) => [
                   <div class='classes-item'>
                     <TimeTagPicker
                       key={item.key}
@@ -487,8 +497,9 @@ export default defineComponent({
                         onClick={() => handleClassesItemChange('del', ind)}
                       />
                     )}
-                  </div>
-                ))}
+                  </div>,
+                  validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+                ])}
                 <Button
                   class='add-btn'
                   theme='primary'
@@ -519,32 +530,27 @@ export default defineComponent({
     function handleGroupTabChange(val: ReplaceRotationUsersModel['groupType']) {
       if (localValue.users.groupType === val) return;
       localValue.users.groupType = val;
-      // 切换成自动分组需要把所有的用户组删除
+      // 切换成自动分组需要把所有人员聚合并去重
       if (val === 'auto') {
         const res = localValue.users.value.reduce((pre, cur) => {
           cur.value.forEach(user => {
             const key = `${user.id}_${user.type}`;
-            if (!pre.has(key) && user.type === 'user') {
+            if (!pre.has(key)) {
               pre.set(key, user);
             }
           });
           return pre;
         }, new Map());
-        localValue.users.value = [{ key: localValue.users.value[0].key, value: Array.from(res.values()) }];
+        localValue.users.value = [
+          { key: localValue.users.value[0].key, value: Array.from(res.values()), orderIndex: 0 }
+        ];
       }
-      handleEmitData(true);
+      handleEmitData();
     }
 
-    /**
-     * 过滤可选的人员列表
-     * @param list 所有人员列表
-     * @returns 可选的人员列表
-     */
-    function handleMemberSelectFilter(list: TagItemModel[]) {
-      return list.filter(item => item.type === 'user');
-    }
     function handleAddUserGroup() {
-      localValue.users.value.push({ key: random(8, true), value: [] });
+      localValue.users.value.push({ key: random(8, true), value: [], orderIndex: 0 });
+      handleEmitData();
     }
     function handleDelUserGroup(ind: number) {
       localValue.users.value.splice(ind, 1);
@@ -553,6 +559,46 @@ export default defineComponent({
     function handMemberSelectChange(ind: number, val: ReplaceRotationUsersModel['value'][0]['value']) {
       localValue.users.value[ind].value = val;
       handleEmitData();
+    }
+
+    /**
+     * 自动分组人员tag模板
+     * @param data 人员数据
+     * @param index 人员索引
+     * @returns 模板
+     */
+    function autoGroupTagTpl(data: TagItemModel, index: number) {
+      function handleCloseTag(e: Event) {
+        e.stopPropagation();
+        localValue.users.value[0].value.splice(index, 1);
+        handleEmitData();
+      }
+      return [
+        <div
+          class='auto-group-tag-color'
+          style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
+        ></div>,
+        <span class='icon-monitor icon-mc-tuozhuai'></span>,
+        <span class='user-name'>{data?.username}</span>,
+        <span
+          class='icon-monitor icon-mc-close'
+          onClick={e => handleCloseTag(e)}
+        ></span>
+      ];
+    }
+
+    /**
+     * 根据索引获取颜色
+     * @param index
+     * @returns
+     */
+    function getOrderIndex(index: number) {
+      const { groupType } = localValue.users;
+      if (groupType === 'auto') {
+        const { orderIndex } = localValue.users.value[0];
+        return orderIndex + index;
+      }
+      return localValue.users.value[index].orderIndex;
     }
 
     /** 唯一拖拽id */
@@ -564,41 +610,63 @@ export default defineComponent({
     function handleDragover(e: DragEvent) {
       e.preventDefault();
     }
-    function handleDrop(e: DragEvent, index: number) {
+    function handleDrop(e: DragEvent, endIndex: number) {
       const uid = Number(e.dataTransfer.getData('uid'));
+      // 不进行跨组件拖拽
       if (dragUid !== uid) return;
       const startIndex = Number(e.dataTransfer.getData('index'));
-      const user = localValue.users.value[startIndex];
+      const startUser = localValue.users.value[startIndex];
+      const endUser = localValue.users.value[endIndex];
       localValue.users.value.splice(startIndex, 1);
-      localValue.users.value.splice(index, 0, user);
+      localValue.users.value.splice(endIndex, 0, startUser);
+      setColorList(startUser.orderIndex, endUser.orderIndex);
       handleEmitDrop();
+    }
+
+    /**
+     * 自动分组人员拖拽
+     * @param startIndex 起始索引
+     * @param endIndex 结束索引
+     */
+    function handleAutoGroupDrop(startIndex: number, endIndex: number) {
+      setColorList(getOrderIndex(startIndex), getOrderIndex(endIndex));
+      handleEmitDrop();
+    }
+
+    // 修改颜色轮盘
+    function setColorList(startIndex: number, endIndex: number) {
+      const newColorList = [...colorList.value];
+      const color = newColorList[startIndex];
+      newColorList.splice(startIndex, 1);
+      newColorList.splice(endIndex, 0, color);
+      colorList.setValue(newColorList);
     }
 
     function handleEmitDrop() {
       emit('drop');
     }
 
-    /**
-     * @param hasPreview 是否需要请求预览轮值接口
-     */
-    function handleEmitData(hasPreview = true) {
-      emit('change', localValue, hasPreview);
+    function handleEmitData() {
+      emit('change', localValue);
     }
 
     return {
       t,
+      colorList,
       defaultGroup,
       rotationTypeList,
       localValue,
       rotationSelectType,
+      getOrderIndex,
       renderClassesContent,
+      autoGroupTagTpl,
       handleAddUserGroup,
       handleDelUserGroup,
       handMemberSelectChange,
-      handleMemberSelectFilter,
       handleDragstart,
       handleDragover,
       handleDrop,
+      handleAutoGroupDrop,
       handleEmitDrop,
       handleEmitData,
       handleGroupTabChange
@@ -667,7 +735,7 @@ export default defineComponent({
                           prefix: () => (
                             <div
                               class='member-select-prefix'
-                              style={{ 'border-left-color': randomColor(ind) }}
+                              style={{ 'border-left-color': this.colorList.value[this.getOrderIndex(ind)] }}
                             >
                               <span class='icon-monitor icon-mc-tuozhuai'></span>
                             </div>
@@ -705,12 +773,12 @@ export default defineComponent({
                 >
                   <MemberSelect
                     showType='tag'
-                    filterMethod={this.handleMemberSelectFilter}
                     v-model={this.localValue.users.value[0].value}
                     hasDefaultGroup={true}
                     defaultGroup={this.defaultGroup}
+                    tagTpl={this.autoGroupTagTpl}
                     onSelectEnd={val => this.handMemberSelectChange(0, val)}
-                    onDrop={this.handleEmitDrop}
+                    onDrop={this.handleAutoGroupDrop}
                   />
                 </FormItem>
                 <FormItem

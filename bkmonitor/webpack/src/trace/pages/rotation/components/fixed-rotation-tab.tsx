@@ -30,6 +30,7 @@ import { random } from 'lodash';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum, WeekDataList } from '../typings/common';
+import { validTimeOverlap } from '../utils';
 
 import CalendarSelect from './calendar-select';
 import FormItem from './form-item';
@@ -44,6 +45,7 @@ export interface FixedDataModel {
   workDays: (string | number)[];
   workDateRange: [];
   workTime: string[][];
+  orderIndex: number;
   users: { type: 'group' | 'user'; id: string }[];
 }
 
@@ -55,11 +57,13 @@ export default defineComponent({
       default: () => []
     }
   },
-  emits: ['change', 'preview'],
+  emits: ['change'],
   setup(props, { emit }) {
     // --------公共------------
     const { t } = useI18n();
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
+    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+
     const typeList = [
       { label: t('按周'), value: RotationSelectTypeEnum.Weekly },
       { label: t('按月'), value: RotationSelectTypeEnum.Monthly },
@@ -71,6 +75,7 @@ export default defineComponent({
         key: random(8, true),
         type: RotationSelectTypeEnum.Weekly,
         workDays: [1],
+        orderIndex: 0,
         workDateRange: [],
         workTime: [],
         users: []
@@ -93,15 +98,16 @@ export default defineComponent({
       }
     );
     const handleDateTypeChange = (item: FixedDataModel) => {
-      if (item.type === RotationSelectTypeEnum.DateRange) {
+      if (item.type !== RotationSelectTypeEnum.DateRange) {
         item.workDays = [1];
       } else {
         item.workDateRange = [];
       }
-      handleEmitData(false);
+      handleEmitData();
     };
     function handleAddItem() {
       localValue.push(createDefaultData());
+      handleEmitData();
     }
     function handleDelItem(ind: number) {
       localValue.splice(ind, 1);
@@ -111,16 +117,13 @@ export default defineComponent({
       item.users = val;
       handleEmitData();
     }
-    function handleEmitData(isPreview = true) {
+    function handleEmitData() {
       emit('change', localValue);
-      if (isPreview) handleEmitPreview();
-    }
-    function handleEmitPreview() {
-      emit('preview');
     }
 
     return {
       t,
+      colorList,
       defaultGroup,
       localValue,
       typeList,
@@ -145,7 +148,7 @@ export default defineComponent({
           </th>
           <th class='title-content'>
             <span class='step-text'>Step2:</span>
-            <span class='step-title'>{this.t('添加用户')}</span>
+            <span class='step-title'>{this.t('添加轮值人员')}</span>
           </th>
         </tr>
 
@@ -177,7 +180,7 @@ export default defineComponent({
                   <Select
                     class='date-value-select'
                     v-model={item.workDays}
-                    onToggle={() => this.handleEmitData()}
+                    onToggle={this.handleEmitData}
                     multiple
                     clearable={false}
                   >
@@ -193,7 +196,7 @@ export default defineComponent({
                   <CalendarSelect
                     class='date-value-select'
                     v-model={item.workDays}
-                    onSelectEnd={() => this.handleEmitData()}
+                    onSelectEnd={this.handleEmitData}
                   />
                 )}
                 {item.type === RotationSelectTypeEnum.DateRange && (
@@ -201,7 +204,7 @@ export default defineComponent({
                     class='date-value-select'
                     v-model={item.workDateRange}
                     format='yyyy-MM-dd'
-                    onChange={() => this.handleEmitData()}
+                    onChange={this.handleEmitData}
                     placeholder={`${this.t('如')}: 2019-01-30 至 2019-01-30`}
                     type='daterange'
                     append-to-body
@@ -215,8 +218,9 @@ export default defineComponent({
               >
                 <TimeTagPicker
                   v-model={item.workTime}
-                  onChange={() => this.handleEmitData()}
+                  onChange={this.handleEmitData}
                 ></TimeTagPicker>
+                {validTimeOverlap(item.workTime) && <p class='err-msg'>{this.t('时间段重复')}</p>}
               </FormItem>
             </td>
             <td class='user-setting-content'>
@@ -226,7 +230,16 @@ export default defineComponent({
                 hasDefaultGroup={true}
                 defaultGroup={this.defaultGroup}
                 onSelectEnd={val => this.handleUserChange(val, item)}
-              />
+              >
+                {{
+                  prefix: () => (
+                    <div
+                      class='member-select-prefix'
+                      style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
+                    ></div>
+                  )
+                }}
+              </MemberSelect>
             </td>
             {this.localValue.length > 1 && (
               <div

@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,53 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType } from 'vue';
+import { defineStore } from 'pinia';
 
-import './form-item.scss';
-
-export default defineComponent({
-  name: 'RotationFormItem',
-  props: {
-    errMsg: {
-      type: String,
-      default: ''
-    },
-    label: {
-      type: String as PropType<any>,
-      default: ''
-    },
-    labelWidth: {
-      type: Number,
-      default: 135
-    },
-    require: {
-      type: Boolean,
-      default: false
-    },
-    hasColon: {
-      type: Boolean,
-      default: false
-    },
-    contentCls: {
-      type: String,
-      default: ''
+export interface IRotationState {
+  colorList: string[];
+}
+export const useRotationStore = defineStore('rotation', {
+  state: (): IRotationState => ({
+    colorList: []
+  }),
+  actions: {
+    /**
+     * @description: 获取图表配置列表
+     * @param {string} appName: 应用名称
+     * @return {*}
+     */
+    async setColorList(colorList: string[]) {
+      this.colorList = colorList;
     }
-  },
-  setup(props, { slots }) {
-    return () => (
-      <div class='rotation-config-form-item'>
-        <div
-          class={['form-item-label', { require: !!props.require }]}
-          style={{ minWidth: `${props.labelWidth}px` }}
-        >
-          {props.label}
-          {props.hasColon ? ' : ' : undefined}
-        </div>
-        <div class={['form-item-content', props.contentCls]}>
-          {slots?.default?.()}
-          {!!props?.errMsg && <div class='form-item-errmsg'>{props.errMsg}</div>}
-        </div>
-      </div>
-    );
   }
 });

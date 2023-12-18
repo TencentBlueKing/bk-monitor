@@ -27,7 +27,7 @@ import dayjs from 'dayjs';
 import { random } from 'lodash';
 
 import { FixedDataModel } from './components/fixed-rotation-tab';
-import { ItemDataModel } from './components/replace-rotation-tab';
+import { ReplaceDataModel } from './components/replace-rotation-tab';
 import { ReplaceItemDataModel } from './components/replace-rotation-table-item';
 import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common';
 
@@ -37,7 +37,7 @@ import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common'
  */
 export function generateTimeSlots(): string[] {
   const timeSlots = [];
-  const currentTime = dayjs().startOf('day');
+  let currentTime = dayjs().startOf('day');
   const endTime = dayjs().endOf('day');
 
   // 循环生成时间段，直到到达第二天的 00:00:00
@@ -45,21 +45,32 @@ export function generateTimeSlots(): string[] {
     const formattedTime = currentTime.format('HH:mm');
     timeSlots.push(formattedTime);
     // 增加15分钟
-    currentTime.add(15, 'minutes');
+    currentTime = currentTime.add(15, 'minutes');
   }
   return timeSlots;
 }
 
 export const colorList = [
-  '#4152a3',
-  '#699df4',
-  '#74c2a8',
-  '#b5cc8e',
-  '#ebd57f',
-  '#f0ad69',
-  '#d66f6b',
-  '#e0abc9',
-  '#a596eb'
+  '#3A84FF',
+  '#FF9C01',
+  '#18B456',
+  '#BC66E5',
+  '#FF5656',
+  '#699DF4',
+  '#FFB848',
+  '#51BE68',
+  '#D493F3',
+  '#FF6F6F',
+  '#61B2C2',
+  '#F5876C',
+  '#EAD550',
+  '#AEA5F2',
+  '#85CCA8',
+  '#FFA66B',
+  '#6FBCEA',
+  '#FFC685',
+  '#6EDAC1',
+  '#E787CB'
 ];
 
 export const randomColor = (index: number) => {
@@ -72,9 +83,63 @@ export const randomColor = (index: number) => {
   return `rgba(${r},${g},${b},0.8)`;
 };
 
+export function createColorList(num = 100) {
+  const colors = [...colorList];
+  for (let i = 0; i < num; i++) {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    colors.push(`rgba(${r},${g},${b},0.8)`);
+  }
+  return colors;
+}
+
 export function timeRangeTransform(val: string) {
   const [start, end] = val.split('--');
   return dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm')) ? val : `${start} - ${window.i18n.t('次日')}${end}`;
+}
+
+/**
+ * 校验固定值班单条轮值规则是否符合规范
+ * @param data 轮值规则数据
+ * @returns 是否符合规范
+ */
+export function validFixedRotationData(data: FixedDataModel) {
+  if (data.users.length === 0) return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
+  if (validTimeOverlap(data.workTime)) return { success: false, msg: window.i18n.t('时间段重复了') };
+  return { success: true, msg: '' };
+}
+
+/**
+ * 校验交替轮值单条轮值规则是否符合规范
+ * @param data 轮值规则数据
+ * @returns 是否符合规范
+ */
+export function validReplaceRotationData(data: ReplaceDataModel) {
+  if (!data.users.value.some(item => item.value.length))
+    return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
+  const type = data.date.isCustom ? RotationSelectTypeEnum.Custom : data.date.type;
+  switch (type) {
+    case RotationSelectTypeEnum.Daily:
+    case RotationSelectTypeEnum.WorkDay:
+    case RotationSelectTypeEnum.Weekend: {
+      if (data.date.value.every(item => !item.workTime.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+    }
+    case RotationSelectTypeEnum.Weekly:
+    case RotationSelectTypeEnum.Monthly: {
+      if (data.date.workTimeType === 'time_range' && data.date.value.every(item => !item.workDays.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+      if (data.date.workTimeType === 'datetime_range' && data.date.value.every(item => !item.workTime.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+    }
+  }
+  if (data.date.value.some(date => validTimeOverlap(date.workTime)))
+    return { success: false, msg: window.i18n.t('时间段重复了') };
+  return { success: true, msg: '' };
 }
 
 /**
@@ -85,22 +150,22 @@ export function timeRangeTransform(val: string) {
  */
 export function replaceRotationTransform(originData, type) {
   if (type === 'data') {
-    let id;
-    const res = originData.map(data => {
-      id = data.id;
+    return originData.map(data => {
       const date = data.duty_time.reduce(
         (pre: ReplaceItemDataModel['date'], cur, ind) => {
           if (ind === 0) {
             pre.isCustom = cur.is_custom || false;
             pre.type = cur.work_type;
             pre.workTimeType = cur.work_time_type || 'time_range';
-            if (pre.isCustom) {
-              pre.customTab = data.duty_time.length > 1 ? 'classes' : 'duration';
-              pre.customWorkDays = cur.work_days;
-            }
-            pre.periodSettings = cur.period_settings || {
-              unit: 'day',
+            pre.customTab = cur.period_settings ? 'duration' : 'classes';
+            pre.customWorkDays = cur.work_days;
+            const { window_unit, duration } = cur.period_settings || {
+              window_unit: 'day',
               duration: 1
+            };
+            pre.periodSettings = {
+              unit: window_unit,
+              duration
             };
           }
           const time = cur.work_time.map(item => item.split('--'));
@@ -153,18 +218,18 @@ export function replaceRotationTransform(originData, type) {
           groupType: data.group_type,
           value: data.duty_users.map(item => ({
             key: random(8, true),
-            value: item
+            value: item,
+            orderIndex: 0
           }))
         }
       };
       return obj;
     });
-    return {
-      id,
-      data: res
-    };
   }
-  return originData.data.map((item: ItemDataModel) => {
+
+  const filterData = originData.filter(item => validReplaceRotationData(item).success);
+
+  return filterData.map((item: ReplaceDataModel) => {
     const data = item.date;
     const rotationType: RotationSelectTypeEnum = data.isCustom ? RotationSelectTypeEnum.Custom : data.type;
     let dutyTime = [];
@@ -208,16 +273,22 @@ export function replaceRotationTransform(originData, type) {
       case RotationSelectTypeEnum.Custom: {
         dutyTime = data.value.map(item => {
           const { unit, duration } = data.periodSettings;
+          const periodSetting =
+            data.customTab === 'duration'
+              ? {
+                  period_settings: {
+                    window_unit: unit,
+                    duration
+                  }
+                }
+              : {};
           return {
             is_custom: true,
             work_type: data.type,
             work_days: data.customWorkDays,
             work_time: item.workTime.map(val => val.join('--')),
             work_time_type: 'time_range',
-            period_settings: {
-              window_unit: unit,
-              duration
-            }
+            ...periodSetting
           };
         });
         break;
@@ -240,10 +311,7 @@ export function replaceRotationTransform(originData, type) {
  * @param type params 实际数据转接口数据 data: 接口数据转实际数据
  * @returns 转化后的数据
  */
-export function fixedRotationTransform<T extends 'params' | 'data'>(
-  data: T extends 'data' ? any : FixedDataModel[],
-  type: T
-): T extends 'data' ? FixedDataModel[] : any {
+export function fixedRotationTransform(data, type) {
   if (type === 'data')
     return data.map(item => {
       const obj: FixedDataModel = {
@@ -262,7 +330,9 @@ export function fixedRotationTransform<T extends 'params' | 'data'>(
       return obj;
     });
 
-  return data.map((item: FixedDataModel) => {
+  const filterData: FixedDataModel[] = data.filter(item => validFixedRotationData(item).success);
+
+  return filterData.map(item => {
     let dutyTimeItem;
     switch (item.type) {
       case RotationSelectTypeEnum.Weekly:
@@ -319,9 +389,12 @@ export interface RuleDetailModel {
     timer: string[];
     periodSettings: string;
   }[];
-  ruleUser: { type: 'group' | 'user'; display_name: string; logo: string }[][];
+  ruleUser: { users: { type: 'group' | 'user'; display_name: string; logo: string }[]; orderIndex: number }[];
+  isAuto: boolean;
+  groupNumber: number;
 }
-export function transformRulesDetail(data: any[]): RuleDetailModel[] {
+export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): RuleDetailModel[] {
+  let orderIndex = 0;
   return data.map(rule => {
     const ruleTime = rule.duty_time.map(time => {
       let day = RotationSelectTextMap[time.work_type];
@@ -335,7 +408,7 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
       }
 
       let periodSettings = '';
-      if (time.is_custom && rule.duty_time.length > 1) {
+      if (time.is_custom && time.period_settings) {
         const { duration, window_unit } = time.period_settings;
         periodSettings = window.i18n.t('单班 {num} {type}', {
           num: duration,
@@ -351,7 +424,64 @@ export function transformRulesDetail(data: any[]): RuleDetailModel[] {
     });
     return {
       ruleTime,
-      ruleUser: rule.duty_users
+      ruleUser: rule.duty_users.map(item => {
+        const res = { users: item, orderIndex };
+        // if (rule.group_type === 'specified') {
+        //   orderIndex += 1;
+        // } else if (item.length % rule.group_number === 0) {
+        //   orderIndex += item.length / rule.group_number;
+        // } else if (rule.group_number < item.length) {
+        //   orderIndex += item.length;
+        // } else {
+        //   orderIndex += 1;
+        // }
+        if (rule.group_type === 'specified' || type === 'regular') {
+          orderIndex += 1;
+        } else {
+          orderIndex += item.length;
+        }
+        return res;
+      }),
+      isAuto: rule.group_type === 'auto',
+      groupNumber: rule.group_number
     };
   });
+}
+
+/**
+ * 判断两个时间段是否存在重叠
+ * @param start1 第一个时间段的起始时间
+ * @param end1 第一个时间段的结束时间
+ * @param start2 第二个时间段的起始时间
+ * @param end2 第二个时间段的结束时间
+ * @returns 是否存在重叠
+ */
+function hasOverlap(start1: number, end1: number, start2: number, end2: number) {
+  return start1 < end2 && start2 < end1;
+}
+
+/**
+ * 验证一组时间段是否存在重叠
+ * @param list 时间段列表，每个时间段由起始时间和结束时间组成
+ * @returns 是否存在重叠
+ */
+export function validTimeOverlap(list: string[][]) {
+  const timestamps = list.map(([start, end]) => {
+    const startTime = dayjs(start, 'hh:mm').valueOf();
+    const isBefore = startTime < dayjs(end, 'hh:mm').valueOf();
+    const endTime = dayjs(end, 'hh:mm')
+      .add(isBefore ? 0 : 1, 'day')
+      .valueOf();
+    return { start: startTime, end: endTime };
+  });
+
+  for (let i = 0; i < timestamps.length; i++) {
+    for (let j = i + 1; j < timestamps.length; j++) {
+      if (hasOverlap(timestamps[i].start, timestamps[i].end, timestamps[j].start, timestamps[j].end)) {
+        return true; // 发现重叠，立即返回true
+      }
+    }
+  }
+
+  return false; // 没有找到重叠
 }

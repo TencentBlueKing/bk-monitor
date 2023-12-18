@@ -498,8 +498,8 @@ export default {
   按月: 'Monthly',
   上周: 'Last week',
   分: 'min', // 如果这个只用于指标检索的周期单位没有问题， 如果还有其他地方需要确认
-  '工作日(周一至周五)': 'Working days (Monday to Friday)',
-  '周末(周六、周日)': 'Weekends (Saturday and Sunday)',
+  '工作日(周一至周五)': 'Every working day (Monday to Friday)',
+  '周末(周六、周日)': 'Every weekend (Saturday, Sunday)',
   次日: 'Next Day',
 
   '1 小时前': '1 hour ago',
@@ -1776,8 +1776,8 @@ export default {
   语句长度: 'Statement length',
   慢语句阈值: 'Slow statement threshold',
   '第 {num} 班': 'Class {num}',
-  工作日: 'Weekdays',
-  周末: 'Weekend',
+  每工作日: 'Every weekdays',
+  每周末: 'Every weekend',
   排班表发送: 'Send the schedule',
   发送内容: 'Send the content',
   近: 'Near',

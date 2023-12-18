@@ -137,7 +137,9 @@ export default defineComponent({
           width: 134,
           disabled: false,
           checked: true,
-          sort: true
+          sort: {
+            value: ''
+          }
         },
         {
           id: EColunm.status,
@@ -162,7 +164,9 @@ export default defineComponent({
           minWidth: 330,
           disabled: false,
           checked: true,
-          sort: true
+          sort: {
+            value: ''
+          }
         },
         {
           id: EColunm.enabled,
@@ -350,6 +354,7 @@ export default defineComponent({
       return new Promise((resolve, reject) => {
         InfoBox({
           title: value ? t('确认启用') : t('确认停用'),
+          subTitle: `${t('规则名称')}: ${row.name}`,
           onConfirm: () => {
             switchDutyRule({
               ids: [row.id],
@@ -410,6 +415,11 @@ export default defineComponent({
         sort.type = opt.type;
       }
       tableData.sort = sort;
+      const tableColumn = tableData.columns.find(item => item.id === sort.column);
+      if (tableColumn?.sort) {
+        tableColumn.sort.value = sort.type || 'null';
+      }
+
       tableData.pagination.current = 1;
       setFilterList();
     }
@@ -472,6 +482,7 @@ export default defineComponent({
     function handleDelete(row) {
       InfoBox({
         title: t('确认删除'),
+        subTitle: `${t('规则名称')}: ${row.name}`,
         onConfirm: () => {
           const delIndex = allRotationList.value.findIndex(item => item.id === row.id);
           if (delIndex >= 0) {
@@ -567,13 +578,27 @@ export default defineComponent({
         }
         case EColunm.enabled: {
           return (
-            <Switcher
-              size='small'
-              theme='primary'
-              value={row.enabled}
-              beforeChange={v => handleEnableBeforeChange(v, row)}
-              onChange={v => (row.enabled = v)}
-            ></Switcher>
+            <Popover
+              placement='top'
+              arrow={true}
+              trigger={'hover'}
+              popoverDelay={[300, 0]}
+              disabled={row.enabled ? row.delete_allowed : true}
+            >
+              {{
+                default: () => (
+                  <Switcher
+                    size='small'
+                    theme='primary'
+                    value={row.enabled}
+                    disabled={!row.delete_allowed && row.enabled}
+                    beforeChange={v => handleEnableBeforeChange(v, row)}
+                    onChange={v => (row.enabled = v)}
+                  ></Switcher>
+                ),
+                content: () => <span>{t('存在关联的告警组')}</span>
+              }}
+            </Popover>
           );
         }
         case EColunm.operate: {
@@ -583,6 +608,7 @@ export default defineComponent({
                 placement='top'
                 arrow={true}
                 trigger={'hover'}
+                popoverDelay={[300, 0]}
                 disabled={row.edit_allowed}
               >
                 {{
@@ -607,6 +633,7 @@ export default defineComponent({
                 placement='top'
                 arrow={true}
                 trigger={'hover'}
+                popoverDelay={[300, 0]}
                 disabled={row.delete_allowed}
               >
                 {{
@@ -625,7 +652,7 @@ export default defineComponent({
                       {t('删除')}
                     </Button>
                   ),
-                  content: () => <span>{t('存在关联的用户组')}</span>
+                  content: () => <span>{t('存在关联的告警组')}</span>
                 }}
               </Popover>
             </span>

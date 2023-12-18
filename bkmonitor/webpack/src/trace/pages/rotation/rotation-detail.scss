@@ -96,12 +96,20 @@
         }
       }
 
+      .auto-group {
+        margin-bottom: 8px;
+      }
+
       .notice-user-list {
         .notice-user-item {
           position: relative;
           display: flex;
           flex-wrap: wrap;
           padding-left: 12px;
+
+          &.no-pl {
+            padding-left: 0;
+          }
 
           .has-color {
             position: absolute;
@@ -115,6 +123,12 @@
             display: flex;
             align-items: center;
             margin: 0 12px 8px 0;
+
+            .user-color {
+              width: 4px;
+              height: calc(100% - 4px);
+              margin-right: 10px;
+            }
 
             img {
               width: 20px;

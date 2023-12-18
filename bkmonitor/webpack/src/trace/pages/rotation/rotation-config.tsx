@@ -34,19 +34,30 @@ import { getReceiver } from '../../../monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from '../../../monitor-api/modules/user_groups';
 import NavBar from '../../components/nav-bar/nav-bar';
 
-import { getPreviewParams, setPreviewDataOfServer } from './components/calendar-preview';
+import {
+  getAutoOrderList,
+  getPreviewParams,
+  noOrderDutyData,
+  setPreviewDataOfServer
+} from './components/calendar-preview';
 import FixedRotationTab, { FixedDataModel } from './components/fixed-rotation-tab';
 import FormItem from './components/form-item';
 import ReplaceRotationTab, { ReplaceDataModel } from './components/replace-rotation-tab';
 import RotationCalendarPreview from './components/rotation-calendar-preview';
-import { RotationSelectTypeEnum, RotationTabTypeEnum } from './typings/common';
-import { fixedRotationTransform, replaceRotationTransform } from './utils';
+import { RotationTabTypeEnum } from './typings/common';
+import {
+  createColorList,
+  fixedRotationTransform,
+  replaceRotationTransform,
+  validFixedRotationData,
+  validReplaceRotationData
+} from './utils';
 
 import './rotation-config.scss';
 
 interface RotationTypeData {
   [RotationTabTypeEnum.REGULAR]: FixedDataModel[];
-  [RotationTabTypeEnum.HANDOFF]: ReplaceDataModel;
+  [RotationTabTypeEnum.HANDOFF]: ReplaceDataModel[];
 }
 
 export default defineComponent({
@@ -89,6 +100,30 @@ export default defineComponent({
       errMsg.name = validName().msg;
     }
 
+    const effectiveEndRef = ref();
+    /** 禁止选择今天以前的日期 */
+    function disabledDateFn(v) {
+      const time = new Date(v).getTime();
+      const curTime = new Date().getTime() - 24 * 60 * 60 * 1000;
+      return time < curTime;
+    }
+
+    /** 取消按钮文本设置为永久 */
+    function handleDatePickerOpen(state: boolean) {
+      if (state) {
+        effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a').innerText = t('永久');
+      }
+    }
+
+    /** 颜色色板，保持人员列表组和预览一致 */
+    const colorList = reactive({
+      value: createColorList(),
+      setValue: (val: string[]) => {
+        colorList.value = val;
+      }
+    });
+    provide('colorList', colorList);
+
     // --------------轮值类型-------------------
     const defaultUserGroup = ref([]);
     provide('defaultGroup', readonly(defaultUserGroup));
@@ -98,13 +133,48 @@ export default defineComponent({
     const rotationTypeData = reactive<RotationTypeData>(createDefaultRotation());
     function handleRotationTypeDataChange<T extends RotationTabTypeEnum>(val: RotationTypeData[T], type: T) {
       rotationTypeData[type] = val;
-      previewData.value = [];
+      resetUsersColor();
+      getPreviewData();
+    }
+
+    /** 重置用户组所对应的颜色 */
+    function resetUsersColor() {
+      let orderIndex = 0;
+      rotationTypeData[RotationTabTypeEnum.HANDOFF].forEach(item => {
+        item.users.value.forEach(user => {
+          const { groupType } = item.users;
+          if (user.value.length) {
+            user.orderIndex = orderIndex;
+            if (groupType === 'specified') {
+              orderIndex += 1;
+            } else {
+              // 自动分组，每一个人员都算一个颜色
+              orderIndex += user.value.length;
+            }
+          } else {
+            // 没有选择人员复用上一个人员组颜色
+            user.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+          }
+        });
+      });
+      rotationTypeData[RotationTabTypeEnum.REGULAR].forEach(item => {
+        if (item.users.length) {
+          item.orderIndex = orderIndex;
+          orderIndex += 1;
+        } else {
+          item.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+        }
+      });
     }
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
       rotationType.value = type;
-      Object.assign(rotationTypeData, createDefaultRotation());
       previewData.value = [];
+    }
+
+    function handleReplaceUserDrop() {
+      resetUsersColor();
+      getPreviewData();
     }
 
     function getGroupList() {
@@ -115,10 +185,7 @@ export default defineComponent({
     function createDefaultRotation(): RotationTypeData {
       return {
         regular: [],
-        handoff: {
-          id: undefined,
-          data: []
-        }
+        handoff: []
       };
     }
 
@@ -127,7 +194,7 @@ export default defineComponent({
      * 表单校验
      * @returns 是否校验成功
      */
-    function validate() {
+    function validate(type: 'submit' | 'preview' = 'submit') {
       let valid = true;
       // 清空错误信息
       Object.keys(errMsg).forEach(key => (errMsg[key] = ''));
@@ -143,57 +210,36 @@ export default defineComponent({
         errMsg.effective = effectiveValid.msg;
         valid = false;
       }
-      // 规则名称
-      const nameValid = validName();
-      if (nameValid.err) {
-        errMsg.name = nameValid.msg;
-        valid = false;
+      // 提交时才做规则名称校验
+      if (type === 'submit') {
+        // 规则名称
+        const nameValid = validName();
+        if (nameValid.err) {
+          errMsg.name = nameValid.msg;
+          valid = false;
+        }
       }
+
       return valid;
     }
 
     function validRotationRule() {
-      const res = { err: false, msg: '' };
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
-        const data = rotationTypeData[RotationTabTypeEnum.REGULAR];
-        const hasUsers = data.every(item => item.users.length);
-        if (!hasUsers || !data.length) {
-          res.err = true;
-          res.msg = t('每条轮值规则最少添加一个用户');
+        for (const item of rotationTypeData[RotationTabTypeEnum.REGULAR]) {
+          const valid = validFixedRotationData(item);
+          if (!valid.success) {
+            return { err: true, msg: valid.msg };
+          }
         }
       } else {
-        const { data } = rotationTypeData[RotationTabTypeEnum.HANDOFF];
-        const hasUsers = data.every(item => item.users.value.some(item => item.value.length));
-        if (!hasUsers) {
-          res.err = true;
-          res.msg = t('每条轮值规则最少添加一个用户');
-        }
-        data.forEach(item => {
-          const type = item.date.isCustom ? RotationSelectTypeEnum.Custom : item.date.type;
-          switch (type) {
-            case RotationSelectTypeEnum.Daily:
-            case RotationSelectTypeEnum.WorkDay:
-            case RotationSelectTypeEnum.Weekend: {
-              if (!item.date.value.some(item => item.workTime.length)) {
-                res.err = true;
-                res.msg = t('每条轮值规则最少添加一个单班时间');
-              }
-            }
-            case RotationSelectTypeEnum.Weekly:
-            case RotationSelectTypeEnum.Monthly: {
-              if (item.date.workTimeType === 'time_range' && !item.date.value.some(item => item.workDays.length)) {
-                res.err = true;
-                res.msg = t('每条轮值规则最少添加一个单班时间');
-              }
-              if (item.date.workTimeType === 'datetime_range' && !item.date.value.some(item => item.workTime.length)) {
-                res.err = true;
-                res.msg = t('每条轮值规则最少添加一个单班时间');
-              }
-            }
+        for (const item of rotationTypeData[RotationTabTypeEnum.HANDOFF]) {
+          const valid = validReplaceRotationData(item);
+          if (!valid.success) {
+            return { err: true, msg: valid.msg };
           }
-        });
+        }
       }
-      return res;
+      return { err: false, msg: '' };
     }
 
     function validName() {
@@ -207,6 +253,9 @@ export default defineComponent({
       if (!startTime) return { err: true, msg: t('生效起始时间必填') };
       if (endTime && new Date(endTime).getTime() < new Date(startTime).getTime())
         return { err: true, msg: t('生效结束时间不能小于生效起始时间') };
+      if (endTime && disabledDateFn(endTime)) {
+        return { err: true, msg: t('生效结束时间不能小于今天') };
+      }
       return { err: false, msg: '' };
     }
 
@@ -233,6 +282,7 @@ export default defineComponent({
     }
 
     function handleSubmit() {
+      // 所有添加的轮值都必须填写完整
       if (!validate()) return;
       const params = getParams();
       loading.value = true;
@@ -259,6 +309,7 @@ export default defineComponent({
         } else {
           rotationTypeData.handoff = replaceRotationTransform(res.duty_arranges, 'data');
         }
+        resetUsersColor();
         getPreviewData(true);
       });
     }
@@ -267,10 +318,7 @@ export default defineComponent({
      * @description 获取预览数据
      */
     async function getPreviewData(init = false) {
-      if (!validate()) {
-        previewData.value = [];
-        return;
-      }
+      validate('preview');
       if (init) {
         const params = {
           ...getPreviewParams(formData.effective.startTime),
@@ -278,7 +326,13 @@ export default defineComponent({
           id: id.value
         };
         const data = await previewDutyRulePlan(params).catch(() => []);
-        previewData.value = setPreviewDataOfServer(data);
+        const dutyParams = getParams();
+        const autoOrders = getAutoOrderList(dutyParams);
+        previewData.value = setPreviewDataOfServer(
+          dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
+          autoOrders,
+          colorList.value
+        );
       } else {
         const dutyParams = getParams();
         const params = {
@@ -287,7 +341,12 @@ export default defineComponent({
           config: dutyParams
         };
         const data = await previewDutyRulePlan(params, { needCancel: true }).catch(() => []);
-        previewData.value = setPreviewDataOfServer(data);
+        const autoOrders = getAutoOrderList(dutyParams);
+        previewData.value = setPreviewDataOfServer(
+          dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
+          autoOrders,
+          colorList.value
+        );
       }
     }
 
@@ -312,11 +371,14 @@ export default defineComponent({
       formData,
       errMsg,
       handleNameBlur,
+      effectiveEndRef,
+      handleDatePickerOpen,
       handleEffectiveChange,
       rotationType,
       fixedRotationTabRef,
       replaceRotationTabRef,
       rotationTypeData,
+      handleReplaceUserDrop,
       handleRotationTabChange,
       previewData,
       getPreviewData,
@@ -324,7 +386,8 @@ export default defineComponent({
       handleRotationTypeDataChange,
       handleSubmit,
       handleBack,
-      handleBackPage
+      handleBackPage,
+      disabledDateFn
     };
   },
   render() {
@@ -397,7 +460,6 @@ export default defineComponent({
                     ref='fixedRotationTabRef'
                     data={this.rotationTypeData.regular}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.REGULAR)}
-                    onPreview={this.getPreviewData}
                   />
                 ) : (
                   <ReplaceRotationTab
@@ -405,8 +467,7 @@ export default defineComponent({
                     v-show={this.rotationType === RotationTabTypeEnum.HANDOFF}
                     data={this.rotationTypeData.handoff}
                     onChange={val => this.handleRotationTypeDataChange(val, RotationTabTypeEnum.HANDOFF)}
-                    onPreview={this.getPreviewData}
-                    onDrop={this.getPreviewData}
+                    onDrop={() => this.handleReplaceUserDrop()}
                   />
                 )}
               </div>
@@ -423,24 +484,29 @@ export default defineComponent({
               type='datetime'
               placeholder={`${this.t('如')}: 2019-01-30 12:12:21`}
               clearable={false}
+              disabledDate={this.disabledDateFn}
               onChange={val => this.handleEffectiveChange(val, 'startTime')}
             ></DatePicker>
             <span class='split-line'>-</span>
             <DatePicker
+              ref='effectiveEndRef'
               class='effective-end'
               modelValue={this.formData.effective.endTime}
               clearable
               type='datetime'
               placeholder={this.t('永久')}
+              disabledDate={this.disabledDateFn}
+              onOpen-change={this.handleDatePickerOpen}
               onChange={val => this.handleEffectiveChange(val, 'endTime')}
             ></DatePicker>
           </FormItem>
           <FormItem
             label={this.t('轮值预览')}
             class='mt-24'
+            contentCls={'flex1'}
           >
             <RotationCalendarPreview
-              class='width-974'
+              class='min-width-974'
               value={this.previewData}
             ></RotationCalendarPreview>
           </FormItem>

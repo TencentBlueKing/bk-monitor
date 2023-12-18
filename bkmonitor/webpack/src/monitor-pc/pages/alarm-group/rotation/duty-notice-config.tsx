@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Input, Option, Select, Switcher, TimePicker } from 'bk-magic-vue';
 
 import SetMealAddStore from '../../../../fta-solutions/store/modules/set-meal-add';
+import { isEnFn } from '../../../utils/index';
 import SimpleDayPick from '../duty-arranges/simple-day-pick';
 
 import { IDutyListItem } from './typing';
@@ -39,8 +40,8 @@ const typeList = [
   { label: window.i18n.t('按月'), value: 'month' }
 ];
 const timeTypeList = [
-  { label: window.i18n.t('周'), value: 'week' },
-  { label: window.i18n.t('天'), value: 'day' }
+  { label: isEnFn() ? 'Week(s)' : '周', value: 'week' },
+  { label: isEnFn() ? 'Day(s)' : '天', value: 'day' }
 ];
 
 const weekList = [
@@ -154,7 +155,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
     function formItem(label: string | any, content: any, cls?: string, err?) {
       return (
         <div class={['form-item', cls]}>
-          <span class='form-item-label'>{label}</span>
+          <span class={['form-item-label', { en: isEnFn() }]}>{label}</span>
           <div>
             <span class='form-item-content'>{content}</span>
             {!!err && <div class='err-msg'>{err}</div>}
@@ -244,7 +245,7 @@ export default class DutyNoticeConfig extends tsc<IProps> {
                 slot='prepend'
                 class='input-left'
               >
-                {this.$t('近')}
+                {this.$t('未来')}
               </div>
             </Input>,
             <span class='content-text'>{this.$t('天的排班结果')}</span>

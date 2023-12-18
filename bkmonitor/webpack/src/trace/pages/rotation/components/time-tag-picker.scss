@@ -53,15 +53,28 @@
       }
 
       .placeholder {
+        display: none;
         margin-top: 2px;
         font-size: 12px;
         color: #c4c6cc;
+
+        &.show {
+          display: inline-block;
+        }
       }
 
       .custom-input {
         max-width: 200px;
         height: 22px;
         padding: 0;
+        border: 0;
+        outline: none;
+      }
+
+      .edit-custom-input {
+        height: 22px;
+        padding: 0;
+        background-color: transparent;
         border: 0;
         outline: none;
       }

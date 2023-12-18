@@ -30,8 +30,6 @@ import './alarm-shield.scss';
 
 const wewebId = 'alarmShield';
 Component.registerHooks(['beforeRouteLeave']);
-
-Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TraceRetrieval extends tsc<{}> {
   get alarmShieldHost() {

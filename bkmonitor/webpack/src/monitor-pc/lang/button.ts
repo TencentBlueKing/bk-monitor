@@ -425,7 +425,7 @@ export default {
   无参数命令: 'Command Without Parameters',
   不储存: 'Do Not Save',
   指定DB: 'Specify DB',
-  值班规则: 'Duty rules',
+  值班规则: 'Duty Rules',
   值班通知设置: 'On-duty notification settings',
   新增轮值排班: 'New shift rotation',
   排班预览: 'Schedule Preview',

@@ -113,6 +113,8 @@ export default class RotationConfig extends tsc<IProps> {
   /* 即将跳转到轮值编辑页的轮值规则id */
   curToEditDutyId = 0;
 
+  previewDutyRules = [];
+
   /* 用于统计信息 */
   get userGroupData(): {
     display_name: string;
@@ -131,7 +133,7 @@ export default class RotationConfig extends tsc<IProps> {
   }
 
   get showNoData() {
-    return !this.allDutyList.filter(item => !!item.show).length;
+    return !this.allDutyList.filter(item => !!item.show && item.status !== EStatus.Deactivated).length;
   }
 
   created() {
@@ -206,6 +208,7 @@ export default class RotationConfig extends tsc<IProps> {
     this.handleDutyChange();
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewDutyRules = data;
     /* 获取轮值组人员预览 */
     const tempSet = new Set();
     const userPreviewList = [];
@@ -246,6 +249,7 @@ export default class RotationConfig extends tsc<IProps> {
     };
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
+    this.previewDutyRules = data;
     this.previewLoading = false;
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
@@ -503,7 +507,7 @@ export default class RotationConfig extends tsc<IProps> {
             onClick={e => !this.dutyLoading && this.handleAddRotation(e)}
           >
             <span class='icon-monitor icon-plus-line'></span>
-            <span>{this.$t('值班规则')}</span>
+            <span class='fs-12'>{this.$t('值班规则')}</span>
           </Button>
           <span class='icon-monitor icon-tishi'></span>
           <span class='tip-text'>{this.$t('排在前面的规则优先级高')}</span>
@@ -567,6 +571,7 @@ export default class RotationConfig extends tsc<IProps> {
             value={this.previewData}
             alarmGroupId={this.alarmGroupId}
             dutyPlans={this.dutyPlans}
+            previewDutyRules={this.previewDutyRules}
             onStartTimeChange={this.handleStartTimeChange}
             onInitStartTime={v => (this.previewStartTime = v)}
           ></RotationPreview>
@@ -645,7 +650,7 @@ export default class RotationConfig extends tsc<IProps> {
             <div class='content-wrap'>
               {!this.showNoData ? (
                 this.allDutyList
-                  .filter(item => !!item.show)
+                  .filter(item => !!item.show && item.status !== EStatus.Deactivated)
                   .map(item => (
                     <div
                       class='duty-select-item'

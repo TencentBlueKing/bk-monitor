@@ -23,53 +23,51 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType } from 'vue';
+import { Component, Model, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+import { Input } from 'bk-magic-vue';
 
-import './form-item.scss';
+import './auto-height-textarea.scss';
 
-export default defineComponent({
-  name: 'RotationFormItem',
-  props: {
-    errMsg: {
-      type: String,
-      default: ''
-    },
-    label: {
-      type: String as PropType<any>,
-      default: ''
-    },
-    labelWidth: {
-      type: Number,
-      default: 135
-    },
-    require: {
-      type: Boolean,
-      default: false
-    },
-    hasColon: {
-      type: Boolean,
-      default: false
-    },
-    contentCls: {
-      type: String,
-      default: ''
-    }
-  },
-  setup(props, { slots }) {
-    return () => (
-      <div class='rotation-config-form-item'>
-        <div
-          class={['form-item-label', { require: !!props.require }]}
-          style={{ minWidth: `${props.labelWidth}px` }}
-        >
-          {props.label}
-          {props.hasColon ? ' : ' : undefined}
-        </div>
-        <div class={['form-item-content', props.contentCls]}>
-          {slots?.default?.()}
-          {!!props?.errMsg && <div class='form-item-errmsg'>{props.errMsg}</div>}
-        </div>
-      </div>
+interface IProps {
+  value?: string;
+  placeholder: string;
+}
+
+@Component
+export default class AutoHeightTextarea extends tsc<IProps> {
+  @Model('change', { type: String, default: '' }) value: string;
+  @Prop({ type: String, default: '' }) placeholder: string;
+
+  handleChange(value: string) {
+    this.$emit('change', value);
+  }
+
+  @Watch('value', { immediate: true })
+  handleWatchValue() {
+    this.$nextTick(() => {
+      const dom = this.$el?.querySelector?.('textarea');
+      if (dom) {
+        dom.style.height = 'auto';
+        const { scrollHeight } = dom;
+        dom.style.height = `${scrollHeight}px`;
+        if (!this.value) {
+          dom.style.height = `${28}px`;
+        }
+      }
+    });
+  }
+
+  render() {
+    return (
+      <Input
+        class='auto-height-textarea-component'
+        value={this.value}
+        placeholder={this.placeholder}
+        type='textarea'
+        row={1}
+        onChange={this.handleChange}
+      ></Input>
     );
   }
-});
+}

@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Sideslider, Switcher } from 'bk-magic-vue';
 
-import { dutyDataConversion, getCalendarOfNum, getDutyPlansDetails, IDutyData } from './utils';
+import { dutyDataConversion, getCalendarOfNum, getDutyPlansDetails, IDutyData, IDutyPlansItem } from './utils';
 
 import './rotation-preview.scss';
 
@@ -35,6 +35,7 @@ interface IProps {
   value?: any;
   alarmGroupId?: string | number;
   dutyPlans?: any[];
+  previewDutyRules?: any[];
   onStartTimeChange?: (v: string) => void;
   onInitStartTime?: (v: string) => void;
 }
@@ -45,6 +46,10 @@ export default class RotationPreview extends tsc<IProps> {
   @Prop({ type: [Number, String], default: '' }) alarmGroupId: string | number;
   /* 轮值历史 */
   @Prop({ default: () => [], type: Array }) dutyPlans: any[];
+  /* 当前预览接口数据 用于展示明细 */
+  @Prop({ default: () => [], type: Array }) previewDutyRules: {
+    duty_plans: IDutyPlansItem[];
+  }[];
 
   @Ref('previewContent') previewContentRef: HTMLDivElement;
   @Ref('userTip') userTipRef: HTMLDivElement;
@@ -166,7 +171,15 @@ export default class RotationPreview extends tsc<IProps> {
     if (!v) {
       return;
     }
-    this.detailDutyPlans = getDutyPlansDetails(this.dutyPlans, isHistory);
+    let dutyPlans = [];
+    if (!!this.alarmGroupId) {
+      dutyPlans = this.dutyPlans;
+    } else if (!isHistory) {
+      this.previewDutyRules.forEach(item => {
+        dutyPlans.push(...item.duty_plans);
+      });
+    }
+    this.detailDutyPlans = getDutyPlansDetails(dutyPlans, isHistory);
     // this.detailDutyPlans = (
     //   isHistory
     //     ? this.dutyPlans.filter(d => new Date(d.start_time).getTime() < new Date().getTime())
@@ -218,28 +231,26 @@ export default class RotationPreview extends tsc<IProps> {
             ></Switcher>
           </span>
           <span class='ml-6'>{this.$t('显示未排班')}</span>
-          {!!this.alarmGroupId && [
-            <span
-              class='text-btn mr-24 ml-auto'
-              onClick={(e: Event) => {
-                e.stopPropagation();
-                this.handleShowDetail(true, this.$t('排班明细'));
-              }}
-            >
-              <span class='icon-monitor icon-mc-detail mr-6'></span>
-              <span>{this.$t('排班明细')}</span>
-            </span>,
-            <span
-              class='text-btn'
-              onClick={(e: Event) => {
-                e.stopPropagation();
-                this.handleShowDetail(true, this.$t('轮值历史'), true);
-              }}
-            >
-              <span class='icon-monitor icon-lishijilu mr-6'></span>
-              <span>{this.$t('轮值历史')}</span>
-            </span>
-          ]}
+          <span
+            class='text-btn mr-24 ml-auto'
+            onClick={(e: Event) => {
+              e.stopPropagation();
+              this.handleShowDetail(true, this.$t('排班明细'));
+            }}
+          >
+            <span class='icon-monitor icon-mc-detail mr-6'></span>
+            <span>{this.$t('排班明细')}</span>
+          </span>
+          <span
+            class='text-btn'
+            onClick={(e: Event) => {
+              e.stopPropagation();
+              this.handleShowDetail(true, this.$t('轮值历史'), true);
+            }}
+          >
+            <span class='icon-monitor icon-lishijilu mr-6'></span>
+            <span>{this.$t('轮值历史')}</span>
+          </span>
         </div>
         <div class={['preview-content', { expan: this.isExpan }]}>
           <div class='preview-content-left'>
