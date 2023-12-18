@@ -25,7 +25,7 @@
  */
 
 import { timeRangeMerger } from '../../../../trace/pages/rotation/components/calendar-preview';
-import { randomColor } from '../duty-arranges/color';
+import { randomColor } from '../../../../trace/pages/rotation/utils';
 
 import { IDutyItem } from './typing';
 

@@ -51,15 +51,26 @@ export function generateTimeSlots(): string[] {
 }
 
 export const colorList = [
-  '#4152a3',
-  '#699df4',
-  '#74c2a8',
-  '#b5cc8e',
-  '#ebd57f',
-  '#f0ad69',
-  '#d66f6b',
-  '#e0abc9',
-  '#a596eb'
+  '#3A84FF',
+  '#FF9C01',
+  '#18B456',
+  '#BC66E5',
+  '#FF5656',
+  '#699DF4',
+  '#FFB848',
+  '#51BE68',
+  '#D493F3',
+  '#FF6F6F',
+  '#61B2C2',
+  '#F5876C',
+  '#EAD550',
+  '#AEA5F2',
+  '#85CCA8',
+  '#FFA66B',
+  '#6FBCEA',
+  '#FFC685',
+  '#6EDAC1',
+  '#E787CB'
 ];
 
 export const randomColor = (index: number) => {
@@ -73,14 +84,14 @@ export const randomColor = (index: number) => {
 };
 
 export function createColorList(num = 100) {
-  const colorList = ['#4152a3', '#699df4', '#74c2a8', '#b5cc8e', '#ebd57f', '#f0ad69', '#d66f6b', '#e0abc9', '#a596eb'];
+  const colors = [...colorList];
   for (let i = 0; i < num; i++) {
     const r = Math.floor(Math.random() * 255);
     const g = Math.floor(Math.random() * 255);
     const b = Math.floor(Math.random() * 255);
-    colorList.push(`rgba(${r},${g},${b},0.8)`);
+    colors.push(`rgba(${r},${g},${b},0.8)`);
   }
-  return colorList;
+  return colors;
 }
 
 export function timeRangeTransform(val: string) {

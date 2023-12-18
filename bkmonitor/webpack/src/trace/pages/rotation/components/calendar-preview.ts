@@ -384,15 +384,22 @@ export function timeRangeMerger(timePeriods: { start_time: string; end_time: str
  * @description 根据后台接口数据转换为预览数据
  * @param params
  */
-export function setPreviewDataOfServer(params: IDutyPlans[]) {
+export function setPreviewDataOfServer(params: IDutyPlans[], colorList?: string[]) {
+  const hasColorList = !!colorList;
   const data = [];
+  const colorFn = (userIndex: number) => {
+    if (hasColorList && userIndex > colorList?.length - 1) {
+      return randomColor(userIndex);
+    }
+    return colorList[userIndex];
+  };
   userIndexResetOfpreviewData(params).forEach((item, index) => {
     const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
     if (item.work_times.length) {
       timeRangeMerger(item.work_times).forEach(work => {
         data.push({
           users,
-          color: randomColor(item.user_index === undefined ? index : item.user_index),
+          color: colorFn(item.user_index === undefined ? index : item.user_index),
           timeRange: [work.start_time, work.end_time]
         });
       });

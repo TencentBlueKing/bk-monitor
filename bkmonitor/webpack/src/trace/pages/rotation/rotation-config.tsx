@@ -308,7 +308,7 @@ export default defineComponent({
           id: id.value
         };
         const data = await previewDutyRulePlan(params).catch(() => []);
-        previewData.value = setPreviewDataOfServer(data);
+        previewData.value = setPreviewDataOfServer(data, colorList.value);
       } else {
         const dutyParams = getParams();
         const params = {
@@ -317,7 +317,7 @@ export default defineComponent({
           config: dutyParams
         };
         const data = await previewDutyRulePlan(params, { needCancel: true }).catch(() => []);
-        previewData.value = setPreviewDataOfServer(data);
+        previewData.value = setPreviewDataOfServer(data, colorList.value);
       }
     }
 
