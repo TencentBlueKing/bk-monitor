@@ -1,0 +1,38 @@
+.create-subscription-form-container {
+    .card-container {
+        padding: 16px 24px;
+        background: #FFFFFF;
+        box-shadow: 0 2px 4px 0 #1919290d;
+        border-radius: 2px;
+
+        &:nth-of-type(n+2) {
+            margin-top: 16px;
+        }
+
+        .title {
+            margin-bottom: 22px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #63656E;
+        }
+
+        .slider-container {
+            display: flex;
+
+            .slider {
+                width: 180px;
+                margin: 0 10px;
+            }
+        }
+
+        .bk-form-radio {
+            line-height: 30px;
+            margin-right: 10px;
+        }
+    }
+
+    .text-content {
+        font-size: 12px;
+        color: #63656E;
+    }
+}
