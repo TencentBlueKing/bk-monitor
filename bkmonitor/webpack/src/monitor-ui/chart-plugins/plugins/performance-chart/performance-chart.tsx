@@ -113,7 +113,8 @@ export default class PerformanceChart extends TimeSeries {
           };
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
-              cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb))
+              cancelToken: new CancelToken((cb: Function) => this.cancelTokens.push(cb)),
+              needMessage: false
             })
             .then(res => {
               this.$emit('seriesData', res);
