@@ -180,13 +180,15 @@ export default class RotationDetail extends tsc<IProps> {
                   </div>
                 ))}
                 <div class='notice-user-list'>
-                  {rule.ruleUser.map((item, ind) => (
-                    <div class='notice-user-item'>
-                      <div
-                        class='has-color'
-                        style={{ background: randomColor(ind) }}
-                      ></div>
-                      {item.map(user => (
+                  {rule.ruleUser.map(item => (
+                    <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
+                      {!rule.isAuto && (
+                        <div
+                          class='has-color'
+                          style={{ background: randomColor(item.orderIndex) }}
+                        ></div>
+                      )}
+                      {item.users.map(user => (
                         <div class='personnel-choice'>
                           {this.renderUserLogo(user)}
                           <span>{user.display_name}</span>

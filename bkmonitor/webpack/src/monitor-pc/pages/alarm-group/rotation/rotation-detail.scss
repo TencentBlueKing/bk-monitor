@@ -127,6 +127,10 @@
           flex-wrap: wrap;
           padding-left: 12px;
 
+          &.no-pl {
+            padding-left: 0;
+          }
+
           .has-color {
             position: absolute;
             top: 2px;
