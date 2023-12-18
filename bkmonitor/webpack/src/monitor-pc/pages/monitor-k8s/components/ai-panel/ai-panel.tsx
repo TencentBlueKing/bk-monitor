@@ -25,13 +25,13 @@
  */
 import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { IViewOptions, PanelModel } from '../../../../../monitor-ui/chart-plugins/typings';
 import { isShadowEqual, reviewInterval } from '../../../../../monitor-ui/chart-plugins/utils';
 import { VariablesService } from '../../../../../monitor-ui/chart-plugins/utils/variable';
 import { FormattedValue, getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
-import { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { IQueryOption } from '../../../performance/performance-type';
 import ViewDetail from '../../../view-detail/view-detail-new';
@@ -206,7 +206,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           value,
           id: `${metric.data_source_label}.${metric.data_type_label}.${metric.result_table_id}.${metric.metric_field}`,
           score: +info.score.toFixed(4),
-          dtEventTime: moment(info.dtEventTime).format('YYYY-MM-DD HH:mm:ss')
+          dtEventTime: dayjs.tz(info.dtEventTime).format('YYYY-MM-DD HH:mm:ss')
         };
       });
     } else {
@@ -232,7 +232,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           ...this.viewOptions.variables,
           interval: reviewInterval(
             this.viewOptions.interval,
-            moment(endTime).unix() - moment(startTime).unix(),
+            dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
             row.panel.collect_interval
           )
         });
@@ -292,6 +292,10 @@ export default class Aipanel extends tsc<ICommonListProps> {
             onClick={this.handleToAddStrategy}
           ></span>
           <i
+            v-bk-tooltips={{
+              content: this.$t('AI设置'),
+              delay: 200
+            }}
             class='bk-icon icon-cog-shape setting-icon'
             onClick={this.handlerGoAiSettings}
           ></i>

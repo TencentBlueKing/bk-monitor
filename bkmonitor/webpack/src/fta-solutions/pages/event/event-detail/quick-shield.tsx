@@ -26,7 +26,7 @@
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, DatePicker, Input } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { bulkAddAlertShield } from '../../../../monitor-api/modules/shield';
 import VerifyInput from '../../../../monitor-pc/components/verify-input/verify-input.vue';
@@ -65,7 +65,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   @Inject('authority') authority;
   @Inject('authorityFromEventDetail') authorityFromEventDetail;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail;
+  @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail = null;
   @Prop({ type: Boolean, default: false }) show: Boolean;
   @Prop({ type: Array, default: () => [] }) details: IDetail[];
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
@@ -171,8 +171,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           end_time: ''
         }
       };
-      moment.locale('en');
-      let toTime = `${moment(time.begin).to(moment(time.end), true)}`;
+      dayjs.locale('en');
+      let toTime = `${dayjs(time.begin).to(dayjs(time.end), true)}`;
       const tims = [
         ['day', 'd'],
         ['days', 'd'],
@@ -241,7 +241,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   getHandleShowAuthorityDetail(action: any) {
     const routeName = this.$route.name;
     if (routeName === 'event-center') this.handleShowAuthorityDetail(action);
-    if (routeName === 'event-center-detail') this.handleShowAuthorityDetailFromEventDetail(action);
+    if (routeName === 'event-center-detail') this.handleShowAuthorityDetailFromEventDetail?.(action);
   }
 
   getInfoCompnent() {

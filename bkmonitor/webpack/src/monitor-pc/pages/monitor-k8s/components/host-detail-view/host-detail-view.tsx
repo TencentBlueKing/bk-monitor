@@ -26,7 +26,7 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Collapse as BkCollapse, CollapseItem as BkCollapseItem } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { copyText, random } from '../../../../../monitor-common/utils/utils';
 import Collapse from '../../../../components/collapse/collapse';
@@ -55,6 +55,16 @@ interface IStatusDataSubValue {
   type: string;
   text: string;
 }
+
+// 由于本地的 vue-i18n 库导致无法正常调试，这里做了一个特殊处理去解决后端的文本强制转成中文作为判断。
+const textMapping = {
+  采集状态: '采集状态',
+  'Collection Status': '采集状态',
+  运营状态: '运营状态',
+  'Operation Status': '运营状态',
+  所属模块: '所属模块',
+  Modules: '所属模块'
+};
 
 @Component
 export default class HostDetailView extends tsc<IProps, IEvents> {
@@ -92,8 +102,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   timeFormatter(time: ITableItem<'time'>) {
     if (!time) return '--';
     if (typeof time !== 'number') return time;
-    if (time.toString().length < 13) return moment(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-    return moment(time).format('YYYY-MM-DD HH:mm:ss');
+    if (time.toString().length < 13) return dayjs.tz(time * 1000, window.timezone).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(time, window.timezone).format('YYYY-MM-DD HH:mm:ss');
   }
   // list类型格式化
   listFormatter(item: IDetailItem) {
@@ -296,8 +306,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   get statusData(): { [key: string]: IStatusData } {
     const o = {};
     this.data.forEach(item => {
-      if (this.targetStatusName.includes(item.name)) {
-        o[item.name] = item;
+      if (this.targetStatusName.includes(textMapping[item.name])) {
+        o[textMapping[item.name]] = item;
       }
     });
     return o;
@@ -305,12 +315,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   /** 中间纯文本的表格 */
   get labelListData(): IDetailItem[] {
     return this.data.filter(item => {
-      return !(this.targetStatusName.includes(item.name) || this.targetListName.includes(item.name));
+      return !(
+        this.targetStatusName.includes(textMapping[item.name]) || this.targetListName.includes(textMapping[item.name])
+      );
     });
   }
   /** 所属模块 的信息 */
   get moduleData(): { name: string; type: string; value: any | string[] }[] {
-    const result = this.data.find(item => item.name === '所属模块');
+    const result = this.data.find(item => textMapping[item.name] === '所属模块');
     if (result) return [result];
     return [];
   }
@@ -352,8 +364,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
     ) {
       iconClass = 'icon-inform-circle';
     }
-
-    return <i class={`icon-monitor ${iconClass}`}></i>;
+    return iconClass;
   }
   get maintainStatusText() {
     const statusType = this.statusData[this.targetStatusName[0]]?.type;
@@ -380,7 +391,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 boundary: 'window'
               }}
             >
-              {this.maintainStatusIcon}
+              <i class={`icon-monitor ${this.maintainStatusIcon}`}></i>
               <span class='text'>{this.maintainStatusText}</span>
             </div>
           )}
@@ -464,7 +475,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {/* 所属模块 */}
           {(this.moduleData as IDetailItem[]).map(item => (
             <div key={item.name}>
-              {this.targetListName.includes(item.name) && <div class='divider'></div>}
+              {this.targetListName.includes(textMapping[item.name]) && <div class='divider'></div>}
               <div class='module-data-panel-item'>
                 <div class={['module-data-item-title']}>{item.name}</div>
                 <div class='module-data-item-value'>{this.handleTransformVal(item)}</div>

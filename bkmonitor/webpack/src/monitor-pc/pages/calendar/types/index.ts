@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import timezone from 'moment-timezone';
+
+import dayjs from 'dayjs';
 
 /** 日历服务列表的弹层层级 */
 export const Z_INDEX = 2500;
@@ -141,8 +142,7 @@ export const repeatParamsMap: Record<ERepeatKey, IRepeatConfig | {}> = {
 /**
  * 获取当前时区
  */
-export const getTimezoneOffset = () => timezone.tz.guess(true);
-
+export const getTimezoneOffset = () => dayjs.tz.guess();
 /** 工作日 */
 export const WORKING_DATE_LIST = [1, 2, 3, 4, 5];
 

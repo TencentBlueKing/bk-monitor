@@ -22,6 +22,11 @@ the project delivered to anyone in the future.
 import copy
 from typing import Union
 
+from django.conf import settings
+from django.core.cache import cache
+from django.utils.module_loading import import_string
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api import TransferApi
 from apps.exceptions import ApiResultError, ValidationError
 from apps.log_databus.constants import (
@@ -39,10 +44,6 @@ from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config
 from apps.log_search.constants import FieldBuiltInEnum, FieldDataTypeEnum
 from apps.utils import is_match_variate
-from django.conf import settings
-from django.core.cache import cache
-from django.utils.module_loading import import_string
-from django.utils.translation import ugettext_lazy as _
 
 
 class EtlStorage(object):

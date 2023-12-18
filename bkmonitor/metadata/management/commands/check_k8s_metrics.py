@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import logging
 
 import yaml
 from django.core.management import BaseCommand
@@ -16,7 +15,8 @@ from django.core.management import BaseCommand
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from metadata import models
 
-logger = logging.getLogger("metadata")
+# 这里添加需要更新的指标名
+TARGET_METRIC_NAME_LIST = []
 
 
 class Command(BaseCommand):
@@ -58,12 +58,16 @@ class Command(BaseCommand):
                 "field_name": metric["field_name"],
                 "tag_list": metric["tag_list"],
             }
+            if TARGET_METRIC_NAME_LIST and metric["field_name"] not in TARGET_METRIC_NAME_LIST:
+                continue
             if not metrics_map.get(metric["field_name"]):
                 add_metrics.append(metric)
             else:
                 metrics_map.pop(metric["field_name"])
         # 打印标准集群对比配置文件新增、删除的k8s系统指标
-        print("delete metrics field name:", list(metrics_map.keys()))
+        if TARGET_METRIC_NAME_LIST:
+            print("delete metrics field name:", list(metrics_map.keys()))
+
         print(
             "add metrics:",
             yaml.dump(

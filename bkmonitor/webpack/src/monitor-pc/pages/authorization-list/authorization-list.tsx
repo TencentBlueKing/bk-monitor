@@ -26,7 +26,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Tag } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   createOrUpdateAuthorizer,
@@ -662,7 +662,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
   // 截止时间列格式化
   timeFormatter(row, column, cellValue) {
-    return cellValue ? moment(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
+    return cellValue ? dayjs.tz(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
   }
   /**
    *

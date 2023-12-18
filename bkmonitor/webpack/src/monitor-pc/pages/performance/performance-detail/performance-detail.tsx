@@ -29,13 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import { getHostInfo } from '../../../../monitor-api/modules/scene_view';
 import introduce from '../../../common/introduce';
 import GuidePage from '../../../components/guide-page/guide-page';
+import { destroyTimezone } from '../../../i18n/dayjs';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import CommonPage from '../../monitor-k8s/components/common-page';
 import { INavItem, IViewOptions } from '../../monitor-k8s/typings';
 
 import './performance-detail.scss';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class PerformanceDetail extends tsc<{}> {
   @Prop({ type: String, default: '' }) id: string;
@@ -104,6 +105,21 @@ export default class PerformanceDetail extends tsc<{}> {
       vm.loading = false;
     });
   }
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
+  }
+
+  handleBack() {
+    if (window.history.length <= 1) {
+      this.$router.push({
+        name: 'performance'
+      });
+    } else {
+      this.$router.back();
+    }
+  }
+
   render() {
     if (this.showGuidePage) return <GuidePage guideData={introduce.data.performance.introduce} />;
     return (
@@ -126,6 +142,7 @@ export default class PerformanceDetail extends tsc<{}> {
               needCopyLink
               needBack={true}
               navMode={'share'}
+              callbackRouterBack={this.handleBack}
             />
           </CommonPage>
         )}

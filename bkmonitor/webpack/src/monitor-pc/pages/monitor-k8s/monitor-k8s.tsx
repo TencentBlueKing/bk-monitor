@@ -31,6 +31,7 @@ import { random } from '../../../monitor-common/utils/utils';
 import { handleGotoLink } from '../../common/constant';
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
+import { destroyTimezone } from '../../i18n/dayjs';
 
 import CommonNavBar from './components/common-nav-bar';
 import CommonPage from './components/common-page-new';
@@ -38,7 +39,7 @@ import { INavItem, IViewOptions, SceneType } from './typings';
 
 import './monitor-k8s.scss';
 
-Component.registerHooks(['beforeRouteEnter']);
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class MonitorK8s extends tsc<{}> {
   @Prop({ type: String, default: '' }) id: string;
@@ -83,6 +84,10 @@ export default class MonitorK8s extends tsc<{}> {
         method: 'sum_without_time'
       };
     });
+  }
+  beforeRouteLeave(to, from, next) {
+    destroyTimezone();
+    next();
   }
   handleTitleChange(title) {
     this.subName = title;

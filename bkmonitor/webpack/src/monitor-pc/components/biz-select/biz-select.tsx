@@ -81,7 +81,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   @Prop({
     default: 'light',
     type: String,
-    validator: val => ['dark', 'light'].includes(val)
+    validator: (val: string) => ['dark', 'light'].includes(val)
   })
   theme: ThemeType;
   @Ref() menuSearchInput: any;

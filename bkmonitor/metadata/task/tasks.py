@@ -219,7 +219,12 @@ def push_and_publish_space_router(
     table_id_list: Optional[List] = None,
 ):
     """推送并发布空间路由功能"""
-    logger.info("start to push and publish space_type: %s, space_id: %s router", space_type, space_id)
+    logger.info(
+        "start to push and publish space_type: %s, space_id: %s, table_id_list: %s router",
+        space_type,
+        space_id,
+        json.dumps(table_id_list),
+    )
     from metadata.models.space.constants import (
         SPACE_TO_RESULT_TABLE_CHANNEL,
         SpaceTypes,
@@ -229,12 +234,9 @@ def push_and_publish_space_router(
 
     # 获取空间下的结果表，如果不存在，则获取空间下的所有
     if not table_id_list:
-        table_id_list = get_space_table_id_data_id(space_type, space_id)
+        table_id_list = list(get_space_table_id_data_id(space_type, space_id).keys())
 
     space_client = SpaceTableIDRedis()
-    # 更新数据
-    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
     # 更新空间下的结果表相关数据
     if space_type and space_id:
         # 更新相关数据到 redis
@@ -251,6 +253,10 @@ def push_and_publish_space_router(
         # 通知到使用方
         push_redis_keys = [f"{space_type}__{space_id}" for space_id in space_ids]
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
+
+    # 更新数据
+    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 
@@ -271,7 +277,9 @@ def multi_push_space_table_ids(space_list: List[Dict]):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
+def access_bkdata_vm(
+    bk_biz_id: int, table_id: str, data_id: int, space_type: Optional[str] = None, space_id: Optional[str] = None
+):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
     try:
@@ -283,6 +291,8 @@ def access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e
         )
         return
+
+    push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
 
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s end access bkdata vm", bk_biz_id, table_id, data_id)
 

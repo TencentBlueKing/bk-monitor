@@ -106,7 +106,7 @@
 <script lang="ts">
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { Route } from 'vue-router';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { Popup } from 'vant';
 
 import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
@@ -252,7 +252,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
     const obj = this.selectGroup.list.find(item => item.value === 0);
     if (obj.text === timeObj.datetime) return;
     this.customDate = timeObj.dateObj;
-    obj.text = moment(this.customDate).format('MM/DD HH:mm');
+    obj.text = dayjs.tz(this.customDate).format('MM/DD HH:mm');
     this.selectGroup.active = 0;
     this.handleGetChartData();
   }
@@ -271,13 +271,13 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
     this.series = [];
     this.$store.commit('app/setPageLoading', true);
     const startTime =      this.selectGroup.active === 0
-      ? moment(this.customDate).unix()
-      : moment().add(-this.selectGroup.active, 'h')
+      ? dayjs(this.customDate).unix()
+      : dayjs().add(-this.selectGroup.active, 'h')
         .unix();
     const params: any = {
       event_id: this.id,
       start_time: startTime,
-      end_time: moment().unix()
+      end_time: dayjs().unix()
     };
     if (this.typeCompare > 0) {
       params.time_compare = this.timeCompare;

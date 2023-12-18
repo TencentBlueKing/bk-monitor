@@ -25,7 +25,7 @@
  */
 import { Component, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { random } from '../../../../monitor-common/utils/utils';
 import { IDetectionConfig } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
@@ -62,8 +62,8 @@ export const createAutoTimerange = (
   }
   newStartTime -= diff;
   const result = {
-    startTime: moment(newStartTime).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: moment(newEndTime).format('YYYY-MM-DD HH:mm:ss')
+    startTime: dayjs.tz(newStartTime).format('YYYY-MM-DD HH:mm:ss'),
+    endTime: dayjs.tz(newEndTime).format('YYYY-MM-DD HH:mm:ss')
   };
   return result;
 };
