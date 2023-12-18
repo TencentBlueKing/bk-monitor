@@ -875,3 +875,13 @@ class UpdateRegisteredClusterResource(MetaDataAPIGWResource):
         is_ssl_verify = serializers.BooleanField(label="是否 ssl 验证", default=False)
         label = serializers.CharField(label="标签", default="", allow_blank=True)
         default_settings = serializers.JSONField(required=False, label="默认集群配置", default={})
+
+
+class QueryResultTableStorageDetailResource(MetaDataAPIGWResource):
+    action = "/metadata_query_result_table_storage_detail"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        bcs_cluster_id = serializers.CharField(required=False, label="集群ID")
