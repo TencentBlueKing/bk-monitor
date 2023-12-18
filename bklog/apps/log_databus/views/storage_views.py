@@ -35,7 +35,7 @@ from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import StorageCreateException, StorageNotExistException
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import (
-    StorageBathcDetectSerializer,
+    StorageBatchDetectSerializer,
     StorageCreateSerializer,
     StorageDetectSerializer,
     StorageListSerializer,
@@ -664,8 +664,8 @@ class StorageViewSet(APIViewSet):
             "message": ""
         }
         """
-        data = self.params_valid(StorageBathcDetectSerializer)
-        bk_biz_id = request.GET.get("bk_biz_id")
+        data = self.params_valid(StorageBatchDetectSerializer)
+        bk_biz_id = data.get("bk_biz_id") or request.GET.get("bk_biz_id")
         if not bk_biz_id or not is_positive_or_negative_integer(bk_biz_id):
             raise StorageCreateException()
         return Response(StorageHandler.batch_connectivity_detect(data["cluster_list"], bk_biz_id))

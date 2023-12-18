@@ -139,7 +139,6 @@ class IndexSetViewSet(ModelViewSet):
 
         class ReplaceSerializer(CreateSerializer):
             category_id = serializers.CharField(required=False)
-            bk_app_code = serializers.CharField(required=True, write_only=True)
 
         if self.request.query_params.get("show_more", False):
             # 显示更多，把索引集内的索引一并查出，一般列表中无需使用到
