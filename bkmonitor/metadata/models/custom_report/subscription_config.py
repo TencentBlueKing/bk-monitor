@@ -138,7 +138,7 @@ class CustomReportSubscription(models.Model):
                             "plugin_version": "latest",
                             "config_templates": [{"name": "bk-collector-report-v2.conf", "version": "latest"}],
                         },
-                        "params": {"context": {"bk_biz_id": bk_biz_id, **proxy_item}},
+                        "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
                     },
                 ],
             }
