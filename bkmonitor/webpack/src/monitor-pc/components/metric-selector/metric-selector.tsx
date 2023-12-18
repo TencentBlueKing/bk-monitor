@@ -362,9 +362,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   /* 复制指标名 */
-  handleCopyMetricMame(value: string) {
+  handleCopyMetricMame(metric: MetricDetail) {
+    const copyStr = (metric.metric_id || '').replace(/\./g, ':').replace('::', ':');
     let hasErr = false;
-    copyText(value, errMsg => {
+    copyText(copyStr, errMsg => {
       this.$bkMessage({
         message: errMsg,
         theme: 'error'
@@ -728,7 +729,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             }}
             onClick={e => {
               e.stopPropagation();
-              this.handleCopyMetricMame(obj.id);
+              this.handleCopyMetricMame(item);
             }}
           ></span>
           {/* <span class="icon-monitor icon-fenxiang"
