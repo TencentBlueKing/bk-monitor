@@ -356,7 +356,11 @@ export class RelationGraph extends CommonSimpleChart {
                 this.graphData = graphData;
                 this.legendStatusData = legendStatusData;
                 this.legendStatisticsData = legendStatisticsData;
+                this.clearErrorMsg();
                 return true;
+              })
+              .catch(error => {
+                this.handleErrorMsgChange(error.msg || error.message);
               });
           });
       } else {
@@ -398,7 +402,11 @@ export class RelationGraph extends CommonSimpleChart {
                 }));
                 this.conditionOptions = condition_list || [];
                 this.pagination.count = total || 0;
+                this.clearErrorMsg();
                 return true;
+              })
+              .catch(error => {
+                this.handleErrorMsgChange(error.msg || error.message);
               })
           );
       }
