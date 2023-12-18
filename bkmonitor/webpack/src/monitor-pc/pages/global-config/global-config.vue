@@ -334,11 +334,11 @@ export default {
               theme: 'success',
               message: this.$t('保存成功！')
             });
-            const [queueItem] = this.staticForm.MESSAGE_QUEUE_DSN;
-            this.$store.commit('app/SET_MESSAGE_QUEUE', {
-              enable: queueItem.check,
-              dsn: queueItem.value
-            });
+            // const [queueItem] = this.staticForm.MESSAGE_QUEUE_DSN;
+            // this.$store.commit('app/SET_MESSAGE_QUEUE', {
+            //   enable: queueItem.check,
+            //   dsn: queueItem.value
+            // });
             // this.$store.commit('app/SET_MAIN_LOADING', false);
             this.loading = false;
           })
