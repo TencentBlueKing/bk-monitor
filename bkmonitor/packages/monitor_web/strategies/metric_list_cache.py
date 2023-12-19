@@ -912,6 +912,83 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
     data_sources = ((DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),)
 
+    SYSTEM_EVENTS = [
+        {
+            "event_group_id": 0,
+            "bk_data_id": 1100000,
+            "bk_biz_id": 0,
+            "table_id": "gse_custom_string",
+            "event_group_name": "gse custom string",
+            "label": "os",
+            "event_info_list": [
+                {
+                    "event_name": "CustomString",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id"],
+                }
+            ],
+        },
+        {
+            "event_group_id": 0,
+            "bk_data_id": 1000,
+            "bk_biz_id": 0,
+            "table_id": "gse_system_event",
+            "event_group_name": "gse system event",
+            "label": "os",
+            "event_info_list": [
+                {
+                    "event_name": "AgentLost",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id"],
+                },
+                {
+                    "event_name": "CoreFile",
+                    "dimension_list": [
+                        "bk_target_ip",
+                        "bk_target_cloud_id",
+                        "ip",
+                        "bk_cloud_id",
+                        "executable",
+                        "executable_path",
+                        "signal",
+                    ],
+                    "condition_field_list": ["corefile"],
+                },
+                {
+                    "event_name": "DiskFull",
+                    "dimension_list": [
+                        "bk_target_ip",
+                        "bk_target_cloud_id",
+                        "ip",
+                        "bk_cloud_id",
+                        "disk",
+                        "file_system",
+                        "fstype",
+                    ],
+                },
+                {
+                    "event_name": "DiskReadonly",
+                    "dimension_list": [
+                        "bk_target_ip",
+                        "bk_target_cloud_id",
+                        "ip",
+                        "bk_cloud_id",
+                        "position",
+                        "fs",
+                        "type",
+                    ],
+                },
+                {
+                    "event_name": "OOM",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id", "process", "task"],
+                    "condition_field_list": ["message", "oom_memcg", "task_memcg", "constraint"],
+                },
+                {
+                    "event_name": "PingUnreachable",
+                    "dimension_list": ["bk_target_ip", "bk_target_cloud_id", "ip", "bk_cloud_id"],
+                },
+            ],
+        },
+    ]
+
     def get_metric_pool(self):
         # todo 包括 k8s event (映射到 bk_monitor + event 去了)
         # 当前先不映射
@@ -923,6 +1000,10 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         )
 
     def get_tables(self):
+        # 系统事件
+        if self.bk_biz_id == 0:
+            yield from self.SYSTEM_EVENTS
+
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
             custom_event.bk_event_group_id for custom_event in CustomEventGroup.objects.filter(type="custom_event")
@@ -999,6 +1080,16 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     "bk_event_id": metric_msg.get("event_id", 0),
                 },
             }
+
+            # 支持非维度字段作为条件
+            if "condition_field_list" in metric_msg:
+                metric_detail["dimensions"].extend(
+                    [
+                        {"id": condition_name, "name": condition_name, "is_dimension": False}
+                        for condition_name in metric_msg["condition_field_list"]
+                    ]
+                )
+
             metric_detail.update(base_dict)
             yield metric_detail
 

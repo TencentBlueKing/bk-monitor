@@ -424,6 +424,9 @@ QUERY_VM_STORAGE_ROUTER_KEY = "query_vm_router"
 # 批量写入数量限制
 BULK_CREATE_BATCH_SIZE = 2000
 
+# 批量更新数据限制, 防止数量上千，降低效率
+BULK_UPDATE_BATCH_SIZE = 500
+
 # 忽略的结果表类型
 IGNORED_STORAGE_CLUSTER_TYPES = ["victoria_metrics"]
 

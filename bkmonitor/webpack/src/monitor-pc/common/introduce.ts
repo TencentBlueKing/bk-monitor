@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { type RouteConfig } from 'vue-router';
+
 import { spaceIntroduce } from '../../monitor-api/modules/commons';
 import { ISPaceIntroduceData } from '../types';
 
@@ -80,10 +82,25 @@ class IntroduceStore {
   }
 
   // 初始化所有介绍数据
-  initIntroduce() {
+  initIntroduce(to: RouteConfig) {
+    const toNavId = to.meta.navId;
     Object.keys(this.data).forEach((tag: IntroduceRouteKey) => {
+      // 如果已有数据，直接返回
+      if (this.data[tag].introduce) return;
       if (!this.data[tag].loading) {
-        requestIdleCallback(() => this.getIntroduce(tag));
+        requestIdleCallback(() => {
+          if (toNavId === tag) {
+            this.getIntroduce(tag);
+          } else {
+            this.data[tag].loading = true;
+            spaceIntroduce({ tag })
+              .then(data => {
+                this.data[tag].introduce = data;
+              })
+              .catch(() => (this.data[tag].introduce = undefined))
+              .finally(() => (this.data[tag].loading = false));
+          }
+        });
       }
     });
   }
