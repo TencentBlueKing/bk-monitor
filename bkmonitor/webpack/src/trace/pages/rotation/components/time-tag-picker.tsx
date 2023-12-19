@@ -264,6 +264,7 @@ export default defineComponent({
                           style={{ width: `${this.inputWidth}px` }}
                           v-model={this.currentTime.inputValue}
                           onInput={this.resetInputWidth}
+                          onClick={e => e.stopPropagation()}
                         />
                       ) : (
                         <span>{this.tagNameFormat(item)}</span>
@@ -277,6 +278,7 @@ export default defineComponent({
                       style={{ width: `${this.inputWidth}px` }}
                       v-model={this.currentTime.inputValue}
                       onInput={this.resetInputWidth}
+                      onClick={e => e.stopPropagation()}
                     ></input>
                   )}
                   <span class={['placeholder', !this.localValue.length && !this.currentTime.showInput && 'show']}>
