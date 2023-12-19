@@ -254,6 +254,7 @@ class SpaceProvider(BaseResourceProvider):
 class GrafanaDashboardProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
         queryset = Dashboard.objects.filter(is_folder=False)
+        folder_queryset = Dashboard.objects.filter(is_folder=True)
 
         # 业务过滤
         if filter.parent and filter.parent["id"]:
@@ -261,6 +262,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             if not org:
                 return ListResult(results=[], count=0)
             queryset = queryset.filter(org_id=org["id"])
+            folder_queryset = folder_queryset.filter(org_id=org["id"])
 
         # 关键字搜索
         if filter.search:
@@ -268,10 +270,14 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             if keywords:
                 queryset = queryset.filter(reduce(operator.or_, [Q(title__icontains=keyword) for keyword in keywords]))
 
+        folders = {folder.id: folder.title for folder in folder_queryset}
         results = []
         org_map = {}
         for dashboard in queryset[page.slice_from : page.slice_to]:
-            result = {"id": f"{dashboard.org_id}|{dashboard.uid}", "display_name": dashboard.title}
+            result = {
+                "id": f"{dashboard.org_id}|{dashboard.uid}",
+                "display_name": f"{folders.get(dashboard.folder_id, 'General')}/{dashboard.title}",
+            }
 
             # 返回结果需要带上资源拓扑路径信息
             if filter.resource_type_chain:
