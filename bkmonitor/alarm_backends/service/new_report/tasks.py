@@ -15,7 +15,11 @@ import arrow
 from alarm_backends.service.new_report.factory import ReportFactory
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.models import Report
-from bkmonitor.report.utils import is_run_time, parse_frequency
+from bkmonitor.report.utils import (
+    get_last_send_record_map,
+    is_run_time,
+    parse_frequency,
+)
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
@@ -36,6 +40,7 @@ def new_report_detect():
     检测邮件订阅
     """
     reports = Report.objects.filter(is_enabled=True)
+    last_send_record_map = get_last_send_record_map(reports)
     for report in reports:
         # 判断订阅是否有效
         if report.is_invalid():
@@ -43,7 +48,7 @@ def new_report_detect():
             continue
         # 判断订阅是否到执行时间
         frequency = report.frequency
-        run_time_strings = parse_frequency(frequency)
+        run_time_strings = parse_frequency(frequency, last_send_record_map[report.id]["send_time"])
         if not is_run_time(frequency, run_time_strings):
             logger.info(f"report{report.id} not at sending time.")
             continue

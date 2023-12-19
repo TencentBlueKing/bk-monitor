@@ -55,7 +55,6 @@ class ReportSendRecord(Model):
         verbose_name = "订阅发送记录"
         verbose_name_plural = "订阅发送记录"
         db_table = "report_send_record"
-        unique_together = ["report_id", "channel_name", "send_round"]
         index_together = ["report_id", "send_round"]
 
 
