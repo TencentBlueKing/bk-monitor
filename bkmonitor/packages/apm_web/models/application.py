@@ -9,6 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.conf import settings
+from django.db import models
+from django.db.transaction import atomic
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext_lazy as _
+from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
     APM_IS_SLOW_ATTR_KEY,
@@ -27,23 +32,17 @@ from apm_web.constants import (
     DefaultSamplerConfig,
     TraceMode,
 )
-from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
+from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.metric_handler import RequestCountInstance
 from apm_web.utils import group_by
-from common.log import logger
-from django.db import models
-from django.db.transaction import atomic
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from opentelemetry.semconv.trace import SpanAttributes
-
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.time_tools import get_datetime_range
+from common.log import logger
 from constants.apm import OtlpKey, SpanKindKey
 from core.drf_resource import api, resource
 
@@ -331,10 +330,26 @@ class Application(AbstractRecordModel):
             raise ValueError("application({}) not found".format(app_name))
 
     @classmethod
+    def get_application_by_app_id(cls, application_id):
+        instance = cls.objects.filter(application_id=application_id).first()
+        if not instance:
+            raise ValueError(f"application(id: {application_id}) not found.")
+
+        return instance
+
+    @classmethod
     @atomic
     def create_application(
-            cls, bk_biz_id, app_name, app_alias, description, plugin_id, deployment_ids, language_ids,
-            datasource_option, plugin_config=None
+        cls,
+        bk_biz_id,
+        app_name,
+        app_alias,
+        description,
+        plugin_id,
+        deployment_ids,
+        language_ids,
+        datasource_option,
+        plugin_config=None,
     ):
         application_info = api.apm_api.create_application(
             {
@@ -396,9 +411,7 @@ class Application(AbstractRecordModel):
 
     @classmethod
     def get_output_param(cls, application_id):
-
-        bk_data_token = api.apm_api.detail_application({"application_id": application_id})[
-            "bk_data_token"]
+        bk_data_token = api.apm_api.detail_application({"application_id": application_id})["bk_data_token"]
         # 获取上报地址
         if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
             host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
@@ -406,10 +419,7 @@ class Application(AbstractRecordModel):
             host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
         else:
             return {}
-        return {
-            "bk_data_token": bk_data_token,
-            "host": host
-        }
+        return {"bk_data_token": bk_data_token, "host": host}
 
     @classmethod
     def stop_plugin_config(cls, application_id):
@@ -417,7 +427,8 @@ class Application(AbstractRecordModel):
         if app.plugin_id == LOG_TRACE:
             # 停止节点管理采集任务
             api.node_man.switch_subscription(
-                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"})
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"}
+            )
             return LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "STOP")
 
     @classmethod
@@ -426,7 +437,8 @@ class Application(AbstractRecordModel):
         if app.plugin_id == LOG_TRACE:
             # 开始节点管理采集任务
             api.node_man.switch_subscription(
-                {"subscription_id": app.plugin_config["subscription_id"], "action": "enable"})
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "enable"}
+            )
             return LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "START")
 
     @classmethod
@@ -435,7 +447,8 @@ class Application(AbstractRecordModel):
         if app.plugin_id == LOG_TRACE:
             # 停止节点管理采集任务
             api.node_man.switch_subscription(
-                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"})
+                {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"}
+            )
             LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "STOP")
             # 删除节点管理采集订阅任务
             return api.node_man.delete_subscription({"subscription_id": app.plugin_config["subscription_id"]})
@@ -460,7 +473,6 @@ class Application(AbstractRecordModel):
         ApmMetaConfig.application_config_setup(self.application_id, self.INSTANCE_NAME_CONFIG_KEY, instance_value)
 
     def set_init_db_config(self):
-
         db_value = [DEFAULT_DB_CONFIG]
 
         ApmMetaConfig.application_config_setup(self.application_id, self.DB_CONFIG_KEY, db_value)
@@ -522,7 +534,7 @@ class Application(AbstractRecordModel):
         ApmMetaConfig.application_config_setup(self.application_id, self.APDEX_CONFIG_KEY, apdex_value)
 
     def setup_config(self, config, new_config, config_key, override=False):
-        if override:
+        if not override and isinstance(config, dict):
             config.update(new_config)
         else:
             config = new_config
@@ -547,7 +559,6 @@ class Application(AbstractRecordModel):
         ApplicationRelationInfo.add_relation(self.application_id, relation_key, relation_value)
 
     def refresh_config(self):
-
         config = self.get_transfer_config()
 
         api.apm_api.release_app_config({"bk_biz_id": self.bk_biz_id, "app_name": self.app_name, **config})

@@ -41,13 +41,13 @@ from apm_web.constants import (
     CategoryEnum,
     CustomServiceMatchType,
     CustomServiceType,
-    DataSamplingLogTypeChoices,
     DataStatus,
     DefaultSetupConfig,
     InstanceDiscoverKeys,
     SamplerTypeChoices,
     SceneEventKey,
     ServiceRelationLogTypeChoices,
+    TailSamplingCommonField,
     TopoNodeKind,
 )
 from apm_web.handlers.application_handler import ApplicationHandler
@@ -58,6 +58,7 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.meta.handlers.custom_service_handler import Matcher
+from apm_web.meta.handlers.sampling_handler import SamplingHelpers
 from apm_web.meta.plugin.help import Help
 from apm_web.meta.plugin.log_trace_plugin_config import EncodingsEnum
 from apm_web.meta.plugin.plugin import (
@@ -108,7 +109,7 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
 from constants.alert import EventSeverity
-from constants.apm import OtlpKey
+from constants.apm import DataSamplingLogTypeChoices, OtlpKey, TailSamplingSupportMethod
 from constants.data_source import (
     ApplicationsResultTableLabel,
     DataSourceLabel,
@@ -391,6 +392,23 @@ class StopResource(Resource):
         return api.apm_api.stop_application(validated_request_data)
 
 
+class SamplingOptionsResource(Resource):
+    """获取采样配置常量"""
+
+    def perform_request(self, validated_request_data):
+        sampling_types = [SamplerTypeChoices.RANDOM]
+        res = {}
+        if settings.IS_ACCESS_BK_DATA:
+            # 添加尾部采样内置规则常量
+            sampling_types.append(SamplerTypeChoices.TAIL)
+            res["tail_sampling_options"] = TailSamplingCommonField.list_options()
+
+        return {
+            "sampler_types": sampling_types,
+            **res,
+        }
+
+
 class SetupResource(Resource):
     class RequestSerializer(serializers.Serializer):
         class DatasourceOptionSerializer(serializers.Serializer):
@@ -402,8 +420,30 @@ class SetupResource(Resource):
             es_slice_size = serializers.IntegerField(label="es索引切分大小", default=500)
 
         class SamplerConfigSerializer(serializers.Serializer):
+            class TailConditions(serializers.Serializer):
+                """尾部采样-采样规则数据格式"""
+
+                key = serializers.CharField(label="Key")
+                method = serializers.ChoiceField(label="Method", choices=TailSamplingSupportMethod.choices)
+                value = serializers.CharField(label="Value")
+
             sampler_type = serializers.ChoiceField(choices=SamplerTypeChoices.choices(), label="采集类型")
-            sampler_percentage = serializers.IntegerField(label="采集百分比")
+            random_percentage = serializers.IntegerField(label="随机采样-采集百分比", required=False)
+            tail_percentage = serializers.IntegerField(label="尾部采样-采集百分比", required=False)
+            tail_trace_session_gap_min = serializers.IntegerField(label="尾部采样-会话过期时间", required=False)
+            tail_trace_mark_timeout = serializers.IntegerField(label="尾部采样-标记状态最大存活时间", required=False)
+            tail_conditions = serializers.ListSerializer(child=TailConditions(), required=False, allow_empty=True)
+
+            def validate(self, attrs):
+                attr = super().validate(attrs)
+                if attrs["sampler_type"] == SamplerTypeChoices.RANDOM:
+                    if "random_percentage" not in attrs:
+                        raise ValueError(_("随机采样未配置采集百分比"))
+                else:
+                    if "tail_percentage" not in attrs:
+                        raise ValueError(f"尾部采样未配置采集百分比")
+
+                return attr
 
         class InstanceNameConfigSerializer(serializers.Serializer):
             instance_name_composition = serializers.ListField(
@@ -511,15 +551,6 @@ class SetupResource(Resource):
                 self._application.apdex_config, self._params, self._application.APDEX_CONFIG_KEY, override=True
             )
 
-    class SamplerSetupProcessor(SetupProcessor):
-        group_key = "application_sampler_config"
-        update_key = ["sampler_type", "sampler_percentage"]
-
-        def setup(self):
-            self._application.setup_config(
-                self._application.sampler_config, self._params, self._application.SAMPLER_CONFIG_KEY
-            )
-
     class InstanceNameSetupProcessor(SetupProcessor):
         group_key = "application_instance_name_config"
         update_key = ["instance_name_composition"]
@@ -543,22 +574,25 @@ class SetupResource(Resource):
 
         def setup(self):
             self._application.setup_config(
-                self._application.db_config, self._params["application_db_config"], self._application.DB_CONFIG_KEY
+                self._application.db_config,
+                self._params["application_db_config"],
+                self._application.DB_CONFIG_KEY,
+                override=True,
             )
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_data):
         try:
-            application = Application.objects.get(application_id=validated_request_data["application_id"])
+            application = Application.objects.get(application_id=validated_data["application_id"])
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
+        # Step1: 更新应用配置
         processors = [
             processor_cls(application)
             for processor_cls in [
                 self.DatasourceSetProcessor,
                 self.ApplicationSetupProcessor,
                 self.ApdexSetupProcessor,
-                self.SamplerSetupProcessor,
                 self.InstanceNameSetupProcessor,
                 # self.DimensionSetupProcessor,
                 self.NoDataPeriodProcessor,
@@ -567,7 +601,7 @@ class SetupResource(Resource):
         ]
 
         need_handle_processors = []
-        for key, value in validated_request_data.items():
+        for key, value in validated_data.items():
             for processor in processors:
                 if processor.group_key and key == processor.group_key:
                     processor.set_group_params(value)
@@ -580,24 +614,29 @@ class SetupResource(Resource):
         for processor in need_handle_processors:
             processor.setup()
 
-        if validated_request_data.get("is_enabled"):
-            if application.is_enabled != validated_request_data["is_enabled"]:
+        # Step2: 因为采样配置较复杂所以不走Processor 交给单独Helper处理
+        if validated_data.get("application_sampler_config"):
+            SamplingHelpers(validated_data['application_id']).setup(validated_data["application_sampler_config"])
+
+        # 判断是否需要启动/停止项目
+        if validated_data.get("is_enabled"):
+            if application.is_enabled != validated_data["is_enabled"]:
                 Application.objects.filter(application_id=application.application_id).update(
-                    is_enabled=validated_request_data["is_enabled"]
+                    is_enabled=validated_data["is_enabled"]
                 )
 
-                if validated_request_data["is_enabled"]:
-                    # 启动/停止
-                    api.apm_api.start_application(validated_request_data)
+                if validated_data["is_enabled"]:
+                    api.apm_api.start_application(validated_data)
                 else:
-                    api.apm_api.stop_application(validated_request_data)
+                    api.apm_api.stop_application(validated_data)
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
+        # Log-Trace配置更新
+        if application.plugin_id == LOG_TRACE:
+            Application.update_plugin_config(application.application_id, validated_data["plugin_config"])
         from apm_web.tasks import update_application_config
 
-        if application.plugin_id == LOG_TRACE:
-            Application.update_plugin_config(application.application_id, validated_request_data["plugin_config"])
         update_application_config.delay(application.application_id)
 
 

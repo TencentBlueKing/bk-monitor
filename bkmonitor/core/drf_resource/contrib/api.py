@@ -126,7 +126,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
 
     def __init__(self, **kwargs):
         super(APIResource, self).__init__(**kwargs)
-        assert self.method.upper() in ["GET", "POST", "PUT", "DELETE"], _("method仅支持GET或POST或PUT或DELETE")
+        assert self.method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"], _("method仅支持GET或POST或PUT或DELETE或PATCH")
         self.method = self.method.upper()
         self.session = requests.session()
 
@@ -189,7 +189,6 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                     timeout=validated_request_data.get("timeout") or self.TIMEOUT,
                 )
             else:
-
                 non_file_data, file_data = self.split_request_data(validated_request_data)
 
                 if not file_data:

@@ -382,7 +382,6 @@ class SpanStandardField:
 
         advances_child = []
         for category, items in child_mapping.items():
-
             advances_child.append(
                 {"id": category, "name": StandardFieldCategory.get_label_by_key(category), "children": items}
             )
@@ -474,3 +473,39 @@ class IndexSetSource(TextChoices):
 
     HOST_COLLECT = "host_collect", _("主机采集项")
     SERVICE_RELATED = "service_related", _("服务关联")
+
+
+class FlowType(TextChoices):
+    """Flow类型"""
+
+    TAIL_SAMPLING = "tail_sampling", _("尾部采样Flow")
+
+
+class TailSamplingSupportMethod(TextChoices):
+    """计算平台-尾部采样中采样规则支持配置的操作符"""
+
+    GT = "gt", _("gt")
+    GTE = "gte", _("gte")
+    LT = "lt", _("lt")
+    LTE = "lte", _("lte")
+    EQ = (
+        "eq",
+        _("eq"),
+    )
+    NEQ = "neq", _("neq")
+    REG = "reg", _("reg")
+    NREG = "nreg", _("nreg")
+
+
+class DataSamplingLogTypeChoices:
+    """走datalink的数据采样类型"""
+
+    TRACE = "trace"
+    METRIC = "metric"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.TRACE, cls.TRACE),
+            (cls.METRIC, cls.METRIC),
+        ]
