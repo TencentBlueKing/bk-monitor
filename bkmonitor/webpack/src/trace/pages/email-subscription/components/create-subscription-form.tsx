@@ -88,7 +88,7 @@ export default defineComponent({
         log_display_count: 30,
         year_on_year_hour: 1,
         generate_attachment: true,
-        // 有什么用？
+        // 暂不配置，先写这个作为默认提交
         is_show_new_pattern: true,
         // 这个同比配置也不需要前端展示，暂不开放配置入口 （不用管）
         year_on_year_change: 'all'
@@ -631,6 +631,42 @@ export default defineComponent({
         .catch(console.log);
     }
 
+    /** 根据当前的 订阅场景 跳转到相应的能创建订阅的页面。
+     * 比如：日志聚类 跳转到 日志平台 => 日志聚类 => 数据指纹
+     * */
+    function goToTargetScene() {
+      if (formData.scenario === 'clustering') {
+        if (!formData.scenario_config.index_set_id) {
+          Message({
+            theme: 'warning',
+            message: window.i18n.t('请选择索引集')
+          });
+          break;
+        }
+        // URL参数补齐再跳转即可。需要: spaceUid、bizId, activeTableTab, clusterRouteParams (一个配置对象)
+        // 日志平台的 URL: window.bk_log_search_url
+        const query = {
+          spaceUid: window.space_list.find(item => item.bk_biz_id === window.bk_biz_id).space_uid || '',
+          bizId: window.bk_biz_id,
+          // 固定写
+          activeTableTab: 'clustering',
+          clusterRouteParams: JSON.stringify({
+            // 固定写
+            activeNav: 'dataFingerprint',
+            requestData: {
+              pattern_level: formData.scenario_config.pattern_level,
+              year_on_year_hour: formData.scenario_config.year_on_year_hour,
+              show_new_pattern: formData.scenario_config.is_show_new_pattern,
+              group_by: [],
+              size: 10000
+            }
+          })
+        };
+        const qs = new URLSearchParams(query as any).toString();
+        window.open(`${window.bk_log_search_url}#/retrieve/${formData.scenario_config.index_set_id}?${qs}`);
+      }
+    }
+
     watch(
       () => formData.scenario,
       () => {
@@ -711,7 +747,8 @@ export default defineComponent({
       sendingConfigurationForm,
       timeRangeOption,
       handleTimeRangeChange,
-      isIncludeWeekend
+      isIncludeWeekend,
+      goToTargetScene
     };
   },
   render() {
@@ -805,11 +842,11 @@ export default defineComponent({
                     {window.i18n.t('观测场景')}
                   </Radio.Button> */}
                 </Radio.Group>
-                {/* TODO: 跳到那里？ */}
                 <Button
                   theme='primary'
                   text
                   style='margin-left: 24px;'
+                  onClick={this.goToTargetScene}
                 >
                   {window.i18n.t('跳转至场景查看')}
                   <i class='icon-monitor icon-mc-link'></i>
