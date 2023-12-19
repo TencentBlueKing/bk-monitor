@@ -356,6 +356,7 @@ class SpanStandardField:
 
     @classmethod
     def list_standard_fields(cls):
+        """按照层级获取标准字段"""
         base_fields = []
         advances_fields = []
 
@@ -393,6 +394,27 @@ class SpanStandardField:
                 "children": advances_child,
             }
         )
+
+        return res
+
+    @classmethod
+    def flat_list(cls):
+        """获取打平的标准字段列表"""
+
+        res = []
+        # 基础字段放在前面 高级字段放在后面
+        base_fields = [i for i in cls.COMMON_STANDARD_FIELDS if i.display_level == StandardFieldDisplayLevel.BASE]
+        ad_fields = [i for i in cls.COMMON_STANDARD_FIELDS if i.display_level == StandardFieldDisplayLevel.ADVANCES]
+
+        for item in base_fields + ad_fields:
+            k = f"{item.source}.{item.key}" if item.source != item.key else item.key
+            res.append(
+                {
+                    "name": f"{item.value}({k})",
+                    "key": k,
+                    "type": "string",
+                }
+            )
 
         return res
 

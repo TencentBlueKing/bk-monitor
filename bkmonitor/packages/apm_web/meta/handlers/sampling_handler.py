@@ -126,6 +126,14 @@ class SamplingHelpers:
                 self.log(span, f"failed to stop transfer/bk-collect datalink, error: {e}", level="error")
                 raise ValueError(f"暂停transfer Trace入库链路失败")
 
+            # 更新数据库
+            self.application.setup_config(
+                self.application.sampler_config,
+                new_config=config,
+                config_key=self.application.SAMPLER_CONFIG_KEY,
+                override=True,
+            )
+
     def _change_to_tail_sampling_config(self, sample_config):
         """将完整的采样配置转为尾部采样配置"""
         if sample_config[Application.SamplerConfig.SAMPLER_TYPE] == SamplerTypeChoices.RANDOM:

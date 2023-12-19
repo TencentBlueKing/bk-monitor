@@ -12,6 +12,7 @@ import copy
 import datetime
 import itertools
 import json
+import operator
 import re
 from collections import defaultdict
 from dataclasses import asdict
@@ -47,7 +48,6 @@ from apm_web.constants import (
     SamplerTypeChoices,
     SceneEventKey,
     ServiceRelationLogTypeChoices,
-    TailSamplingCommonField,
     TopoNodeKind,
 )
 from apm_web.handlers.application_handler import ApplicationHandler
@@ -109,7 +109,13 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
 from constants.alert import EventSeverity
-from constants.apm import DataSamplingLogTypeChoices, OtlpKey, TailSamplingSupportMethod
+from constants.apm import (
+    DataSamplingLogTypeChoices,
+    FlowType,
+    OtlpKey,
+    SpanStandardField,
+    TailSamplingSupportMethod,
+)
 from constants.data_source import (
     ApplicationsResultTableLabel,
     DataSourceLabel,
@@ -310,6 +316,32 @@ class ApplicationInfoResource(Resource):
                     )
                     data["application_datasource_config"] = config_value
 
+        def convert_sampler_config(self, bk_biz_id, app_name, data):
+            if data[Application.SamplerConfig.SAMPLER_TYPE] == SamplerTypeChoices.RANDOM:
+                # 随机类型配置不需要额外的转换逻辑
+                return data
+
+            fields_mapping = group_by(SpanStandardField.flat_list(), get_key=operator.itemgetter("key"))
+            for i in data.get("tail_conditions", []):
+                i["key_alias"] = fields_mapping.get(i["key"], i["key"])[0]["name"]
+
+            # 添加尾部采样flow信息帮助排查问题
+            flow_detail = api.apm_api.get_bkdata_flow_detail(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                flow_type=FlowType.TAIL_SAMPLING.value,
+            )
+            data["tail_sampling_info"] = (
+                {
+                    "last_process_time": flow_detail.get("last_process_time"),
+                    "status": flow_detail.get("status"),
+                }
+                if flow_detail
+                else None
+            )
+
+            return data
+
         def to_representation(self, instance):
             data = super(ApplicationInfoResource.ResponseSerializer, self).to_representation(instance)
             data["es_storage_index_name"] = instance.trace_result_table_id.replace(".", "_")
@@ -336,6 +368,11 @@ class ApplicationInfoResource(Resource):
             if "application_db_config" not in data:
                 data["application_db_config"] = [DEFAULT_DB_CONFIG]
             data["plugin_config"] = instance.plugin_config
+
+            # 转换采样配置显示内容
+            data[Application.SAMPLER_CONFIG_KEY] = self.convert_sampler_config(
+                instance.bk_biz_id, instance.app_name, data[Application.SAMPLER_CONFIG_KEY]
+            )
             return data
 
     def perform_request(self, validated_request_data):
@@ -399,9 +436,11 @@ class SamplingOptionsResource(Resource):
         sampling_types = [SamplerTypeChoices.RANDOM]
         res = {}
         if settings.IS_ACCESS_BK_DATA:
-            # 添加尾部采样内置规则常量
+            # 标准字段常量 + 耗时字段
             sampling_types.append(SamplerTypeChoices.TAIL)
-            res["tail_sampling_options"] = TailSamplingCommonField.list_options()
+            standard_fields = SpanStandardField.flat_list()
+            standard_fields = [{"name": "Span耗时", "key": "elapsed_time", "type": "time"}] + standard_fields
+            res["tail_sampling_options"] = standard_fields
 
         return {
             "sampler_types": sampling_types,
@@ -423,9 +462,15 @@ class SetupResource(Resource):
             class TailConditions(serializers.Serializer):
                 """尾部采样-采样规则数据格式"""
 
+                condition_choices = (
+                    ("and", "and"),
+                    ("or", "or"),
+                )
+
+                condition = serializers.ChoiceField(label="Condition", choices=condition_choices, required=False)
                 key = serializers.CharField(label="Key")
                 method = serializers.ChoiceField(label="Method", choices=TailSamplingSupportMethod.choices)
-                value = serializers.CharField(label="Value")
+                value = serializers.ListSerializer(label="Value", child=serializers.CharField())
 
             sampler_type = serializers.ChoiceField(choices=SamplerTypeChoices.choices(), label="采集类型")
             random_percentage = serializers.IntegerField(label="随机采样-采集百分比", required=False)

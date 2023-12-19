@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.db.models import TextChoices
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -837,43 +836,3 @@ OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not e
 DEFAULT_MAX_VALUE = 10000
 
 DEFAULT_SPLIT_SYMBOL = "--"
-
-
-class TailSamplingCommonField(TextChoices):
-    """尾部采样规则常用字段"""
-
-    STATUS = "status.code", _("Span状态")
-    ELAPSED_TIME = "elapsed_time", _("Span耗时(elapsed_time)")
-    KIND = "kind", _("调用类型(kind)")
-    SPAN_NAME = "span_name", _("Span名称(span_name)")
-
-    @classmethod
-    def list_options(cls):
-        """获取前端页面配置"""
-        return [
-            {
-                "name": cls.STATUS.label,
-                "key": cls.STATUS.value,
-                "unit": "number",
-                "values": [
-                    {"display": _("错误"), "value": 2},
-                    {"display": _("正常"), "value": 1},
-                    {"display": _("未指定"), "value": 0},
-                ],
-            },
-            {"name": cls.ELAPSED_TIME.label, "key": cls.ELAPSED_TIME.value, "unit": "time"},
-            {
-                "name": cls.KIND.label,
-                "key": cls.KIND.value,
-                "unit": "number",
-                "values": [
-                    {"display": _("未指定"), "value": 0},
-                    {"display": _("内部"), "value": 1},
-                    {"display": _("被调"), "value": 2},
-                    {"display": _("主调"), "value": 3},
-                    {"display": _("异步主调"), "value": 4},
-                    {"display": _("异步被调"), "value": 5},
-                ],
-            },
-            {"name": cls.SPAN_NAME.label, "key": cls.SPAN_NAME.value, "unit": "string", "values": []},
-        ]

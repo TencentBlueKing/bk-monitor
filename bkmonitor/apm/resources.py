@@ -22,7 +22,6 @@ from rest_framework import serializers
 from apm.constants import GLOBAL_CONFIG_BK_BIZ_ID, ConfigTypes, VisibleEnum
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
-from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.instance_handlers import InstanceHandler
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
@@ -51,6 +50,7 @@ from apm.models import (
     TopoRelation,
     TraceDataSource,
 )
+from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -1412,9 +1412,15 @@ class CreateOrUpdateBkdataFlowResource(Resource):
             class TailConditions(serializers.Serializer):
                 """尾部采样-采样规则数据格式"""
 
+                condition_choices = (
+                    ("and", "and"),
+                    ("or", "or"),
+                )
+
+                condition = serializers.ChoiceField(label="Condition", choices=condition_choices, required=False)
                 key = serializers.CharField(label="Key")
                 method = serializers.ChoiceField(label="Method", choices=TailSamplingSupportMethod.choices)
-                value = serializers.CharField(label="Value")
+                value = serializers.ListSerializer(label="Value", child=serializers.CharField())
 
             tail_percentage = serializers.IntegerField(label="尾部采样-采集百分比", required=False)
             tail_trace_session_gap_min = serializers.IntegerField(label="尾部采样-会话过期时间", required=False)
@@ -1443,8 +1449,9 @@ class CreateOrUpdateBkdataFlowResource(Resource):
                 raise ValueError(f"没有找到app_name: {app_name}的Trace数据表")
 
             if settings.IS_ACCESS_BK_DATA:
-                TailSamplingFlow(trace, ser.data).start()
+                create_or_update_tail_sampling.delay(trace, ser.data)
                 return
+
             raise ValueError(f"环境中未开启计算平台，无法创建")
 
         raise ValueError(f"不支持的Flow类型: {validated_data['flow_type']}")
