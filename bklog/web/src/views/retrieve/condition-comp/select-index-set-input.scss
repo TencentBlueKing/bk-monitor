@@ -1,0 +1,55 @@
+.index-select-tag-container {
+  height: auto;
+  min-height: 30px;
+  padding: 0 30px 0 10px;
+  overflow: hidden;
+
+  &.is-fixed-height {
+    height: 30px;
+  }
+
+  &.is-focus {
+    /* stylelint-disable-next-line declaration-no-important */
+    height: auto !important;
+    overflow: auto;
+  }
+
+  .select-tag {
+    display: inline-flex;
+    height: 22px;
+    line-height: 22px;
+    margin: 0 6px 0 0;
+    padding: 0 5px;
+    align-items: center;
+    background: #f0f1f5;
+    border-radius: 2px;
+    font-size: var(--font-size);
+
+    &.width-limit-tag {
+      width: 140px;
+      display: inline-flex;
+
+      span {
+        width: 130px;
+        height: 100%;
+        display: inline-block;
+      }
+    }
+  }
+
+  .select-overflow-tag {
+    display: inline-flex;
+    padding: 0 2px 0 5px;
+    margin: 0 6px 0 0;
+    min-width: 22px;
+    line-height: 22px;
+    font-size: var(--font-size);
+    text-align: center;
+    background: #f0f1f5;
+
+    & ~ .select-tag {
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+}

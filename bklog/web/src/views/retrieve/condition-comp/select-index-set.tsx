@@ -38,6 +38,7 @@ import {
 } from 'bk-magic-vue';
 import * as authorityMap from '../../../common/authority-map';
 import $http from '../../../api';
+import SelectIndexSetInput from './select-index-set-input';
 import './select-index-set.scss';
 
 interface IProps {}
@@ -90,6 +91,15 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 多选时已选中的索引集列表 */
   selectTagCatchIDList = [];
+
+  /** 切换多选或单选时缓存的索引集ID列表 */
+  changeTypeCatchIDlist = [];
+
+  /** 常用的标签 */
+  oftenTags: Array<number> = [];
+
+  /** 当前是否展示下拉列表 */
+  isShowSelectPopover = false;
 
   typeBtnSelectList = [
     {
@@ -161,6 +171,9 @@ export default class QueryStatement extends tsc<IProps> {
     return this.indexSetList.filter(item => this.selectTagCatchIDList.includes(item.index_set_id));
   }
 
+  get selectedItemIDlist() {
+    return this.selectedItemList.map(item => String(item.index_set_id));
+  }
 
   get spaceUid() {
     return this.$store.state.spaceUid;
@@ -247,9 +260,14 @@ export default class QueryStatement extends tsc<IProps> {
   /** 获取分组的高度样式 */
   get groupListStyle() {
     const isUnion = this.selectedItemList.length && !this.isAloneType;
+    const isNotHaveLabel = !this.labelSelectList.length;
+    if (isNotHaveLabel) {
+      return {
+        height: isUnion ? '260px' : '360px',
+      };
+    }
     return {
       height: isUnion ? '214px' : '314px',
-      marginTop: isUnion ? '0' : '46px',
     };
   }
 
@@ -291,7 +309,7 @@ export default class QueryStatement extends tsc<IProps> {
   @Emit('selected')
   emitSelected() {
     return {
-      ids: this.isAloneType ? this.selectAloneVal : this.selectTagCatchIDList,
+      ids: this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist,
       selectIsUnionSearch: !this.isAloneType,
     };
   }
@@ -319,18 +337,19 @@ export default class QueryStatement extends tsc<IProps> {
   /** 选中全选时的数据过滤 */
   handelClickIndexSet(item) {
     if (item.index_set_id === '-1') {
-      const allIn = this.havValRenderIDSetList.every(item => this.selectTagCatchIDList.includes(item));
+      const allIn = this.havValRenderIDSetList
+        .every(item => this.selectedItemIDlist.includes(item));
       if (!allIn) {
         // 当前未全选中  则把过滤后的标签索引集id全放到缓存的id列表
         this.selectTagCatchIDList = [
           ...new Set([
-            ...this.selectTagCatchIDList,
+            ...this.selectedItemIDlist,
             ...this.havValRenderIDSetList,
           ]),
         ].slice(0, 10); // 最多选10条数据
       } else {
         // 全选选中 清空 已有的过滤后的标签索引集id
-        this.selectTagCatchIDList = this.selectTagCatchIDList
+        this.selectTagCatchIDList = this.selectedItemIDlist
           .filter(item => !this.havValRenderIDSetList.includes(item))
           .slice(0, 10); // 最多选10条数据
       }
@@ -338,6 +357,8 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   toggleSelect(val: boolean) {
+    // 当前是否展示下拉列表
+    this.isShowSelectPopover = val;
     if (val) {
       // 打开索引集下拉框 初始化单选的数据
       this.selectAloneVal = [this.indexId];
@@ -350,13 +371,19 @@ export default class QueryStatement extends tsc<IProps> {
       }
       this.getMultipleFavoriteList();
       this.getIndexSetHistoryList(this.indexSearchType);
+      const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
+      const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
+      this.oftenTags = tagCatch[this.spaceUid]?.oftenTags ?? [];
     } else {
-      if (!this.selectTagCatchIDList.length) {
-        this.indexSearchType = 'single';
-      }
+      if (!this.selectTagCatchIDList.length) this.indexSearchType = 'single';
       this.aloneHistory = [];
       this.multipleHistory = [];
+      this.changeTypeCatchIDlist = [];
       this.filterTagID = null;
+      setTimeout(() => {
+        this.setTagLocal();
+        this.oftenTags = [];
+      }, 500);
       this.emitSelected();
     }
   }
@@ -368,9 +395,7 @@ export default class QueryStatement extends tsc<IProps> {
   /** 获取checkbox的布尔值 */
   getCheckedVal(indexSetID: string) {
     if (indexSetID === '-1') return this.getIsAllCheck;
-    return this.selectedItemList
-      .map(item => item.index_set_id)
-      .includes(indexSetID);
+    return this.selectedItemIDlist.includes(indexSetID);
   }
 
   // 申请索引集的搜索权限
@@ -433,9 +458,10 @@ export default class QueryStatement extends tsc<IProps> {
     this.getIndexSetHistoryList(type);
 
     if (type === 'single') {
+      this.changeTypeCatchIDlist = this.selectTagCatchIDList;
       this.selectTagCatchIDList = [this.indexId];
     } else {
-      this.selectTagCatchIDList = [];
+      this.selectTagCatchIDList = this.changeTypeCatchIDlist;
     }
   }
 
@@ -564,7 +590,56 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 点击标签过滤 */
   handleClickTag(tagID: number) {
+    this.oftenTags = this.oftenTags.filter(item => item !== tagID);
+    this.oftenTags.unshift(tagID);
     this.filterTagID = this.filterTagID === tagID ? null : tagID;
+  }
+
+  /**
+   * @desc: 存储并设置常用标签
+   * @param {Number} expires 过期时间 单位：秒
+   */
+  setTagLocal(expires = 259200) {
+    const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
+    const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
+    Object.assign(tagCatch, {
+      [this.spaceUid]: {
+        spaceUid: this.spaceUid,
+        oftenTags: this.oftenTags, // 缓存的标签
+        expires: new Date().getTime() + expires * 1000, // 过期时间
+      },
+    });
+    localStorage.setItem('INDEX_SET_TAG_CATCH', JSON.stringify(tagCatch));
+  }
+
+  /** 获取常用标签 */
+  showLabelSelectList() {
+    const labelMapIDs = this.labelSelectList.map(item => item.tag_id);
+    const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
+    const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
+    // 更新标签时 删除已过期的业务标签
+    const newTagCatch = Object.entries(tagCatch).reduce(
+      (pre, [curKey, curVal]) => {
+        if ((curVal as any).expires > new Date().getTime()) {
+          pre[curKey] = curVal;
+        }
+        return pre;
+      },
+      {},
+    );
+    localStorage.setItem('INDEX_SET_TAG_CATCH', JSON.stringify(newTagCatch));
+    const commonIDList = newTagCatch[this.spaceUid]?.oftenTags ?? [];
+    // 常用标签
+    const currentTagList = commonIDList
+      .filter(cTag => labelMapIDs.includes(cTag))
+      .map((tagID) => {
+        return this.labelSelectList.find(lTag => lTag.tag_id === tagID);
+      });
+    // 非常用标签
+    const unCommonList = this.labelSelectList.filter(
+      item => !commonIDList.includes(item.tag_id),
+    );
+    return [...currentTagList, ...unCommonList];
   }
 
   /** 多选时索引集禁用判断 */
@@ -589,7 +664,7 @@ export default class QueryStatement extends tsc<IProps> {
     isForceRequest = false,
   ) {
     // 判断当前历史记录数组是否需要请求
-    const isShouldQuery =      queryType === 'single'
+    const isShouldQuery = queryType === 'single'
       ? !!this.aloneHistory.length
       : !!this.multipleHistory.length;
     // 判断是否需要更新历史记录
@@ -623,13 +698,13 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   getOptionName(item) {
-    return `${item.indexName}${item.lightenName}${item.tagSearchName ? `(${item.tagSearchName})` : ''}`;
+    return `${item.indexName}${item.lightenName}${item.tagSearchName ?? ''}`;
   }
 
   render() {
     const labelFilter = () => {
       return (
-        <div class="label-filter" v-en-class="en-label-btn">
+        <div class={['label-filter', { 'not-label': !this.labelSelectList.length }]} v-en-class="en-label-btn">
           <div class="select-type-btn">
             {this.typeBtnSelectList.map(item => (
               <div
@@ -640,31 +715,33 @@ export default class QueryStatement extends tsc<IProps> {
               </div>
             ))}
           </div>
-          <div class="label-tag-container">
-            <div class="tag-box" ref="tagBox">
-              {this.labelSelectList.map(item => (
-                <div>
-                  <span
-                    class={[
-                      'tag-item',
-                      {
-                        'tag-select': this.filterTagID === item.tag_id,
-                      },
-                    ]}
-                    onClick={() => this.handleClickTag(item.tag_id)}
-                  >
-                    {item.name}
-                  </span>
-                </div>
-              ))}
+          {!!this.labelSelectList.length && (
+            <div class="label-tag-container">
+              <div class="tag-box" ref="tagBox">
+                {this.showLabelSelectList().map(item => (
+                  <div>
+                    <span
+                      class={[
+                        'tag-item',
+                        {
+                          'tag-select': this.filterTagID === item.tag_id,
+                        },
+                      ]}
+                      onClick={() => this.handleClickTag(item.tag_id)}
+                    >
+                      {item.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div onClick={this.scrollLeft} class="move-icon left-icon">
+                <i class="bk-icon icon-angle-left-line"></i>
+              </div>
+              <div onClick={this.scrollRight} class="move-icon right-icon">
+                <i class="bk-icon icon-angle-right-line"></i>
+              </div>
             </div>
-            <div onClick={this.scrollLeft} class="move-icon left-icon">
-              <i class="bk-icon icon-angle-left-line"></i>
-            </div>
-            <div onClick={this.scrollRight} class="move-icon right-icon">
-              <i class="bk-icon icon-angle-right-line"></i>
-            </div>
-          </div>
+          )}
         </div>
       );
     };
@@ -957,26 +1034,21 @@ export default class QueryStatement extends tsc<IProps> {
     };
     const getLabelDom = (tags) => {
       const showTags = tags
-        .filter(tag => (tag.tag_id !== 4))
+        .filter(tag => tag.tag_id !== 4)
         .sort((a, b) => (b.tag_id === this.filterTagID ? 1 : -1))
         .slice(0, 2);
       return showTags.map(tag => (
-          <span class={['tag-card', `tag-card-${tag.color}`]}>{tag.name}</span>
+        <span class={['tag-card', `tag-card-${tag.color}`]}>{tag.name}</span>
       ));
     };
-    const triggerSlot = () => {
-      if (this.isAloneType) {
-        return (
-          <div
-            class="bk-select-name"
-            v-bk-overflow-tips={{ placement: 'right' }}
-          >
-            <span>{this.selectedItem.indexName}</span>
-            <span style="color: #979ba5;">{this.selectedItem.lightenName}</span>
-          </div>
-        );
-      }
-    };
+    const triggerSlot = () => (
+      <SelectIndexSetInput
+        is-alone-type={this.isAloneType}
+        is-show-select-popover={this.isShowSelectPopover}
+        selected-item-list={this.selectedItemList}
+        selected-item={this.selectedItem}
+      />
+    );
     return (
       <Select
         searchable

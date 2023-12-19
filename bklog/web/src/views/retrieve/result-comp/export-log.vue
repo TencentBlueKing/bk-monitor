@@ -57,7 +57,7 @@
       :title="getDialogTitle"
       :mask-close="false"
       :ok-text="$t('下载')"
-      :show-footer="!isShowAsyncDownload"
+      :show-footer="isShowFooter"
       @confirm="handleClickSubmit"
       @after-leave="closeExportDialog">
       <div class="export-container" v-bkloading="{ isLoading: exportLoading }">
@@ -94,7 +94,8 @@
           </bk-radio-group>
         </div>
         <div v-if="asyncExportUsable && isShowAsyncDownload" class="style-line"></div>
-        <template v-if="!asyncExportUsable">
+        <span v-if="isUnionSearch && isShowAsyncDownload">{{ $t('联合查询无法进行异步下载，可直接下载前1万条数据') }}</span>
+        <template v-if="!asyncExportUsable && !isUnionSearch">
           <span>{{$t('当前因{n}导致无法进行异步下载， 可直接下载前1万条数据', { n: asyncExportUsableReason })}}</span>
           <div class="cannot-async-btn">
             <bk-button theme="primary" @click="openDownloadUrl">{{ $t('直接下载') }}</bk-button>
@@ -203,6 +204,9 @@ export default {
     },
     isShowAsyncDownload() { // 是否展示异步下载
       return this.totalCount > this.exportFirstComparedSize;
+    },
+    isShowFooter() {
+      return !this.isShowAsyncDownload || this.isUnionSearch;
     },
     submitSelectFiledList() { // 下载时提交的字段
       if (this.selectFiledType === 'specify') return this.selectFiledList;

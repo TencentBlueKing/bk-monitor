@@ -60,6 +60,11 @@ export default class QueryStatement extends tsc<IProps> {
         trigger: 'blur',
       },
       {
+        validator: this.checkBuiltInTagName,
+        message: window.mainComponent.$t('内置标签名，请重新填写'),
+        trigger: 'blur',
+      },
+      {
         required: true,
         message: window.mainComponent.$t('必填项'),
         trigger: 'blur',
@@ -74,6 +79,11 @@ export default class QueryStatement extends tsc<IProps> {
   /** 过滤掉内置标签的标签列表 */
   get filterBuiltInList() {
     return this.selectLabelList.filter(item => !item.is_built_in);
+  }
+
+  /** 过滤掉内置标签的标签列表 */
+  get builtInList() {
+    return this.selectLabelList.filter(item => item.is_built_in);
   }
 
   /** 索引集展示的标签 */
@@ -98,7 +108,13 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   checkTagName() {
-    return !this.selectLabelList.some(
+    return !this.showGroupSelectLabelList.some(
+      item => item.name === this.verifyData.labelEditName.trim(),
+    );
+  }
+
+  checkBuiltInTagName() {
+    return !this.builtInList.some(
       item => item.name === this.verifyData.labelEditName.trim(),
     );
   }
