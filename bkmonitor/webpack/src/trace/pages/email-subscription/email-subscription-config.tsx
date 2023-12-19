@@ -267,6 +267,7 @@ export default defineComponent({
           },
           {
             label: `${window.i18n.t('操作')}`,
+            width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
             render: row => {
               return (
                 <div>
@@ -466,7 +467,7 @@ export default defineComponent({
                               if (['success'].includes(data.send_status) && item.result) {
                                 return (
                                   <Tag
-                                    closable
+                                    closable={data.tempSendResult.length > 0}
                                     onClose={() => {
                                       data.tempSendResult.splice(index, 1);
                                     }}
@@ -478,7 +479,7 @@ export default defineComponent({
                               if (['partial_failed', 'failed'].includes(data.send_status) && !item.result) {
                                 return (
                                   <Tag
-                                    closable
+                                    closable={data.tempSendResult.length > 0}
                                     onClose={() => {
                                       data.tempSendResult.splice(index, 1);
                                     }}
@@ -498,7 +499,7 @@ export default defineComponent({
                               loading={isResending.value}
                               onClick={() => {
                                 console.log(data);
-                                handleResendSubscription(data, index);
+                                if (data.tempSendResult.length) handleResendSubscription(data, index);
                               }}
                             >
                               {window.i18n.t('确定')}
@@ -763,11 +764,46 @@ export default defineComponent({
     const sendMyselfDialog = reactive({
       isShow: false
     });
-    function handleSendMyself() {
-      // console.log(appStore);
-      testSending('self').then(() => {
-        sendMyselfDialog.isShow = false;
-      });
+    async function handleSendMyself() {
+      isSending.value = true;
+      const selfChannels = [
+        {
+          is_enabled: true,
+          subscribers: [
+            {
+              id: window.user_name || window.username,
+              type: 'user',
+              is_enabled: true
+            }
+          ],
+          channel_name: 'user'
+        }
+      ];
+      const formData = deepClone(subscriptionDetail.value);
+      formData.channels = selfChannels;
+      delete formData.create_time;
+      delete formData.create_user;
+      delete formData.is_deleted;
+      delete formData.is_manager_created;
+      delete formData.last_send_time;
+      delete formData.send_mode;
+      delete formData.send_round;
+      delete formData.send_status;
+      delete formData.update_time;
+      delete formData.update_user;
+      delete formData.id;
+      await sendReport(formData)
+        .then(() => {
+          Message({
+            theme: 'success',
+            message: window.i18n.t('发送成功')
+          });
+        })
+        .catch(console.log)
+        .finally(() => {
+          isSending.value = false;
+          sendMyselfDialog.isShow = false;
+        });
     }
 
     onMounted(() => {

@@ -85,11 +85,11 @@ export default defineComponent({
         index_set_id: '',
         // 需要从 slider 上进行转换
         pattern_level: '01',
-        log_display_count: 0,
-        year_on_year_hour: 0,
+        log_display_count: 30,
+        year_on_year_hour: 1,
         generate_attachment: true,
         // 有什么用？
-        is_show_new_pattern: false,
+        is_show_new_pattern: true,
         // 这个同比配置也不需要前端展示，暂不开放配置入口 （不用管）
         year_on_year_change: 'all'
       },
@@ -1018,7 +1018,7 @@ export default defineComponent({
                       v-model={this.isShowYOY}
                       theme='primary'
                       onChange={() => {
-                        if (!this.isShowYOY) this.formData.scenario_config.year_on_year_hour = 0;
+                        this.formData.scenario_config.year_on_year_hour = this.isShowYOY ? 1 : 0;
                       }}
                     ></Switcher>
                     <Select
@@ -1030,6 +1030,7 @@ export default defineComponent({
                       {this.YOYList.map(item => {
                         return (
                           <Select.Option
+                            v-show={this.isShowYOY && item.id !== 0}
                             id={item.id}
                             name={item.name}
                           ></Select.Option>
