@@ -260,9 +260,14 @@ export default class QueryStatement extends tsc<IProps> {
   /** 获取分组的高度样式 */
   get groupListStyle() {
     const isUnion = this.selectedItemList.length && !this.isAloneType;
+    const isNotHaveLabel = !this.labelSelectList.length;
+    if (isNotHaveLabel) {
+      return {
+        height: isUnion ? '260px' : '360px',
+      };
+    }
     return {
       height: isUnion ? '214px' : '314px',
-      marginTop: isUnion ? '0' : '46px',
     };
   }
 
@@ -613,13 +618,15 @@ export default class QueryStatement extends tsc<IProps> {
     const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
     const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
     // 更新标签时 删除已过期的业务标签
-    const newTagCatch = Object.entries(tagCatch)
-      .reduce((pre, [curKey, curVal]) => {
+    const newTagCatch = Object.entries(tagCatch).reduce(
+      (pre, [curKey, curVal]) => {
         if ((curVal as any).expires > new Date().getTime()) {
           pre[curKey] = curVal;
         }
         return pre;
-      }, {});
+      },
+      {},
+    );
     localStorage.setItem('INDEX_SET_TAG_CATCH', JSON.stringify(newTagCatch));
     const commonIDList = newTagCatch[this.spaceUid]?.oftenTags ?? [];
     // 常用标签
@@ -629,7 +636,9 @@ export default class QueryStatement extends tsc<IProps> {
         return this.labelSelectList.find(lTag => lTag.tag_id === tagID);
       });
     // 非常用标签
-    const unCommonList = this.labelSelectList.filter(item => !commonIDList.includes(item.tag_id));
+    const unCommonList = this.labelSelectList.filter(
+      item => !commonIDList.includes(item.tag_id),
+    );
     return [...currentTagList, ...unCommonList];
   }
 
@@ -695,7 +704,7 @@ export default class QueryStatement extends tsc<IProps> {
   render() {
     const labelFilter = () => {
       return (
-        <div class="label-filter" v-en-class="en-label-btn">
+        <div class={['label-filter', { 'not-label': !this.labelSelectList.length }]} v-en-class="en-label-btn">
           <div class="select-type-btn">
             {this.typeBtnSelectList.map(item => (
               <div
@@ -706,31 +715,33 @@ export default class QueryStatement extends tsc<IProps> {
               </div>
             ))}
           </div>
-          <div class="label-tag-container">
-            <div class="tag-box" ref="tagBox">
-              {this.showLabelSelectList().map(item => (
-                <div>
-                  <span
-                    class={[
-                      'tag-item',
-                      {
-                        'tag-select': this.filterTagID === item.tag_id,
-                      },
-                    ]}
-                    onClick={() => this.handleClickTag(item.tag_id)}
-                  >
-                    {item.name}
-                  </span>
-                </div>
-              ))}
+          {!!this.labelSelectList.length && (
+            <div class="label-tag-container">
+              <div class="tag-box" ref="tagBox">
+                {this.showLabelSelectList().map(item => (
+                  <div>
+                    <span
+                      class={[
+                        'tag-item',
+                        {
+                          'tag-select': this.filterTagID === item.tag_id,
+                        },
+                      ]}
+                      onClick={() => this.handleClickTag(item.tag_id)}
+                    >
+                      {item.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div onClick={this.scrollLeft} class="move-icon left-icon">
+                <i class="bk-icon icon-angle-left-line"></i>
+              </div>
+              <div onClick={this.scrollRight} class="move-icon right-icon">
+                <i class="bk-icon icon-angle-right-line"></i>
+              </div>
             </div>
-            <div onClick={this.scrollLeft} class="move-icon left-icon">
-              <i class="bk-icon icon-angle-left-line"></i>
-            </div>
-            <div onClick={this.scrollRight} class="move-icon right-icon">
-              <i class="bk-icon icon-angle-right-line"></i>
-            </div>
-          </div>
+          )}
         </div>
       );
     };
@@ -1030,13 +1041,13 @@ export default class QueryStatement extends tsc<IProps> {
         <span class={['tag-card', `tag-card-${tag.color}`]}>{tag.name}</span>
       ));
     };
-    const triggerSlot = () =>  (
-        <SelectIndexSetInput
-          is-alone-type={this.isAloneType}
-          is-show-select-popover={this.isShowSelectPopover}
-          selected-item-list={this.selectedItemList}
-          selected-item={this.selectedItem}
-        />
+    const triggerSlot = () => (
+      <SelectIndexSetInput
+        is-alone-type={this.isAloneType}
+        is-show-select-popover={this.isShowSelectPopover}
+        selected-item-list={this.selectedItemList}
+        selected-item={this.selectedItem}
+      />
     );
     return (
       <Select

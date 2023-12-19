@@ -152,11 +152,15 @@
   }
 
   .label-filter {
-    position: fixed;
+    // position: fixed;
     top: 38px;
     z-index: 999;
     width: 100%;
     height: 46px;
+
+    &.not-label {
+      height: 0px;
+    }
 
     .select-type-btn {
       position: fixed;
@@ -428,7 +432,7 @@
   }
 
   .select-index-container {
-    margin-top: 46px;
+    // margin-top: 46px;
     height: 100px;
     background: #f5f7fa;
 
