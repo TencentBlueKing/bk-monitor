@@ -265,7 +265,7 @@ export default {
             const lackIndexNameList = this.unionIndexItemList
               .filter(item => indexSetIDs.includes(item.index_set_id))
               .map(item => item.index_set_name);
-            unionContent = `${this.$t('字段来源')}: <br>${lackIndexNameList.join(', <br>')}`;
+            unionContent = `${this.$t('字段来源')}: <br>${lackIndexNameList.join(' <br>')}`;
           }
         }
         const isLackIndexFields = (!!unionContent && this.isUnionSearch);
