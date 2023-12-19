@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { unmount } from '@blueking/bk-weweb';
 
@@ -33,7 +33,6 @@ const wewebId = 'trace';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class Rotation extends tsc<{}> {
-  @Prop() a: number;
   get rotationHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -52,9 +51,6 @@ export default class Rotation extends tsc<{}> {
     unmount(wewebId);
     (document.body as any).___zrEVENTSAVED = null;
     next();
-  }
-  created() {
-    console.log('created');
   }
   render() {
     return (

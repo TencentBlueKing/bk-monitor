@@ -112,6 +112,7 @@ class DutyRuleManager:
         self.enabled = bool(duty_rule.get("enabled"))
         self.last_user_index = last_user_index
         self.last_time_index = last_time_index
+        self.rule_end_time = time_tools.str2datetime(duty_rule.get("end_time") or "9999-12-31 23:59:59")
         if end_time:
             self.end_time = time_tools.str2datetime(end_time)
         else:
@@ -119,9 +120,9 @@ class DutyRuleManager:
             days = days or 30
             self.end_time = self.begin_time + timedelta(days=days)
 
-        if duty_rule.get("end_time"):
+        if self.rule_end_time:
             # 真实的结束时间，以配置时间和预览结束时间的最小值为准
-            self.end_time = min(time_tools.str2datetime(duty_rule["end_time"]), self.end_time)
+            self.end_time = min(self.rule_end_time, self.end_time)
 
     def get_duty_plan(self):
         """
@@ -163,7 +164,7 @@ class DutyRuleManager:
         period_dates = []
         # 标记最近一次交接时间
         last_handoff_time = self.end_time - timedelta(days=1)
-        while begin_time <= last_handoff_time:
+        while begin_time <= last_handoff_time and begin_time < self.rule_end_time:
             # 在有效的时间范围内，获取有效的排期
             is_valid = False
             # 如果是指定
@@ -205,6 +206,7 @@ class DutyRuleManager:
             if new_period is False and last_handoff_time < next_day_time:
                 # 如果不是一个新的周期，表示要继续
                 last_handoff_time = next_day_time
+
             begin_time = next_day_time
         if special_rotation and period_dates:
             # 如果需要轮转并且最后一个周期日期还没有合入，添加到结果中， 这种情况一般是最后一次循环跳出没有合入
@@ -417,9 +419,11 @@ class DutyRuleManager:
 
     @staticmethod
     def get_time_range_work_time(work_date, work_time_list: list):
+        """
+        获取时间范围的工作时间
+        """
         duty_work_time = []
         for time_range in work_time_list:
-            # TODO 根据日期时间范围的还未处理
             [start_time, end_time] = time_range.split("--")
             start_date = end_date = work_date
 
