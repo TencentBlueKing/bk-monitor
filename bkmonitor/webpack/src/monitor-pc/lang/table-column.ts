@@ -119,7 +119,7 @@ export default {
   接口名称: 'Span name',
   'Async 数量': 'Async quantity',
   关联告警组: 'Related Alarm Group',
-  设计值班时间: 'Design duty time',
+  设计值班时间: 'Design Duty Time',
   设置轮值规则: 'Set Rotation Rules',
   添加轮值人员: 'Add Rotation Members'
 };

@@ -111,7 +111,9 @@ export default defineComponent({
     /** 取消按钮文本设置为永久 */
     function handleDatePickerOpen(state: boolean) {
       if (state) {
-        effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a').innerText = t('永久');
+        const ele = effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a');
+        ele.innerText = t('永久');
+        ele.setAttribute('class', 'confirm');
       }
     }
 
