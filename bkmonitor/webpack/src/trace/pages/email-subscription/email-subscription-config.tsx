@@ -779,19 +779,24 @@ export default defineComponent({
           channel_name: 'user'
         }
       ];
-      const formData = deepClone(subscriptionDetail.value);
-      formData.channels = selfChannels;
-      delete formData.create_time;
-      delete formData.create_user;
-      delete formData.is_deleted;
-      delete formData.is_manager_created;
-      delete formData.last_send_time;
-      delete formData.send_mode;
-      delete formData.send_round;
-      delete formData.send_status;
-      delete formData.update_time;
-      delete formData.update_user;
-      delete formData.id;
+      const clonedFormData = deepClone(subscriptionDetail.value);
+      clonedFormData.channels = selfChannels;
+      /* eslint-disable */
+      const {
+        create_time,
+        create_user,
+        is_deleted,
+        is_manager_created,
+        last_send_time,
+        send_mode,
+        send_round,
+        send_status,
+        update_time,
+        update_user,
+        id,
+        ...formData
+      } = clonedFormData;
+      /* eslint-enable */
       await sendReport(formData)
         .then(() => {
           Message({
