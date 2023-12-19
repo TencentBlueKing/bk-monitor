@@ -25,7 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { createOrUpdateExternalPermission, getByAction } from '../../../monitor-api/modules/iam';
 import { deepClone } from '../../../monitor-common/utils';
@@ -96,13 +96,16 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
 
   disabledDate(val) {
     const startDate = new Date(); // 当天
-    const endDate = moment(startDate).add(1, 'year'); // 一年
+    const endDate = dayjs.tz(startDate).add(1, 'year'); // 一年
     // 小于当天或者大于一年的禁用
-    return moment(val).isBefore(startDate, 'day') || moment(val).isSameOrAfter(endDate, 'day');
+    return (
+      dayjs.tz(val).isBefore(startDate, 'day') ||
+      (dayjs.tz(val).isSame(endDate, 'day') && dayjs.tz(val).isAfter(endDate, 'day'))
+    );
   }
 
   handleDateChange(val) {
-    this.formData.expire_time = moment(val).format('YYYY-MM-DD 23:59:59');
+    this.formData.expire_time = dayjs.tz(val).format('YYYY-MM-DD 23:59:59');
   }
 
   @Emit('change')
@@ -116,11 +119,11 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       if (valid) {
         this.loading = true;
         try {
-          const { expire_time, ...params } = this.formData;
+          const { authorized_users, ...params } = this.formData;
           const res = await createOrUpdateExternalPermission({
             bk_biz_id: this.bizId,
             ...params,
-            ...(expire_time ? { expire_time } : {}),
+            authorized_users: authorized_users.map(item => item.replace(/\s/g, '')),
             authorizer: this.authorizer,
             operate_type: this.rowData ? 'update' : 'create',
             view_type: this.viewType === 'approval' ? 'user' : this.viewType

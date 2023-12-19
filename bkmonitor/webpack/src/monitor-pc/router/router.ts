@@ -98,7 +98,7 @@ const specialReportRouteList = [
 ];
 router.beforeEach(async (to, from, next) => {
   // 空闲初始化introduce数据
-  store.getters.bizList?.length && introduce.initIntroduce();
+  store.getters.bizList?.length && introduce.initIntroduce(to);
   if (
     !window.__BK_WEWEB_DATA__?.token &&
     !['no-business', 'event-center', 'event-center-detail', 'event-center-action-detail', 'share'].includes(to.name) &&
@@ -188,7 +188,7 @@ router.beforeEach(async (to, from, next) => {
 });
 router.afterEach(to => {
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
-  if (to.name === 'no-business') return;
+  if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({
     route_id: to.name,
     nav_id: to.meta.navId,

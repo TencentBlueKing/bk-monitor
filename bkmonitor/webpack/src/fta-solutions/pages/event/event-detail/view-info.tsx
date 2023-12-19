@@ -27,17 +27,21 @@
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { alertGraphQuery } from '../../../../monitor-api/modules/alert';
 import { logQuery } from '../../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../../monitor-api/modules/strategies';
 import { transformDataKey, typeTools } from '../../../../monitor-common/utils/utils';
 import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
-import { IDetectionConfig } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import {
+  IDetectionConfig,
+  MetricType
+} from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import MonitorEchart from '../../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import AiopsChartEvent, { createAutoTimerange } from './aiops-chart';
+import IntelligenceScene from './intelligence-scene';
 import LoadingBox from './loading-box';
 import OutlierDetectionChart from './outlier-detection-chart';
 import TimeSeriesForecastingChart from './time-series-forecasting-chart';
@@ -98,6 +102,10 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   zoomFlag = false;
   traceInfoTimeRange = {};
   errorMsg = '';
+
+  /* 是否为智能场景检测视图 */
+  isMultivariateAnomalyDetection = false;
+
   @Watch('detail', { immediate: true })
   handleDetailChange() {
     this.bkBizId = this.detail.bk_biz_id;
@@ -160,6 +168,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   get hasTimeSeriesForecasting() {
     return this.detectionConfig?.data?.some?.(item => item.type === 'TimeSeriesForecasting');
   }
+
   displayDetectionRulesConfig(item) {
     const { config } = item;
     if (item.type === 'IntelligentDetect' && !config.anomaly_detect_direct) config.anomaly_detect_direct = 'all';
@@ -193,8 +202,12 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   }
   @Watch('show')
   handleShow(v) {
-    if (v && !this.logData.length) {
-      this.getData();
+    if (v) {
+      this.isMultivariateAnomalyDetection =
+        this.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.MultivariateAnomalyDetection;
+      if (!this.logData.length) {
+        this.getData();
+      }
     }
   }
 
@@ -222,7 +235,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
     const params = {
       data_source_label: sourceLabel,
       data_type_label: typeLabel,
-      end_time: this.detail.end_time || Math.floor(moment.now() / 1000),
+      end_time: this.detail.end_time || dayjs.tz().unix(),
       start_time: this.detail.begin_time,
       limit: this.logDataPageSize,
       offset: this.logDataOffset,
@@ -268,7 +281,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-              ? moment().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
               : val.replace('current', this.$t('当前'))
           );
         }
@@ -296,8 +309,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       id: this.detail.id
     };
     if (range && startTime && endTime) {
-      params.start_time = moment(startTime).unix();
-      params.end_time = moment(endTime).unix();
+      params.start_time = dayjs.tz(startTime).unix();
+      params.end_time = dayjs.tz(endTime).unix();
     }
     if (graph_panel) {
       const [{ data: queryConfig, alias }] = graph_panel.targets;
@@ -433,8 +446,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
         const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
         const { startTime, endTime } = createAutoTimerange(this.detail.begin_time, this.detail.end_time, interval);
         this.traceInfoTimeRange = {
-          start_time: moment(startTime).unix(),
-          end_time: moment(endTime).unix()
+          start_time: dayjs.tz(startTime).unix(),
+          end_time: dayjs.tz(endTime).unix()
         };
         /* 需要降低trace散点图的密度 */
         const allMaxMinTimeStamp = [];
@@ -516,6 +529,9 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
 
   // 事件及日志来源告警视图
   getSeriesViewComponent() {
+    if (this.isMultivariateAnomalyDetection) {
+      return <IntelligenceScene params={this.detail}></IntelligenceScene>;
+    }
     /** 智能检测算法图表 */
     if (this.hasAIOpsDetection)
       return (
@@ -563,7 +579,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
       default: props => props.row?.content || props.row?.['event.content'] || ''
     };
     const timeSlots = {
-      default: props => moment(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ss')
+      default: props => dayjs.tz(props.row.time * 1000).format('YYYY-MM-DD HH:mm:ss')
     };
     return (
       <div class='source-log'>

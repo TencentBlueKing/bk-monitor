@@ -25,9 +25,9 @@
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { Exception, Popover } from 'bkui-vue';
+import dayjs from 'dayjs';
 // import mermaid from '../../../../mermaid/packages/mermaid/dist/mermaid.core.mjs';
 import mermaid from 'fork-mermaid';
-import moment from 'moment';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
@@ -576,7 +576,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       image.onload = () => {
         canvas.getContext('2d')?.drawImage(image, 0, 0);
         const a = document.createElement('a');
-        a.download = `${props.traceId}_${moment().format('YYYY-MM-DD HH:mm:ss')}`;
+        a.download = `${props.traceId}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
         a.href = canvas.toDataURL('image/png');
         a.click();
       };

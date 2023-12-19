@@ -64,6 +64,7 @@ urlpatterns = [
     url(r"^api/v1/log_extract/", include("apps.log_extract.urls")),
     url(r"^api/v1/", include("apps.log_measure.urls")),
     url(r"^api/v1/ipchooser/", include("bkm_ipchooser.urls")),
+    url(r"^api/v1/search_module/", include("bkm_search_module.urls")),
 ]
 
 if settings.IS_K8S_DEPLOY_MODE:

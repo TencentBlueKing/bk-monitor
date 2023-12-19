@@ -351,15 +351,19 @@ class Application(AbstractRecordModel):
         datasource_option,
         plugin_config=None,
     ):
-        application_info = api.apm_api.create_application(
-            {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "app_alias": app_alias,
-                "description": description,
-                "es_storage_config": datasource_option,
-            }
-        )
+        create_params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "app_alias": app_alias,
+            "description": description,
+            "es_storage_config": datasource_option,
+        }
+
+        white_list = settings.APM_PROFILING_ENABLED_APPS
+        # int value would be transformed to str when saved in settings
+        if str(bk_biz_id) in white_list and app_name in white_list[str(bk_biz_id)]:
+            create_params["enabled_profiling"] = True
+        application_info = api.apm_api.create_application(create_params)
 
         application = cls.objects.create(
             application_id=application_info["application_id"],

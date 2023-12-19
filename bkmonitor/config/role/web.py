@@ -230,6 +230,7 @@ if USE_DJANGO_CACHE_REDIS:
         },
     }
     CACHES["default"] = CACHES["redis"]
+    CACHES["login_db"] = CACHES["redis"]
 
 #
 # Cookies & Sessions
@@ -639,3 +640,6 @@ SECURE_REDIRECT_EXEMPT = os.getenv("BKAPP_SECURE_REDIRECT_EXEMPT", "")
 if SECURE_REDIRECT_EXEMPT:
     SECURE_REDIRECT_EXEMPT = SECURE_REDIRECT_EXEMPT.split(",")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# 屏蔽空间信息的用户规则（正则）
+BLOCK_SPACE_RULE = ""

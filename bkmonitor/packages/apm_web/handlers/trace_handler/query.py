@@ -403,7 +403,7 @@ class QueryHandler:
         """对API返回的Trace列表进行额外处理"""
         for i in trace_list:
             i["root_service_status_code"] = StatusCodeAttributePredicate.predicate_error(
-                i.get("root_service_status_code")
+                i["root_service_category"], i.get("root_service_status_code")
             )
             i["root_service_category"] = {
                 "text": CategoryEnum.get_label_by_key(i["root_service_category"]),

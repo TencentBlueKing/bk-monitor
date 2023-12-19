@@ -371,8 +371,8 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                     this.dimensionsValueMap[item.key]
                       ? (this.isHasNullOption ? [nullOptions] : []).concat(this.dimensionsValueMap[item.key])
                       : this.isHasNullOption
-                      ? [nullOptions]
-                      : []
+                        ? [nullOptions]
+                        : []
                   }
                   trigger='focus'
                   has-delete-icon

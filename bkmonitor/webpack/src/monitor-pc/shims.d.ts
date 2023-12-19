@@ -53,6 +53,7 @@ declare module 'vue/types/vue' {
     $bkMessage?: (p: Partial<{}>) => void;
     $bkPopover?: (...Object) => void;
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
+    $bkLoading?: any;
     $api?: any;
   }
 }
@@ -86,7 +87,7 @@ declare global {
     userInfo: { isSuperuser: boolean };
     message_queue_dsn: string;
     max_available_duration_limit: number;
-    cmdb_url: string;
+    bk_cc_url: string;
     bk_log_search_url: string;
     cluster_setup_url: string;
     bk_docs_site_url: string;
@@ -116,7 +117,9 @@ declare global {
     };
     host_data_fields: string[];
     bkchat_manage_url: string;
+    timezone: string;
     show_realtime_strategy: boolean;
+    bk_paas_host: string;
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;

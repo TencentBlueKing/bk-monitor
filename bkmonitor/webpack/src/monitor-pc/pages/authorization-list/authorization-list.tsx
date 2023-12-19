@@ -26,7 +26,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Tag } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   createOrUpdateAuthorizer,
@@ -321,12 +321,13 @@ export default class AuthorizationList extends tsc<{}, {}> {
       // 关键字匹配
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { status, expire_time, ...searchKey } = TableColumnEnum;
+      // 可以匹配的字段
       return Object.keys(searchKey).some(key => {
         if (!item[key]) return false;
         const val = Array.isArray(item[key]) ? item[key] : [item[key]];
         if (key === TableColumnEnum.resources || key === TableColumnEnum.resource_id) {
           return val.some(id => {
-            const { text } = this.resourceList.find(item => item.id === id);
+            const { text } = this.resourceList.find(item => item.uid === id);
             return text.includes(this.searchValue);
           });
         }
@@ -661,7 +662,7 @@ export default class AuthorizationList extends tsc<{}, {}> {
 
   // 截止时间列格式化
   timeFormatter(row, column, cellValue) {
-    return cellValue ? moment(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
+    return cellValue ? dayjs.tz(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
   }
   /**
    *

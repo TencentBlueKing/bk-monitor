@@ -57,6 +57,8 @@ export interface IRefleshItem {
 interface IHeadToolProps {
   // 数据间隔
   timeRange?: TimeRangeType;
+  // 时区
+  timezone?: string;
   // 自动刷新数据间隔
   refleshInterval?: number;
   // 是否显示分屏功能
@@ -93,12 +95,16 @@ interface IHeadToolEvent {
   // 选择粒度
   onDownSampleRangeChange?: (v: string | number) => void;
   onIntervalChange?: (v: string | number) => void;
+  // 选择时区
+  onTimezoneChange?: (v: string) => void;
 }
 @Component
 export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> {
   @InjectReactive('readonly') readonly readonly: boolean; // 是否只读
   // 数据间隔
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
+  // 时区
+  @Prop({ type: String }) timezone: string;
   // 自动刷新数据间隔
   @Prop({ default: -1 }) readonly refleshInterval: number;
   // 是否显示分屏功能
@@ -383,6 +389,10 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   handleIntervalChange() {
     return this.intervalValue;
   }
+  @Emit('timezoneChange')
+  handleTimezoneChange(v) {
+    return v;
+  }
   render() {
     return (
       <div class='dashboard-tools'>
@@ -414,6 +424,8 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
             <TimeRange
               class='dashboard-tools-timerange'
               value={this.curTimeRange}
+              timezone={this.timezone}
+              onTimezoneChange={this.handleTimezoneChange}
               onChange={this.handleTimeRangeChange}
             />
           ))}

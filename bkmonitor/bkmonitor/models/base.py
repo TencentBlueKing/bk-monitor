@@ -959,24 +959,6 @@ class CacheRouter(Model):
         db_table = "alarm_cacherouter"
 
     @classmethod
-    def get_node_by_strategy_id(cls, strategy_id: int) -> CacheNode:
-        from alarm_backends.core.cluster import get_cluster
-
-        if strategy_id == 0:
-            return CacheNode.default_node()
-
-        cluster_name = get_cluster().name
-
-        router = (
-            cls.objects.filter(strategy_score__gt=strategy_id, cluster_name=cluster_name)
-            .order_by("strategy_score")
-            .first()
-        )
-        if router is None:
-            raise Exception(_("策略ID超过设置的默认上限"))
-        return router.node
-
-    @classmethod
     def add_router(cls, node, score_floor=0, score_ceil=2**20):
         from alarm_backends.core.cluster import get_cluster
 

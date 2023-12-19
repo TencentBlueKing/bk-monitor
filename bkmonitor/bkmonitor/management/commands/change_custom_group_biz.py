@@ -12,7 +12,6 @@ import logging
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from monitor_web.models import CustomTSTable
 
 from metadata.models import (
     DataSource,
@@ -21,7 +20,7 @@ from metadata.models import (
     SpaceDataSource,
     TimeSeriesGroup,
 )
-from metadata.models.space.space_redis import push_and_publish_all_space
+from monitor_web.models import CustomTSTable
 
 logger = logging.getLogger("metadata")
 
@@ -90,7 +89,6 @@ class Command(BaseCommand):
                 from metadata.task.sync_space import push_and_publish_space_router
 
                 if Space.objects.filter(space_id=bk_biz_id).exists():
-                    push_and_publish_all_space(space_id=bk_biz_id)
                     push_and_publish_space_router(space_id=bk_biz_id)
 
     def add_arguments(self, parser):

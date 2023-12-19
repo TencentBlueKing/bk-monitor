@@ -67,7 +67,7 @@
               @mouseenter="(e) => handleHoverFavoriteName(e, JSON.stringify(row))">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <original-light-height :origin-json-str="JSON.stringify(addBlackMarkToKeys(row))" />
+              <original-light-height v-bind="$attrs" :origin-json="row" />
               <p
                 v-if="!cacheExpandStr.includes($index)"
                 class="show-whole-btn"
@@ -87,9 +87,10 @@
       <!-- 操作按钮 -->
       <bk-table-column
         v-if="showHandleOption"
+        align="right"
+        fixed="right"
         :label="$t('操作')"
         :width="84"
-        align="right"
         :resizable="false">
         <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">

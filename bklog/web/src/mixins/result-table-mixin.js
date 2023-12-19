@@ -176,18 +176,6 @@ export default {
 
       return markList;
     },
-    /** 给原始日志的key加上高亮标签 */
-    addBlackMarkToKeys(obj) {
-      const newObj = {};
-      for (const key in obj) { // 递归处理嵌套的对象 并且不为数组
-        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-          newObj[`<black-mark>${key}</black-mark>`] = this.addBlackMarkToKeys(obj[key]);
-        } else {
-          newObj[`<black-mark>${key}</black-mark>`] = obj[key];
-        }
-      }
-      return newObj;
-    },
     formatterStr(content) {
       // 匹配高亮标签
       let value = content;
@@ -218,7 +206,11 @@ export default {
       if (index === undefined || bizId === undefined || indexId === undefined) {
         return;
       }
-      const widthObj = {};
+      // 缓存其余的宽度
+      const widthObj = this.visibleFields.reduce((pre, cur, index) => {
+        pre[index] = cur.width;
+        return pre;
+      }, {});
       widthObj[index] = Math.ceil(newWidth);
 
       let columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));

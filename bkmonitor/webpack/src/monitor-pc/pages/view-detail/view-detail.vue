@@ -159,11 +159,11 @@
                           class="table-item"
                           :style="tdIndex === 0 ? 'text-align: left' : ''"
                         >
-                          {{ item.value === null ? '--' : item.value }}
+                          {{ item?.value === null ? '--' : item.value }}
                           <img
-                            v-if="tdIndex > 0 && (item.max || item.min)"
+                            v-if="tdIndex > 0 && (item?.max || item?.min)"
                             class="item-max-min"
-                            :src="require(`../../static/images/svg/${item.min ? 'min.svg' : 'max.svg'}`)"
+                            :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
                           >
                         </div>
                       </td>
@@ -198,7 +198,7 @@
 <script lang="ts">
 /* eslint-disable @typescript-eslint/member-ordering */
 import { Component, InjectReactive, Mixins, Prop, Provide, ProvideReactive, Vue } from 'vue-property-decorator';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { graphUnifyQuery } from '../../../monitor-api/modules/grafana';
 import { fetchItemStatus } from '../../../monitor-api/modules/strategies';
@@ -208,7 +208,7 @@ import MonitorDialog from '../../../monitor-ui/monitor-dialog/monitor-dialog.vue
 import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import { DEFAULT_REFLESH_LIST, DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../common/constant';
 import SortButton from '../../components/sort-button/sort-button';
-import { TimeRangeType } from '../../components/time-range/time-range';
+import type { TimeRangeType } from '../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';
 import authorityMixinCreate from '../../mixins/authorityMixin';
@@ -446,8 +446,8 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
         let timerange = this.getTimerange();
         if (startTime && endTime) {
           timerange = {
-            start_time: moment(startTime).unix(),
-            end_time: moment(endTime).unix()
+            start_time: dayjs.tz(startTime).unix(),
+            end_time: dayjs.tz(endTime).unix()
           };
         }
         return await graphUnifyQuery({
@@ -684,8 +684,9 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
    * 导出csv文件
    */
   handleExportCsv() {
-    const csvString = transformTableDataToCsvStr(this.tableThArr.map(item => item.name), this.tableTdArr);
-    downCsvFile(csvString, this.viewConfig?.config?.title);
+    const csvList = this.tableTdArr.map(item => item.map(i => i.value).join(','))
+    csvList.unshift(this.tableThArr.map(item => item.name.replace(/,/gmi, '_')).join(','));
+    downCsvFile(csvList.join('\n'), this.viewConfig?.config?.title);
   }
   /**
    * 表格排序

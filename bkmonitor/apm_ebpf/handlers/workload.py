@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import typing
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from dacite import from_dict
 from django.utils.datetime_safe import datetime
@@ -39,7 +39,7 @@ class DeploymentContent(_BaseContent):
     replicas: int = None
     image: str = None
     image_name: str = None
-    ports: typing.List[_DeploymentSpecPort] = None
+    ports: typing.List[_DeploymentSpecPort] = field(default_factory=list)
 
     workload_type: str = WorkloadType.DEPLOYMENT.value
 
@@ -55,7 +55,7 @@ class _ServicePort:
 
 @dataclass
 class ServiceContent(_BaseContent):
-    ports: typing.List[_ServicePort] = None
+    ports: typing.List[_ServicePort] = field(default_factory=list)
     type: str = None
     workload_type: str = WorkloadType.SERVICE.value
 
@@ -85,7 +85,9 @@ class WorkloadContent:
             ports=[
                 _DeploymentSpecPort(name=i.name, containerPort=i.container_port, protocol=i.protocol)
                 for i in image.ports
-            ],
+            ]
+            if image.ports
+            else [],
             is_normal=cls._normal_predicate[WorkloadType.DEPLOYMENT.value](status_describe),
         )
 
@@ -112,7 +114,9 @@ class WorkloadContent:
                     protocol=i.protocol,
                 )
                 for i in spec_describe.ports
-            ],
+            ]
+            if spec_describe.ports
+            else [],
             type=describe.spec.type,
             is_normal=True,
         )
@@ -177,7 +181,15 @@ class WorkloadHandler:
         )
 
     @classmethod
-    def list_services(cls, bk_biz_id, namespace, cluster_id):
-        return DeepflowWorkload.objects.filter(
+    def list_services(cls, bk_biz_id, namespace, cluster_id, service_name=None):
+        f = DeepflowWorkload.objects.filter(
             bk_biz_id=bk_biz_id, cluster_id=cluster_id, namespace=namespace, type=WorkloadType.SERVICE.value
         )
+        if service_name:
+            f = f.filter(name=service_name)
+
+        return f
+
+    @classmethod
+    def list_deepflow_cluster_ids(cls, bk_biz_id):
+        return list(set(DeepflowWorkload.objects.filter(bk_biz_id=bk_biz_id).values_list("cluster_id", flat=True)))

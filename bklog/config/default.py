@@ -87,6 +87,7 @@ INSTALLED_APPS += (
     "bkm_ipchooser",
     "apps.log_desensitize",
     "log_adapter",
+    "bkm_search_module",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -875,7 +876,11 @@ BKMONITOR_CUSTOM_PROXY_IP = os.environ.get(
 BKMONITOR_BK_BIZ_ID = os.environ.get("BKAPP_BKMONITOR_BK_BIZ_ID", BLUEKING_BK_BIZ_ID)
 TABLE_TRANSFER = os.environ.get("BKAPP_TABLE_TRANSFER", "pushgateway_transfer_metircs.base")
 
+# ===============================================================================
 # 前端上报
+# ===============================================================================
+# 环境代号
+ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or APP_CODE
 FRONTEND_REPORT_DATA_ID = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_ID")
 FRONTEND_REPORT_DATA_TOKEN = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_TOKEN")
 FRONTEND_REPORT_DATA_URL = os.environ.get("BKAPP_FRONTEND_REPORT_DATA_URL")
@@ -906,6 +911,7 @@ ESQUERY_WHITE_LIST = [
     "bk-dbm",
     "bk_dbm",
     "bk-audit",
+    "klc_saas",
 ]
 
 # BK repo conf
@@ -1011,6 +1017,11 @@ if os.getenv("BKAPP_GSE_VERSION"):
     GSE_VERSION = os.getenv("BKAPP_GSE_VERSION", "v1")
 else:
     GSE_VERSION = "v2" if ENABLE_DHCP else "v1"
+
+# 日志检索组件配置
+# ===============
+BKM_SEARCH_MODULE_BKAPI_CLASS = "apps.utils.search_module.BkApi"
+
 
 # 国际化切换语言设置
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")

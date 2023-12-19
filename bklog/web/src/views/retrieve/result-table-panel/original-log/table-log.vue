@@ -254,9 +254,7 @@ export default {
       }
 
       .bk-table-body-wrapper {
-        font-family: RobotoMono-Regular, monospace, Roboto, isometric-number,
-          San Francisco, Helvetica Neue, Helvetica, Arial, PingFangSC-Light,
-          Hiragina Sans GB, WenQuanYi Micro Hei, microsoft yahei ui, microsoft yahei;
+        color: #313238;
         min-height: calc(100vh - 550px);
 
         .bk-table-empty-block {
@@ -275,7 +273,7 @@ export default {
 
       td mark {
         background: #f3e186;
-        color: #575961;
+        color: #313238;
       }
 
       :deep(.result-table-loading) {
@@ -311,29 +309,25 @@ export default {
 
       .original-str,
       .visiable-field {
-        .cell {
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 12px 14px 0 14px;
-        }
-
         .str-content {
           position: relative;
           line-height: 20px;
 
           &.is-limit {
-            max-height: 96px;
+            max-height: 116px;
           }
         }
 
         &.is-wrap {
-          .cell {
-            padding: 12px 14px 8px;
-          }
-
           .str-content {
             display: block;
             overflow: hidden;
           }
+        }
+
+        .origin-str {
+          color: #313238;
+          line-height: 24px;
         }
 
         .origin-str:hover {
@@ -342,7 +336,7 @@ export default {
 
         .show-whole-btn {
           position: absolute;
-          top: 80px;
+          top: 93px;
           width: 100%;
           height: 24px;
           color: #3a84ff;
@@ -378,6 +372,14 @@ export default {
         .hide-whole-btn {
           margin-top: 4px;
         }
+
+        .cell {
+          padding: 10px 14px 0 14px;
+        }
+
+        &.is-wrap .cell {
+          padding: 10px 14px 8px;
+        }
       }
 
       td.bk-table-expanded-cell {
@@ -385,7 +387,7 @@ export default {
       }
 
       .bk-table-column-expand .bk-icon {
-        top: 17px;
+        top: 21px;
       }
 
       &.is-wrap td .cell {
@@ -400,16 +402,20 @@ export default {
       .visiable-field {
         .str-content {
           &.is-limit {
-            max-height: 74px;
+            max-height: 100px;
           }
         }
 
+        .cell {
+          padding: 12px 14px 0 14px;
+        }
+
         &.is-wrap .cell {
-          padding: 12px 15px 8px;
+          padding: 12px 14px 8px;
         }
 
         .show-whole-btn {
-          top: 56px;
+          top: 83px;
         }
       }
 

@@ -13,6 +13,8 @@ import time
 
 import mock as _mock
 import pytest
+from django.conf import settings
+
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
 from alarm_backends.core.cache.key import ALERT_SNAPSHOT_KEY
@@ -26,7 +28,6 @@ from alarm_backends.tests.service.access.data.config import (
 )
 from constants.action import ActionPluginType, AssignMode
 from constants.alert import EventStatus
-from django.conf import settings
 
 pytestmark = pytest.mark.django_db
 
@@ -37,7 +38,6 @@ from alarm_backends.service.fta_action.tasks.alert_assign import (
     BackendAssignMatchManager,
 )
 from api.cmdb.define import Business, Host
-
 from bkmonitor.documents import AlertDocument, AlertLog, EventDocument
 from bkmonitor.models import (
     ActionConfig,
@@ -122,11 +122,39 @@ def setup():
     }
     yield AlertAssignRule.objects.create(**rule)
 
+
+@pytest.fixture()
+def condition_rule():
+    ActionInstance.objects.all().delete()
     AlertAssignGroup.objects.all().delete()
     AlertAssignRule.objects.all().delete()
-    ActionInstance.objects.all().delete()
-    ConvergeInstance.objects.all().delete()
     ConvergeRelation.objects.all().delete()
+
+    assign_group = AlertAssignGroup.objects.create(name="test cache", bk_biz_id=2, priority=1)
+    rule = {
+        "assign_group_id": assign_group.id,
+        "user_groups": [3],
+        "conditions": [
+            {
+                "field": "ip",
+                "value": "127.0.0.1",
+                "method": "eq",
+            }
+        ],
+        "actions": [
+            {
+                "action_type": ActionPluginType.NOTICE,
+                "is_enabled": True,
+                "upgrade_config": {"is_enabled": True, "user_groups": [2, 1], "upgrade_interval": 30},
+            },
+            {"action_type": ActionPluginType.ITSM, "action_id": 4444},
+        ],
+        "alert_severity": 1,
+        "additional_tags": [{"key": "ip123", "value": "127.0.0.1"}],
+        "bk_biz_id": 2,
+        "is_enabled": True,
+    }
+    yield AlertAssignRule.objects.create(**rule)
 
 
 @pytest.fixture()
@@ -225,10 +253,20 @@ def user_group_setup():
                 "users": [{"id": "admin", "display_name": "管理员", "logo": "", "type": "user"}],
             }
         ),
+        DutyArrange(
+            **{
+                "user_group_id": 3,
+                "order": 1,
+                "users": [
+                    {"id": "lisa", "display_name": "lisa", "logo": "", "type": "user"},
+                    {"id": "lisa1", "display_name": "lisa1", "logo": "", "type": "user"},
+                ],
+            }
+        ),
     ]
     DutyArrange.objects.bulk_create(duty_arranges)
     group_data = copy.deepcopy(USER_GROUP_DATA)
-    for group_id in [1, 2]:
+    for group_id in [1, 2, 3]:
         group_data["id"] = group_id
         user_groups = UserGroup.objects.create(**group_data)
     yield user_groups
@@ -732,7 +770,7 @@ class TestAssignManager:
         assert ActionConfigCacheManager.get_action_config_by_id(4444)
 
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions0 = create_actions(0, "abnormal", alerts=[alert])
 
         new_alert = AlertDocument.get(id=alert.id)
@@ -755,7 +793,6 @@ class TestAssignManager:
         }
         print(alert.extra_info["rule_snaps"])
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
         actions = create_actions(0, "abnormal", alerts=[alert], notice_type="upgrade")
         new_alert = AlertDocument.get(id=alert.id)
         assert len(actions) == 2
@@ -801,7 +838,7 @@ class TestAssignManager:
             }
         }
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert], notice_type="upgrade")
         new_alert = AlertDocument.get(id=alert.id)
         assert len(actions) == 2
@@ -825,7 +862,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE]
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(alert.extra_info.strategy["id"], "abnormal", alerts=[alert])
         assert len(actions) == 2
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
@@ -833,21 +870,23 @@ class TestAssignManager:
         assert p_ai.inputs["notify_info"] == {'weixin': ['lisa']}
         assert alert.severity == 3
 
-    def test_ignore_origin_notice(self, setup, alert, user_group_setup, biz_mock, init_configs):
+    def test_ignore_origin_notice(self, condition_rule, alert, user_group_setup, biz_mock, init_configs):
         """
         测试适配到告警条件之后原来的告警不会产生
         """
         alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE, AssignMode.BY_RULE]
+        alert.severity = 1
+        alert.appointee = ['lisa', 'lisa1']
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
-        assert len(actions) == 3
+        assert len(actions) == 4
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"] == {'mail': ['lisa']}
+        assert p_ai.inputs["notify_info"]['voice'] == [['lisa', 'lisa1']]
         new_alert = AlertDocument.get(id=alert.id)
-        assert new_alert.severity == 2
-        assert new_alert.assign_tags == setup.additional_tags
+        assert new_alert.appointee == ["lisa", "lisa1"]
+        assert new_alert.severity == 1
 
     def test_default_assign_notice(self, setup, alert, user_group_setup, biz_mock, init_configs):
         """
@@ -855,7 +894,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy = {}
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 3
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
@@ -871,7 +910,7 @@ class TestAssignManager:
         """
         alert.extra_info.strategy = {}
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 0
 
@@ -1034,7 +1073,7 @@ class TestUpgradeChecker:
             }
         }
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         # 再次升级
         UpgradeChecker(alerts=[Alert(alert.to_dict())]).check_all()
         assert create_actions_delay.call_count == 1
@@ -1065,7 +1104,7 @@ class TestUpgradeChecker:
         alert.first_anomaly_time = int(time.time()) - alert.duration
         alert.latest_time = int(time.time())
         AlertDocument.bulk_create([alert])
-        assert biz_mock.call_count == 2
+        assert biz_mock.call_count == 1
         # 第一次升级
         UpgradeChecker(alerts=[Alert(alert.to_dict())]).check_all()
         assert create_actions_delay.call_count == 1

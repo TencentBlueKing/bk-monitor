@@ -26,7 +26,9 @@ import re
 import time
 
 import arrow
+import pytz
 from dateutil.parser import parse
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
@@ -37,7 +39,9 @@ from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
     FavoriteListOrderType,
     FavoriteVisibleType,
+    IndexSetType,
     InstanceTypeEnum,
+    TagColor,
     TemplateType,
 )
 from apps.log_search.models import ProjectInfo, Scenario
@@ -237,6 +241,21 @@ class DesensitizeConfigStateSerializer(serializers.Serializer):
     index_set_ids = serializers.ListField(child=serializers.IntegerField(), required=True)
 
 
+class IndexSetAddTagSerializer(serializers.Serializer):
+    tag_id = serializers.IntegerField(label=_("标签ID"), required=True)
+
+
+class IndexSetDeleteTagSerializer(serializers.Serializer):
+    tag_id = serializers.IntegerField(label=_("标签ID"), required=True)
+
+
+class CreateIndexSetTagSerializer(serializers.Serializer):
+    name = serializers.CharField(label=_("标签名称"), max_length=255, required=True)
+    color = serializers.ChoiceField(
+        label=_("标签颜色"), choices=TagColor.get_choices(), default=TagColor.GREEN.value, required=False
+    )
+
+
 class SearchAttrSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
     ip_chooser = serializers.DictField(default={}, required=False)
@@ -253,7 +272,7 @@ class SearchAttrSerializer(serializers.Serializer):
     aggs = serializers.DictField(required=False, default=dict)
 
     # 支持用户自定义排序
-    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True)
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
 
     is_scroll_search = serializers.BooleanField(label=_("是否scroll查询"), required=False, default=False)
 
@@ -261,14 +280,42 @@ class SearchAttrSerializer(serializers.Serializer):
 
     is_return_doc_id = serializers.BooleanField(label=_("是否返回文档ID"), required=False, default=False)
 
+    is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
+
+        # 校验sort_list
+        if attrs.get("sort_list"):
+            for sort_info in attrs.get("sort_list"):
+                field_name, order = sort_info
+                if order not in ["desc", "asc"]:
+                    raise ValidationError(_("字段名【{}】的排序规则指定错误, 支持('desc', 降序）,('asc', 升序）").format(field_name))
         return attrs
 
 
 class OriginalSearchAttrSerializer(serializers.Serializer):
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=3, max_value=10)
+
+
+class UnionConfigSerializer(serializers.Serializer):
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
+    begin = serializers.IntegerField(required=False, default=0)
+
+
+class UnionSearchAttrSerializer(SearchAttrSerializer):
+    union_configs = serializers.ListField(
+        label=_("联合检索参数"), required=True, allow_empty=False, child=UnionConfigSerializer()
+    )
+
+
+class UnionSearchFieldsSerializer(serializers.Serializer):
+    start_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    end_time = serializers.DateTimeField(required=False, format="%Y-%m-%d %H:%M:%S")
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
+    )
 
 
 class UserSearchHistorySerializer(serializers.Serializer):
@@ -342,19 +389,37 @@ class SearchUserIndexSetConfigSerializer(serializers.Serializer):
 class SearchExportSerializer(serializers.Serializer):
     export_dict = serializers.CharField(required=False, allow_blank=False, allow_null=False)
 
+    @classmethod
+    def parse_datetime_with_epoch(cls, t):
+        try:
+            datetime_obj = datetime.datetime.fromtimestamp(
+                int(t), pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+            )
+        except Exception:  # pylint: disable=broad-except
+            datetime_obj = parse(t)
+        return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         export_dict_str = attrs["export_dict"]
         export_dict: dict = json.loads(export_dict_str)
 
-        # deal time
-        start_time = export_dict.get("start_time")
-        start_time = parse(start_time)
-        end_time = export_dict.get("end_time")
-        end_time = parse(end_time)
         export_dict.update(
-            {"start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"), "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S")}
+            {
+                "start_time": self.parse_datetime_with_epoch(export_dict.get("start_time")),
+                "end_time": self.parse_datetime_with_epoch(export_dict.get("end_time")),
+            }
         )
+
+        if export_dict.get("index_set_ids"):
+            for index_set_id in export_dict.get("index_set_ids"):
+                try:
+                    int(index_set_id)
+                except ValueError:
+                    raise ValidationError(_("索引集ID类型错误"))
+            export_dict["index_set_ids"] = sorted(
+                [int(index_set_id) for index_set_id in export_dict.get("index_set_ids")]
+            )
 
         attrs["export_dict"] = json.dumps(export_dict)
         return attrs
@@ -364,8 +429,8 @@ class SearchAsyncExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
-    start_time = serializers.CharField(label=_("起始时间"), required=True)
-    end_time = serializers.CharField(label=_("结束时间"), required=True)
+    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("起始时间"), required=True)
+    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("结束时间"), required=True)
     ip_chooser = serializers.DictField(label=_("检索IP条件"), required=False, default={})
     addition = serializers.ListField(label=_("搜索条件"), required=False)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=True)
@@ -374,24 +439,46 @@ class SearchAsyncExportSerializer(serializers.Serializer):
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
 
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-
-        # deal time
-        start_time = attrs.get("start_time")
-        start_time = parse(start_time)
-        end_time = attrs.get("end_time")
-        end_time = parse(end_time)
-        attrs["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
-        attrs["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
-        return attrs
-
 
 class GetExportHistorySerializer(serializers.Serializer):
     page = serializers.IntegerField(label=_("页码"))
     pagesize = serializers.IntegerField(label=_("页面大小"))
     show_all = serializers.BooleanField(label=_("是否展示业务全量导出历史"))
     bk_biz_id = serializers.IntegerField(label=_("业务id"))
+
+
+class UnionSearchGetExportHistorySerializer(serializers.Serializer):
+    page = serializers.IntegerField(label=_("页码"))
+    pagesize = serializers.IntegerField(label=_("页面大小"))
+    show_all = serializers.BooleanField(label=_("是否展示业务全量导出历史"))
+    index_set_ids = serializers.CharField(label=_("联合检索索引集ID列表"))
+    bk_biz_id = serializers.IntegerField(label=_("业务id"))
+
+    def validate(self, attrs):
+        # 索引集ID格式校验
+        index_set_ids = attrs["index_set_ids"].split(",")
+
+        for index_set_id in index_set_ids:
+            try:
+                int(index_set_id)
+            except ValueError:
+                raise ValidationError(_("索引集ID类型错误"))
+        return attrs
+
+
+class UnionSearchHistorySerializer(serializers.Serializer):
+    index_set_ids = serializers.CharField(label=_("联合检索索引集ID列表"))
+
+    def validate(self, attrs):
+        # 索引集ID格式校验
+        index_set_ids = attrs["index_set_ids"].split(",")
+
+        for index_set_id in index_set_ids:
+            try:
+                int(index_set_id)
+            except ValueError:
+                raise ValidationError(_("索引集ID类型错误"))
+        return attrs
 
 
 class SourceDetectSerializer(serializers.Serializer):
@@ -453,7 +540,7 @@ class CreateFavoriteSerializer(serializers.Serializer):
 
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     name = serializers.CharField(label=_("收藏组名"), max_length=256, required=True)
-    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
     group_id = serializers.IntegerField(label=_("收藏组ID"), required=False)
     visible_type = serializers.ChoiceField(choices=FavoriteVisibleType.get_choices(), required=True)
     ip_chooser = serializers.DictField(default={}, required=False)
@@ -462,11 +549,26 @@ class CreateFavoriteSerializer(serializers.Serializer):
     search_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
     is_enable_display_fields = serializers.BooleanField(required=False, default=False)
     display_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=False, child=serializers.IntegerField(), default=[]
+    )
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if attrs["is_enable_display_fields"] and not attrs["display_fields"]:
             raise serializers.ValidationError(_("同时显示字段开启时, 显示字段不能为空"))
+
+        if attrs["index_set_type"] == IndexSetType.SINGLE.value and not attrs.get("index_set_id"):
+            raise serializers.ValidationError(_("索引集ID不能为空"))
+        elif attrs["index_set_type"] == IndexSetType.UNION.value and not attrs.get("index_set_ids"):
+            raise serializers.ValidationError(_("索引集ID列表不能为空"))
+        elif attrs["index_set_type"] == IndexSetType.UNION.value:
+            # 对index_set_ids排序处理  这里主要是为了兼容前端传递索引集列表ID顺序不一致问题 [1,2]  [2,1] ->[1,2]
+            attrs["index_set_ids"] = sorted(attrs["index_set_ids"])
+
         return attrs
 
 
@@ -517,6 +619,9 @@ class FavoriteListSerializer(serializers.Serializer):
         choices=FavoriteListOrderType.get_choices(),
         required=False,
         default=FavoriteListOrderType.UPDATED_AT_DESC.value,
+    )
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
 
 

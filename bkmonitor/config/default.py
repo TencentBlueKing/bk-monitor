@@ -28,7 +28,6 @@ from .tools.elasticsearch import get_es7_settings
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
-    IS_CONTAINER_MODE,
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -550,9 +549,6 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 # bk_monitor_proxy 自定义上报服务监听的端口
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
-# 异常记录保留天数
-ANOMALY_RECORD_SAVE_DAYS = 30
-
 # 后台celery存储配置类型rabbitmq_conf/redis_conf
 CELERY_CONF_TYPE = "rabbitmq_conf"
 
@@ -584,7 +580,6 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
     os.getenv("BKAPP_APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG", "false").lower() == "true"
 )
 
-
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 500
@@ -602,6 +597,11 @@ APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 500
 APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 30
 APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 3
 APM_TRACE_DIAGRAM_CONFIG = {}
+APM_DORIS_STORAGE_CONFIG = {}
+# {2:["foo", "bar"], 3:["baz"]}
+APM_PROFILING_ENABLED_APPS = {}
+# dis/enable profiling for all apps
+APM_PROFILING_ENABLED = False
 APM_EBPF_ENABLED = False
 
 # bk.data.token 的salt值
@@ -719,14 +719,6 @@ DEFAULT_METRIC_PUSH_JOB = "SLI"
 # 运营指标上报任务标志
 OPERATION_STATISTICS_METRIC_PUSH_JOB = "Operation"
 
-# TODO: merge these types into one
-# 当前历史遗留问题，SLI 数据和运营数据分别送到不同的 dataID
-# 需要找时间合并二者
-JOB_DATAID_MAP = {
-    DEFAULT_METRIC_PUSH_JOB: CUSTOM_REPORT_DEFAULT_DATAID,
-    OPERATION_STATISTICS_METRIC_PUSH_JOB: STATISTICS_REPORT_DATA_ID,
-}
-
 # 是否启用计算平台处理influxdb降精度流程
 ENABLE_METADATA_DOWNSAMPLE_BY_BKDATA = False
 # 是否启用 unify-query 查询计算平台降精度数据
@@ -736,6 +728,8 @@ WECOM_ROBOT_BIZ_WHITE_LIST = []
 WECOM_ROBOT_ACCOUNT = {}
 IS_WECOM_ROBOT_ENABLED = False
 MD_SUPPORTED_NOTICE_WAYS = ["wxwork-bot"]
+
+WECOM_APP_ACCOUNT = {}
 
 FTA_ES_SLICE_SIZE = 50
 FTA_ES_RETENTION = 365
@@ -876,6 +870,7 @@ BK_DATA_RT_ID_PREFIX = ""  # 计算平台的表名前缀
 BK_DATA_DATA_EXPIRES_DAYS = 30  # 接入到计算平台后，数据保留天数
 BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS = 180  # 接入到计算平台后，存储到HDFS时数据保留天数
 BK_DATA_MYSQL_STORAGE_CLUSTER_NAME = "jungle_alert"  # 监控专属tspider存储集群名称
+BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE = "mysql_storage"  # 监控SQL类存储集群类型
 BK_DATA_HDFS_STORAGE_CLUSTER_NAME = "hdfsOnline4"  # 监控专属HDFS存储集群名称
 BK_DATA_DRUID_STORAGE_CLUSTER_NAME = "monitor"  # 监控专属druid存储集群名称
 BK_DATA_KAFKA_BROKER_URL = "127.0.0.1:9092"
@@ -1265,7 +1260,6 @@ ASYMMETRIC_CIPHER_TYPE = get_env_or_raise(
     "BKAPP_ASYMMETRIC_CIPHER_TYPE", default=constants.AsymmetricCipherType.RSA.value
 )
 
-
 BKCRYPTO = {
     # 声明项目所使用的非对称加密算法
     "ASYMMETRIC_CIPHER_TYPE": ASYMMETRIC_CIPHER_TYPE,
@@ -1299,7 +1293,6 @@ BKCRYPTO = {
 SPECIFY_AES_KEY = ""
 BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
 
-
 # 前端事件上报
 FRONTEND_REPORT_DATA_ID = 0
 FRONTEND_REPORT_DATA_TOKEN = ""
@@ -1325,7 +1318,22 @@ MAX_FIELD_PAGE_SIZE = 1000
 PAASV3_APIGW_BASE_URL = os.getenv("BKAPP_PAASV3_APIGW_BASE_URL", "")
 
 # 需要授权给蓝鲸应用的特定的数据源 ID
-BKPAAS_DATA_ID_LIST = []
+BKPAAS_AUTHORIZED_DATA_ID_LIST = []
 
 # 环境代号
 ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
+
+# `dbm_` 开头的结果表，仅特定的业务可以查看，并且不需要添加过滤条件
+ACCESS_DBM_RT_SPACE_UID = []
+
+# BCS APIGW 地址
+BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
+
+# 获取指标的间隔时间，默认为 2 hour
+FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
+
+# 是否启用 metadata 新功能
+IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
+
+# 自定义指标过期时间
+TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600

@@ -53,6 +53,10 @@ export default defineComponent({
     legendActive: {
       type: Boolean,
       default: false
+    },
+    showLegend: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['scaleChange', 'storeImg', 'showThumbnail', 'showLegend'],
@@ -93,10 +97,12 @@ export default defineComponent({
               onClick={this.handleShowThumbnail}
             ></i>
           )}
-          <i
-            class={`icon-monitor icon-legend ${this.legendActive ? 'is-active' : ''}`}
-            onClick={this.handleShowLegend}
-          ></i>
+          {this.showLegend && (
+            <i
+              class={`icon-monitor icon-legend ${this.legendActive ? 'is-active' : ''}`}
+              onClick={this.handleShowLegend}
+            ></i>
+          )}
           <i
             class='icon-monitor icon-xiazai1 item-store'
             onClick={this.handleStoreImg}

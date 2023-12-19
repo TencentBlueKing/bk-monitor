@@ -37,10 +37,13 @@ from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
 from metadata import models as metadata_models
 
+from .doris import BkDataDorisProvider
+
 
 class ApmDataSourceConfigBase(models.Model):
     TRACE_DATASOURCE = "trace"
     METRIC_DATASOURCE = "metric"
+    PROFILE_DATASOURCE = "profile"
 
     TABLE_SPACE_PREFIX = "space"
 
@@ -883,6 +886,34 @@ class TraceDataSource(ApmDataSourceConfigBase):
             return
         for v in mappings.values():
             cls._mappings_properties(v, properties)
+
+
+class ProfileDataSource(ApmDataSourceConfigBase):
+    """Profile 数据源"""
+
+    DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
+
+    created = models.DateTimeField("创建时间", auto_now_add=True)
+    updated = models.DateTimeField("更新时间", auto_now=True)
+
+    @property
+    def table_id(self) -> str:
+        bk_biz_id = int(self.bk_biz_id)
+        return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def apply_datasource(cls, bk_biz_id, app_name, **option):
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not obj:
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+        # 创建接入
+        essentials = BkDataDorisProvider.from_datasource_instance(obj, operator=get_global_user()).provider(**option)
+
+        obj.bk_data_id = essentials["bk_data_id"]
+        obj.result_table_id = essentials["result_table_id"]
+        obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
+        return
 
 
 class DataLink(models.Model):

@@ -22,10 +22,11 @@ the project delivered to anyone in the future.
 import base64
 import json
 
+from django.utils.translation import ugettext_lazy as _
+
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
 from config.domains import MONITOR_APIGATEWAY_ROOT
-from django.utils.translation import ugettext_lazy as _
 
 
 def get_cluster_info_after(response_result):
@@ -94,7 +95,7 @@ def parse_cluster_info(cluster_obj):
         biz_id = str(cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"])
         if biz_id.isdigit():
             cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"] = int(biz_id)
-    except ValueError:
+    except (ValueError, TypeError):
         cluster_obj["cluster_config"]["custom_option"] = {}
         cluster_obj["auth_info"] = {}
     return cluster_obj

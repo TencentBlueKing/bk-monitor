@@ -26,7 +26,7 @@
 import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Exception, Option, Select } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { deleteExperience, getExperience, saveExperience } from '../../../../monitor-api/modules/alert';
 import { getMetricListV2 } from '../../../../monitor-api/modules/strategies';
@@ -334,24 +334,23 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       [EType.METRIC]: v.metric.length ? this.$tc('指标') : this.$tc('告警名称'),
       [EType.DIMENSION]: this.$tc('维度')
     };
+    const h = this.$createElement;
     this.$bkInfo({
       type: 'warning',
       title: this.$t('确认删除该经验？'),
-      subHeader: () => (
-        <DeleteSubtitle title={titleMap[v.type]}>
-          <div slot='name'>
-            {v.type === EType.METRIC ? (
-              v.metric?.map(id => this.metricNameMap[id] || id)?.join(',') || v.alert_name
-            ) : (
-              <WhereDisplay
-                value={v.conditions as any}
-                groupByList={this.dimensionList}
-                metric={this.metricMeta as any}
-              ></WhereDisplay>
-            )}
-          </div>
-        </DeleteSubtitle>
-      ),
+      subHeader: h(DeleteSubtitle, { props: { title: titleMap[v.type] } }, [
+        h('div', { slot: 'name' }, [
+          v.type === EType.METRIC
+          ? (v.metric?.map(id => this.metricNameMap[id] || id)?.join(',') || v.alert_name)
+          : h(WhereDisplay, {
+              props: {
+                value: v.conditions,
+                groupByList: this.dimensionList,
+                metric: this.metricMeta
+              }
+            })
+        ])
+      ]),
       maskClose: true,
       escClose: true,
       confirmFn: () => {
@@ -422,9 +421,9 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
 
   getUpdataInfo(item: IExperience) {
     if (item.update_user) {
-      return this.$t('{0} 于 {1} 更新', [item.update_user, moment(item.update_time).format('YYYY-MM-DD HH:mm:ss')]);
+      return this.$t('{0} 于 {1} 更新', [item.update_user, dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ss')]);
     }
-    return this.$t('{0} 于 {1} 创建', [item.create_user, moment(item.create_time).format('YYYY-MM-DD HH:mm:ss')]);
+    return this.$t('{0} 于 {1} 创建', [item.create_user, dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ss')]);
   }
 
   render() {

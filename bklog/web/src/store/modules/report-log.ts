@@ -30,6 +30,8 @@ import store from '@/store';
 import $http from '../../api';
 
 let oldRouteId = '';
+let oldNavId = '';
+let oldspaceUid = '';
 @Module({ name: 'report-log', dynamic: true, namespaced: true, store })
 class ReportLogStore extends VuexModule {
   @Action
@@ -42,13 +44,20 @@ class ReportLogStore extends VuexModule {
     } = store.state;
 
     if (!bkBizId && !spaceUid) return;
-
-    if (!isAppFirstLoad && oldRouteId === params.route_id) return;
+    
+    if (
+      !isAppFirstLoad &&
+      oldspaceUid === spaceUid &&
+      params.nav_name !== '日志聚类' &&
+      (oldRouteId === params.route_id || oldNavId === params.nav_id)
+    ) return;
 
     oldRouteId = params.route_id;
+    oldNavId = params.nav_id;
+    oldspaceUid = spaceUid;
 
     const username = store.state.userMeta?.username;
-    const space = spaceList?.find(item => +item.space_uid === +spaceUid);
+    const space = spaceList?.find(item => item.space_uid === spaceUid);
     const routeConfig = getRouteConfigById(params.nav_id);
 
     $http.request('report/frontendEventReport', 
@@ -62,7 +71,7 @@ class ReportLogStore extends VuexModule {
             space_id: space?.space_uid || bkBizId,
             space_name: space?.space_name || bkBizId,
             user_name: username,
-            nav_name: routeConfig?.name,
+            nav_name: params.nav_name || routeConfig?.meta?.title,
             ...params
           }
         },

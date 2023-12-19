@@ -217,6 +217,7 @@
           :prop="item.key"
           sortable
           min-width="120"
+          :render-header="renderHeader"
         >
           <template #default="{ row }">
             {{ row[item.key] }}
@@ -227,22 +228,18 @@
   </div>
 </template>
 <script lang="ts">
+import { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { addListener, removeListener, ResizeCallback } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { traceListById } from '../../monitor-api/modules/apm_trace';
 import { copyText, hexToRgbA } from '../../monitor-common/utils/utils';
-import {
-  downCsvFile,
-  IUnifyQuerySeriesItem,
-  transformSrcData,
-  transformTableDataToCsvStr
-} from '../../monitor-pc/pages/view-detail/utils';
+import { downCsvFile, IUnifyQuerySeriesItem } from '../../monitor-pc/pages/view-detail/utils';
 import ChartTitle from '../chart-plugins/components/chart-title/chart-title';
 
 import ChartAnnotation from './components/chart-annotation.vue';
@@ -548,7 +545,7 @@ export default class MonitorEcharts extends Vue {
     }, {});
     return Object.entries(data).map(([time, columnData]) => {
       return {
-        date: moment(Number(time)).format('YYYY-MM-DD HH:mm:ss'),
+        date: dayjs.tz(Number(time)).format('YYYY-MM-DD HH:mm:ss'),
         ...columnData
       };
     });
@@ -621,6 +618,18 @@ export default class MonitorEcharts extends Vue {
     this.chart && this.destroy();
     document.removeEventListener('mousemove', this.documentMousemove);
     document.removeEventListener('mouseup', this.documentMouseup);
+  }
+
+  renderHeader(h: CreateElement, data) {
+    const { column } = data;
+    return h(
+      'div',
+      {
+        class: 'ellipsis',
+        directives: [{ name: 'bk-overflow-tips' }]
+      },
+      column.label
+    );
   }
 
   /** 图表拉伸 */
@@ -715,6 +724,7 @@ export default class MonitorEcharts extends Vue {
         console.info(e);
         return [];
       });
+      console.log(data);
       this.seriesData = [...data].map(item => ({
         ...item,
         key: item.target.replace(/\./g, '_')
@@ -834,8 +844,8 @@ export default class MonitorEcharts extends Vue {
                     this.loading = true;
                     const [batch] = event.batch;
                     if (batch.startValue && batch.endValue) {
-                      const timeFrom = moment(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-                      const timeTo = moment(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      const timeFrom = dayjs(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+                      const timeTo = dayjs(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
                       this.timeRange = [timeFrom, timeTo];
                       if (this.getSeriesData) {
                         this.chart.dispatchAction({
@@ -907,7 +917,7 @@ export default class MonitorEcharts extends Vue {
         });
       return;
     }
-    const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
@@ -1014,7 +1024,7 @@ export default class MonitorEcharts extends Vue {
           this.annotation = {
             x: setPixel[0] + fineTuning + 220 > chartWidth ? setPixel[0] - fineTuning - 220 : setPixel[0] + fineTuning,
             y: setPixel[1] + 5,
-            title: moment(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+            title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
             name: this.curValue.name,
             color: this.curValue.color,
             show: true,
@@ -1105,9 +1115,17 @@ export default class MonitorEcharts extends Vue {
    */
   handleExportCsv() {
     if (!!this.seriesData?.length) {
-      const { tableThArr, tableTdArr } = transformSrcData(this.seriesData);
-      const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-      downCsvFile(csvString, this.title);
+      const csvList = [];
+      const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
+      csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));
+      this.tableData.forEach((item) => {
+        const list = [];
+        keys.forEach((key) => {
+          list.push(item[key]);
+        });
+        csvList.push(list.join(','));
+      });
+      downCsvFile(csvList.join('\n'), this.title);
     }
   }
   // 点击title 告警图标跳转
@@ -1307,7 +1325,7 @@ export default class MonitorEcharts extends Vue {
         this.scatterTips.data.target.label = `${chartOptions.series[0].name}: ${
           scatterData._value || scatterData.metric_value || '--'
         }`;
-        this.scatterTips.data.time = moment(e.data.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        this.scatterTips.data.time = dayjs.tz(e.data.value[0]).format('YYYY-MM-DD HH:mm:ss');
         this.scatterTips.top = -9999;
         this.scatterTips.show = true;
         this.$nextTick(() => {
@@ -1648,6 +1666,12 @@ export default class MonitorEcharts extends Vue {
       ::v-deep th.is-leaf {
         height: 32px;
       }
+    }
+
+    ::v-deep .ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }

@@ -26,7 +26,7 @@
 import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { debounce } from 'throttle-debounce';
 
 import { destroyUserGroup, listUserGroup } from '../../../../monitor-api/modules/model';
@@ -80,6 +80,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
       props: { 'show-overflow-tooltip': true },
       formatter: () => {}
     },
+    {
+      label: i18n.t('应用告警分派规则数'),
+      prop: 'rules_count',
+      minWidth: null,
+      width: 200,
+      props: {},
+      formatter: () => {}
+    },
     { label: i18n.t('应用策略数'), prop: 'strategy_count', minWidth: null, width: 200, props: {}, formatter: () => {} },
     {
       label: i18n.t('说明'),
@@ -104,7 +112,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 220,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? moment(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
+      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
     },
     {
       label: i18n.t('配置来源'),
@@ -148,6 +156,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleTableColumnsData() {
     const fnMap = {
       name: this.cellName,
+      rules_count: this.cellRulesCount,
       strategy_count: this.cellStrategyCount,
       handle: this.cellHandle,
       update: this.cellUpdate
@@ -166,6 +175,18 @@ export default class AlarmGroup extends tsc<IGroupList> {
       >
         {row.name}
       </span>
+    );
+  }
+  cellRulesCount(row) {
+    return (
+      <div class='col-appstrategy'>
+        <span
+          class='strategy-num'
+          onClick={() => this.handleToAppDispatch(row)}
+        >
+          {row.rules_count || 0}
+        </span>
+      </div>
     );
   }
   cellStrategyCount(row) {
@@ -189,7 +210,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     return (
       <div class='col-name'>
         <div class='col-name-label'>{row.update_user || '--'}</div>
-        <div>{moment(row.update_time).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
+        <div>{dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
       </div>
     );
   }
@@ -337,6 +358,15 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleShowDetailsView({ id }) {
     this.detail.show = true;
     this.detail.id = id;
+  }
+
+  // 跳转到告警分派 展示相关联的告警分派规则
+  handleToAppDispatch({ rules_count: rulesCount, name }) {
+    if (!rulesCount) return;
+    this.$router.push({
+      name: 'alarm-dispatch',
+      params: { groupName: name }
+    });
   }
 
   // 跳转到策略列表  展示相关联告警组的策略

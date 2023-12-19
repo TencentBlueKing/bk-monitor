@@ -90,7 +90,7 @@
         </bk-table-column>
         <bk-table-column
           prop="size"
-          :label="$t('尺寸')"
+          :label="$t('文件大小')"
           :render-header="$renderHeader"
           min-width="40"
           sortable

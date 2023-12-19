@@ -237,6 +237,21 @@ class DesensitizeRuleException(BaseIndexSetException):
     MESSAGE = _("[{field_name}] 选定的脱敏规则 [ID:{rule_id}] 不存在或未启用")
 
 
+class IndexSetTagNotExistException(BaseIndexSetException):
+    ERROR_CODE = "327"
+    MESSAGE = _("标签 [ID:{tag_id}] 不存在")
+
+
+class IndexSetInnerTagOperatorException(BaseIndexSetException):
+    ERROR_CODE = "328"
+    MESSAGE = _("内置标签不允许操作")
+
+
+class IndexSetTagNameExistException(BaseIndexSetException):
+    ERROR_CODE = "329"
+    MESSAGE = _("标签名称: [{tag_id}] 已存在")
+
+
 # =================================================
 # 管理-检索
 # =================================================
@@ -430,6 +445,21 @@ class IntegerMaxErrorException(BaseException):
 class IntegerErrorException(BaseException):
     ERROR_CODE = "438"
     MESSAGE = _("{num} 不是一个合法的数值, 请输入合法数值")
+
+
+class UnionSearchFieldsFailException(BaseSearchException):
+    ERROR_CODE = "437"
+    MESSAGE = _("联合检索获取索引Mapping字段信息失败")
+
+
+class UnionSearchErrorException(BaseSearchException):
+    ERROR_CODE = "438"
+    MESSAGE = _("联合检索API异常")
+
+
+class MultiSearchErrorException(BaseSearchException):
+    ERROR_CODE = "439"
+    MESSAGE = _("跨集群检索结果处理异常")
 
 
 # =================================================

@@ -25,9 +25,9 @@
  */
 // import { Component as tsc } from 'vue-tsx-support';
 import { Component, Ref, Watch } from 'vue-property-decorator';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { EChartOption } from 'echarts/lib/echarts';
-import moment from 'moment';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { Debounce, deepClone, random } from '../../../../monitor-common/utils/utils';
@@ -140,8 +140,8 @@ export default class TimeSeriesForecast extends LineChart {
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
-        start_time: start_time ? moment(start_time).unix() : startTime,
-        end_time: end_time ? moment(end_time).unix() : endTime
+        start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
       };
       const promiseList = [];
       const timeShiftList = ['', ...this.timeOffset];
@@ -466,7 +466,7 @@ export default class TimeSeriesForecast extends LineChart {
       return;
     }
     const curAxis = params.find(item => item.value?.[1] !== null);
-    const pointTime = moment(curAxis.axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(curAxis.axisValue).format('YYYY-MM-DD HH:mm:ss');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curPoint.yAxis) - Math.abs(b.value - +this.curPoint.yAxis));
@@ -497,8 +497,8 @@ export default class TimeSeriesForecast extends LineChart {
                  style="background-color:${item.color};">
                 </span>
                 <span class="item-name" style="${markColor}">${
-          curSeries.name === 'predict' ? '' : curSeries.name
-        }${this.$tc(curSeries.metricField === '_result_' ? '当前值' : '预测值')}:</span>
+                  curSeries.name === 'predict' ? '' : curSeries.name
+                }${this.$tc(curSeries.metricField === '_result_' ? '当前值' : '预测值')}:</span>
                 <span class="item-value" style="${markColor}">
                 ${valueObj.text} ${valueObj.suffix || ''}</span>
                 </li>`;

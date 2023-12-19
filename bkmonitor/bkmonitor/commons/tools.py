@@ -88,7 +88,7 @@ def is_ipv6_biz(bk_biz_id) -> bool:
     """
     判断业务是否支持ipv6
     """
-    return str(bk_biz_id) in [str(biz) for biz in settings.IPV6_SUPPORT_BIZ_LIST]
+    return str(bk_biz_id) in {str(biz) for biz in settings.IPV6_SUPPORT_BIZ_LIST}
 
 
 def get_host_view_display_fields(bk_biz_id: int) -> Tuple[str, str]:
