@@ -182,7 +182,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
       <div class='col-appstrategy'>
         <span
           class='strategy-num'
-          v-authority={{ active: !this.authority.STRATEGY_VIEW_AUTH }}
           onClick={() => this.handleToAppDispatch(row)}
         >
           {row.rules_count || 0}
