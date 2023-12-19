@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, PropType, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 
@@ -88,12 +89,21 @@ const TimeSeriesProps = {
   // 自定义时间范围
   customTimeRange: Array as PropType<string[]>,
   // 自定义更多菜单
-  customMenuList: Array as PropType<ChartTitleMenuType[]>
+  customMenuList: Array as PropType<ChartTitleMenuType[]>,
+  clearErrorMsg: { default: () => {}, type: Function },
+  // 作为单独组件使用 默认用于dashboard
+  isUseAlone: {
+    type: Boolean,
+    default: false
+  }
 };
 export default defineComponent({
   name: 'TimeSeries',
+  directives: {
+    bkTooltips
+  },
   props: TimeSeriesProps,
-  emits: ['loading'],
+  emits: ['loading', 'errorMsg'],
   setup(props, { emit }) {
     const timeSeriesRef = ref<HTMLDivElement>();
     const chartWrapperRef = ref<HTMLDivElement>();
@@ -108,6 +118,7 @@ export default defineComponent({
     const inited = ref<boolean>(false);
     const empty = ref<boolean>(false);
     const emptyText = ref<string>('');
+    const errorMsg = ref<string>('');
     const metrics = ref<IExtendMetricData[]>([]);
     const hasSetEvent = ref<boolean>(false);
     const isInHover = ref<boolean>(false);
@@ -489,7 +500,8 @@ export default defineComponent({
               if (!item.apiModule) return;
               return currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
                 [item.apiFunc](newPrarams, {
-                  cancelToken: new CancelToken((cb: Function) => cancelTokens.push(cb))
+                  cancelToken: new CancelToken((cb: Function) => cancelTokens.push(cb)),
+                  needMessage: false
                 })
                 .then((res: { metrics: any; series: any[] }) => {
                   res.metrics.forEach((metric: { metric_id: string }) => {
@@ -507,7 +519,11 @@ export default defineComponent({
                       }${handleSeriesName(item, set) || set.target}`
                     }))
                   );
+                  handleClearErrorMsg();
                   return true;
+                })
+                .catch(error => {
+                  handleErrorMsgChange(error.msg || error.message);
                 });
             }) ?? [];
           promiseList.push(...(list as any));
@@ -702,6 +718,12 @@ export default defineComponent({
     function handleDblClick() {
       getPanelData();
     }
+    function handleErrorMsgChange(message: string) {
+      props.isUseAlone ? (errorMsg.value = message) : emit('errorMsg', message);
+    }
+    function handleClearErrorMsg() {
+      props.isUseAlone ? (errorMsg.value = '') : props.clearErrorMsg();
+    }
     return {
       ...unWathChartData,
       ...useLegendRet,
@@ -726,6 +748,7 @@ export default defineComponent({
       inited,
       empty,
       emptyText,
+      errorMsg,
       hasSetEvent,
       legendData,
       cancelTokens,
@@ -814,6 +837,16 @@ export default defineComponent({
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
+        )}
+        {!!this.errorMsg && (
+          <span
+            class='is-error'
+            v-bk-tooltips={{
+              content: <div>{this.errorMsg}</div>,
+              extCls: 'chart-wrapper-error-tooltip',
+              placement: 'top-start'
+            }}
+          ></span>
         )}
       </div>
     );

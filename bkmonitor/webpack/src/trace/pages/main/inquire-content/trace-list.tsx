@@ -1638,6 +1638,7 @@ export default defineComponent({
                   class='chart-list-item'
                   key={panel.id}
                   panel={panel}
+                  isUseAlone
                 />
               ))}
             </div>

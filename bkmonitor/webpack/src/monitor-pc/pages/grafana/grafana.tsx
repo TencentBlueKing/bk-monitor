@@ -62,14 +62,27 @@ export default class MyComponent extends tsc<{}> {
     this.iframeRef?.contentWindow.postMessage(v.split('-')[0], '*');
   }
   @Watch('url', { immediate: true })
-  handleUrlChange() {
-    this.handleGetGrafanaUrl();
+  async handleUrlChange() {
+    const grafanaUrl = await this.handleGetGrafanaUrl();
+    if (!this.grafanaUrl) {
+      this.grafanaUrl = grafanaUrl;
+    } else {
+      const url = new URL(grafanaUrl);
+      this.iframeRef?.contentWindow.postMessage(
+        {
+          route: url.pathname.replace('/grafana', ''),
+          search: url.search
+        },
+        '*'
+      );
+    }
   }
   async handleGetGrafanaUrl() {
     this.loading = true;
+    let grafanaUrl = '';
     if (!this.url) {
       if (this.$route.name === 'grafana-home') {
-        this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+        grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       } else {
         const list = await getDashboardList().catch(() => []);
         const { bizId } = this.$store.getters;
@@ -84,7 +97,7 @@ export default class MyComponent extends tsc<{}> {
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
-          this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+          grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
           this.$router.replace({ name: 'grafana-home' });
         }
         await this.$nextTick();
@@ -98,11 +111,12 @@ export default class MyComponent extends tsc<{}> {
       // );
     } else {
       const isFavorite = this.$route.name === 'favorite-dashboard';
-      this.grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${
+      grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${
         this.$store.getters.bizId
       }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
     }
+    return grafanaUrl;
   }
   getUrlParamsString() {
     const str = Object.entries({
@@ -217,7 +231,6 @@ export default class MyComponent extends tsc<{}> {
         v-monitor-loading='{ isLoading: loading }'
       >
         <iframe
-          key={`${this.url}__key`}
           onLoad={this.handleLoad}
           ref='iframe'
           class='grafana-wrap-frame'
