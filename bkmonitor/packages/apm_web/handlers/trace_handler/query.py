@@ -383,9 +383,13 @@ class QueryHandler:
         return OptionValues.get_option_values(option, start_time, end_time)
 
     @classmethod
-    def get_file_option_values(cls, bk_biz_id, app_name, fields, start_time, end_time):
-        # 使用预计算表查询 -> 补充前缀collections
-        option = TraceOptionValues(bk_biz_id, app_name)
+    def get_file_option_values(cls, bk_biz_id, app_name, fields, start_time, end_time, mode):
+        if mode == "pre_calculate":
+            # 使用预计算表查询 -> 补充前缀collections
+            option = TraceOptionValues(bk_biz_id, app_name)
+        else:
+            option = SpanOptionValues(bk_biz_id, app_name)
+
         fields = [f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{i}" for i in fields]
         response = OptionValues.get_field_option_values(option, fields, start_time, end_time)
         # 去除前缀
