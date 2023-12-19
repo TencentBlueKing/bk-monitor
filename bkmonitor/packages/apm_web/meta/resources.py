@@ -433,7 +433,7 @@ class SamplingOptionsResource(Resource):
     """获取采样配置常量"""
 
     def perform_request(self, validated_request_data):
-        sampling_types = [SamplerTypeChoices.RANDOM]
+        sampling_types = [SamplerTypeChoices.RANDOM, SamplerTypeChoices.EMPTY]
         res = {}
         if settings.IS_ACCESS_BK_DATA:
             # 标准字段常量 + 耗时字段
@@ -484,9 +484,15 @@ class SetupResource(Resource):
                 if attrs["sampler_type"] == SamplerTypeChoices.RANDOM:
                     if "random_percentage" not in attrs:
                         raise ValueError(_("随机采样未配置采集百分比"))
-                else:
+                elif attrs["sampler_type"] == SamplerTypeChoices.TAIL:
                     if "tail_percentage" not in attrs:
                         raise ValueError(f"尾部采样未配置采集百分比")
+                elif attrs["sampler_type"] == SamplerTypeChoices.EMPTY:
+                    # 不采样=100%随机采样
+                    return {
+                        "sampler_type": SamplerTypeChoices.RANDOM,
+                        "random_percentage": 100,
+                    }
 
                 return attr
 

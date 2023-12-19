@@ -374,12 +374,14 @@ class SamplerTypeChoices:
 
     RANDOM = "random"
     TAIL = "tail"
+    EMPTY = "empty"
 
     @classmethod
     def choices(cls):
         return [
             (cls.RANDOM, _("随机采样")),
             (cls.TAIL, _("尾部采样")),
+            (cls.EMPTY, _("不采样")),
         ]
 
 
