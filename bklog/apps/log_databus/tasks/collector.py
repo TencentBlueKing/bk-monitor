@@ -238,22 +238,20 @@ def get_biz_storage_capacity(bk_biz_id, cluster):
 
 @high_priority_task(ignore_result=True)
 def create_container_release(bcs_cluster_id: str, container_config_id: int, config_name: str, config_params: dict):
-    db_transaction_finished = False
     for __ in range(RETRY_TIMES):
         try:
             container_config: ContainerCollectorConfig = ContainerCollectorConfig.objects.get(pk=container_config_id)
             container_config.status = ContainerCollectStatus.RUNNING.value
             container_config.status_detail = _("配置下发中")
             container_config.save(update_fields=["status", "status_detail"])
-            db_transaction_finished = True
             break
         except ContainerCollectorConfig.objects.DoesNotExist:
             # db的事务可能还未结束，这里需要重试
             time.sleep(WAIT_FOR_RETRY)
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"[create_container_release] get container config failed: {e}")
-            break
-    if not db_transaction_finished:
+            raise e
+    else:
         logger.error(f"[create_container_release] retry container_config[{container_config_id}] {RETRY_TIMES} times")
         return
 
