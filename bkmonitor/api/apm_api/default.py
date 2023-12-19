@@ -360,3 +360,30 @@ class QueryDiscoverRules(ApmAPIGWResource):
 
     action = "/query_discover_rules/"
     method = "POST"
+
+
+class GetBkdataFlowDetail(ApmAPIGWResource):
+    """
+    获取Bkdata flow详情
+    """
+
+    action = "/get_bkdata_flow/"
+    method = "GET"
+
+
+class CreateOrUpdateBkdataFlow(ApmAPIGWResource):
+    """
+    创建/更新计算平台Flow
+    """
+
+    action = "/create_or_update_bkdata_flow/"
+    method = "POST"
+
+
+class OperateApmDataId(ApmAPIGWResource):
+    """
+    恢复/暂停APM中某个DataId的链路
+    """
+
+    action = "/operate_apm_dataid/"
+    method = "POST"

@@ -11,6 +11,11 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 
+from django.utils.translation import gettext_lazy as _lazy
+from django.utils.translation import ugettext as _
+from opentelemetry.semconv.resource import ResourceAttributes
+from rest_framework import serializers
+
 from apm_web.constants import (
     DEFAULT_DIFF_TRACE_MAX_NUM,
     CategoryEnum,
@@ -34,6 +39,7 @@ from apm_web.trace.serializers import (
     QueryStatisticsSerializer,
     SpanIdInputSerializer,
 )
+from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import (
     OtlpKey,
     PreCalculateSpecificField,
@@ -44,13 +50,7 @@ from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
-from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
 from monitor_web.statistics.v2.query import unify_query_count
-from opentelemetry.semconv.resource import ResourceAttributes
-from rest_framework import serializers
-
-from bkmonitor.utils.cache import CacheType, using_cache
 
 from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
@@ -409,7 +409,6 @@ class ListTraceResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
-
         params = {
             "bk_biz_id": data["bk_biz_id"],
             "app_name": data["app_name"],
@@ -773,11 +772,17 @@ class GetFieldOptionValuesResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        mode_choices = (
+            ("span", "span表查询"),
+            ("pre_calculate", "预计算表查询"),
+        )
+
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField(label="应用名称")
         start_time = serializers.IntegerField()
         end_time = serializers.IntegerField()
         fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
+        mode = serializers.ChoiceField(label="查询表", choices=mode_choices, default="pre_calculate")
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_request_data):
@@ -792,7 +797,6 @@ class ListSpanStatisticsResource(Resource):
     RequestSerializer = QueryStatisticsSerializer
 
     def perform_request(self, validated_data):
-
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
@@ -820,7 +824,6 @@ class ListServiceStatisticsResource(Resource):
     RequestSerializer = QueryStatisticsSerializer
 
     def perform_request(self, validated_data):
-
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
