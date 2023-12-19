@@ -26,7 +26,7 @@
 import { computed, defineComponent, onMounted, provide, reactive, readonly, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { Button, DatePicker, Input, Switcher, TagInput } from 'bkui-vue';
+import { Button, DatePicker, Input, Popover, Switcher, TagInput } from 'bkui-vue';
 import dayjs from 'dayjs';
 
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
@@ -90,6 +90,11 @@ export default defineComponent({
       effective: '',
       rotationType: ''
     });
+
+    /* 关联告警组数量 */
+    const userGroupsCount = ref(0);
+
+    const enabledDisabled = computed(() => !!id.value && formData.enabled && !!userGroupsCount.value);
 
     function handleEffectiveChange(val: string, type: 'startTime' | 'endTime') {
       formData.effective[type] = val;
@@ -299,6 +304,7 @@ export default defineComponent({
 
     function getData() {
       retrieveDutyRule(id.value).then(res => {
+        userGroupsCount.value = res.user_groups_count;
         rotationType.value = res.category;
         formData.name = res.name;
         formData.labels = res.labels;
@@ -383,6 +389,7 @@ export default defineComponent({
       previewData,
       getPreviewData,
       loading,
+      enabledDisabled,
       handleRotationTypeDataChange,
       handleSubmit,
       handleBack,
@@ -427,10 +434,24 @@ export default defineComponent({
             class='mt-24'
           >
             <div class='enabled-switch'>
-              <Switcher
-                theme='primary'
-                v-model={this.formData.enabled}
-              ></Switcher>
+              <Popover
+                placement='top'
+                arrow={true}
+                trigger={'hover'}
+                popoverDelay={[300, 0]}
+                disabled={!this.enabledDisabled}
+              >
+                {{
+                  default: () => (
+                    <Switcher
+                      theme='primary'
+                      v-model={this.formData.enabled}
+                      disabled={this.enabledDisabled}
+                    ></Switcher>
+                  ),
+                  content: () => <span>{this.t('存在关联的告警组')}</span>
+                }}
+              </Popover>
             </div>
           </FormItem>
           <FormItem
