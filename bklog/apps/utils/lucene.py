@@ -901,7 +901,13 @@ class LuceneCheckerBase(object):
                 return
         except Exception:
             pass
-        self.check_result.legal = self._check()
+        try:
+            self.check_result.legal = self._check()
+        except Exception:
+            self.check_result.fixable = False
+            self.check_result.legal = False
+            self.check_result.error = _("语法错误")
+            return
 
     def _check(self):
         """
