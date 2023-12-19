@@ -145,28 +145,37 @@ export default defineComponent({
       rotationTypeData[RotationTabTypeEnum.HANDOFF].forEach(item => {
         item.users.value.forEach(user => {
           const { groupType } = item.users;
-          if (user.value.length) {
-            user.orderIndex = orderIndex;
-            if (groupType === 'specified') {
-              orderIndex += 1;
-            } else {
-              // 自动分组，每一个人员都算一个颜色
-              orderIndex += user.value.length;
-            }
+          user.orderIndex = orderIndex;
+          if (groupType === 'specified') {
+            orderIndex += 1;
           } else {
-            // 没有选择人员复用上一个人员组颜色
-            user.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+            // 自动分组，每一个人员都算一个颜色
+            orderIndex += user.value.length;
           }
+          // if (user.value.length) {
+          //   user.orderIndex = orderIndex;
+          //   if (groupType === 'specified') {
+          //     orderIndex += 1;
+          //   } else {
+          //     // 自动分组，每一个人员都算一个颜色
+          //     orderIndex += user.value.length;
+          //   }
+          // } else {
+          //   // 没有选择人员复用上一个人员组颜色
+          //   user.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+          // }
         });
       });
       orderIndex = 0;
       rotationTypeData[RotationTabTypeEnum.REGULAR].forEach(item => {
-        if (item.users.length) {
-          item.orderIndex = orderIndex;
-          orderIndex += 1;
-        } else {
-          item.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
-        }
+        item.orderIndex = orderIndex;
+        orderIndex += 1;
+        // if (item.users.length) {
+        //   item.orderIndex = orderIndex;
+        //   orderIndex += 1;
+        // } else {
+        //   item.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+        // }
       });
     }
 
@@ -315,6 +324,37 @@ export default defineComponent({
       });
     }
 
+    /** 获取预览所需要的颜色列表 */
+    function getPreviewColorList() {
+      // 必须通过校验的规则且添加了人员
+      const orderIndex = [];
+      if (rotationType.value === RotationTabTypeEnum.REGULAR) {
+        rotationTypeData[rotationType.value].forEach(item => {
+          if (validFixedRotationData(item).success && item.users.length) orderIndex.push(item.orderIndex);
+        });
+      } else {
+        rotationTypeData[rotationType.value].forEach(item => {
+          if (validReplaceRotationData(item).success) {
+            const { value, groupType } = item.users;
+            value.forEach(user => {
+              // 手动分组且有人员，直接把orderIndex存入
+              if (groupType === 'specified') {
+                user.value.length && orderIndex.push(user.orderIndex);
+              } else {
+                value.forEach(user => {
+                  user.value.forEach((item, ind) => {
+                    // 自动分组，需要把每个人员的索引加上orderIndex再存入
+                    orderIndex.push(user.orderIndex + ind);
+                  });
+                });
+              }
+            });
+          }
+        });
+      }
+      return orderIndex.map(index => colorList.value[index]);
+    }
+
     /**
      * @description 获取预览数据
      */
@@ -331,7 +371,7 @@ export default defineComponent({
         previewData.value = setPreviewDataOfServer(
           dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
           autoOrders,
-          colorList.value
+          getPreviewColorList()
         );
       } else {
         const dutyParams = getParams();
@@ -345,7 +385,7 @@ export default defineComponent({
         previewData.value = setPreviewDataOfServer(
           dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
           autoOrders,
-          colorList.value
+          getPreviewColorList()
         );
       }
     }

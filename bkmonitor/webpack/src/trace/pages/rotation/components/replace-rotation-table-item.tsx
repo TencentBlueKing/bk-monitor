@@ -342,6 +342,10 @@ export default defineComponent({
         localValue.date.customWorkDays = [];
         handleEmitData();
       }
+      function handleDurationChange(duration: number) {
+        localValue.date.periodSettings.duration = duration || 1;
+        handleEmitData();
+      }
 
       return [
         <FormItem
@@ -408,7 +412,7 @@ export default defineComponent({
               v-model={localValue.date.periodSettings.duration}
               type='number'
               min={1}
-              onChange={handleEmitData}
+              onChange={handleDurationChange}
             />
             <Select
               v-model={localValue.date.periodSettings.unit}
