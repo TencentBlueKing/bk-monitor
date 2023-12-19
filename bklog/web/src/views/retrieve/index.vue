@@ -258,6 +258,30 @@ import CancelToken from 'axios/lib/cancel/CancelToken';
 import { updateTimezone } from '../../language/dayjs';
 import dayjs from 'dayjs';
 
+const currentTime = Math.floor(new Date().getTime() / 1000);
+const startTime = (currentTime - 15 * 60);
+const endTime = currentTime;
+const DEFAULT_RETRIEVE_PARAMS = {
+  keyword: '*', // 搜索关键字
+  start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
+  end_time: endTime, // 时间范围
+  host_scopes: { // ip 快选，modules 和 ips 只能修改其一，另一个传默认值
+    // 拓扑选择模块列表，单个模块格式 {bk_inst_id: 2000003580, bk_obj_id: 'module'}
+    modules: [],
+    // 手动输入 ip，多个 ip 用英文 , 分隔
+    ips: '',
+    // 目标节点
+    target_nodes: [],
+    // 目标节点类型
+    target_node_type: '',
+  },
+  ip_chooser: {},
+  addition: [],
+  begin: 0,
+  size: 500,
+  interval: 'auto', // 聚合周期
+};
+
 export default {
   name: 'Retrieve',
   components: {
@@ -275,9 +299,6 @@ export default {
   },
   mixins: [indexSetSearchMixin, tableRowDeepViewMixin],
   data() {
-    const currentTime = Math.floor(new Date().getTime() / 1000);
-    const startTime = (currentTime - 15 * 60);
-    const endTime = currentTime;
     return {
       hasAuth: false,
       isSearchAllowed: null, // true 有权限，false 无权限，null 未知权限
@@ -295,34 +316,9 @@ export default {
       indexSetList: [], // 索引集列表,
       datePickerValue: ['now-15m', 'now'], // 日期选择器
       retrievedKeyword: '*', // 记录上一次检索的关键字，避免输入框失焦时重复检索
-      retrieveParams: { // 检索参数
+      retrieveParams: {
         bk_biz_id: this.$store.state.bkBizId,
-        keyword: '*', // 搜索关键字
-        start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
-        end_time: endTime, // 时间范围
-        // ip 快选，modules 和 ips 只能修改其一，另一个传默认值
-        host_scopes: {
-          // 拓扑选择模块列表，单个模块格式 {bk_inst_id: 2000003580, bk_obj_id: 'module'}
-          modules: [],
-          // 手动输入 ip，多个 ip 用英文 , 分隔
-          ips: '',
-          // 目标节点
-          target_nodes: [],
-          // 目标节点类型
-          target_node_type: '',
-        },
-        // 新版ip-selector选值
-        ip_chooser: {},
-        // 过滤条件，可添加多个，每个过滤条件格式 {field: 'time', operator: 'is', value: 'xxx'}
-        // field 为过滤的字段
-        // operator 从接口获取，默认为 'is'
-        // value 为过滤字段对应的值，如果为多个用英文 , 分隔
-        addition: [],
-        // begin 和 size 类似分页，两者相加不能超过 10000
-        begin: 0,
-        size: 500,
-        // 聚合周期
-        interval: 'auto',
+        ...DEFAULT_RETRIEVE_PARAMS,
       },
       catchIpChooser: {}, // 条件里的ip选择器数据
       isFavoriteSearch: false, // 是否是收藏检索
@@ -707,6 +703,10 @@ export default {
       //     addition: []
       // })
       // 过滤相关
+      this.retrieveParams = {
+        bk_biz_id: this.$store.state.bkBizId,
+        ...DEFAULT_RETRIEVE_PARAMS,
+      };
       this.statisticalFieldsData = {};
       this.retrieveDropdownData = {};
       this.logList = [];
