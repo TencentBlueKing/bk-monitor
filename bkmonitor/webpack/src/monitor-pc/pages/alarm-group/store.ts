@@ -105,7 +105,8 @@ export default class TableStore {
         iss.push(searcOthers.some(name => (item.name as string).indexOf(name) > -1));
       }
       if (searchRules.length) {
-        iss.push(searchRules.some(id => item.duty_rules.map(d => String(d)).indexOf(id) > -1));
+        // iss.push(searchRules.some(id => item.duty_rules.map(d => String(d)).indexOf(id) > -1));
+        iss.push(searchRules.some(id => item.dutyRuleNames.some(d => d.name === id)));
       }
       return iss.length ? iss.some(is => is) : true;
     });
