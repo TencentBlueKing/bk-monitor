@@ -102,10 +102,9 @@ def sync_spaces():
             need_relate_space_uid: str = SpaceApi.gen_space_uid(
                 space_type=resource["resource_type"], space_id=resource["resource_id"]
             )
-            qs = Space.objects.filter(space_uid=need_relate_space_uid)
-            if not qs.exists():
+            need_relate_space_obj: Space = Space.objects.filter(space_uid=need_relate_space_uid).first()
+            if not need_relate_space_obj:
                 continue
-            need_relate_space_obj: Space = qs.first()
             properties = deepcopy(need_relate_space_obj.properties)
             properties["resources"].append({'resource_id': _space.space_id, 'resource_type': _space.space_type_id})
             need_relate_space_obj.properties = properties
