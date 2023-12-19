@@ -321,7 +321,8 @@ export function fixedRotationTransform(data, type) {
         workDays: item.duty_time?.[0]?.work_days || [],
         workDateRange: [],
         workTime: (item.duty_time?.[0]?.work_time || []).map(item => item.split('--')),
-        users: item.duty_users[0] || []
+        users: item.duty_users[0] || [],
+        orderIndex: 0
       };
       const dateRange = item.duty_time?.[0]?.work_date_range || [];
       if (dateRange.length) {

@@ -76,7 +76,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: dayjs().format('YYYY-MM-DD 00:00:00'),
+        startTime: dayjs().format('YYYY-MM-DD hh:mm:ss'),
         endTime: ''
       }
     });
@@ -157,6 +157,7 @@ export default defineComponent({
           }
         });
       });
+      orderIndex = 0;
       rotationTypeData[RotationTabTypeEnum.REGULAR].forEach(item => {
         if (item.users.length) {
           item.orderIndex = orderIndex;
@@ -169,7 +170,8 @@ export default defineComponent({
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
       rotationType.value = type;
-      previewData.value = [];
+      resetUsersColor();
+      getPreviewData();
     }
 
     function handleReplaceUserDrop() {
@@ -194,7 +196,7 @@ export default defineComponent({
      * 表单校验
      * @returns 是否校验成功
      */
-    function validate(type: 'submit' | 'preview' = 'submit') {
+    function validate() {
       let valid = true;
       // 清空错误信息
       Object.keys(errMsg).forEach(key => (errMsg[key] = ''));
@@ -210,14 +212,11 @@ export default defineComponent({
         errMsg.effective = effectiveValid.msg;
         valid = false;
       }
-      // 提交时才做规则名称校验
-      if (type === 'submit') {
-        // 规则名称
-        const nameValid = validName();
-        if (nameValid.err) {
-          errMsg.name = nameValid.msg;
-          valid = false;
-        }
+
+      const nameValid = validName();
+      if (nameValid.err) {
+        errMsg.name = nameValid.msg;
+        valid = false;
       }
 
       return valid;
@@ -318,7 +317,6 @@ export default defineComponent({
      * @description 获取预览数据
      */
     async function getPreviewData(init = false) {
-      validate('preview');
       if (init) {
         const params = {
           ...getPreviewParams(formData.effective.startTime),
