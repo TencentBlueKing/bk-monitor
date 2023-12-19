@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import abc
 from collections import defaultdict
-from typing import List, Dict, Callable
+from typing import List, Dict, Callable, Optional
 
 from django.utils.functional import cached_property
 
@@ -18,7 +18,10 @@ class SearchScope:
 
 
 class SearchResultItem:
-    def __init__(self, bk_biz_id: int, title: str, view: str, view_args: dict = None, is_collected: bool = False):
+    def __init__(
+            self, bk_biz_id: int, title: str, view: str, view_args: dict = None, is_collected: bool = False,
+            temp_share_url: Optional[str] = None
+    ):
         self.bk_biz_id = bk_biz_id
         self.title = title
         self.is_allowed = True
@@ -26,6 +29,7 @@ class SearchResultItem:
         self.view_args = view_args or {}
         self.bk_biz_name = str(self.bk_biz_id)
         self.is_collected = is_collected
+        self.temp_share_url = temp_share_url
 
     def to_dict(self):
         return {
@@ -36,6 +40,7 @@ class SearchResultItem:
             "view": self.view,
             "view_args": self.view_args,
             "is_collected": self.is_collected,
+            "temp_share_url": self.temp_share_url
         }
 
 
