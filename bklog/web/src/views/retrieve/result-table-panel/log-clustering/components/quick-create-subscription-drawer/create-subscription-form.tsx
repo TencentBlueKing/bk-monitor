@@ -180,11 +180,11 @@ class QuickCreateSubscription extends tsc<IProps> {
       index_set_id: '',
       // 需要从 slider 上进行转换
       pattern_level: '01',
-      log_display_count: 0,
-      year_on_year_hour: 0,
+      log_display_count: 30,
+      year_on_year_hour: 1,
       generate_attachment: true,
       // 展示范围，暂不需要？
-      is_show_new_pattern: false,
+      is_show_new_pattern: true,
       // 这个同比配置也不需要前端展示，暂不开放配置入口 （不用管）
       year_on_year_change: 'all',
     },
@@ -916,7 +916,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       v-model={this.isShowYOY}
                       theme='primary'
                       onChange={() => {
-                        if (!this.isShowYOY) this.formData.scenario_config.year_on_year_hour = 0;
+                        this.formData.scenario_config.year_on_year_hour = this.isShowYOY ? 1 : 0;
                       }}
                     ></bk-switcher>
                     <bk-select
@@ -928,6 +928,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {YOYList.map(item => {
                         return (
                           <bk-option
+                            v-show={this.isShowYOY && item.id !== 0}
                             id={item.id}
                             name={item.name}
                           ></bk-option>
@@ -1226,12 +1227,18 @@ class QuickCreateSubscription extends tsc<IProps> {
                       empty-text={this.$t('无匹配人员')}
                       tag-type='avatar'
                       style={{ width: '465px' }}
+                      on-change={v => {
+                        console.log('on-change', v);
+                      }}
+                      on-remove-selected={v => {
+                        console.log('on-remove-selected', v);
+                      }}
                       on-select-user={v => {
                         console.log('on-select-user', v);
                         const userChannel = this.formData.channels.find(item => item.channel_name === 'user');
-                        userChannel.subscribers = v.map(id => {
+                        userChannel.subscribers = v.map(item => {
                           return {
-                            id,
+                            id: item.username,
                             type: 'user',
                             is_enabled: true
                           }

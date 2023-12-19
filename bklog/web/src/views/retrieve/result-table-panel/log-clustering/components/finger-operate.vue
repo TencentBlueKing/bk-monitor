@@ -341,8 +341,8 @@ export default {
           index_set_id: this.$route.params.indexId,
         },
       }).then((response) => {
-        console.log('exist_susbcriptions', response);
-        this.isShowQuickCreateSubscriptionDrawer = !!response.length;
+        console.log(response, !!(response.data.length));
+        this.isCurrentIndexSetIdCreateSubscription = !!(response.data.length);
       })
         .catch(console.log);
     },
@@ -350,8 +350,11 @@ export default {
      * 空方法 checkReportIsExisted 的 debounce 版。
      */
     checkReportIsExistedDebounce() {},
+    /**
+     * 跳转到 监控下的 我的订阅
+     */
     goToMySubscription() {
-      console.log('goToMySubscription');
+      window.open(`${window.MONITOR_URL}/?isShowMySubscription=true`, '_blank');
     },
   },
 };
