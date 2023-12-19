@@ -30,7 +30,7 @@ import { SearchSelect } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 import { debounce } from 'throttle-debounce';
 
-import { destroyUserGroup, listUserGroup } from '../../../../monitor-api/modules/model';
+import { destroyUserGroup, listDutyRule, listUserGroup } from '../../../../monitor-api/modules/model';
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
@@ -101,6 +101,16 @@ export default class AlarmGroup extends tsc<IGroupList> {
       width: 200,
       props: {},
       formatter: () => {}
+    },
+    {
+      label: i18n.t('轮值规则'),
+      prop: 'duty_rules',
+      disabled: false,
+      checked: true,
+      minWidth: null,
+      width: 200,
+      props: {},
+      formatter: row => row.dutyRuleNames.map(item => item.name).join(',') || '--'
     },
     {
       label: i18n.t('说明'),
@@ -336,10 +346,26 @@ export default class AlarmGroup extends tsc<IGroupList> {
     const query = {
       type: this.type
     };
-    const data = await listUserGroup(query).catch(() => {
+    const ruleMap = new Map();
+    const ruleList = await listDutyRule().catch(() => []);
+    ruleList.forEach(r => {
+      ruleMap.set(r.id, r.name);
+    });
+    let data = await listUserGroup(query).catch(() => {
       this.emptyType = '500';
       return [];
     });
+    data = data.map(item => ({
+      ...item,
+      dutyRuleNames:
+        item.duty_rules?.map(d => {
+          const name = ruleMap.get(d) || '';
+          return {
+            id: d,
+            name
+          };
+        }) || []
+    }));
     if (!this.tableInstance) {
       this.tableInstance = new TableStore(data);
     } else {
@@ -347,12 +373,12 @@ export default class AlarmGroup extends tsc<IGroupList> {
       this.tableInstance.total = data.length;
     }
     this.tableInstance.page = 1;
-    if (!!this.$route.query?.dutyRuleId) {
-      const dutyId = this.$route.query.dutyRuleId;
+    if (!!this.$route.query?.dutyRule) {
+      const dutyId = this.$route.query.dutyRule;
       const searchCondition = [
         {
           id: 'rule',
-          name: window.i18n.t('轮值规则ID'),
+          name: window.i18n.t('轮值规则'),
           values: [{ id: dutyId, name: dutyId }]
         }
       ];
@@ -503,7 +529,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     id: 'name'
                   },
                   {
-                    name: this.$t('轮值规则ID'),
+                    name: this.$t('轮值规则'),
                     id: 'rule'
                   }
                 ]}
@@ -542,6 +568,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     {...{ props: item.props }}
                     width={item.width}
                     min-width={item.minWidth}
+                    show-overflow-tooltip={true}
                     formatter={item.formatter}
                   />
                 ))}
