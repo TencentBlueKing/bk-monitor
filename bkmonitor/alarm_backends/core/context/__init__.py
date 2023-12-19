@@ -35,6 +35,7 @@ from constants.action import (
     NoticeChannel,
     NoticeWay,
     NoticeWayChannel,
+    UserGroupType,
 )
 from constants.alert import EVENT_SEVERITY_DICT, EventSeverity
 
@@ -48,6 +49,7 @@ class ActionContext(object):
 
     Fields = [
         "notice_way",
+        "group_type",
         "notice_channel",
         "notice_receiver",
         "mentioned_users",
@@ -73,6 +75,7 @@ class ActionContext(object):
         "action",
         "action_instance",
         "action_instance_content",
+        "collect_ctx",
     ]
 
     DEFAULT_TITLE_TEMPLATE = "{{business.bk_biz_name}} - {{alarm.name}} {{alarm.display_type}}"
@@ -121,7 +124,7 @@ class ActionContext(object):
         notice_way=None,
         dynamic_kwargs=None,
     ):
-        self.action = action
+        self.action: ActionInstance = action
         self.user_content = ""
         self.limit = False
         self.converge_type = ConvergeType.ACTION
@@ -165,6 +168,23 @@ class ActionContext(object):
                 # 如果无法解析也获取不到，默认是用户渠道
                 channel = NoticeChannel.USER
         return channel, notice_way
+
+    @cached_property
+    def group_type(self):
+        """
+        是否为关注人
+        """
+
+        if self.action and self.action.inputs.get("followed"):
+            # 如果当前通知
+            return UserGroupType.FOLLOWER
+        return None
+
+    @cached_property
+    def group_notice_way(self):
+        if self.group_type:
+            return f"{self.group_type}-{self.notice_way}"
+        return self.notice_way
 
     @cached_property
     def mentioned_users(self):
@@ -346,6 +366,10 @@ class ActionContext(object):
         from .converge import Converge
 
         return Converge(self)
+
+    @cached_property
+    def collect_ctx(self):
+        return self.converge_context
 
     @cached_property
     def action_instance(self):

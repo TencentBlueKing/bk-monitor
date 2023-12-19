@@ -33,7 +33,6 @@ from constants.action import (
     ActionStatus,
     FailureType,
     IntervalNotifyMode,
-    NoticeChannel,
     NoticeWay,
 )
 from core.errors.alarm_backends import LockError
@@ -78,26 +77,16 @@ class ActionProcessor(BaseActionProcessor):
 
             voice_receivers = ",".join(self.notice_receivers)
             return {voice_receivers: self.action.id}
-        real_notice_way = self.notice_way
-        if self.context.get("notice_channel") not in NoticeChannel.DEFAULT_CHANNELS:
-            # 不在默认的渠道内，需要拼接渠道信息
-            real_notice_way = "{}|{}".format(self.context["notice_channel"], self.notice_way)
-        with service_lock(
-            FTA_NOTICE_COLLECT_LOCK,
-            **{
-                "notice_way": real_notice_way,
-                "action_signal": self.action.signal,
-                "alert_id": "_".join(self.action.alerts or []),
-            }
-        ):
+
+        collect_params = {
+            # 汇总
+            "notice_way": self.context["collect_ctx"].group_notice_way,
+            "action_signal": self.action.signal,
+            "alert_id": "_".join(self.action.alerts or []),
+        }
+        collect_key = FTA_NOTICE_COLLECT_KEY.get_key(**collect_params)
+        with service_lock(FTA_NOTICE_COLLECT_LOCK, **collect_params):
             client = FTA_NOTICE_COLLECT_KEY.client
-            collect_key = FTA_NOTICE_COLLECT_KEY.get_key(
-                **{
-                    "notice_way": real_notice_way,
-                    "action_signal": self.action.signal,
-                    "alert_id": "_".join(self.action.alerts or []),
-                }
-            )
             data: Dict[bytes, bytes] = client.hgetall(collect_key)
             if not data and self.action.is_parent_action is False:
                 logger.info("$%s have already finished, no data found in collect_key(%s)", self.action.id, collect_key)

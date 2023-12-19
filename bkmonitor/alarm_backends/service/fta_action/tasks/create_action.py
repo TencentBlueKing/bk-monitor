@@ -36,6 +36,7 @@ from constants.action import (
     ActionPluginType,
     ActionSignal,
     IntervalNotifyMode,
+    UserGroupType,
 )
 from constants.alert import EventSeverity, EventStatus, HandleStage
 from core.errors.alarm_backends import LockError
@@ -571,6 +572,7 @@ class CreateActionProcessor:
         alerts_assignee = {alert.id: alert.to_dict().get("assignee") or [] for alert in self.alerts}
         alerts_appointee = {alert.id: alert.to_dict().get("appointee") or [] for alert in self.alerts}
         alerts_supervisor = {alert.id: alert.to_dict().get("supervisor") or [] for alert in self.alerts}
+        alerts_follower = {alert.id: alert.to_dict().get("follower") or [] for alert in self.alerts}
         # 根据用户组信息获取人员
         alert_logs = []
         qos_alerts = []
@@ -585,12 +587,12 @@ class CreateActionProcessor:
             # 手动分派的情况下直接覆盖
             supervisors = []
             assignees = []
-            appointees = []
             if not assignee_manager.is_matched and not self.strategy_id:
                 # 第三方告警如果没有适配到的规则，直接忽略
                 continue
             if self.notice_type == ActionNoticeType.UPGRADE:
                 supervisors = assignee_manager.get_supervisors()
+                followers = assignee_manager.get_supervisors(user_type=UserGroupType.FOLLOWER)
                 if not supervisors:
                     logger.info("ignore to send supervise notice for alert(%s) due to empty supervisor", alert.id)
                     continue
@@ -601,12 +603,21 @@ class CreateActionProcessor:
                     continue
             else:
                 assignees = assignee_manager.get_assignees()
-                appointees = assignee_manager.get_appointees()
+                followers = assignee_manager.get_assignees(user_type=UserGroupType.FOLLOWER)
 
             # 对历史的内容需要去重
-            alerts_assignee[alert.id] = self.get_alert_related_users(assignees, alerts_assignee[alert.id])
-            alerts_appointee[alert.id] = self.get_alert_related_users(appointees, alerts_appointee[alert.id])
+            # TODO 需要确认告警通知人指的时候收集了所有接收到通知的总和吗？
+            alerts_assignee[alert.id] = self.get_alert_related_users(
+                assignees + followers + supervisors, alerts_assignee[alert.id]
+            )
+
+            # 告警负责人字段，替换为当前的负责人
+            alerts_appointee[alert.id] = assignees
+            # 告警知会人
             alerts_supervisor[alert.id] = self.get_alert_related_users(supervisors, alerts_supervisor[alert.id])
+
+            # 告警关注人
+            alerts_follower[alert.id] = followers
 
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))
@@ -650,7 +661,9 @@ class CreateActionProcessor:
         # 更新是否已经处理的状态至告警
         # 当前告警如果是降噪处理，也认为是已经处理，不需要创建任务出来
         is_handled = True if self.noise_reduce_result else bool(new_actions)
-        self.update_alert_documents(alerts_assignee, shield_ids, is_handled, alerts_appointee, alerts_supervisor)
+        self.update_alert_documents(
+            alerts_assignee, shield_ids, is_handled, alerts_appointee, alerts_supervisor, alerts_follower
+        )
         if qos_alerts:
             # 有qos处理记录， 这里只有可能是通知处理的
             alert_logs.append(Alert.create_qos_log(qos_alerts, current_qos_count, len(qos_alerts)))
@@ -675,7 +688,9 @@ class CreateActionProcessor:
             alert_users.extend([man for man in users if man not in alert_users])
         return alert_users
 
-    def update_alert_documents(self, alerts_assignee, shield_ids, is_handled, alerts_appointee, alerts_supervisor):
+    def update_alert_documents(
+        self, alerts_assignee, shield_ids, is_handled, alerts_appointee, alerts_supervisor, alerts_follower
+    ):
         """
         更新告警内容
         :param alerts_appointee: 告警负责人
@@ -696,6 +711,7 @@ class CreateActionProcessor:
                 severity=alert.severity,
                 assignee=alerts_assignee[alert.id],
                 appointee=alerts_appointee[alert.id],
+                follower=alerts_follower[alert.id],
                 supervisor=alerts_supervisor[alert.id],
                 extra_info=alert.extra_info,
                 assign_tags=alert.assign_tags,
@@ -795,11 +811,17 @@ class CreateActionProcessor:
             logger.error("Get alert level failed: %s, alerts: %s", str(error), alert.alert_name)
         if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
             is_parent_action = True
-            if self.notice_type == ActionNoticeType.UPGRADE:
-                notify_info = assignee_manager.get_upgrade_notify_info()
-            else:
-                notify_info = assignee_manager.get_notify_info()
+            notify_info = assignee_manager.get_notify_info()
+            follow_notify_info = assignee_manager.get_notify_info(user_type=UserGroupType.FOLLOWER)
             inputs["notify_info"] = notify_info
+            # 如果当前用户即是负责人，又是通知人, 需要进行去重, 以通知人wei zhun
+            for notice_way, receivers in follow_notify_info.items():
+                valid_receivers = [
+                    receiver for receiver in receivers if receiver not in notify_info.get(notice_way, [])
+                ]
+                follow_notify_info[notice_way] = valid_receivers
+
+            inputs["follow_notify_info"] = follow_notify_info
         try:
             # TODO: 如果有更多的处理场景，需要将二次确认的处理提到更前端
             DoubleCheckHandler(alert).handle(inputs)
