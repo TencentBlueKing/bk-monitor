@@ -176,7 +176,7 @@ class MyApply extends tsc<{}> {
             label={this.$t('当前步骤')}
             scopedSlots={{
               default: ({ row }) => {
-                return <div>{row.approval_step[0].name}</div>;
+                return <div>{row.approval_step[0]?.name || '--'}</div>;
               }
             }}
           ></bk-table-column>
