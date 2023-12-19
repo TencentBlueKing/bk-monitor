@@ -62,6 +62,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               theme: 'success',
               message: this.$t('保存成功'),
             });
+            this.$emit('change', false);
           })
           .catch(console.log)
           .finally(() => {
@@ -96,7 +97,9 @@ class QuickCreateSubscription extends tsc<IProps> {
       console.log(tempFormData);
     }
     this.isSending = true;
-    await this.$http.request('newReport/sendReport/', formData)
+    await this.$http.request('newReport/sendReport/', {
+      data: formData
+    })
       .then(() => {
         this.$bkMessage({
           theme: 'success',
