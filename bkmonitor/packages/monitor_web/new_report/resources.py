@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 import logging
 from collections import defaultdict
-from datetime import datetime
 from urllib.parse import urljoin
 
 import arrow
@@ -190,7 +189,7 @@ class GetReportListResource(Resource):
             reverse_order = True
             order = order[1:]  # 去掉负号
 
-        sorted_reports = sorted(reports, key=lambda x: x[order] or datetime.min, reverse=reverse_order)
+        sorted_reports = sorted(reports, key=lambda x: arrow.get(x[order]).timestamp or 0, reverse=reverse_order)
         return sorted_reports
 
     def fill_external_info(self, reports, external_filter_dict, report_channels_map, last_send_record_map):

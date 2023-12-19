@@ -83,7 +83,7 @@ class Report(AbstractRecordModel):
 
     def is_invalid(self):
         now_timestamp = arrow.now().timestamp
-        if now_timestamp > self.end_time or now_timestamp < self.start_time:
+        if now_timestamp > self.end_time:
             return True
         return False
 
