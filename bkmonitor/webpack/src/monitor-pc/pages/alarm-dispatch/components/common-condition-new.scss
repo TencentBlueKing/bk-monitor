@@ -205,6 +205,18 @@
   }
 
   .line-wrap {
+    &.add-type {
+      cursor: pointer;
+    }
+
+    &:hover {
+      .tag-add {
+        .icon-plus-line {
+          color: #3a84ff;
+        }
+      }
+    }
+
     .tag-add {
       &.active {
         display: block;
@@ -260,6 +272,10 @@
 
 .common-condition-component-pop-wrap {
   border: 1px solid #dcdee5;
+
+  &.key-type {
+    width: 284px;
+  }
 
   .search-wrap {
     input { 
