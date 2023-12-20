@@ -129,17 +129,6 @@ CONVERGE_DIMENSION = {
 }
 
 ALL_CONVERGE_DIMENSION = {
-    # "bk_set_ids": _lazy("集群"),
-    # "bk_module_ids": _lazy("模块"),
-    # "bk_host_id": _lazy("主机"),
-    # "rack_id": _lazy("机架"),
-    # "net_device_id": _lazy("交换机"),
-    # "idc_unit_name": _lazy("机房"),
-    # "process": _lazy("进程名称"),
-    # "port": _lazy("端口"),
-    # "alarm_attr_id": _lazy("告警特性"),
-    # "target": _lazy("目标"),
-    # "action_id": _lazy("自愈套餐"),
     "dimensions": _lazy("维度"),
     "strategy_id": _lazy("策略"),
     "alert_name": _lazy("告警名称"),
@@ -148,6 +137,7 @@ ALL_CONVERGE_DIMENSION = {
     "signal": _lazy("告警信号"),
     "notice_receiver": _lazy("通知人员"),
     "notice_way": _lazy("通知方式"),
+    "group_notice_way": _lazy("带组员类型的通知方式"),
     "alert_info": _lazy("告警信息"),
     "notice_info": _lazy("通知信息"),
     "action_info": _lazy("告警套餐信息"),
@@ -165,6 +155,7 @@ SUB_CONVERGE_DIMENSION = {
     "signal": _lazy("告警信号"),
     "notice_receiver": _lazy("通知人员"),
     "notice_way": _lazy("通知方式"),
+    "group_notice_way": _lazy("带组员类型的通知方式"),
 }
 
 # 默认的通知关联关系
@@ -672,6 +663,17 @@ class NoticeType:
 
     ALERT_NOTICE = "alert_notice"
     ACTION_NOTICE = "action_notice"
+
+
+class UserGroupType:
+    """
+    通知组用户的类型
+    """
+
+    MAIN = "main"
+    FOLLOWER = "follower"
+
+    CHOICE = [(MAIN, "负责人"), (FOLLOWER, "负责人")]
 
 
 class MessageQueueSignal:

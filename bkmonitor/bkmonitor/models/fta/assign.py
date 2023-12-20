@@ -14,6 +14,7 @@ from django.utils.translation import ugettext as _
 
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils.model_manager import AbstractRecordModel
+from constants.action import UserGroupType
 
 
 class AlertAssignGroup(AbstractRecordModel):
@@ -59,7 +60,8 @@ class AlertAssignRule(models.Model):
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     event_source = models.JSONField("告警来源", default=list)
     scenario = models.JSONField("监控对象", default=list)
-    user_groups = models.JSONField("用户组", default=list, blank=False)
+    user_groups = models.JSONField("负责人用户组", default=list)
+    user_type = models.CharField("人员类型", default=UserGroupType.MAIN, choices=UserGroupType.CHOICE, max_length=32)
     conditions = models.JSONField("条件组", default=list)
     actions = models.JSONField("处理事件", default=list)
     is_enabled = models.BooleanField("是否启用", default=False)

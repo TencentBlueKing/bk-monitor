@@ -8,7 +8,7 @@ import typing
 from collections import defaultdict
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, Callable, Dict, List, Optional, Tuple, Set
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import arrow
 from django.conf import settings
@@ -57,6 +57,7 @@ from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import (
+    DATALINK_SOURCE,
     SPLIT_DIMENSIONS,
     AdvanceConditionMethod,
     DataTarget,
@@ -222,14 +223,14 @@ class GetStrategyListV2Resource(Resource):
                     data_sources.append((category["data_source_label"], category["data_type_label"]))
                     break
             if not data_sources:
-                filter_strategy_ids_set.intersection_update(set([]))
+                filter_strategy_ids_set.intersection_update(set())
             else:
                 data_source_strategy_ids = (
                     QueryConfigModel.objects.filter(
                         reduce(
                             lambda x, y: x | y, [Q(data_source_label=ds, data_type_label=dt) for ds, dt in data_sources]
                         ),
-                        strategy_id__in=filter_strategy_ids_set
+                        strategy_id__in=filter_strategy_ids_set,
                     )
                     .values_list("strategy_id", flat=True)
                     .distinct()
@@ -272,8 +273,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["algorithm_type"]:
             algorithm_strategy_ids = (
                 AlgorithmModel.objects.filter(
-                    type__in=filter_dict["algorithm_type"],
-                    strategy_id__in=filter_strategy_ids_set
+                    type__in=filter_dict["algorithm_type"], strategy_id__in=filter_strategy_ids_set
                 )
                 .values_list("strategy_id", flat=True)
                 .distinct()
@@ -286,8 +286,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["invalid_type"]:
             algorithm_strategy_ids = (
                 StrategyModel.objects.filter(
-                    invalid_type__in=filter_dict["invalid_type"],
-                    id__in=filter_strategy_ids_set
+                    invalid_type__in=filter_dict["invalid_type"], id__in=filter_strategy_ids_set
                 )
                 .values_list("id", flat=True)
                 .distinct()
@@ -296,7 +295,7 @@ class GetStrategyListV2Resource(Resource):
 
     @classmethod
     def filter_strategy_ids_by_event_group(
-            cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
+        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: Optional[str] = None
     ):
         """过滤自定义事件组ID"""
         if filter_dict["custom_event_group_id"] or filter_dict["bk_event_group_id"]:
@@ -388,8 +387,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["metric_id"]:
             metric_strategy_ids = set(
                 QueryConfigModel.objects.filter(
-                    metric_id__in=filter_dict["metric_id"],
-                    strategy_id__in=filter_strategy_ids_set
+                    metric_id__in=filter_dict["metric_id"], strategy_id__in=filter_strategy_ids_set
                 )
                 .values_list("strategy_id", flat=True)
                 .distinct()
@@ -402,8 +400,7 @@ class GetStrategyListV2Resource(Resource):
         if filter_dict["uptime_check_task_id"]:
             filter_dict["uptime_check_task_id"] = [str(task_id) for task_id in filter_dict["uptime_check_task_id"]]
             uptime_check_query_configs = QueryConfigModel.objects.filter(
-                metric_id__startswith="bk_monitor.uptimecheck.",
-                strategy_id__in=filter_strategy_ids_set
+                metric_id__startswith="bk_monitor.uptimecheck.", strategy_id__in=filter_strategy_ids_set
             )
 
             uptime_check_strategy_ids = set()
@@ -426,8 +423,7 @@ class GetStrategyListV2Resource(Resource):
         """过滤告警级别"""
         if filter_dict["level"]:
             level_strategy_ids = DetectModel.objects.filter(
-                strategy_id__in=filter_strategy_ids_set,
-                level__in=filter_dict["level"]
+                strategy_id__in=filter_strategy_ids_set, level__in=filter_dict["level"]
             ).values_list('strategy_id', flat=True)
             filter_strategy_ids_set.intersection_update(set(level_strategy_ids))
 
@@ -496,8 +492,7 @@ class GetStrategyListV2Resource(Resource):
             (cls.filter_strategy_ids_by_plugin_id, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
             (cls.filter_strategy_ids_by_metric_id, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_uct_id, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set))
-
+            (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set)),
         ]
         for filter_method, args in filter_methods:
             filter_method(*args)
@@ -527,8 +522,7 @@ class GetStrategyListV2Resource(Resource):
                     result_table_id_strategy_ids.extend(
                         list(
                             QueryConfigModel.objects.filter(
-                                config__result_table_id=query,
-                                strategy_id__in=filter_strategy_ids_set
+                                config__result_table_id=query, strategy_id__in=filter_strategy_ids_set
                             )
                             .values_list("strategy_id", flat=True)
                             .distinct()
@@ -1132,6 +1126,7 @@ class GetStrategyListV2Resource(Resource):
             data_source_label = strategy_config["items"][0]["query_configs"][0]["data_source_label"]
             data_type_label = strategy_config["items"][0]["query_configs"][0]["data_type_label"]
             strategy_config["data_source_type"] = data_source_names.get((data_source_label, data_type_label), "")
+            strategy_config["edit_allowed"] = False if strategy_config["source"] == DATALINK_SOURCE else True
 
         return {
             "scenario_list": scenario_list,

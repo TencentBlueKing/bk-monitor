@@ -13,10 +13,10 @@ import logging
 from typing import List
 
 from django.utils.functional import cached_property
-from utils import count_md5
 
 from bkmonitor.models import ActionInstance
-from constants.action import NoticeChannel
+from constants.action import NoticeChannel, NoticeWay
+from utils import count_md5
 
 from . import BaseContextObject
 
@@ -129,7 +129,25 @@ class Converge(BaseContextObject):
         """
         接收人
         """
+        if self.notice_way == NoticeWay.VOICE:
+            return ",".join(self.parent.action.inputs.get("notice_receiver", []))
         return self.parent.notice_receiver
+
+    @cached_property
+    def user_type(self):
+        """
+        对应用户组的类型：关注人或者None
+        """
+        return self.parent.user_type
+
+    @cached_property
+    def group_notice_way(self):
+        """
+        带用户类型的通知方法，包含了用户组的信息
+        """
+        if self.user_type:
+            return f"{self.user_type}_{self.notice_way}"
+        return self.notice_way
 
     @cached_property
     def notice_info(self):
