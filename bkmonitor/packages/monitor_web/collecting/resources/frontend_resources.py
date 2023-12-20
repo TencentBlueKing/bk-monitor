@@ -11,10 +11,6 @@ specific language governing permissions and limitations under the License.
 from functools import partial
 
 from django.utils.translation import ugettext as _
-from monitor_web.collecting.constant import CollectStatus, OperationType
-from monitor_web.commons.cc.utils import foreach_topo_tree
-from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
-from monitor_web.plugin.constant import PluginType
 
 from bkmonitor.commons.tools import get_host_view_display_fields
 from bkmonitor.views import serializers
@@ -22,6 +18,10 @@ from constants.cmdb import TargetNodeType
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.errors.collecting import CollectConfigNotExist
+from monitor_web.collecting.constant import CollectStatus, OperationType
+from monitor_web.commons.cc.utils import foreach_topo_tree
+from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
+from monitor_web.plugin.constant import PluginType
 
 
 class FrontendCollectConfigDetailResource(Resource):
@@ -65,7 +65,7 @@ class FrontendCollectConfigDetailResource(Resource):
             runtime_params.append(
                 {
                     "name": item["description"] or item["name"],
-                    "value": config_detail["params"][item["mode"]][item["name"]],
+                    "value": config_detail["params"][item["mode"]].get(item["name"], item["default"]),
                     "type": item["type"],
                 }
             )
