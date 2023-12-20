@@ -8,38 +8,38 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
 import time
-from typing import List
+from typing import List, Optional
 
 from django.conf import settings
 
-from alarm_backends.cluster import Cluster, RoutingRule, TargetType
+from alarm_backends.cluster import Cluster, TargetType
 
-_cluster = None
+logger = logging.getLogger("alarm_backends")
+
+_cluster: Optional[Cluster] = None
 _cluster_cache_timestamp = 0
+CACHE_UPDATE_INTERVAL = 120
 
 
 def get_cluster() -> Cluster:
     """
     获取集群配置
     """
-    global _cluster
-    if _cluster is None or _cluster_cache_timestamp < time.time() - 60:
-        routing_rules = [
-            RoutingRule(
-                cluster_name=rule["cluster_name"],
-                target_type=rule["target_type"],
-                matcher_type=rule["matcher_type"],
-                matcher_config=rule["matcher_config"],
-            )
-            for rule in settings.ALARM_BACKEND_CLUSTER_ROUTING_RULES
-        ]
+    global _cluster, _cluster_cache_timestamp
+    if _cluster is None:
         _cluster = Cluster(
             name=settings.ALARM_BACKEND_CLUSTER_NAME,
             code=settings.ALARM_BACKEND_CLUSTER_CODE,
             tags={},
-            routing_rules=routing_rules,
         )
+    elif _cluster_cache_timestamp < time.time() - CACHE_UPDATE_INTERVAL:
+        try:
+            _cluster.get_match_config()
+        except (TypeError, ValueError, KeyError) as e:
+            logger.exception("get cluster config error: %s", e)
+    _cluster_cache_timestamp = time.time() // CACHE_UPDATE_INTERVAL * CACHE_UPDATE_INTERVAL
     return _cluster
 
 

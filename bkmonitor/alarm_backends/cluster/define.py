@@ -9,12 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import enum
-import json
 import logging
+import re
 from collections import defaultdict
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
-from bkmonitor.utils.range import load_agg_condition_instance
+from bkmonitor.models import AlarmClusterTargetRelation
 
 logger = logging.getLogger(__name__)
 
@@ -22,59 +22,6 @@ logger = logging.getLogger(__name__)
 # 处理目标类型枚举
 class TargetType(enum.Enum):
     biz = "biz"
-    alert_data_id = "alert_data_id"
-
-
-class RoutingRule:
-    """
-    路由规则定义
-    """
-
-    target_type: TargetType
-    cluster_name: str
-    matcher_type: str
-    matcher_config: Union[Dict, List]
-    description: str
-
-    def __init__(
-        self,
-        target_type: Union[TargetType, str],
-        cluster_name: str,
-        matcher_type: str,
-        matcher_config: Optional[Union[Dict, List]],
-        description: str = "",
-    ):
-        if isinstance(target_type, str):
-            target_type = target_type.lower()
-            if not hasattr(TargetType, target_type):
-                raise ValueError(f"invalid target_type: {target_type}")
-            self.target_type = TargetType[target_type]
-        else:
-            self.target_type = target_type
-
-        self.cluster_name = Cluster.check_name(cluster_name)
-        self.matcher_type = matcher_type
-        self.matcher_config = matcher_config
-        self.description = description
-
-    def match(self, target: Union[str, int, float]) -> bool:
-        """
-        判断目标是否匹配当前路由规则
-        """
-        matcher_cls = _MATCHERS.get(self.matcher_type)
-        if matcher_cls:
-            matcher = matcher_cls(self.matcher_config)
-            try:
-                return matcher.match(target)
-            except Exception as e:
-                logger.exception(f"match target {target} with rule {self} failed: {e}")
-        return False
-
-    def __repr__(self):
-        return (
-            f"<RoutingRule: {self.target_type}, {self.cluster_name}, "
-            f"{self.matcher_type}, {json.dumps(self.matcher_config)}>"
-        )
 
 
 class Cluster:
@@ -82,43 +29,53 @@ class Cluster:
     集群定义
     """
 
-    def __init__(
-        self,
-        name: str,
-        code: Union[int, str],
-        tags: Dict[str, str],
-        routing_rules: List[RoutingRule],
-        description: str = "",
-    ):
+    def __init__(self, name: str, code: Union[int, str], tags: Dict[str, str], description: str = ""):
         """
         :param name: 集群名称
         :param code: 集群编码(4位的数字)
         :param tags: 集群标签
-        :param routing_rules: 路由规则
         :param description: 集群描述
         """
         self.name = self.check_name(name)
         self.code = str(int(code)).zfill(4)
         self.tags = tags
         self.description = description
-        self.routing_rules = []
-        self.routing_rules.extend(routing_rules or [])
 
-        self.routing_rules_by_type: Dict[TargetType, List[RoutingRule]] = defaultdict(list)
-        for rule in self.routing_rules:
-            self.routing_rules_by_type[rule.target_type].append(rule)
+        # 精确匹配关系: {"biz": {"cluster1": ["1", "2"], "cluster2": ["3", "4"]}}
+        self.exact_match_configs = defaultdict(dict)
 
-        # 业务目标类型的路由规则必须有一个 true 的匹配器
-        biz_routing_rules = self.routing_rules_by_type[TargetType.biz]
-        if len(biz_routing_rules) == 0 or biz_routing_rules[-1].matcher_type != "true":
-            self.routing_rules_by_type[TargetType.biz].append(
-                RoutingRule(
-                    target_type=TargetType.biz,
-                    cluster_name="default",
-                    matcher_type="true",
-                    matcher_config=None,
-                )
-            )
+        # 目标匹配关系: {"biz": [{"cluster_name": "default", "pattern": ""}]}
+        self.regex_match_configs = defaultdict(list)
+
+        # 目标匹配缓存
+        self.target_match_cache = defaultdict(dict)
+
+    def get_match_config(self):
+        """
+        获取集群目标关系
+        """
+        queryset = AlarmClusterTargetRelation.objects.all()
+        exact_match_configs = defaultdict(dict)
+        regex_match_configs = defaultdict(list)
+
+        for relation in queryset:
+            if relation.match_type == "exact":
+                exact_match_configs[relation.target_type][relation.cluster_name] = set(map(str, relation.match_config))
+            elif relation.match_type == "regex":
+                for match_config in relation.match_config:
+                    regex_match_configs[relation.target_type].append(
+                        {
+                            "cluster_name": match_config["cluster_name"],
+                            "pattern": re.compile(match_config["pattern"]) if match_config["pattern"] else None,
+                        }
+                    )
+
+        # 为每个目标类型添加默认集群
+        for target_type in regex_match_configs:
+            regex_match_configs[target_type].append({"cluster_name": "default", "pattern": None})
+
+        self.exact_match_configs = exact_match_configs
+        self.regex_match_configs = regex_match_configs
 
     @classmethod
     def check_name(cls, name: str) -> str:
@@ -147,22 +104,24 @@ class Cluster:
         """
         判断目标是否匹配当前集群
         """
-        # 获取目标类型对应的路由规则
-        routing_rules = self.routing_rules_by_type[target_type]
+        target = str(target)
 
-        # 按顺序遍历路由规则，如果匹配上就返回 True，否则返回 False
-        for rule in routing_rules:
-            # 如果不是当前集群的规则，没匹配上就继续，匹配上就表示目标不属于当前集群
-            if rule.cluster_name != self.name:
-                if not rule.match(target):
-                    continue
-                else:
-                    return False
+        # 精确匹配
+        if target in self.exact_match_configs[target_type].get(self.name, set()):
+            return True
 
-            # 如果是当前集群的规则，匹配上就表示目标属于当前集群
-            if rule.match(target):
+        # 正则匹配
+        for match_config in self.regex_match_configs[target_type]:
+            if match_config["cluster_name"] != self.name:
+                continue
+
+            # 如果pattern为空，则匹配所有目标
+            if not match_config["pattern"]:
                 return True
 
+            # 如果pattern不为空，则匹配pattern
+            if match_config["pattern"].match(target):
+                return True
         return False
 
     def filter(self, target_type: TargetType, targets: List[Union[str, int, float]]) -> List[Union[str, int, float]]:
@@ -171,96 +130,52 @@ class Cluster:
         """
         return [target for target in targets if self.match(target_type, target)]
 
-    def get_targets_by_cluster(
-        self, target_type: TargetType, targets: List[Union[str, int, float]]
-    ) -> Dict[str, List[Union[str, int, float]]]:
+    # 将目标分配到集群
+    def assign_exact(self, target_type: TargetType, targets: List[Union[str, int, float]]) -> List[str]:
         """
-        将目标按照集群进行分组
+        将目标分配到集群
         """
-        targets_by_cluster = defaultdict(list)
-        for target in targets:
-            for rule in self.routing_rules_by_type[target_type]:
-                if rule.match(target):
-                    targets_by_cluster[rule.cluster_name].append(target)
-                    break
-        return targets_by_cluster
+        assigned = False
+        cleaned_clusters = []
+        for relation in AlarmClusterTargetRelation.objects.filter(target_type=target_type.value, match_type="exact"):
+            if relation.cluster_name == self.name:
+                len_before = len(relation.match_config)
+                relation.match_config = list(set(relation.match_config) | set(targets))
+                assigned = True
+            else:
+                len_before = len(relation.match_config)
+                relation.match_config = list(set(relation.match_config) - set(targets))
 
+            if len_before != len(relation.match_config):
+                # 记录清理过的集群
+                if relation.cluster_name != self.name:
+                    cleaned_clusters.append(relation.cluster_name)
 
-# 匹配器注册表
-_MATCHERS = {}
+                if not relation.match_config:
+                    relation.delete()
+                else:
+                    relation.save()
 
+        # 如果没有匹配到集群，则创建新的集群规则
+        if not assigned:
+            AlarmClusterTargetRelation.objects.create(
+                target_type=target_type.value,
+                match_type="exact",
+                cluster_name=self.name,
+                match_config=targets,
+            )
+        return cleaned_clusters
 
-# 匹配器注册装饰器
-def matcher_register():
-    def wrapper(cls: Matcher):
-        _MATCHERS[cls.type] = cls
-        return cls
-
-    return wrapper
-
-
-class Matcher:
-    """
-    匹配器基类
-    """
-
-    type: str
-
-    def __init__(self, config: Optional[Union[Dict, List]] = None):
-        self.config = config
-
-    def match(self, target: Union[str, int, float]) -> bool:
+    @classmethod
+    def assign_regex(cls, target_type: TargetType, match_configs: List[Dict[str, str]]):
         """
-        判断目标是否匹配当前路由规则
+        设置目标匹配规则
         """
-        raise NotImplementedError
-
-
-@matcher_register()
-class TrueMatcher(Matcher):
-    """
-    总是返回 True 的匹配器
-    """
-
-    type = "true"
-
-    def match(self, target: Union[str, int, float]) -> bool:
-        """
-        判断目标是否匹配当前路由规则
-        """
-        return True
-
-
-@matcher_register()
-class FalseMatcher(Matcher):
-    """
-    总是返回 False 的匹配器
-    """
-
-    type = "false"
-
-    def match(self, target: Union[str, int, float]) -> bool:
-        """
-        判断目标是否匹配当前路由规则
-        """
-        return False
-
-
-@matcher_register()
-class ConditionMatcher(Matcher):
-    """
-    条件匹配器
-    """
-
-    type = "condition"
-
-    def match(self, target: Union[str, int, float]) -> bool:
-        """
-        判断目标是否匹配当前路由规则
-        """
-
-        for sub_config in self.config:
-            sub_config["key"] = "value"
-
-        condition = load_agg_condition_instance(self.config)
-        return condition.is_match({"value": target})
+        for match_config in match_configs:
+            if "cluster_name" not in match_config or "pattern" not in match_config:
+                raise ValueError("invalid match_config: %s" % match_config)
+        AlarmClusterTargetRelation.objects.update_or_create(
+            target_type=target_type.value,
+            match_type="regex",
+            defaults={"cluster_name": "", "match_config": match_configs},
+        )

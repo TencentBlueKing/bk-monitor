@@ -285,6 +285,12 @@ class StatisticsMetricAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 
+class AlarmClusterTargetRelationAdmin(admin.ModelAdmin):
+    list_display = ("cluster_name", "target_type", "match_type")
+    search_fields = ("cluster_name", "target_type")
+    list_filter = ("cluster_name", "target_type")
+
+
 admin.site.register(models.Strategy, StrategyAdmin)
 admin.site.register(models.Item, ItemAdmin)
 admin.site.register(models.ResultTableSQLConfig, ResultTableSQLConfigAdmin)
@@ -315,6 +321,7 @@ admin.site.register(models.DetectModel, models.DetectModelAdmin)
 admin.site.register(models.StrategyHistoryModel, models.StrategyHistoryModelAdmin)
 admin.site.register(models.ApiAuthToken, ApiAuthTokenAdmin)
 admin.site.register(models.StatisticsMetric, StatisticsMetricAdmin)
+admin.site.register(models.AlarmClusterTargetRelation, AlarmClusterTargetRelationAdmin)
 
 
 # 因为配置admin界面时，list_display, search_fields, list_filter 都是全部字段中排除效果不好的几个，
