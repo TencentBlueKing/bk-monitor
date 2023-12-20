@@ -1492,6 +1492,11 @@ class Strategy(AbstractConfig):
         priority = serializers.IntegerField(min_value=0, required=False, default=None, max_value=10000, allow_null=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
 
+        def validate_name(self, value):
+            if value.startswith("集成内置") or value.startswith("Datalink BuiltIn"):
+                raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
+            return value
+
     def __init__(
         self,
         bk_biz_id: int,
