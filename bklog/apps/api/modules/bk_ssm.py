@@ -20,7 +20,7 @@ from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request_with_app_info
+from apps.api.modules.utils import add_esb_info_before_request
 from config.domains import BK_SSM_ROOT
 
 
@@ -33,5 +33,5 @@ class _BkSSM:
             url=f"{settings.BK_SSM_HOST}access-tokens" if settings.IS_K8S_DEPLOY_MODE else BK_SSM_ROOT,
             module=self.MODULE,
             description=_("获取access_token"),
-            before_request=add_esb_info_before_request_with_app_info,
+            before_request=add_esb_info_before_request,
         )

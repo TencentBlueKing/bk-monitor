@@ -173,11 +173,6 @@ else:
         params["uin"] = params["bk_username"]
         return params
 
-    def add_esb_info_before_request_with_app_info(params):
-        params = add_esb_info_before_request(params)
-        params = add_app_info_before_request(params)
-        return params
-
     def add_esb_info_before_request_for_bkdata_token(params):  # pylint: disable=function-name-too-long
         req = get_request()
         skip_check = getattr(req, "skip_check", False)
