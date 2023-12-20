@@ -107,10 +107,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
       prop: 'duty_rules',
       disabled: false,
       checked: true,
-      minWidth: null,
-      width: 200,
+      minWidth: 200,
+      width: null,
       props: {},
-      formatter: row => row.dutyRuleNames.map(item => item.name).join(',') || '--'
+      // formatter: row => row.dutyRuleNames.map(item => item.name).join(',') || '--'
+      formatter: row => this.dutyRulesRender(row.dutyRuleNames)
     },
     {
       label: i18n.t('说明'),
@@ -491,6 +492,30 @@ export default class AlarmGroup extends tsc<IGroupList> {
     this.tableSize = size;
   }
 
+  dutyRulesRender(rules) {
+    return rules?.length ? (
+      <div class='col-rules'>
+        <div
+          class='col-rules-wrap'
+          v-bk-tooltips={{
+            placements: ['top-start'],
+            boundary: 'window',
+            content: () => rules.map(item => item.name).join('、'),
+            delay: 200
+          }}
+        >
+          {rules.map(item => (
+            <span class='wrap-label'>
+              <span class='text-overflow'>{item.name}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    ) : (
+      '--'
+    );
+  }
+
   render(): VNode {
     return (
       <div class='alarm-group-list-page'>
@@ -568,7 +593,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     {...{ props: item.props }}
                     width={item.width}
                     min-width={item.minWidth}
-                    show-overflow-tooltip={true}
+                    show-overflow-tooltip={item.prop !== 'duty_rules'}
                     formatter={item.formatter}
                   />
                 ))}
