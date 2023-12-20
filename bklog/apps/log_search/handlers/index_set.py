@@ -19,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import json
 import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -225,9 +224,8 @@ class IndexSetHandler(APIModel):
         for _index in index_sets:
             # 标签处理
             if _index["tag_ids"]:
-                tag_ids = {int(tag_id) for tag_id in json.loads(_index["tag_ids"].replace("'", "\""))}
-                tag_ids_mapping[int(_index["index_set_id"])] = tag_ids
-                tag_ids_all = tag_ids_all.union(tag_ids)
+                tag_ids_mapping[int(_index["index_set_id"])] = _index["tag_ids"]
+                tag_ids_all = tag_ids_all.union(set(_index["tag_ids"]))
 
             _index["category_name"] = GlobalCategoriesEnum.get_display(_index["category_id"])
             _index["scenario_name"] = scenario_choices.get(_index["scenario_id"])
