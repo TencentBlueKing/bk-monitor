@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import enum
 from typing import Dict, List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import ugettext_lazy as _
 
 from monitor_web.plugin.constant import PluginType
 from monitor_web.strategies.default_settings.common import (
@@ -83,8 +83,9 @@ STAGE_STRATEGY_MAPPING: Dict[DataLinkStage, List[DatalinkStrategy]] = {
 }
 
 
-DEFAULT_DATALINK_LABEL = "_datalink_"
-DEFAULT_RULE_GROUP_NAME = "_datalink_status_alarm_rule_"
+DEFAULT_DATALINK_COLLECTING_FLAG = "__datalink_collecting__"
+DEFAULT_DATALINK_LABEL = _("集成内置")
+DEFAULT_RULE_GROUP_NAME = _("系统内置-数据采集告警分派")
 
 
 DEFAULT_DATALINK_STRATEGIES = [
@@ -127,7 +128,7 @@ DEFAULT_DATALINK_STRATEGIES = [
             }
         ],
         "labels": [DEFAULT_DATALINK_LABEL, "${{custom_label}}"],
-        "name": _("数据采集系统运行异常告警"),
+        "name": _("系统内置-数据采集系统运行异常告警"),
         "notice": DEFAULT_NOTICE,
     },
     {
@@ -168,7 +169,7 @@ DEFAULT_DATALINK_STRATEGIES = [
             }
         ],
         "labels": [DEFAULT_DATALINK_LABEL, "${{custom_label}}"],
-        "name": _("数据采集插件执行异常告警"),
+        "name": _("系统内置-数据采集插件执行异常告警"),
         "notice": DEFAULT_NOTICE,
     },
 ]

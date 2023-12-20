@@ -23,6 +23,7 @@ from core.drf_resource import resource
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.strategies.default_settings.datalink.v1 import (
     DATALINK_GATHER_STATEGY_DESC,
+    DEFAULT_DATALINK_COLLECTING_FLAG,
     DEFAULT_DATALINK_STRATEGIES,
     DEFAULT_RULE_GROUP_NAME,
     PLUGIN_TYPE_MAPPING,
@@ -134,7 +135,7 @@ class DatalinkDefaultAlarmStrategyLoader:
         strategy_config = {
             "bk_biz_id": self.bk_biz_id,
             "name": strategy["name"],
-            "source": "__buildin__",
+            "source": DEFAULT_DATALINK_COLLECTING_FLAG,
             "scenario": "host_process",
             "type": "monitor",
             "labels": strategy["labels"],
@@ -227,14 +228,17 @@ class RuleGroupTool:
     def ensure_group(self, auto_create=True) -> bool:
         """确保分派组"""
         try:
-            group = AlertAssignGroup.objects.get(bk_biz_id=self.bk_biz_id, name=DEFAULT_RULE_GROUP_NAME)
+            group = AlertAssignGroup.objects.get(bk_biz_id=self.bk_biz_id, source=DEFAULT_DATALINK_COLLECTING_FLAG)
             self.group_id = group.id
             self.rules = list(AlertAssignRule.objects.filter(bk_biz_id=self.bk_biz_id, assign_group_id=group.id))
         except AlertAssignGroup.DoesNotExist:
             if not auto_create:
                 return False
             group = AlertAssignGroup.objects.create(
-                name=DEFAULT_RULE_GROUP_NAME, bk_biz_id=self.bk_biz_id, source="__buildin__"
+                name=DEFAULT_RULE_GROUP_NAME,
+                bk_biz_id=self.bk_biz_id,
+                is_builtin=True,
+                source=DEFAULT_DATALINK_COLLECTING_FLAG,
             )
             logger.info("Succeed to create assign group, {}".format(DEFAULT_RULE_GROUP_NAME))
             self.group_id = group.id
