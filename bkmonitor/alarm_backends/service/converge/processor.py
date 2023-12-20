@@ -455,7 +455,7 @@ class ConvergeProcessor(object):
             client = FTA_NOTICE_COLLECT_KEY.client
             collect_key = FTA_NOTICE_COLLECT_KEY.get_key(
                 **{
-                    "notice_way": self.context["group_notice_way"],
+                    "notice_way": self.context["notice_way_with_type"],
                     "action_signal": self.instance.signal,
                     "alert_id": "_".join([str(a) for a in self.instance.alerts]),
                 }

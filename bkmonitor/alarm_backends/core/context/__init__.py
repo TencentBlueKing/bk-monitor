@@ -49,7 +49,7 @@ class ActionContext(object):
 
     Fields = [
         "notice_way",
-        "group_type",
+        "user_type",
         "notice_channel",
         "notice_receiver",
         "mentioned_users",
@@ -170,9 +170,9 @@ class ActionContext(object):
         return channel, notice_way
 
     @cached_property
-    def group_type(self):
+    def user_type(self):
         """
-        是否为关注人
+        告警组类型
         """
 
         if self.action and self.action.inputs.get("followed"):
@@ -181,9 +181,23 @@ class ActionContext(object):
         return None
 
     @cached_property
-    def group_notice_way(self):
-        if self.group_type:
-            return f"{self.group_type}-{self.notice_way}"
+    def followed(self):
+        """
+        是否为关注人
+        """
+
+        if self.action and self.action.inputs.get("followed"):
+            # 如果当前通知
+            return True
+        return False
+
+    @cached_property
+    def notice_way_with_type(self):
+        """
+        附带用户组类型的通知方法
+        """
+        if self.user_type:
+            return f"{self.user_type}-{self.notice_way}"
         return self.notice_way
 
     @cached_property

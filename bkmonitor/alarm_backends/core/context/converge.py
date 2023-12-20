@@ -138,7 +138,7 @@ class Converge(BaseContextObject):
         """
         对应用户组的类型：关注人或者None
         """
-        return self.parent.group_type
+        return self.parent.user_type
 
     @cached_property
     def group_notice_way(self):
