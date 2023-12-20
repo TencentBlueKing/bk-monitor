@@ -74,7 +74,6 @@ export default class App extends tsc<{}> {
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
   @Ref('headerDrowdownMenu') headerDrowdownMenuRef: any;
   routeList = getRouteConfig();
-  bizId = window.cc_biz_id;
   showBizList = false;
   keyword = '';
   localMenuList = [];
@@ -97,6 +96,9 @@ export default class App extends tsc<{}> {
   globalSettingShow = false;
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
   @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+  get bizId() {
+    return this.$store.getters.bizId;
+  }
   get navActive() {
     let routeId = this.routeId || 'home';
     const {
@@ -178,7 +180,6 @@ export default class App extends tsc<{}> {
 
   created() {
     this.handleSetNeedMenu();
-    this.bizId = this.$store.getters.bizId;
     this.menuToggle = localStorage.getItem('navigationToogle') === 'true';
     this.noticeStepList = [
       {
@@ -384,41 +385,37 @@ export default class App extends tsc<{}> {
   // 切换业务
   async handleBizChange(v: number) {
     this.handleHeaderSettingShowChange(false);
-    setTimeout(() => {
-      window.cc_biz_id = +v;
-      window.bk_biz_id = +v;
-      window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
-      this.showBizList = false;
-      this.$store.commit('app/SET_BIZ_ID', +v);
-      const { navId } = this.$route.meta;
-      if (['apm-home', 'fta-integrated'].includes(navId)) {
-        location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${
-          navId === 'apm-home' ? 'apm/home' : 'fta/intergrations'
-        }`;
-        return;
-      }
-      // 所有页面的子路由在切换业务的时候都统一返回到父级页面
-      if (navId !== this.$route.name) {
-        const parentRoute = this.$router.options.routes.find(item => item.name === navId);
-        if (parentRoute) {
-          location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${parentRoute.path}`;
-        } else {
-          this.handleReload();
-        }
+    window.cc_biz_id = +v;
+    window.bk_biz_id = +v;
+    window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
+    this.showBizList = false;
+    const { navId } = this.$route.meta;
+    if (['apm-home', 'fta-integrated'].includes(navId)) {
+      location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${
+        navId === 'apm-home' ? 'apm/home' : 'fta/intergrations'
+      }`;
+      return;
+    }
+    // 所有页面的子路由在切换业务的时候都统一返回到父级页面
+    if (navId !== this.$route.name) {
+      const parentRoute = this.$router.options.routes.find(item => item.name === navId);
+      if (parentRoute) {
+        this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } });
       } else {
-        this.handleReload();
+        this.handleUpdateRoute({ bizId: `${v}` });
       }
-    }, 200);
+    } else {
+      this.handleUpdateRoute({ bizId: `${v}` });
+    }
+    setTimeout(() => {
+      this.$store.commit('app/SET_BIZ_ID', +v);
+    }, 100);
   }
   // 刷新页面
-  handleReload() {
-    const { needClearQuery } = this.$route.meta;
-    // 清空query查询条件
-    if (needClearQuery) {
-      location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${this.$route.path}`;
-    } else {
-      location.search = `?bizId=${window.cc_biz_id}`;
-    }
+  handleUpdateRoute(params: Record<string, any>, path?: string) {
+    const serachParams = new URLSearchParams(params);
+    const newUrl = `${window.location.pathname}?${serachParams.toString()}#${path || this.$route.path}`;
+    history.replaceState({}, '', newUrl);
   }
   handleClickBizSelect() {
     this.showBizList = !this.showBizList;
@@ -586,6 +583,7 @@ export default class App extends tsc<{}> {
         ></CommonNavBar>
       ),
       <div
+        key={this.bizId}
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
         class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
         style={{ height: this.showNav ? 'calc(100% - 52px)' : '100%' }}
