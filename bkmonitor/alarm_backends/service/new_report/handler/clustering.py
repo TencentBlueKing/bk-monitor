@@ -13,10 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from urllib.parse import urlencode
 
-import pytz
 from django.conf import settings
 from django.templatetags.i18n import language
-from django.utils import timezone
 
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
@@ -28,7 +26,7 @@ from constants.new_report import (
     YearOnYearChangeEnum,
     YearOnYearEnum,
 )
-from core.drf_resource import api, resource
+from core.drf_resource import api
 
 
 class ClusteringReportHandler(BaseReportHandler):
@@ -185,12 +183,6 @@ class ClusteringReportHandler(BaseReportHandler):
         """
         获取渲染参数
         """
-        # TODO: 激活时区
-        try:
-            time_zone = resource.cc.get_app_by_id(self.report.bk_biz_id)["TimeZone"]
-        except Exception:  # pylint: disable=broad-except
-            time_zone = settings.TIME_ZONE
-        timezone.activate(pytz.timezone(time_zone))
         time_config = get_data_range(self.report.frequency)
         result = self.query_patterns(time_config)
         if not result:

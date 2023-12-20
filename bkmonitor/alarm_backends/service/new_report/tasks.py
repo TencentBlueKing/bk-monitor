@@ -11,6 +11,9 @@ specific language governing permissions and limitations under the License.
 import logging
 
 import arrow
+import pytz
+from django.conf import settings
+from django.utils import timezone
 
 from alarm_backends.service.new_report.factory import ReportFactory
 from alarm_backends.service.scheduler.app import app
@@ -20,6 +23,7 @@ from bkmonitor.report.utils import (
     is_run_time,
     parse_frequency,
 )
+from core.drf_resource import resource
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
@@ -29,7 +33,11 @@ def send_report(report, channels=None):
     """
     发送邮件订阅
     """
-
+    time_zone = settings.TIME_ZONE
+    biz_info = resource.cc.get_app_by_id(report.bk_biz_id)
+    if biz_info:
+        time_zone = biz_info.time_zone or time_zone
+    timezone.activate(pytz.timezone(time_zone))
     logger.info(f"start to send report{report.id}, current time: {arrow.now()}")
     ReportFactory.get_handler(report).run(channels)
 
