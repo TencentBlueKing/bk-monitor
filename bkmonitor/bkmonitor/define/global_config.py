@@ -253,6 +253,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
         ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label=_("METADATA 是否启用功能开关"), default=True)),
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
+        ("VM_DEFAULT_RETENTION_TIME", slz.CharField(label="VM默认保留时间", default="30d")),
     ]
 )
 

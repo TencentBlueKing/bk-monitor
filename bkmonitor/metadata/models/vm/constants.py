@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 from enum import Enum
 
+from django.conf import settings
+
 # 接入计算平台 kafka 使用的 topic 规则
 
 BCS_K8S_TOPIC = "ieod_bcs_prom_c_{bcs_cluster_id_num}100147"
@@ -20,7 +22,7 @@ USER_CUSTOM_TOPIC = "ieod_custom_metric_{bk_data_id}100147"
 BKDATA_NS_TIMESTAMP_DATA_ID_LIST = [1100006, 1100015, 1100007, 1100016]
 
 # vm 数据默认保留时间
-VM_RETENTION_TIME = "30d"
+VM_RETENTION_TIME = settings.VM_DEFAULT_RETENTION_TIME
 
 # 通过 vm 查询的空间信息
 QUERY_VM_SPACE_UID_LIST_KEY = "bkmonitorv3:vm-query:space_uid"
