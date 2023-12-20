@@ -237,11 +237,8 @@ def get_collector_maintainers_and_platform_username(
                 continue
             result["maintainers"].add(maintainer)
     # 去除ADMIN_REQUEST_USER
-    if ADMIN_REQUEST_USER in result["maintainers"]:
+    if ADMIN_REQUEST_USER in result["maintainers"] and len(result["maintainers"]) > 1:
         result["maintainers"].discard(ADMIN_REQUEST_USER)
-
-    if not result["maintainers"]:
-        raise BaseException(f"dont have enough maintainer only {ADMIN_REQUEST_USER}")
 
     # 如果指定了平台运维人员，且在业务运维人员中，则使用指定的平台运维人员, 否则使用业务运维人员中的一个
     if not platform_username or platform_username not in result["maintainers"]:

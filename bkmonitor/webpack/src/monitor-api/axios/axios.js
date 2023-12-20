@@ -49,13 +49,19 @@ const errorHandle = (response, config) => {
         window.location.href = `${process.env.loginUrl}?c_url=${process.env.devUrl}`;
       } else {
         const handleLoginExpire = () => {
-          window.location.href = `${window.bkPaasHost.replace(/\/$/g, '')}/login/`;
+          window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
         };
         const { data } = response;
         // eslint-disable-next-line camelcase
         if (data?.has_plain) {
           try {
             if (data.login_url) {
+              // 初始化api 用于转换登入
+              if (config.url.includes('/commons/context/enhanced') && config.params.context_type === 'basic') {
+                const url = `${data.login_url.split('c_url=')[0]}c_url=${encodeURIComponent(location.href)}`;
+                window.open(url, '_self');
+                return;
+              }
               const url = new URL(data.login_url);
               const curl = url.searchParams.get('c_url');
               if (curl) {

@@ -932,15 +932,6 @@ class SaveCollectConfigResource(Resource):
 
             return attrs
 
-        def validate_params(self, params):
-            """
-            校验采集参数
-            """
-            params["plugin"] = {
-                key: value for key, value in params.get("plugin", {}).items() if not isinstance(value, bool)
-            }
-            return params
-
     @lock(CacheLock("collect_config"))
     def request_nodeman(self, collect_config, deployment_config):
         return collect_config.switch_config_version(deployment_config)
@@ -980,19 +971,12 @@ class SaveCollectConfigResource(Resource):
         save_result = {}
 
         if data.get("id"):
-            # 需要判断参数中密码类型字段是否存在，如果在直接更新，如果不在需要修改回原有的值
-
             try:
                 config_meta = CollectConfigMeta.objects.get(id=data["id"])
             except CollectConfigMeta.DoesNotExist:
                 raise CollectConfigNotExist({"msg": data["id"]})
-            for item in config_meta.plugin.current_version.config.config_json:
-                if item["mode"] != "collector":
-                    item["mode"] = "plugin"
-                if item.get("type") == "password" and not item["name"] in data["params"][item["mode"]]:
-                    data["params"][item["mode"]][item["name"]] = config_meta.deployment_config.params[item["mode"]].get(
-                        item["name"]
-                    )
+
+            self.update_password_inplace(data, config_meta)
             # 编辑
             collect_config = self.update_collector(data, deployment_config_params, save_result)
         else:
@@ -1012,6 +996,28 @@ class SaveCollectConfigResource(Resource):
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
         return save_result
+
+    @staticmethod
+    def update_password_inplace(data: dict, config_meta: "CollectConfigMeta") -> None:
+        """将密码参数的值替换为实际值。"""
+        config_params = config_meta.plugin.current_version.config.config_json
+        deployment_params = config_meta.deployment_config.params
+
+        for param in config_params:
+            if param["type"] != "password":
+                continue
+
+            param_name = param["name"]
+            param_mode = "plugin" if param["mode"] != "collector" else "collector"
+            received_password = data["params"][param_mode].get(param_name)
+
+            # mode 为 "plugin" 时，如果密码不改变，不会传入，获取到 None
+            # mode 为 "collector" 时，如果密码不改变，传入值为 bool 类型（由详情接口返回的）
+            # 这两种情况要替换为实际值（默认值兜底）
+            if isinstance(received_password, (type(None), bool)):
+                default_password = param["default"]
+                actual_password = deployment_params[param_mode].get(param_name, default_password)
+                data["params"][param_mode][param_name] = actual_password
 
     def update_collector(self, data, deployment_config_params, save_result):
         try:

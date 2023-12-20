@@ -1426,7 +1426,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const targetMetricItem = new MetricDetail(list[0]);
     targetMetricItem.setMetricType(this.metricSelector.type);
     this.$set(this.metricData, targetMetricIndex, targetMetricItem);
-    if (this.metricData.length === 1 && !!this.metricData[0].metric_id) {
+    if (this.metricData.length >= 1 && !!this.metricData[0].metric_id) {
       this.baseConfig.scenario = this.metricData[0].result_table_label;
     }
     this.handleDetectionRulesUnit();
@@ -2500,7 +2500,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 readonly={this.isDetailMode}
                 data={this.baseConfig}
                 scenarioList={this.scenarioList}
-                scenarioReadonly={this.monitorDataEditMode === 'Source' ? false : !!this.metricData.length}
+                scenarioReadonly={
+                  this.monitorDataEditMode === 'Source' ? false : !!this.metricData.some(item => !!item.metric_id)
+                }
                 on-change={this.handleBaseConfigChange}
               />
             </GroupPanel>
@@ -2698,6 +2700,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           scenarioList={this.scenarioAllList}
           type={this.metricSelector.type}
           metricKey={this.metricSelector.key}
+          defaultScenario={this.baseConfig.scenario}
           onShowChange={val => (this.metricSelector.show = val)}
           onSelected={this.handleAddMetric}
         ></MetricSelector>

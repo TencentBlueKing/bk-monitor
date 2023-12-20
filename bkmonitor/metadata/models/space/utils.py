@@ -697,6 +697,15 @@ def get_shared_cluster_namespaces(cluster_id: str, project_code: str) -> List:
         return []
 
 
+def get_project_clusters(project_id: str) -> List:
+    """获取项目下的集群列表"""
+    try:
+        return api.bcs_cluster_manager.get_project_clusters(project_id=project_id)
+    except Exception as e:
+        logger.error("request project cluster list error, err: %s", e)
+        return []
+
+
 def get_space_shared_namespaces(space_id: str):
     """获取共享命名空间信息"""
     shared_clusters = api.bcs_cluster_manager.get_shared_clusters()
