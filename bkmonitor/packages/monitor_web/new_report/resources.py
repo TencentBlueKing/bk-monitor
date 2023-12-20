@@ -108,7 +108,7 @@ class GetReportListResource(Resource):
         username = get_request_username()
         # 已失效订阅列表
         for report in qs:
-            if report.is_invalid():
+            if Report.is_invalid(report.end_time):
                 invalid_report_ids.add(report.id)
         # 已取消订阅列表
         cancelled_report_ids = set(
@@ -197,6 +197,7 @@ class GetReportListResource(Resource):
         current_user = get_request_username()
         for report in reports:
             report["channels"] = report_channels_map.get(report["id"], [])
+            report["is_invalid"] = Report.is_invalid(report["end_time"])
             report["is_self_subscribed"] = True if report["create_user"] == current_user else False
             record_info = last_send_record_map[report["id"]]
             if record_info:

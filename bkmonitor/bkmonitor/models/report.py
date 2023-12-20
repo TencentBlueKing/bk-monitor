@@ -81,9 +81,10 @@ class Report(AbstractRecordModel):
         verbose_name_plural = "邮件订阅"
         db_table = "report"
 
-    def is_invalid(self):
+    @staticmethod
+    def is_invalid(end_time):
         now_timestamp = arrow.now().timestamp
-        if now_timestamp > self.end_time:
+        if now_timestamp > end_time:
             return True
         return False
 
