@@ -613,11 +613,12 @@ class CreateActionProcessor:
 
             # 告警负责人字段，替换为当前的负责人
             alerts_appointee[alert.id] = assignees
+
             # 告警知会人
             alerts_supervisor[alert.id] = self.get_alert_related_users(supervisors, alerts_supervisor[alert.id])
 
             # 告警关注人
-            alerts_follower[alert.id] = followers
+            alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_supervisor[alert.id])
 
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))

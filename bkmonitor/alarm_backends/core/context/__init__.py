@@ -192,7 +192,7 @@ class ActionContext(object):
         return False
 
     @cached_property
-    def notice_way_with_type(self):
+    def group_notice_way(self):
         """
         附带用户组类型的通知方法
         """

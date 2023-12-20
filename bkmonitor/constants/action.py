@@ -137,7 +137,7 @@ ALL_CONVERGE_DIMENSION = {
     "signal": _lazy("告警信号"),
     "notice_receiver": _lazy("通知人员"),
     "notice_way": _lazy("通知方式"),
-    "notice_way_with_type": _lazy("通知方式"),
+    "group_notice_way": _lazy("带组员类型的通知方式"),
     "alert_info": _lazy("告警信息"),
     "notice_info": _lazy("通知信息"),
     "action_info": _lazy("告警套餐信息"),
@@ -155,7 +155,7 @@ SUB_CONVERGE_DIMENSION = {
     "signal": _lazy("告警信号"),
     "notice_receiver": _lazy("通知人员"),
     "notice_way": _lazy("通知方式"),
-    "notice_way_with_type": _lazy("通知方式"),
+    "group_notice_way": _lazy("带组员类型的通知方式"),
 }
 
 # 默认的通知关联关系

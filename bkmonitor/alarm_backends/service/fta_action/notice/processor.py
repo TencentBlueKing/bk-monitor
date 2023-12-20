@@ -80,7 +80,7 @@ class ActionProcessor(BaseActionProcessor):
 
         collect_params = {
             # 汇总
-            "notice_way": self.context["collect_ctx"].notice_way_with_type,
+            "notice_way": self.context["collect_ctx"].group_notice_way,
             "action_signal": self.action.signal,
             "alert_id": "_".join(self.action.alerts or []),
         }
