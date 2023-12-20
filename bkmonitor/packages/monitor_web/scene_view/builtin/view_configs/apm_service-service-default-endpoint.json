@@ -523,10 +523,10 @@
           "data": {
             "app_name": "$app_name",
             "filter_params": {
-              "attributes.http.method": ["POST", "GET", "PUT", "PATCH", "DELETE"],
               "resource.service.name": "$service_name",
               "resource.bk.instance.id": "$bk_instance_id"
-            }
+            },
+            "span_keys": ["http.url", "messaging.system", "rpc.system"]
           },
           "dataType": "table",
           "api": "apm_meta.queryEndpointStatistics"
@@ -1109,8 +1109,7 @@
           "api": "apm_metric.endpointList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "filter": "http"
+            "service_name": "$service_name"
           },
           "fields": {
             "endpoint_name": "endpoint_name",
