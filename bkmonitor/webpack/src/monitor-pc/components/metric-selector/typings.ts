@@ -32,6 +32,7 @@ export type MetricSelectorProps = {
   scenarioList?: any;
   metricKey?: string;
   isPromql?: boolean;
+  defaultScenario?: string;
 } & MetricPopoverProps;
 
 export type MetricSelectorEvents = {

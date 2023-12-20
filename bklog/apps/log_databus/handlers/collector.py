@@ -3640,7 +3640,7 @@ class CollectorHandler(object):
 
         create_container_release.delay(
             bcs_cluster_id=self.data.bcs_cluster_id,
-            container_config=container_config,
+            container_config_id=container_config.id,
             config_name=name,
             config_params=request_params,
         )

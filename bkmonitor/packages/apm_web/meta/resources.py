@@ -1727,7 +1727,7 @@ class ModifyMetricResource(Resource):
 
 
 class QueryEndpointStatisticsResource(PageListResource):
-    SPAN_KEYS = ["db.system", "http.url", "messaging.system", "rpc.system"]
+    span_keys = ["db.system", "http.url", "messaging.system", "rpc.system"]
 
     def get_columns(self, column_type=None):
         return [
@@ -1786,6 +1786,7 @@ class QueryEndpointStatisticsResource(PageListResource):
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
+        span_keys = serializers.ListSerializer(child=serializers.CharField(), required=False, label="分类过滤")
 
     def build_filter_params(self, filters):
         res = []
@@ -1855,6 +1856,8 @@ class QueryEndpointStatisticsResource(PageListResource):
         """
         根据app_name service_name查询span 遍历span然后取db.system,http.method..等等这些字段 没有就为空
         """
+        if validated_data.get("span_keys", []):
+            self.span_keys = validated_data.get("span_keys")
         filter_params = self.build_filter_params(validated_data["filter_params"])
         ComponentHandler.build_component_filter_params(
             validated_data["bk_biz_id"],
@@ -1911,7 +1914,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                     summary = next(
                         iter(
                             span[OtlpKey.ATTRIBUTES][attr]
-                            for attr in self.SPAN_KEYS
+                            for attr in self.span_keys
                             if attr in span[OtlpKey.ATTRIBUTES]
                         ),
                         None,
@@ -1926,7 +1929,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                 filter_key = next(
                     iter(
                         attr
-                        for attr in self.SPAN_KEYS
+                        for attr in self.span_keys
                         if attr in span[OtlpKey.ATTRIBUTES] and span[OtlpKey.ATTRIBUTES][attr]
                     ),
                     None,
