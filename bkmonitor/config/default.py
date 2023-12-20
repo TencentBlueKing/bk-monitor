@@ -717,14 +717,6 @@ DEFAULT_METRIC_PUSH_JOB = "SLI"
 # 运营指标上报任务标志
 OPERATION_STATISTICS_METRIC_PUSH_JOB = "Operation"
 
-# TODO: merge these types into one
-# 当前历史遗留问题，SLI 数据和运营数据分别送到不同的 dataID
-# 需要找时间合并二者
-JOB_DATAID_MAP = {
-    DEFAULT_METRIC_PUSH_JOB: CUSTOM_REPORT_DEFAULT_DATAID,
-    OPERATION_STATISTICS_METRIC_PUSH_JOB: STATISTICS_REPORT_DATA_ID,
-}
-
 # 是否启用计算平台处理influxdb降精度流程
 ENABLE_METADATA_DOWNSAMPLE_BY_BKDATA = False
 # 是否启用 unify-query 查询计算平台降精度数据
@@ -876,6 +868,7 @@ BK_DATA_RT_ID_PREFIX = ""  # 计算平台的表名前缀
 BK_DATA_DATA_EXPIRES_DAYS = 30  # 接入到计算平台后，数据保留天数
 BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS = 180  # 接入到计算平台后，存储到HDFS时数据保留天数
 BK_DATA_MYSQL_STORAGE_CLUSTER_NAME = "jungle_alert"  # 监控专属tspider存储集群名称
+BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE = "mysql_storage"  # 监控SQL类存储集群类型
 BK_DATA_HDFS_STORAGE_CLUSTER_NAME = "hdfsOnline4"  # 监控专属HDFS存储集群名称
 BK_DATA_DRUID_STORAGE_CLUSTER_NAME = "monitor"  # 监控专属druid存储集群名称
 BK_DATA_KAFKA_BROKER_URL = "127.0.0.1:9092"
