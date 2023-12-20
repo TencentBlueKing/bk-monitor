@@ -90,6 +90,7 @@ if (hasRouteHash) {
           window[key.toLocaleLowerCase()] = data[key];
         });
         mergeSpaceList(window.space_list);
+        window.user_name = window.uin;
         window.username = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
