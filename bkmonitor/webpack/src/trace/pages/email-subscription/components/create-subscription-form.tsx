@@ -641,7 +641,7 @@ export default defineComponent({
             theme: 'warning',
             message: window.i18n.t('请选择索引集')
           });
-          break;
+          return;
         }
         // URL参数补齐再跳转即可。需要: spaceUid、bizId, activeTableTab, clusterRouteParams (一个配置对象)
         // 日志平台的 URL: window.bk_log_search_url
