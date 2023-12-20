@@ -140,27 +140,37 @@ class FavoriteHandler(object):
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
         group_info = {i["id"]: i for i in groups}
         favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
-        return [
-            {
+
+        ret = list()
+        for fi in favorites:
+            data = {
                 "id": fi["id"],
                 "name": fi["name"],
                 "group_id": fi["group_id"],
                 "group_name": group_info[fi["group_id"]]["name"],
-                "index_set_id": fi["index_set_id"],
-                "index_set_name": fi["index_set_name"],
+                "index_set_type": fi["index_set_type"],
                 "visible_type": fi["visible_type"],
                 "params": fi["params"],
                 "search_fields": fi["params"].get("search_fields", []),
                 "keyword": fi["params"].get("keyword", ""),
                 "is_enable_display_fields": fi["is_enable_display_fields"],
                 "display_fields": fi["display_fields"],
-                "is_active": fi["is_active"],
                 "created_by": fi["created_by"],
                 "updated_by": fi["updated_by"],
                 "updated_at": fi["updated_at"],
             }
-            for fi in favorites
-        ]
+            if fi["index_set_type"] == IndexSetType.SINGLE.value:
+                data["index_set_id"] = fi["index_set_id"]
+                data["index_set_name"] = fi["index_set_name"]
+                data["is_active"] = fi["is_active"]
+            else:
+                data["index_set_ids"] = fi["index_set_ids"]
+                data["index_set_names"] = fi["index_set_names"]
+                data["is_actives"] = fi["is_actives"]
+
+            ret.append(data)
+
+        return ret
 
     @atomic
     def create_or_update(

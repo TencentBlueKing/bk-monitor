@@ -50,7 +50,7 @@ class SearchFieldsSerializer(serializers.Serializer):
 class CreateIndexSetFieldsConfigSerializer(serializers.Serializer):
     scope = serializers.CharField(help_text=_("查询场景"), required=False, default="default")
     name = serializers.CharField(help_text=_("字段名称"), required=True)
-    display_fields = serializers.ListField(allow_empty=False)
+    display_fields = serializers.ListField(allow_empty=False, child=serializers.CharField())
     sort_list = serializers.ListField(help_text=_("排序规则"), allow_empty=True, child=serializers.ListField())
 
     def validate_sort_list(self, value):
@@ -67,7 +67,7 @@ class UpdateIndexSetFieldsConfigSerializer(serializers.Serializer):
     config_id = serializers.IntegerField(help_text=_("配置ID"), required=True)
     scope = serializers.CharField(help_text=_("字段名称"), required=False, default="default")
     name = serializers.CharField(help_text=_("字段名称"), required=True)
-    display_fields = serializers.ListField(allow_empty=False)
+    display_fields = serializers.ListField(allow_empty=False, child=serializers.CharField())
     sort_list = serializers.ListField(help_text=_("排序规则"), allow_empty=True, child=serializers.ListField())
 
     def validate_sort_list(self, value):
