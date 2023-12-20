@@ -2360,7 +2360,7 @@ class UnionSearchHandler(object):
 
         fields_names = [field_info.get("field_name") for field_info in total_fields]
         default_sort_list = [[time_field, "desc"]]
-        for field_name in ["gseIndex", "iterationIndex"]:
+        for field_name in ["gseIndex", "gseindex", "iterationIndex", "_iteration_idx"]:
             if field_name in fields_names:
                 default_sort_list.append([field_name, "desc"])
 
