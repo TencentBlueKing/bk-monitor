@@ -13,7 +13,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
 
-class AlarmClusterTargetRelation(models.Model):
+class AlarmClusterMatchRule(models.Model):
     """
     目标空间关系
     """
@@ -22,10 +22,10 @@ class AlarmClusterTargetRelation(models.Model):
     target_type = models.CharField(_("目标类型"), max_length=32)
     # 匹配类型, regex: 正则匹配, exact: 精确匹配, 精确匹配的优先级高于正则匹配
     match_type = models.CharField(_("匹配类型"), max_length=32, choices=(("regex", _("正则")), ("exact", _("精确"))))
-    match_configs = models.JSONField(_("匹配规则"), max_length=64, default=list)
+    match_rules = models.JSONField(_("匹配规则"), max_length=64, default=list)
 
     class Meta:
         verbose_name = _("集群目标关系")
         verbose_name_plural = _("集群目标关系")
-        db_table = "alarm_cluster_target_relation"
+        db_table = "alarm_cluster_match_rule"
         unique_together = ("cluster_name", "target_type", "match_type")

@@ -285,7 +285,7 @@ class StatisticsMetricAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 
-class AlarmClusterTargetRelationAdmin(admin.ModelAdmin):
+class AlarmClusterMatchRuleAdmin(admin.ModelAdmin):
     list_display = ("cluster_name", "target_type", "match_type")
     search_fields = ("cluster_name", "target_type")
     list_filter = ("cluster_name", "target_type")
@@ -321,8 +321,7 @@ admin.site.register(models.DetectModel, models.DetectModelAdmin)
 admin.site.register(models.StrategyHistoryModel, models.StrategyHistoryModelAdmin)
 admin.site.register(models.ApiAuthToken, ApiAuthTokenAdmin)
 admin.site.register(models.StatisticsMetric, StatisticsMetricAdmin)
-admin.site.register(models.AlarmClusterTargetRelation, AlarmClusterTargetRelationAdmin)
-
+admin.site.register(models.AlarmClusterMatchRule, AlarmClusterMatchRuleAdmin)
 
 # 因为配置admin界面时，list_display, search_fields, list_filter 都是全部字段中排除效果不好的几个，
 # 所以在这里对每个model名称后面提供这三个选项要排除的字段，并以全小写提供。

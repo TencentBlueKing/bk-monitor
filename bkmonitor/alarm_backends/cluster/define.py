@@ -14,7 +14,7 @@ import re
 from collections import defaultdict
 from typing import Dict, List, Union
 
-from bkmonitor.models import AlarmClusterTargetRelation
+from bkmonitor.models import AlarmClusterMatchRule
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class Cluster:
         """
         获取集群目标关系
         """
-        queryset = AlarmClusterTargetRelation.objects.all()
+        queryset = AlarmClusterMatchRule.objects.all()
         exact_match_configs = defaultdict(dict)
         regex_match_configs = defaultdict(list)
 
@@ -137,7 +137,7 @@ class Cluster:
         """
         assigned = False
         cleaned_clusters = []
-        for relation in AlarmClusterTargetRelation.objects.filter(target_type=target_type.value, match_type="exact"):
+        for relation in AlarmClusterMatchRule.objects.filter(target_type=target_type.value, match_type="exact"):
             if relation.cluster_name == self.name:
                 len_before = len(relation.match_config)
                 relation.match_config = list(set(relation.match_config) | set(targets))
@@ -158,7 +158,7 @@ class Cluster:
 
         # 如果没有匹配到集群，则创建新的集群规则
         if not assigned:
-            AlarmClusterTargetRelation.objects.create(
+            AlarmClusterMatchRule.objects.create(
                 target_type=target_type.value,
                 match_type="exact",
                 cluster_name=self.name,
@@ -174,7 +174,7 @@ class Cluster:
         for match_config in match_configs:
             if "cluster_name" not in match_config or "pattern" not in match_config:
                 raise ValueError("invalid match_config: %s" % match_config)
-        AlarmClusterTargetRelation.objects.update_or_create(
+        AlarmClusterMatchRule.objects.update_or_create(
             target_type=target_type.value,
             match_type="regex",
             defaults={"cluster_name": "", "match_config": match_configs},
