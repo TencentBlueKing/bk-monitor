@@ -124,7 +124,7 @@ class EventGroupFakeES(FakeElasticsearch):
                             "_score": None,
                             "_source": {
                                 "event_name": "login",
-                                "bk_target": "1:10.0.0.1",
+                                "bk_target": "1:127.0.0.1",
                                 "event": {"event_content": "user login success", "_bk_count": 30},
                                 "dimensions": {
                                     "module": "db",

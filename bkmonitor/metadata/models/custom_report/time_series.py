@@ -13,7 +13,7 @@ import json
 import logging
 import math
 import time
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
 from django.db import models
@@ -26,13 +26,18 @@ from django.utils.translation import ugettext as _
 
 from bkmonitor.utils.db.fields import JsonField
 from metadata import config
-from metadata.models.constants import DB_DUPLICATE_ID
+from metadata.models.constants import (
+    BULK_CREATE_BATCH_SIZE,
+    BULK_UPDATE_BATCH_SIZE,
+    DB_DUPLICATE_ID,
+)
 from metadata.models.result_table import (
     ResultTable,
     ResultTableField,
     ResultTableOption,
 )
 from metadata.models.storage import ClusterInfo
+from metadata.utils.db import filter_model_by_in_page
 from packages.utils.redis_client import RedisClient
 
 from .base import CustomGroupBase
@@ -197,10 +202,194 @@ class TimeSeriesGroup(CustomGroupBase):
             table_id=self.table_id, name='enable_field_black_list', value="false"
         ).exists()
 
+    def _refine_metric_tags(self, metric_info: List) -> Dict:
+        """去除重复的维度"""
+        metric_dict, tag_dict = {}, {}
+        # 标识是否需要更新描述
+        is_update_description = True
+        for item in metric_info:
+            # 格式: {field_name: 是否禁用}
+            metric_dict[item["field_name"]] = not item.get("is_active", True)
+            # 兼容传入 tag_value_list/tag_list 的情况
+            if "tag_value_list" in item:
+                is_update_description = False
+                for tag in item["tag_value_list"].keys():
+                    tag_dict[tag] = ""
+            else:
+                for tag in item.get("tag_list", []):
+                    # 取第一个值，后面重复的直接忽略
+                    if tag in tag_dict:
+                        continue
+                    tag_dict[tag["field_name"]] = tag["description"]
+
+        return {
+            "is_update_description": is_update_description,
+            "metric_dict": metric_dict,
+            "tag_dict": tag_dict,
+        }
+
+    def _bulk_create_or_update_metrics(
+        self,
+        table_id: str,
+        metric_dict: Dict,
+        need_create_metrics: Set,
+        need_update_metrics: Set,
+    ):
+        """批量创建或更新字段"""
+        logger.info("bulk create or update rt metrics")
+        create_records = []
+        for metric in need_create_metrics:
+            create_records.append(
+                ResultTableField(
+                    table_id=table_id,
+                    field_name=metric,
+                    tag=ResultTableField.FIELD_TAG_METRIC,
+                    field_type=ResultTableField.FIELD_TYPE_FLOAT,
+                    creator="system",
+                    last_modify_user="system",
+                    default_value=0,
+                    is_config_by_user=True,
+                    is_disabled=metric_dict.get(metric, False),
+                )
+            )
+        # 开始写入数据
+        ResultTableField.objects.bulk_create(create_records, batch_size=BULK_CREATE_BATCH_SIZE)
+        logger.info("bulk create metric successfully")
+
+        # 开始批量更新
+        update_records = []
+        qs_objs = filter_model_by_in_page(
+            ResultTableField,
+            "field_name__in",
+            need_update_metrics,
+            other_filter={"table_id": table_id, "tag": ResultTableField.FIELD_TAG_METRIC},
+        )
+        for obj in qs_objs:
+            expect_metric_status = metric_dict.get(obj.field_name, False)
+            if obj.is_disabled != expect_metric_status:
+                obj.is_disabled = expect_metric_status
+                update_records.append(obj)
+        ResultTableField.objects.bulk_update(update_records, ["is_disabled"], batch_size=BULK_UPDATE_BATCH_SIZE)
+        logger.info("batch update metric successfully")
+
+    def _bulk_create_or_update_tags(
+        self,
+        table_id: str,
+        tag_dict: Dict,
+        need_create_tags: Set,
+        need_update_tags: Set,
+        update_description: bool,
+    ):
+        """批量创建或更新 tag"""
+        logger.info("bulk create or update rt tag")
+        create_records = []
+        for tag in need_create_tags:
+            create_records.append(
+                ResultTableField(
+                    table_id=table_id,
+                    field_name=tag,
+                    description=tag_dict.get(tag, ""),
+                    tag=ResultTableField.FIELD_TAG_DIMENSION,
+                    field_type=ResultTableField.FIELD_TYPE_STRING,
+                    creator="system",
+                    last_modify_user="system",
+                    default_value="",
+                    is_config_by_user=True,
+                    is_disabled=False,
+                )
+            )
+        # 开始写入数据
+        ResultTableField.objects.bulk_create(create_records, batch_size=BULK_CREATE_BATCH_SIZE)
+        logger.info("bulk create tag successfully")
+
+        # 开始批量更新
+        update_records = []
+        qs_objs = filter_model_by_in_page(
+            ResultTableField,
+            "field_name__in",
+            need_update_tags,
+            other_filter={
+                "table_id": table_id,
+                "tag__in": [
+                    ResultTableField.FIELD_TAG_DIMENSION,
+                    ResultTableField.FIELD_TAG_TIMESTAMP,
+                    ResultTableField.FIELD_TAG_GROUP,
+                ],
+            },
+        )
+        for obj in qs_objs:
+            expect_tag_description = tag_dict.get(obj.field_name, "")
+            if obj.description != expect_tag_description and update_description:
+                obj.description = expect_tag_description
+                update_records.append(obj)
+        ResultTableField.objects.bulk_update(update_records, ["description"], batch_size=BULK_UPDATE_BATCH_SIZE)
+        logger.info("batch update tag successfully")
+
+    def bulk_refresh_rt_fields(self, table_id: str, metric_info: List):
+        """批量刷新结果表打平的指标和维度"""
+        # 创建或更新
+        metric_tag_info = self._refine_metric_tags(metric_info)
+        # 通过结果表过滤到到指标和维度
+        exist_fields = ResultTableField.objects.filter(
+            table_id=table_id,
+        ).values("field_name", "tag")
+        exist_metrics, exist_tags = set(), set()
+        for field in exist_fields:
+            field_name = field["field_name"]
+            if field["tag"] == ResultTableField.FIELD_TAG_METRIC:
+                exist_metrics.add(field_name)
+            # NOTE: 这里追加指标类型，是为了访问维度和指标重复
+            elif field["tag"] in [
+                ResultTableField.FIELD_TAG_DIMENSION,
+                ResultTableField.FIELD_TAG_TIMESTAMP,
+                ResultTableField.FIELD_TAG_GROUP,
+                ResultTableField.FIELD_TAG_METRIC,
+            ]:
+                exist_tags.add(field_name)
+
+        # 过滤需要创建或更新的指标
+        metric_dict = metric_tag_info["metric_dict"]
+        metric_set = set(metric_dict.keys())
+        need_create_metrics = metric_set - exist_metrics
+        # 获取已经存在的指标，然后进行批量更新
+        need_update_metrics = metric_set - need_create_metrics
+        self._bulk_create_or_update_metrics(table_id, metric_dict, need_create_metrics, need_update_metrics)
+        # 过滤需要创建或更新的维度
+        tag_dict = metric_tag_info["tag_dict"]
+        tag_set = set(tag_dict.keys())
+        need_create_tags = tag_set - exist_tags
+        need_update_tags = tag_set - need_create_tags
+        self._bulk_create_or_update_tags(
+            table_id,
+            tag_dict,
+            need_create_tags,
+            need_update_tags,
+            metric_tag_info["is_update_description"],
+        )
+        logger.info("bulk refresh rt fields successfully")
+
     @atomic(config.DATABASE_CONNECTION_NAME)
     def update_metrics(self, metric_info):
         # 记录是否有指标更新
-        is_updated = TimeSeriesMetric.update_metrics(self.time_series_group_id, metric_info)
+        # 通过功能开关控制是否使用新的功能，避免未知问题
+        if settings.IS_ENABLE_METADATA_FUNCTION_CONTROLLER:
+            # 判断是否真的存在某个group_id
+            group_id = self.time_series_group_id
+            try:
+                group = TimeSeriesGroup.objects.get(time_series_group_id=group_id)
+            except TimeSeriesGroup.DoesNotExist:
+                logger.info("time_series_group_id->[%s] not exists, nothing will do.", group_id)
+                raise ValueError(f"ts group id: {group_id} not found")
+            # 刷新 ts 中指标和维度
+            is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(
+                group_id, group.table_id, metric_info, group.is_auto_discovery
+            )
+            # 刷新 rt 表中的指标和维度
+            self.bulk_refresh_rt_fields(group.table_id, metric_info)
+            return is_updated
+        else:
+            is_updated = TimeSeriesMetric.update_metrics(self.time_series_group_id, metric_info)
+
         tag_set = set()
         field_list = []
         tag_total_list = []
@@ -772,6 +961,142 @@ class TimeSeriesMetric(models.Model):
             result.append(dimension)
 
         return result
+
+    @classmethod
+    def get_metric_tag_from_metric_info(cls, metric_info: Dict) -> List:
+        # 获取 tag
+        if "tag_value_list" in metric_info:
+            tags = set(metric_info["tag_value_list"].keys())
+        else:
+            tags = {tag["field_name"] for tag in metric_info.get("tag_list", [])}
+
+        # 添加特殊字段，兼容先前逻辑
+        tags.add("target")
+        return list(tags)
+
+    @classmethod
+    def _bulk_create_metrics(
+        cls,
+        metrics_dict: Dict,
+        need_create_metrics: Union[List, Set],
+        group_id: int,
+        table_id: str,
+        is_auto_discovery: bool,
+    ) -> bool:
+        """批量创建指标"""
+        records = []
+        for metric in need_create_metrics:
+            metric_info = metrics_dict.get(metric)
+            # 如果获取不到指标数据，则跳过
+            if not metric_info:
+                continue
+            tag_list = cls.get_metric_tag_from_metric_info(metric_info)
+            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
+            if not metric_info.get("is_active", True) and not is_auto_discovery:
+                continue
+            # 获取结果表
+            params = {
+                "field_name": metric,
+                "group_id": group_id,
+                "table_id": f"{table_id.split('.')[0]}.{metric}",
+                "tag_list": tag_list,
+            }
+            logger.info("create ts metric data: %s", json.dumps(params))
+            records.append(cls(**params))
+        # 开始批量创建
+        cls.objects.bulk_create(records, batch_size=BULK_CREATE_BATCH_SIZE)
+        return True
+
+    @classmethod
+    def _bulk_update_metrics(
+        cls, metrics_dict: Dict, need_update_metrics: Union[List, Set], group_id: int, is_auto_discovery: bool
+    ):
+        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
+        qs_objs = filter_model_by_in_page(
+            TimeSeriesMetric, "field_name__in", need_update_metrics, other_filter={"group_id": group_id}
+        )
+        records, white_list_disabled_metric = [], set()
+        # 组装更新的数据
+        for obj in qs_objs:
+            metric = obj.field_name
+            metric_info = metrics_dict.get(metric)
+            # 如果找不到指标数据，则忽略
+            if not metric_info:
+                continue
+            last_modify_time = make_aware(
+                datetime.datetime.fromtimestamp(metric_info.get("last_modify_time", time.time()))
+            )
+            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
+            if not metric_info.get("is_active", True):
+                if is_auto_discovery:
+                    last_modify_time = make_aware(datetime.datetime(1970, 1, 1))
+                else:
+                    white_list_disabled_metric.add(metric)
+            # 标识是否需要更新
+            is_need_update = False
+            # 先设置最后更新时间 1 天更新一次，减少对 db 的操作
+            if (last_modify_time - obj.last_modify_time).days >= 1:
+                is_need_update = True
+                obj.last_modify_time = last_modify_time
+
+            # 如果 tag 不一致，则进行更新
+            tag_list = cls.get_metric_tag_from_metric_info(metric_info)
+            if set(obj.tag_list or []) != set(tag_list):
+                is_need_update = True
+                obj.tag_list = tag_list
+
+            if is_need_update:
+                records.append(obj)
+        # 白名单模式，如果存在需要禁用的指标，则需要删除；应该不会太多，直接删除
+        if white_list_disabled_metric:
+            cls.objects.filter(group_id=group_id, field_name__in=white_list_disabled_metric).delete()
+        logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
+
+        # 批量更新指定的字段
+        cls.objects.bulk_update(records, ["last_modify_time", "tag_list"], batch_size=BULK_UPDATE_BATCH_SIZE)
+
+    @classmethod
+    def bulk_refresh_ts_metrics(
+        cls, group_id: int, table_id: str, metric_info_list: List, is_auto_discovery: bool
+    ) -> bool:
+        """
+            更新或创建时序指标数据
+
+            :param group_id: 自定义分组ID
+            :param table_id: 结果表
+            :param metric_info_list: 具体自定义时序内容信息，[{
+                "field_name": "core_file",
+                "tag_value_list": {"endpoint": {'last_update_time': 1701438084,
+        'values': None},
+                "last_modify_time": 1464567890123,
+            }, {
+                "field_name": "disk_full",
+                "tag_list": {"module": {"values": ["foo",]}, "set": {"values": ["foo",]}, "partition": {}}
+                "last_modify_time": 1464567890123,
+            }]
+            :param is_auto_discovery: 指标是否自动发现
+            :return: True or raise
+        """
+        _metrics_dict = {m["field_name"]: m for m in metric_info_list if m.get("field_name")}
+        # 获取不存在的指标，然后批量创建
+        metrics_by_group_id = cls.objects.filter(group_id=group_id).values_list("field_name", flat=True)
+        # 获取需要批量创建的指标
+        _metrics = set(_metrics_dict.keys())
+        # NOTE: 这里仅针对创建时，推送路由数据
+        is_create = False
+        need_create_metrics = _metrics - set(metrics_by_group_id)
+        # 获取已经存在的指标，然后进行批量更新
+        need_update_metrics = _metrics - need_create_metrics
+        # 如果存在，则批量创建
+        if need_create_metrics:
+            is_create = cls._bulk_create_metrics(
+                _metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery
+            )
+        # 批量更新
+        if need_update_metrics:
+            cls._bulk_update_metrics(_metrics_dict, need_update_metrics, group_id, is_auto_discovery)
+
+        return is_create
 
     @classmethod
     def update_metrics(cls, group_id, metric_info_list):

@@ -74,7 +74,6 @@ class Migration(migrations.Migration):
     dependencies = [
         ("bkmonitor", "0140_merge_0139_auto_20230613_1211_0139_auto_20230619_1048"),
         ("metadata", "0171_resulttable_data_label"),
-        ("monitor_web", "0059_auto_20220722_1436"),
     ]
 
     operations = [
