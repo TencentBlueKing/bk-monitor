@@ -23,7 +23,7 @@
 <template>
   <div class="clean-template-container" v-bkloading="{ isLoading: loading }">
     <article class="article">
-      <step-field :is-temp-field="true" @change-submit="changeSubmit" />
+      <step-field :is-temp-field="true" @changeSubmit="changeSubmit" />
     </article>
   </div>
 </template>

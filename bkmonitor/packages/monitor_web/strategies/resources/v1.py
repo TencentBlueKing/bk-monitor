@@ -546,6 +546,7 @@ class StrategyConfigListResource(Resource):
         )
 
         node_msg["target_object_type"] = self.data_target(strategy_id, scenario)
+        # add_allowed 该字段用于页面展示， v1接口已被SaaS弃用，因此这里返回该字段为非准确值
         node_msg["add_allowed"] = True if node_msg["target_object_type"] else False
         if not config or not config[0]:
             return node_msg
