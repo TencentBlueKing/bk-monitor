@@ -58,7 +58,7 @@ class BaseReportHandler(object):
         if not channels:
             channels = self.channels
         for channel in channels:
-            if channel["is_enabled"]:
+            if channel.is_enabled:
                 SendChannelHandler(channel).send(context, send_round, self.report.bk_biz_id)
 
     def get_render_params(self) -> dict:
