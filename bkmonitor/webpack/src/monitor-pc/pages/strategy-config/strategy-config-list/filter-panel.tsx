@@ -164,7 +164,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
               >
                 {data.name}
               </span>
-              <span>{data.count || 0}</span>
+              <span class='label-count'>{data.count || 0}</span>
             </span>
           )
         }}

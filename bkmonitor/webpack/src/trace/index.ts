@@ -73,6 +73,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         window[key.toLocaleLowerCase()] = data[key];
       });
       window.username = window.uin;
+      window.user_name = window.uin;
       window.cc_biz_id = +window.bk_biz_id;
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();

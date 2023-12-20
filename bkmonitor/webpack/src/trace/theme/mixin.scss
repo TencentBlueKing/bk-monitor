@@ -63,3 +63,39 @@
     }
   }
 }
+
+@mixin chart-plugin-is-error {
+  .is-error {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    z-index: 999;
+    display: block;
+    color: #fff;
+    cursor: pointer;
+    border-color: #e0226e transparent transparent #e0226e;
+    border-style: solid;
+    border-width: 12px;
+    border-radius: 2px;
+
+    &::after {
+      position: absolute;
+      top: -12px;
+      left: -6px;
+      width: 4px;
+      height: 8px;
+      content: '!';
+    }
+  }
+}
+
+@mixin chart-error-tooltip {
+  .chart-wrapper-error-tooltip {
+    max-width: 400px;
+    background-color: #e0226e !important;
+  
+    .tippy-arrow {
+      border-top: 8px solid #e0226e !important;
+    }
+  }
+}
