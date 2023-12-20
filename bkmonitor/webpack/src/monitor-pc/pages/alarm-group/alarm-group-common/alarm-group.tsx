@@ -93,24 +93,24 @@ export default class AlarmGroup extends tsc<IGroupList> {
       formatter: () => {}
     },
     {
-      label: i18n.t('应用策略数'),
-      prop: 'strategy_count',
-      disabled: false,
-      checked: true,
+      label: i18n.t('应用告警分派规则数'),
+      prop: 'rules_count',
       minWidth: null,
       width: 200,
       props: {},
       formatter: () => {}
     },
+    { label: i18n.t('应用策略数'), prop: 'strategy_count', minWidth: null, width: 200, props: {}, formatter: () => {} },
     {
       label: i18n.t('轮值规则'),
       prop: 'duty_rules',
       disabled: false,
       checked: true,
-      minWidth: null,
-      width: 200,
+      minWidth: 200,
+      width: null,
       props: {},
-      formatter: row => row.dutyRuleNames.map(item => item.name).join(',') || '--'
+      // formatter: row => row.dutyRuleNames.map(item => item.name).join(',') || '--'
+      formatter: row => this.dutyRulesRender(row.dutyRuleNames)
     },
     {
       label: i18n.t('说明'),
@@ -216,6 +216,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleTableColumnsData() {
     const fnMap = {
       name: this.cellName,
+      rules_count: this.cellRulesCount,
       strategy_count: this.cellStrategyCount,
       handle: this.cellHandle,
       update: this.cellUpdate
@@ -245,6 +246,18 @@ export default class AlarmGroup extends tsc<IGroupList> {
       >
         {row.name}
       </span>
+    );
+  }
+  cellRulesCount(row) {
+    return (
+      <div class='col-appstrategy'>
+        <span
+          class='strategy-num'
+          onClick={() => this.handleToAppDispatch(row)}
+        >
+          {row.rules_count || 0}
+        </span>
+      </div>
     );
   }
   cellStrategyCount(row) {
@@ -449,6 +462,15 @@ export default class AlarmGroup extends tsc<IGroupList> {
     this.detail.id = id;
   }
 
+  // 跳转到告警分派 展示相关联的告警分派规则
+  handleToAppDispatch({ rules_count: rulesCount, name }) {
+    if (!rulesCount) return;
+    this.$router.push({
+      name: 'alarm-dispatch',
+      params: { groupName: name }
+    });
+  }
+
   // 跳转到策略列表  展示相关联告警组的策略
   handleToAppStrategy({ strategy_count: strategyCount, name }) {
     if (!strategyCount) return;
@@ -489,6 +511,30 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleSettingChange({ fields, size }) {
     this.selectedFields = fields;
     this.tableSize = size;
+  }
+
+  dutyRulesRender(rules) {
+    return rules?.length ? (
+      <div class='col-rules'>
+        <div
+          class='col-rules-wrap'
+          v-bk-tooltips={{
+            placements: ['top-start'],
+            boundary: 'window',
+            content: () => rules.map(item => item.name).join('、'),
+            delay: 200
+          }}
+        >
+          {rules.map(item => (
+            <span class='wrap-label'>
+              <span class='text-overflow'>{item.name}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    ) : (
+      '--'
+    );
   }
 
   render(): VNode {
@@ -568,7 +614,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                     {...{ props: item.props }}
                     width={item.width}
                     min-width={item.minWidth}
-                    show-overflow-tooltip={true}
+                    show-overflow-tooltip={item.prop !== 'duty_rules'}
                     formatter={item.formatter}
                   />
                 ))}

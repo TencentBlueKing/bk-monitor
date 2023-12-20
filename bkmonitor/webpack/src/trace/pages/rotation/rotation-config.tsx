@@ -212,7 +212,7 @@ export default defineComponent({
      * 表单校验
      * @returns 是否校验成功
      */
-    function validate() {
+    function validate(_type: 'submit' | 'preview' = 'submit') {
       let valid = true;
       // 清空错误信息
       Object.keys(errMsg).forEach(key => (errMsg[key] = ''));

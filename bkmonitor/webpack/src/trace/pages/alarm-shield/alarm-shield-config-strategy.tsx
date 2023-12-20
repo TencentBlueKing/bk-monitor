@@ -374,6 +374,7 @@ export default defineComponent({
                 modelValue={this.strategyId}
                 multiple={true}
                 filterable={true}
+                selectedStyle={'checkbox'}
                 onUpdate:modelValue={v => (this.strategyId = v)}
                 onToggle={() => this.handleStrategyChange()}
                 onClear={this.handleClear}
