@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
 import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -204,7 +205,7 @@ class IndexSetHandler(APIModel):
     @classmethod
     def post_list(cls, index_sets):
         """
-        补充存储集数据分类、数据源、集群名称字段
+        补充存储集数据分类、数据源、集群名称字段、标签信息
         :param index_sets:
         :return:
         """
@@ -217,8 +218,17 @@ class IndexSetHandler(APIModel):
             cluster_map = IndexSetHandler.get_cluster_map()
         scenario_choices = dict(Scenario.CHOICES)
 
+        tag_ids_mapping = dict()
+        tag_ids_all = set()
+
         multi_execute_func = MultiExecuteFunc()
         for _index in index_sets:
+            # 标签处理
+            if _index["tag_ids"]:
+                tag_ids = {int(tag_id) for tag_id in json.loads(_index["tag_ids"].replace("'", "\""))}
+                tag_ids_mapping[int(_index["index_set_id"])] = tag_ids
+                tag_ids_all = tag_ids_all.union(tag_ids)
+
             _index["category_name"] = GlobalCategoriesEnum.get_display(_index["category_id"])
             _index["scenario_name"] = scenario_choices.get(_index["scenario_id"])
             _index["storage_cluster_name"] = ",".join(
@@ -257,6 +267,18 @@ class IndexSetHandler(APIModel):
                 _index["time_field_unit"] = TimeFieldUnitEnum.MILLISECOND.value
                 _index["time_field"] = time_field
         result = multi_execute_func.run()
+
+        # 获取标签信息
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        index_set_tag_mapping = {
+            obj.tag_id: {
+                "name": InnerTag.get_choice_label(obj.name),
+                "color": obj.color,
+                "tag_id": obj.tag_id,
+            }
+            for obj in index_set_tag_objs
+        }
+
         for _index in index_sets:
             if _index["scenario_id"] == Scenario.BKDATA:
                 _index["storage_cluster_id"] = result.get(_index["index_set_id"], {}).get("storage_cluster_id")
@@ -268,6 +290,17 @@ class IndexSetHandler(APIModel):
                         .split(",")
                     }
                 )
+
+            # 补充标签信息
+            _index.pop("tag_ids")
+            tag_ids = tag_ids_mapping.get(int(_index["index_set_id"]), [])
+            if not tag_ids:
+                _index["tags"] = list()
+                continue
+
+            _index["tags"] = [
+                index_set_tag_mapping.get(int(tag_id)) for tag_id in tag_ids if index_set_tag_mapping.get(int(tag_id))
+            ]
 
         return index_sets
 
