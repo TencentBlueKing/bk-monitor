@@ -1360,7 +1360,8 @@ export default class CommonCondition extends tsc<IProps> {
         {!!this.tagList[this.tagList.length - 1]?.condition?.value?.length && !this.readonly && (
           <div
             key='add'
-            class='line-wrap'
+            class='line-wrap add-type'
+            onClick={this.handleAdd}
           >
             <div
               class={['tag-add', { active: this.addActive }, { permanent: !this.isFormMode }]}
@@ -1372,12 +1373,12 @@ export default class CommonCondition extends tsc<IProps> {
         )}
         <div style={'display: none;'}>
           <div
-            class='common-condition-component-pop-wrap'
+            class={['common-condition-component-pop-wrap', { 'key-type': this.selectType === TypeEnum.key }]}
             ref='wrap'
             id={this.componentId}
           >
             {/* value搜索输入框 */}
-            {this.selectType === TypeEnum.value && (
+            {[TypeEnum.value, TypeEnum.key].includes(this.selectType) && (
               <div class='search-wrap'>
                 <Input
                   value={this.searchValue}
@@ -1388,6 +1389,8 @@ export default class CommonCondition extends tsc<IProps> {
                 ></Input>
               </div>
             )}
+            {/* key选项类型筛选栏  */}
+            {this.selectType === TypeEnum.key && <div class='type-list-wrap'></div>}
             <div class='wrap-list'>
               {(() => {
                 /* key可选项列表 */
