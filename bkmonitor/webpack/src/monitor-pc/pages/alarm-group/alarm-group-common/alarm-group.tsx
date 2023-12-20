@@ -80,6 +80,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
       props: { 'show-overflow-tooltip': true },
       formatter: () => {}
     },
+    {
+      label: i18n.t('应用告警分派规则数'),
+      prop: 'rules_count',
+      minWidth: null,
+      width: 200,
+      props: {},
+      formatter: () => {}
+    },
     { label: i18n.t('应用策略数'), prop: 'strategy_count', minWidth: null, width: 200, props: {}, formatter: () => {} },
     {
       label: i18n.t('说明'),
@@ -148,6 +156,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleTableColumnsData() {
     const fnMap = {
       name: this.cellName,
+      rules_count: this.cellRulesCount,
       strategy_count: this.cellStrategyCount,
       handle: this.cellHandle,
       update: this.cellUpdate
@@ -166,6 +175,18 @@ export default class AlarmGroup extends tsc<IGroupList> {
       >
         {row.name}
       </span>
+    );
+  }
+  cellRulesCount(row) {
+    return (
+      <div class='col-appstrategy'>
+        <span
+          class='strategy-num'
+          onClick={() => this.handleToAppDispatch(row)}
+        >
+          {row.rules_count || 0}
+        </span>
+      </div>
     );
   }
   cellStrategyCount(row) {
@@ -337,6 +358,15 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleShowDetailsView({ id }) {
     this.detail.show = true;
     this.detail.id = id;
+  }
+
+  // 跳转到告警分派 展示相关联的告警分派规则
+  handleToAppDispatch({ rules_count: rulesCount, name }) {
+    if (!rulesCount) return;
+    this.$router.push({
+      name: 'alarm-dispatch',
+      params: { groupName: name }
+    });
   }
 
   // 跳转到策略列表  展示相关联告警组的策略

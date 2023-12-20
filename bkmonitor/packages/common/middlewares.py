@@ -13,13 +13,13 @@ specific language governing permissions and limitations under the License.
 import datetime
 
 import pytz
-from common.log import logger
 from django.conf import settings
 from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
-from monitor_web.extend_account.models import UserAccessRecord
 
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request
+from common.log import logger
+from monitor_web.extend_account.models import UserAccessRecord
 
 
 class TimeZoneMiddleware(MiddlewareMixin):
@@ -28,7 +28,12 @@ class TimeZoneMiddleware(MiddlewareMixin):
     """
 
     def process_view(self, request, view_func, view_args, view_kwargs):
-        biz_id = fetch_biz_id_from_request(request, view_kwargs)
+
+        timezone_exempt: bool = getattr(view_func, "timezone_exempt", False)
+        if timezone_exempt:
+            return
+
+        biz_id: int = fetch_biz_id_from_request(request, view_kwargs)
         if biz_id:
             try:
                 from core.drf_resource import resource
@@ -51,6 +56,11 @@ class ActiveBusinessMiddleware(MiddlewareMixin):
     """
 
     def process_view(self, request, view_func, view_args, view_kwargs):
+
+        track_site_visit: bool = getattr(view_func, "track_site_visit", False)
+        if not track_site_visit:
+            return
+
         request.biz_id = fetch_biz_id_from_request(request, view_kwargs)
         if request.biz_id:
             try:
@@ -67,6 +77,11 @@ class RecordLoginUserMiddleware(MiddlewareMixin):
     """
 
     def process_view(self, request, view_func, view_args, view_kwargs):
+
+        track_site_visit: bool = getattr(view_func, "track_site_visit", False)
+        if not track_site_visit:
+            return
+
         user = request.user
         if not user:
             return
