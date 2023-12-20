@@ -9,14 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-import logging
 from typing import List
 
 from django.core.management.base import BaseCommand
 
 from metadata.service.influxdb_instance import InfluxDBInstanceCluster
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):
@@ -32,7 +29,7 @@ class Command(BaseCommand):
         hosts = self.refine_hosts(hosts_path, hosts)
         # 插入数据
         InfluxDBInstanceCluster(cluster_name, hosts, options["is_readable"]).add()
-        logging.info("Influxdb实例集群插入成功!")
+        self.stdout.write("Influxdb实例集群插入成功!")
 
     def add_arguments(self, parser):
         # influxdb 集群

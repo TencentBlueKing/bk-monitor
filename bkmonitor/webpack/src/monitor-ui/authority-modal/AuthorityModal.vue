@@ -114,7 +114,8 @@
 </template>
 <script lang="ts">
 import { Component, Vue, Watch } from 'vue-property-decorator';
-import { showAccessRequest } from '../../monitor-pc/components/access-request-dialog';
+// 20231205 代码还原，先保留原有部分
+// import { showAccessRequest } from '../../monitor-pc/components/access-request-dialog';
 import authorityStore from '@store/modules/authority';
 
 import lockImg from '../../monitor-pc/static/images/svg/lock-radius.svg';
@@ -163,18 +164,18 @@ export default class AuthorityModal extends Vue {
     return data;
   }
   goToApply() {
-    showAccessRequest(this.applyUrl);
-    // 20230703 暂不需要
-    // try {
-    //   if (self === top) {
-    //     window.open(this.applyUrl, '__blank');
-    //   } else {
-    //     top.BLUEKING.api.open_app_by_other('bk_iam', this.applyUrl);
-    //   }
-    // } catch (_) {
-    //   // 防止跨域问题
-    //   window.open(this.applyUrl, '__blank');
-    // }
+    // 20231205 代码还原，先保留原有部分
+    // showAccessRequest(this.applyUrl);
+    try {
+      if (self === top) {
+        window.open(this.applyUrl, '__blank');
+      } else {
+        top.BLUEKING.api.open_app_by_other('bk_iam', this.applyUrl);
+      }
+    } catch (_) {
+      // 防止跨域问题
+      window.open(this.applyUrl, '__blank');
+    }
   }
   onCloseDialog() {
     this.isModalShow = false;

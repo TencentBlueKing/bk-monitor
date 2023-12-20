@@ -33,7 +33,7 @@ import {
   customServiceList,
   deleteCustomSerivice
 } from '../../../../monitor-api/modules/apm_meta';
-import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
+import type { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
 import DashboardPanel from '../../../../monitor-ui/chart-plugins/components/dashboard-panel';
 import { IPanelModel, IViewOptions } from '../../../../monitor-ui/chart-plugins/typings';
 import PanelItem from '../../../components/panel-item/panel-item';

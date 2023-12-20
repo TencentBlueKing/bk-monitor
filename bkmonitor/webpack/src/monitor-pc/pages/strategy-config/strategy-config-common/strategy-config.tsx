@@ -38,7 +38,7 @@ import {
   Table,
   TableColumn
 } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
@@ -514,6 +514,16 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
         value: '',
         id: 'result_table_id',
         list: []
+      },
+      level: {
+        name: this.$t('告警级别'),
+        value: '',
+        id: 'level',
+        list: [
+          { id: 1, name: this.$t('致命') },
+          { id: 2, name: this.$t('预警') },
+          { id: 3, name: this.$t('提醒') }
+        ]
       },
       algorithmType: {
         name: this.$t('算法类型'),
@@ -2000,7 +2010,7 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       default: props => (
         <div class='col-name'>
           <div class='col-name-label'>{props.row.updator || '--'}</div>
-          <div>{moment(props.row.updateTime).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
+          <div>{dayjs.tz(props.row.updateTime).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
         </div>
       )
     };

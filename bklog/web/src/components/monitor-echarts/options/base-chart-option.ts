@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import moment from 'moment'
+import dayjs from 'dayjs';
 import { IChartOptionPorps, ChartType } from './type-interface'
 export default class EchartsSeries {
   public  lineWidth = 1
@@ -42,18 +42,18 @@ export default class EchartsSeries {
     const [maxX] = seriesData[seriesData.length - 1]
     minX && maxX && (formatterFunc = (v: any) => {
       // 用绝对值兼容倒叙的情况
-      const duration = Math.abs(moment.duration(moment(maxX).diff(moment(minX))).asSeconds())
+      const duration = Math.abs(dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds());
       if (duration < 60 * 60 * 24) {
-        return moment(v).format('HH:mm:ss')
-          .replace(/:00$/, '')
+        return dayjs.tz(v).format('HH:mm:ss')
+          .replace(/:00$/, '');
       } if (duration < 60 * 60 * 24 * 2) {
-        return moment(v).format('HH:mm')
+        return dayjs.tz(v).format('HH:mm');
       } if (duration < 60 * 60 * 24 * 8) {
-        return moment(v).format('MM-DD HH:mm')
+        return dayjs.tz(v).format('MM-DD HH:mm');
       } if (duration <= 60 * 60 * 24 * 30 * 12) {
-        return moment(v).format('MM-DD')
+        return dayjs.tz(v).format('MM-DD');
       }
-      return moment(v).format('YYYY-MM-DD')
+      return dayjs.tz(v).format('YYYY-MM-DD');
     })
     return formatterFunc
   }

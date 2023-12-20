@@ -385,7 +385,7 @@ export default {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin: 0 20px;
+        margin: 0px 14px 0 24px;
 
         .icon {
           margin-right: 6px;

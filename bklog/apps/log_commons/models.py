@@ -12,7 +12,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from apps.api import BkItsmApi
 from apps.constants import (
-    ACTION_ID_MAP,
     ITEM_EXTERNAL_PERMISSION_LOG_ASSESSMENT,
     ApiTokenAuthType,
     ExternalPermissionActionEnum,
@@ -25,7 +24,8 @@ from apps.constants import (
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import EXTERNAL_AUTHORIZER_MAP
 from apps.iam import Permission
-from apps.iam.handlers.actions import get_action_by_id
+from apps.iam.handlers import ResourceEnum
+from apps.iam.handlers.actions import ActionEnum
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import IllegalMaintainerException
 from apps.models import OperateRecordModel
@@ -173,11 +173,39 @@ class ExternalPermission(OperateRecordModel):
         status = TokenStatusEnum.AVAILABLE.value
         if self.expire_time and timezone.now() > self.expire_time:
             status = TokenStatusEnum.EXPIRED.value
-        action = get_action_by_id(ACTION_ID_MAP[self.action_id])
+            return status
+        # 需要对授权人的权限进行校验
         authorizer = AuthorizerSettings.get_authorizer(space_uid=self.space_uid)
         if authorizer:
-            if not Permission(username=authorizer).is_allowed_by_biz(self.bk_biz_id, action, raise_exception=False):
-                status = TokenStatusEnum.INVALID.value
+            if self.action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
+                # 日志提取权限维度是空间
+                # is_allowed_by_biz里针对bk_biz_id的判断, 当非BKCC的时候需要传入space_uid
+                bk_biz_id = self.bk_biz_id if self.bk_biz_id > 0 else self.space_uid
+                if not Permission(username=authorizer).is_allowed_by_biz(
+                    bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
+                ):
+                    status = TokenStatusEnum.INVALID.value
+            elif self.action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
+                # 日志检索权限维度是索引集
+                iam_resources = []
+                for index_set_id in self.resources:
+                    attribute = {
+                        "bk_biz_id": self.bk_biz_id,
+                        "space_uid": self.space_uid,
+                    }
+                    iam_resources.append(
+                        [ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id, attribute=attribute)]
+                    )
+                permission_result = Permission(username=authorizer).batch_is_allowed(
+                    actions=[ActionEnum.SEARCH_LOG], resources=iam_resources
+                )
+                # permission_result: {index_set_id: {action_id: True/False}}
+                for k, v in permission_result.items():
+                    if int(k) not in self.resources:
+                        continue
+                    if not v.get(ActionEnum.SEARCH_LOG.id, False):
+                        status = TokenStatusEnum.INVALID.value
+                        break
         return status
 
     @classmethod
@@ -260,6 +288,7 @@ class ExternalPermission(OperateRecordModel):
                 {"key": "expire_time", "value": params["expire_time"]},
                 {"key": "action_id", "value": ExternalPermissionActionEnum.get_choice_label(params["action_id"])},
                 {"key": "authorized_user", "value": ",".join(authorized_users)},
+                {"key": "approver", "value": ",".join(get_maintainers(space_uid=space_uid))},
                 {
                     "key": "resources",
                     "value": cls.build_itsm_resources_display_name(
@@ -480,13 +509,17 @@ class ExternalPermission(OperateRecordModel):
 
     @classmethod
     def _get_log_search_resource(cls, space_uid: str) -> List[Dict[str, Any]]:
+        from apps.log_search.handlers.index_set import IndexSetHandler
         from apps.log_search.models import LogIndexSet
 
+        related_space_uids = []
         if not space_uid:
             space_uid_list = ExternalPermission.objects.all().values_list("space_uid", flat=True).distinct()
-            qs = LogIndexSet.objects.filter(space_uid__in=space_uid_list)
+            for _space_uid in space_uid_list:
+                related_space_uids.extend(IndexSetHandler.get_all_related_space_uids(space_uid=_space_uid))
         else:
-            qs = LogIndexSet.objects.filter(space_uid=space_uid)
+            related_space_uids = IndexSetHandler.get_all_related_space_uids(space_uid=space_uid)
+        qs = LogIndexSet.objects.filter(space_uid__in=related_space_uids)
         return [
             {
                 "id": index_set.index_set_id,
@@ -569,11 +602,12 @@ class ExternalPermission(OperateRecordModel):
         if action_id == ExternalPermissionActionEnum.LOG_COMMON.value:
             return result
         result["allowed"] = True
-        obj = ExternalPermission.objects.filter(
-            action_id=action_id, authorized_user=authorized_user, space_uid=space_uid
-        ).first()
-        if obj:
-            result["resources"] = obj.resources
+        # 可能多次授权, 需要合并资源
+        objs = ExternalPermission.objects.filter(
+            action_id=action_id, authorized_user=authorized_user, space_uid=space_uid, expire_time__gt=timezone.now()
+        )
+        for obj in objs:
+            result["resources"].extend(obj.resources)
         return result
 
 

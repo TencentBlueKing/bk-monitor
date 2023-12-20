@@ -25,7 +25,12 @@
     <div class="chart-header">
       <div class="title">{{ $t('分钟数据量') }}</div>
       <div class="date-picker">
-        <time-range :value="datePickerValue" @change="handleDateChange" />
+        <time-range
+          :value="datePickerValue"
+          :timezone="timezone"
+          @change="handleDateChange"
+          @timezoneChange="handleTimezoneChange"
+        />
         <div class="refresh-button" @click="handleRefreshChange">
           <span class="bk-icon icon-refresh"></span>
           <span>{{ $t('刷新') }}</span>
@@ -44,20 +49,20 @@
 
 <script>
 import * as echarts from 'echarts';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import TimeRange from '@/components/time-range/time-range';
-import { formatDate } from '@/common/util';
 import { mapGetters } from 'vuex';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { updateTimezone } from '@/language/dayjs';
 
 export default {
   components: {
     TimeRange,
   },
   data() {
-    const currentTime = Date.now();
-    const startTime = formatDate(currentTime - 15 * 60 * 1000);
-    const endTime = formatDate(currentTime);
+    const currentTime = Math.floor(new Date().getTime() / 1000);
+    const startTime = (currentTime - 15 * 60);
+    const endTime = currentTime;
     return {
       isEmpty: false,
       basicLoading: true,
@@ -77,6 +82,7 @@ export default {
         size: 500,
         interval: '1m',
       },
+      timezone: dayjs.tz.guess(),
     };
   },
   computed: {
@@ -108,6 +114,7 @@ export default {
     window.addEventListener('resize', this.resizeChart);
   },
   beforeDestroy() {
+    updateTimezone();
     window.removeEventListener('resize', this.resizeChart);
   },
   methods: {
@@ -158,7 +165,7 @@ export default {
           },
           axisLabel: {
             formatter(value) {
-              return moment(value).format('MM-DD HH:mm');
+              return dayjs.tz(value).format('MM-DD HH:mm');
             },
           },
         },
@@ -187,6 +194,19 @@ export default {
         }],
         tooltip: {
           trigger: 'axis',
+          show: true,
+          formatter: (params) => {
+            if (params[0].value) {
+              const time = dayjs.tz(params[0].value[0]).format('MM-DD HH:mm');
+              const val = params[0].value[1];
+              return `<div>
+                        <strong>${time}</strong>
+                        <div>${val}</div>
+                      </div>
+                    `;
+            }
+            return '';
+          },
         },
         textStyle: {
           color: '#63656E',
@@ -205,11 +225,16 @@ export default {
       this.datePickerValue = val;
       this.handleRefreshChange();
     },
+    handleTimezoneChange(timezone) {
+      this.timezone = timezone;
+      updateTimezone(timezone);
+      this.handleRefreshChange();
+    },
     handleRefreshChange() {
       const tempList = handleTransformToTimestamp(this.datePickerValue);
       Object.assign(this.retrieveParams, {
-        start_time: formatDate(tempList[0] * 1000),
-        end_time: formatDate(tempList[1] * 1000),
+        start_time: tempList[0],
+        end_time: tempList[1],
       });
       this.fetchChartData();
     },

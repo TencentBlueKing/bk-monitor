@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import logging
 from typing import Dict, Optional
 
 from django.conf import settings
@@ -18,8 +17,6 @@ from django.db.models import Q
 from django.db.models.query import QuerySet
 
 from metadata import models
-
-logger = logging.getLogger("metadata")
 
 
 class Command(BaseCommand):

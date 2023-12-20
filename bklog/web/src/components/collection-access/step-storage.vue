@@ -526,7 +526,6 @@ export default {
           }
           if (this.isCleanField) {
             this.messageSuccess(this.$t('保存成功'));
-            // 只有在不展示日志脱敏的情况下才改变保存状态
             this.$emit('changeSubmit', true);
             this.$emit('stepChange', 'back');
           } else {

@@ -70,7 +70,7 @@ class UptimecheckCacheManager(CacheManager):
     @classmethod
     def refresh_tasks(cls):
         pipeline = cls.cache.pipeline()
-        tasks = api.monitor.uptime_check_task_list()
+        tasks = api.monitor.uptime_check_task_list(plain=True)
         count = len(tasks)
         for task in tasks:
             pipeline.set(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=task["id"]), json.dumps(task), cls.CACHE_TIMEOUT)

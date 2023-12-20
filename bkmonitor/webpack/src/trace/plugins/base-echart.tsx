@@ -34,9 +34,9 @@ import {
   watch,
   WatchStopHandle
 } from 'vue';
+import dayjs from 'dayjs';
 import type { EChartOption, ECharts } from 'echarts';
 import * as echarts from 'echarts';
-import moment from 'moment';
 
 import './base-echart.scss';
 
@@ -184,7 +184,7 @@ export default defineComponent({
       }
       let liHtmls = [];
       let ulStyle = '';
-      const pointTime = moment(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
       if (params[0]?.data?.tooltips) {
         liHtmls.push(params[0].data.tooltips);
       } else {
@@ -288,8 +288,8 @@ export default defineComponent({
           instance.value.dispatchAction({
             type: 'restore'
           });
-          const timeFrom = moment(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
-          const timeTo = moment(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+          const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
+          const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm');
           emit('dataZoom', timeFrom, timeTo);
         }
       } else {

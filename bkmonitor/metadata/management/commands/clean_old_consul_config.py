@@ -9,13 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import logging
 from django.core.management.base import BaseCommand
-from metadata.models import DataSource
-from metadata.config import CONSUL_PATH
 
-logger = logging.getLogger("metadata")
+from metadata.config import CONSUL_PATH
+from metadata.models import DataSource
 
 
 class Command(BaseCommand):

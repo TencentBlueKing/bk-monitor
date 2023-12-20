@@ -38,7 +38,7 @@ import {
   TableColumn,
   TableSettingContent
 } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import {
   bulkDeleteFavorite,
@@ -411,7 +411,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
   }
   /** 获取展示时间 */
   getShowTime(timeStr: string) {
-    return moment(timeStr).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ss');
   }
   /** 删除收藏 */
   handleDeleteFavorite(row) {

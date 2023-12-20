@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import moment from 'moment';
+import dayjs from 'dayjs';
 import Vue from 'Vue';
 
 import { getUnitInfo } from '../../../monitor-api/modules/strategies';
@@ -494,7 +494,7 @@ export const reviewInterval = (interval: number | 'auto' | string, timeRange: nu
   if (interval === 'auto') {
     reviewInterval = interval;
   } else if (interval?.toString().match(/\d+[s|h|w|m|d|M|y]$/)) {
-    const now = moment();
+    const now = dayjs.tz();
     const nowUnix = now.unix();
     const [, v, unit] = interval.toString().match(/(\d+)([s|h|w|m|d|M|y])$/);
     reviewInterval = +Math.max(now.add(+v, unit as any).unix() - nowUnix, step || 10);
@@ -519,7 +519,7 @@ export const recheckInterval = (interval: number | 'auto' | string, timeRange: n
     });
     reviewInterval = Math.max(val, step);
   } else if (interval?.toString().match(/\d+[s|h|w|m|d|M|y]$/)) {
-    const now = moment();
+    const now = dayjs.tz();
     const nowUnix = now.unix();
     const [, v, unit] = interval.toString().match(/(\d+)([s|h|w|m|d|M|y])$/);
     reviewInterval = +Math.max(now.add(+v, unit as any).unix() - nowUnix, step || 60);
