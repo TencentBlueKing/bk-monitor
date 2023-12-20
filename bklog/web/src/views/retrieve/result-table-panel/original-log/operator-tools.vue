@@ -89,7 +89,7 @@
     </template>
     <template v-else>
       <span
-        class="handle-card union-icon" v-bk-tooltips="$t('{0}数据来源', {
+        class="handle-card union-icon" v-bk-tooltips="$t('{0}日志来源', {
           0: !isShowSourceField ? $t('显示') : $t('隐藏')
         })" @click.stop="handleClick('logSource')">
         <i :class="['bk-icon icon-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>

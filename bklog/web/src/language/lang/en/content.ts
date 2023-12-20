@@ -558,5 +558,8 @@ export default {
   多索引集: 'Multiple index sets',
   已失效: 'Expired',
   该字段在以下索引集存在冲突: 'This field has a conflict in the following index set',
-  '{0}数据来源': '{0} data source',
+  '{0}日志来源': '{0} log source',
+  停用状态下无法添加标签: 'Cannot add label when disabled.',
+  '内置标签名，请重新填写': 'Built-in label, please reset fill in',
+  '联合查询无法进行异步下载，可直接下载前1万条数据': 'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.',
 };

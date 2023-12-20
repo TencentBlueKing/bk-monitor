@@ -738,19 +738,20 @@ export default {
      * @returns {*}
      */
     handleSelectIndex(val, params = {}, isFavoriteSearch = false) {
-      this.catchUnionBeginList = [];
       const { ids, selectIsUnionSearch } = val;
+      // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
+      const newIndexSetStr = ids.join(',');
       if (!isFavoriteSearch) {
-        this.activeFavorite = {};
-        this.activeFavoriteID = -1;
+        const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)).join(',');
+        if (newIndexSetStr === favoriteIDs) return;
+        this.resetFavoriteValue();
       }
       if (selectIsUnionSearch) {
-        // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
-        const newIndexSetStr = ids.join(',');
         const storeIndexSetStr = this.unionIndexList.join(',');
         if (newIndexSetStr !== storeIndexSetStr || isFavoriteSearch) {
           this.shouldUpdateFields = true;
           this.$store.commit('updateUnionIndexList', ids);
+          this.catchUnionBeginList = [];
           this.retrieveLog(params);
         }
       } else { // 单选时弹窗关闭时 判断之前是否是多选 如果是多选 则直接检索
@@ -785,6 +786,8 @@ export default {
       this.totalFields.splice(0);
     },
     resetFavoriteValue() {
+      this.activeFavorite = {};
+      this.activeFavoriteID = -1;
       this.retrieveSearchNumber = 0; // 切换业务 检索次数设置为0;
       this.isSqlSearchType = true;
     },
@@ -860,12 +863,12 @@ export default {
       this.$refs.searchCompRef.pushCondition(field, mapOperator, value);
       this.$refs.searchCompRef.setRouteParams();
     },
-    /** 改变是否展示联合查询数据来源 */
+    /** 改变是否展示联合查询日志来源 */
     changeShowUnionSource() {
       this.operatorConfig.isShowSourceField = !this.operatorConfig.isShowSourceField;
       this.showShowUnionSource();
     },
-    /** 数据来源显隐操作 */
+    /** 日志来源显隐操作 */
     showShowUnionSource(keepLastTime = false) {
       const isExist = this.visibleFields.some(item => item.tag === 'union-source');
       // 非联合查询 不走逻辑
@@ -1735,7 +1738,7 @@ export default {
       const selectIsUnionSearch = value.index_set_type === 'union';
       const ids = selectIsUnionSearch
         ? value.index_set_ids.map(item => String(item))
-        : String(indexSetID);
+        : [String(indexSetID)];
       const setChangeValue = {
         ids,
         selectIsUnionSearch,
