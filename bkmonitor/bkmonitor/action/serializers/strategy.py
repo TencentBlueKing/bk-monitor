@@ -507,6 +507,12 @@ class DutyRuleDetailSlz(DutyRuleSlz):
 
     def to_representation(self, instance):
         data = super(DutyRuleDetailSlz, self).to_representation(instance)
+        data["user_groups"] = list(
+            set(DutyRuleRelation.objects.filter(duty_rule_id=instance.id).values_list("user_group_id", flat=True))
+        )
+        data["user_groups_count"] = len(data["user_groups"])
+        data["delete_allowed"] = data["user_groups_count"] == 0
+        data["edit_allowed"] = instance.bk_biz_id != 0
         # 将对应的duty_arranges加上
         data["duty_arranges"] = DutyArrangeSlz(
             instance=DutyArrange.objects.filter(duty_rule_id=instance.id), many=True
