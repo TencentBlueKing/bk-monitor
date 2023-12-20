@@ -2346,8 +2346,6 @@ class UnionSearchHandler(object):
 
         index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
 
-        sort_list = [[time_field, "desc"]]
-
         # 查询索引集ids是否有默认的显示配置  不存在则去创建
         # 考虑index_set_ids的查询性能 查询统一用index_set_ids_hash
         username = get_request_external_username() or get_request_username()
@@ -2360,19 +2358,25 @@ class UnionSearchHandler(object):
         except UserIndexSetFieldsConfig.DoesNotExist:
             user_index_set_config_obj = UserIndexSetFieldsConfig.objects.none()
 
+        fields_names = [field_info.get("field_name") for field_info in total_fields]
+        default_sort_list = [[time_field, "desc"]]
+        for field_name in ["gseIndex", "gseindex", "iterationIndex", "_iteration_idx"]:
+            if field_name in fields_names:
+                default_sort_list.append([field_name, "desc"])
+
         if user_index_set_config_obj:
             try:
                 obj = IndexSetFieldsConfig.objects.get(pk=user_index_set_config_obj.config_id)
             except IndexSetFieldsConfig.DoesNotExist:
                 obj = self.get_or_create_default_config(
-                    index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
+                    index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=default_sort_list
                 )
                 user_index_set_config_obj.config_id = obj.id
                 user_index_set_config_obj.save()
 
         else:
             obj = self.get_or_create_default_config(
-                index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
+                index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=default_sort_list
             )
 
         ret = {

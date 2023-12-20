@@ -391,7 +391,7 @@ class IndexSetFieldsConfigBaseSerializer(serializers.Serializer):
 
 class CreateIndexSetFieldsConfigSerializer(IndexSetFieldsConfigBaseSerializer):
     name = serializers.CharField(label=_("字段名称"), required=True)
-    display_fields = serializers.ListField(allow_empty=False)
+    display_fields = serializers.ListField(allow_empty=False, child=serializers.CharField())
     sort_list = serializers.ListField(label=_("排序规则"), allow_empty=True, child=serializers.ListField())
 
     def validate(self, attrs):
