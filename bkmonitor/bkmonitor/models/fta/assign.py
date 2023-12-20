@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 from django.db import models
 from django.utils.translation import ugettext as _
 
+from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils.model_manager import AbstractRecordModel
 
 
@@ -34,6 +35,7 @@ class AlertAssignGroup(AbstractRecordModel):
     path = models.CharField("资源路径", max_length=128, default="", blank=True, null=True)
     hash = models.CharField("原始配置摘要", max_length=64, default="", blank=True, null=True)
     snippet = models.TextField("配置片段", default="", blank=True, null=True)
+    source = models.CharField("来源系统", default=get_source_app_code, max_length=32, null=True, blank=True)
 
     def __str__(self):
         return f"{self.name}-{self.priority}"
