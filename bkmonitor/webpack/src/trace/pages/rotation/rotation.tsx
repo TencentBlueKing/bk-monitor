@@ -515,7 +515,7 @@ export default defineComponent({
     }
 
     function handleToAlarmGroup(item) {
-      const url = `${location.origin}${location.pathname}?bizId=${appStore.bizId}#/alarm-group?dutyRuleId=${item.id}`;
+      const url = `${location.origin}${location.pathname}?bizId=${appStore.bizId}#/alarm-group?dutyRule=${item.name}`;
       window.open(url);
     }
 

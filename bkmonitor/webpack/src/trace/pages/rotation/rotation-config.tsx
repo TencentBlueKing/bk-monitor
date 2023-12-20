@@ -26,7 +26,7 @@
 import { computed, defineComponent, onMounted, provide, reactive, readonly, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { Button, DatePicker, Input, Switcher, TagInput } from 'bkui-vue';
+import { Button, DatePicker, Input, Popover, Switcher, TagInput } from 'bkui-vue';
 import dayjs from 'dayjs';
 
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from '../../../monitor-api/modules/model';
@@ -76,7 +76,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: dayjs().format('YYYY-MM-DD 00:00:00'),
+        startTime: dayjs().format('YYYY-MM-DD hh:mm:ss'),
         endTime: ''
       }
     });
@@ -90,6 +90,11 @@ export default defineComponent({
       effective: '',
       rotationType: ''
     });
+
+    /* 关联告警组数量 */
+    const userGroupsCount = ref(0);
+
+    const enabledDisabled = computed(() => !!id.value && formData.enabled && !!userGroupsCount.value);
 
     function handleEffectiveChange(val: string, type: 'startTime' | 'endTime') {
       formData.effective[type] = val;
@@ -111,7 +116,9 @@ export default defineComponent({
     /** 取消按钮文本设置为永久 */
     function handleDatePickerOpen(state: boolean) {
       if (state) {
-        effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a').innerText = t('永久');
+        const ele = effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a');
+        ele.innerText = t('永久');
+        ele.setAttribute('class', 'confirm');
       }
     }
 
@@ -143,33 +150,44 @@ export default defineComponent({
       rotationTypeData[RotationTabTypeEnum.HANDOFF].forEach(item => {
         item.users.value.forEach(user => {
           const { groupType } = item.users;
-          if (user.value.length) {
-            user.orderIndex = orderIndex;
-            if (groupType === 'specified') {
-              orderIndex += 1;
-            } else {
-              // 自动分组，每一个人员都算一个颜色
-              orderIndex += user.value.length;
-            }
+          user.orderIndex = orderIndex;
+          if (groupType === 'specified') {
+            orderIndex += 1;
           } else {
-            // 没有选择人员复用上一个人员组颜色
-            user.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+            // 自动分组，每一个人员都算一个颜色
+            orderIndex += user.value.length;
           }
+          // if (user.value.length) {
+          //   user.orderIndex = orderIndex;
+          //   if (groupType === 'specified') {
+          //     orderIndex += 1;
+          //   } else {
+          //     // 自动分组，每一个人员都算一个颜色
+          //     orderIndex += user.value.length;
+          //   }
+          // } else {
+          //   // 没有选择人员复用上一个人员组颜色
+          //   user.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+          // }
         });
       });
+      orderIndex = 0;
       rotationTypeData[RotationTabTypeEnum.REGULAR].forEach(item => {
-        if (item.users.length) {
-          item.orderIndex = orderIndex;
-          orderIndex += 1;
-        } else {
-          item.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
-        }
+        item.orderIndex = orderIndex;
+        orderIndex += 1;
+        // if (item.users.length) {
+        //   item.orderIndex = orderIndex;
+        //   orderIndex += 1;
+        // } else {
+        //   item.orderIndex = orderIndex - 1 < 0 ? 0 : orderIndex - 1;
+        // }
       });
     }
 
     function handleRotationTabChange(type: RotationTabTypeEnum) {
       rotationType.value = type;
-      previewData.value = [];
+      resetUsersColor();
+      getPreviewData();
     }
 
     function handleReplaceUserDrop() {
@@ -194,7 +212,7 @@ export default defineComponent({
      * 表单校验
      * @returns 是否校验成功
      */
-    function validate(type: 'submit' | 'preview' = 'submit') {
+    function validate(_type: 'submit' | 'preview' = 'submit') {
       let valid = true;
       // 清空错误信息
       Object.keys(errMsg).forEach(key => (errMsg[key] = ''));
@@ -210,14 +228,11 @@ export default defineComponent({
         errMsg.effective = effectiveValid.msg;
         valid = false;
       }
-      // 提交时才做规则名称校验
-      if (type === 'submit') {
-        // 规则名称
-        const nameValid = validName();
-        if (nameValid.err) {
-          errMsg.name = nameValid.msg;
-          valid = false;
-        }
+
+      const nameValid = validName();
+      if (nameValid.err) {
+        errMsg.name = nameValid.msg;
+        valid = false;
       }
 
       return valid;
@@ -298,6 +313,7 @@ export default defineComponent({
 
     function getData() {
       retrieveDutyRule(id.value).then(res => {
+        userGroupsCount.value = res.user_groups_count;
         rotationType.value = res.category;
         formData.name = res.name;
         formData.labels = res.labels;
@@ -314,11 +330,41 @@ export default defineComponent({
       });
     }
 
+    /** 获取预览所需要的颜色列表 */
+    function getPreviewColorList() {
+      // 必须通过校验的规则且添加了人员
+      const orderIndex = [];
+      if (rotationType.value === RotationTabTypeEnum.REGULAR) {
+        rotationTypeData[rotationType.value].forEach(item => {
+          if (validFixedRotationData(item).success && item.users.length) orderIndex.push(item.orderIndex);
+        });
+      } else {
+        rotationTypeData[rotationType.value].forEach(item => {
+          if (validReplaceRotationData(item).success) {
+            const { value, groupType } = item.users;
+            value.forEach(user => {
+              // 手动分组且有人员，直接把orderIndex存入
+              if (groupType === 'specified') {
+                user.value.length && orderIndex.push(user.orderIndex);
+              } else {
+                value.forEach(user => {
+                  user.value.forEach((item, ind) => {
+                    // 自动分组，需要把每个人员的索引加上orderIndex再存入
+                    orderIndex.push(user.orderIndex + ind);
+                  });
+                });
+              }
+            });
+          }
+        });
+      }
+      return orderIndex.map(index => colorList.value[index]);
+    }
+
     /**
      * @description 获取预览数据
      */
     async function getPreviewData(init = false) {
-      validate('preview');
       if (init) {
         const params = {
           ...getPreviewParams(formData.effective.startTime),
@@ -331,7 +377,7 @@ export default defineComponent({
         previewData.value = setPreviewDataOfServer(
           dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
           autoOrders,
-          colorList.value
+          getPreviewColorList()
         );
       } else {
         const dutyParams = getParams();
@@ -345,7 +391,7 @@ export default defineComponent({
         previewData.value = setPreviewDataOfServer(
           dutyParams.category === 'regular' ? noOrderDutyData(data) : data,
           autoOrders,
-          colorList.value
+          getPreviewColorList()
         );
       }
     }
@@ -383,6 +429,7 @@ export default defineComponent({
       previewData,
       getPreviewData,
       loading,
+      enabledDisabled,
       handleRotationTypeDataChange,
       handleSubmit,
       handleBack,
@@ -427,10 +474,24 @@ export default defineComponent({
             class='mt-24'
           >
             <div class='enabled-switch'>
-              <Switcher
-                theme='primary'
-                v-model={this.formData.enabled}
-              ></Switcher>
+              <Popover
+                placement='top'
+                arrow={true}
+                trigger={'hover'}
+                popoverDelay={[300, 0]}
+                disabled={!this.enabledDisabled}
+              >
+                {{
+                  default: () => (
+                    <Switcher
+                      theme='primary'
+                      v-model={this.formData.enabled}
+                      disabled={this.enabledDisabled}
+                    ></Switcher>
+                  ),
+                  content: () => <span>{this.t('存在关联的告警组')}</span>
+                }}
+              </Popover>
             </div>
           </FormItem>
           <FormItem
