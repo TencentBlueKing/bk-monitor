@@ -1209,7 +1209,7 @@ export default class CommonCondition extends tsc<IProps> {
     return (
       <div
         class={['common-condition-new-component', { 'is-err': this.isErr || this.isRepeat }]}
-        v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini' }}
+        v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini', zIndex: 10 }}
         id={this.componentId}
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}
