@@ -14,9 +14,9 @@ from django.apps import AppConfig, apps
 from django.conf import settings
 from django.core.management import call_command
 from django.db import connections
-from healthz import define as healthz_metric
 
 from core.errors.errors import MigrateError
+from healthz import define as healthz_metric
 
 
 class MonitorAPIConfig(AppConfig):
@@ -27,13 +27,11 @@ class MonitorAPIConfig(AppConfig):
     def migrate(self):
         from bkmonitor.models import GlobalConfig
         from bkmonitor.utils.dynamic_settings import hack_settings
-        from bkmonitor.migrate import Migrator
 
         try:
             call_command("migrate", "--noinput", database="monitor_api")
             hack_settings(GlobalConfig, settings)
             call_command("migrate", "--noinput")
-            Migrator("iam", "bkmonitor.iam.migrations").migrate()
         except MigrateError as err:
             print("Migrate Error:{}".format(err))
             raise err
@@ -57,9 +55,15 @@ class MonitorAPIConfig(AppConfig):
                 settings.DATABASES.pop(alias, None)
 
     def ready(self):
-        self.check_external_db()
+        from bkmonitor.migrate import Migrator
 
-        if "migrate" in sys.argv and settings.MIGRATE_MONITOR_API:
+        self.check_external_db()
+        if "migrate" in sys.argv:
+            Migrator("iam", "bkmonitor.iam.migrations").migrate()
+
+            if not settings.MIGRATE_MONITOR_API:
+                return
+
             # 创建缓存表
             call_command("createcachetable", database="monitor_api")
             # 迁移DB
