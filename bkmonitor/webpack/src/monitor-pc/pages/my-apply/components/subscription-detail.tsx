@@ -53,6 +53,10 @@ export default defineComponent({
       default() {
         return {};
       }
+    },
+    queryType: {
+      type: String,
+      default: 'available'
     }
   },
   setup(props) {
@@ -237,34 +241,50 @@ export default defineComponent({
               <span>{window.i18n.t('订阅人')}</span>
             </div>
             <span class='value'>
-              <div class='subscribers-row'>
-                <span
-                  class='subscribers-label'
-                  style='padding-top: 3px;'
-                >
-                  {window.i18n.t('内部用户')}
-                </span>
-                <span class='subscribers-value'>
-                  {this.detailInfo?.channels
-                    ?.find?.(item => item.channel_name === 'user')
-                    ?.subscribers?.map?.(item => {
-                      return (
-                        <div style='display: inline-flex;align-items: center;margin-right: 24px;'>
-                          {/* {item.src && (
+              {this.queryType !== 'cancelled' ? (
+                <div class='subscribers-row'>
+                  <span
+                    class='subscribers-label'
+                    style='padding-top: 3px;'
+                  >
+                    {window.i18n.t('内部用户')}
+                  </span>
+                  <span
+                    class='subscribers-value'
+                    style='padding-top: 3px;'
+                  >
+                    {this.detailInfo?.channels
+                      ?.find?.(item => item.channel_name === 'user')
+                      ?.subscribers?.filter(item => item.is_enabled)
+                      ?.map?.(item => {
+                        return (
+                          <div style='display: inline-flex;align-items: center;margin-right: 24px;height: 100%;'>
+                            {/* {item.src && (
                             <img
                               src=''
                               alt=''
                               class='avatar'
                             />
                           )} */}
-                          <span style='margin-left: 5px;'>{item.id}</span>
-                        </div>
-                      );
-                    })}
-                </span>
-              </div>
+                            <span>{item.id}</span>
+                          </div>
+                        );
+                      })}
+                  </span>
+                </div>
+              ) : (
+                <div class='subscribers-row'>
+                  <span
+                    class='subscribers-value'
+                    style='padding-top: 3px;'
+                  >
+                    -
+                  </span>
+                </div>
+              )}
 
-              <div
+              {/* 暂时不需要 */}
+              {/* <div
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
@@ -276,9 +296,10 @@ export default defineComponent({
                       return <span class='email'>{item.id}</span>;
                     })}
                 </span>
-              </div>
+              </div> */}
 
-              <div
+              {/* 暂时不需要 */}
+              {/* <div
                 class='subscribers-row'
                 style='padding-top: 20px;'
               >
@@ -290,7 +311,7 @@ export default defineComponent({
                       return <span class='group-id'>{item.id}</span>;
                     })}
                 </span>
-              </div>
+              </div> */}
             </span>
           </div>
 
@@ -298,14 +319,24 @@ export default defineComponent({
             <div class='label'>
               <span>{window.i18n.t('发送频率')}</span>
             </div>
-            <span class='value'>{this.formatFrequency(this.detailInfo)}</span>
+            <span
+              class='value'
+              style='align-self: center;'
+            >
+              {this.formatFrequency(this.detailInfo)}
+            </span>
           </div>
 
           <div class='row'>
             <div class='label'>
               <span>{window.i18n.t('有效时间范围')}</span>
             </div>
-            <span class='value'>{this.getTimeRange}</span>
+            <span
+              class='value'
+              style='align-self: center;'
+            >
+              {this.getTimeRange}
+            </span>
           </div>
         </div>
       </div>

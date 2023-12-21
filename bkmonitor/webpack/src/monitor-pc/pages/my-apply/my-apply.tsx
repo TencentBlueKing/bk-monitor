@@ -53,8 +53,8 @@ class MyApply extends tsc<{}> {
   isShowSideslider = false;
   isShowQCSSlider = false;
   detailInfo = {};
-  handleGetSubscriptionID(subscription_id) {
-    getReport({ subscription_id })
+  handleGetSubscriptionID(report_id) {
+    getReport({ report_id })
       .then(response => {
         this.detailInfo = response;
         this.isShowSideslider = true;
@@ -161,7 +161,7 @@ class MyApply extends tsc<{}> {
                     text
                     theme='primary'
                     onClick={() => {
-                      this.handleGetSubscriptionID(row.subscription_id);
+                      this.handleGetSubscriptionID(row.report_id);
                     }}
                   >
                     {row.content_title}

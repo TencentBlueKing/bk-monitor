@@ -249,7 +249,7 @@ class MySubscription extends tsc<{}> {
       }
     ];
     sendReport({
-      report_id: this.currentTableRowOfSendingRecord.subscription_id,
+      report_id: this.currentTableRowOfSendingRecord.report_id,
       channels
     })
       .then(() => {
@@ -263,6 +263,42 @@ class MySubscription extends tsc<{}> {
       .finally(() => {
         this.isResending = false;
       });
+  }
+
+  /** 根据当前的 订阅场景 跳转到相应的能创建订阅的页面。
+   * 比如：日志聚类 跳转到 日志平台 => 日志聚类 => 数据指纹
+   * */
+  goToTargetScene() {
+    if (this.detailInfo.scenario === 'clustering') {
+      if (!this.detailInfo.scenario_config.index_set_id) {
+        Message({
+          theme: 'warning',
+          message: window.i18n.t('请选择索引集')
+        });
+        return;
+      }
+      // URL参数补齐再跳转即可。需要: spaceUid、bizId, activeTableTab, clusterRouteParams (一个配置对象)
+      // 日志平台的 URL: window.bk_log_search_url
+      const query = {
+        spaceUid: window.space_list.find(item => item.bk_biz_id === window.bk_biz_id).space_uid || '',
+        bizId: window.bk_biz_id,
+        // 固定写
+        activeTableTab: 'clustering',
+        clusterRouteParams: JSON.stringify({
+          // 固定写
+          activeNav: 'dataFingerprint',
+          requestData: {
+            pattern_level: this.detailInfo.scenario_config.pattern_level,
+            year_on_year_hour: this.detailInfo.scenario_config.year_on_year_hour,
+            show_new_pattern: this.detailInfo.scenario_config.is_show_new_pattern,
+            group_by: [],
+            size: 10000
+          }
+        })
+      };
+      const qs = new URLSearchParams(query as any).toString();
+      window.open(`${window.bk_log_search_url}#/retrieve/${this.detailInfo.scenario_config.index_set_id}?${qs}`);
+    }
   }
 
   @Watch('queryData.query_type')
@@ -410,7 +446,10 @@ class MySubscription extends tsc<{}> {
                 if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
                   return (
                     <bk-tag
-                      closable
+                      closable={
+                        this.currentTableRowOfSendingRecord?.tempSendResult?.filter(target => target.result).length > 1
+                      }
+                      // closable={this.currentTableRowOfSendingRecord?.tempSendResult?.length > 1}
                       onClose={() => {
                         this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
                       }}
@@ -425,7 +464,10 @@ class MySubscription extends tsc<{}> {
                 ) {
                   return (
                     <bk-tag
-                      closable
+                      closable={
+                        this.currentTableRowOfSendingRecord?.tempSendResult.filter(target => !target.result).length > 1
+                      }
+                      // closable={this.currentTableRowOfSendingRecord?.tempSendResult?.length > 1}
                       onClose={() => {
                         this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
                       }}
@@ -636,7 +678,7 @@ class MySubscription extends tsc<{}> {
 
           <bk-table-column
             label={this.$t('最近一次发送时间')}
-            sortable
+            sortable='custom'
             prop='last_send_time'
             scopedSlots={{
               default: ({ row }) => {
@@ -743,16 +785,36 @@ class MySubscription extends tsc<{}> {
               <div>
                 <span class='title'>{this.$t('订阅详情')}</span>
                 <span class='sub-title'>-&nbsp;{this.detailInfo?.name}</span>
+                <i
+                  class='icon-monitor icon-copy-link'
+                  style={{
+                    color: '#3A84FF',
+                    fontSize: '14px',
+                    marginLeft: '10px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={this.goToTargetScene}
+                />
               </div>
 
               <div>
-                {this.queryData.query_type !== 'invalid' && (
+                {['available', 'invalid'].includes(this.queryData.query_type) && (
                   <bk-button
                     theme='primary'
                     outline
                     onClick={() => this.handleCancelSubscription(this.detailInfo)}
                   >
                     {this.$t('取消订阅')}
+                  </bk-button>
+                )}
+
+                {this.queryData.query_type === 'cancelled' && (
+                  <bk-button
+                    theme='primary'
+                    outline
+                    onClick={() => this.handleResubscribeReport(this.detailInfo)}
+                  >
+                    {this.$t('重新订阅')}
                   </bk-button>
                 )}
 
@@ -763,7 +825,10 @@ class MySubscription extends tsc<{}> {
           </div>
 
           <div slot='content'>
-            <SubscriptionDetail detailInfo={this.detailInfo}></SubscriptionDetail>
+            <SubscriptionDetail
+              detailInfo={this.detailInfo}
+              queryType={this.queryData.query_type}
+            ></SubscriptionDetail>
           </div>
         </bk-sideslider>
 

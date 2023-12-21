@@ -97,6 +97,15 @@ class NavTools extends DocumentLinkMixin {
     this.globalSearchShow = false;
   }
 
+  /** vue-router 加载时间过长，导致没法直接在 mounted 中判断，故通过监听的方式去控制 我的订阅 弹窗是否打开 */
+  @Watch('$route.query')
+  handleQueryChange() {
+    // 从 日志平台 跳转过来时会通过 url 参数开启 我的订阅 弹窗。
+    if (this.$route.query.isShowMySubscription) {
+      this.isShowMySubscriptionModal = this.$route.query.isShowMySubscription === 'true';
+    }
+  }
+
   created() {
     this.helpList = [
       {
@@ -285,7 +294,7 @@ class NavTools extends DocumentLinkMixin {
    * 跳转到paas-host登录页面会自动清除登录cookie
    */
   handleQuit() {
-    location.href = location.origin + "/logout";
+    location.href = `${location.origin}/logout`;
   }
   render() {
     return (

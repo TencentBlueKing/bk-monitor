@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { createOrUpdateReport, sendReport } from '@api/modules/new_report';
 import { deepClone } from '@common/utils';
-import { Button, Dropdown, Message } from 'bkui-vue';
+import { Button, Dialog, Dropdown, Message } from 'bkui-vue';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 
@@ -67,10 +67,7 @@ export default defineComponent({
       isSending.value = true;
       await sendReport(formData)
         .then(() => {
-          Message({
-            theme: 'success',
-            message: window.i18n.t('发送成功')
-          });
+          isShowTestSendResult.value = true;
         })
         .catch(console.log)
         .finally(() => {
@@ -101,6 +98,9 @@ export default defineComponent({
         })
         .catch(console.log());
     }
+
+    const isShowTestSendResult = ref(false);
+
     return {
       t,
       router,
@@ -108,7 +108,8 @@ export default defineComponent({
       isSending,
       testSending,
       handleSave,
-      refOfCreateSubscriptionForm
+      refOfCreateSubscriptionForm,
+      isShowTestSendResult
     };
   },
   render() {
@@ -165,6 +166,46 @@ export default defineComponent({
             {window.i18n.t('取消')}
           </Button>
         </div>
+
+        <Dialog
+          isShow={this.isShowTestSendResult}
+          dialog-type='show'
+          ext-cls='test-send-result-dialog'
+          onClosed={() => {
+            this.isShowTestSendResult = false;
+          }}
+          v-slots={{
+            default: () => {
+              return (
+                <div
+                  style={{
+                    marginLeft: '30px'
+                  }}
+                >
+                  {window.i18n.t('邮件任务已生成, 请一分钟后到邮箱查看')}
+                </div>
+              );
+            },
+            header: () => {
+              return (
+                <div>
+                  <i
+                    class='icon-monitor icon-mc-check-fill'
+                    style='color: #2dca56;'
+                  />
+                  <span
+                    style={{
+                      marginLeft: '10px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {window.i18n.t('发送测试邮件成功')}
+                  </span>
+                </div>
+              );
+            }
+          }}
+        ></Dialog>
       </div>
     );
   }
