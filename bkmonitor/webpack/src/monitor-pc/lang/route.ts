@@ -134,6 +134,7 @@ export default {
   'route-链路管理': 'Link Management',
   'route-加载中...': 'Loading...',
   'route-数据源管理': 'DataSource Management',
+  'route-profiling': 'Profiling',
 
   // 功能页面标题
 
