@@ -148,8 +148,6 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
                 user_info.update(get_bk_login_ticket(request))
             validated_request_data.update(user_info)
 
-        # 2. SaaS凭证
-        validated_request_data.update(INTERFACE_COMMON_PARAMS)
         return validated_request_data
 
     def before_request(self, kwargs):

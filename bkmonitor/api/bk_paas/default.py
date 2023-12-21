@@ -8,18 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 import abc
-import json
 import logging
 
 import six
 from django.conf import settings
-from requests.exceptions import HTTPError, ReadTimeout
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
-from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -29,37 +25,6 @@ class BkPaaSAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     # 模块名
     module_name = "bk_paas"
-
-    @property
-    def label(self):
-        return self.__doc__
-
-    def get_request_url(self, validated_request_data):
-        return super(BkPaaSAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
-
-    def perform_request(self, validated_request_data):
-        request_url = self.get_request_url(validated_request_data)
-        headers = {
-            "x-bkapi-authorization": json.dumps({"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.APP_TOKEN})
-        }
-        try:
-            result = self.session.get(
-                params=validated_request_data,
-                url=request_url,
-                headers=headers,
-                verify=False,
-                timeout=self.TIMEOUT,
-            )
-        except ReadTimeout:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result="request timeout")
-
-        try:
-            result.raise_for_status()
-        except HTTPError as err:
-            logger.exception("【模块：{}】请求错误：{}，请求url: {} ".format(self.module_name, err, request_url))
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
-
-        return result.json()
 
 
 class GetAppClusterNamespaceResource(BkPaaSAPIGWResource):
