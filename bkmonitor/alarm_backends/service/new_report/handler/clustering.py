@@ -184,7 +184,11 @@ class ClusteringReportHandler(BaseReportHandler):
         获取渲染参数
         """
         time_config = get_data_range(self.report.frequency)
-        result = self.query_patterns(time_config)
+        try:
+            result = self.query_patterns(time_config)
+        except Exception as e:
+            logger.exception(f"{self.log_prefix} query pattern error: {e}")
+            return {}
         if not result:
             logger.info("[{}] Query pattern is empty.".format(self.log_prefix))
         content_config = self.report.content_config

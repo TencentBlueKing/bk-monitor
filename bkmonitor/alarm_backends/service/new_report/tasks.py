@@ -51,7 +51,7 @@ def new_report_detect():
     last_send_record_map = get_last_send_record_map(reports)
     for report in reports:
         # 判断订阅是否有效
-        if report.is_invalid():
+        if Report.is_invalid(report.end_time):
             logger.info(f"report{report.id} is invalid.")
             continue
         # 判断订阅是否到执行时间
