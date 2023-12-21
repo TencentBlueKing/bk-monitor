@@ -85,7 +85,7 @@ from bkmonitor.strategy.serializers import (
     YearRoundRangeSerializer,
 )
 from bkmonitor.utils.time_tools import strftime_local
-from constants.action import ActionPluginType, ActionSignal, AssignMode
+from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
     HOST_SCENARIO,
@@ -493,6 +493,7 @@ class BaseActionRelation(AbstractConfig):
         self.strategy_id = strategy_id
         self.config_id: int = config_id
         self.user_groups: List[int] = user_groups or []
+        self.user_type = kwargs.get("user_type", UserGroupType.MAIN)
         self.signal = list(signal or [])
         self.options: dict = options or {}
         self.config: dict = config or {}
@@ -502,6 +503,7 @@ class BaseActionRelation(AbstractConfig):
             "id": self.id,
             "config_id": self.config_id,
             "user_groups": self.user_groups,
+            "user_type": self.user_type,
             "signal": self.signal,
             "options": self.options,
             "relate_type": self.RELATE_TYPE,
@@ -612,6 +614,7 @@ class BaseActionRelation(AbstractConfig):
                     strategy_id=relation.strategy_id,
                     id=relation.id,
                     user_groups=relation.validated_user_groups,
+                    user_type=relation.user_type,
                     signal=relation.signal,
                     config_id=relation.config_id,
                     config=config,
