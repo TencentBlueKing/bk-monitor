@@ -565,7 +565,19 @@ export default defineComponent({
     // });
 
     function setFormData() {
-      Object.assign(formData, deepClone(props.detailInfo));
+      // 这里要保证 channels 的顺序是正确的
+      const clonedDetailInfo = deepClone(props.detailInfo);
+      formData.channels.map(item => {
+        const target = clonedDetailInfo.channels.find(clonedItem => {
+          return item.channel_name === clonedItem.channel_name;
+        });
+        if (target) {
+          Object.assign(item, target);
+        }
+        return item;
+      });
+      delete clonedDetailInfo.channels;
+      Object.assign(formData, clonedDetailInfo);
       // 时间范围
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { data_range } = formData.frequency;

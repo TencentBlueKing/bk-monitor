@@ -44,6 +44,10 @@
       background-color: #f0f1f5;
     }
   }
+
+  .gray-text {
+    color: #93a1a1;
+  }
 }
 
 .email-subscription-popover {
@@ -194,5 +198,17 @@
     padding: 10px 24px;
     background: #FFFFFF;
     box-shadow: 0 -1px 0 0 #DCDEE5, 0 -3px 4px 0 #4070cb0f;
+  }
+}
+
+.test-send-result-dialog {
+  .bk-dialog-header {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding-bottom: 2px !important;
+  }
+
+  .bk-modal-content {
+    /* stylelint-disable-next-line declaration-no-important */
+    min-height: 60px !important;
   }
 }

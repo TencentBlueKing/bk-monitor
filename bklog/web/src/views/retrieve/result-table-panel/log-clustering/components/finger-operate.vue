@@ -354,7 +354,7 @@ export default {
      * 跳转到 监控下的 我的订阅
      */
     goToMySubscription() {
-      window.open(`${window.MONITOR_URL}/?isShowMySubscription=true`, '_blank');
+      window.open(`${window.MONITOR_URL}/#/?isShowMySubscription=true`, '_blank');
     },
   },
 };

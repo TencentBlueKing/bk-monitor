@@ -65,7 +65,8 @@ enum SendMode {
 enum SendStatus {
   failed = window.i18n.t('发送失败'),
   partial_failed = window.i18n.t('发送部分失败'),
-  success = window.i18n.t('发送成功')
+  success = window.i18n.t('发送成功'),
+  no_status = window.i18n.t('未发送')
 }
 
 enum ChannelName {
@@ -167,21 +168,45 @@ export default defineComponent({
             label: `${window.i18n.t('通知渠道')}`,
             field: 'channels',
             render: ({ data }) => {
-              return <div>{data.channels.map(item => ChannelName[item.channel_name]).toString()}</div>;
+              return (
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
+                  {data.channels.map(item => ChannelName[item.channel_name]).toString()}
+                </div>
+              );
             }
           },
           {
             label: `${window.i18n.t('订阅场景')}`,
             field: 'scenario',
             render: ({ data }) => {
-              return <div>{Scenario[data.scenario]}</div>;
+              return (
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
+                  {Scenario[data.scenario]}
+                </div>
+              );
             }
           },
           {
             label: `${window.i18n.t('发送模式')}`,
             field: 'send_mode',
             render: ({ data }) => {
-              return <div>{SendMode[data.send_mode]}</div>;
+              return (
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
+                  {SendMode[data.send_mode]}
+                </div>
+              );
             },
             filter: {
               list: [
@@ -200,7 +225,15 @@ export default defineComponent({
           {
             label: `${window.i18n.t('发送时间')}`,
             render: ({ data }) => {
-              return <div>{getSendFrequencyText(data)}</div>;
+              return (
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
+                  {getSendFrequencyText(data)}
+                </div>
+              );
             }
           },
           {
@@ -210,7 +243,15 @@ export default defineComponent({
               value: 'asc'
             },
             render: ({ data }) => {
-              return <div>{data.last_send_time || window.i18n.t('未发送')}</div>;
+              return (
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
+                  {data.last_send_time || window.i18n.t('未发送')}
+                </div>
+              );
             }
           },
           {
@@ -218,7 +259,11 @@ export default defineComponent({
             field: 'send_status',
             render: ({ data }) => {
               return data.send_status !== 'no_status' ? (
-                <div>
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
                   <i
                     class={['icon-circle', data.send_status]}
                     style={{ marginRight: '10px' }}
@@ -226,7 +271,13 @@ export default defineComponent({
                   {SendStatus[data.send_status]}
                 </div>
               ) : (
-                <div>{window.i18n.t('未发送')}</div>
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
+                  {window.i18n.t('未发送')}
+                </div>
               );
             },
             filter: {
@@ -236,9 +287,13 @@ export default defineComponent({
                   value: 'success'
                 },
                 {
-                  text: `${window.i18n.t('发送部分失败')}`,
-                  value: 'partial_failed'
+                  text: `${window.i18n.t('未发送')}`,
+                  value: 'no_status'
                 },
+                // {
+                //   text: `${window.i18n.t('发送部分失败')}`,
+                //   value: 'partial_failed'
+                // },
                 {
                   text: `${window.i18n.t('发送失败')}`,
                   value: 'failed'
@@ -249,7 +304,18 @@ export default defineComponent({
           },
           {
             label: `${window.i18n.t('创建人')}`,
-            field: 'create_user'
+            field: 'create_user',
+            render: ({ data }) => {
+              return (
+                <div
+                  class={{
+                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                  }}
+                >
+                  {data.create_user}
+                </div>
+              );
+            }
           },
           {
             label: `${window.i18n.t('启/停')}`,
@@ -467,7 +533,7 @@ export default defineComponent({
                               if (['success'].includes(data.send_status) && item.result) {
                                 return (
                                   <Tag
-                                    closable={data.tempSendResult.length > 0}
+                                    closable={data.tempSendResult.filter(target => target.result).length > 1}
                                     onClose={() => {
                                       data.tempSendResult.splice(index, 1);
                                     }}
@@ -479,7 +545,7 @@ export default defineComponent({
                               if (['partial_failed', 'failed'].includes(data.send_status) && !item.result) {
                                 return (
                                   <Tag
-                                    closable={data.tempSendResult.length > 0}
+                                    closable={data.tempSendResult.filter(target => !target.result).length > 1}
                                     onClose={() => {
                                       data.tempSendResult.splice(index, 1);
                                     }}
@@ -550,7 +616,7 @@ export default defineComponent({
       const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
       console.log('testSending', tempFormData);
       if (!tempFormData) return;
-      const formData = deepClone(tempFormData);
+      const clonedFormData = deepClone(tempFormData);
       if (to === 'self') {
         const selfChannels = [
           {
@@ -565,29 +631,36 @@ export default defineComponent({
             channel_name: 'user'
           }
         ];
-        formData.channels = selfChannels;
+        clonedFormData.channels = selfChannels;
       }
       if (to === 'all') {
         console.log(refOfCreateSubscriptionForm.value);
       }
-      delete formData.create_time;
-      delete formData.create_user;
-      delete formData.is_deleted;
-      delete formData.is_manager_created;
-      delete formData.last_send_time;
-      delete formData.send_mode;
-      delete formData.send_round;
-      delete formData.send_status;
-      delete formData.update_time;
-      delete formData.update_user;
-      delete formData.id;
+      /* eslint-disable */
+      const {
+        create_time,
+        create_user,
+        is_deleted,
+        is_manager_created,
+        last_send_time,
+        send_mode,
+        send_round,
+        send_status,
+        update_time,
+        update_user,
+        id,
+        is_invalid,
+        ...formData
+      } = clonedFormData;
+      /* eslint-enable */
       isSending.value = true;
       await sendReport(formData)
         .then(() => {
-          Message({
-            theme: 'success',
-            message: window.i18n.t('发送成功')
-          });
+          // Message({
+          //   theme: 'success',
+          //   message: window.i18n.t('发送成功')
+          // });
+          isShowTestSendResult.value = true;
         })
         .catch(console.log)
         .finally(() => {
@@ -794,15 +867,18 @@ export default defineComponent({
         update_time,
         update_user,
         id,
+        is_invalid,
         ...formData
       } = clonedFormData;
       /* eslint-enable */
+      formData.report_id = id;
       await sendReport(formData)
         .then(() => {
-          Message({
-            theme: 'success',
-            message: window.i18n.t('发送成功')
-          });
+          // Message({
+          //   theme: 'success',
+          //   message: window.i18n.t('发送成功')
+          // });
+          isShowTestSendResult.value = true;
         })
         .catch(console.log)
         .finally(() => {
@@ -810,6 +886,8 @@ export default defineComponent({
           sendMyselfDialog.isShow = false;
         });
     }
+
+    const isShowTestSendResult = ref(false);
 
     onMounted(() => {
       fetchSubscriptionList();
@@ -839,7 +917,8 @@ export default defineComponent({
       formatTimeRange,
       sendMyselfDialog,
       handleSendMyself,
-      toggleMapForSendRecord
+      toggleMapForSendRecord,
+      isShowTestSendResult
     };
   },
   render() {
@@ -1210,6 +1289,46 @@ export default defineComponent({
         >
           <div>{window.i18n.t('是否发送给自己?')}</div>
         </Dialog>
+
+        <Dialog
+          isShow={this.isShowTestSendResult}
+          dialog-type='show'
+          ext-cls='test-send-result-dialog'
+          onClosed={() => {
+            this.isShowTestSendResult = false;
+          }}
+          v-slots={{
+            default: () => {
+              return (
+                <div
+                  style={{
+                    marginLeft: '30px'
+                  }}
+                >
+                  {window.i18n.t('邮件任务已生成, 请一分钟后到邮箱查看')}
+                </div>
+              );
+            },
+            header: () => {
+              return (
+                <div>
+                  <i
+                    class='icon-monitor icon-mc-check-fill'
+                    style='color: #2dca56;'
+                  />
+                  <span
+                    style={{
+                      marginLeft: '10px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {window.i18n.t('发送测试邮件成功')}
+                  </span>
+                </div>
+              );
+            }
+          }}
+        ></Dialog>
       </div>
     );
   }
