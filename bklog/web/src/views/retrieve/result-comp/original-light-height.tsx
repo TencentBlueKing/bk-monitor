@@ -22,13 +22,12 @@
 
 import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop } from 'vue-property-decorator';
-import { getFlatObjValues } from '@/common/util';
+import { getFlatObjValues, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import './original-light-height.scss';
 
 interface IProps {
   originJson: Object;
 }
-
 @Component
 export default class QueryStatement extends tsc<IProps> {
   /** 原始日志 */
@@ -40,8 +39,8 @@ export default class QueryStatement extends tsc<IProps> {
   get fieldMapData() {
     const { newObject } = getFlatObjValues(this.originJson || {});
     const sortObject = Object.keys(newObject).sort((a, b) => {
-      const sortA = a.replace(/^[_]{1,2}|[_]{1,2}/g, 'z');
-      const sortB = b.replace(/^[_]{1,2}|[_]{1,2}/g, 'z');
+      const sortA = a.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+      const sortB = b.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
       return sortA.localeCompare(sortB);
     })
       .reduce((pre, cur) => {
