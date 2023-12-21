@@ -406,7 +406,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                   <ul class='param-list  mt--6'>
                     {this.runtimeParams.map((item, index) => (
                       <li
-                        class='param-list-item width-840'
+                        class='param-list-item'
                         key={index}
                       >
                         <span class='item-name'>{item.name}</span>

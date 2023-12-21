@@ -129,7 +129,10 @@ export default class AlertTopic extends tsc<IProps> {
                 class='alert-link'
                 onClick={() => this.handleToEvent()}
               >
-                <AlertHistogram value={this.alertHistogram}></AlertHistogram>
+                <AlertHistogram
+                  value={this.alertHistogram}
+                  defaultInterval={2}
+                ></AlertHistogram>
               </span>
             </span>
           </span>

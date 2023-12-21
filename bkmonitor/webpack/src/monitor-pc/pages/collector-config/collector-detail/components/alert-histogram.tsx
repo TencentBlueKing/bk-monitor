@@ -37,6 +37,7 @@ interface IProps {
   value: {
     level: number;
   }[];
+  defaultInterval?: number;
 }
 
 @Component
@@ -46,6 +47,8 @@ export default class AlertHistogram extends tsc<IProps> {
     default: () => []
   })
   value: number[][];
+
+  @Prop({ type: Number, default: 0 }) defaultInterval: number;
 
   @Ref('time') timeRef: HTMLDivElement;
 
@@ -83,9 +86,10 @@ export default class AlertHistogram extends tsc<IProps> {
   reduceAccuracy() {
     const max = 6 * 60 + 6;
     const max1 = 6 * 30 + 6;
-    if (this.width < max) {
+    let interval = this.defaultInterval;
+    if (this.width < max || !!interval) {
       const values = [];
-      let interval = 2;
+      interval = 2;
       if (this.width < max1) {
         interval = 4;
       }
