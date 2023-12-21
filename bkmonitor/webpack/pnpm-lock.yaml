@@ -538,6 +538,9 @@ importers:
       sortablejs:
         specifier: ^1.15.0
         version: 1.15.0
+      throttle-debounce:
+        specifier: ^3.0.1
+        version: 3.0.1
       vue:
         specifier: 2.7.14
         version: 2.7.14
@@ -941,9 +944,6 @@ importers:
       '@types/lodash':
         specifier: ^4.14.182
         version: 4.14.201
-      '@types/throttle-debounce':
-        specifier: ^5.0.0
-        version: 5.0.2
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.20.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0)(eslint@8.53.0)(typescript@4.9.5)
@@ -4172,10 +4172,6 @@ packages:
     dependencies:
       '@types/node': 20.9.0
     dev: false
-
-  /@types/throttle-debounce@5.0.2:
-    resolution: {integrity: sha512-pDzSNulqooSKvSNcksnV72nk8p7gRqN8As71Sp28nov1IgmPKWbOEIwAWvBME5pPTtaXJAvG3O4oc76HlQ4kqQ==}
-    dev: true
 
   /@types/ws@8.5.9:
     resolution: {integrity: sha512-jbdrY0a8lxfdTp/+r7Z4CkycbOFN8WX+IOchLJr3juT/xzbJ8URyTVSJ/hvNdadTgM1mnedb47n+Y31GsFnQlg==}
