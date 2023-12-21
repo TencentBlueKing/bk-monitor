@@ -187,9 +187,12 @@ export default class AlarmDispatch extends tsc<{}> {
   }
 
   getRouteParams() {
-    const { groupName } = this.$route.params;
+    const { groupName, group_id: groupId } = this.$route.query;
     if (groupName) {
-      this.search = groupName;
+      this.search = groupName as string;
+    }
+    if (groupId) {
+      this.search = groupId as string;
     }
   }
 
@@ -497,6 +500,12 @@ export default class AlarmDispatch extends tsc<{}> {
     } else {
       this.emptyText = window.i18n.tc('查无数据');
       this.ruleGroups = this.cacheRuleGroups;
+      const { groupName, groupId, ...arg } = this.$route.query;
+      this.$router.replace({
+        query: {
+          ...arg
+        }
+      });
     }
   }
 
