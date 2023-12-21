@@ -35,7 +35,7 @@ import { getFooter, listStickySpaces } from '../../monitor-api/modules/commons';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from '../../monitor-common/utils';
 import debounce from '../../monitor-common/utils/debounce-decorator';
 import bus from '../../monitor-common/utils/event-bus';
-import { docCookies, getUrlParam } from '../../monitor-common/utils/utils';
+import { docCookies, getUrlParam, random } from '../../monitor-common/utils/utils';
 import AuthorityModal from '../../monitor-ui/authority-modal';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { GLOAB_FEATURE_LIST, IRouteConfigItem, getRouteConfig } from '../router/router-config';
@@ -55,7 +55,18 @@ import HeaderSettingModal from './header-setting-modal';
 // #endif
 
 import './app.scss';
+import introduce from '../common/introduce';
+import { isAuthority } from '../router/router';
 
+const changeNoticeRouteList = [
+  'strategy-config-add',
+  'strategy-config-edit',
+  'strategy-config-target',
+  'alarm-shield-add',
+  'alarm-shield-edit',
+  'plugin-add',
+  'plugin-edit'
+];
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
@@ -96,6 +107,7 @@ export default class App extends tsc<{}> {
   globalSettingShow = false;
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
   @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+  routeViewKey = random(10);
   get bizId() {
     return this.$store.getters.bizId;
   }
@@ -362,17 +374,7 @@ export default class App extends tsc<{}> {
    */
   handleBeforeNavChange(newId: string, oldId: string) {
     this.handleHeaderSettingShowChange(false);
-    if (
-      [
-        'strategy-config-add',
-        'strategy-config-edit',
-        'strategy-config-target',
-        'alarm-shield-add',
-        'alarm-shield-edit',
-        'plugin-add',
-        'plugin-edit'
-      ].includes(this.$route.name)
-    ) {
+    if (changeNoticeRouteList.includes(this.$route.name)) {
       if (newId !== oldId) {
         this.$router.push({
           name: newId
@@ -385,37 +387,71 @@ export default class App extends tsc<{}> {
   // 切换业务
   async handleBizChange(v: number) {
     this.handleHeaderSettingShowChange(false);
+    // 切换全局业务配置
     window.cc_biz_id = +v;
     window.bk_biz_id = +v;
     window.space_uid = this.bizIdList.find(item => item.bk_biz_id === +v)?.space_uid;
     this.showBizList = false;
+    this.$store.commit('app/SET_BIZ_ID', +v);
+    this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
     const { navId } = this.$route.meta;
-    if (['apm-home', 'fta-integrated'].includes(navId)) {
-      location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${
-        navId === 'apm-home' ? 'apm/home' : 'fta/intergrations'
-      }`;
-      return;
+    // 处理页面引导页信息
+    introduce.clear();
+    if (navId in introduce.data) {
+      await introduce.getIntroduce(this.$route.meta.navId);
     }
-    // 所有页面的子路由在切换业务的时候都统一返回到父级页面
-    if (navId !== this.$route.name) {
+    // 跳转
+    if (navId === 'grafana') {
+      await this.handleUpdateRoute({ bizId: `${v}` }, '/grafana-home');
+    } else if (navId !== this.$route.name) {
+      // 所有页面的子路由在切换业务的时候都统一返回到父级页面
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);
       if (parentRoute) {
-        this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } });
-      } else {
-        this.handleUpdateRoute({ bizId: `${v}` });
+        if (changeNoticeRouteList.includes(this.$route.name)) {
+          this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
+        }
+        this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
+          this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+        });
+        return;
       }
+      await this.handleUpdateRoute({ bizId: `${v}` });
     } else {
-      this.handleUpdateRoute({ bizId: `${v}` });
+      await this.handleUpdateRoute({ bizId: `${v}` });
     }
-    setTimeout(() => {
-      this.$store.commit('app/SET_BIZ_ID', +v);
-    }, 100);
+    window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
+    this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
   }
   // 刷新页面
-  handleUpdateRoute(params: Record<string, any>, path?: string) {
+  async handleUpdateRoute(params: Record<string, any>, path?: string) {
+    const { authority } = this.$route.meta;
     const serachParams = new URLSearchParams(params);
     const newUrl = `${window.location.pathname}?${serachParams.toString()}#${path || this.$route.path}`;
     history.replaceState({}, '', newUrl);
+    // 判断页面权限
+    let hasAuthority = false;
+    if (authority?.page) {
+      hasAuthority = await isAuthority(authority?.page)
+        .catch(() => false)
+        .finally(() => {
+          setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
+        });
+      if (!hasAuthority) {
+        this.$router.push({
+          path: `/exception/403/${random(10)}`,
+          query: {
+            actionId: authority.page || '',
+            fromUrl: (path || this.$route.path).replace(/^\//, ''),
+            parentRoute: this.$route.meta.route.parent
+          },
+          params: {
+            title: '无权限'
+          }
+        });
+        return;
+      }
+    }
+    this.routeViewKey = random(10);
   }
   handleClickBizSelect() {
     this.showBizList = !this.showBizList;
@@ -583,7 +619,7 @@ export default class App extends tsc<{}> {
         ></CommonNavBar>
       ),
       <div
-        key={this.bizId}
+        key={this.routeViewKey}
         v-monitor-loading={{ isLoading: this.routeChangeLoading }}
         class={['page-container', { 'no-overflow': !!this.$route.meta?.customTitle }, this.$route.meta?.pageCls]}
         style={{ height: this.showNav ? 'calc(100% - 52px)' : '100%' }}
@@ -779,6 +815,7 @@ export default class App extends tsc<{}> {
           }
           {!this.menuList?.length && this.isDashboard ? (
             <DashboardContainer
+              key={this.routeViewKey}
               bizIdList={this.bizIdList}
               onBizChange={this.handleBizChange}
               onOpenSpaceManager={this.handleOpenSpace}
