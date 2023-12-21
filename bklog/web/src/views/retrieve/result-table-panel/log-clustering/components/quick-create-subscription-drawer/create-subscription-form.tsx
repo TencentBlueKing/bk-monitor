@@ -175,7 +175,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     start_time: '',
     end_time: '',
     // 给他人/自己 订阅 。self, others 仅自己/给他人
-    subscriber_type: 'others',
+    subscriber_type: 'self',
     scenario_config: {
       index_set_id: '',
       // 需要从 slider 上进行转换
@@ -208,13 +208,13 @@ class QuickCreateSubscription extends tsc<IProps> {
         channel_name: 'user',
       },
       {
-        is_enabled: true,
+        is_enabled: false,
         subscribers: [],
         send_text: '',
         channel_name: 'email',
       },
       {
-        is_enabled: true,
+        is_enabled: false,
         subscribers: [],
         channel_name: 'wxbot',
       },
@@ -470,7 +470,7 @@ class QuickCreateSubscription extends tsc<IProps> {
      * @param { * } val
      */
   handleCopy(text) {
-    copyText(text, msg => {
+    copyText(`{${text}}`, msg => {
       this.$bkMessage({
         message: msg,
         theme: 'error'
@@ -603,6 +603,8 @@ class QuickCreateSubscription extends tsc<IProps> {
     if (this.formData.frequency.type === 1) {
       this.formData.start_time = null;
       this.formData.end_time = null;
+      // 点击 仅一次 时刷新一次时间。
+      this.frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ss');
     }
   }
 
@@ -1191,7 +1193,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     <bk-radio-button value='self'>{this.$t('仅自己')}</bk-radio-button>
                     <bk-radio-button value='others'>{this.$t('给他人')}</bk-radio-button>
                   </bk-radio-group>
-                  <span style={{ marginLeft: '10px' }}>
+                  {this.formData.subscriber_type === 'others' && <span style={{ marginLeft: '10px' }}>
                     <i
                       class='icon-monitor log-icon icon-info-fill'
                       style={{ marginRight: '10px', color: '#EA3636', fontSize: '14px' }}
@@ -1202,7 +1204,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     }}>
                       {this.$t('给他人订阅需要经过管理员审批')}
                     </span>
-                  </span>
+                  </span>}
                 </div>
               )}
 
