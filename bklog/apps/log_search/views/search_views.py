@@ -1167,11 +1167,10 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(UnionSearchAttrSerializer)
         auth_info = Permission.get_auth_info(self.request, raise_exception=False)
+        is_verify = False if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST else True
         for info in data.get("union_configs", []):
-            if not info.get("is_desensitize"):
-                # 只针对白名单中的APP_CODE开放不脱敏的权限
-                if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
-                    info["is_desensitize"] = True
+            if not info.get("is_desensitize") and not is_verify:
+                info["is_desensitize"] = True
         return Response(UnionSearchHandler(data).union_search())
 
     @list_route(methods=["POST"], url_path="union_search/fields")
