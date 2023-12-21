@@ -181,7 +181,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     return (
       <div class='col-appstrategy'>
         <span
-          class='strategy-num'
+          class={['strategy-num', { 'btn-disabled': !row.rules_count || row.rules_count === 0 }]}
           onClick={() => this.handleToAppDispatch(row)}
         >
           {row.rules_count || 0}

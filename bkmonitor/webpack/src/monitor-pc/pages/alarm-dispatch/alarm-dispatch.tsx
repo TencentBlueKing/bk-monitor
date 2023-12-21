@@ -61,6 +61,8 @@ export default class AlarmDispatch extends tsc<{}> {
   cacheRuleGroups = [];
   /* 搜索 */
   search = '';
+  /** 是否能查询，需要依赖 getAlarmGroupList 和 getAlarmDispatchGroupData两个函数都请求完成 */
+  isSearch = false;
   /** 新建规则组弹窗 */
   visible = false;
 
@@ -176,12 +178,12 @@ export default class AlarmDispatch extends tsc<{}> {
   }
 
   created() {
+    this.getRouteParams();
     this.getAlarmDispatchGroupData();
     this.getAlarmGroupList();
     this.getKVOptionsData();
     this.getProcessPackage();
     this.$store.commit('app/SET_NAV_ROUTE_LIST', [{ name: this.$t('route-告警分派'), id: '' }]);
-    this.getRouteParams();
   }
 
   getRouteParams() {
@@ -199,6 +201,12 @@ export default class AlarmDispatch extends tsc<{}> {
       name: item.name,
       receiver: item.users?.map(rec => rec.display_name) || []
     }));
+
+    /** 能否查询需要依赖 getAlarmGroupList 和 getAlarmDispatchGroupData两个函数都请求完成 */
+    if (this.isSearch && this.search) {
+      this.handleSearch();
+    }
+    this.isSearch = true;
   }
 
   /**
@@ -242,7 +250,10 @@ export default class AlarmDispatch extends tsc<{}> {
     });
     this.cacheRuleGroups = this.ruleGroups;
     this.loading = false;
-    this.search && this.handleSearch();
+    if (this.isSearch && this.search) {
+      this.handleSearch();
+    }
+    this.isSearch = true;
   }
 
   // 获取流程套餐
