@@ -48,21 +48,24 @@ class Command(BaseCommand):
             space_type, space_id = space_uid.split("__")
             # 支持 0 业务过滤
             if space_id == "0":
-                _table_id_list = self._get_zero_space_table_id_list()
+                table_id_list = self._get_zero_space_table_id_list()
             else:
-                _table_id_list = self._get_real_space_table_id_list(space_type, space_id)
+                table_id_list = self._get_real_space_table_id_list(space_type, space_id)
 
-            table_id_list = list(
-                models.AccessVMRecord.objects.filter(result_table_id__in=_table_id_list).values_list(
-                    "result_table_id", flat=True
-                )
+        table_id_list = self._refine_table_id_list(table_id_list)
+
+        # 过滤已经接入 vm 的结果表
+        table_id_list = list(
+            models.AccessVMRecord.objects.filter(result_table_id__in=table_id_list).values_list(
+                "result_table_id", flat=True
             )
-            # 过滤到单指标单表
-            table_id_list = list(
-                models.ResultTableOption.objects.filter(
-                    table_id__in=table_id_list, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT, value="true"
-                ).values_list("table_id", flat=True)
-            )
+        )
+        # 过滤到单指标单表
+        table_id_list = list(
+            models.ResultTableOption.objects.filter(
+                table_id__in=table_id_list, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT, value="true"
+            ).values_list("table_id", flat=True)
+        )
 
         # 打印出要禁用的结果表
         self.stdout.write(f"allow to disable table_id_list: {json.dumps(table_id_list)}")
@@ -92,4 +95,23 @@ class Command(BaseCommand):
             models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids)
             .values_list("table_id", flat=True)
             .distinct()
+        )
+
+    def _refine_table_id_list(self, table_id_list: List) -> List:
+        """过滤对应的结果表，排除已经切换过的结果表"""
+        # 排除掉已经停用的结果表
+        vm_cluster_id_list = list(
+            models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values_list(
+                "cluster_id", flat=True
+            )
+        )
+        proxy_storage_cluster_id_list = list(
+            models.InfluxDBProxyStorage.objects.filter(proxy_cluster_id__in=vm_cluster_id_list).values_list(
+                "id", flat=True
+            )
+        )
+        return list(
+            models.InfluxDBStorage.objects.filter(table_id__in=table_id_list)
+            .exclude(influxdb_proxy_storage_id__in=proxy_storage_cluster_id_list)
+            .values_list("table_id", flat=True)
         )
