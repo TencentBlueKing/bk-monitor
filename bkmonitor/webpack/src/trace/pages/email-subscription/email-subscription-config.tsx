@@ -148,6 +148,7 @@ export default defineComponent({
         fields: [
           {
             label: `${window.i18n.t('订阅名称')}`,
+            field: 'name',
             render: ({ data }) => {
               return (
                 <Button
@@ -224,6 +225,7 @@ export default defineComponent({
           },
           {
             label: `${window.i18n.t('发送时间')}`,
+            field: 'send_time',
             render: ({ data }) => {
               return (
                 <div
@@ -240,7 +242,7 @@ export default defineComponent({
             label: `${window.i18n.t('最近一次发送时间')}`,
             field: 'last_send_time',
             sort: {
-              value: 'asc'
+              value: null
             },
             render: ({ data }) => {
               return (
@@ -319,6 +321,7 @@ export default defineComponent({
           },
           {
             label: `${window.i18n.t('启/停')}`,
+            field: 'is_enabled',
             render: ({ data, index }) => {
               return (
                 <div>
@@ -332,7 +335,15 @@ export default defineComponent({
             }
           },
           {
+            label: `${window.i18n.t('创建时间')}`,
+            field: 'create_time',
+            sort: {
+              value: null
+            }
+          },
+          {
             label: `${window.i18n.t('操作')}`,
+            field: 'action',
             width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
             render: row => {
               return (
@@ -410,8 +421,26 @@ export default defineComponent({
         ],
         limit: 0
       },
-      isLoading: false
+      isLoading: false,
+      settings: {
+        fields: [],
+        checked: [],
+        limit: 0,
+        size: 'small',
+        sizeList: [],
+        showLineHeight: false
+      }
     });
+    table.settings.fields = table.columns.fields.map(item => {
+      return {
+        label: item.label,
+        field: item.field
+      };
+    });
+    table.settings.checked = table.columns.fields
+      // 先不展示，让用户自己手动开。
+      .filter(item => !['create_time'].includes(item.field))
+      .map(item => item.field);
 
     const toggleMapForSendRecord = reactive({});
     const sendRecordTable = reactive({
@@ -980,6 +1009,7 @@ export default defineComponent({
               clearable
               class='search-input'
               onEnter={this.handleInputKeydown}
+              onClear={this.handleInputKeydown}
               placeholder={window.i18n.t('请输入搜索条件')}
               v-slots={{
                 suffix: () => (
@@ -1002,6 +1032,7 @@ export default defineComponent({
             data={this.table.data}
             columns={this.table.columns.fields}
             border={['outer']}
+            settings={this.table.settings}
             style='margin-top: 16px;background-color: white;'
             pagination={{
               current: this.queryData.page,
@@ -1199,6 +1230,7 @@ export default defineComponent({
                             message: window.i18n.t('保存成功')
                           });
                           this.fetchSubscriptionList();
+                          this.isShowEditSideslider = false;
                         })
                         .catch(console.log);
                     })
