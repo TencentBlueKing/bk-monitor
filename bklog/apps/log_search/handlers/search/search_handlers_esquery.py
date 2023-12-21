@@ -94,6 +94,7 @@ from apps.log_search.models import (
     LogIndexSet,
     LogIndexSetData,
     Scenario,
+    Space,
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
@@ -445,11 +446,18 @@ class SearchHandler(object):
         """
         if not self._enable_bcs_manage():
             return False, {"reason": _("未配置BCS WEB CONSOLE")}
-        if ("cluster" in field_result_list and "container_id" in field_result_list) or (
-            "__ext.container_id" in field_result_list and "__ext.io_tencent_bcs_cluster" in field_result_list
-        ):
-            return True
-        reason = _("cluster, container_id 或 __ext.container_id, __ext.io_tencent_bcs_cluster 不能同时为空")
+
+        container_fields = (
+            ("cluster", "container_id"),
+            ("__ext.io_tencent_bcs_cluster", "__ext.container_id"),
+            ("__ext.bk_bcs_cluster_id", "__ext.container_id"),
+        )
+
+        for cluster_field, container_id_field in container_fields:
+            if cluster_field in field_result_list and container_id_field in field_result_list:
+                return True
+
+        reason = _("{} 不能同时为空").format(container_fields)
         return False, {"reason": reason + self._get_message_by_scenario()}
 
     @fields_config("trace")
@@ -943,11 +951,16 @@ class SearchHandler(object):
         @return:
         """
         bcs_cluster_info = BcsCcApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
-        project_id = bcs_cluster_info["project_id"]
+        space = Space.objects.filter(space_code=bcs_cluster_info["project_id"]).first()
+        project_code = ""
+        if space:
+            project_code = space.space_id
         url = (
-            settings.BCS_WEB_CONSOLE_DOMAIN + "backend/web_console/projects/{project_id}/clusters/{cluster_id}/"
-            "?container_id={container_id} ".format(
-                project_id=project_id, cluster_id=cluster_id.upper(), container_id=container_id
+            settings.BCS_WEB_CONSOLE_DOMAIN
+            + "/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id}/?container_id={container_id}".format(
+                project_code=project_code,
+                cluster_id=cluster_id.upper(),
+                container_id=container_id,
             )
         )
         return url
