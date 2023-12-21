@@ -323,7 +323,11 @@ class ApplicationInfoResource(Resource):
 
             fields_mapping = group_by(SpanStandardField.flat_list(), get_key=operator.itemgetter("key"))
             for i in data.get("tail_conditions", []):
-                i["key_alias"] = fields_mapping.get(i["key"], i["key"])[0]["name"]
+                item = fields_mapping.get(i["key"])
+                if item:
+                    i["key_alias"] = item[0]["name"]
+                else:
+                    i["key_alias"] = i["key"]
 
             # 添加尾部采样flow信息帮助排查问题
             flow_detail = api.apm_api.get_bkdata_flow_detail(
