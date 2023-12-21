@@ -29,9 +29,18 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
 
 import { Debounce, deepClone, random } from '../../../../monitor-common/utils';
+import HorizontalScrollContainer from '../../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { getEventPaths } from '../../../utils';
 import { CONDITIONS, deepCompare, ICondtionItem, METHODS, TContionType, TMthodType } from '../typing';
-import { conditionCompare, conditionsInclues, ISpecialOptions, TGroupKeys, TValueMap } from '../typing/condition';
+import {
+  conditionCompare,
+  conditionsInclues,
+  EKeyTags,
+  ISpecialOptions,
+  KEY_FILTER_TAGS,
+  TGroupKeys,
+  TValueMap
+} from '../typing/condition';
 
 import './common-condition-new.scss';
 
@@ -204,6 +213,8 @@ export default class CommonCondition extends tsc<IProps> {
   errorMsg: string | TranslateResult = '';
   /* 二级选项搜索 */
   secondSearch = '';
+  /* 当前key选项分类标签 */
+  keyTypeTag = EKeyTags.all;
 
   /* 是否不可点击(只读状态) */
   get canNotClick() {
@@ -1205,6 +1216,10 @@ export default class CommonCondition extends tsc<IProps> {
     this.errorMsg = '';
   }
 
+  handleClickKeyTypeTag(tag: { id: EKeyTags }) {
+    this.keyTypeTag = tag.id;
+  }
+
   render() {
     return (
       <div
@@ -1390,7 +1405,26 @@ export default class CommonCondition extends tsc<IProps> {
               </div>
             )}
             {/* key选项类型筛选栏  */}
-            {this.selectType === TypeEnum.key && <div class='type-list-wrap'></div>}
+            {this.selectType === TypeEnum.key && (
+              <div class='type-list-wrap'>
+                <HorizontalScrollContainer
+                  isWatchWidth={true}
+                  smallBtn={true}
+                >
+                  <div class='type-list'>
+                    {KEY_FILTER_TAGS.map(tag => (
+                      <div
+                        class={['type-list-item', { active: this.keyTypeTag === tag.id }]}
+                        key={tag.id}
+                        onClick={() => this.handleClickKeyTypeTag(tag)}
+                      >
+                        {tag.name}
+                      </div>
+                    ))}
+                  </div>
+                </HorizontalScrollContainer>
+              </div>
+            )}
             <div class='wrap-list'>
               {(() => {
                 /* key可选项列表 */

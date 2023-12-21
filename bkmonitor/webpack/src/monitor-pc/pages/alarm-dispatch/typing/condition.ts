@@ -68,6 +68,20 @@ export const IS_EMPTY_USERS_VALUES = [
   { id: '0', name: 'false' },
   { id: '1', name: 'true' }
 ];
+export enum EKeyTags {
+  all = 'all',
+  cmdb = 'CMDB',
+  strategy = 'strategy',
+  event = 'event'
+}
+
+/* key的标签分类 */
+export const KEY_FILTER_TAGS = [
+  { id: EKeyTags.all, name: window.i18n.tc('全部') },
+  { id: EKeyTags.cmdb, name: window.i18n.tc('CMDB属性') },
+  { id: EKeyTags.strategy, name: window.i18n.tc('告警策略') },
+  { id: EKeyTags.event, name: window.i18n.tc('告警事件') }
+];
 
 export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
   if (!left || !right) return false;
