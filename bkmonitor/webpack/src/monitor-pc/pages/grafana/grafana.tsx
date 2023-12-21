@@ -64,6 +64,7 @@ export default class MyComponent extends tsc<{}> {
   @Watch('url', { immediate: true })
   async handleUrlChange() {
     const grafanaUrl = await this.handleGetGrafanaUrl();
+    debugger;
     if (!this.grafanaUrl) {
       this.grafanaUrl = grafanaUrl;
     } else {
