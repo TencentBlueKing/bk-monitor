@@ -104,7 +104,6 @@ export const setGlobalBizId = () => {
     bizId = newBizId;
   }
   if (!isSpicialEvent && !hasRouteHash && !isEmailSubscriptions) {
-    debugger;
     const isDemoBizId = isDemo(bizId);
     if (!isDemoBizId && (!bizId || !hasAuth(bizId))) {
       if (!hasBizId() && localBizId && bizList.length && hasAuth(localBizId)) {

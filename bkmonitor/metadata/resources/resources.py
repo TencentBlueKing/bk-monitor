@@ -38,9 +38,7 @@ from metadata.models.bcs import (
 )
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
-from metadata.models.space.utils import get_space_by_table_id
 from metadata.task.bcs import refresh_dataid_resource
-from metadata.task.tasks import push_and_publish_space_router
 from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.es_tools import get_client
 
@@ -248,15 +246,6 @@ class ModifyResultTableResource(Resource):
         if query_set.exists() and request_data["field_list"] is not None:
             storage = query_set[0]
             storage.update_index_and_aliases(ahead_time=0)
-
-        # 触发发布redis任务
-        try:
-            space_info = get_space_by_table_id(result_table.table_id)
-            push_and_publish_space_router.delay(
-                space_info["space_type_id"], space_info["space_id"], table_id_list=[table_id]
-            )
-        except Exception as e:
-            logger.error("publish redis error, %s", e)
 
         return result_table.to_json()
 

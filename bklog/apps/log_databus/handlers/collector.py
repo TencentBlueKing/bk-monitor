@@ -738,9 +738,9 @@ class CollectorHandler(object):
 
         # 创建 BKBase
         maintainers = {bk_username} if bk_username else {instance.updated_by, instance.created_by}
-        maintainers.discard(ADMIN_REQUEST_USER)
-        if not maintainers:
-            raise Exception(f"dont have enough maintainer only {ADMIN_REQUEST_USER}")
+
+        if ADMIN_REQUEST_USER in maintainers and len(maintainers) > 1:
+            maintainers.discard(ADMIN_REQUEST_USER)
 
         bkdata_params = {
             "operator": bk_username,

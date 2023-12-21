@@ -67,6 +67,10 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.CharField(label=_("计算平台 MYSQL 存储集群名称"), default="default", allow_blank=True),
         ),
         (
+            "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
+            slz.CharField(label=_("计算平台 SQL 类存储集群类型"), default="mysql_storage", allow_blank=True),
+        ),
+        (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
             slz.CharField(label=_("计算平台 HDFS 存储集群名称"), default="hdfs-default", allow_blank=True),
         ),
@@ -247,6 +251,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
         ("BKPAAS_AUTHORIZED_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
+        ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label=_("METADATA 是否启用功能开关"), default=True)),
+        ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
     ]
 )
 
@@ -260,15 +266,6 @@ STANDARD_CONFIGS = OrderedDict(
             "FILE_SYSTEM_TYPE_IGNORE",
             slz.ListField(
                 label=_("全局磁盘类型屏蔽配置"), default=["iso9660", "tmpfs", "udf"], help_text=_("可通过该配置屏蔽指定类型的磁盘的告警")
-            ),
-        ),
-        (
-            "ANOMALY_RECORD_SAVE_DAYS",
-            slz.IntegerField(
-                label=_("异常记录保留天数"),
-                default=30,
-                min_value=1,
-                help_text=_("异常记录表用于展示告警事件的收敛记录，清理后会导致历史事件的流转记录展示不全。" "后台每分钟都会对过期异常记录进行清理，每次清理不超过 1000 条。"),
             ),
         ),
         ("GRAPH_WATERMARK", slz.BooleanField(label=_("显示图表水印"), default=True, help_text=_("开启后，页面上的数据图表将带上当前用户名的水印"))),
@@ -337,7 +334,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
-        ("THROTTLE_APP_WHITE_LIST", slz.ListField(label=_("对数据查询API执行流控的APP白名单"), default=[])),
         ("COLLECTING_CONFIG_FILE_MAXSIZE", slz.IntegerField(label=_("采集配置文件参数最大值(M)"), default=2)),
         (
             "UNIFY_QUERY_URL",

@@ -57,18 +57,24 @@ from apps.utils.time_handler import format_user_time_zone
 
 class TasksHandler(object):
     def __init__(self):
+        self.is_external = bool(get_request_external_username())
         self.request_user = get_request_external_username() or get_request_username()
 
     @classmethod
     def list(cls, tasks_views, bk_biz_id, keyword):
         source_app_code = get_request_app_code()
+        is_external = bool(get_request_external_username())
         request_user = get_request_external_username() or get_request_username()
 
         # 运维人员可以看到完整的任务列表
-        has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
+        if not is_external:
+            has_biz_manage = Permission(username=request_user).is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
+        else:
+            has_biz_manage = False
         # source_app_code隔离
         tasks = Tasks.objects.search(keyword).filter(bk_biz_id=bk_biz_id, source_app_code=source_app_code)
-        if not has_biz_manage:
+        # 外部请求时/内部请求非管理员，只能看到自己创建的任务
+        if not has_biz_manage or is_external:
             tasks = tasks.filter(created_by=request_user)
         queryset = tasks_views.filter_queryset(tasks)
 
@@ -225,8 +231,10 @@ class TasksHandler(object):
         instance = tasks_views.get_object()
         serializer = tasks_views.get_serializer(instance)
         task = serializer.data
-        # 只有创建者或运维人员才可获取详情
-        if not self.is_operator_or_creator(instance.bk_biz_id, self.request_user, instance.created_by):
+        # 只可以获取到对应source_app_code的任务
+        if task["source_app_code"] != get_request_app_code() or not self.is_operator_or_creator(
+            instance.bk_biz_id, self.request_user, instance.created_by
+        ):
             raise exceptions.TasksRetrieveFailed
         # 主机显示优化
         task["ip_list"] = self.format_task_ip_details(task)["ip_list"]
