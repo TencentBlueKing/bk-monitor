@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
+import time
 import traceback
 from collections import defaultdict
 
@@ -35,7 +36,9 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_BKDATA_DATAID
 from apps.log_databus.constants import (
     REGISTERED_SYSTEM_DEFAULT,
+    RETRY_TIMES,
     STORAGE_CLUSTER_TYPE,
+    WAIT_FOR_RETRY,
     CollectItsmStatus,
     ContainerCollectStatus,
 )
@@ -234,12 +237,23 @@ def get_biz_storage_capacity(bk_biz_id, cluster):
 
 
 @high_priority_task(ignore_result=True)
-def create_container_release(
-    bcs_cluster_id: str, container_config: ContainerCollectorConfig, config_name: str, config_params: dict
-):
-    container_config.status = ContainerCollectStatus.RUNNING.value
-    container_config.status_detail = _("配置下发中")
-    container_config.save(update_fields=["status", "status_detail"])
+def create_container_release(bcs_cluster_id: str, container_config_id: int, config_name: str, config_params: dict):
+    for __ in range(RETRY_TIMES):
+        try:
+            container_config: ContainerCollectorConfig = ContainerCollectorConfig.objects.get(pk=container_config_id)
+            container_config.status = ContainerCollectStatus.RUNNING.value
+            container_config.status_detail = _("配置下发中")
+            container_config.save(update_fields=["status", "status_detail"])
+            break
+        except ContainerCollectorConfig.objects.DoesNotExist:
+            # db的事务可能还未结束，这里需要重试
+            time.sleep(WAIT_FOR_RETRY)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"[create_container_release] get container config failed: {e}")
+            raise e
+    else:
+        logger.error(f"[create_container_release] retry container_config[{container_config_id}] {RETRY_TIMES} times")
+        return
 
     try:
         labels = None

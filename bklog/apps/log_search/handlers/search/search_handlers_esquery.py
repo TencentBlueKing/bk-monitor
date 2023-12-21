@@ -1961,6 +1961,7 @@ class UnionSearchHandler(object):
             self.index_set_ids = list(set(search_dict["index_set_ids"]))
         else:
             self.index_set_ids = list({info["index_set_id"] for info in self.union_configs})
+        self.desensitize_mapping = {info["index_set_id"]: info["is_desensitize"] for info in self.union_configs}
 
     def _init_sort_list(self, index_set_id):
         sort_list = self.search_dict.get("sort_list", [])
@@ -2008,6 +2009,7 @@ class UnionSearchHandler(object):
                 search_dict = copy.deepcopy(params)
                 search_dict["begin"] = self.search_dict.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=index_set_id)
+                search_dict["is_desensitize"] = self.desensitize_mapping.get(index_set_id, True)
                 search_handler = SearchHandler(
                     index_set_id=index_set_id,
                     search_dict=search_dict,
@@ -2019,6 +2021,7 @@ class UnionSearchHandler(object):
                 search_dict = copy.deepcopy(params)
                 search_dict["begin"] = union_config.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=union_config["index_set_id"])
+                search_dict["is_desensitize"] = union_config.get("is_desensitize", True)
                 search_handler = SearchHandler(index_set_id=union_config["index_set_id"], search_dict=search_dict)
                 multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
 

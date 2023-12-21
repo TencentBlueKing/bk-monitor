@@ -136,7 +136,7 @@
         <template slot-scope="{ row, $index }">
           <div class="pattern">
             <div
-              class="pattern-remark"
+              :class="['pattern-remark', { 'have-remark': !!row.remark.length }]"
               @mouseenter="e => handleHoverRemarkIcon(e, row, $index)">
               <i class="log-icon icon-log-remark"></i>
             </div>
@@ -168,7 +168,7 @@
         </template>
       </bk-table-column>
 
-      <template v-if="requestData.group_by.length">
+      <template v-if="isGroupSearch">
         <bk-table-column
           v-for="(item,index) of requestData.group_by"
           :key="index"
@@ -190,15 +190,22 @@
         :label="$t('责任人')"
         :render-header="$renderHeader">
         <template slot-scope="{ row, $index }">
-          <bk-user-selector
-            class="principal-input"
-            placeholder=" "
-            :multiple="false"
-            :value="row.owners"
-            :api="userApi"
-            :empty-text="$t('无匹配人员')"
-            @change="(val) => handleChangePrincipal(val, $index)">
-          </bk-user-selector>
+          <div
+            v-bk-tooltips="{
+              content: $t('分组模式下，暂不支持添加{n}', { n: $t('责任人') }),
+              disabled: !isGroupSearch,
+            }">
+            <bk-user-selector
+              class="principal-input"
+              placeholder=" "
+              :disabled="isGroupSearch"
+              :multiple="false"
+              :value="row.owners"
+              :api="userApi"
+              :empty-text="$t('无匹配人员')"
+              @change="(val) => handleChangePrincipal(val, $index)">
+            </bk-user-selector>
+          </div>
         </template>
       </bk-table-column>
 
@@ -236,7 +243,12 @@
             <div style="padding: 4px 0;">{{remark.remark}}</div>
           </div>
         </div>
-        <div class="add-new-remark">
+        <div
+          class="add-new-remark"
+          v-bk-tooltips="{
+            content: $t('分组模式下，暂不支持添加{n}', { n: $t('备注') }),
+            disabled: !isGroupSearch,
+          }">
           <div class="text-btn" @click="handleClickAddNewRemark">
             <i class="icon bk-icon icon-plus push"></i>
             <span class="text">{{$t('新增备注')}}</span>
@@ -388,6 +400,9 @@ export default {
     scrollContent() {
       return document.querySelector('.result-scroll-container');
     },
+    isGroupSearch() {
+      return !!this.requestData.group_by.length;
+    },
   },
   watch: {
     'fingerList.length': {
@@ -496,7 +511,7 @@ export default {
             filterList = alarmList.filter(el => !!el.monitor.is_active);
           }
           // 分组情况下过滤重复的列表元素
-          if (this.requestData.group_by.length) {
+          if (this.isGroupSearch) {
             filterList = this.getSetList(filterList);
           }
           this.requestAlarm(filterList, option, () => {
@@ -739,6 +754,7 @@ export default {
     handleClickAddNewRemark() {
       this.popoverInstance.hide();
       this.verifyData.textInputStr = '';
+      if (this.isGroupSearch) return;
       this.isShowStrInputDialog = true;
     },
   },
@@ -850,6 +866,7 @@ export default {
 
       @include flex-center;
 
+      &.have-remark,
       &:hover {
         color: #3a84ff;
         background: #e1ecff;
@@ -993,6 +1010,11 @@ export default {
 
     /* stylelint-disable-next-line declaration-no-important */
     background: transparent !important;
+
+    &.disabled {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: transparent !important;
+    }
   }
 }
 

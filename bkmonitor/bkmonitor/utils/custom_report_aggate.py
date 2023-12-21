@@ -65,8 +65,9 @@ def register_report_task():
             "job": get_cluster().name,
             "interval": 60,
             "timeout": 10,
-            "concurrent": 5,
-            "size_limit": 10485760,
+            "concurrent": 1,
+            # 不切片，设置为max_int
+            "size_limit": 2147483647,
             "address": report_url,
             "auth": {"header": {"X-BK-Token": token}},
             **job_info["filter"],

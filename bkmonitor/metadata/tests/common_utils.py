@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import random
 
-from mockredis.redis import mock_redis_client
+from mockredis import mock_redis_client
 
 
 def any_return_model(model):
