@@ -58,15 +58,16 @@ class MonitorAPIConfig(AppConfig):
         from bkmonitor.migrate import Migrator
 
         self.check_external_db()
-        if "migrate" in sys.argv:
-            Migrator("iam", "bkmonitor.iam.migrations").migrate()
+        if "migrate" not in sys.argv:
+            return
 
-            if not settings.MIGRATE_MONITOR_API:
-                return
-
+        if settings.MIGRATE_MONITOR_API:
             # 创建缓存表
             call_command("createcachetable", database="monitor_api")
             # 迁移DB
             self.migrate()
             # healthz指标自动更新
             healthz_metric.run(apps)
+
+        # 迁移IAM
+        Migrator("iam", "bkmonitor.iam.migrations").migrate()
