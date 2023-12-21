@@ -1061,6 +1061,7 @@ class SearchViewSet(APIViewSet):
         @apiParam {Array[Json]} union_configs 联合检索索引集配置
         @apiParam {Int} union_configs.index_set_id 索引集ID
         @apiParam {Int} union_configs.begin 索引对应的滚动条数
+        @apiParam {Bool} union_configs.is_desensitize 是否脱敏 默认为True（只针对白名单SaaS开放此参数）
         @apiParamExample {Json} 请求参数
         {
             "start_time": "2019-06-11 00:00:00",
