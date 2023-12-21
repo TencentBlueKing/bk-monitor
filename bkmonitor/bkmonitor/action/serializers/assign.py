@@ -161,7 +161,6 @@ class AssignGroupSlz(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super(AssignGroupSlz, self).to_representation(instance)
         data["edit_allowed"] = False if instance.source == DATALINK_SOURCE else True
-
         return data
 
 
@@ -196,9 +195,6 @@ class BatchAssignRulesSlz(serializers.Serializer):
         if query_result.exists():
             raise ValidationError(detail=_("当前业务下已经存在优先级别为({})的分派规则组，请重新确认").format(value))
         return value
-
-    def validate_group_name(self, value):
-        return self.validate_name(value)
 
     def validate_name(self, value):
         """
@@ -236,6 +232,9 @@ class BatchAssignRulesSlz(serializers.Serializer):
 class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
     priority = serializers.IntegerField(label="优先级", required=True)
     name = serializers.CharField(label="规则组名称", required=True)
+
+    def validate_group_name(self, value):
+        return self.validate_name(value)
 
     @staticmethod
     def save(validated_data):
