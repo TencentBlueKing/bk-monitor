@@ -113,13 +113,13 @@ export default defineComponent({
           channel_name: 'user'
         },
         {
-          is_enabled: true,
+          is_enabled: false,
           subscribers: [],
           send_text: '',
           channel_name: 'email'
         },
         {
-          is_enabled: true,
+          is_enabled: false,
           subscribers: [],
           channel_name: 'wxbot'
         }
@@ -524,7 +524,7 @@ export default defineComponent({
      * @param { * } val
      */
     function handleCopy(text) {
-      copyText(text, msg => {
+      copyText(`{${text}}`, msg => {
         Message({
           message: msg,
           theme: 'error'
@@ -577,6 +577,7 @@ export default defineComponent({
         return item;
       });
       delete clonedDetailInfo.channels;
+      if (clonedDetailInfo.frequency.type === 1) isNotChooseOnlyOnce = false;
       Object.assign(formData, clonedDetailInfo);
       // 时间范围
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -694,12 +695,15 @@ export default defineComponent({
       { immediate: true }
     );
 
+    let isNotChooseOnlyOnce = true;
     watch(
       () => formData.frequency.type,
       () => {
         if (formData.frequency.type === 1) {
           formData.start_time = null;
           formData.end_time = null;
+          // 点击 仅一次 时刷新一次时间。
+          if (isNotChooseOnlyOnce) frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ss');
         }
       }
     );
