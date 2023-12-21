@@ -64,7 +64,6 @@ export default class MyComponent extends tsc<{}> {
   @Watch('url', { immediate: true })
   async handleUrlChange() {
     const grafanaUrl = await this.handleGetGrafanaUrl();
-    debugger;
     if (!this.grafanaUrl) {
       this.grafanaUrl = grafanaUrl;
     } else {
@@ -82,7 +81,7 @@ export default class MyComponent extends tsc<{}> {
     this.loading = true;
     let grafanaUrl = '';
     if (!this.url) {
-      if (this.$route.name === 'grafana-home') {
+      if (this.$route.name === 'grafana-home' || this.$store.getters.bizIdChangePedding) {
         grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       } else {
         const list = await getDashboardList().catch(() => []);
@@ -231,13 +230,15 @@ export default class MyComponent extends tsc<{}> {
         class='grafana-wrap'
         v-monitor-loading='{ isLoading: loading }'
       >
-        <iframe
-          onLoad={this.handleLoad}
-          ref='iframe'
-          class='grafana-wrap-frame'
-          allow='fullscreen'
-          src={this.grafanaUrl}
-        />
+        {this.grafanaUrl && (
+          <iframe
+            onLoad={this.handleLoad}
+            ref='iframe'
+            class='grafana-wrap-frame'
+            allow='fullscreen'
+            src={this.grafanaUrl}
+          />
+        )}
       </div>
     );
   }
