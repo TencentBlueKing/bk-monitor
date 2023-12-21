@@ -891,7 +891,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   // 初始化数据
   async initData() {
-    debugger;
     this.showRealtimeStrategy = !!window?.show_realtime_strategy;
     if (this.$route.query?.timezone) {
       this.timezone = this.$route.query.timezone as string;

@@ -395,16 +395,16 @@ export default class App extends tsc<{}> {
     this.$store.commit('app/SET_BIZ_ID', +v);
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
     const { navId } = this.$route.meta;
-    debugger;
     // 处理页面引导页信息
     introduce.clear();
+    let promise = null;
     if (navId in introduce.data) {
-      await introduce.getIntroduce(this.$route.meta.navId);
+      promise = introduce.getIntroduce(this.$route.meta.navId);
     }
     // 跳转
     if (navId === 'grafana') {
       this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', 'grafana-home');
-      await this.handleUpdateRoute({ bizId: `${v}` }, '/grafana/home');
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise, '/grafana/home');
       window.requestIdleCallback(() => {
         this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
       });
@@ -417,15 +417,17 @@ export default class App extends tsc<{}> {
           this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
         });
       }
-      await this.handleUpdateRoute({ bizId: `${v}` });
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise);
     } else {
-      await this.handleUpdateRoute({ bizId: `${v}` });
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise);
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
   }
   // 刷新页面
-  async handleUpdateRoute(params: Record<string, any>, path?: string) {
+  async handleUpdateRoute(params: Record<string, any>, promise = () => false, path?: string) {
+    const promiseList = [];
+    promiseList.push(promise);
     const { authority } = this.$route.meta;
     const serachParams = new URLSearchParams(params);
     const newUrl = `${window.location.pathname}?${serachParams.toString()}#${path || this.$route.path}`;
@@ -433,11 +435,14 @@ export default class App extends tsc<{}> {
     // 判断页面权限
     let hasAuthority = false;
     if (authority?.page) {
-      hasAuthority = await isAuthority(authority?.page)
-        .catch(() => false)
-        .finally(() => {
-          setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
-        });
+      promiseList.push(
+        isAuthority(authority?.page)
+          .catch(() => false)
+          .finally(() => {
+            setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
+          })
+      );
+      [, hasAuthority] = await Promise.all(promiseList);
       if (!hasAuthority) {
         this.$router.push({
           path: `/exception/403/${random(10)}`,
@@ -453,6 +458,7 @@ export default class App extends tsc<{}> {
         return;
       }
     }
+    await Promise.all(promiseList);
     this.routeViewKey = random(10);
   }
   handleClickBizSelect() {
