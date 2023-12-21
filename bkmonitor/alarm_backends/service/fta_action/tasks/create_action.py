@@ -612,7 +612,9 @@ class CreateActionProcessor:
             )
 
             # 告警负责人字段，替换为当前的负责人
-            alerts_appointee[alert.id] = assignees
+            if assignees:
+                # 如果有新的负责人，才进行更新
+                alerts_appointee[alert.id] = assignees
 
             # 告警知会人
             alerts_supervisor[alert.id] = self.get_alert_related_users(supervisors, alerts_supervisor[alert.id])
@@ -814,14 +816,17 @@ class CreateActionProcessor:
             is_parent_action = True
             notify_info = assignee_manager.get_notify_info()
             follow_notify_info = assignee_manager.get_notify_info(user_type=UserGroupType.FOLLOWER)
-            inputs["notify_info"] = notify_info
-            # 如果当前用户即是负责人，又是通知人, 需要进行去重, 以通知人wei zhun
+            if not notify_info and self.notice_type != ActionNoticeType.UPGRADE:
+                # 如果没有负责人的通知信息，需要将负责人通知信息带上，默认以当前适配到的通知方式为准
+                notify_configs = {notice_way: [] for notice_way in follow_notify_info.keys()}
+                notify_info = assignee_manager.get_appointee_notify_info(notify_configs)
+            # 如果当前用户即是负责人，又是通知人, 需要进行去重, 以通知人为准
             for notice_way, receivers in follow_notify_info.items():
                 valid_receivers = [
                     receiver for receiver in receivers if receiver not in notify_info.get(notice_way, [])
                 ]
                 follow_notify_info[notice_way] = valid_receivers
-
+            inputs["notify_info"] = notify_info
             inputs["follow_notify_info"] = follow_notify_info
         try:
             # TODO: 如果有更多的处理场景，需要将二次确认的处理提到更前端
