@@ -160,9 +160,8 @@ class AssignGroupSlz(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super(AssignGroupSlz, self).to_representation(instance)
-        data["edit_allowed"] = True
-        if instance.source == DATALINK_SOURCE:
-            data["edit_allowed"] = False
+        data["edit_allowed"] = False if instance.source == DATALINK_SOURCE else True
+
         return data
 
 
@@ -198,10 +197,16 @@ class BatchAssignRulesSlz(serializers.Serializer):
             raise ValidationError(detail=_("当前业务下已经存在优先级别为({})的分派规则组，请重新确认").format(value))
         return value
 
+    def validate_group_name(self, value):
+        return self.validate_name(value)
+
     def validate_name(self, value):
         """
-        优先级校验，同一个业务下的优先级别需要唯一
+        分派名称校验，同一个业务下的优先级别需要唯一
         """
+        if value.startswith("集成内置") or value.startswith("Datalink BuiltIn"):
+            raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
+
         query_result = AlertAssignGroup.objects.filter(
             name=value, bk_biz_id__in=[self.initial_data["bk_biz_id"], GLOBAL_BIZ_ID]
         )
@@ -220,6 +225,11 @@ class BatchAssignRulesSlz(serializers.Serializer):
                     continue
                 if set(action["upgrade_config"]["user_groups"]) & set(rule.get("user_groups", [])):
                     raise ValidationError(detail=_("通知升级的用户组不能包含第一次接收告警的用户组"))
+        return value
+
+    def validate_assign_group_id(self, value):
+        if value and AlertAssignGroup.objects.filter(id=value, source=DATALINK_SOURCE).exists():
+            raise ValidationError(detail="Edit datalink builtin rules is forbidden")
         return value
 
 
