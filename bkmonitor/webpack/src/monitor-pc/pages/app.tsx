@@ -403,7 +403,11 @@ export default class App extends tsc<{}> {
     }
     // 跳转
     if (navId === 'grafana') {
-      await this.handleUpdateRoute({ bizId: `${v}` }, '/grafana-home');
+      this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', 'grafana-home');
+      await this.handleUpdateRoute({ bizId: `${v}` }, '/grafana/home');
+      window.requestIdleCallback(() => {
+        this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+      });
     } else if (navId !== this.$route.name) {
       // 所有页面的子路由在切换业务的时候都统一返回到父级页面
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);
