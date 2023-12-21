@@ -87,8 +87,8 @@ export default {
       return this.totalFields
         .filter(item => this.kvShowFieldsList.includes(item.field_name))
         .sort((a, b) => {
-          const sortA = a.field_name.replace(/^__+|__+/g, 'z');
-          const sortB = b.field_name.replace(/^__+|__+/g, 'z');
+          const sortA = a.field_name.replace(/^[_]{1,2}|[_]{1,2}/g, 'z');
+          const sortB = b.field_name.replace(/^[_]{1,2}|[_]{1,2}/g, 'z');
           return sortA.localeCompare(sortB);
         });
     },

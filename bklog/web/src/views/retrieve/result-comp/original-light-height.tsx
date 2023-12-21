@@ -39,7 +39,16 @@ export default class QueryStatement extends tsc<IProps> {
   // 扁平化对象所有数据
   get fieldMapData() {
     const { newObject } = getFlatObjValues(this.originJson || {});
-    return Object.entries(newObject);
+    const sortObject = Object.keys(newObject).sort((a, b) => {
+      const sortA = a.replace(/^[_]{1,2}|[_]{1,2}/g, 'z');
+      const sortB = b.replace(/^[_]{1,2}|[_]{1,2}/g, 'z');
+      return sortA.localeCompare(sortB);
+    })
+      .reduce((pre, cur) => {
+        pre[cur] = newObject[cur];
+        return pre;
+      }, {});
+    return Object.entries(sortObject);
   }
 
   /** 检索的高亮列表 */
