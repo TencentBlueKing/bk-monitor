@@ -160,6 +160,7 @@ class AssignGroupSlz(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super(AssignGroupSlz, self).to_representation(instance)
+        data["edit_allowed"] = True
         if instance.source == DATALINK_SOURCE:
             data["edit_allowed"] = False
         return data
