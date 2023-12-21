@@ -16,6 +16,11 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
+
+from bkmonitor.utils.common_utils import logger
+from bkmonitor.utils.db.fields import JsonField, SymmetricJsonField
+from constants.cmdb import TargetNodeType, TargetObjectType
+from core.drf_resource import api, resource
 from monitor_web.collecting.constant import (
     OperationResult,
     OperationType,
@@ -27,11 +32,6 @@ from monitor_web.models.base import OperateRecordModelBase
 from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
 from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
-
-from bkmonitor.utils.common_utils import logger
-from bkmonitor.utils.db.fields import JsonField, SymmetricJsonField
-from constants.cmdb import TargetNodeType, TargetObjectType
-from core.drf_resource import api, resource
 
 
 class CollectConfigMeta(OperateRecordModelBase):
@@ -76,7 +76,7 @@ class CollectConfigMeta(OperateRecordModelBase):
         (TargetObjectType.HOST, _lazy("主机")),
     )
 
-    bk_biz_id = models.IntegerField("业务ID")
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
     name = models.CharField("配置名称", max_length=128)
 
     # 采集插件相关配置
@@ -300,7 +300,6 @@ class CollectConfigMeta(OperateRecordModelBase):
 
     @property
     def data_id(self):
-
         if self.collect_type == self.CollectType.PROCESS:
             # 进程采集对应dataid 有两个，通过ProcessPluginManager.perf_data_id 和 port_data_id获取
             return None
@@ -592,7 +591,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
     # 主机实例
     # [
     #     {
-    #         'ip': '10.0.0.1',
+    #         'ip': '127.0.0.1',
     #         'bk_cloud_id': 0,
     #         'bk_supplier_id': 0,
     #     }
@@ -601,7 +600,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
 
     # 远程采集，若为空则代表不使用远程采集模式
     # {
-    #     'ip': '10.0.0.1',
+    #     'ip': '127.0.0.1',
     #     'bk_cloud_id': 0,
     #     'bk_supplier_id': 0,
     #     'is_collecting_only': True  # 是否为采集专用机器

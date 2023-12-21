@@ -33,7 +33,7 @@ import authorityStore from '../../store/modules/authority';
 import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
 
-import List, { IListItem } from './list';
+import List, { ETagsType, IListItem } from './list';
 
 import './biz-select.scss';
 /** 业务组件常用的业务缓存key */
@@ -86,6 +86,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   theme: ThemeType;
   @Ref() menuSearchInput: any;
   @Ref() popoverRef: any;
+  @Ref('typeList') typeListRef: HTMLDivElement;
 
   localValue: number = null;
 
@@ -116,6 +117,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     count: 0,
     limit: 20,
     data: []
+  };
+
+  /* type栏左右切换数据 */
+  typeWrapInfo = {
+    showBtn: false,
+    nextDisable: false,
+    preDisable: false
   };
 
   created() {
@@ -155,6 +163,12 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       ?.trim()
       ?.slice(0, 1)
       ?.toLocaleUpperCase();
+  }
+  /* 当前业务的ID */
+  get curentBizId() {
+    return this.curentBizItem?.space_type_id === ETagsType.BKCC
+      ? `#${this.curentBizItem?.id}`
+      : this.curentBizItem?.space_id || this.curentBizItem?.space_code || '';
   }
 
   /**  */
@@ -318,6 +332,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       this.popoverRef.instance.set({
         zIndex: this.zIndex
       });
+    this.typeListWrapNextPreShowChange();
   }
   /** 点击申请权限 */
   async handleGetBizAuth() {
@@ -394,6 +409,52 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     }
   }
 
+  /* 是否展示type栏左右切换按钮 */
+  typeListWrapNextPreShowChange() {
+    this.$nextTick(() => {
+      const hasScroll = this.typeListRef.scrollWidth > this.typeListRef.clientWidth;
+      this.typeWrapInfo.showBtn = hasScroll;
+      this.typeWrapInfo.preDisable = true;
+    });
+  }
+
+  /**
+   * @description 左右切换type栏
+   * @param type
+   */
+  handleTypeWrapScrollChange(type: 'pre' | 'next') {
+    const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
+      const startPosition = element.scrollLeft;
+      const distance = targetPosition - startPosition;
+      const startTime = new Date().getTime();
+      const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+      const scroll = () => {
+        const elapsed = new Date().getTime() - startTime;
+        const progress = easeOutCubic(Math.min(elapsed / duration, 1));
+        element.scrollLeft = startPosition + distance * progress;
+        if (progress < 1) requestAnimationFrame(scroll);
+        callback();
+      };
+      scroll();
+    };
+    let target = 0;
+    const speed = 100;
+    const duration = 300;
+    const { scrollWidth, scrollLeft, clientWidth } = this.typeListRef;
+    const total = scrollWidth - clientWidth;
+    if (type === 'next') {
+      const temp = scrollLeft + speed;
+      target = temp > total ? total : temp;
+    } else {
+      const temp = scrollLeft - speed;
+      target = temp < 0 ? 0 : temp;
+    }
+    smoothScrollTo(this.typeListRef, target, duration, () => {
+      this.typeWrapInfo.nextDisable = this.typeListRef.scrollLeft > total - 1;
+      this.typeWrapInfo.preDisable = this.typeListRef.scrollLeft === 0;
+    });
+  }
+
   render() {
     const firstCode = (
       <span
@@ -436,6 +497,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   v-bk-overflow-tips
                 >
                   {this.bizName}
+                  <span class='biz-name-text-id'>({this.curentBizId})</span>
                 </span>
                 <i
                   class='icon-monitor icon-mc-triangle-down'
@@ -466,21 +528,38 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 />
               </div>
               {this.spaceTypeIdList.length > 1 && (
-                <ul class='space-type-list'>
-                  {this.spaceTypeIdList.map(item => (
-                    <li
-                      class='space-type-item'
-                      style={{
-                        ...item.styles,
-                        borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent'
-                      }}
-                      key={item.id}
-                      onClick={() => this.handleSearchType(item.id)}
-                    >
-                      {item.name}
-                    </li>
-                  ))}
-                </ul>
+                <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }, this.theme]}>
+                  <ul
+                    class={'space-type-list'}
+                    ref='typeList'
+                  >
+                    {this.spaceTypeIdList.map(item => (
+                      <li
+                        class='space-type-item'
+                        style={{
+                          ...item.styles,
+                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent'
+                        }}
+                        key={item.id}
+                        onClick={() => this.handleSearchType(item.id)}
+                      >
+                        {item.name}
+                      </li>
+                    ))}
+                  </ul>
+                  <div
+                    class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
+                    onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
+                  >
+                    <span class='icon-monitor icon-arrow-left'></span>
+                  </div>
+                  <div
+                    class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
+                    onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
+                  >
+                    <span class='icon-monitor icon-arrow-right'></span>
+                  </div>
+                </div>
               )}
               <ul
                 class='biz-list'

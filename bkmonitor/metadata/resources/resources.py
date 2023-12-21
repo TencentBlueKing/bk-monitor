@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+from itertools import chain
 from typing import Dict, List
 
 import yaml
@@ -717,7 +718,7 @@ class QueryClusterInfoResource(Resource):
 
 
 class QueryEventGroupResource(Resource):
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(PageSerializer):
         label = serializers.CharField(required=False, label="事件分组标签", default=None)
         event_group_name = serializers.CharField(required=False, label="事件分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
@@ -738,6 +739,15 @@ class QueryEventGroupResource(Resource):
 
         if event_group_name is not None:
             query_set = query_set.filter(event_group_name=event_group_name)
+
+        # 分页返回
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = query_set.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_queryset = query_set[offset : offset + page_size]
+            events = self._compose_in_event(paginated_queryset)
+            return {"count": count, "info": events}
 
         # 组装数据
         return self._compose_in_event(query_set)
@@ -1085,7 +1095,7 @@ class GetTimeSeriesMetricsResource(Resource):
 
 
 class QueryTimeSeriesGroupResource(Resource):
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(PageSerializer):
         label = serializers.CharField(required=False, label="自定义分组标签", default=None)
         time_series_group_name = serializers.CharField(required=False, label="自定义分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
@@ -1109,11 +1119,15 @@ class QueryTimeSeriesGroupResource(Resource):
         if time_series_group_name is not None:
             query_set = query_set.filter(time_series_group_name=time_series_group_name)
 
-        results = []
-        for time_series_group in query_set:
-            results = results + time_series_group.to_json_v2()
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = query_set.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_query_set = query_set[offset : offset + page_size]
+            results = list(chain.from_iterable(instance.to_json_v2() for instance in paginated_query_set))
+            return {"count": count, "info": results}
 
-        return results
+        return list(chain.from_iterable(instance.to_json_v2() for instance in query_set))
 
 
 class QueryBCSMetricsResource(Resource):
