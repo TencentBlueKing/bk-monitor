@@ -174,8 +174,7 @@ class ActionContext(object):
         """
         告警组类型
         """
-
-        if self.action and self.action.inputs.get("followed"):
+        if self.example_action and self.example_action.inputs.get("followed"):
             # 如果当前通知
             return UserGroupType.FOLLOWER
         return None
@@ -186,7 +185,7 @@ class ActionContext(object):
         是否为关注人
         """
 
-        if self.action and self.action.inputs.get("followed"):
+        if self.example_action and self.example_action.inputs.get("followed"):
             # 如果当前通知
             return True
         return False
