@@ -480,21 +480,16 @@ class AlertAssignee:
         notice_type=NoticeType.ALERT_NOTICE,
         notice_phase=None,
         notify_configs=None,
-        append_appointee=True,
         user_type=UserGroupType.MAIN,
     ):
         """
         根据用户组和告警获取通知方式和对应的处理人元信息
-        :param append_appointee: 是否增加历史负责人
         :param notify_configs: 已有的通知配置
         :param notice_phase: 获取通知阶段配置
         :param notice_type:通知方式  alert_notice: 告警通知  action_notice： 执行通知配置
         :param user_type: 通知组类型
         :return:
         """
-        if user_type != UserGroupType.MAIN:
-            append_appointee = False
-
         # step 1 通过用户组获取对应时间段的通知渠道
         group_notify_items = self.get_group_notify_configs(notice_type, user_type)
 
@@ -555,8 +550,9 @@ class AlertAssignee:
                         notify_configs[notice_way_type].append(group_user)
         if self.wxbot_mention_users:
             notify_configs["wxbot_mention_users"].append(self.wxbot_mention_users)
-        if append_appointee:
-            return self.add_appointee_to_notify_group(notify_configs)
+        if not notify_configs["wxbot_mention_users"]:
+            # 如果没有提醒人，不显示在配置中
+            notify_configs.pop("wxbot_mention_users")
         return notify_configs
 
     def add_appointee_to_notify_group(self, notify_configs):

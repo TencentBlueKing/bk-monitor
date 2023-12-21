@@ -154,25 +154,18 @@ class AlertAssigneeManager:
             self.origin_notice_users_object.get_notice_receivers(notify_configs=notify_configs, user_type=user_type)
         return notify_configs
 
-    def get_upgrade_notify_info(self, user_type=UserGroupType.MAIN):
+    def get_appointee_notify_info(self, notify_configs=None):
         """
-        获取升级通知的方式
-        :return:
+        获取告警负责人的通知信息
         """
-        notify_configs = defaultdict(list)
-
-        if self.is_matched and self.notice_supervisor_object:
-            # 如果存在适配规则的通知升级情况
-            self.notice_supervisor_object.get_notice_receivers(
-                notify_configs=notify_configs, append_appointee=False, user_type=user_type
-            )
-
-        if not self.is_matched and self.origin_notice_supervisor_object:
-            # 如果当前不满足分派条件，则判断是否有原始通知的升级情况
-            self.origin_notice_supervisor_object.get_notice_receivers(
-                notify_configs=notify_configs, append_appointee=False, user_type=user_type
-            )
-
+        notify_configs = notify_configs or defaultdict(list)
+        if self.is_matched:
+            # 如果适配到了，直接发送给分派的负责人
+            if self.notice_appointees_object:
+                self.notice_appointees_object.add_appointee_to_notify_group(notify_configs=notify_configs)
+        elif self.origin_notice_users_object:
+            # 有默认通知的话，就加上默认通知人员
+            self.origin_notice_users_object.add_appointee_to_notify_group(notify_configs=notify_configs)
         return notify_configs
 
     def get_assignees(self, by_group=False, user_type=UserGroupType.MAIN):
@@ -249,7 +242,7 @@ class AlertAssigneeManager:
         """
         if self.origin_notice_users_object is None:
             return {}
-        return self.origin_notice_users_object.get_notice_receivers(append_appointee=True)
+        return self.origin_notice_users_object.get_notice_receivers()
 
     def get_origin_supervisor_object(self):
         """

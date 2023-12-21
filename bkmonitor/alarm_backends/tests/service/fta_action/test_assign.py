@@ -957,6 +957,28 @@ class TestAssignManager:
         assert new_alert.assign_tags == follow_setup.additional_tags
         assert new_alert.follower == ["lisa"]
 
+    def test_assign_follower_with_appointee_notice(self, follow_setup, alert, user_group_setup, biz_mock, init_configs):
+        """
+        原生测试
+        """
+        alert.extra_info.strategy = {}
+        alert.appointee = ["admin1", "admin2"]
+        AlertDocument.bulk_create([alert])
+        assert biz_mock.call_count == 1
+        actions = create_actions(0, "abnormal", alerts=[alert])
+        # 5个人通知，两个负责人需要通知， 一个lisa的邮件通知，两个企业微信通知
+        assert len(actions) == 5
+        p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
+        p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
+        p_ai.inputs["follow_notify_info"].pop("wxbot_mention_users", None)
+        assert p_ai.inputs["follow_notify_info"] == {'mail': ['lisa']}
+        assert p_ai.inputs["notify_info"] == {'mail': ['admin1', "admin2"]}
+        new_alert = AlertDocument.get(id=alert.id)
+        assert new_alert.severity == 2
+        assert new_alert.assign_tags == follow_setup.additional_tags
+        assert new_alert.follower == ["lisa"]
+        assert new_alert.appointee == ["admin1", "admin2"]
+
     def test_default_assign_without_notice(self, alert, user_group_setup, biz_mock, init_configs):
         """
         原生测试
