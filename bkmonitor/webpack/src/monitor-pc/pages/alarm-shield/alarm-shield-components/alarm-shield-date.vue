@@ -225,7 +225,7 @@
   </div>
 </template>
 <script>
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 export default {
   name: 'AlarmShieldDate',
@@ -310,16 +310,16 @@ export default {
     // 初始化起始日期
     handleInitStartDate(type) {
       const { dateRange } = this.commonDateData;
-      const startDate = new Date(moment(dateRange[0]).format('YYYY-MM-DD'));
-      const endDate = new Date(moment(dateRange[1]).format('YYYY-MM-DD'));
-      const nowDate = new Date(moment().format('YYYY-MM-DD'));
+      const startDate = new Date(dayjs.tz(dateRange[0]).format('YYYY-MM-DD'));
+      const endDate = new Date(dayjs.tz(dateRange[1]).format('YYYY-MM-DD'));
+      const nowDate = new Date(dayjs.tz().format('YYYY-MM-DD'));
       switch (type) {
         case 'single':
           if (new Date() > new Date(this.noticeDate.single.range[0])) this.noticeDate.single.range[0] = new Date();
           if (new Date() >  new Date(this.noticeDate.single.range[1])) this.noticeDate.single.range = [];
           break;
         default:
-          if (nowDate > startDate) this.commonDateData.dateRange[0] = moment().format();
+          if (nowDate > startDate) this.commonDateData.dateRange[0] = dayjs.tz().format();
           if (nowDate > endDate) this.commonDateData.dateRange = [];
           break;
       }
@@ -394,8 +394,8 @@ export default {
     },
     validateDateRange(val) {
       this.commonDateData.hasDateRange = !!val.join('');
-      const startTime = moment(this.noticeDate.single.range[0]).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = moment(this.noticeDate.single.range[1]).format('YYYY-MM-DD HH:mm:ss');
+      const startTime = dayjs.tz(this.noticeDate.single.range[0]).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.tz(this.noticeDate.single.range[1]).format('YYYY-MM-DD HH:mm:ss');
       if (startTime.includes('00:00:00') && endTime.includes('00:00:00')) {
         this.noticeDate.single.range[1].setHours(23, 59, 59);
         this.noticeDate.single.range = [this.noticeDate.single.range[0], this.noticeDate.single.range[1]];
@@ -447,12 +447,12 @@ export default {
         ...this.noticeDate
       };
       if (this.shieldCycle.value !== 'single') {
-        params.dateRange[0] = `${moment(this.commonDateData.dateRange[0]).format('YYYY-MM-DD')} 00:00:00`;
-        params.dateRange[1] = `${moment(this.commonDateData.dateRange[1]).format('YYYY-MM-DD')} 23:59:59`;
+        params.dateRange[0] = `${dayjs.tz(this.commonDateData.dateRange[0]).format('YYYY-MM-DD')} 00:00:00`;
+        params.dateRange[1] = `${dayjs.tz(this.commonDateData.dateRange[1]).format('YYYY-MM-DD')} 23:59:59`;
       }
       Object.keys(this.noticeDate).forEach((key) => {
         if (key === 'single') {
-          this.noticeDate[key].range = this.noticeDate[key].range.map(item => moment(item).format('YYYY-MM-DD HH:mm:ss'));
+          this.noticeDate[key].range = this.noticeDate[key].range.map(item => dayjs.tz(item).format('YYYY-MM-DD HH:mm:ss'));
         }
       });
       return params;

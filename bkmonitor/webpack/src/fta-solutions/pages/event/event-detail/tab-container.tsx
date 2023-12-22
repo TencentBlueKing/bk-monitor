@@ -27,7 +27,7 @@ import { Component, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 import { Button, Checkbox, Popover, Tab, TabPanel } from 'bk-magic-vue';
 
-import { TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
+import { type TimeRangeType } from '../../../../monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../monitor-pc/components/time-range/utils';
 import { MetricType } from '../../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 

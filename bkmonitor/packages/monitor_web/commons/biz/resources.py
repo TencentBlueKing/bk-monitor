@@ -9,21 +9,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import re
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from monitor_web.commons.biz.func_control import CM
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
-from core.drf_resource import api, resource
+from core.drf_resource import CacheResource, api, resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
+from monitor_web.commons.biz.func_control import CM
 
 BK_MONITOR_SITE_URL = "/o/bk_monitorv3/"
 
@@ -115,15 +117,24 @@ class ListSpacesResource(Resource):
         show_all = serializers.BooleanField(required=False, default=False, allow_null=True)
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
+    @classmethod
+    def get_space_by_user(cls, username):
+        perm_client = Permission(username)
+        return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+
     def perform_request(self, validated_request_data) -> [dict]:
+        request = get_request()
+        username = request.user.username
 
         if validated_request_data["show_all"]:
-            all_space_list = SpaceApi.list_spaces()
+            # 针对特定用户名屏蔽空间信息
+            if settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username):
+                all_space_list = self.get_space_by_user(username)
+            else:
+                all_space_list = SpaceApi.list_spaces()
         else:
-            request = get_request()
-            username = request.user.username
-            perm_client = Permission(username)
-            all_space_list = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+            all_space_list = self.get_space_by_user(username)
+
         spaces = [s.to_dict() for s in all_space_list]
         if validated_request_data["show_detail"]:
             list(map(self.enrich_space_func, spaces))
@@ -239,10 +250,12 @@ class CreateSpaceResource(Resource):
         return space_info
 
 
-class SpaceIntroduceResource(Resource):
+class SpaceIntroduceResource(CacheResource):
     """
     生成功能接入指引
     """
+
+    cache_type = CacheType.OVERVIEW
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)

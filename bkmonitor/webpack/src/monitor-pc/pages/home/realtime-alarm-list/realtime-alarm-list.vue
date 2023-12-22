@@ -67,13 +67,12 @@
 </template>
 
 <script>
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { gotoPageMixin } from '../../../common/mixins';
 import SvgIcon from '../../../components/svg-icon/svg-icon';
 import PanelCard from '../components/panel-card/panel-card';
 
-moment.locale('zh-cn');
 
 export default {
   name: 'RealTimeAlarmList',
@@ -90,7 +89,7 @@ export default {
   },
   methods: {
     getTimeFromNow(t) {
-      return moment(moment(t * 1000).format('YYYYMMDDHHmmss'), 'YYYYMMDDHHmmss').fromNow();
+      return dayjs(dayjs(t * 1000).format('YYYYMMDDHHmmss'), 'YYYYMMDDHHmmss').fromNow();
     },
     gotoPageHandle() {
       this.$router.push({

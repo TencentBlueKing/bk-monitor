@@ -25,8 +25,9 @@
  */
 import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, PropType, Ref, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { bkTooltips } from 'bkui-vue';
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import moment from 'moment';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { deepClone, random } from '../../../../monitor-common/utils/utils';
@@ -88,12 +89,21 @@ const TimeSeriesProps = {
   // 自定义时间范围
   customTimeRange: Array as PropType<string[]>,
   // 自定义更多菜单
-  customMenuList: Array as PropType<ChartTitleMenuType[]>
+  customMenuList: Array as PropType<ChartTitleMenuType[]>,
+  clearErrorMsg: { default: () => {}, type: Function },
+  // 作为单独组件使用 默认用于dashboard
+  isUseAlone: {
+    type: Boolean,
+    default: false
+  }
 };
 export default defineComponent({
   name: 'TimeSeries',
+  directives: {
+    bkTooltips
+  },
   props: TimeSeriesProps,
-  emits: ['loading'],
+  emits: ['loading', 'errorMsg'],
   setup(props, { emit }) {
     const timeSeriesRef = ref<HTMLDivElement>();
     const chartWrapperRef = ref<HTMLDivElement>();
@@ -108,6 +118,7 @@ export default defineComponent({
     const inited = ref<boolean>(false);
     const empty = ref<boolean>(false);
     const emptyText = ref<string>('');
+    const errorMsg = ref<string>('');
     const metrics = ref<IExtendMetricData[]>([]);
     const hasSetEvent = ref<boolean>(false);
     const isInHover = ref<boolean>(false);
@@ -121,8 +132,14 @@ export default defineComponent({
     const downSampleRange = 'auto';
     const startTime = inject<Ref>('startTime') || ref('');
     const endTime = inject<Ref>('endTime') || ref('');
-    const startTimeMinusOneHour = moment(startTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss');
-    const endTimeMinusOneHour = moment(endTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ss');
+    const startTimeMinusOneHour = dayjs
+      .tz(startTime.value || undefined)
+      .subtract(1, 'hour')
+      .format('YYYY-MM-DD HH:mm:ss');
+    const endTimeMinusOneHour = dayjs
+      .tz(endTime.value || undefined)
+      .add(1, 'hour')
+      .format('YYYY-MM-DD HH:mm:ss');
     const spanDetailActiveTab = inject<Ref>('SpanDetailActiveTab') || ref('');
     // 主机标签页需要特殊处理：因为这里的开始\结束时间是从当前 span 数据的开始时间（-1小时）和结束时间（+1小时）去进行提交、而非直接 inject 时间选择器的时间区间。
     /**
@@ -172,7 +189,11 @@ export default defineComponent({
       const timeMatch = val.match(/(-?\d+)(\w+)/);
       const hasMatch = timeMatch && timeMatch.length > 2;
       return hasMatch
-        ? (moment() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+        ? dayjs
+            .tz()
+            .add(-timeMatch[1], timeMatch[2] as dayjs.ManipulateType)
+            .fromNow()
+            .replace(/\s*/g, '')
         : val.replace('current', t('当前'));
     }
     /** 处理时间对比时线条名字 */
@@ -312,20 +333,20 @@ export default defineComponent({
       minX &&
         maxX &&
         (formatterFunc = (v: any) => {
-          const duration = moment.duration(moment(maxX).diff(moment(minX))).asSeconds();
+          const duration = dayjs.duration(dayjs.tz(maxX).diff(dayjs.tz(minX))).asSeconds();
           if (onlyBeginEnd && v > minX && v < maxX) {
             return '';
           }
           if (duration < 60 * 60 * 24 * 2) {
-            return moment(v).format('HH:mm');
+            return dayjs.tz(v).format('HH:mm');
           }
           if (duration < 60 * 60 * 24 * 8) {
-            return moment(v).format('MM-DD HH:mm');
+            return dayjs.tz(v).format('MM-DD HH:mm');
           }
           if (duration <= 60 * 60 * 24 * 30 * 12) {
-            return moment(v).format('MM-DD');
+            return dayjs.tz(v).format('MM-DD');
           }
-          return moment(v).format('YYYY-MM-DD');
+          return dayjs.tz(v).format('YYYY-MM-DD');
         });
       return formatterFunc;
     }
@@ -415,9 +436,8 @@ export default defineComponent({
           window.open(
             location.href.replace(
               location.hash,
-              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${
-                timeRange?.value[0]
-              }&to=${timeRange?.value[1]}`
+              `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${timeRange
+                ?.value[0]}&to=${timeRange?.value[1]}`
             )
           );
           break;
@@ -443,8 +463,8 @@ export default defineComponent({
         const metricList: any[] = [];
         const [startTime, endTime] = handleTransformToTimestamp(timeRange!.value);
         const params = {
-          start_time: start_time ? moment(start_time).unix() : startTime,
-          end_time: end_time ? moment(end_time).unix() : endTime
+          start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
+          end_time: end_time ? dayjs.tz(end_time).unix() : endTime
         };
         const promiseList: any[] = [];
         const timeShiftList = ['', ...timeOffset!.value];
@@ -480,7 +500,8 @@ export default defineComponent({
               if (!item.apiModule) return;
               return currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
                 [item.apiFunc](newPrarams, {
-                  cancelToken: new CancelToken((cb: Function) => cancelTokens.push(cb))
+                  cancelToken: new CancelToken((cb: Function) => cancelTokens.push(cb)),
+                  needMessage: false
                 })
                 .then((res: { metrics: any; series: any[] }) => {
                   res.metrics.forEach((metric: { metric_id: string }) => {
@@ -498,7 +519,11 @@ export default defineComponent({
                       }${handleSeriesName(item, set) || set.target}`
                     }))
                   );
+                  handleClearErrorMsg();
                   return true;
+                })
+                .catch(error => {
+                  handleErrorMsgChange(error.msg || error.message);
                 });
             }) ?? [];
           promiseList.push(...(list as any));
@@ -693,6 +718,12 @@ export default defineComponent({
     function handleDblClick() {
       getPanelData();
     }
+    function handleErrorMsgChange(message: string) {
+      props.isUseAlone ? (errorMsg.value = message) : emit('errorMsg', message);
+    }
+    function handleClearErrorMsg() {
+      props.isUseAlone ? (errorMsg.value = '') : props.clearErrorMsg();
+    }
     return {
       ...unWathChartData,
       ...useLegendRet,
@@ -717,6 +748,7 @@ export default defineComponent({
       inited,
       empty,
       emptyText,
+      errorMsg,
       hasSetEvent,
       legendData,
       cancelTokens,
@@ -805,6 +837,16 @@ export default defineComponent({
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
+        )}
+        {!!this.errorMsg && (
+          <span
+            class='is-error'
+            v-bk-tooltips={{
+              content: <div>{this.errorMsg}</div>,
+              extCls: 'chart-wrapper-error-tooltip',
+              placement: 'top-start'
+            }}
+          ></span>
         )}
       </div>
     );

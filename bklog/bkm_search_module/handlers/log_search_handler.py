@@ -9,7 +9,6 @@ logger = logging.getLogger("bkm_search_module")
 
 
 class SearchModuleHandler:
-
     @staticmethod
     def list_index_set(scope_list: types.ScopeList):
         """索引集列表"""
@@ -38,9 +37,7 @@ class SearchModuleHandler:
     @staticmethod
     def update_or_create_config(username: str, config: dict):
         """创建、更新用户配置"""
-        SearchModuleUserConfig.objects.update_or_create(
-            username=username, defaults={"config": config}
-        )
+        SearchModuleUserConfig.objects.update_or_create(username=username, defaults={"config": config})
         return {"success": True}
 
     @staticmethod

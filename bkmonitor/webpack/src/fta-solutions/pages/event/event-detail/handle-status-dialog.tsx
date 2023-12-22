@@ -26,7 +26,7 @@
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Dialog, Option, Select, Table, TableColumn } from 'bk-magic-vue';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import { subActionDetail } from '../../../../monitor-api/modules/alert';
 import { getNoticeWay } from '../../../../monitor-api/modules/notice_group';
@@ -81,9 +81,9 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
     return this.localActions
       .map((item, index) => ({
         id: item.id,
-        name: `${this.$t('第 {n} 次', { n: index + 1 })}（${moment(item.create_time * 1000).format(
-          'YYYY-MM-DD HH:mm:ss'
-        )}）`
+        name: `${this.$t('第 {n} 次', { n: index + 1 })}（${dayjs
+          .tz(item.create_time * 1000)
+          .format('YYYY-MM-DD HH:mm:ss')}）`
       }))
       .reverse();
   }

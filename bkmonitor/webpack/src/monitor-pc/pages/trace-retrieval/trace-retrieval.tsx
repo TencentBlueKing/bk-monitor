@@ -25,7 +25,6 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { unmount } from '@blueking/bk-weweb';
 
 import './trace-retrieval.scss';
 
@@ -47,8 +46,12 @@ export default class TraceRetrieval extends tsc<{}> {
       baseroute: '/trace/'
     });
   }
+  mounted() {
+    setTimeout(() => {
+      this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
+    }, 300);
+  }
   beforeRouteLeave(to, from, next) {
-    unmount('trace');
     (document.body as any).___zrEVENTSAVED = null;
     next();
   }

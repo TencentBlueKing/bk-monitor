@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+from itertools import chain
 from typing import Dict, List
 
 import yaml
@@ -39,8 +40,8 @@ from metadata.models.bcs import (
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.models.space.utils import get_space_by_table_id
+from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
-from metadata.task.tasks import push_and_publish_space_router
 from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.es_tools import get_client
 
@@ -248,15 +249,6 @@ class ModifyResultTableResource(Resource):
         if query_set.exists() and request_data["field_list"] is not None:
             storage = query_set[0]
             storage.update_index_and_aliases(ahead_time=0)
-
-        # 触发发布redis任务
-        try:
-            space_info = get_space_by_table_id(result_table.table_id)
-            push_and_publish_space_router.delay(
-                space_info["space_type_id"], space_info["space_id"], table_id_list=[table_id]
-            )
-        except Exception as e:
-            logger.error("publish redis error, %s", e)
 
         return result_table.to_json()
 
@@ -726,7 +718,7 @@ class QueryClusterInfoResource(Resource):
 
 
 class QueryEventGroupResource(Resource):
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(PageSerializer):
         label = serializers.CharField(required=False, label="事件分组标签", default=None)
         event_group_name = serializers.CharField(required=False, label="事件分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
@@ -747,6 +739,15 @@ class QueryEventGroupResource(Resource):
 
         if event_group_name is not None:
             query_set = query_set.filter(event_group_name=event_group_name)
+
+        # 分页返回
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = query_set.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_queryset = query_set[offset : offset + page_size]
+            events = self._compose_in_event(paginated_queryset)
+            return {"count": count, "info": events}
 
         # 组装数据
         return self._compose_in_event(query_set)
@@ -1094,7 +1095,7 @@ class GetTimeSeriesMetricsResource(Resource):
 
 
 class QueryTimeSeriesGroupResource(Resource):
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(PageSerializer):
         label = serializers.CharField(required=False, label="自定义分组标签", default=None)
         time_series_group_name = serializers.CharField(required=False, label="自定义分组名称", default=None)
         bk_biz_id = serializers.CharField(required=False, label="业务ID", default=None)
@@ -1118,11 +1119,15 @@ class QueryTimeSeriesGroupResource(Resource):
         if time_series_group_name is not None:
             query_set = query_set.filter(time_series_group_name=time_series_group_name)
 
-        results = []
-        for time_series_group in query_set:
-            results = results + time_series_group.to_json_v2()
+        page_size = validated_request_data["page_size"]
+        if page_size > 0:
+            count = query_set.count()
+            offset = (validated_request_data["page"] - 1) * page_size
+            paginated_query_set = query_set[offset : offset + page_size]
+            results = list(chain.from_iterable(instance.to_json_v2() for instance in paginated_query_set))
+            return {"count": count, "info": results}
 
-        return results
+        return list(chain.from_iterable(instance.to_json_v2() for instance in query_set))
 
 
 class QueryBCSMetricsResource(Resource):
@@ -1784,3 +1789,18 @@ class KafkaTailResource(Resource):
                     break
 
         return result.reverse()
+
+
+class QueryResultTableStorageDetailResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
+        table_id = serializers.CharField(required=False, label="结果表ID")
+        bcs_cluster_id = serializers.CharField(required=False, label="集群ID")
+
+    def perform_request(self, validated_request_data):
+        source = ResultTableAndDataSource(
+            table_id=validated_request_data.get("table_id", None),
+            bk_data_id=validated_request_data.get("bk_data_id", None),
+            bcs_cluster_id=validated_request_data.get("bcs_cluster_id", None),
+        )
+        return source.get_detail()

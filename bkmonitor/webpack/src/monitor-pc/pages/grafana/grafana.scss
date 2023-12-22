@@ -1,0 +1,13 @@
+.grafana-wrap {
+  // margin: -20px -24px 0;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+
+  &-frame {
+    width: 100%;
+    min-width: 100%;
+    min-height: 100%;
+    border: 0;
+  }
+}

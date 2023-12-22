@@ -11,10 +11,10 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 from django.conf import settings
-from monitor_web.grafana.resources import GetVariableValue
 
 from api.kubernetes.default import FetchK8sClusterListResource
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from monitor_web.grafana.resources import GetVariableValue
 
 pytestmark = pytest.mark.django_db
 
@@ -71,7 +71,7 @@ class TestGetVariableValue:
                         "_source": {
                             "event_name": "login_count",
                             "time": "1630743307000",
-                            "target": "0:10.0.0.1",
+                            "target": "0:127.0.0.1",
                             "dimensions": {
                                 "bk_biz_id": "2",
                                 "bk_module_id": "39",
@@ -80,7 +80,7 @@ class TestGetVariableValue:
                                 "bk_target_topo_level": "",
                                 "file_path": "/data/bkee/logs/open_paas/login_uwsgi.log",
                                 "bk_target_service_category_id": "",
-                                "bk_target_ip": "10.0.0.1",
+                                "bk_target_ip": "127.0.0.1",
                                 "bk_set_id": "7",
                                 "bk_target_service_instance_id": "",
                                 "bk_target_cloud_id": "0",
@@ -291,10 +291,10 @@ class TestGetVariableValue:
                             "gseIndex": 412144,
                             "iterationIndex": 2,
                             "log": "Sep  4 09:42:15 VM-1-56-centos ssm: [GIN] 2021/09/04 - "
-                            "09:42:15 | 200 |    1.285774ms |       10.0.0.1 | POST   "
+                            "09:42:15 | 200 |    1.285774ms |       127.0.0.1 | POST   "
                             '  "/api/v1/auth/access-tokens/verify"',
                             "path": "/var/log/messages",
-                            "serverIp": "10.0.0.1",
+                            "serverIp": "127.0.0.1",
                             "time": "1630719736000",
                         },
                         "_type": "_doc",
@@ -423,7 +423,7 @@ class TestGetVariableValue:
                             "parent_span_id": "b8387415713cca21",
                             "path": "",
                             "resource": {"bk_data_id": 1500096, "service.name": "test-service"},
-                            "serverIp": "10.0.0.1",
+                            "serverIp": "127.0.0.1",
                             "span_id": "990f5a2181ca54f1",
                             "span_name": "handle-ts-query",
                             "start_time": 1630724613411625,
@@ -489,12 +489,12 @@ class TestGetVariableValue:
             "params": {
                 "label_field": "bk_host_name",
                 "value_field": "bk_host_innerip",
-                "where": [{"key": "bk_host_innerip", "method": "include", "value": ["10.0.0.1", "10.0.0.2"]}],
+                "where": [{"key": "bk_host_innerip", "method": "include", "value": ["127.0.0.1", "127.0.0.2"]}],
             },
             "bk_biz_id": "2",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'bk_host_name-a', 'value': '10.0.0.1'}, {'label': 'bk_host_name-b', 'value': '10.0.0.2'}]
+        expect = [{'label': 'bk_host_name-a', 'value': '127.0.0.1'}, {'label': 'bk_host_name-b', 'value': '127.0.0.2'}]
         assert actual == expect
 
     def test_scenario_kubernetes_type_is_cluster(

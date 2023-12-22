@@ -26,6 +26,7 @@
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 
 import { random } from '../../../monitor-common/utils/utils';
+import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 
 import StrategyConfigSet from './strategy-config-set-new/strategy-config-set';
@@ -55,8 +56,12 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     const allowJumpMap = ['alarm-group-add', 'alarm-group-edit', 'strategy-config', 'set-meal-add', 'set-meal-edit'];
     if (this.needCheck && !allowJumpMap.includes(to.name)) {
       const needNext = await this.handleCancel(false);
+      if (needNext) {
+        destroyTimezone();
+      }
       next(needNext);
     } else {
+      destroyTimezone();
       next();
     }
   }

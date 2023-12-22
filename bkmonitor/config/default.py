@@ -25,6 +25,7 @@ from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
+from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
@@ -93,7 +94,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 # LOG_LEVEL = 'INFO'
 
 # 调试开关，生产环境请关闭
-DEBUG = TEMPLATE_DEBUG = ENVIRONMENT == "development"
+DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or ENVIRONMENT == "development"
 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
@@ -407,6 +408,7 @@ ACTIVE_VIEWS = {
         "as_code": "monitor_web.as_code.views",
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
+        "datalink": "monitor_web.datalink.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -548,9 +550,6 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 
 # bk_monitor_proxy 自定义上报服务监听的端口
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
-
-# 异常记录保留天数
-ANOMALY_RECORD_SAVE_DAYS = 30
 
 # 后台celery存储配置类型rabbitmq_conf/redis_conf
 CELERY_CONF_TYPE = "rabbitmq_conf"
@@ -719,14 +718,6 @@ DEFAULT_METRIC_PUSH_JOB = "SLI"
 # 运营指标上报任务标志
 OPERATION_STATISTICS_METRIC_PUSH_JOB = "Operation"
 
-# TODO: merge these types into one
-# 当前历史遗留问题，SLI 数据和运营数据分别送到不同的 dataID
-# 需要找时间合并二者
-JOB_DATAID_MAP = {
-    DEFAULT_METRIC_PUSH_JOB: CUSTOM_REPORT_DEFAULT_DATAID,
-    OPERATION_STATISTICS_METRIC_PUSH_JOB: STATISTICS_REPORT_DATA_ID,
-}
-
 # 是否启用计算平台处理influxdb降精度流程
 ENABLE_METADATA_DOWNSAMPLE_BY_BKDATA = False
 # 是否启用 unify-query 查询计算平台降精度数据
@@ -878,6 +869,7 @@ BK_DATA_RT_ID_PREFIX = ""  # 计算平台的表名前缀
 BK_DATA_DATA_EXPIRES_DAYS = 30  # 接入到计算平台后，数据保留天数
 BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS = 180  # 接入到计算平台后，存储到HDFS时数据保留天数
 BK_DATA_MYSQL_STORAGE_CLUSTER_NAME = "jungle_alert"  # 监控专属tspider存储集群名称
+BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE = "mysql_storage"  # 监控SQL类存储集群类型
 BK_DATA_HDFS_STORAGE_CLUSTER_NAME = "hdfsOnline4"  # 监控专属HDFS存储集群名称
 BK_DATA_DRUID_STORAGE_CLUSTER_NAME = "monitor"  # 监控专属druid存储集群名称
 BK_DATA_KAFKA_BROKER_URL = "127.0.0.1:9092"
@@ -1147,7 +1139,7 @@ BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
 
 # 是否跳过 iam migrate
-BK_IAM_SKIP = False
+BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
 
 # 采集配置文件参数最大值(M)
 COLLECTING_CONFIG_FILE_MAXSIZE = 2
@@ -1338,6 +1330,9 @@ BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
 
 # 获取指标的间隔时间，默认为 2 hour
 FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
+
+# 是否启用 metadata 新功能
+IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600

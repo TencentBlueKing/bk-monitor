@@ -36,6 +36,7 @@ from apps.api import BcsCcApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
@@ -47,19 +48,16 @@ from apps.log_search.constants import (
     CHECK_FIELD_LIST,
     CHECK_FIELD_MAX_VALUE_MAPPING,
     CHECK_FIELD_MIN_VALUE_MAPPING,
-    DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ERROR_MSG_CHECK_FIELDS_FROM_BKDATA,
     ERROR_MSG_CHECK_FIELDS_FROM_LOG,
     MAX_EXPORT_REQUEST_RETRY,
     MAX_RESULT_WINDOW,
     MAX_SEARCH_SIZE,
     SCROLL,
-    SEARCH_OPTION_HISTORY_NUM,
     TIME_FIELD_MULTIPLE_MAPPING,
     FieldDataTypeEnum,
     IndexSetType,
     OperatorEnum,
-    SearchScopeEnum,
     TimeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
@@ -80,7 +78,6 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeFieldType,
     UnionSearchErrorException,
     UnionSearchFieldsFailException,
-    UserIndexSetSearchHistoryNotExistException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslBkDataCreateSearchContextBody,
@@ -94,7 +91,6 @@ from apps.log_search.handlers.es.indices_optimizer_context_tail import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.pre_search_handlers import PreSearchHandlers
 from apps.log_search.models import (
-    IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -103,14 +99,12 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.utils import sort_func
-from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
-    get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
@@ -967,118 +961,6 @@ class SearchHandler(object):
         return cache_key
 
     @staticmethod
-    def search_option_history(space_uid: str, index_set_type: str = IndexSetType.SINGLE.value):
-        """
-        用户检索选项历史记录
-        """
-        username = get_request_external_username() or get_request_username()
-
-        # 找出用户指定索引集类型下所有记录
-        history_objs = UserIndexSetSearchHistory.objects.filter(
-            created_by=username, index_set_type=index_set_type
-        ).order_by("-created_at")
-
-        # 过滤出当前空间下的记录
-        if index_set_type == IndexSetType.SINGLE.value:
-            index_set_id_all = list(set(history_objs.values_list("index_set_id", flat=True)))
-        else:
-            index_set_id_all = list()
-            for obj in history_objs:
-                index_set_id_all.extend(obj.index_set_ids)
-
-        if not index_set_id_all:
-            return []
-
-        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid)
-
-        effect_index_set_mapping = {obj.index_set_id: obj.index_set_name for obj in index_set_objs}
-
-        if not effect_index_set_mapping:
-            return []
-
-        ret = list()
-
-        option_set = set()
-
-        for obj in history_objs:
-            # 最多只返回10条记录
-            if len(ret) >= SEARCH_OPTION_HISTORY_NUM:
-                break
-
-            info = model_to_dict(obj)
-            if obj.index_set_type == IndexSetType.SINGLE.value:
-                if obj.index_set_id not in effect_index_set_mapping or obj.index_set_id in option_set:
-                    continue
-                info["index_set_name"] = effect_index_set_mapping[obj.index_set_id]
-                ret.append(info)
-                option_set.add(info["index_set_id"])
-            else:
-                if obj.index_set_ids[0] not in effect_index_set_mapping or tuple(obj.index_set_ids) in option_set:
-                    continue
-                info["index_set_names"] = [
-                    effect_index_set_mapping.get(index_set_id) for index_set_id in obj.index_set_ids
-                ]
-                ret.append(info)
-                option_set.add(tuple(info["index_set_ids"]))
-
-        return ret
-
-    @staticmethod
-    def search_option_history_delete(
-        space_uid: str, history_id: int = None, index_set_type: str = IndexSetType.SINGLE.value, is_delete_all=False
-    ):
-        """删除用户检索选项历史记录"""
-        if not is_delete_all:
-            obj = UserIndexSetSearchHistory.objects.filter(pk=int(history_id)).first()
-
-            if not obj:
-                raise UserIndexSetSearchHistoryNotExistException()
-
-            delete_params = {
-                "created_by": obj.created_by,
-                "index_set_type": obj.index_set_type,
-            }
-
-            if obj.index_set_type == IndexSetType.SINGLE.value:
-                delete_params.update({"index_set_id": obj.index_set_id})
-            else:
-                delete_params.update({"index_set_ids": obj.index_set_ids})
-
-            return UserIndexSetSearchHistory.objects.filter(**delete_params).delete()
-        else:
-            username = get_request_external_username() or get_request_username()
-
-            history_objs = UserIndexSetSearchHistory.objects.filter(created_by=username, index_set_type=index_set_type)
-
-            if index_set_type == IndexSetType.SINGLE.value:
-                index_set_id_all = list(set(history_objs.values_list("index_set_id", flat=True)))
-            else:
-                index_set_id_all = list()
-                for obj in history_objs:
-                    index_set_ids = obj.index_set_ids or []
-                    index_set_id_all.extend(index_set_ids)
-                index_set_id_all = list(set(index_set_id_all))
-
-            effect_index_set_ids = list(
-                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
-                    "index_set_id", flat=True
-                )
-            )
-
-            delete_history_ids = set()
-            for obj in history_objs:
-                obj_index_set_type = obj.index_set_type or IndexSetType.SINGLE.value
-                if obj_index_set_type == IndexSetType.SINGLE.value:
-                    check_id = obj.index_set_id or 0
-                else:
-                    check_id = obj.index_set_ids[0] if obj.index_set_ids else 0
-
-                if check_id and check_id in effect_index_set_ids:
-                    delete_history_ids.add(obj.pk)
-
-            return UserIndexSetSearchHistory.objects.filter(pk__in=delete_history_ids).delete()
-
-    @staticmethod
     def search_history(index_set_id=None, index_set_ids=None, is_union_search=False, **kwargs):
         """
         search_history
@@ -1412,6 +1294,8 @@ class SearchHandler(object):
                         index_set_id=index_set_id, raise_exception=False
                     )
                     if clustering_config and clustering_config.clustered_rt:
+                        # 如果是查询bkbase端的表，即场景需要对应改为bkdata
+                        self.scenario_id = Scenario.BKDATA
                         return clustering_config.clustered_rt
             index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
             if len(index_set_data_obj_list) > 0:
@@ -2073,7 +1957,11 @@ class UnionSearchHandler(object):
         self.search_dict = search_dict
         self.union_configs = search_dict.get("union_configs", [])
         self.sort_list = search_dict.get("sort_list", [])
-        self.index_set_ids = list(set(search_dict.get("index_set_ids", [])))
+        if search_dict.get("index_set_ids", []):
+            self.index_set_ids = list(set(search_dict["index_set_ids"]))
+        else:
+            self.index_set_ids = list({info["index_set_id"] for info in self.union_configs})
+        self.desensitize_mapping = {info["index_set_id"]: info["is_desensitize"] for info in self.union_configs}
 
     def _init_sort_list(self, index_set_id):
         sort_list = self.search_dict.get("sort_list", [])
@@ -2097,6 +1985,9 @@ class UnionSearchHandler(object):
                 BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_ids)
             )
 
+        # 权限校验逻辑
+        self._iam_check()
+
         index_set_obj_mapping = {obj.index_set_id: obj for obj in index_set_objs}
 
         # 构建请求参数
@@ -2118,6 +2009,7 @@ class UnionSearchHandler(object):
                 search_dict = copy.deepcopy(params)
                 search_dict["begin"] = self.search_dict.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=index_set_id)
+                search_dict["is_desensitize"] = self.desensitize_mapping.get(index_set_id, True)
                 search_handler = SearchHandler(
                     index_set_id=index_set_id,
                     search_dict=search_dict,
@@ -2129,6 +2021,7 @@ class UnionSearchHandler(object):
                 search_dict = copy.deepcopy(params)
                 search_dict["begin"] = union_config.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=union_config["index_set_id"])
+                search_dict["is_desensitize"] = union_config.get("is_desensitize", True)
                 search_handler = SearchHandler(index_set_id=union_config["index_set_id"], search_dict=search_dict)
                 multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
 
@@ -2141,7 +2034,6 @@ class UnionSearchHandler(object):
         # 处理返回结果
         result_log_list = list()
         result_origin_log_list = list()
-        fields = dict()
         total = 0
         took = 0
         for index_set_id in self.index_set_ids:
@@ -2150,13 +2042,6 @@ class UnionSearchHandler(object):
             result_origin_log_list.extend(ret["origin_log_list"])
             total += int(ret["total"])
             took = max(took, ret["took"])
-            for key, value in ret.get("fields", {}).items():
-                if not isinstance(value, dict):
-                    continue
-                if key not in fields:
-                    fields[key] = value
-                else:
-                    fields[key]["max_length"] = max(fields[key].get("max_length", 0), value.get("max_length", 0))
 
         # 数据排序处理  兼容第三方ES检索排序
         time_fields = set()
@@ -2219,7 +2104,6 @@ class UnionSearchHandler(object):
         res = {
             "total": total,
             "took": took,
-            "fields": fields,
             "list": result_log_list,
             "origin_log_list": result_origin_log_list,
             "union_configs": self.union_configs,
@@ -2229,6 +2113,18 @@ class UnionSearchHandler(object):
         self._save_union_search_history(res)
 
         return res
+
+    def _iam_check(self):
+        """
+        权限校验逻辑 要求拥有所有索引集检索权限
+        """
+        if settings.IGNORE_IAM_PERMISSION:
+            return True
+        client = Permission()
+        resources = [{"type": ResourceEnum.INDICES.id, "id": index_set_id} for index_set_id in self.index_set_ids]
+        resources = client.batch_make_resource(resources)
+        is_allowed = client.is_allowed(ActionEnum.SEARCH_LOG.id, resources, raise_exception=True)
+        return is_allowed
 
     def _save_union_search_history(self, result, search_type="default"):
         params = {
@@ -2252,7 +2148,8 @@ class UnionSearchHandler(object):
 
         return result
 
-    def union_search_fields(self, data):
+    @staticmethod
+    def union_search_fields(data):
         """
         获取字段mapping信息
         """
@@ -2330,86 +2227,12 @@ class UnionSearchHandler(object):
             time_field_type = list(union_time_fields_type)[0]
             time_field_unit = list(union_time_fields_unit)[0]
 
-        index_set_ids_hash = UserIndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
-
-        sort_list = [[time_field, "desc"]]
-
-        # 查询索引集ids是否有默认的显示配置  不存在则去创建
-        # 考虑index_set_ids的查询性能 查询统一用index_set_ids_hash
-        username = get_request_external_username() or get_request_username()
-        try:
-            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.get(
-                index_set_ids_hash=index_set_ids_hash,
-                username=username,
-                scope=SearchScopeEnum.DEFAULT.value,
-            )
-        except UserIndexSetFieldsConfig.DoesNotExist:
-            user_index_set_config_obj = UserIndexSetFieldsConfig.objects.none()
-
-        if user_index_set_config_obj:
-            try:
-                obj = IndexSetFieldsConfig.objects.get(pk=user_index_set_config_obj.config_id)
-            except IndexSetFieldsConfig.DoesNotExist:
-                obj = self.get_or_create_default_config(
-                    index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
-                )
-                user_index_set_config_obj.config_id = obj.id
-                user_index_set_config_obj.save()
-
-        else:
-            obj = self.get_or_create_default_config(
-                index_set_ids=index_set_ids, display_fields=union_display_fields, sort_list=sort_list
-            )
-
         ret = {
-            "config_id": obj.id,
-            "config": self.get_fields_config(),
             "fields": total_fields,
             "fields_info": fields_info,
-            "display_fields": obj.display_fields,
-            "sort_list": obj.sort_list,
+            "display_fields": union_display_fields,
             "time_field": time_field,
             "time_field_type": time_field_type,
             "time_field_unit": time_field_unit,
         }
         return ret
-
-    @staticmethod
-    def get_or_create_default_config(
-        index_set_ids: list, display_fields: list, sort_list: list
-    ) -> IndexSetFieldsConfig:
-        index_set_ids_hash = IndexSetFieldsConfig.get_index_set_ids_hash(index_set_ids)
-
-        obj = IndexSetFieldsConfig.objects.filter(
-            index_set_ids_hash=index_set_ids_hash,
-            name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
-            scope=SearchScopeEnum.DEFAULT.value,
-            source_app_code=get_request_app_code(),
-        ).first()
-
-        if not obj:
-            obj = IndexSetFieldsConfig.objects.create(
-                index_set_ids=index_set_ids,
-                index_set_ids_hash=index_set_ids_hash,
-                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
-                scope=SearchScopeEnum.DEFAULT.value,
-                source_app_code=get_request_app_code(),
-                display_fields=display_fields,
-                sort_list=sort_list,
-            )
-
-        return obj
-
-    @staticmethod
-    def get_fields_config():
-        return [
-            {"name": "bcs_web_console", "is_active": False},
-            {"name": "trace", "is_active": False},
-            {"name": "context_and_realtime", "is_active": False},
-            {"name": "bkmonitor", "is_active": False},
-            {"name": "async_export", "is_active": False},
-            {"name": "ip_topo_switch", "is_active": False},
-            {"name": "apm_relation", "is_active": False},
-            {"name": "clustering_config", "is_active": False},
-            {"name": "clean_config", "is_active": False},
-        ]
