@@ -223,11 +223,6 @@ class BatchAssignRulesSlz(serializers.Serializer):
                     raise ValidationError(detail=_("通知升级的用户组不能包含第一次接收告警的用户组"))
         return value
 
-    def validate_assign_group_id(self, value):
-        if value and AlertAssignGroup.objects.filter(id=value, source=DATALINK_SOURCE).exists():
-            raise ValidationError(detail="Edit datalink builtin rules is forbidden")
-        return value
-
 
 class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
     priority = serializers.IntegerField(label="优先级", required=True)
@@ -235,6 +230,11 @@ class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
 
     def validate_group_name(self, value):
         return self.validate_name(value)
+
+    def validate_assign_group_id(self, value):
+        if value and AlertAssignGroup.objects.filter(id=value, source=DATALINK_SOURCE).exists():
+            raise ValidationError(detail="Edit datalink builtin rules is forbidden")
+        return value
 
     @staticmethod
     def save(validated_data):
