@@ -182,7 +182,11 @@ const filterIconMap = {
   //   color: '#699DF4',
   //   icon: 'icon-mc-user-one'
   // },
-  MY_ASSIGNEE: {
+  // MY_ASSIGNEE: {
+  //   color: '#fff',
+  //   icon: 'icon-inform-circle'
+  // },
+  MY_FOLLOW: {
     color: '#fff',
     icon: 'icon-inform-circle'
   },

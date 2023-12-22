@@ -175,7 +175,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       // is_ack, // 是否确认
       // is_shielded, // 是否屏蔽
       // is_handled // 是否已处理
-      stage_display // 处理阶段
+      stage_display, // 处理阶段
+      appointee
     } = this.basicInfo;
     // 处理阶段 优先级: is_shielded > is_ack > is_handled
     // const handleStatus = () => (is_shielded ? this.$t('已屏蔽') : false)
@@ -271,6 +272,10 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             title: this.$t('告警产生时间'),
             content: dayjs.tz(create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
             timeZone: dayjs.tz(create_time * 1000).format('Z')
+          },
+          {
+            title: this.$t('负责人'),
+            content: appointee?.join(',') || '--'
           }
         ]
       },

@@ -545,6 +545,18 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               row.assignee?.map(assginne => <span class='tag-item'>{assginne}</span>) || '--'
           }
         },
+        {
+          id: 'follower',
+          name: this.$t('关注人'),
+          disabled: false,
+          checked: true,
+          props: {
+            width: 200,
+            minWidth: 200,
+            formatter: (row: IEventItem) =>
+              row.follower?.map(follower => <span class='tag-item'>{follower}</span>) || '--'
+          }
+        },
         // {
         //   id: 'severity',
         //   name: this.$t('告警级别'),
