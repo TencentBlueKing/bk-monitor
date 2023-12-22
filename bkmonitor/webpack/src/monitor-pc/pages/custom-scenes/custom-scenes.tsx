@@ -25,6 +25,7 @@
  */
 import { Component, Mixins } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import axios from 'axios';
 import { Button, DropdownMenu, Input } from 'bk-magic-vue';
 
 import { getLabel } from '../../../monitor-api/modules/commons';
@@ -121,6 +122,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
   emptyStatusType: EmptyStatusType = 'empty';
   /* status loading  */
   statusLoading = false;
+
+  cancelTokenSource = null;
   // 是否显示引导页
   get showGuidePage() {
     return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
@@ -195,13 +198,20 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
       scenarioName: this.scenarioLabels?.[item.scenario] || '--'
     }));
     const sceneViewIds = this.tableData.data.map(item => item.scene_view_id);
+    this.cancelTokenSource?.cancel?.();
     this.setAsyncStatusData(sceneViewIds);
   }
 
   /* 异步加载 */
   setAsyncStatusData(sceneViewIds = []) {
     this.statusLoading = true;
-    getObservationSceneStatusList({ scene_view_ids: sceneViewIds })
+    this.cancelTokenSource = axios.CancelToken.source();
+    getObservationSceneStatusList(
+      { scene_view_ids: sceneViewIds },
+      {
+        cancelToken: this.cancelTokenSource.token
+      }
+    )
       .then(res => {
         this.statusLoading = false;
         this.tableData.data.forEach(item => {
@@ -210,8 +220,12 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
           }
         });
       })
-      .catch(() => {
-        this.statusLoading = false;
+      .catch(error => {
+        if (axios.isCancel(error)) {
+          this.statusLoading = true;
+        } else {
+          this.statusLoading = false;
+        }
       });
   }
 
