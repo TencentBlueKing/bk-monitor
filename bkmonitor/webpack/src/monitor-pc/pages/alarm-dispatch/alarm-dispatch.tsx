@@ -181,6 +181,14 @@ export default class AlarmDispatch extends tsc<{}> {
     this.getKVOptionsData();
     this.getProcessPackage();
     this.$store.commit('app/SET_NAV_ROUTE_LIST', [{ name: this.$t('route-告警分派'), id: '' }]);
+    this.getRouteParams();
+  }
+
+  getRouteParams() {
+    const { groupName } = this.$route.params;
+    if (groupName) {
+      this.search = groupName;
+    }
   }
 
   // 获取告警组数据
@@ -234,6 +242,7 @@ export default class AlarmDispatch extends tsc<{}> {
     });
     this.cacheRuleGroups = this.ruleGroups;
     this.loading = false;
+    this.search && this.handleSearch();
   }
 
   // 获取流程套餐

@@ -111,6 +111,7 @@ export default [
       title: 'Trace检索',
       navId: 'trace-retrieval',
       navClass: 'trace-retrieval-nav',
+      noChangeLoading: true,
       noNavBar: true,
       needClearQuery: true, // 需要清空query搜索条件
       route: {
