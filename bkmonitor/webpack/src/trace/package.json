@@ -53,7 +53,6 @@
     "@types/deep-freeze": "^0.1.2",
     "@types/echarts": "^4.9.10",
     "@types/lodash": "^4.14.182",
-    "@types/throttle-debounce": "^5.0.0",
     "@typescript-eslint/eslint-plugin": "^5.20.0",
     "@typescript-eslint/parser": "^5.20.0",
     "eslint": "^8.47.0",
