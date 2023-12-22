@@ -1,12 +1,12 @@
 from django.contrib import auth
-from rest_framework.response import Response
+from django.http import HttpResponseRedirect
 from rest_framework.views import APIView
 
 
 class LogOutView(APIView):
     def get(self, request):
         auth.logout(request)
-        response = Response("User Logged out successfully")
+        response = HttpResponseRedirect("/")
         cookie_keys = ["bk_ticket", "bk_token", "bk_uid"]
         host = "".join(request.headers["Host"].split(":")[:1])
         domain = f'.{".".join(host.split(".")[1:])}'
