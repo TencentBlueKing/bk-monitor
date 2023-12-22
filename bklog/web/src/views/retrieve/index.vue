@@ -736,15 +736,13 @@ export default {
     handleSelectIndex(val, params = {}, isFavoriteSearch = false) {
       const { ids, selectIsUnionSearch } = val;
       // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
-      const newIndexSetStr = ids.join(',');
       if (!isFavoriteSearch) {
-        const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)).join(',');
-        if (newIndexSetStr === favoriteIDs) return;
+        const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)) ?? [];
+        if (this.compareArrays(ids, favoriteIDs)) return;
         this.resetFavoriteValue();
       }
       if (selectIsUnionSearch) {
-        const storeIndexSetStr = this.unionIndexList.join(',');
-        if (newIndexSetStr !== storeIndexSetStr || isFavoriteSearch) {
+        if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
           this.shouldUpdateFields = true;
           this.$store.commit('updateUnionIndexList', ids);
           this.catchUnionBeginList = [];
@@ -762,6 +760,24 @@ export default {
         };
         this.$store.commit('updateUnionIndexList', []);
       }
+    },
+    /** 检查两个数组否相等 */
+    compareArrays(arr1, arr2) {
+      let allElementsEqual = true;
+      // 检查两个数组的长度是否相等
+      if (arr1.length !== arr2.length) return false;
+      // 对比两个数组的每个元素
+      const sortedArr1 = [...arr1].sort();
+      const sortedArr2 = [...arr2].sort();
+
+      // 逐一比较排序后数组的元素
+      for (let i = 0; i < sortedArr1.length; i++) {
+        if (sortedArr1[i] !== sortedArr2[i]) {
+          allElementsEqual = false; // 发现不匹配元素
+          break;
+        }
+      }
+      return allElementsEqual;
     },
     // 切换索引时重置检索数据
     resetRetrieveCondition() {
@@ -1739,11 +1755,18 @@ export default {
       const ids = selectIsUnionSearch
         ? value.index_set_ids.map(item => String(item))
         : [String(indexSetID)];
-      const setChangeValue = {
-        ids,
-        selectIsUnionSearch,
-      };
-      this.handleSelectIndex(setChangeValue, params, true);
+      const filterIDs = this.indexSetList
+        .filter(item => ids.includes(item.index_set_id))
+        .map(item => item.index_set_id);
+      if (filterIDs.length) {
+        const setChangeValue = {
+          ids: filterIDs,
+          selectIsUnionSearch,
+        };
+        this.handleSelectIndex(setChangeValue, params, true);
+      } else {
+        this.messageError(this.$t('没有找到该记录下相关索引集'));
+      }
     },
     // 收藏列表刷新, 判断当前是否有点击活跃的收藏 如有则进行数据更新
     updateActiveFavoriteData(value) {

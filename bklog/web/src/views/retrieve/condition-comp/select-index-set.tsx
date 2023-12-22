@@ -580,12 +580,16 @@ export default class QueryStatement extends tsc<IProps> {
       });
   }
 
-  scrollLeft() {
-    this.tagBoxRef.scrollLeft -= 560;
-  }
-
-  scrollRight() {
-    this.tagBoxRef.scrollLeft += 560;
+  /**
+   * @desc: 移动
+   * @param {String} moveType 移动类型 左还是右
+   */
+  scrollMove(moveType: string) {
+    const leftPx = moveType === 'left' ? this.tagBoxRef.scrollLeft - 550 : this.tagBoxRef.scrollLeft + 550;
+    this.tagBoxRef.scrollTo({
+      left: leftPx,
+      behavior: 'smooth',
+    });
   }
 
   /** 点击标签过滤 */
@@ -734,10 +738,10 @@ export default class QueryStatement extends tsc<IProps> {
                   </div>
                 ))}
               </div>
-              <div onClick={this.scrollLeft} class="move-icon left-icon">
+              <div onClick={() => this.scrollMove('left')} class="move-icon left-icon">
                 <i class="bk-icon icon-angle-left-line"></i>
               </div>
-              <div onClick={this.scrollRight} class="move-icon right-icon">
+              <div onClick={() => this.scrollMove('right')} class="move-icon right-icon">
                 <i class="bk-icon icon-angle-right-line"></i>
               </div>
             </div>

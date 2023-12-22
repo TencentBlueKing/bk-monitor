@@ -95,6 +95,17 @@
               </span>
             </template>
           </bk-table-column>
+          <bk-table-column
+            :label="$t('标签')"
+            :render-header="$renderHeader">
+            <template slot-scope="props">
+              <index-set-label-select
+                :row-data="props.row"
+                :label.sync="props.row.tags"
+                :select-label-list="selectLabelList"
+                @refreshLabelList="initLabelSelectList" />
+            </template>
+          </bk-table-column>
           <bk-table-column :label="$t('过期时间')" :render-header="$renderHeader" min-width="50">
             <template slot-scope="props">
               <span>
@@ -255,18 +266,21 @@ import { projectManages } from '@/common/util';
 import collectedItemsMixin from '@/mixins/collected-items-mixin';
 import { mapGetters } from 'vuex';
 import * as authorityMap from '../../../../common/authority-map';
+import IndexSetLabelSelect from '@/components/index-set-label-select';
 import EmptyStatus from '@/components/empty-status';
 
 export default {
   name: 'CustomReportList',
   components: {
     EmptyStatus,
+    IndexSetLabelSelect,
   },
   mixins: [collectedItemsMixin],
   data() {
     return {
       inputKeyWords: '',
       collectList: [],
+      selectLabelList: [],
       isAllowedCreate: null,
       collectProject: projectManages(this.$store.state.topMenu, 'collection-item'), // 权限
       isRequest: false,
@@ -297,6 +311,7 @@ export default {
     !this.authGlobalInfo && this.checkCreateAuth();
   },
   mounted() {
+    !this.authGlobalInfo && this.initLabelSelectList();
     !this.authGlobalInfo && this.search();
   },
   methods: {
@@ -467,6 +482,15 @@ export default {
         });
       } catch (error) {
         return [];
+      }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+      } catch (error) {
+        this.selectLabelList = [];
       }
     },
   },
