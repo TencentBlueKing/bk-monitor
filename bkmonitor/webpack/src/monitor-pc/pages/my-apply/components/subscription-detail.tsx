@@ -97,7 +97,7 @@ export default defineComponent({
           break;
         }
         default:
-          str = data.frequency.runTime;
+          str = data.frequency.run_time;
           break;
       }
       return str;

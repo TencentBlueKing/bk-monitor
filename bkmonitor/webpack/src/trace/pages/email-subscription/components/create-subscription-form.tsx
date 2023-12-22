@@ -156,7 +156,7 @@ export default defineComponent({
             if (subscriberList.length === 0) return false;
             return true;
           },
-          message: window.i18n.t('必填项'),
+          message: window.i18n.t('订阅人不能为空'),
           trigger: 'blur'
         }
       ]

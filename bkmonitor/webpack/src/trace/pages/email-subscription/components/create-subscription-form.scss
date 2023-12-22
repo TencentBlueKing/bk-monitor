@@ -24,4 +24,15 @@
             }
         }
     }
+
+    .bk-form-item.is-error {
+        .member-select-component {
+            border-color: #ea3636;
+            transition: all 0.15s;
+        }
+
+        .is-disabled.bk-input {
+            border-color: #dcdee5;
+        }
+    }
 }
