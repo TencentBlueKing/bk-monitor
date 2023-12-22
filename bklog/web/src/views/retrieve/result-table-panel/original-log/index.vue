@@ -175,14 +175,17 @@ export default {
       isUnionSearch: 'isUnionSearch',
     }),
     watchQueryIndexValue() {
-      return `${this.$route.params.indexId}_${this.unionIndexList.join(',')}`;
+      return `${this.routeIndexSet}_${this.unionIndexList.join(',')}`;
+    },
+    routeIndexSet() {
+      return this.$route.params.indexId;
     },
   },
   watch: {
     watchQueryIndexValue: {
       immediate: true,
       handler() {
-        this.requestFiledConfig();
+        if (this.routeIndexSet) this.requestFiledConfig();
       },
     },
   },
@@ -218,7 +221,7 @@ export default {
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
           data: {
-            index_set_id: this.$route.params.indexId,
+            index_set_id: this.routeIndexSet,
             index_set_ids: this.unionIndexList,
             scope: 'default',
             index_set_type: this.isUnionSearch ? 'union' : 'single',
@@ -235,9 +238,9 @@ export default {
       // 更新config
       await this.$http
         .request('retrieve/postFieldsConfig', {
-          params: { index_set_id: this.$route.params.indexId },
+          params: { index_set_id: this.routeIndexSet },
           data: {
-            index_set_id: this.$route.params.indexId,
+            index_set_id: this.routeIndexSet,
             index_set_ids: this.unionIndexList,
             index_set_type: this.isUnionSearch ? 'union' : 'single',
             display_fields: this.shadowVisible,
