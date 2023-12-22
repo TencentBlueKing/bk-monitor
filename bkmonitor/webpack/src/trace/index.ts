@@ -98,6 +98,6 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     })
     .catch(e => console.error(e))
     .finally(() => {
-      serviceWorker.register();
+      serviceWorker.immediateRegister();
     });
 }

@@ -144,7 +144,7 @@ if (hasRouteHash) {
       })
       .catch(e => console.error(e))
       .finally(() => {
-        serviceWorker.register();
+        serviceWorker.immediateRegister();
       });
   }
 }

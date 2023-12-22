@@ -100,7 +100,21 @@ export const register = config => {
     });
   }
 };
-
+export const immediateRegister = config => {
+  if ('serviceWorker' in navigator) {
+    const swUrl = `${window.site_url}service-worker.js`;
+    if (isLocalhost) {
+      checkValidServiceWorker(swUrl, config);
+      navigator.serviceWorker.ready.then(() => {
+        console.log('This web app is being served cache-first by a service worker');
+      });
+    } else {
+      window.requestIdleCallback(() => {
+        registerValidSW(swUrl, config);
+      });
+    }
+  }
+};
 export const unregister = () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then(registration => {

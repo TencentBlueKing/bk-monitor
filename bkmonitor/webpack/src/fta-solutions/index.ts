@@ -124,6 +124,6 @@ if (window.__BK_WEWEB_APP_KEY__) {
     })
     .catch(e => console.error(e))
     .finally(() => {
-      serviceWorker.register();
+      serviceWorker.immediateRegister();
     });
 }
