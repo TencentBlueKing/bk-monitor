@@ -31,7 +31,7 @@ import { getDataSourceConfig } from '../../../monitor-api/modules/grafana';
 import { deepClone } from '../../../monitor-common/utils/utils';
 import { TimeRangeType } from '../../../monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../monitor-pc/components/time-range/utils';
-import { handleTimeRange, ILogUrlParams, transformLogUrlQuery } from '../../../monitor-pc/utils';
+import { ILogUrlParams, transformLogUrlQuery } from '../../../monitor-pc/utils';
 import { IExtendMetricData, IViewOptions, PanelModel } from '../typings';
 import { downFile, filterDictConvertedToWhere, queryConfigTransform, reviewInterval } from '../utils';
 import { VariablesService } from '../utils/variable';
@@ -108,6 +108,8 @@ export default class ToolsMixin extends Vue {
     if (alertFilterable && alertFilterable.filter_type === 'event') {
       const {
         // eslint-disable-next-line @typescript-eslint/naming-convention
+        result_table_id,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         bcs_cluster_id,
         // eslint-disable-next-line @typescript-eslint/naming-convention
         data_source_label,
@@ -116,11 +118,20 @@ export default class ToolsMixin extends Vue {
         where
       } = variablesService.transformVariables(panel.options.alert_filterable.data);
       const query = {
-        result_table_id: '',
+        result_table_id,
         data_source_label,
         data_type_label,
         where
       };
+      if (query.result_table_id) {
+        const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
+          panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
+        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
+          this.toolTimeRange[1]
+        }&timezone=${(this as any).timezone || window.timezone}`;
+        window.open(url);
+        return;
+      }
       getDataSourceConfig({
         data_source_label,
         data_type_label
@@ -128,7 +139,7 @@ export default class ToolsMixin extends Vue {
         query.result_table_id = res.find(item => item.name.includes(bcs_cluster_id))?.id;
         const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
           panel.targets?.[0]?.data?.bk_biz_id || panel.bk_biz_id || this.$store.getters.bizId
-        }#/data-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
+        }#/event-retrieval/?queryConfig=${encodeURIComponent(JSON.stringify(query))}&from=${this.toolTimeRange[0]}&to=${
           this.toolTimeRange[1]
         }&timezone=${(this as any).timezone || window.timezone}`;
         window.open(url);
@@ -147,7 +158,7 @@ export default class ToolsMixin extends Vue {
     );
     if (!autoNavTo) return targets;
     if (isLog) {
-      const { startTime, endTime } = handleTimeRange((this as any).timeRange);
+      const [startTime, endTime] = handleTransformToTimestamp((this as any).timeRange);
       const queryConfig = targets[0].data.query_configs[0];
       const retrieveParams: ILogUrlParams = {
         // 检索参数
