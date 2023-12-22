@@ -108,7 +108,7 @@ $text: #313238;
         .item-col {
           display: flex;
           flex: 1 1;
-          align-items: center;
+          align-items: flex-start;
           min-height: 18px;
           margin-bottom: 10px;
 
@@ -147,6 +147,7 @@ $text: #313238;
             display: flex;
             align-items: center;
             font-weight: 400;
+            line-height: 16px;
             color: $text;
             word-break: break-all;
 
@@ -191,6 +192,16 @@ $text: #313238;
             .icon-title {
               margin-left: 4px;
               white-space: nowrap;
+            }
+
+            .follower-info {
+              .fenxiang-btn {
+                display: inline-flex;
+                align-items: center;
+                margin-left: 10px;
+                font-size: 12px;
+                cursor: pointer;
+              }
             }
           }
 

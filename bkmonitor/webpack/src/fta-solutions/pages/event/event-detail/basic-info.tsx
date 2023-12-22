@@ -160,6 +160,20 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         ])
       : '--';
   }
+  /* 关注人 */
+  getFollowerInfo() {
+    return (
+      <span class='follower-info'>
+        <span>{this.basicInfo?.follower?.join(',') || '--'}</span>
+        {!!this.basicInfo?.follower?.length && (
+          <span class='fenxiang-btn'>
+            <span>{this.$t('变更')}</span>
+            <span class='icon-monitor icon-fenxiang'></span>
+          </span>
+        )}
+      </span>
+    );
+  }
   // 基本信息表单
   getDetailFormComponent() {
     const {
@@ -280,7 +294,10 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         ]
       },
       {
-        children: [{ title: this.$t('持续时间'), content: duration }]
+        children: [
+          { title: this.$t('持续时间'), content: duration },
+          { title: this.$t('关注人'), content: this.getFollowerInfo() }
+        ]
       }
     ];
     const bottomItems = [
