@@ -52,7 +52,13 @@ def check_access_vm_task():
         value_field_list=["result_table_id"],
         value_func="values_list",
     )
-    need_access_vm_rt_list = set(rt_list) - set(accessed_vm_rt_list)
+    need_access_vm_rt_list = []
+    # 移除 agentmetrix 对应的结果表，因为这部分结果表后续会废弃
+    for rt in set(rt_list) - set(accessed_vm_rt_list):
+        if rt.startswith("agentmetrix."):
+            continue
+        need_access_vm_rt_list.append(rt)
+
     logger.info("need add vm result table_id list: %s", json.dumps(need_access_vm_rt_list))
 
     # 如果检查没有需要创建的，直接返回
