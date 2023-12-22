@@ -328,9 +328,14 @@ class ApplicationInfoResource(Resource):
                     i["key_alias"] = item[0]["name"]
                     i["type"] = item[0]["type"]
                 else:
-                    # 如果配置字段不在内置字段中 默认为string类型
-                    i["key_alias"] = i["key"]
-                    i["type"] = "string"
+                    # 如果为特殊字段elapsed_time 则手动进行修改
+                    if i["key"] == "elapsed_time":
+                        i["key_alias"] = _("Span耗时")
+                        i["type"] = "time"
+                    else:
+                        # 如果配置字段不在内置字段中 默认为string类型
+                        i["key_alias"] = i["key"]
+                        i["type"] = "string"
 
             # 添加尾部采样flow信息帮助排查问题
             flow_detail = api.apm_api.get_bkdata_flow_detail(
@@ -446,7 +451,7 @@ class SamplingOptionsResource(Resource):
             # 标准字段常量 + 耗时字段
             sampling_types.append(SamplerTypeChoices.TAIL)
             standard_fields = SpanStandardField.flat_list()
-            standard_fields = [{"name": "Span耗时", "key": "elapsed_time", "type": "time"}] + standard_fields
+            standard_fields = [{"name": _("Span耗时"), "key": "elapsed_time", "type": "time"}] + standard_fields
             res["tail_sampling_options"] = standard_fields
 
         return {
