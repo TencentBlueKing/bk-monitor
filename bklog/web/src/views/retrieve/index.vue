@@ -177,6 +177,8 @@
               :active-table-tab="activeTableTab"
               :cluster-route-params="clusterRouteParams"
               :is-init-page="isInitPage"
+              :is-thollte-field="isThollteField"
+              :finger-search-state="fingerSearchState"
               @request-table-data="requestTableData"
               @fieldsUpdated="handleFieldsUpdated"
               @shouldRetrieve="retrieveLog"
@@ -396,6 +398,7 @@ export default {
       /** 是否还需要分页 */
       finishPolling: false,
       timezone: dayjs.tz.guess(),
+      fingerSearchState: false,
     };
   },
   computed: {
@@ -1071,6 +1074,8 @@ export default {
           await this.requestFields();
           this.shouldUpdateFields = false;
         }
+        // 指纹请求监听放在这里是要等字段更新完后才会去请求数据指纹
+        this.fingerSearchState = !this.fingerSearchState;
 
         if (this.isInitPage) {
           Object.assign(this.retrieveParams, queryParams); // 回填查询参数中的检索条件
