@@ -323,7 +323,19 @@ class ApplicationInfoResource(Resource):
 
             fields_mapping = group_by(SpanStandardField.flat_list(), get_key=operator.itemgetter("key"))
             for i in data.get("tail_conditions", []):
-                i["key_alias"] = fields_mapping.get(i["key"], i["key"])[0]["name"]
+                item = fields_mapping.get(i["key"])
+                if item:
+                    i["key_alias"] = item[0]["name"]
+                    i["type"] = item[0]["type"]
+                else:
+                    # 如果为特殊字段elapsed_time 则手动进行修改
+                    if i["key"] == "elapsed_time":
+                        i["key_alias"] = _("Span耗时")
+                        i["type"] = "time"
+                    else:
+                        # 如果配置字段不在内置字段中 默认为string类型
+                        i["key_alias"] = i["key"]
+                        i["type"] = "string"
 
             # 添加尾部采样flow信息帮助排查问题
             flow_detail = api.apm_api.get_bkdata_flow_detail(
@@ -439,7 +451,7 @@ class SamplingOptionsResource(Resource):
             # 标准字段常量 + 耗时字段
             sampling_types.append(SamplerTypeChoices.TAIL)
             standard_fields = SpanStandardField.flat_list()
-            standard_fields = [{"name": "Span耗时", "key": "elapsed_time", "type": "time"}] + standard_fields
+            standard_fields = [{"name": _("Span耗时"), "key": "elapsed_time", "type": "time"}] + standard_fields
             res["tail_sampling_options"] = standard_fields
 
         return {
@@ -473,8 +485,7 @@ class SetupResource(Resource):
                 value = serializers.ListSerializer(label="Value", child=serializers.CharField())
 
             sampler_type = serializers.ChoiceField(choices=SamplerTypeChoices.choices(), label="采集类型")
-            random_percentage = serializers.IntegerField(label="随机采样-采集百分比", required=False)
-            tail_percentage = serializers.IntegerField(label="尾部采样-采集百分比", required=False)
+            sampler_percentage = serializers.IntegerField(label="采集百分比", required=False)
             tail_trace_session_gap_min = serializers.IntegerField(label="尾部采样-会话过期时间", required=False)
             tail_trace_mark_timeout = serializers.IntegerField(label="尾部采样-标记状态最大存活时间", required=False)
             tail_conditions = serializers.ListSerializer(child=TailConditions(), required=False, allow_empty=True)
@@ -482,17 +493,11 @@ class SetupResource(Resource):
             def validate(self, attrs):
                 attr = super().validate(attrs)
                 if attrs["sampler_type"] == SamplerTypeChoices.RANDOM:
-                    if "random_percentage" not in attrs:
+                    if "sampler_percentage" not in attrs:
                         raise ValueError(_("随机采样未配置采集百分比"))
                 elif attrs["sampler_type"] == SamplerTypeChoices.TAIL:
-                    if "tail_percentage" not in attrs:
+                    if "sampler_percentage" not in attrs:
                         raise ValueError(f"尾部采样未配置采集百分比")
-                elif attrs["sampler_type"] == SamplerTypeChoices.EMPTY:
-                    # 不采样=100%随机采样
-                    return {
-                        "sampler_type": SamplerTypeChoices.RANDOM,
-                        "random_percentage": 100,
-                    }
 
                 return attr
 

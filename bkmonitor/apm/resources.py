@@ -1473,7 +1473,7 @@ class OperateApmDataIdResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
         datasource_type = serializers.ChoiceField(label="采样类型", choices=DataSamplingLogTypeChoices.choices())
-        operate = serializers.DictField(label="操作")
+        operate = serializers.ChoiceField(choices=datalink_operate, label="操作")
 
     def perform_request(self, validated_data):
         if validated_data["datasource_type"] == DataSamplingLogTypeChoices.TRACE:

@@ -16,7 +16,7 @@ from opentelemetry import trace
 from apm_web.constants import SamplerTypeChoices
 from apm_web.models import ApmMetaConfig, Application
 from common.log import logger
-from constants.apm import DataSamplingLogTypeChoices, FlowType
+from constants.apm import FlowType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -101,12 +101,13 @@ class SamplingHelpers:
                     span,
                     f"start to enable tail-sampling, convert config to tail-sampling param.config: {config} ----> {p}",
                 )
-                api.apm_api.create_or_update_bkdata_flow(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    flow_type=FlowType.TAIL_SAMPLING.value,
-                    config=p,
-                )
+                # todo
+                # api.apm_api.create_or_update_bkdata_flow(
+                #     bk_biz_id=self.bk_biz_id,
+                #     app_name=self.app_name,
+                #     flow_type=FlowType.TAIL_SAMPLING.value,
+                #     config=p,
+                # )
                 self.log(span, f"setup successfully")
             except BKAPIError as e:
                 self.log(span, f"failed to enable tail-sampling, error: {e}", level="error")
@@ -115,16 +116,18 @@ class SamplingHelpers:
             # 暂停transfer入库
             try:
                 self.log(span, f"start to stop apm_data_id trace datalink")
-                response = api.apm_api.operate_apm_data_id(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    datasource_type=DataSamplingLogTypeChoices.TRACE.value,
-                    operate="stop",
-                )
+                # todo
+                # response = api.apm_api.operate_apm_data_id(
+                #     bk_biz_id=self.bk_biz_id,
+                #     app_name=self.app_name,
+                #     datasource_type=DataSamplingLogTypeChoices.TRACE.value,
+                #     operate="stop",
+                # )
+                response = 1234
                 self.log(span, f"stop dataId: {response} successfully")
             except Exception as e:  # noqa
                 self.log(span, f"failed to stop transfer/bk-collect datalink, error: {e}", level="error")
-                raise ValueError(f"暂停transfer Trace入库链路失败")
+                raise ValueError(f"暂停transfer Trace入库链路失败：{e}")
 
             # 更新数据库
             self.application.setup_config(
@@ -138,16 +141,20 @@ class SamplingHelpers:
         """将完整的采样配置转为尾部采样配置"""
         if sample_config[Application.SamplerConfig.SAMPLER_TYPE] == SamplerTypeChoices.RANDOM:
             return {
-                "tail_percentage": sample_config["random_percentage"],
+                "tail_percentage": sample_config["sampler_percentage"],
+                "tail_conditions": [],
+            }
+        elif sample_config[Application.SamplerConfig.SAMPLER_TYPE] == SamplerTypeChoices.EMPTY:
+            # 不采样 -> 采样100%
+            return {
+                "tail_percentage": 100,
                 "tail_conditions": [],
             }
 
-        res = {}
-        for k, v in sample_config.items():
-            if k.startswith("tail"):
-                res[k] = v
-
-        return res
+        return {
+            "tail_percentage": sample_config["sampler_percentage"],
+            "tail_conditions": sample_config.get("tail_conditions", []),
+        }
 
     @property
     def _tail_opened(self):
