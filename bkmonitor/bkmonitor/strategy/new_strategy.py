@@ -746,6 +746,7 @@ class NoticeRelation(BaseActionRelation):
                 cls(
                     strategy_id=relation.strategy_id,
                     id=relation.id,
+                    user_type=relation.user_type,
                     user_groups=relation.validated_user_groups,
                     signal=relation.signal,
                     config_id=relation.config_id,

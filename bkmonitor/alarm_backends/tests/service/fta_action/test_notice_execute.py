@@ -1102,13 +1102,12 @@ class TestActionProcessor(TransactionTestCase):
             DutyPlan.objects.create(**duty)
         event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
         appointee = ["lisa1", "lisa2"]
-        alert = AlertDocument(**{"event": event, "severity": 1, "appointee": ["lisa1", "lisa2"]})
+        alert = AlertDocument(**{"event": event, "severity": 1, "appointee": appointee})
         notice_info = AlertAssignee(alert, [group.id]).get_notice_receivers()
         users = ["admin", "andy", "lisa"]
-        notifiers = users + appointee
-        self.assertEqual(notice_info["mail"], notifiers)
-        self.assertEqual(notice_info["weixin"], notifiers)
-        self.assertEqual(notice_info["voice"], [users, appointee])
+        self.assertEqual(notice_info["mail"], users)
+        self.assertEqual(notice_info["weixin"], users)
+        self.assertEqual(notice_info["voice"], [users])
 
     def test_create_ack_action(self):
         """
