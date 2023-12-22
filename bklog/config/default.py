@@ -73,6 +73,7 @@ INSTALLED_APPS += (
     "apps.grafana",
     "bk_monitor",
     "home_application",
+    "console",
     "pipeline",
     "pipeline.log",
     "pipeline.engine",

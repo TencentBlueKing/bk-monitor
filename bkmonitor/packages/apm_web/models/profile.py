@@ -14,7 +14,7 @@ class ProfileUploadRecord(models.Model):
     """Profile upload record"""
 
     bk_biz_id = models.BigIntegerField("业务ID")
-    app_name = models.CharField("应用名称", max_length=50)
+    app_name = models.CharField("应用名称", max_length=50, null=True)
     file_type = models.CharField(
         choices=[("perf_script", "perf_script"), ("pprof", "pprof"), ("jfr", "jfr")],
         max_length=50,
