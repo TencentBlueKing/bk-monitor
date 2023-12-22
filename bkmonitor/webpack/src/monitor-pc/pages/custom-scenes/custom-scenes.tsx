@@ -221,9 +221,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
         });
       })
       .catch(error => {
-        if (axios.isCancel(error)) {
-          this.statusLoading = true;
-        } else {
+        if (!axios.isCancel(error)) {
           this.statusLoading = false;
         }
       });
