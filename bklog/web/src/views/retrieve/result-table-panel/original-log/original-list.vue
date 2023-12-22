@@ -58,9 +58,18 @@
             </span>
           </template>
         </bk-table-column>
+        <!-- <template v-if="operatorConfig.isShowSourceField">
+          <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`" width="130">
+            <template slot-scope="{ row }">
+              <span class="str-content origin-str">
+                {{ getTableColumnContent(row, visibleFields[0]) }}
+              </span>
+            </template>
+          </bk-table-column>
+        </template> -->
         <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
-        <template slot-scope="{ row, column, $index }">
+          <template slot-scope="{ row, column, $index }">
             <div
               :class="['str-content', 'origin-str', { 'is-limit': !cacheExpandStr.includes($index) }]"
               :title="isWrap ? '' : JSON.stringify(row)"
