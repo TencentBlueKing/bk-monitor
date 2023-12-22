@@ -83,6 +83,13 @@ export const KEY_FILTER_TAGS = [
   { id: EKeyTags.event, name: window.i18n.tc('告警事件') }
 ];
 
+/* 标签包含的key选项 */
+export const KEY_TAG_MAPS = {
+  [EKeyTags.cmdb]: ['set', 'module', 'host'],
+  [EKeyTags.strategy]: ['alert.scenario', 'alert.metric', 'alert.event_source', 'alert.strategy_id'],
+  [EKeyTags.event]: ['alert.name', 'ip', 'bk_cloud_id']
+};
+
 export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
   if (!left || !right) return false;
   const leftValues = JSON.parse(JSON.stringify(left?.value || [])).sort();
@@ -179,10 +186,10 @@ export async function allKVOptions(
   setData: (type: string, key: string, values: any) => void,
   end?: () => void
 ) {
-  setData('valueMap', 'is_empty_users', [
-    { id: 'true', name: window.i18n.t('是') },
-    { id: 'false', name: window.i18n.t('否') }
-  ]);
+  // setData('valueMap', 'is_empty_users', [
+  //   { id: 'true', name: window.i18n.t('是') },
+  //   { id: 'false', name: window.i18n.t('否') }
+  // ]);
   let i = 0;
   const awaitAll = () => {
     i += 1;
@@ -193,14 +200,17 @@ export async function allKVOptions(
   // 获取key (todo)
   getAssignConditionKeys()
     .then(keyRes => {
-      setData(
-        'keys',
-        '',
-        keyRes.map(item => ({
+      const keys = keyRes
+        .map(item => ({
           id: item.key,
           name: item.display_key
         }))
-      );
+        .filter(item => item.id !== 'tags');
+      keys.push({
+        id: 'notice_users',
+        name: window.i18n.tc('通知人员')
+      });
+      setData('keys', '', keys);
       awaitAll();
     })
     .catch(() => {
@@ -394,7 +404,7 @@ export async function allKVOptions(
     start_time: startTime,
     end_time: endTime
   }).catch(() => []);
-  setData('groupKeys', 'tags', tags);
+  setData('groupKeys', 'dimensions', tags);
   // topN数据
   const tagsFieldsParams = tags.map(t => t.id) as string[];
   const topNData = await alertTopN({
