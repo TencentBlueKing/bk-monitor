@@ -485,7 +485,7 @@ export default {
      * @desc: 数据指纹请求
      */
     requestFinger() {
-      if (this.throttle || !this.signatureSwitch || !this.isFingerNav) return;
+      if (this.throttle || !this.signatureSwitch) return;
 
       this.throttle = true;
       this.tableLoading = true;
