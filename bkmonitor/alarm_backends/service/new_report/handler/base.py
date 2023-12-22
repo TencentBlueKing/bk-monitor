@@ -149,6 +149,8 @@ class SendChannelHandler(object):
         send_time = datetime.datetime.now()
         send_records = []
         for channel in channels:
+            if not channel.is_enabled:
+                continue
             send_records.append(
                 ReportSendRecord(
                     **{
