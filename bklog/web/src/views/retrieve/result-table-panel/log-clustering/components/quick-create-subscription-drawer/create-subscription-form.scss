@@ -35,4 +35,11 @@
         font-size: 12px;
         color: #63656E;
     }
+
+    .bk-form-item.is-error {
+        .user-selector-container {
+            border-color: #ea3636;
+            color: #ea3636;
+        }
+    }
 }

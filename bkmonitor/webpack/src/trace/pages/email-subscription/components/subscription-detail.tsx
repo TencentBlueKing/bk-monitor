@@ -81,7 +81,7 @@ export default defineComponent({
           break;
         }
         default:
-          str = data.frequency.runTime;
+          str = data.frequency.run_time;
           break;
       }
       return str;
@@ -274,14 +274,24 @@ export default defineComponent({
             <div class='label'>
               <span>{window.i18n.t('发送频率')}</span>
             </div>
-            <span class='value'>{this.formatFrequency(this.detailInfo)}</span>
+            <span
+              class='value'
+              style='align-self: center;'
+            >
+              {this.formatFrequency(this.detailInfo)}
+            </span>
           </div>
 
           <div class='row'>
             <div class='label'>
               <span>{window.i18n.t('有效时间范围')}</span>
             </div>
-            <span class='value'>{this.getTimeRange}</span>
+            <span
+              class='value'
+              style='align-self: center;'
+            >
+              {this.getTimeRange}
+            </span>
           </div>
         </div>
       </div>
