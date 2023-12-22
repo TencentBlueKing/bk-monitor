@@ -1403,7 +1403,7 @@ export default class BasicInfo extends tsc<IProps> {
                             <input
                               style={{ display: item.condition ? 'block' : 'none' }}
                               key={`condition-${index}-${item.key}`}
-                              class='condition-item condition-item-condition'
+                              class='condition-item-condition'
                               readonly
                               value={item.condition.toLocaleUpperCase()}
                               on-click={e => this.handleToggleCondition(e, { gIndex, index, prop: 'condition' })}
