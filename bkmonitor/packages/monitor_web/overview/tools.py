@@ -9,21 +9,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+from typing import Any, Dict, List, Union
 
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from monitor_web.models import CollectConfigMeta
-from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
-from monitor_web.uptime_check.constants import BEAT_STATUS
 
 from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.common_utils import host_key
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.time_tools import hms_string, localtime, now
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
+from monitor_web.models import CollectConfigMeta
+from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
+from monitor_web.uptime_check.constants import BEAT_STATUS
 
 
 class MonitorStatus(object):
@@ -326,28 +328,63 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
         node_exist = UptimeCheckNode.objects.filter(Q(bk_biz_id=self.bk_biz_id) | Q(is_common=True)).exists()
         return {"step": 2 if node_exist else 1}
 
-    def normal_info(self):
-        task_list = UptimeCheckTask.objects.filter(bk_biz_id=self.bk_biz_id)
-        notice_task = []
-        warning_task = []
-        for task in task_list:
-            available = resource.uptime_check.get_recent_task_data({"task_id": task.id, "type": "available"})
-            task_dict = {"task_id": task.id, "task_name": task.name, "available": available.get("available")}
-            if task_dict["available"] is not None:
-                task_dict["available"] = task_dict["available"] * 100
-                if task_dict["available"] < 60:
-                    warning_task.append(task_dict)
-                elif task_dict["available"] < 80:
-                    notice_task.append(task_dict)
+    @classmethod
+    def get_task_data(cls, task: Dict[str, Any]) -> Dict[str, Any]:
+        recent_task_data: Dict[str, Union[str, float, int]] = resource.uptime_check.get_recent_task_data(
+            {"task_id": task["id"], "type": "available"}
+        )
+        task_data: Dict[str, Any] = {
+            "task_id": task["id"],
+            "task_name": task["name"],
+            "available": recent_task_data.get("available"),
+        }
+        if task_data["available"] is not None:
+            task_data["available"] = task_data["available"] * 100
+        return task_data
 
-        carrieroperator_count = (
+    @classmethod
+    def collect_task_datas(
+        cls,
+        task: Dict[str, Any],
+        task_id__notice_data_map: Dict[int, Dict[str, Any]],
+        task_id__warning_data_map: Dict[int, Dict[str, Any]],
+    ):
+        task_data: Dict[str, Any] = cls.get_task_data(task)
+        if task_data["available"] is not None:
+            if task_data["available"] < 60:
+                task_id__warning_data_map[task["id"]] = task_data
+            elif task_data["available"] < 80:
+                task_id__notice_data_map[task["id"]] = task_data
+
+    def normal_info(self):
+        # 按需取字段，在字段均命中索引时 DB 查询无需回表，同时数据行数多的情况下也能加速返回
+        task_list: List[Dict[str, Any]] = list(
+            UptimeCheckTask.objects.filter(bk_biz_id=self.bk_biz_id).values("id", "name")
+        )
+
+        # bksql 不支持 __in lookup，考虑到单个请求耗时较短（< 30ms），此处采用多线程并发调用降低整体请求耗时
+        task_id__notice_data_map: Dict[int, Dict[str, Any]] = {}
+        task_id__warning_data_map: Dict[int, Dict[str, Any]] = {}
+        th_list: List[InheritParentThread] = [
+            InheritParentThread(
+                target=self.collect_task_datas, args=(task, task_id__notice_data_map, task_id__warning_data_map)
+            )
+            for task in task_list
+        ]
+        run_threads(th_list)
+
+        carrieroperator_count: int = (
             UptimeCheckNode.objects.filter(Q(bk_biz_id=self.bk_biz_id) | Q(is_common=True))
             .values("carrieroperator")
             .distinct()
             .count()
         )
 
-        return {"notice_task": notice_task, "warning_task": warning_task, "single_supplier": carrieroperator_count == 1}
+        return {
+            "single_supplier": carrieroperator_count == 1,
+            "notice_task": list(task_id__notice_data_map.values()),
+            "warning_task": list(task_id__warning_data_map.values()),
+        }
 
     def get_task_id(self, alert):
         for query_config in alert["extra_info"]["strategy"]["items"][0]["query_configs"]:
