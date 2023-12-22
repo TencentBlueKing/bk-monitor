@@ -501,7 +501,6 @@ $statusType2: 'green' 'red' 'yellow';
       .simple-select-input-component {
         display: inline-block;
         width: 120px;
-        margin-top: -2px;
 
         &:not(:first-of-type) {
           margin-left: -1px;
@@ -616,7 +615,7 @@ $statusType2: 'green' 'red' 'yellow';
 
     .cycle-input-wrap {
       width: 130px;
-      margin: -2px 0 0 -1px;
+      margin-left: -1px;
     }
 
     .sampling-rule-brackets {

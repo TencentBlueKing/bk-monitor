@@ -903,6 +903,10 @@ export default class BasicInfo extends tsc<IProps> {
     const groupItem = groups[gIndex];
     const deleteList = groupItem.splice(index, 1);
 
+    if (!gIndex && !groupItem.length) {
+      groups.push([this.handleGetDefaultCondition(false)]);
+    }
+
     if (groupItem[index]) {
       if (gIndex === 0) {
         delete groupItem[index].condition;
@@ -1431,30 +1435,13 @@ export default class BasicInfo extends tsc<IProps> {
                           item.key_alias
                             ? [
                                 <span
-                                  class='condition-item condition-item-method'
+                                  class='condition-item-method'
                                   key={`method-${index}-${item.key}`}
                                   on-click={e => this.handleToggleMethod(e, { gIndex, index, prop: 'method' })}
                                 >
                                   {this.handleGetMethodNameById(item.method)}
                                 </span>,
-                                item.type === 'string' ? (
-                                  <TagInput
-                                    key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
-                                      this.samplingRuleValueMap[item.key] || []
-                                    )}`}
-                                    class='condition-item condition-item-value'
-                                    list={
-                                      this.samplingRuleValueMap[item.key] ? this.samplingRuleValueMap[item.key] : []
-                                    }
-                                    trigger='focus'
-                                    has-delete-icon
-                                    allow-create
-                                    allow-auto-match
-                                    value={item.value}
-                                    // paste-fn={v => this.handlePaste(v, item)}
-                                    on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
-                                  ></TagInput>
-                                ) : (
+                                item.type === 'time' ? (
                                   // <CycleInput
                                   //   class='form-interval'
                                   //   v-model={item.value}
@@ -1471,12 +1458,29 @@ export default class BasicInfo extends tsc<IProps> {
                                     minSec={1}
                                     onChange={(v: number) => this.handleSamplingRuleValueChange(item, v)}
                                   />
+                                ) : (
+                                  <TagInput
+                                    key={`value-${gIndex}-${index}-${item.key}-${JSON.stringify(
+                                      this.samplingRuleValueMap[item.key] || []
+                                    )}`}
+                                    class='condition-item-value'
+                                    list={
+                                      this.samplingRuleValueMap[item.key] ? this.samplingRuleValueMap[item.key] : []
+                                    }
+                                    trigger='focus'
+                                    has-delete-icon
+                                    allow-create
+                                    allow-auto-match
+                                    value={item.value}
+                                    // paste-fn={v => this.handlePaste(v, item)}
+                                    on-change={(v: string[]) => this.handleSamplingRuleValueChange(item, v)}
+                                  ></TagInput>
                                 )
                               ]
                             : undefined
                         ])}
                         <span
-                          class='condition-item condition-add'
+                          class='condition-add'
                           style={{ display: this.showRuleAdd(gIndex) ? 'flex' : 'none' }}
                           on-click={() => this.handleAddCondition(gIndex)}
                         >
