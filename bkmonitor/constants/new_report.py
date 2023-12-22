@@ -128,6 +128,7 @@ class LogColShowTypeEnum(ChoicesEnum):
 CLUSTERING_VARIABLES = [
     {"name": "time", "description": "系统时间", "example": "2023-10-10 22:00:00"},
     {"name": "index_set_name", "description": "索引集名称", "example": "apm_demo_app_1111"},
+    {"name": "business_name", "description": "业务名称", "example": "测试业务"},
 ]
 
 SUBSCRIPTION_VARIABLES_MAP = {ScenarioEnum.CLUSTERING.value: CLUSTERING_VARIABLES}

@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import base64
 import datetime
 from collections import defaultdict
 
@@ -132,15 +131,6 @@ def send_email(context: dict, subscribers: list) -> dict:
         sender.title = context["title"]
     if context.get("content"):
         sender.content = context["content"]
-    if context.get("generate_attachment", False):
-        sender.context["attachments"] = [
-            {
-                "filename": f"{sender.title}.html",
-                "disposition": "attachment",
-                "type": "html",
-                "content": base64.b64encode(sender.content.encode()).decode(),
-            }
-        ]
     try:
         result = sender.send_mail(subscribers)
         return result

@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import base64
+import csv
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -179,6 +181,52 @@ class ClusteringReportHandler(BaseReportHandler):
         url = f"{settings.BKLOGSEARCH_HOST}#/retrieve/{config['index_set_id']}?{urlencode(params)}"
         return url
 
+    def get_attachments(self, context):
+        csv_file = open('attachments.csv', 'w', newline='')
+        csv_writer = csv.writer(csv_file)
+        rows = []
+        log_col_show_type = context['log_col_show_type']
+        group_by = context['group_by']
+        if context["show_year_on_year"]:
+            title_headers = ["序号", "是否新增", "数据指纹", "数量", "占比", "同比数量", "同比变化", log_col_show_type]
+        else:
+            title_headers = ["序号", "是否新增", "数据指纹", "数量", "占比", log_col_show_type]
+        title_headers.extend(group_by)
+        rows.append(title_headers)
+
+        for pattern_key in context["all_patterns"]:
+            for index, pattern in enumerate(context["all_patterns"][pattern_key]["data"]):
+                is_new_pattern = "是" if pattern_key == "new_patterns" else "否"
+                data_row = [
+                    index,
+                    is_new_pattern,
+                    '=HYPERLINK("{}", "{}")'.format(pattern["signature_url"], pattern["signature"]),
+                    pattern["count"],
+                    pattern.get("percentage", round(2)),
+                ]
+                if context["show_year_on_year"]:
+                    data_row.extend([pattern["year_on_year_count"], pattern.get("year_on_year_percentage", round(2))])
+                data_row.append(pattern["pattern"])
+                data_row.extend(pattern["group"])
+                rows.append(data_row)
+
+        for row in rows:
+            csv_writer.writerow(row)
+        csv_file.close()
+
+        # 读取文件内容并转换为字符串
+        with open('attachments.csv', 'r') as file:
+            clustering_content = file.read()
+        attachments = [
+            {
+                "filename": f"{context['title']}.csv",
+                "disposition": "attachment",
+                "type": "csv",
+                "content": base64.b64encode(clustering_content.encode()).decode(),
+            }
+        ]
+        return attachments
+
     def get_render_params(self) -> dict:
         """
         获取渲染参数
@@ -223,6 +271,7 @@ class ClusteringReportHandler(BaseReportHandler):
             "time_config": time_config,
             "show_year_on_year": False if scenario_config["year_on_year_hour"] == YearOnYearEnum.NOT.value else True,
             "space_name": space_name,
+            "business_name": space_name,
             "index_set_name": index_set_name,
             "log_search_url": self.generate_log_search_url(scenario_config, time_config),
             "all_patterns": all_patterns,
@@ -245,4 +294,6 @@ class ClusteringReportHandler(BaseReportHandler):
         render_params["title"] = render_params["title"].format(**render_params)
         render_params["mail_template_path"] = self.mail_template_path
         render_params["wechat_template_path"] = self.wechat_template_path
+        if render_params.get("generate_attachment", False):
+            render_params["attachments"] = self.get_attachments(render_params)
         return render_params

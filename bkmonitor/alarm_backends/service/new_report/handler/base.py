@@ -44,11 +44,6 @@ class BaseReportHandler(object):
         """
         执行订阅
         """
-        # 获取渲染参数
-        render_params = self.get_render_params()
-        # 渲染订阅内容,获取上下文
-        context = self.render(render_params)
-
         # 根据渠道分别发送，记录最新发送轮次
         send_round = 0
         if self.report.id:
@@ -57,6 +52,12 @@ class BaseReportHandler(object):
             self.report.save()
         if not channels:
             channels = self.channels
+        SendChannelHandler.create_send_record(channels, send_round)
+        # 获取渲染参数
+        render_params = self.get_render_params()
+        # 渲染订阅内容,获取上下文
+        context = self.render(render_params)
+
         for channel in channels:
             if channel.is_enabled:
                 SendChannelHandler(channel).send(context, send_round, self.report.bk_biz_id)
@@ -101,9 +102,9 @@ class SendChannelHandler(object):
                 f" send result is null"
             )
             return
-        self.create_send_record(result, send_round)
+        self.update_send_record(result, send_round)
 
-    def create_send_record(self, result, send_round):
+    def update_send_record(self, result, send_round):
         send_time = datetime.datetime.now()
         send_results = []
         # 解析发送结果并记录
@@ -135,14 +136,32 @@ class SendChannelHandler(object):
                 send_status = SendStatusEnum.PARTIAL_FAILED.value
 
         send_record = {
-            "report_id": self.channel.report_id,
-            "channel_name": self.channel.channel_name,
             "send_results": send_results,
             "send_status": send_status,
             "send_time": send_time,
-            "send_round": send_round,
         }
-        ReportSendRecord.objects.create(**send_record)
+        ReportSendRecord.objects.filter(
+            report_id=self.channel.report_id, channel_name=self.channel.channel_name, send_round=send_round
+        ).update(**send_record)
+
+    @staticmethod
+    def create_send_record(channels, send_round):
+        send_time = datetime.datetime.now()
+        send_records = []
+        for channel in channels:
+            send_records.append(
+                ReportSendRecord(
+                    **{
+                        "report_id": channel.report_id,
+                        "channel_name": channel.channel_name,
+                        "send_results": [],
+                        "send_status": SendStatusEnum.NO_STATUS.value,
+                        "send_time": send_time,
+                        "send_round": send_round,
+                    }
+                )
+            )
+        ReportSendRecord.objects.bulk_create(send_records)
 
     def fetch_subscribers(self, bk_biz_id=None):
         """
