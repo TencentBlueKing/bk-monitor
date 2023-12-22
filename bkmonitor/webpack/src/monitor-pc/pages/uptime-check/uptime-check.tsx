@@ -133,7 +133,7 @@ class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)) {
     });
   }
   // 分屏start
-  mounted() {
+  activated() {
     this.isActiveSet = true;
     this.defaultPanelWidth = this.$el.getBoundingClientRect().width / 2;
     this.splitPanelWidth = this.defaultPanelWidth;
