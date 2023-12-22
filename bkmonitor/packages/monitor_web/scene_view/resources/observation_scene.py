@@ -12,6 +12,7 @@ import collections
 import logging
 import time
 from collections import defaultdict
+from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
 from django.utils.translation import ugettext as _
@@ -25,9 +26,11 @@ from bkmonitor.data_source import (
     CustomTimeSeriesDataSource,
 )
 from bkmonitor.models import QueryConfigModel, StrategyModel
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.cmdb import TargetNodeType, TargetObjectType
-from core.drf_resource import Resource, api
+from core.drf_resource import CacheResource, Resource, api
 from monitor_web.collecting.constant import OperationType
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import (
@@ -40,6 +43,16 @@ from monitor_web.models import (
 from monitor_web.plugin.constant import PluginType
 
 logger = logging.getLogger(__name__)
+
+
+class ObservationSceneStatus(Enum):
+    SUCCESS: str = "SUCCESS"
+    # 检测过程出现异常
+    CHECK_ERROR: str = "CHECK_ERROR"
+    # 未知的检测对象
+    UNKNOWN: str = "UNKNOWN"
+    # 无数据
+    NODATA: str = "NODATA"
 
 
 class GetPluginCollectConfigIdList(Resource):
@@ -61,10 +74,12 @@ class GetPluginCollectConfigIdList(Resource):
         return [{"id": collect_config.id, "name": collect_config.name} for collect_config in collect_configs]
 
 
-class GetObservationSceneStatusList(Resource):
+class GetObservationSceneStatusList(CacheResource):
     """
     获取观测场景状态列表
     """
+
+    cache_type = CacheType.SCENE_VIEW
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -97,7 +112,7 @@ class GetObservationSceneStatusList(Resource):
         return bool(records)
 
     @classmethod
-    def check_plugin(cls, bk_biz_id: int, plugin_id: int = None, collect_config_id: int = None) -> bool:
+    def check_plugin(cls, bk_biz_id: int, plugin_id: str = None, collect_config_id: int = None) -> bool:
         if plugin_id:
             plugin = CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id).first()
             if not plugin:
@@ -172,31 +187,56 @@ class GetObservationSceneStatusList(Resource):
                 return True
         return False
 
+    def get_observation_scene_status(self, bk_biz_id: int, scene_view_id: str) -> str:
+        if scene_view_id.startswith("scene_plugin_"):
+            checked = self.check_plugin(bk_biz_id=bk_biz_id, plugin_id=scene_view_id.split("scene_plugin_", 1)[-1])
+        elif scene_view_id.startswith("scene_collect_"):
+            checked = self.check_plugin(
+                bk_biz_id=bk_biz_id, collect_config_id=int(scene_view_id.lstrip("scene_collect_"))
+            )
+        elif scene_view_id.startswith("scene_custom_event_"):
+            checked = self.check_custom_event(
+                bk_biz_id=bk_biz_id, bk_event_group_id=int(scene_view_id.lstrip("scene_custom_event_"))
+            )
+        elif scene_view_id.startswith("scene_custom_metric_"):
+            checked = self.check_custom_metric(
+                bk_biz_id=bk_biz_id, time_series_group_id=int(scene_view_id.lstrip("scene_custom_metric_"))
+            )
+        else:
+            return ObservationSceneStatus.UNKNOWN.value
+
+        return (ObservationSceneStatus.NODATA.value, ObservationSceneStatus.SUCCESS.value)[checked]
+
+    def collect_scene_view_id__status_map(
+        self, bk_biz_id: int, scene_view_id: str, scene_view_id__status_map: Dict[str, str]
+    ):
+        try:
+            status: str = self.get_observation_scene_status(bk_biz_id, scene_view_id)
+        except Exception:
+            logger.exception(
+                "[collect_scene_view_id__status_map] failed to get_observation_scene_status: "
+                "bk_biz_id -> %s, collect_scene_view_id -> %s",
+                bk_biz_id,
+                scene_view_id,
+            )
+            return
+
+        if status in [ObservationSceneStatus.NODATA.value, ObservationSceneStatus.SUCCESS.value]:
+            scene_view_id__status_map[scene_view_id] = status
+
     def perform_request(self, params):
-        result = {}
-        for scene_view_id in params["scene_view_ids"]:
-            if scene_view_id.startswith("scene_plugin_"):
-                checked = self.check_plugin(
-                    bk_biz_id=params["bk_biz_id"], plugin_id=scene_view_id.split("scene_plugin_", 1)[-1]
-                )
-            elif scene_view_id.startswith("scene_collect_"):
-                checked = self.check_plugin(
-                    bk_biz_id=params["bk_biz_id"], collect_config_id=scene_view_id.lstrip("scene_collect_")
-                )
-            elif scene_view_id.startswith("scene_custom_event_"):
-                checked = self.check_custom_event(
-                    bk_biz_id=params["bk_biz_id"], bk_event_group_id=scene_view_id.lstrip("scene_custom_event_")
-                )
-            elif scene_view_id.startswith("scene_custom_metric_"):
-                checked = self.check_custom_metric(
-                    bk_biz_id=params["bk_biz_id"], time_series_group_id=scene_view_id.lstrip("scene_custom_metric_")
-                )
-            else:
-                continue
 
-            result[scene_view_id] = {"status": "SUCCESS" if checked else "NODATA"}
+        scene_view_id__status_map: Dict[str, str] = {}
+        th_list: List[InheritParentThread] = [
+            InheritParentThread(
+                target=self.collect_scene_view_id__status_map,
+                args=(params["bk_biz_id"], scene_view_id, scene_view_id__status_map),
+            )
+            for scene_view_id in params["scene_view_ids"]
+        ]
+        run_threads(th_list)
 
-        return result
+        return scene_view_id__status_map
 
 
 class GetObservationSceneList(Resource):
