@@ -532,14 +532,9 @@ export default class DataRetrieval extends tsc<{}> {
   }
   /** 非路由组件无法触发 BeforeRouteEnter 钩子 在其父组件触发后跳用此方法 */
   handleBeforeRouteEnter(to: Route, from: Route) {
-    const {
-      targets,
-      type,
-      from: fromTime,
-      to: toTime,
-      timezone
-    } = this.$route.query.targets ? this.$route.query : this.$route.params;
+    const { targets, type, timezone } = this.$route.query.targets ? this.$route.query : this.$route.params;
     let targetsList = [];
+    const { from: fromTime, to: toTime } = this.$route.query.from ? this.$route.query : this.$route.params;
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
     this.compareValue.tools.timezone = getDefautTimezone();
     console.info(this.compareValue.tools.timezone, '----------');
@@ -2804,8 +2799,8 @@ export default class DataRetrieval extends tsc<{}> {
               opt !== 'enable'
                 ? this.optionIconName[opt]
                 : item.enable
-                ? this.optionIconName[opt]
-                : 'icon-mc-invisible';
+                  ? this.optionIconName[opt]
+                  : 'icon-mc-invisible';
             const sourceAcitve = opt === 'source' && metricItem.showSource ? 'is-source' : '';
             /** 不支持多指标的不支持源码编辑 */
             const display =
@@ -3058,8 +3053,8 @@ export default class DataRetrieval extends tsc<{}> {
                             opt !== 'enable'
                               ? this.optionIconName[opt]
                               : item.enable
-                              ? this.optionIconName[opt]
-                              : 'icon-mc-invisible';
+                                ? this.optionIconName[opt]
+                                : 'icon-mc-invisible';
                           return (
                             <i
                               key={opt}
