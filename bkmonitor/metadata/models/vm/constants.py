@@ -19,6 +19,9 @@ USER_CUSTOM_TOPIC = "ieod_custom_metric_{bk_data_id}100147"
 # ns 时间戳结果表列表
 BKDATA_NS_TIMESTAMP_DATA_ID_LIST = [1100006, 1100015, 1100007, 1100016]
 
+# vm 数据默认保留时间
+VM_RETENTION_TIME = "30d"
+
 # 通过 vm 查询的空间信息
 QUERY_VM_SPACE_UID_LIST_KEY = "bkmonitorv3:vm-query:space_uid"
 QUERY_VM_SPACE_UID_CHANNEL_KEY = "bkmonitorv3:vm-query"

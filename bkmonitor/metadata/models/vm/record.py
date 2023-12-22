@@ -12,11 +12,11 @@ import json
 import logging
 from typing import Dict, List, Optional
 
-from django.conf import settings
 from django.db import models
 from django.db.models.fields import DateTimeField
 
 from metadata.models.common import BaseModel
+from metadata.models.vm.constants import VM_RETENTION_TIME
 from metadata.models.vm.managers import SpaceVMInfoManager
 
 logger = logging.getLogger("metadata")
@@ -107,9 +107,7 @@ class SpaceVMInfo(BaseModel):
     space_type = models.CharField("空间类型英文名称", max_length=64)
     space_id = models.CharField("空间英文名称", max_length=128)
     vm_cluster_id = models.IntegerField("集群ID", help_text="关联 clusterinfo 表中存储的 vm 集群信息")
-    vm_retention_time = models.CharField(
-        "保存时间", max_length=16, null=True, blank=True, default=settings.VM_DEFAULT_RETENTION_TIME
-    )
+    vm_retention_time = models.CharField("保存时间", max_length=16, null=True, blank=True, default=VM_RETENTION_TIME)
     status = models.CharField("状态", max_length=16, null=True, blank=True)
 
     objects = SpaceVMInfoManager()

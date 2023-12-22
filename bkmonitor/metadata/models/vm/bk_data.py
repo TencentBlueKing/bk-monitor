@@ -17,6 +17,7 @@ from django.conf import settings
 
 from core.drf_resource import api
 from metadata.models.vm.config import BkDataClean, BkDataStorage
+from metadata.models.vm.constants import VM_RETENTION_TIME
 
 logger = logging.getLogger("metadata")
 
@@ -30,7 +31,7 @@ class BkDataAccessor:
         data_hub_name: str,
         bk_biz_id: Optional[int] = settings.DEFAULT_BKDATA_BIZ_ID,
         vm_cluster: Optional[str] = "",
-        vm_retention_time: Optional[str] = settings.VM_DEFAULT_RETENTION_TIME,
+        vm_retention_time: Optional[str] = VM_RETENTION_TIME,
         desc: Optional[str] = "",
         timestamp_len: int = None,
     ):
@@ -126,7 +127,7 @@ def _access(
     data_hub_name: str,
     desc: str,
     vm_cluster: Optional[str] = "",
-    vm_retention_time: Optional[str] = settings.VM_DEFAULT_RETENTION_TIME,
+    vm_retention_time: Optional[str] = VM_RETENTION_TIME,
     timestamp_len: int = None,
 ) -> Dict:
     """接入计算平台"""
@@ -153,7 +154,7 @@ def _access(
 def access_vm(
     raw_data_name: str,
     vm_cluster: Optional[str] = "",
-    vm_retention_time: Optional[str] = settings.VM_DEFAULT_RETENTION_TIME,
+    vm_retention_time: Optional[str] = VM_RETENTION_TIME,
     timestamp_len: int = None,
 ) -> Dict:
     """接入 vm 流程"""
