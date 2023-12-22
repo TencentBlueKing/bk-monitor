@@ -119,6 +119,8 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
   loading = false;
   authorityMap = { ...authMap };
   emptyStatusType: EmptyStatusType = 'empty';
+  /* status loading  */
+  statusLoading = false;
   // 是否显示引导页
   get showGuidePage() {
     return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
@@ -198,13 +200,19 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
 
   /* 异步加载 */
   setAsyncStatusData(sceneViewIds = []) {
-    getObservationSceneStatusList({ scene_view_ids: sceneViewIds }).then(res => {
-      this.tableData.data.forEach(item => {
-        if (res[item.scene_view_id as string]?.status) {
-          item.status = res[item.scene_view_id as string].status;
-        }
+    this.statusLoading = true;
+    getObservationSceneStatusList({ scene_view_ids: sceneViewIds })
+      .then(res => {
+        this.statusLoading = false;
+        this.tableData.data.forEach(item => {
+          if (res[item.scene_view_id as string]?.status) {
+            item.status = res[item.scene_view_id as string].status;
+          }
+        });
+      })
+      .catch(() => {
+        this.statusLoading = false;
       });
-    });
   }
 
   /* 点击新建 */
@@ -437,18 +445,21 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     <div class='subtitle'>{row.sub_name}</div>
                   </div>
                 ),
-                status: (row: ITableItem) => (
-                  <div class='column-status'>
-                    {row.status ? (
-                      <CommonStatus
-                        type={row.status}
-                        text={STATUS_TYPE[row.status]}
-                      ></CommonStatus>
-                    ) : (
-                      '--'
-                    )}
-                  </div>
-                ),
+                status: (row: ITableItem) =>
+                  this.statusLoading ? (
+                    <div class='spinner'></div>
+                  ) : (
+                    <div class='column-status'>
+                      {row.status ? (
+                        <CommonStatus
+                          type={row.status}
+                          text={STATUS_TYPE[row.status]}
+                        ></CommonStatus>
+                      ) : (
+                        '--'
+                      )}
+                    </div>
+                  ),
                 strategy: (row: ITableItem) => (
                   <div class='column-count'>
                     {row.strategy_count > 0 ? (
