@@ -17,10 +17,8 @@ from io import BytesIO
 from typing import Tuple
 
 import requests
-from django.utils.translation import ugettext_lazy as _
 from rest_framework.status import HTTP_200_OK
 
-from apm_web.models import Application
 from apm_web.profile.models import Profile
 from core.drf_resource import api
 
@@ -51,38 +49,20 @@ def encode_multipart_form_data(data) -> Tuple[bytes, bytes]:
 
 
 @dataclass
-class StorageHandler:
-    """Doris storage handler for profile"""
+class CollectorHandler:
+    """Collector handler for profile"""
 
-    application: Application
-    profile: Profile
-
-    def save_profile(self):
-        """Save profile to doris, return profile id"""
-        # check remote doris exists
-        data_token = self.get_bk_data_token()
-        self.send_to_collector(data_token)
-        return
-
-    def get_bk_data_token(self) -> str:
-        """Check storage of application exists"""
-        application_info = api.apm_api.detail_application({"application_id": self.application.application_id})
-        if not application_info:
-            raise Exception("application not exists")
-
-        if "app_name" not in application_info:
-            raise Exception(_("应用({}) 不存在").format(self.application))
-        if "profiling_config" not in application_info:
-            raise Exception(_("应用({}) 未开启性能分析").format(self.application))
-
-        return application_info["bk_data_token"]
-
-    def send_to_collector(self, data_token: str):
+    @classmethod
+    def send(cls, profile: Profile):
         """Send profile to collector"""
+        builtin_profile_datasource = api.apm_api.query_builtin_profile_datasource()
+
+        data_token = builtin_profile_datasource["bk_data_token"]
+        app_name = builtin_profile_datasource["app_name"]
 
         pprof = BytesIO()
         with gzip.GzipFile(fileobj=pprof, mode="wb") as gz:
-            gz.write(self.profile.SerializeToString())
+            gz.write(profile.SerializeToString())
 
         data = {
             b"profile": pprof.getvalue(),
@@ -103,12 +83,12 @@ class StorageHandler:
 
         # simulating as pyroscope agent
         params = {
-            "name": f"{self.application.app_name}-profiling-upload",
-            "from": _get_stamp_by_ns(self.profile.time_nanos),
-            "until": _get_stamp_by_ns(self.profile.time_nanos + self.profile.duration_nanos),
+            "name": f"{app_name}-profiling-upload",
+            "from": _get_stamp_by_ns(profile.time_nanos),
+            "until": _get_stamp_by_ns(profile.time_nanos + profile.duration_nanos),
             "spyName": "gospy",
             "sampleRate": 100,
-            "units": self.profile.string_table[self.profile.sample_type[0].unit],
+            "units": profile.string_table[profile.sample_type[0].unit],
             "aggregationType": "",
         }
 
