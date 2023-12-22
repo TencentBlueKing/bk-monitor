@@ -13,9 +13,10 @@ import json
 import logging
 from typing import Optional
 
+from django.conf import settings
 from jinja2 import Template
 
-from metadata.models.vm.constants import VM_RETENTION_TIME, TimestampLen
+from metadata.models.vm.constants import TimestampLen
 
 logger = logging.getLogger("metadata")
 
@@ -182,7 +183,7 @@ class BkDataClean:
 
 
 class BkDataStorage:
-    def __init__(self, bk_table_id: str, vm_cluster: str, expires: Optional[str] = VM_RETENTION_TIME):
+    def __init__(self, bk_table_id: str, vm_cluster: str, expires: Optional[str] = settings.VM_DEFAULT_RETENTION_TIME):
         self.bk_table_id = bk_table_id
         self.vm_cluster = vm_cluster
         self.expires = expires
@@ -201,7 +202,11 @@ class BkDataStorage:
 
 class BkDataStorageWithDataID:
     def __init__(
-        self, raw_data_id: int, result_table_name: str, vm_cluster: str, expires: Optional[str] = VM_RETENTION_TIME
+        self,
+        raw_data_id: int,
+        result_table_name: str,
+        vm_cluster: str,
+        expires: Optional[str] = settings.VM_DEFAULT_RETENTION_TIME,
     ):
         self.raw_data_id = raw_data_id
         self.result_table_name = result_table_name

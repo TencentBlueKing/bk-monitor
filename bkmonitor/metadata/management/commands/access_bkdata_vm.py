@@ -12,11 +12,12 @@ specific language governing permissions and limitations under the License.
 import json
 from typing import Dict, List
 
+from django.conf import settings
 from django.core.management import BaseCommand, CommandError
 
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-from metadata.models.vm.constants import VM_RETENTION_TIME, TimestampLen
+from metadata.models.vm.constants import TimestampLen
 from metadata.models.vm.utils import (
     access_vm_by_kafka,
     get_bkbase_data_name_and_topic,
@@ -36,7 +37,11 @@ class Command(BaseCommand):
         parser.add_argument("--partition", type=int, required=False, default=1, help="接入时指定 partition 数量")
         parser.add_argument("--vm_cluster_name", type=str, required=False, default="", help="要接入到的 vm 集群名称")
         parser.add_argument(
-            "--vm_retention_time", type=str, required=False, default=VM_RETENTION_TIME, help="vm 集群数据保留时间"
+            "--vm_retention_time",
+            type=str,
+            required=False,
+            default=settings.VM_DEFAULT_RETENTION_TIME,
+            help="vm 集群数据保留时间",
         )
 
     def handle(self, *args, **options):

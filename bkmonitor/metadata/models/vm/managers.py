@@ -11,12 +11,12 @@ specific language governing permissions and limitations under the License.
 
 from typing import Optional
 
+from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 
 from metadata import config
 from metadata.models.storage import ClusterInfo
-from metadata.models.vm.constants import VM_RETENTION_TIME
 
 
 class SpaceVMInfoManager(models.Manager):
@@ -26,7 +26,7 @@ class SpaceVMInfoManager(models.Manager):
         space_type: str,
         space_id: str,
         vm_cluster_id: Optional[int] = None,
-        vm_retention_time: Optional[str] = VM_RETENTION_TIME,
+        vm_retention_time: Optional[str] = settings.VM_DEFAULT_RETENTION_TIME,
     ) -> models.Model:
         """创建记录
 
