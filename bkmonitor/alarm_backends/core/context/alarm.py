@@ -670,6 +670,11 @@ class Alarm(BaseContextObject):
         alert_dict["event"].pop("extra_info", None)
         alert_dict["is_shielded"] = self.is_shielded
         alert_dict.update({"current_value": self.current_value, "description": self.description})
+
+        # 日志或事件关联信息
+        alert_dict["log_related_info"] = self.log_related_info
+        # 整体关联信息，包含了CMDB 和 日志信息
+        alert_dict["related_info"] = self.related_info
         return json.dumps(alert_dict)
 
     @cached_property

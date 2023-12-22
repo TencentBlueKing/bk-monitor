@@ -8,7 +8,7 @@ import typing
 from collections import defaultdict
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import arrow
 from django.conf import settings
@@ -473,7 +473,7 @@ class GetStrategyListV2Resource(Resource):
                 value = [value]
             filter_dict[key].extend(value)
 
-        filter_strategy_ids_set: Set = set(strategies.values_list("id", flat=True).distinct())
+        filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
 
         filter_methods: List[Tuple] = [
             (cls.filter_strategy_ids_by_id, (filter_dict, filter_strategy_ids_set)),
@@ -1188,6 +1188,12 @@ class GetMetricListV2Resource(Resource):
         (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
     )
 
+    PromqlDataSourcePrefix = {
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES): "bkmonitor",
+        (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES): "custom",
+        (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES): "bkdata",
+    }
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         data_source_label = serializers.ListField(default=[], label="指标数据源", child=serializers.CharField())
@@ -1543,6 +1549,21 @@ class GetMetricListV2Resource(Resource):
         return metric
 
     @classmethod
+    def get_promql_format_metric(cls, metric: Dict) -> str:
+        """
+        获取promql风格的指标名
+        """
+        data_source = (metric["data_source_label"], metric["data_type_label"])
+        if data_source not in cls.PromqlDataSourcePrefix:
+            return ""
+
+        prefix = cls.PromqlDataSourcePrefix[data_source]
+        if metric["readable_name"]:
+            return f"{prefix}:{metric['readable_name'].replace('.', ':')}"
+
+        return f"{prefix}:{metric['result_table_id'].replace('.', ':')}:{metric['metric_field']}"
+
+    @classmethod
     def get_metric_list(cls, bk_biz_id: int, metrics: QuerySet):
         """
         指标数据
@@ -1599,6 +1620,9 @@ class GetMetricListV2Resource(Resource):
                 "disabled": False,
                 "data_target": metric.data_target,
             }
+
+            # promql指标名
+            data["promql_metric"] = cls.get_promql_format_metric(data)
 
             # 拨测指标特殊处理
             if metric.result_table_id.startswith("uptimecheck."):

@@ -14,7 +14,11 @@ from io import StringIO
 import pytest
 from django.core.management import call_command
 
-from metadata.tests.commands.conftest import DEFAULT_DATA_ID, DEFAULT_NAME
+from metadata.tests.commands.conftest import (
+    DEFAULT_DATA_ID,
+    DEFAULT_DATA_ID_ONE,
+    DEFAULT_NAME,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -44,3 +48,17 @@ def test_query_storage(create_and_delete_record):
     ]
     assert not (set(keys) - set(output[0].keys()))
     assert output[0]["kafka_config"]["topic"] == DEFAULT_NAME
+
+
+def test_only_datasource_query_storage(create_and_delete_record):
+    """测试仅包含数据源的场景"""
+    out = StringIO()
+    params = {"bk_data_id": DEFAULT_DATA_ID_ONE}
+    call_command("query_storage", **params, stdout=out)
+    output = out.getvalue()
+    output = json.loads(output)
+
+    assert isinstance(output, list)
+    # 返回字段匹配
+    assert {"data_source", "transfer_cluster", "kafka_config"} == set(output[0].keys())
+    assert output[0]["data_source"]["bk_data_id"] == DEFAULT_DATA_ID_ONE
