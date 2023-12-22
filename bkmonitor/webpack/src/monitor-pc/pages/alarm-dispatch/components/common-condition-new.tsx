@@ -38,6 +38,7 @@ import {
   EKeyTags,
   ISpecialOptions,
   KEY_FILTER_TAGS,
+  KEY_TAG_MAPS,
   TGroupKeys,
   TValueMap
 } from '../typing/condition';
@@ -885,6 +886,8 @@ export default class CommonCondition extends tsc<IProps> {
         const tempKeys = this.getDimensionKeys() as any;
         if (!!tempKeys?.length) {
           keyList = tempKeys;
+        } else {
+          keyList = this.groupKeys.get(item.id) || [];
         }
       } else {
         keyList = this.groupKeys.get(item.id) || [];
@@ -984,7 +987,11 @@ export default class CommonCondition extends tsc<IProps> {
       keySet.add(item.condition?.field || '');
     });
     return this.keyList
-      .filter(item => !keySet.has(item.id))
+      .filter(
+        item =>
+          !keySet.has(item.id) &&
+          (this.keyTypeTag === EKeyTags.all ? true : !!KEY_TAG_MAPS[this.keyTypeTag]?.includes(item.id))
+      )
       .map(item => ({
         ...item,
         isGroupKey: this.groupKey.includes(item.id)
@@ -1217,7 +1224,11 @@ export default class CommonCondition extends tsc<IProps> {
   }
 
   handleClickKeyTypeTag(tag: { id: EKeyTags }) {
-    this.keyTypeTag = tag.id;
+    if (this.keyTypeTag !== tag.id) {
+      this.keyTypeTag = tag.id;
+      this.curList = [...this.filterKeyList()];
+      this.handleSecondPopHidden();
+    }
   }
 
   render() {
