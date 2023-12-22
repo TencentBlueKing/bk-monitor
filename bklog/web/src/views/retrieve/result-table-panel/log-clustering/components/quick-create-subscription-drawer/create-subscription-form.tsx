@@ -301,7 +301,7 @@ class QuickCreateSubscription extends tsc<IProps> {
             if (subscriberList.length === 0) return false;
             return true;
           },
-          message: window.mainComponent.$t('必填项'),
+          message: window.mainComponent.$t('订阅人不能为空'),
           trigger: 'blur',
         },
       ],
@@ -432,6 +432,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     if (!this.refOfContentForm) this.refOfContentForm = this.$refs.refOfContentForm;
     if (!this.refOfEmailSubscription) this.refOfEmailSubscription = this.$refs.refOfEmailSubscription;
     if (!this.refOfSendingConfigurationForm) this.refOfSendingConfigurationForm = this.$refs.refOfSendingConfigurationForm;
+    this.collectFrequency();
     return Promise.all([
       this.refOfContentForm?.validate?.(),
       this.refOfEmailSubscription?.validate?.(),
@@ -1231,12 +1232,6 @@ class QuickCreateSubscription extends tsc<IProps> {
                       style={{ width: '465px' }}
                       on-change={v => {
                         console.log('on-change', v);
-                      }}
-                      on-remove-selected={v => {
-                        console.log('on-remove-selected', v);
-                      }}
-                      on-select-user={v => {
-                        console.log('on-select-user', v);
                         const userChannel = this.formData.channels.find(item => item.channel_name === 'user');
                         userChannel.subscribers = v.map(item => {
                           return {
@@ -1245,6 +1240,12 @@ class QuickCreateSubscription extends tsc<IProps> {
                             is_enabled: true
                           }
                         });
+                      }}
+                      on-remove-selected={v => {
+                        console.log('on-remove-selected', v);
+                      }}
+                      on-select-user={v => {
+                        console.log('on-select-user', v);
                       }}
                     >
                     </bk-user-selector>
@@ -1427,9 +1428,11 @@ class QuickCreateSubscription extends tsc<IProps> {
                     style={{
                       width: '168px'
                     }}
-                    // onChange={v => {
-                    //   this.frequency.only_once_run_time = v;
-                    // }}
+                    onChange={v => {
+                      console.log('only_once_run_time', v);
+                      
+                      // this.frequency.only_once_run_time = v;
+                    }}
                   ></bk-date-picker>
                 </div>
               )}
