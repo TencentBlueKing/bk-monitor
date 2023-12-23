@@ -20,6 +20,7 @@ from apm.resources import (
     ListEsClusterInfoResource,
     QueryAppByHostInstanceResource,
     QueryAppByTraceResource,
+    QueryBuiltinProfileDatasourceResource,
     QueryDiscoverRulesResource,
     QueryEndpointResource,
     QueryEsMappingResource,
@@ -96,6 +97,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryLogRelationByIndexSetIdResource, endpoint="query_log_relation_by_index_set_id"),
         ResourceRoute("GET", QueryMetricDimensionsResource, endpoint="query_metric_dimensions"),
         ResourceRoute("POST", QueryDiscoverRulesResource, endpoint="query_discover_rules"),
+        ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
     ]
 
 

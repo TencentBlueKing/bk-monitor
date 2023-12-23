@@ -38,6 +38,7 @@ from apm.models import (
     LicenseConfig,
     NormalTypeValueConfig,
     ProbeConfig,
+    ProfileDataSource,
     QpsConfig,
     RemoteServiceRelation,
     RootEndpoint,
@@ -50,6 +51,7 @@ from apm.models import (
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
 from bkm_space.utils import space_uid_to_bk_biz_id
+from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import TraceListQueryMode
 from core.drf_resource import Resource, api
@@ -373,14 +375,12 @@ class ReleaseAppConfigResource(Resource):
         refresh_apm_application_config.delay(bk_biz_id, app_name)
 
     def set_custom_service_config(self, bk_biz_id, app_name, custom_services):
-
         CustomServiceConfig.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, config_level=ApdexConfig.APP_LEVEL, config_key=app_name
         ).delete()
         CustomServiceConfig.refresh_config(bk_biz_id, app_name, ApdexConfig.APP_LEVEL, app_name, custom_services)
 
     def set_config(self, bk_biz_id, app_name, config_key, config_level, config):
-
         if config_level == AppConfigBase.APP_LEVEL:
             # 如果是app级别配置 -> 保存实例名配置&维度配置&采样配置
             instance_name_config = config.get("instance_name_config", [])
@@ -566,7 +566,6 @@ class QueryTopoNodeResource(Resource):
     many_response_data = True
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         if data.get("topo_key"):
@@ -591,7 +590,6 @@ class QueryTopoRelationResource(Resource):
     many_response_data = True
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         if data.get("from_topo_key"):
@@ -603,7 +601,6 @@ class QueryTopoRelationResource(Resource):
 
 
 class QueryTopoInstanceResource(PageListResource):
-
     UNIQUE_UPDATED_AT = "updated_at"
 
     class RequestSerializer(serializers.Serializer):
@@ -651,7 +648,6 @@ class QueryTopoInstanceResource(PageListResource):
         return queryset
 
     def pre_process(self, filter_params, validated_request_data):
-
         # 去除 updated_at 过滤条件
         filter_flag = {}
         for k in list(filter_params.keys()):
@@ -686,7 +682,6 @@ class QueryTopoInstanceResource(PageListResource):
         return merge_data
 
     def perform_request(self, validated_request_data):
-
         filter_params = DiscoverHandler.get_retention_utc_filter_params(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
@@ -732,7 +727,6 @@ class QueryRootEndpointResource(Resource):
     many_response_data = True
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         return RootEndpoint.objects.filter(**filter_params)
@@ -780,7 +774,6 @@ class QueryEndpointResource(Resource):
         bk_instance_id = serializers.CharField(required=False, label="实例id", allow_blank=True, default="")
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         endpoints = Endpoint.objects.filter(**filter_params).order_by("-updated_at")
@@ -863,7 +856,6 @@ class QueryTraceListResource(Resource):
     RequestSerializer = QuerySerializer
 
     def perform_request(self, validated_data):
-
         if validated_data["query_mode"] == TraceListQueryMode.PRE_CALCULATION:
             qm = QueryMode.TRACE
         else:
@@ -1157,7 +1149,6 @@ class QueryTraceByHostInstanceResource(Resource):
         limit = serializers.IntegerField(default=10)
 
     def perform_request(self, data):
-
         host_instance = DiscoverHandler.get_host_instance(data["bk_biz_id"], data["ip"], data["bk_cloud_id"])
 
         if not host_instance:
@@ -1245,7 +1236,6 @@ class QueryRemoteServiceRelationResource(Resource):
             fields = ["topo_node_key", "from_endpoint_name", "category"]
 
     def perform_request(self, data):
-
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
         q = Q(topo_node_key=data["topo_node_key"])
@@ -1363,7 +1353,6 @@ class DeleteApplicationResource(Resource):
 
 
 class QuerySpanStatisticsListResource(Resource):
-
     RequestSerializer = QuerySerializer
 
     def perform_request(self, validated_data):
@@ -1379,7 +1368,6 @@ class QuerySpanStatisticsListResource(Resource):
 
 
 class QueryServiceStatisticsListResource(Resource):
-
     RequestSerializer = QuerySerializer
 
     def perform_request(self, validated_data):
@@ -1392,3 +1380,25 @@ class QueryServiceStatisticsListResource(Resource):
             validated_data.get("filters"),
             validated_data.get("es_dsl"),
         )
+
+
+class QueryBuiltinProfileDatasourceResource(Resource):
+    """Query builtin profile datasource"""
+
+    class ProfileDataSourceSerializer(serializers.ModelSerializer):
+        bk_data_token = serializers.SerializerMethodField()
+
+        def get_bk_data_token(self, obj: ProfileDataSource):
+            params = {"bk_biz_id": obj.bk_biz_id, "app_name": obj.app_name, "profile_data_id": obj.bk_data_id}
+            return transform_data_id_to_v1_token(**params)
+
+        class Meta:
+            model = ProfileDataSource
+            fields = "__all__"
+
+    def perform_request(self, validated_request_data: dict):
+        builtin_source = ProfileDataSource.get_builtin_source()
+        if builtin_source is None:
+            raise ValueError(_("未找到内置数据源，请联系管理员创建"))
+
+        return self.ProfileDataSourceSerializer(builtin_source).data

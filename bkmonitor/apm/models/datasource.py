@@ -10,6 +10,16 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import math
+from typing import Optional
+
+from django.conf import settings
+from django.db import models
+from django.db.transaction import atomic
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
 
 from apm import constants
 from apm.constants import (
@@ -18,23 +28,14 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.utils.es_search import EsSearch
+from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.user import get_global_user
 from common.log import logger
 from constants.apm import OtlpKey, SpanKind
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import api, resource
-from django.conf import settings
-from django.db import models
-from django.db.transaction import atomic
-from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-from elasticsearch_dsl import Q
 from metadata import models as metadata_models
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-
-from bkmonitor.utils.db import JsonField
-from bkmonitor.utils.user import get_global_user
 
 from .doris import BkDataDorisProvider
 
@@ -888,6 +889,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
 
+    BUILTIN_APP_NAME = "builtin_profile_app"
+    _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
+
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
 
@@ -909,6 +913,25 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         obj.result_table_id = essentials["result_table_id"]
         obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
         return
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def create_builtin_source(cls):
+        builtin_biz = api.cmdb.get_blueking_biz()
+        # datasource is enough, no real app created.
+        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+
+    @classmethod
+    def get_builtin_source(cls) -> Optional['ProfileDataSource']:
+        if cls._CACHE_BUILTIN_DATASOURCE:
+            return cls._CACHE_BUILTIN_DATASOURCE
+
+        builtin_biz = api.cmdb.get_blueking_biz()
+        try:
+            return cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        except cls.DoesNotExist:
+            return None
 
 
 class DataLink(models.Model):
