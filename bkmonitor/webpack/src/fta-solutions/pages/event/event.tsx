@@ -187,8 +187,8 @@ const filterIconMap = {
   //   icon: 'icon-inform-circle'
   // },
   MY_FOLLOW: {
-    color: '#fff',
-    icon: 'icon-inform-circle'
+    color: '#FF9C01',
+    icon: 'icon-xiazai13'
   },
   MY_APPOINTEE: {
     color: '#699DF4',
