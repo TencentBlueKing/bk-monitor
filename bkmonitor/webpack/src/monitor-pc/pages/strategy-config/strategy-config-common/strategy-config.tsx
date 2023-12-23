@@ -2095,11 +2095,16 @@ class StrategyConfig extends Mixins(commonPageSizeMixin) {
       default: props => (
         <div class='col-operator'>
           <span
-            class='col-operator-btn'
+            class={['col-operator-btn', { 'col-operator-disabled': !props.row.editAllowed }]}
             v-authority={{ active: !this.authority.MANAGE_AUTH }}
+            v-bk-tooltips={{
+              placements: ['top'],
+              content: this.$t('内置策略不允许修改'),
+              disabled: props.row.editAllowed
+            }}
             onClick={() =>
               this.authority.MANAGE_AUTH
-                ? this.handleEditStrategy(props.row)
+                ? props.row.editAllowed && this.handleEditStrategy(props.row)
                 : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
             }
           >
