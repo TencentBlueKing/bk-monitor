@@ -464,7 +464,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     this.metricSelectorShow = v;
   }
   handleSelectMetric(value) {
-    const copyStr = (value.metric_id || '').replace(/\./g, ':').replace('::', ':');
+    const copyStr = value.promql_metric;
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
