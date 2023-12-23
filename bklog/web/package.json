@@ -51,7 +51,7 @@
     "vue-property-decorator": "8.3.0",
     "vue-router": "3.0.6",
     "vue-text-highlight": "^2.0.10",
-    "vuedraggable": "2.23.2",
+    "vuedraggable": "2.24.3",
     "vuex": "3.1.1",
     "vuex-module-decorators": "^2.0.0"
   },
@@ -71,8 +71,9 @@
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "eslint-plugin-vue": "^9.17.0",
     "vue-eslint-parser": "^7.10.0",
-    "husky": "^4.3.8",
-    "lint-staged": "^11.0.0",
+    "lint-staged": "^15.2.0",
+    "picocolors": "^1.0.0",
+    "simple-git-hooks": "^2.7.0",
     "nodemon": "^2.0.9",
     "vue-tsx-support": "^3.1.0"
   },
@@ -87,15 +88,13 @@
     "node": ">= 12.10.0",
     "npm": ">= 6.5.0"
   },
-  "husky": {
-    "hooks": {
-      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "lint-staged"
-    }
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged --concurrent false",
+    "commit-msg": "node ./bklog/web/webpack/verify-commit.js $1"
   },
   "lint-staged": {
-    "src/**/*.{js,ts,tsx,vue}": [
-      "eslint --fix"
+    "src/**/*.(vue|js|ts|tsx)": [
+      "eslint --ext .js,.tsx,.ts,.vue --cache --fix"
     ],
     "src/**/*.(vue|scss|css|sass)": [
       "stylelint --fix"

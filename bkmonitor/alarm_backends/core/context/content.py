@@ -283,7 +283,9 @@ class DefaultContent(BaseContextObject):
                     f"[{value}({item['count']})]({item['link']})" if item["count"] > 1 else f"[{value}]({item['link']})"
                 )
             else:
-                targets.append(f"{value}({item['count']})" if item['count'] > 1 else value)
+                # 需要保证targets里都是字符串
+                targets.append(f"{value}({item['count']})" if item['count'] > 1 else str(value))
+
         return ", ".join(targets) if targets else None
 
     @cached_property

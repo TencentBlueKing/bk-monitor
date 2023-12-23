@@ -101,7 +101,6 @@ from apm_web.service.serializers import (
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import group_by, span_time_strft
 from bkmonitor.iam import ActionEnum
-from bkmonitor.models import UserGroup
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -127,7 +126,7 @@ from monitor_web.scene_view.table_format import (
     StatusTableFormat,
     StringTableFormat,
 )
-from monitor_web.strategies.user_groups import create_default_notice_group
+from monitor_web.strategies.user_groups import get_or_create_ops_notice_group
 
 
 class CreateApplicationResource(Resource):
@@ -1421,10 +1420,8 @@ class NoDataStrategyInfoResource(Resource):
         if app.create_user:
             notice_receiver.append({"type": "user", "id": app.create_user})
 
-        # 创建默认用户组
-        create_default_notice_group(bk_biz_id)
         # 默认用户组设置为运维组
-        strategy_config.config_value["notice_group_id"] = UserGroup.objects.get(bk_biz_id=bk_biz_id, name=_("运维")).id
+        strategy_config.config_value["notice_group_id"] = get_or_create_ops_notice_group(bk_biz_id)
         strategy_config.save()
         return strategy_config.config_value["notice_group_id"]
 
