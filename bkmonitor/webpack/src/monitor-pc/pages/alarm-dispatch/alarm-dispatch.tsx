@@ -228,7 +228,8 @@ export default class AlarmDispatch extends tsc<{}> {
             name: item.name,
             priority: item.priority,
             isExpan: true,
-            ruleData: []
+            ruleData: [],
+            editAllowed: !!item?.edit_allowed
           })
       ) || [];
     this.loading = false;
@@ -611,8 +612,13 @@ export default class AlarmDispatch extends tsc<{}> {
                     {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
                     {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
                     <div
-                      class='edit-btn-wrap'
-                      onClick={() => this.handleToConfig(item.id)}
+                      class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
+                      v-bk-tooltips={{
+                        placements: ['top'],
+                        content: this.$t('内置的分派规则组不允许修改'),
+                        disabled: item.editAllowed
+                      }}
+                      onClick={() => item.editAllowed && this.handleToConfig(item.id)}
                     >
                       <span class='icon-monitor icon-bianji'></span>
                       <span>{this.$t('配置规则')}</span>

@@ -117,9 +117,22 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       { name: this.$t('route-数据采集'), id: 'collect-config' },
       { name: this.$t('route-采集详情'), id: 'collect-config-detail' }
     ]);
+    const tab = String(this.$route.query?.tab || '') as TabEnum;
+    if (
+      !!tab &&
+      [
+        TabEnum.Configuration,
+        TabEnum.DataLink,
+        TabEnum.FieldDetails,
+        TabEnum.StorageState,
+        TabEnum.TargetDetail
+      ].includes(tab)
+    ) {
+      this.handleTabChange(tab, true);
+    }
   }
 
-  handleTabChange(v: TabEnum) {
+  handleTabChange(v: TabEnum, init = false) {
     this.active = v;
     if (this.active === TabEnum.TargetDetail) {
       this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount);
@@ -129,6 +142,13 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       this.allData[TabEnum.StorageState].topicKey = random(8);
     } else if (this.active === TabEnum.DataLink) {
       this.allData[TabEnum.DataLink].topicKey = random(8);
+    }
+    if (!init) {
+      Object.keys(this.$route.query)?.length &&
+        this.$router.replace({
+          name: this.$route.name,
+          query: {}
+        });
     }
   }
 
@@ -277,7 +297,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       >
         <MonitorTab
           active={this.active}
-          on-tab-change={this.handleTabChange}
+          on-tab-change={v => this.handleTabChange(v)}
         >
           <TabPanel
             label={this.$t('配置信息')}

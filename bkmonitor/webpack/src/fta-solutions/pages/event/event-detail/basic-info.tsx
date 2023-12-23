@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { bkTag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
 
+import { TabEnum as CollectorTabEnum } from '../../../../monitor-pc/pages/collector-config/collector-detail/typings/detail';
 import { toPerformanceDetail } from '../../../common/go-link';
 
 import { IDetail } from './type';
@@ -78,6 +79,11 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
 
   get filterDimensions() {
     return this.basicInfo.dimensions?.filter(item => !(this.cloudIdMap.includes(item.key) && item.value === 0));
+  }
+
+  /* bk_collect_config_id */
+  get bkCollectConfigId() {
+    return this.basicInfo.dimensions?.find(item => item.key === 'bk_collect_config_id')?.value;
   }
 
   @Emit('strategy-detail')
@@ -160,13 +166,22 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         ])
       : '--';
   }
+
+  handleToCollectDetail() {
+    window.open(
+      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}#/collect-config/detail/${this.bkCollectConfigId}?tab=${CollectorTabEnum.TargetDetail}`
+    );
+  }
   /* 关注人 */
   getFollowerInfo() {
     return (
       <span class='follower-info'>
         <span>{this.basicInfo?.follower?.join(',') || '--'}</span>
-        {!!this.basicInfo?.follower?.length && (
-          <span class='fenxiang-btn'>
+        {!!this.basicInfo?.follower?.length && !!this.bkCollectConfigId && (
+          <span
+            class='fenxiang-btn'
+            onClick={this.handleToCollectDetail}
+          >
             <span>{this.$t('变更')}</span>
             <span class='icon-monitor icon-fenxiang'></span>
           </span>
