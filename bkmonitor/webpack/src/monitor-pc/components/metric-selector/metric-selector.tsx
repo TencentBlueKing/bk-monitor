@@ -78,6 +78,8 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Array, default: () => [] }) scenarioList: any;
   /* 自定义参数 */
   @Prop({ type: Boolean, default: false }) isPromql: boolean;
+  /* 默认选择的监控对象 */
+  @Prop({ type: String, default: '' }) defaultScenario: string;
   @Ref() metricScrollWrap: HTMLElement;
 
   loading = false;
@@ -252,7 +254,13 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
   }
 
   initData() {
-    this.checkededValue = {};
+    if (!!this.defaultScenario) {
+      this.checkededValue = {
+        result_table_label: [this.defaultScenario]
+      };
+    } else {
+      this.checkededValue = {};
+    }
     this.metricList = [];
     if (!this.isRefreshSuccess) {
       this.search = '';

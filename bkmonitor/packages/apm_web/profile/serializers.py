@@ -27,7 +27,6 @@ class ProfileQuerySerializer(serializers.Serializer):
 
 class ProfileUploadSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
-    application_id = serializers.IntegerField(label="应用ID")
     file_type = serializers.ChoiceField(choices=["perf_script", "pprof"])
 
 

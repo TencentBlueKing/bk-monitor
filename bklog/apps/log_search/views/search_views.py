@@ -1061,6 +1061,7 @@ class SearchViewSet(APIViewSet):
         @apiParam {Array[Json]} union_configs 联合检索索引集配置
         @apiParam {Int} union_configs.index_set_id 索引集ID
         @apiParam {Int} union_configs.begin 索引对应的滚动条数
+        @apiParam {Bool} union_configs.is_desensitize 是否脱敏 默认为True（只针对白名单SaaS开放此参数）
         @apiParamExample {Json} 请求参数
         {
             "start_time": "2019-06-11 00:00:00",
@@ -1165,6 +1166,11 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchAttrSerializer)
+        auth_info = Permission.get_auth_info(self.request, raise_exception=False)
+        is_verify = False if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST else True
+        for info in data.get("union_configs", []):
+            if not info.get("is_desensitize") and not is_verify:
+                info["is_desensitize"] = True
         return Response(UnionSearchHandler(data).union_search())
 
     @list_route(methods=["POST"], url_path="union_search/fields")

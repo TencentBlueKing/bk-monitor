@@ -85,6 +85,8 @@ class IntroduceStore {
   initIntroduce(to: RouteConfig) {
     const toNavId = to.meta.navId;
     Object.keys(this.data).forEach((tag: IntroduceRouteKey) => {
+      // 如果已有数据，直接返回
+      if (this.data[tag].introduce) return;
       if (!this.data[tag].loading) {
         requestIdleCallback(() => {
           if (toNavId === tag) {

@@ -67,6 +67,10 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.CharField(label=_("计算平台 MYSQL 存储集群名称"), default="default", allow_blank=True),
         ),
         (
+            "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
+            slz.CharField(label=_("计算平台 SQL 类存储集群类型"), default="mysql_storage", allow_blank=True),
+        ),
+        (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
             slz.CharField(label=_("计算平台 HDFS 存储集群名称"), default="hdfs-default", allow_blank=True),
         ),

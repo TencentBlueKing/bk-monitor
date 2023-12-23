@@ -51,23 +51,18 @@
     ]
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.20.0",
-    "@typescript-eslint/parser": "^5.20.0",
-    "babel-plugin-import": "^1.13.5",
-    "babel-plugin-import-bkui-vue": "^0.0.9-beta.0",
-    "eslint": "^8.47.0",
+    "eslint": "^8.56.0",
     "lint-staged": "^15.2.0",
     "nodemon": "^3.0.2",
     "npm-run-all": "^4.1.5",
     "picocolors": "^1.0.0",
     "portfinder": "^1.0.28",
-    "prettier": "^3.1.0",
+    "prettier": "^3.1.1",
     "simple-git-hooks": "^2.7.0",
-    "stylelint": "^15.10.3"
+    "stylelint": "^16.0.2"
   },
   "dependencies": {
-    "@blueking/bkmonitor-cli": "2.0.0-beta.6",
-    "core-js": "^3.34.0",
+    "@blueking/bkmonitor-cli": "2.0.0-beta.14",
     "cross-env": "^7.0.3"
   },
   "nodemonConfig": {
@@ -83,7 +78,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@blueking/date-picker": "^0.0.71",
+      "@blueking/date-picker": "^0.0.72",
       "@blueking/stylelint-config": "0.0.3",
       "@blueking/user-selector>vue": "2.7.14",
       "@typescript-eslint/eslint-plugin": "^5.20.0",
