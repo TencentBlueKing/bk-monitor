@@ -127,7 +127,10 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.cmdb.service_template", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.cmdb.set_template", "*/10 * * * *", "global"),
     # model cache
-    ("alarm_backends.core.cache.strategy", "* * * * *", "global"),
+    # 策略全量更新频率降低
+    ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
+    # 策略增量更新
+    ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
     ("alarm_backends.core.cache.shield", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
