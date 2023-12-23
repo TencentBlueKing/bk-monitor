@@ -363,7 +363,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
 
   /* 复制指标名 */
   handleCopyMetricMame(metric: MetricDetail) {
-    const copyStr = (metric.metric_id || '').replace(/\./g, ':').replace('::', ':');
+    const copyStr = metric.promql_metric;
     let hasErr = false;
     copyText(copyStr, errMsg => {
       this.$bkMessage({
