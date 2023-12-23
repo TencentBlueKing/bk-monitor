@@ -77,7 +77,6 @@ export const setGlobalBizId = () => {
     }
     return false;
   };
-  debugger;
   if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
     if (hasAuth(localBizId)) {
       window.bk_biz_id = +localBizId;
