@@ -86,6 +86,7 @@ export const setGlobalBizId = () => {
     const { searchParams } = url;
     searchParams.set('bizId', window.bk_biz_id.toString());
     url.search = searchParams.toString();
+    url.hash = '#/';
     history.replaceState({}, '', url.toString());
     bizId = window.bk_biz_id;
   }
