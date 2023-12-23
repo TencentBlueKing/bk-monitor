@@ -121,7 +121,9 @@ if (window.__BK_WEWEB_APP_KEY__) {
             window[key.toLocaleLowerCase()] = data[key];
           });
         });
-      serviceWorker.register();
     })
-    .catch(e => console.error(e));
+    .catch(e => console.error(e))
+    .finally(() => {
+      serviceWorker.immediateRegister();
+    });
 }

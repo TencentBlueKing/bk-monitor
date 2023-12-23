@@ -141,8 +141,10 @@ if (hasRouteHash) {
               collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE
             });
           });
-        serviceWorker.register();
       })
-      .catch(e => console.error(e));
+      .catch(e => console.error(e))
+      .finally(() => {
+        serviceWorker.immediateRegister();
+      });
   }
 }
