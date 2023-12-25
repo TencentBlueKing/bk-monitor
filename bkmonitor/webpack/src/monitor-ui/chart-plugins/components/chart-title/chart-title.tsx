@@ -124,7 +124,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     let content = '';
     switch (status) {
       case 1:
-        content = window.i18n.t('已设置 {0} 个告警', [strategy_number]).toString();
+        content = window.i18n.t('已设置 {0} 个策略', [strategy_number]).toString();
         break;
       case 2:
         content = window.i18n.t('告警中，告警数量：{0}', [alert_number]).toString();
