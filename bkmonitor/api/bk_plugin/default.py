@@ -131,7 +131,7 @@ class BkPluginScheduleResource(BkPluginBaseResource):
 
 
 class BkPluginSystemResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "{}/prod".format(settings.APIGW_BASE_URL.format("paasv3").rstrip("/"))  # paasv3网关地址
+    base_url = settings.PAASV3_APIGW_BASE_URL or "%s/api/c/compapi/v2/bk_paas/" % settings.BK_COMPONENT_API_URL
     module_name = "bk_plugin_system"
     IS_STANDARD_FORMAT = False
 
