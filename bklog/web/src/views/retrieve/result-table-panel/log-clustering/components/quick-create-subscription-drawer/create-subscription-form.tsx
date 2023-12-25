@@ -266,6 +266,24 @@ class QuickCreateSubscription extends tsc<IProps> {
 
   isGenerateAttach = 1;
 
+  errorTips = {
+    user: {
+      message: '',
+      defaultMessage: window.mainComponent.$t('内部邮件不可为空'),
+      isShow: false
+    },
+    email: {
+      message: '',
+      defaultMessage: window.mainComponent.$t('外部邮件不可为空'),
+      isShow: false
+    },
+    wxbot: {
+      message: '',
+      defaultMessage: window.mainComponent.$t('企业微信群不可为空'),
+      isShow: false
+    }
+  }
+
 
   formDataRules() {
     return {
@@ -294,6 +312,18 @@ class QuickCreateSubscription extends tsc<IProps> {
             const enabledList = this.formData.channels.filter(item => item.is_enabled);
             console.log('enabledList', enabledList);
 
+            if (enabledList.length === 0) {
+              // 提醒用户，三个输入框都没有选中，必须选中一个。
+              Object.keys(this.errorTips).forEach(key => {
+                this.errorTips[key].message = '请至少选择一种订阅方式';
+                this.errorTips[key].isShow = true;
+              });
+              return false;
+            }
+            Object.keys(this.errorTips).forEach(key => {
+              this.errorTips[key].isShow = false;
+            });
+
             if (enabledList.length === 0) return false;
             const subscriberList = enabledList.filter(item => item.subscribers.length);
             console.log('subscriberList', subscriberList);
@@ -314,7 +344,7 @@ class QuickCreateSubscription extends tsc<IProps> {
             if (subscriberList.length === 0) return false;
             return true;
           },
-          message: window.mainComponent.$t('订阅人不能为空'),
+          message: ' ',
           trigger: 'blur',
         },
       ],
@@ -1146,11 +1176,16 @@ class QuickCreateSubscription extends tsc<IProps> {
                           scopedSlots={{
                             default: ({ row }) => {
                               return (
-                                <div>
-                                  {row.name}
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}>
+                                  <span style={{
+                                    width: 'calc(100% - 20px)'
+                                  }}>{row.name}</span>
                                   <i
-                                    class='log-icon icon-copy'
-                                    style={{ fontSize: '16px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
+                                    class='log-icon icon-wholesale-editor'
+                                    style={{ fontSize: '12px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}
                                     onClick={() => {
                                       this.handleCopy(row.name);
                                     }}
@@ -1209,7 +1244,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   </bk-radio-group>
                   {this.formData.subscriber_type === 'others' && <span style={{ marginLeft: '10px' }}>
                     <i
-                      class='icon-monitor log-icon icon-info-fill'
+                      class='log-icon icon-info-fill'
                       style={{ marginRight: '10px', color: '#EA3636', fontSize: '14px' }}
                     ></i>
                     <span style={{
@@ -1242,7 +1277,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       placeholder={this.$t('选择通知对象')}
                       empty-text={this.$t('无匹配人员')}
                       tag-type='avatar'
-                      style={{ width: '465px' }}
+                      style={{ width: '465px', display: 'block' }}
                       on-change={v => {
                         console.log('on-change', v);
                         const userChannel = this.formData.channels.find(item => item.channel_name === 'user');
@@ -1253,6 +1288,9 @@ class QuickCreateSubscription extends tsc<IProps> {
                             is_enabled: true
                           }
                         });
+                        this.$nextTick(() => {
+                          this.formDataRules().channels[0].validator();
+                        });
                       }}
                       on-remove-selected={v => {
                         console.log('on-remove-selected', v);
@@ -1262,6 +1300,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       }}
                     >
                     </bk-user-selector>
+                    {this.errorTips.user.isShow && <div class='form-error-tip'>{this.errorTips.user.message}</div>}
                   </div>
 
                   <div style={{ marginTop: '10px' }}>
@@ -1299,6 +1338,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       <div class='group-text'>{this.$t('提示文案')}</div>
                     </template>
                   </bk-input>
+                  {this.errorTips.email.isShow && <div class='form-error-tip'>{this.errorTips.email.message}</div>}
 
                   <div style={{ marginTop: '10px' }}>
                     <bk-checkbox
@@ -1332,6 +1372,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                       {this.$t('3.将获取到的会话ID粘贴到输入框,使用逗号分隔')}
                     </div>
                   </bk-popover>
+                  {this.errorTips.wxbot.isShow && <div class='form-error-tip'>{this.errorTips.wxbot.message}</div>}
                 </div>
               )}
             </bk-form-item>
