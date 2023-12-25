@@ -84,7 +84,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
 
   /* bk_collect_config_id */
   get bkCollectConfigId() {
-    return this.basicInfo.dimensions?.find(item => item.key === 'bk_collect_config_id')?.value;
+    const labels = this.basicInfo?.extra_info?.strategy?.labels || [];
+    const need = labels.some(item => ['集成内置', 'Datalink BuiltIn'].includes(item));
+    return need ? this.basicInfo.dimensions?.find(item => item.key === 'bk_collect_config_id')?.value : '';
   }
 
   get followerDisabled() {
