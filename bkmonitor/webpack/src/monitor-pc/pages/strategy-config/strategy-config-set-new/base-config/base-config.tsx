@@ -278,6 +278,8 @@ export default class BaseInfo extends tsc<IBaseConfigProps> {
               ref='strategyPriority'
               v-model={this.baseConfig.priority}
               type='number'
+              max={10000}
+              min={0}
               maxlength={5}
               minlength={1}
               readonly={this.readonly}

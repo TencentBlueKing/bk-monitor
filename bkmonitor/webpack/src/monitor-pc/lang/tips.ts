@@ -188,5 +188,6 @@ export default {
     'The larger the value, the higher the priority. When an abnormality is detected in the same piece of data, the strategy with the higher priority will be used.',
   主机当前状态: 'Host current status',
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
-    'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail'
+    'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
+  'tips-采集状态': 'Collection Status'
 };

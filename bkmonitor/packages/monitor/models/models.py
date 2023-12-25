@@ -15,21 +15,21 @@ import subprocess
 import traceback
 from functools import reduce
 
-from common.log import logger
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from monitor.constants import UPTIME_CHECK_DB, UptimeCheckProtocol
-from monitor_web.models import OperateRecordModelBase
-from monitor_web.tasks import append_metric_list_cache, update_task_running_status
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField
+from common.log import logger
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.uptime_check import DeprecatedFunctionError
+from monitor.constants import UPTIME_CHECK_DB, UptimeCheckProtocol
+from monitor_web.models import OperateRecordModelBase
+from monitor_web.tasks import append_metric_list_cache, update_task_running_status
 
 
 class OperateRecordModel(OperateRecordModelBase):
@@ -95,8 +95,8 @@ NODE_IP_TYPE_DICT = {status: desc for (status, desc) in NODE_IP_TYPE_CHOICES}
 
 
 class UptimeCheckNode(OperateRecordModel):
-    bk_biz_id = models.IntegerField("业务ID", default=0)
-    is_common = models.BooleanField("是否为通用节点", default=False)
+    bk_biz_id = models.IntegerField("业务ID", default=0, db_index=True)
+    is_common = models.BooleanField("是否为通用节点", default=False, db_index=True)
     biz_scope = JsonField("指定业务可见范围", default=[])
     ip_type = models.IntegerField("IP类型", default=4, choices=NODE_IP_TYPE_CHOICES)
     name = models.CharField("节点名称", max_length=50)
@@ -226,6 +226,10 @@ class UptimeCheckNode(OperateRecordModel):
         verbose_name = _("拨测节点")
         verbose_name_plural = _("拨测节点")
 
+        index_together = [
+            ["name", "bk_biz_id"],
+        ]
+
     def get_title(self):
         return _("拨测节点（%s）") % self.name
 
@@ -277,8 +281,8 @@ class UptimeCheckTask(OperateRecordModel):
     )
     permission_exempt = True
 
-    bk_biz_id = models.IntegerField("业务ID")
-    name = models.CharField("任务名称", max_length=50)
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
+    name = models.CharField("任务名称", max_length=50, db_index=True)
     protocol = models.CharField("协议", choices=PROTOCOL_CHOICES, max_length=10)
     check_interval = models.PositiveIntegerField("拨测周期(分钟)", default=5)
     # 地点变为可选项

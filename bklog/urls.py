@@ -40,6 +40,7 @@ from version_log import config
 urlpatterns = [
     url(r"^bklog_manage/", admin.site.urls),
     url(r"^account/", include("blueapps.account.urls")),
+    url(r"^console/", include("console.urls")),
     # 通用
     url(r"^api/v1/", include("apps.log_commons.urls")),
     # 接口
@@ -64,6 +65,7 @@ urlpatterns = [
     url(r"^api/v1/log_extract/", include("apps.log_extract.urls")),
     url(r"^api/v1/", include("apps.log_measure.urls")),
     url(r"^api/v1/ipchooser/", include("bkm_ipchooser.urls")),
+    url(r"^api/v1/search_module/", include("bkm_search_module.urls")),
 ]
 
 if settings.IS_K8S_DEPLOY_MODE:

@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@blueking/bk-weweb": "0.0.25.beta.1",
-    "@blueking/date-picker": "^0.0.71",
+    "@blueking/date-picker": "^0.0.72",
     "@blueking/ip-selector": "0.0.1-beta.134",
     "@blueking/paas-login": "0.0.6",
     "@blueking/user-selector": "^1.0.5-beta.2",
@@ -27,6 +27,7 @@
     "minimist": "^1.2.6",
     "resize-detector": "^0.3.0",
     "sortablejs": "^1.15.0",
+    "throttle-debounce": "^3.0.1",
     "vue": "2.7.14",
     "vue-class-component": "^7.2.6",
     "vue-i18n": "^8.15.0",

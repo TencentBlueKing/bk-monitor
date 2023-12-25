@@ -1224,10 +1224,10 @@ class SpaceApi(AbstractSpaceApi):
         if space_uid:
             space_type, space_id = cls.parse_space_uid(space_uid)
             return SpaceDefine.from_dict(
-                TransferApi.get_space_detail({"space_type_id": space_type, "space_id": space_id})
+                TransferApi.get_space_detail({"space_type_id": space_type, "space_id": space_id, "no_request": True})
             )
         if id:
-            return SpaceDefine.from_dict(TransferApi.get_space_detail({"id": id}))
+            return SpaceDefine.from_dict(TransferApi.get_space_detail({"id": id, "no_request": True}))
 
     @classmethod
     def list_spaces(cls) -> List[SpaceDefine]:

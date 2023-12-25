@@ -94,6 +94,7 @@ from apps.log_search.models import (
     LogIndexSet,
     LogIndexSetData,
     Scenario,
+    Space,
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
@@ -445,11 +446,18 @@ class SearchHandler(object):
         """
         if not self._enable_bcs_manage():
             return False, {"reason": _("未配置BCS WEB CONSOLE")}
-        if ("cluster" in field_result_list and "container_id" in field_result_list) or (
-            "__ext.container_id" in field_result_list and "__ext.io_tencent_bcs_cluster" in field_result_list
-        ):
-            return True
-        reason = _("cluster, container_id 或 __ext.container_id, __ext.io_tencent_bcs_cluster 不能同时为空")
+
+        container_fields = (
+            ("cluster", "container_id"),
+            ("__ext.io_tencent_bcs_cluster", "__ext.container_id"),
+            ("__ext.bk_bcs_cluster_id", "__ext.container_id"),
+        )
+
+        for cluster_field, container_id_field in container_fields:
+            if cluster_field in field_result_list and container_id_field in field_result_list:
+                return True
+
+        reason = _("{} 不能同时为空").format(container_fields)
         return False, {"reason": reason + self._get_message_by_scenario()}
 
     @fields_config("trace")
@@ -943,11 +951,16 @@ class SearchHandler(object):
         @return:
         """
         bcs_cluster_info = BcsCcApi.get_cluster_by_cluster_id({"cluster_id": cluster_id.upper()})
-        project_id = bcs_cluster_info["project_id"]
+        space = Space.objects.filter(space_code=bcs_cluster_info["project_id"]).first()
+        project_code = ""
+        if space:
+            project_code = space.space_id
         url = (
-            settings.BCS_WEB_CONSOLE_DOMAIN + "backend/web_console/projects/{project_id}/clusters/{cluster_id}/"
-            "?container_id={container_id} ".format(
-                project_id=project_id, cluster_id=cluster_id.upper(), container_id=container_id
+            settings.BCS_WEB_CONSOLE_DOMAIN
+            + "/bcsapi/v4/webconsole/projects/{project_code}/clusters/{cluster_id}/?container_id={container_id}".format(
+                project_code=project_code,
+                cluster_id=cluster_id.upper(),
+                container_id=container_id,
             )
         )
         return url
@@ -1961,6 +1974,7 @@ class UnionSearchHandler(object):
             self.index_set_ids = list(set(search_dict["index_set_ids"]))
         else:
             self.index_set_ids = list({info["index_set_id"] for info in self.union_configs})
+        self.desensitize_mapping = {info["index_set_id"]: info["is_desensitize"] for info in self.union_configs}
 
     def _init_sort_list(self, index_set_id):
         sort_list = self.search_dict.get("sort_list", [])
@@ -2008,6 +2022,7 @@ class UnionSearchHandler(object):
                 search_dict = copy.deepcopy(params)
                 search_dict["begin"] = self.search_dict.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=index_set_id)
+                search_dict["is_desensitize"] = self.desensitize_mapping.get(index_set_id, True)
                 search_handler = SearchHandler(
                     index_set_id=index_set_id,
                     search_dict=search_dict,
@@ -2019,6 +2034,7 @@ class UnionSearchHandler(object):
                 search_dict = copy.deepcopy(params)
                 search_dict["begin"] = union_config.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=union_config["index_set_id"])
+                search_dict["is_desensitize"] = union_config.get("is_desensitize", True)
                 search_handler = SearchHandler(index_set_id=union_config["index_set_id"], search_dict=search_dict)
                 multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
 

@@ -479,7 +479,6 @@ class TestDataSource(object):
 
         # 验证结果表路由写入consul能力
         if not IS_CONSUL_MOCK:
-
             # 配置刷入至consul中
             for result_table in models.InfluxDBStorage.objects.all():
                 result_table.refresh_consul_cluster_config()
@@ -886,7 +885,7 @@ class TestDataSource(object):
         os.environ["BK_MONITOR_INFLUXDB_PORT"] = "5290"
         for index in range(2):
             host_name = "BK_INFLUXDB_BKMONITORV3_IP%s" % index
-            os.environ[host_name] = "10.0.0.%s" % index
+            os.environ[host_name] = "127.0.0.%s" % index
 
         os.environ["BK_INFLUXDB_PROXY_HOST"] = "test.influxdb.name"
         os.environ["BK_INFLUXDB_PROXY_PORT"] = "10203"
@@ -907,9 +906,9 @@ class TestDataSource(object):
         assert models.InfluxDBClusterInfo.objects.filter(cluster_name="default").count() == 2
         assert models.InfluxDBHostInfo.objects.all().count() == 2
         ip0 = models.InfluxDBHostInfo.objects.get(host_name="INFLUXDB_IP0")
-        assert ip0.domain_name == "10.0.0.0"
+        assert ip0.domain_name == "127.0.0.0"
         ip1 = models.InfluxDBHostInfo.objects.get(host_name="INFLUXDB_IP1")
-        assert ip1.domain_name == "10.0.0.1"
+        assert ip1.domain_name == "127.0.0.1"
 
         # 判断cluster集群都存在
         assert (
@@ -1172,7 +1171,7 @@ class TestDataSource(object):
                                 "_score": None,
                                 "_source": {
                                     "event_name": "login",
-                                    "bk_target": "1:10.0.0.1",
+                                    "bk_target": "1:127.0.0.1",
                                     "event": {"event_content": "user login success", "_bk_count": 30},
                                     "dimensions": {
                                         "module": "db",
@@ -1247,7 +1246,6 @@ class TestDataSource(object):
         assert new_group.table_id == "bkmonitor_event_{}".format(new_group.bk_data_id)
 
     def test_time_series(self, mocker, mock_outer_ralay, patch_redis_tools, create_and_delete_record):
-
         # 1. 准备工作
 
         new_data_source = models.DataSource.create_data_source(

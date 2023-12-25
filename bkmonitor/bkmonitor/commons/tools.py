@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import math
 from typing import List, Tuple
 
 from django.conf import settings
@@ -62,7 +63,7 @@ def batch_request(
     # 根据请求总数并发请求
     pool = ThreadPool(thread_num)
     futures = []
-    while start <= (count if app in use_offset_app_list else count // limit + 1):
+    while start <= (count if app in use_offset_app_list else math.ceil(count / limit)):
         refresh_params[app](params, start, limit)
         futures.append(pool.apply_async(func, kwds=params.copy()))
         start += limit if app in use_offset_app_list else 1
@@ -88,7 +89,7 @@ def is_ipv6_biz(bk_biz_id) -> bool:
     """
     判断业务是否支持ipv6
     """
-    return str(bk_biz_id) in [str(biz) for biz in settings.IPV6_SUPPORT_BIZ_LIST]
+    return str(bk_biz_id) in {str(biz) for biz in settings.IPV6_SUPPORT_BIZ_LIST}
 
 
 def get_host_view_display_fields(bk_biz_id: int) -> Tuple[str, str]:

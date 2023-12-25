@@ -46,6 +46,11 @@ export default class TraceRetrieval extends tsc<{}> {
       baseroute: '/trace/'
     });
   }
+  mounted() {
+    setTimeout(() => {
+      this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
+    }, 300);
+  }
   beforeRouteLeave(to, from, next) {
     (document.body as any).___zrEVENTSAVED = null;
     next();

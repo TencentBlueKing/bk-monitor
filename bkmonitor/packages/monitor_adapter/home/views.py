@@ -13,10 +13,12 @@ import json
 from urllib import parse
 from urllib.parse import urlsplit
 
+from blueapps.account import ConfFixture
 from blueapps.account.decorators import login_exempt
-from common.log import logger
+from blueapps.account.handlers.response import ResponseHandler
 from django.conf import settings
 from django.contrib import auth
+from django.contrib.auth import logout
 from django.http import HttpResponseForbidden, HttpResponseNotFound, JsonResponse
 from django.shortcuts import redirect, render
 from django.test import RequestFactory
@@ -26,67 +28,33 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from fta_web.tasks import run_init_builtin_action_config
-from monitor.models import GlobalConfig
-from monitor_web.iam.resources import CallbackResource
-from monitor_web.strategies.built_in import run_build_in
 
 from bkm_space.api import SpaceApi
-from bkmonitor.models import ActionConfig
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
-from core.drf_resource import resource
+from common.decorators import timezone_exempt, track_site_visit
+from common.log import logger
 from core.errors.api import BKAPIError
+from monitor.models import GlobalConfig
+from monitor_web.iam.resources import CallbackResource
 
 
+def user_exit(request):
+    logout(request)
+    # 验证不通过，需要跳转至统一登录平台
+    request.path = request.path.replace("logout", "")
+    handler = ResponseHandler(ConfFixture, settings)
+    return handler.build_401_response(request)
+
+
+@login_exempt
+@timezone_exempt
+@track_site_visit
 def home(request):
     """统一入口 ."""
-    cc_biz_id = 0
-    # 新增space_uid的支持
-    if request.GET.get("space_uid", None):
-        try:
-            space = SpaceApi.get_space_detail(request.GET["space_uid"])
-            cc_biz_id = space.bk_biz_id
-        except BKAPIError as e:
-            logger.exception(f"获取空间信息({request.GET['space_uid']})失败：{e}")
-            if settings.DEMO_BIZ_ID:
-                cc_biz_id = settings.DEMO_BIZ_ID
-    else:
-        cc_biz_id = request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
-        if not cc_biz_id:
-            biz_id_list = [s["bk_biz_id"] for s in resource.commons.list_spaces()]
-            if biz_id_list:
-                cc_biz_id = biz_id_list[0]
-        else:
-            cc_biz_id = safe_int(cc_biz_id.strip("/"), dft=None)
 
-    if cc_biz_id is not None and settings.ENVIRONMENT != "development":
-        # 创建默认内置策略
-        run_build_in(int(cc_biz_id))
-
-        # 创建k8s内置策略
-        run_build_in(int(cc_biz_id), mode="k8s")
-        if (
-            settings.ENABLE_DEFAULT_STRATEGY
-            and int(cc_biz_id) > 0
-            and not ActionConfig.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists()
-        ):
-            logger.warning("home run_init_builtin_action_config")
-            # 如果当前页面没有出现内置套餐，则会进行快捷套餐的初始化
-            try:
-                run_init_builtin_action_config.delay(cc_biz_id)
-            except Exception as error:
-                # 直接忽略
-                logger.exception("run_init_builtin_action_config failed ", str(error))
-        # TODO 先关闭，后面稳定了直接打开
-        # if not AlertAssignGroup.origin_objects.filter(bk_biz_id=cc_biz_id, is_builtin=True).exists():
-        #     # 如果当前页面没有出现内置的规则组
-        #     run_init_builtin_assign_group(cc_biz_id)
-
-    request.biz_id = cc_biz_id
-    response = render(request, "monitor/index.html", {"cc_biz_id": cc_biz_id})
-    response.set_cookie("bk_biz_id", str(cc_biz_id))
+    response = render(request, "monitor/index.html", {"cc_biz_id": 0})
     return response
 
 
@@ -111,10 +79,13 @@ def path_route_proxy(request):
     return redirect(redirect_url.format(bk_biz_id=bk_biz_id, route_path=route_path))
 
 
+@timezone_exempt
 def service_worker(request):
     return render(request, "monitor/service-worker.js", content_type="application/javascript")
 
 
+@login_exempt
+@timezone_exempt
 def manifest(request):
     return render(request, "monitor/manifest.json", content_type="application/json")
 
@@ -169,11 +140,7 @@ def external(request):
     response = render(
         request,
         "external/index.html",
-        {
-            "cc_biz_id": cc_biz_id,
-            "SPACE_LIST": [s for s in SpaceApi.list_spaces() if s.bk_biz_id in biz_id_list],
-            "external_user": external_user,
-        },
+        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": biz_id_list},
     )
     response.set_cookie("bk_biz_id", str(cc_biz_id))
     return response
@@ -220,6 +187,17 @@ def dispatch_external_proxy(request):
 
         # transfer request.user 进行外部权限替换
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+
+        # 如果参数不带 bk_biz_id，尝试从有权限的业务列表里选一个
+        if not bk_biz_id:
+            biz_id_list = (
+                ExternalPermission.objects.filter(authorized_user=external_user, expire_time__gt=timezone.now())
+                .values_list("bk_biz_id", flat=1)
+                .distinct()
+            )
+            if biz_id_list:
+                bk_biz_id = biz_id_list[0]
+
         if bk_biz_id:
             setattr(fake_request, "biz_id", bk_biz_id)
             setattr(request, "biz_id", bk_biz_id)
@@ -243,6 +221,8 @@ def dispatch_external_proxy(request):
         setattr(fake_request, "external_user", external_user)
         setattr(request, "external_user", external_user)
         setattr(fake_request, "session", request.session)
+        # use in get_core_context
+        setattr(fake_request, "LANGUAGE_CODE", request.LANGUAGE_CODE)
         setattr(local, "current_request", fake_request)
 
         # resolve view_func

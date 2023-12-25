@@ -73,6 +73,7 @@ INSTALLED_APPS += (
     "apps.grafana",
     "bk_monitor",
     "home_application",
+    "console",
     "pipeline",
     "pipeline.log",
     "pipeline.engine",
@@ -87,6 +88,7 @@ INSTALLED_APPS += (
     "bkm_ipchooser",
     "apps.log_desensitize",
     "log_adapter",
+    "bkm_search_module",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -845,7 +847,7 @@ BCS_CC_SSM_SWITCH = os.getenv("BKAPP_BCS_CC_SSM_SWITCH", "on")
 BCS_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_APIGATEWAY_HOST", "")
 BCS_CC_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_CC_APIGATEWAY_HOST", "")
 BK_SSM_HOST = os.getenv("BKAPP_SSM_HOST", "http://bkssm.service.consul:5000/api/v1/auth/access-tokens")
-BCS_WEB_CONSOLE_DOMAIN = ""
+BCS_WEB_CONSOLE_DOMAIN = os.getenv("BKAPP_BCS_WEB_CONSOLE_DOMAIN", "")
 BKLOG_CONFIG_KIND = os.getenv("BKAPP_BKLOG_CONFIG_KIND", "BkLogConfig")
 BKLOG_CONFIG_API_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_API_VERSION", "bk.tencent.com/v1alpha1")
 BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
@@ -1016,6 +1018,11 @@ if os.getenv("BKAPP_GSE_VERSION"):
     GSE_VERSION = os.getenv("BKAPP_GSE_VERSION", "v1")
 else:
     GSE_VERSION = "v2" if ENABLE_DHCP else "v1"
+
+# 日志检索组件配置
+# ===============
+BKM_SEARCH_MODULE_BKAPI_CLASS = "apps.utils.search_module.BkApi"
+
 
 # 国际化切换语言设置
 BK_DOMAIN = os.getenv("BK_DOMAIN", "")

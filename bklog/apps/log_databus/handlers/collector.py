@@ -738,9 +738,9 @@ class CollectorHandler(object):
 
         # 创建 BKBase
         maintainers = {bk_username} if bk_username else {instance.updated_by, instance.created_by}
-        maintainers.discard(ADMIN_REQUEST_USER)
-        if not maintainers:
-            raise Exception(f"dont have enough maintainer only {ADMIN_REQUEST_USER}")
+
+        if ADMIN_REQUEST_USER in maintainers and len(maintainers) > 1:
+            maintainers.discard(ADMIN_REQUEST_USER)
 
         bkdata_params = {
             "operator": bk_username,
@@ -4036,7 +4036,7 @@ class CollectorHandler(object):
         extra_labels = {}
         container_configs = []
 
-        for config in slz.validated_data:
+        for idx, config in enumerate(slz.validated_data):
             log_config_type = config["logConfigType"]
 
             # 校验配置
@@ -4103,7 +4103,7 @@ class CollectorHandler(object):
                     },
                     "data_encoding": config["encoding"],
                     "collector_type": log_config_type,
-                    "raw_config": config,
+                    "raw_config": slz.initial_data[idx],
                 }
             )
 

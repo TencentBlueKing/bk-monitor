@@ -1,49 +1,36 @@
-<!--
-* Tencent is pleased to support the open source community by making
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
-*
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-*
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
-*
-* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-*
-* ---------------------------------------------------
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-* the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-* IN THE SOFTWARE.
--->
-<template>
-  <div
-    class="grafana-wrap"
-    v-monitor-loading="{ isLoading: loading }"
-  >
-    <iframe
-      :key="url + '__key'"
-      @load="handleLoad"
-      ref="iframe"
-      class="grafana-wrap-frame"
-      allow="fullscreen"
-      :src="grafanaUrl"
-    />
-  </div>
-</template>
-<script lang="ts">
-import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import { getDashboardList } from '../../../monitor-api/modules/grafana';
 import bus from '../../../monitor-common/utils/event-bus';
 import { DASHBOARD_ID_KEY } from '../../constant/constant';
+
+import './grafana.scss';
 
 interface IMessageEvent extends MessageEvent {
   data: {
@@ -57,7 +44,7 @@ interface IMessageEvent extends MessageEvent {
 @Component({
   name: 'grafana'
 })
-export default class Grafana extends Vue {
+export default class MyComponent extends tsc<{}> {
   @Prop({ default: '' }) url: string;
   grafanaUrl = '';
   unWatch = null;
@@ -75,14 +62,35 @@ export default class Grafana extends Vue {
     this.iframeRef?.contentWindow.postMessage(v.split('-')[0], '*');
   }
   @Watch('url', { immediate: true })
-  handleUrlChange() {
-    this.handleGetGrafanaUrl();
+  async handleUrlChange() {
+    if (this.$store.getters.bizIdChangePedding) {
+      this.loading = true;
+      this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+      setTimeout(() => (this.loading = false), 2000);
+      return;
+    }
+    this.loading = true;
+    const grafanaUrl = await this.handleGetGrafanaUrl();
+    if (!this.grafanaUrl) {
+      this.grafanaUrl = grafanaUrl;
+      setTimeout(() => (this.loading = false), 2000);
+    } else {
+      this.loading = false;
+      const url = new URL(grafanaUrl);
+      this.iframeRef?.contentWindow.postMessage(
+        {
+          route: url.pathname.replace('/grafana', ''),
+          search: url.search
+        },
+        '*'
+      );
+    }
   }
   async handleGetGrafanaUrl() {
-    this.loading = true;
+    let grafanaUrl = '';
     if (!this.url) {
-      if (this.$route.name === 'grafana-home') {
-        this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+      if (this.$route.name === 'grafana-home' || this.$store.getters.bizIdChangePedding) {
+        grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       } else {
         const list = await getDashboardList().catch(() => []);
         const { bizId } = this.$store.getters;
@@ -97,7 +105,7 @@ export default class Grafana extends Vue {
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
-          this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+          grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
           this.$router.replace({ name: 'grafana-home' });
         }
         await this.$nextTick();
@@ -111,15 +119,19 @@ export default class Grafana extends Vue {
       // );
     } else {
       const isFavorite = this.$route.name === 'favorite-dashboard';
-      this.grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+      grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${
+        this.$store.getters.bizId
+      }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
     }
+    return grafanaUrl;
   }
   getUrlParamsString() {
-    const str =  Object.entries({
+    const str = Object.entries({
       ...(this.$route.query || {}),
       ...Object.fromEntries(new URLSearchParams(location.search))
-    }).map(entry => entry.join('='))
+    })
+      .map(entry => entry.join('='))
       .join('&');
     if (str.length) return `&${str}`;
     return '';
@@ -147,7 +159,6 @@ export default class Grafana extends Vue {
     localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
   }
   handleLoad() {
-    setTimeout(() => this.loading = false, 100);
     this.$nextTick(() => {
       const iframeContent = this.iframeRef?.contentWindow;
       this.iframeRef?.focus();
@@ -158,7 +169,21 @@ export default class Grafana extends Vue {
     // event.stopPropagation();
     bus.$emit('handle-keyup-search', event);
   }
+  isAllowedUrl(url: string) {
+    // 验证URL格式是否合法
+    let parsedUrl: string | URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch (e) {
+      return false; // 不是合法的URL
+    }
+    if (!parsedUrl.protocol.match(/^https?:$/)) {
+      return false; // 不安全的协议
+    }
+    return true;
+  }
   handleMessage(e: IMessageEvent) {
+    if (e.origin !== location.origin) return;
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
@@ -177,7 +202,7 @@ export default class Grafana extends Vue {
     }
     // 302跳转
     if (e?.data?.redirected) {
-      if (e.data.href) {
+      if (this.isAllowedUrl(e.data.href)) {
         const url = new URL(location.href);
         const curl = url.searchParams.get('c_url');
         if (curl) {
@@ -196,7 +221,7 @@ export default class Grafana extends Vue {
         const url = new URL(e.data.login_url);
         const curl = url.searchParams.get('c_url').replace(/^http:/, location.protocol);
         url.searchParams.set('c_url', curl);
-        window.LoginModal.$props.loginUrl =  url.href;
+        window.LoginModal.$props.loginUrl = url.href;
         window.LoginModal.show();
       } else {
         location.reload();
@@ -206,20 +231,20 @@ export default class Grafana extends Vue {
       }, 1000 * 60);
     }
   }
-}
-</script>
-<style lang="scss" scoped>
-.grafana-wrap {
-  // margin: -20px -24px 0;
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-
-  &-frame {
-    width: 100%;
-    min-width: 100%;
-    min-height: 100%;
-    border: 0;
+  render() {
+    return (
+      <div
+        class='grafana-wrap'
+        v-monitor-loading={{ isLoading: this.loading }}
+      >
+        <iframe
+          onLoad={this.handleLoad}
+          ref='iframe'
+          class='grafana-wrap-frame'
+          allow='fullscreen'
+          src={this.grafanaUrl}
+        />
+      </div>
+    );
   }
 }
-</style>
