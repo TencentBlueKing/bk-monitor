@@ -194,7 +194,7 @@ export default {
   },
   data() {
     return {
-      separator: /AND|OR/, // 区分查询语句条件
+      separator: /AND|OR|and|or/, // 区分查询语句条件
       shouldHandleBlur: true, // blur 时是否触发检索
       showDropdown: false, // 显示下拉
       activeIndex: null, // 下拉列表激活的项目索引

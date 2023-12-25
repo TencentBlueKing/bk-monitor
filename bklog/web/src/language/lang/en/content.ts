@@ -552,5 +552,9 @@ export default {
   暂无采样日志: 'No sampling log',
   '正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…': 'The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...',
   '脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。': 'The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.',
-  '分组模式下，暂不支持添加{n}' : 'In group mode, adding {n} is not supported for the time being.'
+  '分组模式下，暂不支持添加{n}' : 'In group mode, adding {n} is not supported for the time being.',
+  大于: 'more than',
+  小于: 'less than',
+  大于或等于: 'greater than or equal',
+  小于或等于: 'less than or equal'
 };
