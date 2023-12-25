@@ -31,7 +31,7 @@ import authorityStore from '@store/modules/authority';
 
 Component.registerHooks(['beforeRouteEnter']);
 // eslint-disable-next-line new-cap
-export default (authMap: { [propsName: string]: string }, attachMethod = 'beforeRouteEnter') =>
+export default (authMap: { [propsName: string]: string }) =>
   Component(
     class authorityMixin extends tsc<{}> {
       authority: Record<string, boolean>;
