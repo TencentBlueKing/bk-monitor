@@ -57,7 +57,6 @@ from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import (
-    DATALINK_SOURCE,
     SPLIT_DIMENSIONS,
     AdvanceConditionMethod,
     DataTarget,
@@ -1126,7 +1125,6 @@ class GetStrategyListV2Resource(Resource):
             data_source_label = strategy_config["items"][0]["query_configs"][0]["data_source_label"]
             data_type_label = strategy_config["items"][0]["query_configs"][0]["data_type_label"]
             strategy_config["data_source_type"] = data_source_names.get((data_source_label, data_type_label), "")
-            strategy_config["edit_allowed"] = False if strategy_config["source"] == DATALINK_SOURCE else True
 
         return {
             "scenario_list": scenario_list,
