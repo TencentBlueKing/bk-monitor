@@ -38,6 +38,7 @@ logger = logging.getLogger("root")
 class BatchUpdateResource(Resource, metaclass=abc.ABCMeta):
     class RequestSerializer(BatchSaveAssignRulesSlz):
         assign_group_id = serializers.IntegerField(label="规则组ID", required=True)
+        name = serializers.CharField(label="规则组名称", required=False)
         settings = serializers.JSONField(label="属性配置", default={}, required=False)
 
     def perform_request(self, validated_request_data):
