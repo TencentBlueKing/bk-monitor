@@ -76,30 +76,9 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     IS_STANDARD_FORMAT = True
 
     method: str
-
-    @abc.abstractmethod
-    @property
-    def base_url(self):
-        """
-        api gateway 基本url生成规则
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    @property
-    def module_name(self):
-        """
-        在apigw中的模块名
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    @property
-    def action(self):
-        """
-        url的后缀，通常是指定特定资源
-        """
-        raise NotImplementedError
+    base_url: str
+    module_name: str
+    action: str
 
     @staticmethod
     def split_request_data(data):
