@@ -324,6 +324,7 @@ class AlertAssignMatchManager:
             "alert.metric": [m for m in self.alert.event.metric],
             "alert.labels": getattr(self.alert, "labels", []),
             "is_empty_users": "true" if not self.notice_users else "false",
+            "notice_users": self.notice_users,
             "ip": getattr(self.alert.event, "ip", None),
             "bk_cloud_id": str(self.alert.event.bk_cloud_id) if hasattr(self.alert.event, "bk_cloud_id") else None,
         }
