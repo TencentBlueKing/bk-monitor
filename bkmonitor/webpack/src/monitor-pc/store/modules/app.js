@@ -44,6 +44,8 @@ export const SET_ROUTE_CHANGE_LOADNG = 'SET_ROUTE_CHANGE_LOADNG';
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 // 设置 biz bg color
 export const SET_BIZ_BGCOLOR = 'SET_BIZ_BGCOLOR';
+// 切换业务id全局标识
+export const SET_BIZ_CHANGE_PEDDING = 'SET_BIZ_CHANGE_PEDDING';
 
 const state = {
   title: '',
@@ -74,7 +76,8 @@ const state = {
   bkBcsUrl: '', // bcs地址
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
-  lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn'
+  lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
+  bizIdChangePedding: '' // 业务id是否切换
 };
 
 const mutations = {
@@ -92,7 +95,7 @@ const mutations = {
   },
   [SET_APP_STATE](state, data) {
     Object.keys(data).forEach(key => {
-      if(key === 'bizList') {
+      if (key === 'bizList') {
         state[key] = data[key].map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
         return;
       }
@@ -135,6 +138,9 @@ const mutations = {
   },
   [SET_BIZ_BGCOLOR](state, val) {
     state.bizBgColor = val;
+  },
+  [SET_BIZ_CHANGE_PEDDING](state, val) {
+    state.bizIdChangePedding = val;
   },
   setNavToggle(state, status) {
     state.navToggle = status;
