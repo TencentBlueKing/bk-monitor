@@ -624,9 +624,14 @@ export default class AlarmDispatch extends tsc<{}> {
                       <span>{this.$t('配置规则')}</span>
                     </div>
                     <div
-                      class='del-btn-wrap'
+                      class={['del-btn-wrap', { 'del-btn-disabled': !item.editAllowed }]}
+                      v-bk-tooltips={{
+                        placements: ['top'],
+                        content: this.$t('内置的分派规则组不允许修改'),
+                        disabled: item.editAllowed
+                      }}
                       onClick={e => {
-                        this.handleDeleteGroup(e, item);
+                        item.editAllowed && this.handleDeleteGroup(e, item);
                       }}
                     >
                       <span class='icon-monitor icon-mc-delete-line'></span>

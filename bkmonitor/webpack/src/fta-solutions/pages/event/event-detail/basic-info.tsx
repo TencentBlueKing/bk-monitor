@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 
 import { TabEnum as CollectorTabEnum } from '../../../../monitor-pc/pages/collector-config/collector-detail/typings/detail';
 import { toPerformanceDetail } from '../../../common/go-link';
+import { getOperatorDisabled } from '../utils';
 
 import { IDetail } from './type';
 
@@ -84,6 +85,10 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   /* bk_collect_config_id */
   get bkCollectConfigId() {
     return this.basicInfo.dimensions?.find(item => item.key === 'bk_collect_config_id')?.value;
+  }
+
+  get followerDisabled() {
+    return getOperatorDisabled(this.basicInfo.follower, this.basicInfo.assignee);
   }
 
   @Emit('strategy-detail')
@@ -505,7 +510,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           ></span>
           <div class='status-text'>{iconText}</div>
         </div>
-        {operateDom || undefined}
+        {!this.followerDisabled ? operateDom || undefined : undefined}
       </div>
     );
   }

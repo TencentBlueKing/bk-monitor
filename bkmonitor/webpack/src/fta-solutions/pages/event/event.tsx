@@ -87,6 +87,7 @@ import EventChart from './event-chart';
 import EventTable, { IShowDetail } from './event-table';
 import FilterInput from './filter-input';
 import MonitorDrag from './monitor-drag';
+import { getOperatorDisabled } from './utils';
 
 import './event.scss';
 // 有权限的业务id
@@ -1077,7 +1078,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       list.map(item => ({
         ...item,
         extend_info: this.relateInfos?.[item.id] || '',
-        event_count: this.eventCounts?.[item.id] || '--'
+        event_count: this.eventCounts?.[item.id] || '--',
+        followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assginne) : false
       })) || [];
 
     // 查找当前表格的 告警 标签是否有 通知人 为空的情况。BugID: 1010158081103484871

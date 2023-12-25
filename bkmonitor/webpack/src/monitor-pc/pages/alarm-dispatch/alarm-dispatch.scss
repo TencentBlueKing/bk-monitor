@@ -158,6 +158,11 @@
             border-radius: 2px;
 
             @include flex-center();
+
+            &.del-btn-disabled {
+              color: #c4c6cc;
+              cursor: not-allowed;
+            }
           }
         }
 
