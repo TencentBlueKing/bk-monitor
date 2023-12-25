@@ -1494,28 +1494,28 @@ class LuceneUnexpectedLogicOperatorChecker(LuceneCheckerBase):
     def _check(self):
         query_string = self.query_string.strip()
         # 不能以 AND, OR, NOT 结尾
-        for _logic_operator in LuceneReservedLogicOperatorEnum.get_keys():
-            if query_string.endswith(_logic_operator):
-                self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=_logic_operator)
-                return False
-        # 不能以 AND, OR 开头
-        for _logic_operator in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
-            if query_string.startswith(_logic_operator):
-                self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=_logic_operator)
-                return False
+        query_string_word_list = query_string.split(" ")
+        if len(query_string_word_list) < 2:
+            return True
+        if query_string_word_list[-1] in LuceneReservedLogicOperatorEnum.get_keys():
+            self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=query_string_word_list[-1])
+            return False
+        if query_string_word_list[0] in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
+            self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=query_string_word_list[0])
+            return False
 
         return True
 
     def _fix(self) -> str:
         query_string = self.query_string.strip()
         # 不能以 AND, OR, NOT 结尾
-        for _logic_operator in LuceneReservedLogicOperatorEnum.get_keys():
-            if query_string.endswith(_logic_operator):
-                query_string = query_string[:-len(_logic_operator)]
-        # 不能以 AND, OR 开头
-        for _logic_operator in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
-            if query_string.startswith(_logic_operator):
-                query_string = query_string[len(_logic_operator):]
+        query_string_word_list = query_string.split(" ")
+        if len(query_string_word_list) < 2:
+            return query_string
+        if query_string_word_list[-1] in LuceneReservedLogicOperatorEnum.get_keys():
+            return query_string[:-len(query_string_word_list[-1])].strip()
+        if query_string_word_list[0] in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
+            return query_string[len(query_string_word_list[0]) :].strip()
         return query_string
 
 

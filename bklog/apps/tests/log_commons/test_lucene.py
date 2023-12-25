@@ -22,7 +22,7 @@ from apps.utils.lucene import (
     LuceneReservedCharChecker,
     LuceneSyntaxResolver,
     OperatorEnhanceLucene,
-    ReservedLogicalEnhanceLucene,
+    ReservedLogicalEnhanceLucene, LuceneUnexpectedLogicOperatorChecker,
 )
 
 # =================================== TEST LUCENE =================================== #
@@ -404,6 +404,15 @@ NUMERIC_VALUE_CHECK_TEST_CASES = [LEGAL_CASE] + [
     }
 ]
 
+UNEXPECTED_LOGIC_OPERATOR_CHECK_TEST_CASES = [LEGAL_CASE] + [
+    {
+        "keyword": """log: INFO AND""",
+        "fields": FIELDS,
+        "check_result": False,
+        "prompt": """多余的逻辑运算符AND, 你可能想输入: log: INFO""",
+    }
+]
+
 
 FULL_CHECK_TEST_CASES = [
     {
@@ -604,6 +613,15 @@ class TestLuceneChecker(TestCase):
             self.assertEqual(checker.check_result.legal, case["check_result"])
             checker.fix()
             self.assertEqual(checker.prompt(), case["prompt"])
+
+    def test_lucene_unexpected_logic_operator_checker(self):
+        for case in UNEXPECTED_LOGIC_OPERATOR_CHECK_TEST_CASES:
+            checker = LuceneUnexpectedLogicOperatorChecker(case["keyword"], case.get("fields", []))
+            checker.check()
+            self.assertEqual(checker.check_result.legal, case["check_result"])
+            checker.fix()
+            self.assertEqual(checker.prompt(), case["prompt"])
+
 
     def test_full_checker(self):
         for case in FULL_CHECK_TEST_CASES:
