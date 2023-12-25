@@ -538,8 +538,22 @@ export default defineComponent({
             label: `${window.i18n.t('订阅名称')}`,
             render: ({ data }) => {
               return (
-                <div>
-                  {data.name}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 'calc(100% - 20px)',
+                      wordBreak: 'break-all',
+                      whiteSpace: 'normal',
+                      lineHeight: '14px'
+                    }}
+                  >
+                    {data.name}
+                  </span>
                   <i
                     class='icon-monitor icon-mc-copy'
                     style={{ fontSize: '16px', marginLeft: '5px', color: '#3A84FF', cursor: 'pointer' }}

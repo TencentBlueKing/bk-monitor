@@ -41,7 +41,8 @@ enum SendMode {
 enum SendStatus {
   failed = window.i18n.t('发送失败'),
   partial_failed = window.i18n.t('发送部分失败'),
-  success = window.i18n.t('发送成功')
+  success = window.i18n.t('发送成功'),
+  no_status = window.i18n.t('未发送')
 }
 
 @Component({
@@ -532,257 +533,265 @@ class MySubscription extends tsc<{}> {
     };
     return (
       <div class='my-apply-container'>
-        <div class='header-container'>
-          <div class='radio-container'>
-            <div
-              class={['radio', this.queryData.query_type === 'available' && 'selected']}
-              onClick={() => (this.queryData.query_type = 'available')}
-            >
-              <i class='circle effecting'></i>
-              {this.$t('生效中')}
+        <div class='header-title'>{this.$t('我的订阅')}</div>
+
+        <div class='temp-container'>
+          <div class='header-container'>
+            <div class='radio-container'>
+              <div
+                class={['radio', this.queryData.query_type === 'available' && 'selected']}
+                onClick={() => (this.queryData.query_type = 'available')}
+              >
+                <i class='circle effecting'></i>
+                {this.$t('生效中')}
+              </div>
+              <div
+                class={['radio', this.queryData.query_type === 'cancelled' && 'selected']}
+                onClick={() => (this.queryData.query_type = 'cancelled')}
+              >
+                <i class='circle canceled'></i>
+                {this.$t('已取消')}
+              </div>
+              <div
+                class={['radio', this.queryData.query_type === 'invalid' && 'selected']}
+                onClick={() => (this.queryData.query_type = 'invalid')}
+              >
+                <i class='circle effected'></i>
+                {this.$t('已失效')}
+              </div>
             </div>
-            <div
-              class={['radio', this.queryData.query_type === 'cancelled' && 'selected']}
-              onClick={() => (this.queryData.query_type = 'cancelled')}
-            >
-              <i class='circle canceled'></i>
-              {this.$t('已取消')}
-            </div>
-            <div
-              class={['radio', this.queryData.query_type === 'invalid' && 'selected']}
-              onClick={() => (this.queryData.query_type = 'invalid')}
-            >
-              <i class='circle effected'></i>
-              {this.$t('已失效')}
-            </div>
+
+            <bk-input
+              v-model={this.queryData.search_key}
+              placeholder={this.$t('请输入搜索条件')}
+              right-icon='bk-icon icon-search'
+              style={{ width: '320px' }}
+              onEnter={this.resetAndGetSubscriptionList}
+            ></bk-input>
           </div>
 
-          <bk-input
-            v-model={this.queryData.search_key}
-            placeholder={this.$t('请输入搜索条件')}
-            right-icon='bk-icon icon-search'
-            style={{ width: '320px' }}
-            onEnter={this.resetAndGetSubscriptionList}
-          ></bk-input>
-        </div>
-
-        <bk-table
-          data={this.tableData}
-          v-bkloading={{
-            isLoading: this.isTableLoading
-          }}
-          style={{ marginTop: '24px' }}
-          {...{
-            on: {
-              'filter-change': filters => {
-                const targetKey = Object.keys(filters)[0];
-                let targetIndex = -1;
-                const result = this.queryData.conditions.filter((item, index) => {
-                  if (item.key === targetKey) targetIndex = index;
-                  return item.key === targetKey;
-                });
-                if (result.length) {
-                  if (filters[targetKey]?.length) {
-                    this.queryData.conditions[targetIndex].value = filters[targetKey];
+          <bk-table
+            data={this.tableData}
+            v-bkloading={{
+              isLoading: this.isTableLoading
+            }}
+            style={{ marginTop: '24px' }}
+            {...{
+              on: {
+                'filter-change': filters => {
+                  const targetKey = Object.keys(filters)[0];
+                  let targetIndex = -1;
+                  const result = this.queryData.conditions.filter((item, index) => {
+                    if (item.key === targetKey) targetIndex = index;
+                    return item.key === targetKey;
+                  });
+                  if (result.length) {
+                    if (filters[targetKey]?.length) {
+                      this.queryData.conditions[targetIndex].value = filters[targetKey];
+                    } else {
+                      this.queryData.conditions.splice(targetIndex, 1);
+                    }
                   } else {
-                    this.queryData.conditions.splice(targetIndex, 1);
+                    if (filters[targetKey]?.length) {
+                      this.queryData.conditions.push({
+                        key: targetKey,
+                        value: filters[targetKey]
+                      });
+                    }
                   }
-                } else {
-                  if (filters[targetKey]?.length) {
-                    this.queryData.conditions.push({
-                      key: targetKey,
-                      value: filters[targetKey]
-                    });
+                  this.resetAndGetSubscriptionList();
+                },
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                'sort-change': ({ column, prop, order }) => {
+                  if (prop) {
+                    this.queryData.order = `${order === 'ascending' ? '' : '-'}${prop}`;
+                  } else {
+                    this.queryData.order = '';
                   }
+                  this.resetAndGetSubscriptionList();
+                },
+                'page-change': newPage => {
+                  this.queryData.page = newPage;
+                  this.fetchSubscriptionList();
+                },
+                'page-limit-change': limit => {
+                  this.queryData.page_size = limit;
+                  this.fetchSubscriptionList();
                 }
-                this.resetAndGetSubscriptionList();
-              },
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              'sort-change': ({ column, prop, order }) => {
-                if (prop) {
-                  this.queryData.order = `${order === 'ascending' ? '' : '-'}${prop}`;
-                } else {
-                  this.queryData.order = '';
-                }
-                this.resetAndGetSubscriptionList();
-              },
-              'page-change': newPage => {
-                this.queryData.page = newPage;
-                this.fetchSubscriptionList();
-              },
-              'page-limit-change': limit => {
-                this.queryData.page_size = limit;
-                this.fetchSubscriptionList();
-              }
-            }
-          }}
-          pagination={{
-            current: this.queryData.page,
-            count: this.tableData.length,
-            limit: this.queryData.page_size
-          }}
-        >
-          <bk-table-column
-            label={this.$t('邮件标题')}
-            scopedSlots={{
-              default: ({ row }) => {
-                return (
-                  <bk-button
-                    text
-                    title='primary'
-                    onClick={() => {
-                      this.isShowSideslider = true;
-                      this.detailInfo = row;
-                    }}
-                  >
-                    {row?.content_config?.title}
-                  </bk-button>
-                );
               }
             }}
-          ></bk-table-column>
-
-          <bk-table-column
-            label={this.$t('订阅场景')}
-            scopedSlots={{
-              default: ({ row }) => {
-                return <div>{Scenario[row.scenario]}</div>;
-              }
+            pagination={{
+              current: this.queryData.page,
+              count: this.tableData.length,
+              limit: this.queryData.page_size
             }}
-          ></bk-table-column>
-
-          {/* 没找到 */}
-          <bk-table-column
-            label={this.$t('来源')}
-            scopedSlots={{
-              default: ({ row }) => {
-                return <div>{row.is_self_subscribed ? this.$t('主动订阅') : this.$t('他人订阅')}</div>;
-              }
-            }}
-          ></bk-table-column>
-
-          <bk-table-column
-            label={this.$t('发送模式')}
-            prop='send_mode'
-            columnKey='send_mode'
-            filters={[
-              {
-                text: window.i18n.t('周期发送'),
-                value: 'periodic'
-              },
-              {
-                text: window.i18n.t('仅发一次'),
-                value: 'one_time'
-              }
-            ]}
-            scopedSlots={{
-              default: ({ row }) => {
-                return <div>{SendMode[row.send_mode]}</div>;
-              }
-            }}
-          ></bk-table-column>
-
-          {/* 没找到 */}
-          <bk-table-column
-            label={this.$t('发送时间')}
-            scopedSlots={{
-              default: ({ row }) => {
-                return <div>{this.getSendFrequencyText(row)}</div>;
-              }
-            }}
-          ></bk-table-column>
-
-          <bk-table-column
-            label={this.$t('最近一次发送时间')}
-            sortable='custom'
-            prop='last_send_time'
-            scopedSlots={{
-              default: ({ row }) => {
-                return <div>{row.last_send_time || this.$t('未发送')}</div>;
-              }
-            }}
-          ></bk-table-column>
-
-          <bk-table-column
-            label={this.$t('发送状态')}
-            prop='send_status'
-            columnKey='send_status'
-            filters={[
-              {
-                text: `${window.i18n.t('发送成功')}`,
-                value: 'success'
-              },
-              {
-                text: `${window.i18n.t('发送部分失败')}`,
-                value: 'partial_failed'
-              },
-              {
-                text: `${window.i18n.t('发送失败')}`,
-                value: 'failed'
-              }
-            ]}
-            scopedSlots={{
-              default: ({ row }) => {
-                return row.send_status !== 'no_status' ? (
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <i
-                      class={['dot-circle', row.send_status]}
-                      style={{ marginRight: '10px' }}
-                    ></i>
-                    {SendStatus[row.send_status]}
-                  </div>
-                ) : (
-                  <div>{this.$t('未发送')}</div>
-                );
-              }
-            }}
-          ></bk-table-column>
-
-          <bk-table-column
-            label={this.$t('操作')}
-            scopedSlots={{
-              default: ({ row }) => {
-                return (
-                  <div>
+          >
+            <bk-table-column
+              label={this.$t('邮件标题')}
+              scopedSlots={{
+                default: ({ row }) => {
+                  return (
                     <bk-button
                       text
-                      theme='primary'
+                      title='primary'
                       onClick={() => {
-                        this.isShowSendRecord = true;
+                        this.isShowSideslider = true;
                         this.detailInfo = row;
-                        this.getSendingRecordList();
                       }}
                     >
-                      {this.$t('发送记录')}
+                      {row?.content_config?.title}
                     </bk-button>
+                  );
+                }
+              }}
+            ></bk-table-column>
 
-                    {['available', 'invalid'].includes(this.queryData.query_type) && (
+            <bk-table-column
+              label={this.$t('订阅场景')}
+              scopedSlots={{
+                default: ({ row }) => {
+                  return <div>{Scenario[row.scenario]}</div>;
+                }
+              }}
+            ></bk-table-column>
+
+            {/* 没找到 */}
+            <bk-table-column
+              label={this.$t('来源')}
+              scopedSlots={{
+                default: ({ row }) => {
+                  return <div>{row.is_self_subscribed ? this.$t('主动订阅') : this.$t('他人订阅')}</div>;
+                }
+              }}
+            ></bk-table-column>
+
+            <bk-table-column
+              label={this.$t('发送模式')}
+              prop='send_mode'
+              columnKey='send_mode'
+              filters={[
+                {
+                  text: window.i18n.t('周期发送'),
+                  value: 'periodic'
+                },
+                {
+                  text: window.i18n.t('仅发一次'),
+                  value: 'one_time'
+                }
+              ]}
+              scopedSlots={{
+                default: ({ row }) => {
+                  return <div>{SendMode[row.send_mode]}</div>;
+                }
+              }}
+            ></bk-table-column>
+
+            {/* 没找到 */}
+            <bk-table-column
+              label={this.$t('发送时间')}
+              scopedSlots={{
+                default: ({ row }) => {
+                  return <div>{this.getSendFrequencyText(row)}</div>;
+                }
+              }}
+            ></bk-table-column>
+
+            <bk-table-column
+              label={this.$t('最近一次发送时间')}
+              sortable='custom'
+              prop='last_send_time'
+              scopedSlots={{
+                default: ({ row }) => {
+                  return <div>{row.last_send_time || this.$t('未发送')}</div>;
+                }
+              }}
+            ></bk-table-column>
+
+            <bk-table-column
+              label={this.$t('发送状态')}
+              prop='send_status'
+              columnKey='send_status'
+              filters={[
+                {
+                  text: `${window.i18n.t('发送成功')}`,
+                  value: 'success'
+                },
+                {
+                  text: `${window.i18n.t('未发送')}`,
+                  value: 'no_status'
+                },
+                // {
+                //   text: `${window.i18n.t('发送部分失败')}`,
+                //   value: 'partial_failed'
+                // },
+                {
+                  text: `${window.i18n.t('发送失败')}`,
+                  value: 'failed'
+                }
+              ]}
+              scopedSlots={{
+                default: ({ row }) => {
+                  return row.send_status !== 'no_status' ? (
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <i
+                        class={['dot-circle', row.send_status]}
+                        style={{ marginRight: '10px' }}
+                      ></i>
+                      {SendStatus[row.send_status]}
+                    </div>
+                  ) : (
+                    <div>{this.$t('未发送')}</div>
+                  );
+                }
+              }}
+            ></bk-table-column>
+
+            <bk-table-column
+              label={this.$t('操作')}
+              scopedSlots={{
+                default: ({ row }) => {
+                  return (
+                    <div>
                       <bk-button
                         text
                         theme='primary'
-                        style={{ marginLeft: '10px' }}
-                        onClick={() => this.handleCancelSubscription(row)}
+                        onClick={() => {
+                          this.isShowSendRecord = true;
+                          this.detailInfo = row;
+                          this.getSendingRecordList();
+                        }}
                       >
-                        {this.$t('取消订阅')}
+                        {this.$t('发送记录')}
                       </bk-button>
-                    )}
 
-                    {this.queryData.query_type === 'cancelled' && (
-                      <bk-button
-                        text
-                        theme='primary'
-                        style={{ marginLeft: '10px' }}
-                        onClick={() => this.handleResubscribeReport(row)}
-                      >
-                        {this.$t('重新订阅')}
-                      </bk-button>
-                    )}
-                  </div>
-                );
-              }
-            }}
-          ></bk-table-column>
-        </bk-table>
+                      {['available', 'invalid'].includes(this.queryData.query_type) && (
+                        <bk-button
+                          text
+                          theme='primary'
+                          style={{ marginLeft: '10px' }}
+                          onClick={() => this.handleCancelSubscription(row)}
+                        >
+                          {this.$t('取消订阅')}
+                        </bk-button>
+                      )}
+
+                      {this.queryData.query_type === 'cancelled' && (
+                        <bk-button
+                          text
+                          theme='primary'
+                          style={{ marginLeft: '10px' }}
+                          onClick={() => this.handleResubscribeReport(row)}
+                        >
+                          {this.$t('重新订阅')}
+                        </bk-button>
+                      )}
+                    </div>
+                  );
+                }
+              }}
+            ></bk-table-column>
+          </bk-table>
+        </div>
 
         <bk-sideslider
           is-show={this.isShowSideslider}

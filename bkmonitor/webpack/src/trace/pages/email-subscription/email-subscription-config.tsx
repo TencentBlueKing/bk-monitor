@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, reactive, ref } from 'vue';
+import { defineComponent, onMounted, reactive, ref, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
@@ -491,7 +491,7 @@ export default defineComponent({
                   placement='bottom-start'
                   extCls='email-subscription-popover'
                   disableOutsideClick
-                  zIndex={99999 + index}
+                  // zIndex={99999 + index}
                   v-slots={{
                     content: () => {
                       let headerText = '';
