@@ -22,6 +22,7 @@
 
 import { Component, PropSync, Emit, Mixins } from 'vue-property-decorator';
 import MonacoEditor from '../../../components/collection-access/components/step-add/monaco-editor.vue';
+import * as monaco from 'monaco-editor';
 import './retrieve-detail-input-editor.scss';
 import classDragMixin from '../../../mixins/class-drag-mixin';
 
@@ -122,11 +123,8 @@ export default class UiQuery extends Mixins(classDragMixin) {
   }
 
   focus() {
-    const model = this.editor.getModel();
-    // 聚焦
+    this.resetCursorPosition();
     this.editor.focus();
-    // 光标跟随
-    this.editor.setPosition(model.getPositionAt(model.getValueLength() + 1));
   }
 
   blur() {
@@ -158,9 +156,31 @@ export default class UiQuery extends Mixins(classDragMixin) {
     });
     return monaco;
   }
-  // 获得editor实例
+
+  /** 重置光标位置到文本末尾 */
+  resetCursorPosition() {
+    const model = this.editor.getModel();
+    const lastLineNumber = model.getLineCount();
+    const lastColumn = model.getLineMaxColumn(lastLineNumber);
+    this.editor.setPosition({ lineNumber: lastLineNumber, column: lastColumn });
+    this.editor.revealLine(lastLineNumber);
+  }
+
+  /** 获取monaco-editor实例 */
   getEditorInstance(editor) {
     this.editor = editor;
+    // 方向键的键绑定
+    const arrowKeys = [monaco.KeyCode.UpArrow, monaco.KeyCode.DownArrow];
+    // 禁止方向键的默认行为
+    arrowKeys.forEach((keyCode) => {
+      this.editor.addCommand(keyCode, () => {
+        // 当方向键被按下时，此函数会被调用。
+        // 在这里不做任何操作，从而忽略键盘事件。
+      });
+    });
+    this.editor.addCommand(monaco.KeyCode.Enter, () => {
+      this.resetCursorPosition();
+    });
   }
 
   render() {
