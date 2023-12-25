@@ -652,29 +652,20 @@ class StrategyCacheManager(CacheManager):
         return json.loads(data)
 
     @classmethod
-    def refresh_strategy_ids(cls, strategies: List[Dict], old_strategy_ids=None):
+    def refresh_strategy_ids(cls, strategies: List[Dict], to_be_deleted_strategy_ids=None):
         """
         刷新策略ID列表缓存
         """
-        new_strategy_ids = [strategy["id"] for strategy in strategies]
-        if old_strategy_ids is None:
-            # 全量刷新
-            old_strategy_ids = cls.get_strategy_ids()
-        else:
+        updated_strategy_ids: Set = {strategy["id"] for strategy in strategies}
+        old_strategy_ids: Set = set(cls.get_strategy_ids())
+        if to_be_deleted_strategy_ids is not None:
             # 增量更新
-            # 原列表(to_be_updated) - 删除(old_strategy_ids) + 更新(new_strategy_ids) -> 去重
-            to_be_updated = cls.get_strategy_ids()
-            for s_id in old_strategy_ids:
-                try:
-                    to_be_updated.remove(s_id)
-                except ValueError:
-                    continue
-            new_strategy_ids += to_be_updated
-            new_strategy_ids = list(set(new_strategy_ids))
+            # 原列表(old_strategy_ids) - 删除(to_be_deleted_strategy_ids) + 更新(updated_strategy_ids) -> 去重
+            updated_strategy_ids |= old_strategy_ids - set(to_be_deleted_strategy_ids)
 
-        cls.cache.set(cls.IDS_CACHE_KEY, json.dumps(new_strategy_ids), cls.CACHE_TIMEOUT)
+        cls.cache.set(cls.IDS_CACHE_KEY, json.dumps(list(updated_strategy_ids)), cls.CACHE_TIMEOUT)
         for strategy_id in old_strategy_ids:
-            if strategy_id not in new_strategy_ids:
+            if strategy_id not in updated_strategy_ids:
                 logger.info(f"[smart_strategy_cache]: refresh_strategy_ids delete strategy: {strategy_id}")
                 cls.cache.delete(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id))
 
