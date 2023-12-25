@@ -48,7 +48,8 @@ import {
   Sideslider,
   Switcher,
   Table,
-  Tag
+  Tag,
+  TagInput
 } from 'bkui-vue';
 import dayjs from 'dayjs';
 
@@ -489,6 +490,8 @@ export default defineComponent({
                   theme='light'
                   placement='bottom-start'
                   extCls='email-subscription-popover'
+                  disableOutsideClick
+                  zIndex={99999 + index}
                   v-slots={{
                     content: () => {
                       let headerText = '';
@@ -556,8 +559,7 @@ export default defineComponent({
                             {window.i18n.t(headerConfirmText)}
                           </div>
 
-                          <div class='tag-content'>
-                            {/* <Tag closable onClose={() => {}}></Tag> */}
+                          {/* <div class='tag-content'>
                             {data.tempSendResult.map((item, index) => {
                               if (['success'].includes(data.send_status) && item.result) {
                                 return (
@@ -585,6 +587,19 @@ export default defineComponent({
                               }
                               return null;
                             })}
+                          </div> */}
+
+                          <div style='margin-top: 10px;'>
+                            <TagInput
+                              v-model={data.selectedTag}
+                              list={data.tempSendResult}
+                              placeholder={window.i18n.t('请选择')}
+                              has-delete-icon
+                              trigger='focus'
+                              display-key='id'
+                              save-key='id'
+                              search-key={['id']}
+                            ></TagInput>
                           </div>
 
                           <div class='footer-operation'>
@@ -592,9 +607,10 @@ export default defineComponent({
                               theme='primary'
                               style='min-width: 64px;'
                               loading={isResending.value}
+                              disabled={!data.selectedTag.length}
                               onClick={() => {
                                 console.log(data);
-                                if (data.tempSendResult.length) handleResendSubscription(data, index);
+                                handleResendSubscription(data, index);
                               }}
                             >
                               {window.i18n.t('确定')}
@@ -623,6 +639,18 @@ export default defineComponent({
                       sendRecordTable.data.forEach(item => {
                         // eslint-disable-next-line no-param-reassign
                         item.tempSendResult = deepClone(item.send_results);
+                        // 这里将展示 TagInput 用的保存变量。
+                        // eslint-disable-next-line no-param-reassign
+                        item.selectedTag = [];
+                        // 需要根据发送结果去对 selectedTag 里的内容进行预先填充。
+                        item.send_results.forEach(subItem => {
+                          if (item.send_status === 'partial_failed' && !subItem.result) {
+                            item.selectedTag.push(subItem.id);
+                          }
+                          if (item.send_status === 'failed') {
+                            item.selectedTag.push(subItem.id);
+                          }
+                        });
                       });
                     }}
                   >
@@ -640,6 +668,7 @@ export default defineComponent({
     const isShowSubscriptionDetailSideslider = ref(false);
     const isShowEditSideslider = ref(false);
 
+    const isShowDropdownMenu = ref(false);
     const isSending = ref(false);
     async function testSending(to) {
       const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
@@ -694,6 +723,7 @@ export default defineComponent({
         .catch(console.log)
         .finally(() => {
           isSending.value = false;
+          isShowDropdownMenu.value = false;
         });
     }
 
@@ -825,24 +855,35 @@ export default defineComponent({
         {
           is_enabled: true,
           channel_name: data.channel_name,
+          // subscribers: data.tempSendResult
+          //   .filter(item => {
+          //     if (['success'].includes(data.send_status) && item.result) {
+          //       return item;
+          //     }
+          //     if (['partial_failed', 'failed'].includes(data.send_status) && !item.result) {
+          //       return item;
+          //     }
+          //   })
+          //   .map(item => {
+          //     const o = {
+          //       id: item.id,
+          //       is_enabled: true
+          //     };
+          //     if (item.type) {
+          //       o.type = item.type;
+          //     }
+          //     return o;
+          //   })
           subscribers: data.tempSendResult
             .filter(item => {
-              if (['success'].includes(data.send_status) && item.result) {
-                return item;
-              }
-              if (['partial_failed', 'failed'].includes(data.send_status) && !item.result) {
-                return item;
-              }
+              return data.selectedTag.includes(item.id);
             })
             .map(item => {
-              const o = {
-                id: item.id,
-                is_enabled: true
-              };
-              if (item.type) {
-                o.type = item.type;
-              }
-              return o;
+              // eslint-disable-next-line no-param-reassign
+              delete item.result;
+              // eslint-disable-next-line no-param-reassign
+              item.is_enabled = true;
+              return item;
             })
         }
       ];
@@ -947,7 +988,8 @@ export default defineComponent({
       sendMyselfDialog,
       handleSendMyself,
       toggleMapForSendRecord,
-      isShowTestSendResult
+      isShowTestSendResult,
+      isShowDropdownMenu
     };
   },
   render() {
@@ -1240,7 +1282,8 @@ export default defineComponent({
                 {window.i18n.t('保存')}
               </Button>
               <Dropdown
-                trigger='click'
+                isShow={this.isShowDropdownMenu}
+                trigger='manual'
                 placement='top-start'
                 v-slots={{
                   content: () => {
@@ -1262,6 +1305,9 @@ export default defineComponent({
                   outline
                   loading={this.isSending}
                   style={{ width: '88px', marginRight: '8px' }}
+                  onClick={() => {
+                    this.isShowDropdownMenu = !this.isShowDropdownMenu;
+                  }}
                 >
                   {window.i18n.t('测试发送')}
                 </Button>

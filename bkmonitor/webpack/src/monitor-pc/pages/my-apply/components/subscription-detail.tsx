@@ -258,7 +258,7 @@ export default defineComponent({
                       ?.subscribers?.filter(item => item.is_enabled)
                       ?.map?.(item => {
                         return (
-                          <div style='display: inline-flex;align-items: center;margin-right: 24px;height: 100%;'>
+                          <div style='display: inline-flex;margin-right: 24px;margin-bottom: 10px;align-items: center;'>
                             {/* {item.src && (
                             <img
                               src=''
@@ -266,6 +266,7 @@ export default defineComponent({
                               class='avatar'
                             />
                           )} */}
+                            <i class='icon-monitor icon-mc-user-one'></i>
                             <span>{item.id}</span>
                           </div>
                         );

@@ -208,43 +208,43 @@ class MySubscription extends tsc<{}> {
   }
 
   handleResendSubscription() {
-    console.log(this.currentTableRowOfSendingRecord);
     this.isResending = true;
     const channels = [
       {
         is_enabled: true,
         channel_name: this.currentTableRowOfSendingRecord.channel_name,
-        // subscribers: this.currentTableRowOfSendingRecord.tempSendResult.map(item => {
-        //   const o = {
-        //     id: item.id,
-        //     is_enabled: true
-        //   };
-        //   if (item.type) {
-        //     o.type = item.type;
-        //   }
-        //   return o;
-        // })
+        // subscribers: this.currentTableRowOfSendingRecord.tempSendResult
+        //   .filter(item => {
+        //     if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
+        //       return item;
+        //     }
+        //     if (
+        //       ['partial_failed', 'failed'].includes(this.currentTableRowOfSendingRecord.send_status) &&
+        //       !item.result
+        //     ) {
+        //       return item;
+        //     }
+        //   })
+        //   .map(item => {
+        //     const o = {
+        //       id: item.id,
+        //       is_enabled: true
+        //     };
+        //     if (item.type) {
+        //       o.type = item.type;
+        //     }
+        //     return o;
+        //   })
         subscribers: this.currentTableRowOfSendingRecord.tempSendResult
-          .filter(item => {
-            if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
-              return item;
-            }
-            if (
-              ['partial_failed', 'failed'].includes(this.currentTableRowOfSendingRecord.send_status) &&
-              !item.result
-            ) {
-              return item;
-            }
+          ?.filter(item => {
+            return this.currentTableRowOfSendingRecord.selectedTag.includes(item.id);
           })
           .map(item => {
-            const o = {
-              id: item.id,
-              is_enabled: true
-            };
-            if (item.type) {
-              o.type = item.type;
-            }
-            return o;
+            // eslint-disable-next-line no-param-reassign
+            delete item.result;
+            // eslint-disable-next-line no-param-reassign
+            item.is_enabled = true;
+            return item;
           })
       }
     ];
@@ -318,6 +318,7 @@ class MySubscription extends tsc<{}> {
           header-position='left'
           show-footer={false}
           width='960'
+          z-index={2001}
         >
           <div>
             <div class='dialog-header-info-container'>
@@ -374,6 +375,16 @@ class MySubscription extends tsc<{}> {
                           this.currentTableRowOfSendingRecord = row;
                           this.sendRecordTable.data.forEach(item => {
                             this.$set(item, 'tempSendResult', deepClone(item.send_results));
+                            this.$set(item, 'selectedTag', []);
+                            // 需要根据发送结果去对 selectedTag 里的内容进行预先填充。
+                            item.send_results.forEach(subItem => {
+                              if (item.send_status === 'partial_failed' && !subItem.result) {
+                                item.selectedTag.push(subItem.id);
+                              }
+                              if (item.send_status === 'failed') {
+                                item.selectedTag.push(subItem.id);
+                              }
+                            });
                           });
                           this.$nextTick(() => {
                             if (this.popoverInstance) {
@@ -387,7 +398,8 @@ class MySubscription extends tsc<{}> {
                               theme: 'light',
                               extCls: 'email-subscription-popover',
                               hideOnClick: false,
-                              interactive: true
+                              interactive: true,
+                              zIndex: 2002
                             });
                             this.popoverInstance.show(100);
                           });
@@ -441,7 +453,7 @@ class MySubscription extends tsc<{}> {
               {this.$t('确定重新发送给以下用户')}
             </div>
 
-            <div class='tag-content'>
+            {/* <div class='tag-content'>
               {this.currentTableRowOfSendingRecord?.tempSendResult?.map((item, index) => {
                 if (['success'].includes(this.currentTableRowOfSendingRecord.send_status) && item.result) {
                   return (
@@ -449,7 +461,6 @@ class MySubscription extends tsc<{}> {
                       closable={
                         this.currentTableRowOfSendingRecord?.tempSendResult?.filter(target => target.result).length > 1
                       }
-                      // closable={this.currentTableRowOfSendingRecord?.tempSendResult?.length > 1}
                       onClose={() => {
                         this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
                       }}
@@ -467,7 +478,6 @@ class MySubscription extends tsc<{}> {
                       closable={
                         this.currentTableRowOfSendingRecord?.tempSendResult.filter(target => !target.result).length > 1
                       }
-                      // closable={this.currentTableRowOfSendingRecord?.tempSendResult?.length > 1}
                       onClose={() => {
                         this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
                       }}
@@ -476,25 +486,31 @@ class MySubscription extends tsc<{}> {
                     </bk-tag>
                   );
                 }
-                // return (
-                //   <bk-tag
-                //     key={item.id}
-                //     closable
-                //     onClose={() => {
-                //       console.log('onClose');
-                //       this.currentTableRowOfSendingRecord?.tempSendResult?.splice(index, 1);
-                //     }}
-                //   >
-                //     {item.id}
-                //   </bk-tag>
-                // );
               })}
+            </div> */}
+
+            <div style='margin-top: 10px;'>
+              <bk-tag-input
+                v-model={this.currentTableRowOfSendingRecord.selectedTag}
+                list={this.currentTableRowOfSendingRecord.tempSendResult}
+                placeholder={window.i18n.t('请选择')}
+                has-delete-icon
+                trigger='focus'
+                display-key='id'
+                save-key='id'
+                search-key={['id']}
+                // popoverOptions={{
+                //   extCls: 'resend-tag-input'
+                // }}
+                // ext-cls='resend-tag-input'
+              ></bk-tag-input>
             </div>
 
             <div class='footer-operation'>
               <bk-button
                 theme='primary'
                 style='min-width: 64px;'
+                disabled={!this.currentTableRowOfSendingRecord?.selectedTag?.length}
                 loading={this.isResending}
                 onClick={this.handleResendSubscription}
               >

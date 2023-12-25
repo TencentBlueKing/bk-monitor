@@ -40,6 +40,7 @@ export default defineComponent({
     const { t } = useI18n();
     const router = useRouter();
     const isSending = ref(false);
+    const isShowDropdownMenu = ref(false);
     async function testSending(to) {
       const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
       console.log('testSending', tempFormData);
@@ -72,6 +73,7 @@ export default defineComponent({
         .catch(console.log)
         .finally(() => {
           isSending.value = false;
+          isShowDropdownMenu.value = false;
         });
     }
     const refOfCreateSubscriptionForm = ref(null);
@@ -109,7 +111,8 @@ export default defineComponent({
       testSending,
       handleSave,
       refOfCreateSubscriptionForm,
-      isShowTestSendResult
+      isShowTestSendResult,
+      isShowDropdownMenu
     };
   },
   render() {
@@ -131,7 +134,8 @@ export default defineComponent({
             {window.i18n.t('保存')}
           </Button>
           <Dropdown
-            trigger='click'
+            isShow={this.isShowDropdownMenu}
+            trigger='manual'
             placement='top-start'
             v-slots={{
               content: () => {
@@ -153,6 +157,9 @@ export default defineComponent({
               outline
               loading={this.isSending}
               style={{ width: '88px', marginRight: '8px' }}
+              onClick={() => {
+                this.isShowDropdownMenu = !this.isShowDropdownMenu;
+              }}
             >
               {window.i18n.t('测试发送')}
             </Button>
