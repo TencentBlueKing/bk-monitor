@@ -22,13 +22,11 @@ from apps.constants import (
     LUCENE_NUMERIC_OPERATORS,
     LUCENE_NUMERIC_TYPES,
     LUCENE_RESERVED_CHARS,
-    LUCENE_RESERVED_LOGIC_OPERATORS,
     MAX_RESOLVE_TIMES,
-    NOT_OPERATOR,
     PLUS_OPERATOR,
     PROHIBIT_OPERATOR,
     WORD_RANGE_OPERATORS,
-    LuceneSyntaxEnum,
+    LuceneSyntaxEnum, LuceneReservedLogicOperatorEnum,
 )
 from apps.exceptions import UnknownLuceneOperatorException
 from apps.log_databus.constants import TargetNodeTypeEnum
@@ -210,7 +208,7 @@ class LuceneParser(object):
         field = LuceneField(
             pos=node.pos,
             name=FULL_TEXT_SEARCH_FIELD_NAME,
-            operator=NOT_OPERATOR,
+            operator=LuceneReservedLogicOperatorEnum.NOT.value,
             type=LuceneSyntaxEnum.NOT,
             value=self._get_method(node.a).value,
             is_full_text_field=True,
@@ -874,7 +872,7 @@ class LuceneCheckerBase(object):
         如果后续要在prepare里面做一些额外的工作, 需要在子类中重写这个方法, 最后返回super().prepare()即可
         """
         # 构造模式字符串，其中的(?:...)用于标记一个子表达式开始和结束的位置，匹配满足这个子表达式规则的字符串
-        pattern = '|'.join(r'\b{}\b'.format(x) for x in LUCENE_RESERVED_LOGIC_OPERATORS)
+        pattern = '|'.join(r'\b{}\b'.format(x) for x in LuceneReservedLogicOperatorEnum.get_keys())
         # 使用正则来分割字符串，但是保持分割引号的存在
         result = re.split('(' + pattern + ')', self.query_string)
         # 去除结果中的空格部分，这样就不会有头尾空格了
@@ -1484,6 +1482,41 @@ class LuceneNumericValueChecker(LuceneCheckerBase):
                         return False
 
         return True
+
+
+class LuceneUnexpectedLogicOperatorChecker(LuceneCheckerBase):
+    """
+    检查是否存在意外的逻辑运算符
+    """
+    def __init__(self, query_string: str, fields: List[Dict[str, Any]] = None):
+        super().__init__(query_string=query_string, fields=fields, force_check=True)
+
+    def _check(self):
+        query_string = self.query_string.strip()
+        # 不能以 AND, OR, NOT 结尾
+        for _logic_operator in LuceneReservedLogicOperatorEnum.get_keys():
+            if query_string.endswith(_logic_operator):
+                self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=_logic_operator)
+                return False
+        # 不能以 AND, OR 开头
+        for _logic_operator in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
+            if query_string.startswith(_logic_operator):
+                self.check_result.error = _("多余的逻辑运算符{_logic_operator}").format(_logic_operator=_logic_operator)
+                return False
+
+        return True
+
+    def _fix(self) -> str:
+        query_string = self.query_string.strip()
+        # 不能以 AND, OR, NOT 结尾
+        for _logic_operator in LuceneReservedLogicOperatorEnum.get_keys():
+            if query_string.endswith(_logic_operator):
+                query_string = query_string[:-len(_logic_operator)]
+        # 不能以 AND, OR 开头
+        for _logic_operator in [LuceneReservedLogicOperatorEnum.AND.value, LuceneReservedLogicOperatorEnum.OR.value]:
+            if query_string.startswith(_logic_operator):
+                query_string = query_string[len(_logic_operator):]
+        return query_string
 
 
 class LuceneChecker(object):

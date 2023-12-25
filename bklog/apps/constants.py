@@ -139,7 +139,6 @@ FULL_TEXT_SEARCH_FIELD_NAME = _("全文检索")
 
 DEFAULT_FIELD_OPERATOR = "~="
 FIELD_GROUP_OPERATOR = "()"
-NOT_OPERATOR = "NOT"
 PLUS_OPERATOR = "+"
 PROHIBIT_OPERATOR = "-"
 
@@ -157,8 +156,20 @@ MAX_RESOLVE_TIMES = 10
 LUCENE_NUMERIC_OPERATORS = ["<", "<=", ">", ">=", "="]
 # Lucene数值类类型列表
 LUCENE_NUMERIC_TYPES = ["long", "integer", "short", "byte", "double", "float"]
+
+
+class LuceneReservedLogicOperatorEnum(ChoicesEnum):
+    """
+    Lucene保留逻辑操作符枚举
+    """
+    AND = "AND"
+    OR = "OR"
+    NOT = "NOT"
+
+    _choices_keys = (AND, OR, NOT)
+
+
 # Lucene保留字符
-LUCENE_RESERVED_LOGIC_OPERATORS = ['AND', 'OR', 'NOT']
 LUCENE_RESERVED_CHARS = ["+", "-", "=", "&", "&&", ">", "<", "!", "(", ")", "}", "[", "]", '"', "~", "*", "?", ":", "/"]
 # 全角字符转半角字符
 FULL_WIDTH_CHAR_MAP = {
