@@ -558,9 +558,12 @@ class AlertAssignee:
         for notice_way, users in notify_configs.items():
             if notice_way in [NoticeWay.WX_BOT, "wxbot_mention_users"]:
                 continue
-            if notice_way == NoticeWay.VOICE and appointee not in users:
-                users.append(appointee)
+            if notice_way == NoticeWay.VOICE:
+                # 如果是语音通知，判断整个列表是否存在
+                if appointee not in users:
+                    users.append(appointee)
                 continue
+            # 其他情况下，直接添加个人用户至列表中
             for user in appointee:
                 if user not in users:
                     users.append(user)

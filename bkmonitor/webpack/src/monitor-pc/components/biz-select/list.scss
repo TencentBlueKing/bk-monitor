@@ -1,9 +1,13 @@
 @import '../../theme//index.scss';
 
 .biz-list-wrap {
-  $bg-dark: #39455f;
+  // $bg-dark: #39455f;
+  $bg-dark: #192133;
+  // $color-dark:#c3d0e7;
   $color-dark:#c3d0e7;
-  $border-dark: #434e68;
+  // $border-dark: #434e68;
+  $border-dark: #2c354d;
+
   cursor: initial;
 
   &.dark {
@@ -28,18 +32,18 @@
 
     .list-group-name {
       height: 32px;
-      line-height: 32px;
       padding: 0 12px;
+      line-height: 32px;
       color: #979ba5;
     }
 
     &::before {
-      display: none;
       position: absolute;
-      content: '';
       top: 4px;
-      left: 9px;
       right: 9px;
+      left: 9px;
+      display: none;
+      content: '';
       border-top: 1px solid #eaebf0;
     }
 
@@ -58,11 +62,11 @@
     display: flex;
     align-items: center;
     height: 32px;
-    line-height: 32px;
     padding: 0 9px 0 12px;
+    line-height: 32px;
+    color: #63656e;
     cursor: pointer;
     transition: background-color .1s ease-in-out;
-    color: #63656e;
 
     &:hover {
       background-color: #e1ecff;
@@ -77,12 +81,14 @@
       color: $color-dark;
 
       &:hover {
-        background-color: #323c53;
+        // background-color: #323c53;
+        background: #272f45;
       }
 
       &.checked {
         color: #fff;
-        background-color: #272f45;
+        // background-color: #272f45;
+        background: #234071;
       }
     }
   }
@@ -117,8 +123,8 @@
     .list-item-tag {
       display: inline-block;
       height: 23px;
-      line-height: 23px;
       padding: 0 10px;
+      line-height: 23px;
       border-radius: 2px;
 
       &:not(:last-child) {

@@ -78,12 +78,8 @@ class GetDirectoryTree(Resource):
     def perform_request(self, params):
         org_id = get_or_create_org(params["bk_biz_id"])["id"]
         request = get_request()
-        try:
-            username = request.user.username
-        except Exception:
-            username = "admin"
 
-        result = api.grafana.search_folder_or_dashboard(org_id=org_id, username=username)
+        result = api.grafana.search_folder_or_dashboard(org_id=org_id)
         if not result:
             raise GetFolderOrDashboardError(**result)
 

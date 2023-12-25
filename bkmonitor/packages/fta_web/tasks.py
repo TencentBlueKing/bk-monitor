@@ -13,11 +13,11 @@ import time
 
 from celery.task import task
 from django.utils.translation import ugettext as _
-from fta_web.constants import QuickSolutionsConfig
-from monitor_web.strategies.user_groups import create_default_notice_group
 
 from bkmonitor.models import ActionConfig, AlertAssignGroup, AlertAssignRule
 from core.drf_resource import api, resource
+from fta_web.constants import QuickSolutionsConfig
+from monitor_web.strategies.user_groups import create_default_notice_group
 
 logger = logging.getLogger("celery")
 

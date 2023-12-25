@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
+import logging
 from functools import cmp_to_key
+from typing import Any, Dict, List, Optional, Set, Union
 
 import arrow
 from django.conf import settings
 from elasticsearch_dsl import Q
-from monitor.models import GlobalConfig, UserConfig
 from rest_framework import serializers
 
+from api.cmdb.define import Business
 from bkm_space.api import SpaceApi
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
 from bkmonitor.iam import ActionEnum, Permission
@@ -16,8 +18,11 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.action import ActionDisplayStatus, ActionPluginType
 from constants.alert import EventSeverity, EventStatus
 from core.drf_resource import CacheResource, Resource, api, resource
+from monitor.models import GlobalConfig, UserConfig
 
 FAVORITE_CONFIG_KEY = "fta_overview:favorite_biz"
+
+logger = logging.getLogger(__name__)
 
 
 class AllBizStatisticsResource(CacheResource):
@@ -203,27 +208,20 @@ class StatisticsResource(Resource):
         bk_biz_id = serializers.IntegerField(required=False, label="当前业务")
 
     @classmethod
-    def alert_sort_func(cls, all_data):
-        def sort_func(x, y):
-            x = {
-                level["level"]: level["count"]
-                for level in all_data["alert"].get(
-                    str(x.bk_biz_id),
-                    {"levels": []},
-                )["levels"]
+    def alert_sort_func(cls, all_data: Dict[str, Any]):
+        def sort_func(x: int, y: int):
+            x_level__count__map: Dict[int, int] = {
+                level["level"]: level["count"] for level in all_data["alert"].get(str(x), {"levels": []})["levels"]
             }
-            y = {
-                level["level"]: level["count"]
-                for level in all_data["alert"].get(
-                    str(y.bk_biz_id),
-                    {"levels": []},
-                )["levels"]
+            y_level__count__map: Dict[int, int] = {
+                level["level"]: level["count"] for level in all_data["alert"].get(str(y), {"levels": []})["levels"]
             }
 
-            for i in range(1, 4):
-                if x.get(i, 0) > y.get(i, 0):
+            # 按 level count 降序
+            for level in range(1, 4):
+                if x_level__count__map.get(level, 0) > y_level__count__map.get(level, 0):
                     return -1
-                if x.get(i, 0) < y.get(i, 0):
+                if x_level__count__map.get(level, 0) < y_level__count__map.get(level, 0):
                     return 1
             return 0
 
@@ -231,72 +229,78 @@ class StatisticsResource(Resource):
 
     def perform_request(self, validated_request_data):
         username = get_request_username()
-
-        biz_list = api.cmdb.get_business(all=True)
-        filtered_biz_list = biz_list
         permission = Permission(username)
-        allowed_bizs = permission.filter_business_list_by_action(
-            action=ActionEnum.VIEW_BUSINESS, business_list=filtered_biz_list
-        )
-        allowed_biz_ids = {biz.bk_biz_id for biz in allowed_bizs}
 
-        user_config = UserConfig.objects.filter(username=username, key=FAVORITE_CONFIG_KEY).first()
-
-        if user_config:
-            biz_ids = set(user_config.value)
-        else:
-            biz_ids = set()
-
-        filtered_biz_list = self._filter_by_favorite_only(validated_request_data, filtered_biz_list, biz_ids)
-        filtered_biz_list = self._filter_by_allowed_only(validated_request_data, filtered_biz_list, allowed_biz_ids)
-
-        search = validated_request_data.get("search")
-        if search:
-            # 按关键字过滤
-            filtered_biz_list = [
-                business
-                for business in filtered_biz_list
-                if search == str(business.bk_biz_id) or search.lower() in business.bk_biz_name.lower()
-            ]
-
-        # 获取全局配置置顶列表
+        # 优化思路： api.cmdb.get_business 存在对象 <-> dict 来回转换的性能损失
+        # 监控目前的管理粒度为「空间」，采用请求耗时较短的 list_spaces 替换
+        # 逻辑优化：空间总量可能过万，大部分用户都非超管，拉取全部业务 -> 改为拉取有权限的空间，减少带宽损失
+        space_list: List[Dict[str, Any]] = []
         try:
-            sticky_biz_ids = GlobalConfig.objects.get(key="biz_sticky").value
+            space_list = resource.commons.list_spaces()
+        except Exception:  # noqa
+            logger.exception("[StatisticsResource] list_spaces failed")
+
+        biz_id__space_map: Dict[int, Dict[str, Any]] = {space["bk_biz_id"]: space for space in space_list}
+        total_biz_ids: Set[int] = set(biz_id__space_map.keys())
+        allowed_biz_ids: Set[int] = set(
+            permission.filter_biz_ids_by_action(action=ActionEnum.VIEW_BUSINESS, bk_biz_ids=total_biz_ids)
+        )
+
+        # 依赖数据获取
+        favorite_biz_ids: Set[int] = set()
+        user_config: Optional[UserConfig] = UserConfig.objects.filter(
+            username=username, key=FAVORITE_CONFIG_KEY
+        ).first()
+        if user_config:
+            favorite_biz_ids: Set[int] = set(user_config.value)
+
+        try:
+            # 获取全局配置置顶列表
+            sticky_biz_ids: Set[int] = set(GlobalConfig.objects.get(key="biz_sticky").value)
         except GlobalConfig.DoesNotExist:
-            sticky_biz_ids = []
+            sticky_biz_ids: Set[int] = set()
 
-        filtered_biz_list = self._filter_by_sticky_only(validated_request_data, filtered_biz_list, sticky_biz_ids)
-        filtered_biz_list = self._filter_by_life_cycle(validated_request_data, filtered_biz_list)
+        all_data: Dict[str, Any] = resource.home.all_biz_statistics(days=validated_request_data["days"])
 
-        # 过滤有无告警配置
-        all_data = resource.home.all_biz_statistics(days=validated_request_data["days"])
-        filtered_biz_list = self._filter_by_alert_filter(validated_request_data, filtered_biz_list, all_data)
+        filtered_biz_ids: Set[int] = total_biz_ids
+        filtered_biz_ids: Set[int] = self._filter_by_favorite_only(
+            validated_request_data, filtered_biz_ids, favorite_biz_ids
+        )
+        filtered_biz_ids: Set[int] = self._filter_by_allowed_only(
+            validated_request_data, filtered_biz_ids, allowed_biz_ids
+        )
+        filtered_biz_ids = self._filter_by_search_keyword(validated_request_data, filtered_biz_ids, biz_id__space_map)
+        filtered_biz_ids = self._filter_by_sticky_only(validated_request_data, filtered_biz_ids, sticky_biz_ids)
+        filtered_biz_ids = self._filter_by_life_cycle(validated_request_data, filtered_biz_ids)
+        filtered_biz_ids = self._filter_by_alert_filter(validated_request_data, filtered_biz_ids, all_data)
 
-        # 把demo业务排在后面
-        filtered_biz_list.sort(key=lambda b: b.bk_biz_id == int(settings.DEMO_BIZ_ID))
+        # 少数场景：当 demo / 选中业务不在空间列表内时补偿获取，用于优化之前拉取全部的逻辑
+        for biz_id in [int(settings.DEMO_BIZ_ID), validated_request_data.get("bk_biz_id")]:
+            if biz_id and biz_id in filtered_biz_ids and biz_id not in biz_id__space_map:
+                biz_id__space_map[biz_id] = SpaceApi.get_space_detail(bk_biz_id=biz_id).to_dict()
 
-        # 将有权限的业务排在前面
-        filtered_biz_list.sort(key=lambda b: b.bk_biz_id in allowed_biz_ids, reverse=True)
+        # 排序：当前业务 > 置顶业务 > 有权限的任务 > 普通业务 > DEMO 业务
+        def _get_biz_weight(_biz_id: int):
+            if validated_request_data.get("bk_biz_id") == _biz_id:
+                return 0
+            elif _biz_id in sticky_biz_ids:
+                return 1
+            elif _biz_id == int(settings.DEMO_BIZ_ID):
+                # 先判断 DEMO 业务，避免「有权限」「Demo」业务同时成立的场景下，优先命中「有权限」导致排序前置
+                return 4
+            else:
+                return (3, 2)[_biz_id in allowed_biz_ids]
 
-        # 调整置顶业务位置
-        flag = 0
-        for index, business in enumerate(filtered_biz_list):
-            if business.bk_biz_id in sticky_biz_ids:
-                filtered_biz_list.insert(flag, filtered_biz_list.pop(index))
-                flag += 1
+        ordered_filtered_biz_ids: List[int] = sorted(
+            list(filtered_biz_ids), key=lambda _biz_id: _get_biz_weight(_biz_id)
+        )
 
-        if validated_request_data.get("bk_biz_id"):
-            # 固定将当前业务置顶
-            filtered_biz_list.sort(key=lambda b: b.bk_biz_id == validated_request_data["bk_biz_id"], reverse=True)
-
-        page = validated_request_data["page"]
-        page_size = validated_request_data["page_size"]
+        page: int = validated_request_data["page"]
+        page_size: int = validated_request_data["page_size"]
         if page != 0:
-            filtered_biz_list = filtered_biz_list[(page - 1) * page_size : page * page_size]
+            ordered_filtered_biz_ids = ordered_filtered_biz_ids[(page - 1) * page_size : page * page_size]
 
-        filtered_biz_ids = {business.bk_biz_id for business in filtered_biz_list}
-
-        overview_data = {
+        overview_data: Dict[str, Union[float]] = {
             "biz_count": 0,
             "event_count": 0,
             "alert_count": 0,
@@ -311,7 +315,13 @@ class StatisticsResource(Resource):
         }
 
         detail_map = self._get_detail_map(
-            biz_list, all_data, allowed_biz_ids, overview_data, filtered_biz_ids, biz_ids, sticky_biz_ids
+            all_data,
+            allowed_biz_ids,
+            overview_data,
+            filtered_biz_ids,
+            favorite_biz_ids,
+            sticky_biz_ids,
+            biz_id__space_map,
         )
 
         result = {
@@ -339,113 +349,134 @@ class StatisticsResource(Resource):
                     if overview_data["fatal_alert_count"]
                     else None
                 ),
+                # 平均应答时间：确认总时长 / 事件总数
                 "mtta": (
                     overview_data["sum_ack_duration"] / overview_data["count_ack_duration"]
                     if overview_data["count_ack_duration"]
                     else None
                 ),
+                # 平均修复时间：持续总时长 / 事件总数
                 "mttr": (
                     overview_data["sum_recover_duration"] / overview_data["count_recover_duration"]
                     if overview_data["count_recover_duration"]
                     else None
                 ),
             },
-            "details": [detail_map.get(business.bk_biz_id) for business in filtered_biz_list],
+            "details": [detail_map.get(biz_id) for biz_id in ordered_filtered_biz_ids],
         }
 
         return result
 
+    @classmethod
     def _filter_by_allowed_only(
-        self, validated_request_data: dict, filtered_biz_list: list, allowed_biz_ids: set
-    ) -> list:
+        cls, validated_request_data: Dict[str, Any], bk_biz_ids: Set[int], allowed_biz_ids: Set[int]
+    ) -> Set[int]:
+        """按有权限业务过滤"""
         if validated_request_data["allowed_only"]:
-            # 过滤无权限业务
-            # 有一种例外，当前业务，无论有无权限都要被过滤出来
-            filtered_biz_list = [
-                business
-                for business in filtered_biz_list
-                if (
-                    business.bk_biz_id in allowed_biz_ids
-                    or business.bk_biz_id == validated_request_data.get("bk_biz_id")
-                )
-            ]
+            # 过滤出「当前业务」及「有权限的业务」
+            current_biz_ids: Set[int] = set()
+            if validated_request_data.get("bk_biz_id"):
+                current_biz_ids.add(validated_request_data["bk_biz_id"])
+            return bk_biz_ids & allowed_biz_ids | current_biz_ids
+        return bk_biz_ids
 
-        return filtered_biz_list
+    @classmethod
+    def _filter_by_search_keyword(
+        cls, validated_request_data: Dict[str, Any], bk_biz_ids: Set[int], biz_id__space_map: Dict[int, Dict[str, Any]]
+    ) -> Set[int]:
+        """按搜索关键字过滤"""
+        search: Optional[str] = validated_request_data.get("search")
+        if not search:
+            return bk_biz_ids
 
-    def _filter_by_favorite_only(self, validated_request_data: dict, filtered_biz_list: list, biz_ids: set) -> list:
+        filtered_biz_ids: Set[int] = set()
+        for bk_biz_id in bk_biz_ids:
+            try:
+                space: Dict[str, Any] = biz_id__space_map[bk_biz_id]
+            except KeyError:
+                # 数据不同步或传参错误时的极小概率事件，记录日志并跳过
+                logger.warning("[_filter_by_search_keyword] bk_biz_id not found: %s", bk_biz_id)
+                continue
+
+            if search == space["space_id"] or search.lower() in space["space_name"]:
+                filtered_biz_ids.add(bk_biz_id)
+
+        return filtered_biz_ids
+
+    @classmethod
+    def _filter_by_favorite_only(
+        cls, validated_request_data: Dict[str, Any], bk_biz_ids: Set[int], favorite_biz_ids: Set[int]
+    ) -> Set[int]:
+        """按收藏业务过滤"""
         if validated_request_data["favorite_only"]:
-            # 过滤收藏配置
-            filtered_biz_list = [business for business in filtered_biz_list if business.bk_biz_id in biz_ids]
+            return bk_biz_ids & favorite_biz_ids
+        return bk_biz_ids
 
-        return filtered_biz_list
-
+    @classmethod
     def _filter_by_sticky_only(
-        self, validated_request_data: dict, filtered_biz_list: list, sticky_biz_ids: list
-    ) -> list:
+        cls, validated_request_data: Dict[str, Any], bk_biz_ids: Set[int], sticky_biz_ids: Set[int]
+    ) -> Set[int]:
+        """按指定业务过滤"""
         if validated_request_data["sticky_only"]:
-            # 过滤置顶配置
-            filtered_biz_list = [business for business in filtered_biz_list if business.bk_biz_id in sticky_biz_ids]
+            return bk_biz_ids & sticky_biz_ids
+        return bk_biz_ids
 
-        return filtered_biz_list
+    @classmethod
+    def _filter_by_life_cycle(cls, validated_request_data: Dict[str, Any], bk_biz_ids: Set[int]) -> Set[int]:
+        """按 cc 业务生命周期过滤"""
+        life_cycle: Optional[int] = validated_request_data.get("life_cycle")
+        # 下面的查询较为耗时，没有业务列表的情况下直接返回
+        if not life_cycle or not bk_biz_ids:
+            return bk_biz_ids
 
-    def _filter_by_life_cycle(self, validated_request_data: dict, filtered_biz_list: list) -> list:
-        if validated_request_data.get("life_cycle"):
-            # 过滤cmdb生命周期属性
-            filtered_biz_list = [
-                business
-                for business in filtered_biz_list
-                if business.life_cycle == str(validated_request_data["life_cycle"])
+        # 极少数场景的筛选场景，用到了再去拉业务列表
+        # 空间没有生命周期，不需要加 all=True 把空间也拉回来
+        biz_list: List[Business] = api.cmdb.get_business()
+        life_cycle_filtered_biz_ids: Set[int] = {biz.bk_biz_id for biz in biz_list if biz.life_cycle == str(life_cycle)}
+        return life_cycle_filtered_biz_ids & bk_biz_ids
+
+    def _filter_by_alert_filter(
+        self, validated_request_data: Dict[str, Any], bk_biz_ids: Set[int], all_data: Dict[str, Any]
+    ) -> Set[int]:
+        """按告警级别过滤"""
+        alert_filter: Optional[str] = validated_request_data.get("alert_filter")
+        if not alert_filter:
+            return bk_biz_ids
+
+        if validated_request_data["alert_filter"] == "has_alert":
+            # 仅过滤出有告警的业务
+            filtered_biz_list: List[int] = [
+                bk_biz_id
+                for bk_biz_id in bk_biz_ids
+                if len(all_data["alert"].get(str(bk_biz_id), {"levels": []})["levels"]) != 0
             ]
-        return filtered_biz_list
-
-    def _filter_by_alert_filter(self, validated_request_data: dict, filtered_biz_list: list, all_data: dict) -> list:
-        if validated_request_data.get("alert_filter"):
-            if validated_request_data["alert_filter"] == "has_alert":
-                filtered_biz_list = [
-                    business
-                    for business in filtered_biz_list
-                    if len(
-                        all_data["alert"].get(
-                            str(business.bk_biz_id),
-                            {"levels": []},
-                        )["levels"]
-                    )
-                    != 0
-                ]
-                # 告警按照等级、数量进行排序
-                alert_sort_func = self.alert_sort_func(all_data)
-                filtered_biz_list.sort(key=cmp_to_key(alert_sort_func))
-            else:
-                filtered_biz_list = [
-                    business
-                    for business in filtered_biz_list
-                    if len(
-                        all_data["alert"].get(
-                            str(business.bk_biz_id),
-                            {"levels": []},
-                        )["levels"]
-                    )
-                    == 0
-                ]
-        return filtered_biz_list
+            # 告警按照等级、数量进行排序
+            filtered_biz_list.sort(key=cmp_to_key(self.alert_sort_func(all_data)))
+        else:
+            filtered_biz_list: List[int] = [
+                bk_biz_id
+                for bk_biz_id in bk_biz_ids
+                if len(all_data["alert"].get(str(bk_biz_id), {"levels": []})["levels"]) == 0
+            ]
+        return set(filtered_biz_list)
 
     @staticmethod
     def _get_detail_map(
-        biz_list: list,
-        all_data: dict,
-        allowed_biz_ids: set,
-        overview_data: dict,
-        filtered_biz_ids: set,
-        biz_ids: set,
-        sticky_biz_ids: list,
-    ) -> dict:
-        detail_map = {}
-        for business in biz_list:
-            bk_biz_id = str(business.bk_biz_id)
+        all_data: Dict[str, Any],
+        allowed_biz_ids: Set[int],
+        overview_data: Dict[str, Union[int, float]],
+        filtered_biz_ids: Set[int],
+        favorite_biz_ids: Set[int],
+        sticky_biz_ids: Set[int],
+        biz_id__space_map: Dict[int, Dict[str, Any]],
+    ) -> Dict[int, Dict[str, Any]]:
+        detail_map: Dict[int, Dict[str, Any]] = {}
 
-            biz_event_data = all_data["event"].get(bk_biz_id, 0)
-            biz_alert_data = all_data["alert"].get(
-                bk_biz_id,
+        for biz_id in filtered_biz_ids:
+            biz_id_str: str = str(biz_id)
+            biz_event_count: int = all_data["event"].get(biz_id_str, 0)
+            biz_alert_data: Dict[str, Union[List[Any], float, int]] = all_data["alert"].get(
+                biz_id_str,
                 {
                     "count": 0,
                     "strategy_alert_count": 0,
@@ -457,18 +488,18 @@ class StatisticsResource(Resource):
                     "count_recover_duration": 0,
                 },
             )
-            biz_action_data = all_data["action"].get(
-                bk_biz_id,
+            biz_action_data: Dict[str, int] = all_data["action"].get(
+                biz_id_str,
                 {
                     "count": 0,
                     "auto_recovery_count": 0,
                 },
             )
 
-            if business.bk_biz_id in allowed_biz_ids and business.bk_biz_id != int(settings.DEMO_BIZ_ID):
-                # 累加总览信息，只统计有权限的业务，且不是demo的业务
+            # 仅统计有权限且非 DEMO 业务的总数
+            if biz_id in allowed_biz_ids and biz_id != int(settings.DEMO_BIZ_ID):
                 overview_data["biz_count"] += 1
-                overview_data["event_count"] += biz_event_data
+                overview_data["event_count"] += biz_event_count
                 overview_data["alert_count"] += biz_alert_data["count"]
                 overview_data["strategy_alert_count"] += biz_alert_data["strategy_alert_count"]
                 overview_data["action_count"] += biz_action_data["count"]
@@ -479,35 +510,34 @@ class StatisticsResource(Resource):
                 overview_data["sum_recover_duration"] += biz_alert_data["sum_recover_duration"]
                 overview_data["count_recover_duration"] += biz_alert_data["count_recover_duration"]
 
-            if business.bk_biz_id not in filtered_biz_ids:
+            if biz_id not in biz_id__space_map:
                 continue
+            space: Dict[str, Any] = biz_id__space_map[biz_id]
 
             # 展示过滤业务
-            biz_data = {
-                "bk_biz_id": business.bk_biz_id,
-                "bk_biz_name": business.bk_biz_name,
-                "is_favorite": business.bk_biz_id in biz_ids,
-                "is_demo": business.bk_biz_id == int(settings.DEMO_BIZ_ID),
-                "is_sticky": business.bk_biz_id in sticky_biz_ids,
-                "is_allowed": business.bk_biz_id in allowed_biz_ids,
+            biz_data: Dict[str, Any] = {
+                "bk_biz_id": space["bk_biz_id"],
+                "bk_biz_name": space["space_name"],
+                "is_favorite": biz_id in favorite_biz_ids,
+                "is_demo": biz_id == int(settings.DEMO_BIZ_ID),
+                "is_sticky": biz_id in sticky_biz_ids,
+                "is_allowed": biz_id in allowed_biz_ids,
             }
 
-            if business.bk_biz_id in allowed_biz_ids:
+            if biz_id in allowed_biz_ids:
                 biz_data.update(
                     {
                         "event": {
-                            "count": biz_event_data,
+                            "count": biz_event_count,
                         },
                         "alert": {
                             "count": biz_alert_data["count"],
                             "strategy_alert_count": biz_alert_data["strategy_alert_count"],
                             "levels": biz_alert_data["levels"],
                         },
-                        "action": {
-                            "count": biz_action_data["count"],
-                        },
+                        "action": {"count": biz_action_data["count"]},
                         "noise_reduction_ratio": (
-                            (1 - min(biz_alert_data["count"] / biz_event_data, 1)) if biz_event_data else None
+                            (1 - min(biz_alert_data["count"] / biz_event_count, 1)) if biz_event_count else None
                         ),
                         "auto_recovery_ratio": (
                             min(1, biz_action_data["auto_recovery_count"] / biz_alert_data["fatal_alert_count"])
@@ -524,11 +554,11 @@ class StatisticsResource(Resource):
                             if biz_alert_data["count_recover_duration"]
                             else None
                         ),
-                        "space_info": SpaceApi.get_space_detail(bk_biz_id=business.bk_biz_id).to_dict(),
+                        "space_info": space,
                     }
                 )
 
-            detail_map[business.bk_biz_id] = biz_data
+            detail_map[biz_id] = biz_data
 
         return detail_map
 

@@ -2751,7 +2751,7 @@ export default class DataRetrieval extends tsc<{}> {
     this.metricSelectorShow = v;
   }
   handleSelectMetric(value) {
-    const copyStr = (value.metric_id || '').replace(/\./g, ':').replace('::', ':');
+    const copyStr = value.promql_metric;
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
@@ -2804,8 +2804,8 @@ export default class DataRetrieval extends tsc<{}> {
               opt !== 'enable'
                 ? this.optionIconName[opt]
                 : item.enable
-                ? this.optionIconName[opt]
-                : 'icon-mc-invisible';
+                  ? this.optionIconName[opt]
+                  : 'icon-mc-invisible';
             const sourceAcitve = opt === 'source' && metricItem.showSource ? 'is-source' : '';
             /** 不支持多指标的不支持源码编辑 */
             const display =
@@ -3058,8 +3058,8 @@ export default class DataRetrieval extends tsc<{}> {
                             opt !== 'enable'
                               ? this.optionIconName[opt]
                               : item.enable
-                              ? this.optionIconName[opt]
-                              : 'icon-mc-invisible';
+                                ? this.optionIconName[opt]
+                                : 'icon-mc-invisible';
                           return (
                             <i
                               key={opt}
