@@ -517,6 +517,7 @@ class GetSendRecordsResource(Resource):
     def perform_request(self, validated_request_data):
         return list(
             ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"])
+            .exclude(send_status=SendStatusEnum.NO_STATUS.value)
             .order_by("-send_time")
             .values()
         )

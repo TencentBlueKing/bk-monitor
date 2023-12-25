@@ -18,7 +18,7 @@ from bkmonitor.models import ReportSendRecord, logger
 from bkmonitor.utils.range import TIME_MATCH_CLASS_MAP
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
-from constants.new_report import HourFrequencyTime
+from constants.new_report import HourFrequencyTime, SendStatusEnum
 
 
 def parse_frequency(frequency, last_send_time=None) -> list:
@@ -119,6 +119,27 @@ def get_data_range(frequency) -> dict:
         interval = "{}小时".format(int(hour)) if hour > 1 else "{}分钟".format(int(hour * 60))
     time_fmt = "%Y-%m-%d %H:%M:%S"
     return {"start_time": from_time.strftime(time_fmt), "end_time": now_time.strftime(time_fmt), "interval": interval}
+
+
+def create_send_record(channels, send_round):
+    send_time = datetime.datetime.now()
+    send_records = []
+    for channel in channels:
+        if not channel.is_enabled:
+            continue
+        send_records.append(
+            ReportSendRecord(
+                **{
+                    "report_id": channel.report_id,
+                    "channel_name": channel.channel_name,
+                    "send_results": [],
+                    "send_status": SendStatusEnum.NO_STATUS.value,
+                    "send_time": send_time,
+                    "send_round": send_round,
+                }
+            )
+        )
+    ReportSendRecord.objects.bulk_create(send_records)
 
 
 def send_email(context: dict, subscribers: list) -> dict:

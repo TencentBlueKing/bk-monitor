@@ -20,6 +20,7 @@ from alarm_backends.service.new_report.factory import ReportFactory
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.models import Report
 from bkmonitor.report.utils import (
+    create_send_record,
     get_last_send_record_map,
     is_run_time,
     parse_frequency,
@@ -60,5 +61,12 @@ def new_report_detect():
         if not is_run_time(frequency, run_time_strings):
             logger.info(f"report{report.id} not at sending time.")
             continue
+        # 根据渠道分别发送，记录最新发送轮次
+        send_round = 0
+        if report.id:
+            send_round = report.send_round + 1 if report.send_round else 1
+            report.send_round = send_round
+            report.save()
+        create_send_record(report.channels, send_round)
         # 异步执行订阅发送任务
         send_report.delay(report)

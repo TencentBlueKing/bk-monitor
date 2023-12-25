@@ -16,6 +16,7 @@ from bkmonitor.report.serializers import (
     ContentConfigSerializer,
     ScenarioConfigSerializer,
 )
+from bkmonitor.report.utils import create_send_record
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -48,10 +49,18 @@ class SendReport(Resource):
         for channel in channels_params:
             channel["report_id"] = report_id
             channels.append(ReportChannel(**channel))
+        send_round = 0
         if validated_request_data.get("report_id"):
-            report = Report.objects.get(id=validated_request_data["report_id"])
+            try:
+                report = Report.objects.get(id=validated_request_data["report_id"])
+            except Report.DoesNotExist:
+                raise Exception(f'report {validated_request_data["report_id"]} does not exist.')
+            send_round = report.send_round + 1 if report.send_round else 1
+            report.send_round = send_round
+            report.save()
         else:
             report = Report(**validated_request_data)
+        create_send_record(channels, send_round)
         send_report.delay(report, channels)
         return "success"
 

@@ -44,20 +44,13 @@ class BaseReportHandler(object):
         """
         执行订阅
         """
-        # 根据渠道分别发送，记录最新发送轮次
-        send_round = 0
-        if self.report.id:
-            send_round = self.report.send_round + 1 if self.report.send_round else 1
-            self.report.send_round = send_round
-            self.report.save()
         if not channels:
             channels = self.channels
-        SendChannelHandler.create_send_record(channels, send_round)
         # 获取渲染参数
         render_params = self.get_render_params()
         # 渲染订阅内容,获取上下文
         context = self.render(render_params)
-
+        send_round = self.report.send_round or 0
         for channel in channels:
             if channel.is_enabled:
                 SendChannelHandler(channel).send(context, send_round, self.report.bk_biz_id)
@@ -143,27 +136,6 @@ class SendChannelHandler(object):
         ReportSendRecord.objects.filter(
             report_id=self.channel.report_id, channel_name=self.channel.channel_name, send_round=send_round
         ).update(**send_record)
-
-    @staticmethod
-    def create_send_record(channels, send_round):
-        send_time = datetime.datetime.now()
-        send_records = []
-        for channel in channels:
-            if not channel.is_enabled:
-                continue
-            send_records.append(
-                ReportSendRecord(
-                    **{
-                        "report_id": channel.report_id,
-                        "channel_name": channel.channel_name,
-                        "send_results": [],
-                        "send_status": SendStatusEnum.NO_STATUS.value,
-                        "send_time": send_time,
-                        "send_round": send_round,
-                    }
-                )
-            )
-        ReportSendRecord.objects.bulk_create(send_records)
 
     def fetch_subscribers(self, bk_biz_id=None):
         """
