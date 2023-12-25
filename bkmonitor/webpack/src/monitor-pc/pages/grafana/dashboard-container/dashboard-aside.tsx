@@ -262,7 +262,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
   }
   handleResetChecked() {
-    if (this.$route.name === 'grafana-home') {
+    if (this.$route.name === 'grafana-home' || this.$store.getters.bizIdChangePedding) {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
       this.checked = this.$route.params?.url || '';
