@@ -583,6 +583,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 INGESTER_HOST = os.getenv("BKAPP_INGESTER_HOST", "http://ingester.bkfta.service.consul")
+COLLOCTOR_HOST = os.getenv("BKAPP_COLLOCTOR_HOST", "")
 
 # CORS配置
 CORS_ALLOW_ALL_ORIGINS = True

@@ -37,7 +37,6 @@ from bkmonitor.models.fta import PluginStatus
 from bkmonitor.utils.serializers import StringSplitListField
 from bkmonitor.utils.template import jinja_render
 from bkmonitor.utils.time_tools import utc2biz_str
-from constants.action import GLOBAL_BIZ_ID
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.drf_resource.tools import format_serializer_errors
@@ -523,23 +522,35 @@ class GetEventPluginInstanceResource(Resource):
             manager = get_manager(instances[0])
             inst_serializer = manager.get_serializer_class()
             serializer_data = inst_serializer(instance=instances, many=True).data
-            plugin_info["ingest_config"]["ingester_host"] = settings.INGESTER_HOST
-            push_url = f"{settings.INGESTER_HOST}/event/{plugin_info['plugin_id']}/"
+            ingest_config = plugin_info["ingest_config"]
+            push_host = (
+                settings.COLLOCTOR_HOST
+                if ingest_config.get("collect_type") == "bk_collector"
+                else settings.INGESTER_HOST
+            )
+
+            ingest_config["ingester_host"] = push_host
+            push_url = f"{push_host}/event/{plugin_info['plugin_id']}/"
+            alert_sources = ingest_config.get("alert_source", [])
+            collect_urls = [push_url]
+            ingest_config["push_url"] = push_url
             if instances[0].bk_biz_id:
-                plugin_info["ingest_config"][
-                    "push_url"
-                ] = f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
-            else:
-                plugin_info["ingest_config"]["push_url"] = push_url
+                # 不是全局的，需要单独配置
+                if push_host == settings.COLLOCTOR_HOST:
+                    collect_urls = []
+                    data_info = api.metadata.get_data_id(bk_data_id=instances[0].data_id, with_rt_info=False)
+                    for alert_source in alert_sources:
+                        collect_urls.append(f"{push_url}?source={alert_source}&token={data_info['token']}")
+                else:
+                    ingest_config["push_url"] = f"{push_host}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
 
             instances_data = [
                 {
                     "id": inst_data["id"],
                     "params_schema": inst_data["params_schema"],
                     "updatable": inst_data["version"] != plugin_info["version"],
-                    "push_url": f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
-                    if inst_data["bk_biz_id"]
-                    else push_url,
+                    "push_url": ingest_config["push_url"],
+                    "collect_urls": collect_urls,
                 }
                 for inst_data in serializer_data
             ]
@@ -551,15 +562,6 @@ class GetEventPluginInstanceResource(Resource):
                     "is_installed": True,
                 }
             )
-
-            # 注入 ingester_host 用于生成 push 请求的目标地址，考虑到后续对不同插件可能有跨云需求，所以这里先预留一个字段
-            plugin_info["ingest_config"]["ingester_host"] = settings.INGESTER_HOST
-            if instances[0].bk_biz_id and instances[0].bk_biz_id != GLOBAL_BIZ_ID:
-                plugin_info["ingest_config"][
-                    "push_url"
-                ] = f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
-            else:
-                plugin_info["ingest_config"]["push_url"] = f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}/"
         return plugin_info
 
 
