@@ -1613,7 +1613,7 @@ class Strategy(AbstractConfig):
             "path": self.path,
             "priority": self.priority,
             "priority_group_key": priority_group_key,
-            "edit_allowed": False if self.source == DATALINK_SOURCE else False,
+            "edit_allowed": self.source != DATALINK_SOURCE,
         }
 
         config["metric_type"] = config["items"][0]["metric_type"] if config["items"] else ""
