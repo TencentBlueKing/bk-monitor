@@ -1079,7 +1079,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         ...item,
         extend_info: this.relateInfos?.[item.id] || '',
         event_count: this.eventCounts?.[item.id] || '--',
-        followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assginne) : false
+        followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assignee) : false
       })) || [];
 
     // 查找当前表格的 告警 标签是否有 通知人 为空的情况。BugID: 1010158081103484871

@@ -26,11 +26,11 @@
 /**
  * @description 在关注人里面但不在通知人则禁用操作
  * @param follower
- * @param assginne
+ * @param assignee
  */
-export function getOperatorDisabled(follower: string[], assginne: string[]) {
+export function getOperatorDisabled(follower: string[], assignee: string[]) {
   const username = window.user_name || window.username;
   const hasFollower = (follower || []).some(u => u === username);
-  const hasAssginne = (assginne || []).some(u => u === username);
-  return hasAssginne ? false : hasFollower;
+  const hasAssignee = (assignee || []).some(u => u === username);
+  return hasAssignee ? false : hasFollower;
 }
