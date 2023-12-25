@@ -298,6 +298,19 @@ class QuickCreateSubscription extends tsc<IProps> {
             const subscriberList = enabledList.filter(item => item.subscribers.length);
             console.log('subscriberList', subscriberList);
 
+            let isValid = false;
+            // 选中了，但是输入框没有添加任何订阅内容，将选中的输入框都显示提示。
+            enabledList.forEach(item => {
+              if (!item.subscribers.length) {
+                this.errorTips[item.channel_name].message = this.errorTips[item.channel_name].defaultMessage;
+                this.errorTips[item.channel_name].isShow = true;
+                isValid = true;
+              } else {
+                this.errorTips[item.channel_name].isShow = false;
+              }
+            });
+            if (isValid) return false;
+
             if (subscriberList.length === 0) return false;
             return true;
           },
