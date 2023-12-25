@@ -33,9 +33,9 @@
       @keydown="handleKeydown" />
     <div v-if="isKeywordsError" class="refresh-keywords">
       <span class="error-message">{{$t('当前查询语句有语法错误')}}, </span>
-      <span v-if="keywordIsResolved" @click="handleRefreshKeywords">
+      <span v-if="keywordIsResolved">
         <i18n path="点击可进行{0}" class="error-message">
-          <span>
+          <span @click="handleRefreshKeywords">
             <span class="log-icon icon-refresh-icon"></span>
             <span class="refresh-btn">{{$t('自动转换')}}</span>
           </span>
@@ -418,7 +418,7 @@ export default {
       this.keywordIsResolved = false;
       this.keywordErrorMessage = '';
       this.$emit('isCanSearch', true);
-      if (this.isAutoQuery) this.$emit('retrieve');
+      this.$emit('retrieve');
     },
     async handleCheckKeywords(keyword) { // 检查检索语句是否有误
       if (keyword === '') keyword = '*';

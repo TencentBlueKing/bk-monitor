@@ -149,8 +149,8 @@ export default class UiQuery extends Mixins(classDragMixin) {
       // 设置语法规则
       tokenizer: {
         root: [
-          [/\b(AND|OR|and|or)\b/i, 'AND-OR-color'],
-          [/\b(NOT)\b/i, 'NOT-color'],
+          [/\s(AND|OR|and|or)/i, 'AND-OR-color'],
+          [/\s(NOT)/i, 'NOT-color'],
         ],
       },
     });
