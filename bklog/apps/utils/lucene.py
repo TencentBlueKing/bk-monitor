@@ -903,10 +903,11 @@ class LuceneCheckerBase(object):
             pass
         try:
             self.check_result.legal = self._check()
-        except Exception:
+        except Exception as e:
             self.check_result.fixable = False
             self.check_result.legal = False
             self.check_result.error = _("语法错误")
+            logger.error(f"lucene check unexpected error: {e}")
             return
 
     def _check(self):
@@ -1024,7 +1025,8 @@ class LuceneQuotesChecker(LuceneCheckerBase):
         :param s: 字符串
         :return: 是否匹配
         """
-        if ":" in s:
+        # 避免value是 YY-MM-DD HH:mm:SS 这种情况
+        if ":" in s and s.count(":") == 1:
             __, s = s.split(":")
 
         left_single_quote = s.startswith("'")
@@ -1087,9 +1089,16 @@ class LuceneQuotesChecker(LuceneCheckerBase):
                     continue
                 __, field_expr = sub_query.split(':')
                 field_expr = field_expr.strip()
-                if field_expr and not self.check_quotes(field_expr):
-                    self.check_result.error = _("引号不匹配")
-                    return False
+                # 如果是空格分割的单词, 则每个单词都检查一遍
+                if " " in field_expr:
+                    for word in field_expr.split(" "):
+                        if word and not self.check_quotes(word):
+                            self.check_result.error = _("引号不匹配")
+                            return False
+                else:
+                    if field_expr and not self.check_quotes(field_expr):
+                        self.check_result.error = _("引号不匹配")
+                        return False
         return True
 
 
