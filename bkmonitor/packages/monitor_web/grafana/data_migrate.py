@@ -9,13 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-from abc import ABC
 from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 
-class BasePanel(metaclass=ABC):
+class BasePanel:
     """
     Grafana Panel配置
 
