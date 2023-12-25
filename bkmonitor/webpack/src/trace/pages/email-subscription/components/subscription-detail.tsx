@@ -225,14 +225,15 @@ export default defineComponent({
                     ?.find?.(item => item.channel_name === 'user')
                     ?.subscribers?.map?.(item => {
                       return (
-                        <div style='display: inline-flex;align-items: center;margin-right: 24px;'>
-                          {item.src && (
+                        <div style='display: inline-flex;margin-right: 24px;margin-bottom: 10px;align-items: center;'>
+                          {/* {item.src && (
                             <img
-                              src='https://jjlau.com/img/avatar.jpg'
+                              src=''
                               alt=''
                               class='avatar'
                             />
-                          )}
+                          )} */}
+                          <i class='icon-monitor icon-mc-user-one'></i>
                           <span style='margin-left: 5px;'>{item.id}</span>
                         </div>
                       );

@@ -144,23 +144,66 @@ export default defineComponent({
         }
       ],
       channels: [
+        // 这个顺序不要改
         {
           validator: () => {
             const enabledList = formData.channels.filter(item => item.is_enabled);
             console.log('enabledList', enabledList);
 
-            if (enabledList.length === 0) return false;
+            if (enabledList.length === 0) {
+              // 提醒用户，三个输入框都没有选中，必须选中一个。
+              Object.keys(errorTips).forEach(key => {
+                errorTips[key].message = '请至少选择一种订阅方式';
+                errorTips[key].isShow = true;
+              });
+              return false;
+            }
+            Object.keys(errorTips).forEach(key => {
+              errorTips[key].isShow = false;
+            });
+
             const subscriberList = enabledList.filter(item => item.subscribers.length);
             console.log('subscriberList', subscriberList);
+
+            let isValid = false;
+            // 选中了，但是输入框没有添加任何订阅内容，将选中的输入框都显示提示。
+            enabledList.forEach(item => {
+              if (!item.subscribers.length) {
+                errorTips[item.channel_name].message = errorTips[item.channel_name].defaultMessage;
+                errorTips[item.channel_name].isShow = true;
+                isValid = true;
+              } else {
+                errorTips[item.channel_name].isShow = false;
+              }
+            });
+            if (isValid) return false;
 
             if (subscriberList.length === 0) return false;
             return true;
           },
-          message: window.i18n.t('订阅人不能为空'),
+          // 给个空格，
+          message: ' ',
           trigger: 'blur'
         }
       ]
     };
+    const errorTips = reactive({
+      user: {
+        message: '',
+        defaultMessage: window.i18n.t('内部邮件不可为空'),
+        isShow: false
+      },
+      email: {
+        message: '',
+        defaultMessage: window.i18n.t('外部邮件不可为空'),
+        isShow: false
+      },
+      wxbot: {
+        message: '',
+        defaultMessage: window.i18n.t('企业微信群不可为空'),
+        isShow: false
+      }
+    });
     const pattenLevelSlider = ref(0);
     enum PatternLevelEnum {
       '01' = 0,
@@ -764,7 +807,8 @@ export default defineComponent({
       timeRangeOption,
       handleTimeRangeChange,
       isIncludeWeekend,
-      goToTargetScene
+      goToTargetScene,
+      errorTips
     };
   },
   render() {
@@ -1288,7 +1332,13 @@ export default defineComponent({
                     <MemberSelect
                       v-model={this.subscriberInput.user}
                       style={{ width: '465px' }}
+                      onChange={() => {
+                        nextTick(() => {
+                          this.formDataRules.channels[0].validator();
+                        });
+                      }}
                     ></MemberSelect>
+                    {this.errorTips.user.isShow && <div class='bk-form-error'>{this.errorTips.user.message}</div>}
                   </div>
 
                   <div style={{ marginTop: '10px' }}>
@@ -1321,6 +1371,7 @@ export default defineComponent({
                     placeholder={window.i18n.t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}
                     style={{ width: '465px', marginTop: '10px' }}
                   ></Input>
+                  {this.errorTips.email.isShow && <div class='bk-form-error'>{this.errorTips.email.message}</div>}
 
                   <div style={{ marginTop: '10px' }}>
                     <Checkbox
@@ -1356,6 +1407,7 @@ export default defineComponent({
                       style={{ width: '465px' }}
                     ></Input>
                   </Popover>
+                  {this.errorTips.wxbot.isShow && <div class='bk-form-error'>{this.errorTips.wxbot.message}</div>}
                 </div>
               )}
             </Form.FormItem>
