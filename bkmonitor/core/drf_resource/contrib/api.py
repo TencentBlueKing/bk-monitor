@@ -75,10 +75,33 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     # 是否直接使用标准格式数据，兼容BCS非标准返回的情况
     IS_STANDARD_FORMAT = True
 
-    method: str
-    base_url: str
-    module_name: str
-    action: str
+    @abc.abstractproperty
+    def base_url(self):
+        """
+        api gateway 基本url生成规则
+        """
+        raise NotImplementedError
+
+    @abc.abstractproperty
+    def module_name(self):
+        """
+        在apigw中的模块名
+        """
+        raise NotImplementedError
+
+    @abc.abstractproperty
+    def action(self):
+        """
+        url的后缀，通常是指定特定资源
+        """
+        raise NotImplementedError
+
+    @abc.abstractproperty
+    def method(self):
+        """
+        请求方法，仅支持GET或POST
+        """
+        raise NotImplementedError
 
     @staticmethod
     def split_request_data(data):
