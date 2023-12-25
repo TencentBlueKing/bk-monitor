@@ -900,7 +900,7 @@ def parse_scene_metrics(plan_args):
                 result_table_id=metric.result_table_id,
                 metric_field=metric.metric_field,
             ),
-            "name": metric.metric_field_name,
+            "name": _(metric.metric_field_name),
             "unit": metric.unit,
             "metric_name": metric.bkmonitor_metric_fullname,
         }
