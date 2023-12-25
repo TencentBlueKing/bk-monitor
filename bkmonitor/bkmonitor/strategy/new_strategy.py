@@ -88,6 +88,7 @@ from bkmonitor.utils.time_tools import strftime_local
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
+    DATALINK_SOURCE,
     HOST_SCENARIO,
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
@@ -1612,6 +1613,7 @@ class Strategy(AbstractConfig):
             "path": self.path,
             "priority": self.priority,
             "priority_group_key": priority_group_key,
+            "edit_allowed": False if self.source == DATALINK_SOURCE else False,
         }
 
         config["metric_type"] = config["items"][0]["metric_type"] if config["items"] else ""
