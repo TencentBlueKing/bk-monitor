@@ -9,18 +9,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from django.conf import settings
 from django.utils.translation import get_language
 from django.utils.translation import ugettext as _
 
+from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
 from common.log import logger
 from core.drf_resource import resource
+from core.errors.api import BKAPIError
 
 
 class Platform(object):
@@ -169,6 +171,23 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
         }
     )
 
+    allow_biz_ids: Set[int] = {space["bk_biz_id"] for space in space_list}
+    # 为什么不直接调用接口检查？相比起 CPU 运算，接口请求耗时更不可控，考虑到大部分场景下 bk_biz_id in allow_biz_ids
+    # 故利用该条件进行兼枝
+    if bk_biz_id not in allow_biz_ids:
+        try:
+            SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        except BKAPIError:
+            try:
+                # 空间不存在，有权限的业务里挑一个
+                context["BK_BIZ_ID"] = space_list[0]["bk_biz_id"]
+            except IndexError:
+                # 什么权限都没有
+                if settings.DEMO_BIZ_ID:
+                    context["BK_BIZ_ID"] = int(settings.DEMO_BIZ_ID)
+                else:
+                    context["BK_BIZ_ID"] = -1
+
     # 用于主机详情渲染
     context["HOST_DATA_FIELDS"] = (
         ["bk_host_id"] if is_ipv6_biz(context["BK_BIZ_ID"]) else ["bk_target_ip", "bk_target_cloud_id"]
@@ -242,7 +261,7 @@ def _get_full_monitor_context(request) -> Dict[str, Any]:
         "MIGRATE_GUIDE_URL": settings.MIGRATE_GUIDE_URL,
         # 用于导入导出配置
         "COLLECTING_CONFIG_FILE_MAXSIZE": settings.COLLECTING_CONFIG_FILE_MAXSIZE,
-        # 用于healz判断是否容器化部署
+        # 用于 healthz 判断是否容器化部署
         "IS_CONTAINER_MODE": settings.IS_CONTAINER_MODE,
         # 用于新增空间是否展示其他
         "MONITOR_MANAGERS": settings.MONITOR_MANAGERS,
