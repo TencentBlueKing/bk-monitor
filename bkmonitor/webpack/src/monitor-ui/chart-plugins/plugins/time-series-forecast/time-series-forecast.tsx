@@ -439,7 +439,7 @@ export default class TimeSeriesForecast extends LineChart {
           this.hasSetEvent = true;
         }
       } else if (completed) {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {

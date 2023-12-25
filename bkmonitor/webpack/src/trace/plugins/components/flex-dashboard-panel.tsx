@@ -260,7 +260,7 @@ export default defineComponent({
     }
 
     function renderFn() {
-      if (!props.panels?.length) return <div class='dashboard-panel empty-data'>{window.i18n.t('查无数据')}</div>;
+      if (!props.panels?.length) return <div class='dashboard-panel empty-data'>{window.i18n.t('暂无数据')}</div>;
       return (
         <div
           id='dashboard-panel'

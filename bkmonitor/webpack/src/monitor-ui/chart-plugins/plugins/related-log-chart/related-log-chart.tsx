@@ -474,7 +474,7 @@ class RelatedLogChart extends CommonSimpleChart {
                           />
                         </div>
                       ) : (
-                        <div class='empty-chart'>{this.$t('查无数据')}</div>
+                        <div class='empty-chart'>{this.$t('暂无数据')}</div>
                       )}
                     </div>
                   </div>

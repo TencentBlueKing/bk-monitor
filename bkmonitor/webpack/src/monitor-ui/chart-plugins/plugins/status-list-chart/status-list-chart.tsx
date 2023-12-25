@@ -90,7 +90,7 @@ class StatusListChart extends CommonSimpleChart {
         this.empty = false;
         this.data = res;
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {

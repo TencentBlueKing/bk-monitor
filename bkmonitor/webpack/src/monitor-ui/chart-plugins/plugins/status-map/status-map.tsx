@@ -53,7 +53,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
   inited = false;
   metrics = [];
   legendData = [];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.tc('暂无数据');
   empty = true;
   extendData: IExtendDataItem[] = [];
   colorList = ['rgba(45, 203, 86)', 'rgba(255, 235, 0)', 'rgba(255, 156, 1)', 'rgba(234, 54, 54)'];
@@ -160,7 +160,7 @@ class StatusMap extends CommonSimpleChart implements ICommonCharts {
         this.inited = true;
         this.empty = false;
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {

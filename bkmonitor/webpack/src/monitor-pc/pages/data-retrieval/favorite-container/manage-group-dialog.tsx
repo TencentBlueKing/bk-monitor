@@ -714,7 +714,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           header-border={true}
           border={true}
           max-height={this.maxHeight}
-          empty-text={this.$t('查无数据')}
+          empty-text={this.$t('暂无数据')}
           v-bkloading={{ isLoading: this.tableLoading }}
           ext-cls={`${!this.selectCount && 'is-not-select'}`}
         >

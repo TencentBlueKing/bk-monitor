@@ -152,7 +152,7 @@ class EventLogChart extends CommonSimpleChart {
           this.pagination.count = res[0].total;
           resolve(res);
         } else {
-          this.emptyText = window.i18n.tc('查无数据');
+          this.emptyText = window.i18n.tc('暂无数据');
           this.empty = true;
         }
       } catch (e) {

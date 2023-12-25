@@ -51,7 +51,7 @@ class PieChart extends CommonSimpleChart {
   needResetChart = true;
   inited = false;
   metrics: IExtendMetricData[];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.tc('暂无数据');
   empty = true;
   chartOption: EChartOption;
   legendData = [];
@@ -109,7 +109,7 @@ class PieChart extends CommonSimpleChart {
         this.inited = true;
         this.empty = false;
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {

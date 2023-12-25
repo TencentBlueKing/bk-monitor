@@ -60,7 +60,7 @@
       class="no-data"
       v-else
     >
-      {{ loading ? $t('加载中...' ) : $t('查无数据') }}
+      {{ loading ? $t('加载中...') : $t('暂无数据') }}
     </div>
     <!-- 时间选择器 -->
     <datetime-picker
@@ -270,10 +270,8 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
   async handleGetChartData() {
     this.series = [];
     this.$store.commit('app/setPageLoading', true);
-    const startTime =      this.selectGroup.active === 0
-      ? dayjs(this.customDate).unix()
-      : dayjs().add(-this.selectGroup.active, 'h')
-        .unix();
+    const startTime =
+      this.selectGroup.active === 0 ? dayjs(this.customDate).unix() : dayjs().add(-this.selectGroup.active, 'h').unix();
     const params: any = {
       event_id: this.id,
       start_time: startTime,
@@ -289,19 +287,31 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
       // 智能异常检测算法 边界画图设置
       const { dimensions } = chartSeries;
       const coverList = [];
-      const upBoundary =        data
-        .find(item => item.dimensions.bk_target_ip === dimensions.bk_target_ip
-              && item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id
-              && item.metric.metric_field.includes('upper_bound'))
-        ?.datapoints?.map(item => [item[1], item[0]]) || [];
-      const lowBoundary =        data
-        .find(item => item.dimensions.bk_target_ip === dimensions.bk_target_ip
-              && item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id
-              && item.metric.metric_field.includes('lower_bound'))
-        ?.datapoints?.map(item => [item[1], item[0]]) || [];
-      const coverData =        data.find(item => item?.dimensions?.bk_target_ip === dimensions.bk_target_ip
-            && item?.dimensions?.bk_target_cloud_id === dimensions.bk_target_cloud_id
-            && item?.metric?.metric_field?.includes('is_anomaly'))?.datapoints || [];
+      const upBoundary =
+        data
+          .find(
+            item =>
+              item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
+              item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
+              item.metric.metric_field.includes('upper_bound')
+          )
+          ?.datapoints?.map(item => [item[1], item[0]]) || [];
+      const lowBoundary =
+        data
+          .find(
+            item =>
+              item.dimensions.bk_target_ip === dimensions.bk_target_ip &&
+              item.dimensions.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
+              item.metric.metric_field.includes('lower_bound')
+          )
+          ?.datapoints?.map(item => [item[1], item[0]]) || [];
+      const coverData =
+        data.find(
+          item =>
+            item?.dimensions?.bk_target_ip === dimensions.bk_target_ip &&
+            item?.dimensions?.bk_target_cloud_id === dimensions.bk_target_cloud_id &&
+            item?.metric?.metric_field?.includes('is_anomaly')
+        )?.datapoints || [];
       if (coverData.length) {
         coverList.push({
           data: coverData.map((item, index) => [
@@ -408,7 +418,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
       color: $defaultFontColor;
 
       :deep(.text) {
-        font-size: .8rem;
+        font-size: 0.8rem;
       }
 
       .select-btn-item {
@@ -436,7 +446,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
       height: 2rem;
 
       :deep(.text) {
-        font-size: .8rem;
+        font-size: 0.8rem;
       }
     }
   }
@@ -451,7 +461,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
     height: 3rem;
     background: #fff;
     border-radius: 4px 0 0 4px;
-    box-shadow: -1px 1px 2px 0 rgba(79, 85, 96, .3);
+    box-shadow: -1px 1px 2px 0 rgba(79, 85, 96, 0.3);
     transform: translate(-1.2rem, -50%);
 
     i {

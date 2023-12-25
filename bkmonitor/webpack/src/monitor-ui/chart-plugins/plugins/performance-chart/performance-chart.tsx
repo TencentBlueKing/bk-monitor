@@ -287,7 +287,7 @@ export default class PerformanceChart extends TimeSeries {
           this.handleResize();
         }, 100);
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {
