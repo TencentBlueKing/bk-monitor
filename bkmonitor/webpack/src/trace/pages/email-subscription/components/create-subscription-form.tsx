@@ -165,15 +165,18 @@ export default defineComponent({
             const subscriberList = enabledList.filter(item => item.subscribers.length);
             console.log('subscriberList', subscriberList);
 
+            let isValid = false;
             // 选中了，但是输入框没有添加任何订阅内容，将选中的输入框都显示提示。
             enabledList.forEach(item => {
               if (!item.subscribers.length) {
                 errorTips[item.channel_name].message = errorTips[item.channel_name].defaultMessage;
                 errorTips[item.channel_name].isShow = true;
+                isValid = true;
               } else {
                 errorTips[item.channel_name].isShow = false;
               }
             });
+            if (isValid) return false;
 
             if (subscriberList.length === 0) return false;
             return true;

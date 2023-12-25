@@ -668,6 +668,7 @@ export default defineComponent({
     const isShowSubscriptionDetailSideslider = ref(false);
     const isShowEditSideslider = ref(false);
 
+    const isShowDropdownMenu = ref(false);
     const isSending = ref(false);
     async function testSending(to) {
       const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
@@ -722,6 +723,7 @@ export default defineComponent({
         .catch(console.log)
         .finally(() => {
           isSending.value = false;
+          isShowDropdownMenu.value = false;
         });
     }
 
@@ -986,7 +988,8 @@ export default defineComponent({
       sendMyselfDialog,
       handleSendMyself,
       toggleMapForSendRecord,
-      isShowTestSendResult
+      isShowTestSendResult,
+      isShowDropdownMenu
     };
   },
   render() {
@@ -1279,7 +1282,8 @@ export default defineComponent({
                 {window.i18n.t('保存')}
               </Button>
               <Dropdown
-                trigger='click'
+                isShow={this.isShowDropdownMenu}
+                trigger='manual'
                 placement='top-start'
                 v-slots={{
                   content: () => {
@@ -1301,6 +1305,9 @@ export default defineComponent({
                   outline
                   loading={this.isSending}
                   style={{ width: '88px', marginRight: '8px' }}
+                  onClick={() => {
+                    this.isShowDropdownMenu = !this.isShowDropdownMenu;
+                  }}
                 >
                   {window.i18n.t('测试发送')}
                 </Button>
