@@ -721,10 +721,8 @@ export default class MonitorEcharts extends Vue {
     try {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
       const data = await this.getSeriesData(startTime, endTime, isRange).catch((e) => {
-        console.info(e);
         return [];
       });
-      console.log(data);
       this.seriesData = [...data].map(item => ({
         ...item,
         key: item.target.replace(/\./g, '_')

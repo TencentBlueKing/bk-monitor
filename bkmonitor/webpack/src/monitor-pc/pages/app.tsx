@@ -411,11 +411,12 @@ export default class App extends tsc<{}> {
     } else if (navId !== this.$route.name) {
       // 所有页面的子路由在切换业务的时候都统一返回到父级页面
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);
-      this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
       if (parentRoute) {
+        this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
         this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
           this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
         });
+        return;
       }
       await this.handleUpdateRoute({ bizId: `${v}` }, promise);
     } else {
