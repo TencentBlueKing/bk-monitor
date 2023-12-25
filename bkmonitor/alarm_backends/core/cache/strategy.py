@@ -656,15 +656,23 @@ class StrategyCacheManager(CacheManager):
         """
         刷新策略ID列表缓存
         """
+        new_strategy_ids = [strategy["id"] for strategy in strategies]
         if old_strategy_ids is None:
             # 全量刷新
             old_strategy_ids = cls.get_strategy_ids()
+        else:
+            # 增量更新
+            # 原列表(to_be_updated) - 删除(old_strategy_ids) + 更新(new_strategy_ids) -> 去重
+            to_be_updated = cls.get_strategy_ids()
+            for s_id in old_strategy_ids:
+                try:
+                    to_be_updated.remove(s_id)
+                except ValueError:
+                    continue
+            new_strategy_ids += to_be_updated
+            new_strategy_ids = list(set(new_strategy_ids))
 
-        new_strategy_ids = [strategy["id"] for strategy in strategies]
-
-        # 缓存策略列表
         cls.cache.set(cls.IDS_CACHE_KEY, json.dumps(new_strategy_ids), cls.CACHE_TIMEOUT)
-
         for strategy_id in old_strategy_ids:
             if strategy_id not in new_strategy_ids:
                 logger.info(f"[smart_strategy_cache]: refresh_strategy_ids delete strategy: {strategy_id}")
