@@ -27,7 +27,7 @@ import { RouteConfig } from 'vue-router';
 
 import * as grafanaAuth from '../../pages/grafana/authority-map';
 
-const Grafana = () => import(/* webpackChunkName: 'Grafana' */ '../../pages/grafana/grafana.vue');
+const Grafana = () => import(/* webpackChunkName: 'Grafana' */ '../../pages/grafana/grafana');
 export default [
   {
     path: '/grafana',
