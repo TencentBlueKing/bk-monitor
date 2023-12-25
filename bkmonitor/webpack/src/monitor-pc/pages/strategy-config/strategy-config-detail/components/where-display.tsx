@@ -114,7 +114,16 @@ export default class WhereDisplay extends tsc<IProps> {
         {this.value.map((item, index) => (
           <span class='where-item'>
             {!!item.condition && !!index ? <span class='where-condition'>{` ${item.condition} `}</span> : undefined}
-            <span class='where-field'>{` ${this.whereNameMap.get(item.key) || item.key} `}</span>
+            <span
+              class='where-field'
+              v-bk-tooltips={{
+                content: item.key,
+                trigger: 'mouseenter',
+                zIndex: 9999,
+                offset: '0, 6',
+                boundary: document.body
+              }}
+            >{` ${this.whereNameMap.get(item.key) || item.key} `}</span>
             <span class='where-method'>{` ${this.methodNameMap.get(item.method) || item.method} `}</span>
             <span
               class='where-content'
