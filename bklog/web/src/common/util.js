@@ -987,3 +987,14 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 };
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
+
+export const utcFormatDate = (val) => {
+  const date = new Date(val);
+
+  if (isNaN(date.getTime())) {
+    console.warn('无效的时间');
+    return '';
+  }
+
+  return formatDate(date.getTime());
+};

@@ -15,10 +15,12 @@ import math
 import shutil
 import time
 import traceback
+from typing import Any, Dict
 
 import arrow
 from celery.task import task
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 from django.utils.translation import ugettext as _
 
@@ -59,6 +61,7 @@ from monitor_web.constants import (
     MULTIVARIATE_ANOMALY_DETECTION_SCENE_PARAMS_MAP,
 )
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
+from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.strategies.built_in import run_build_in
@@ -67,9 +70,58 @@ from utils import business, count_md5
 logger = logging.getLogger("monitor_web")
 
 
+User = get_user_model()
+
+
 def set_client_user():
     biz_set = business.get_all_activate_business()
     local.username = business.maintainer(biz_set[0])
+
+
+@task(ignore_result=True)
+def record_login_user(username: str, source: str, last_login: float, space_info: Dict[str, Any]):
+    logger.info(
+        "[record_login_user] task start: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
+        username,
+        last_login,
+        source,
+        last_login,
+    )
+
+    try:
+        user = User.objects.get(username=username)
+        user.last_login = datetime.datetime.now()
+        user.save()
+
+        UserAccessRecord.objects.update_or_create_by_space(username, source, space_info)
+    except Exception:  # noqa
+        logger.exception(
+            "[record_login_user] failed to record: username -> %s, source -> %s, last_login -> %s, space_info -> %s",
+            username,
+            last_login,
+            source,
+            last_login,
+        )
+
+
+@task(ignore_result=True)
+def active_business(username: str, space_info: Dict[str, Any]):
+    logger.info("[active_business] task start: username -> %s, space_info -> %s", username, space_info)
+    try:
+        business.activate(int(space_info["bk_biz_id"]), username)
+    except Exception:  # noqa
+        logger.exception(
+            "[active_business] activate error: biz_id -> %s, username -> %s", space_info["bk_biz_id"], username
+        )
+
+
+@task(ignore_result=True)
+def cache_space_data(username: str, space_info: Dict[str, Any]):
+    logger.info("[cache_space_data] task start: username -> %s", username)
+    try:
+        resource.cc.fetch_allow_biz_ids_by_user.refresh(username)
+    except Exception:  # noqa
+        logger.exception("[cache_space_data] error: username -> %s, space_info -> %s", username, space_info)
 
 
 @task(ignore_result=True)
