@@ -9,11 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
-
-from django.conf import settings
-from django.utils import translation
 
 from bkmonitor.utils.local import local
 from constants.cmdb import BIZ_ID_FIELD_NAMES
@@ -85,21 +81,6 @@ def fetch_biz_id_from_request(request, view_kwargs):
         except (json.JSONDecodeError, TypeError):
             pass
     return biz_id
-
-
-# todo 这个名字不合适
-def get_common_headers():
-    headers = {}
-    language = translation.get_language()
-    if language:
-        headers["blueking-language"] = language
-
-    # 添加调用凭证
-    headers["x-bkapi-authorization"] = json.dumps(
-        {"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.SECRET_KEY}
-    )
-
-    return headers
 
 
 def get_request_username(default=""):

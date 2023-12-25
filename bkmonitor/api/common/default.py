@@ -25,7 +25,7 @@ class CommonBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     action = "common"
     method = "GET"
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.url = kwargs.pop("url", "")
         self.url_path = Jinja2Renderer.render(
             self.url,
