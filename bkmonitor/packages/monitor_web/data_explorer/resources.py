@@ -13,15 +13,14 @@ import json
 import logging
 import re
 from collections import defaultdict
-from typing import Callable, Dict, Iterable, List, Set, Tuple
+from typing import Callable, Dict, Generator, Iterable, List, Set, Tuple
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from monitor_web.grafana.auth import GrafanaAuthSync
-from monitor_web.grafana.data_migrate import GraphPanel
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bk_dataview.api import get_org_by_name
 from bkmonitor.data_source import UnifyQuery, get_auto_interval, load_data_source
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, MetricListCache
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -29,6 +28,7 @@ from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 from constants.data_source import TS_MAX_SLIMIT, DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
+from monitor_web.grafana.data_migrate import TimeSeriesPanel
 
 logger = logging.getLogger(__name__)
 
@@ -1072,7 +1072,9 @@ class SaveToDashboard(Resource):
         dashboard_uids = serializers.ListField(allow_empty=True, child=serializers.CharField())
 
     @classmethod
-    def add_target(cls, panel: GraphPanel, functions: list, query_configs: List[Dict], alias: str, expression: str):
+    def add_target(
+        cls, panel: TimeSeriesPanel, functions: list, query_configs: List[Dict], alias: str, expression: str
+    ):
         """
         添加target配置
         """
@@ -1108,17 +1110,17 @@ class SaveToDashboard(Resource):
             )
 
     @classmethod
-    def get_panel(cls, panel_config: dict) -> GraphPanel:
+    def get_panel(cls, panel_config: dict) -> TimeSeriesPanel:
         """
         获取图表配置
         """
-        panel = GraphPanel(
+        panel = TimeSeriesPanel(
             title=panel_config["name"],
-            fill=int(panel_config["fill"]),
-            bars=False,
-            lines=True,
             gridPos={"x": 0, "y": 0, "w": 0, "h": 0},
-            yaxes=[{"min": 0 if panel_config["min_y_zero"] else None}, {"min": None}],
+            yaxes=[{"min": panel_config["min_y_zero"]}],
+            min_y=0 if panel_config["min_y_zero"] else None,
+            fill_opacity=50 if panel_config["fill"] else 0,
+            draw_style="line",
         )
 
         for query in panel_config["queries"]:
@@ -1182,7 +1184,7 @@ class SaveToDashboard(Resource):
         return panel
 
     @classmethod
-    def location_generator(cls, dashboard: dict, w: int, h: int) -> Dict:
+    def location_generator(cls, dashboard: dict, w: int, h: int) -> Generator[dict, None, None]:
         """
         在仪表盘中搜索大小合适的空位
         """
@@ -1243,7 +1245,7 @@ class SaveToDashboard(Resource):
             max_y += h
 
     @classmethod
-    def panel_id_generator(cls, dashboard):
+    def panel_id_generator(cls, dashboard) -> Generator[int, None, None]:
         index = 1
         for panel in dashboard.get("panels", []):
             if index < panel["id"]:
@@ -1254,7 +1256,7 @@ class SaveToDashboard(Resource):
             yield index
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_org_by_name(params["bk_biz_id"])["id"]
 
         # 获取仪表盘配置
         dashboards = []
@@ -1267,18 +1269,17 @@ class SaveToDashboard(Resource):
 
         panels = []
         for panel_config in params["panels"]:
-            panels.append(self.get_panel(panel_config))
+            panels.append(self.get_panel(panel_config).to_dict())
 
         # 更新仪表盘配置
         for dashboard in dashboards:
             location_generator = self.location_generator(dashboard, 12, 6)
             panel_id_generator = self.panel_id_generator(dashboard)
+            dashboard.setdefault("panels", [])
             for panel in panels:
-                panel.gridPos = next(location_generator)
-                panel.id = next(panel_id_generator)
-                if not dashboard.get("panels"):
-                    dashboard["panels"] = []
-                dashboard["panels"].append(dict(panel))
+                panel["gridPos"] = next(location_generator)
+                panel["id"] = next(panel_id_generator)
+                dashboard["panels"].append(panel)
 
         results = []
 
