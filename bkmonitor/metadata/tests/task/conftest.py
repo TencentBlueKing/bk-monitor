@@ -47,7 +47,16 @@ def create_and_delete_record(username, table_id, mocker):
         is_platform_data_id=True,
         transfer_cluster_id=DEFAULT_TRANSFER_CLUSTER_ID,
     )
+    models.ClusterInfo.objects.create(
+        cluster_id=11100,
+        cluster_name="test_demo",
+        domain_name="127.0.0.1",
+        port=8080,
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        is_default_cluster=True,
+    )
     yield
+    models.ClusterInfo.objects.filter(cluster_id=11100).delete()
     models.DataSourceResultTable.objects.filter(table_id=table_id).delete()
     models.ResultTable.objects.filter(table_id=table_id).delete()
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
@@ -124,7 +133,7 @@ class EventGroupFakeES(FakeElasticsearch):
                             "_score": None,
                             "_source": {
                                 "event_name": "login",
-                                "bk_target": "1:10.0.0.1",
+                                "bk_target": "1:127.0.0.1",
                                 "event": {"event_content": "user login success", "_bk_count": 30},
                                 "dimensions": {
                                     "module": "db",

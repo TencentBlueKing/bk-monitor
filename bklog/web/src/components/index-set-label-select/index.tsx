@@ -73,15 +73,15 @@ export default class QueryStatement extends tsc<IProps> {
   };
 
   get isDisabledAddNewTag() {
-    return this.rowData.status === 'terminated';
+    return this.rowData?.status === 'terminated';
   }
 
-  /** 过滤掉内置标签的标签列表 */
+  /** 过滤掉内置标签的列表 */
   get filterBuiltInList() {
     return this.selectLabelList.filter(item => !item.is_built_in);
   }
 
-  /** 过滤掉内置标签的标签列表 */
+  /** 内置标签的列表 */
   get builtInList() {
     return this.selectLabelList.filter(item => item.is_built_in);
   }

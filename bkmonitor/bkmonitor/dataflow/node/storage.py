@@ -71,10 +71,7 @@ class TSpiderStorageNode(StorageNode):
         }
 
     def get_node_type(self):
-        if settings.RUN_VER == "open":
-            # 外部使用 MySQL 存储
-            return "mysql_storage"
-        return super(TSpiderStorageNode, self).get_node_type()
+        return settings.BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE
 
 
 class DruidStorageNode(StorageNode):

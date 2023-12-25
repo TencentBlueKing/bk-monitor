@@ -98,7 +98,7 @@ const specialReportRouteList = [
 ];
 router.beforeEach(async (to, from, next) => {
   // 空闲初始化introduce数据
-  store.getters.bizList?.length && introduce.initIntroduce();
+  store.getters.bizList?.length && introduce.initIntroduce(to);
   if (
     !window.__BK_WEWEB_DATA__?.token &&
     !['no-business', 'event-center', 'event-center-detail', 'event-center-action-detail', 'share'].includes(to.name) &&

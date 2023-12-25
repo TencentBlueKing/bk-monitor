@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, PropType, ref } from 'vue';
+import { bkTooltips } from 'bkui-vue';
 
 import { IDetectionConfig } from '../../../monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 // @ts-ignore
@@ -41,6 +42,9 @@ import './chart-wrapper.scss';
 
 export default defineComponent({
   name: 'ChartWrapperMigrated',
+  directives: {
+    bkTooltips
+  },
   props: {
     panel: { required: true, type: Object as PropType<PanelModel> },
     /** 检测算法 */
@@ -124,7 +128,9 @@ export default defineComponent({
           return (
             <ChartRow
               panel={props.panel}
+              clearErrorMsg={handleClearErrorMsg}
               onCollapse={handleCollapsed}
+              onErrorMsg={handleErrorMsgChange}
             />
           );
         case 'exception-guide':
@@ -202,7 +208,7 @@ export default defineComponent({
           <span
             class='is-error'
             v-bk-tooltips={{
-              content: this.errorMsg,
+              content: <div>{this.errorMsg}</div>,
               extCls: 'chart-wrapper-error-tooltip',
               placement: 'top-start'
             }}

@@ -259,6 +259,30 @@ import CancelToken from 'axios/lib/cancel/CancelToken';
 import { updateTimezone } from '../../language/dayjs';
 import dayjs from 'dayjs';
 
+const currentTime = Math.floor(new Date().getTime() / 1000);
+const startTime = (currentTime - 15 * 60);
+const endTime = currentTime;
+const DEFAULT_RETRIEVE_PARAMS = {
+  keyword: '*', // 搜索关键字
+  start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
+  end_time: endTime, // 时间范围
+  host_scopes: { // ip 快选，modules 和 ips 只能修改其一，另一个传默认值
+    // 拓扑选择模块列表，单个模块格式 {bk_inst_id: 2000003580, bk_obj_id: 'module'}
+    modules: [],
+    // 手动输入 ip，多个 ip 用英文 , 分隔
+    ips: '',
+    // 目标节点
+    target_nodes: [],
+    // 目标节点类型
+    target_node_type: '',
+  },
+  ip_chooser: {},
+  addition: [],
+  begin: 0,
+  size: 500,
+  interval: 'auto', // 聚合周期
+};
+
 export default {
   name: 'Retrieve',
   components: {
@@ -276,9 +300,6 @@ export default {
   },
   mixins: [indexSetSearchMixin, tableRowDeepViewMixin],
   data() {
-    const currentTime = Math.floor(new Date().getTime() / 1000);
-    const startTime = (currentTime - 15 * 60);
-    const endTime = currentTime;
     return {
       hasAuth: false,
       isSearchAllowed: null, // true 有权限，false 无权限，null 未知权限
@@ -296,34 +317,9 @@ export default {
       indexSetList: [], // 索引集列表,
       datePickerValue: ['now-15m', 'now'], // 日期选择器
       retrievedKeyword: '*', // 记录上一次检索的关键字，避免输入框失焦时重复检索
-      retrieveParams: { // 检索参数
+      retrieveParams: {
         bk_biz_id: this.$store.state.bkBizId,
-        keyword: '*', // 搜索关键字
-        start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
-        end_time: endTime, // 时间范围
-        // ip 快选，modules 和 ips 只能修改其一，另一个传默认值
-        host_scopes: {
-          // 拓扑选择模块列表，单个模块格式 {bk_inst_id: 2000003580, bk_obj_id: 'module'}
-          modules: [],
-          // 手动输入 ip，多个 ip 用英文 , 分隔
-          ips: '',
-          // 目标节点
-          target_nodes: [],
-          // 目标节点类型
-          target_node_type: '',
-        },
-        // 新版ip-selector选值
-        ip_chooser: {},
-        // 过滤条件，可添加多个，每个过滤条件格式 {field: 'time', operator: 'is', value: 'xxx'}
-        // field 为过滤的字段
-        // operator 从接口获取，默认为 'is'
-        // value 为过滤字段对应的值，如果为多个用英文 , 分隔
-        addition: [],
-        // begin 和 size 类似分页，两者相加不能超过 10000
-        begin: 0,
-        size: 500,
-        // 聚合周期
-        interval: 'auto',
+        ...DEFAULT_RETRIEVE_PARAMS,
       },
       catchIpChooser: {}, // 条件里的ip选择器数据
       isFavoriteSearch: false, // 是否是收藏检索
@@ -740,15 +736,13 @@ export default {
     handleSelectIndex(val, params = {}, isFavoriteSearch = false) {
       const { ids, selectIsUnionSearch } = val;
       // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
-      const newIndexSetStr = ids.join(',');
       if (!isFavoriteSearch) {
-        const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)).join(',');
-        if (newIndexSetStr === favoriteIDs) return;
+        const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)) ?? [];
+        if (this.compareArrays(ids, favoriteIDs)) return;
         this.resetFavoriteValue();
       }
       if (selectIsUnionSearch) {
-        const storeIndexSetStr = this.unionIndexList.join(',');
-        if (newIndexSetStr !== storeIndexSetStr || isFavoriteSearch) {
+        if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
           this.shouldUpdateFields = true;
           this.$store.commit('updateUnionIndexList', ids);
           this.catchUnionBeginList = [];
@@ -767,6 +761,24 @@ export default {
         this.$store.commit('updateUnionIndexList', []);
       }
     },
+    /** 检查两个数组否相等 */
+    compareArrays(arr1, arr2) {
+      let allElementsEqual = true;
+      // 检查两个数组的长度是否相等
+      if (arr1.length !== arr2.length) return false;
+      // 对比两个数组的每个元素
+      const sortedArr1 = [...arr1].sort();
+      const sortedArr2 = [...arr2].sort();
+
+      // 逐一比较排序后数组的元素
+      for (let i = 0; i < sortedArr1.length; i++) {
+        if (sortedArr1[i] !== sortedArr2[i]) {
+          allElementsEqual = false; // 发现不匹配元素
+          break;
+        }
+      }
+      return allElementsEqual;
+    },
     // 切换索引时重置检索数据
     resetRetrieveCondition() {
       // 重置搜索条件，起始位置、日期相关字段不变
@@ -779,6 +791,10 @@ export default {
       //     addition: []
       // })
       // 过滤相关
+      this.retrieveParams = {
+        bk_biz_id: this.$store.state.bkBizId,
+        ...DEFAULT_RETRIEVE_PARAMS,
+      };
       this.statisticalFieldsData = {};
       this.retrieveDropdownData = {};
       this.logList = [];
@@ -1739,11 +1755,18 @@ export default {
       const ids = selectIsUnionSearch
         ? value.index_set_ids.map(item => String(item))
         : [String(indexSetID)];
-      const setChangeValue = {
-        ids,
-        selectIsUnionSearch,
-      };
-      this.handleSelectIndex(setChangeValue, params, true);
+      const filterIDs = this.indexSetList
+        .filter(item => ids.includes(item.index_set_id))
+        .map(item => item.index_set_id);
+      if (filterIDs.length) {
+        const setChangeValue = {
+          ids: filterIDs,
+          selectIsUnionSearch,
+        };
+        this.handleSelectIndex(setChangeValue, params, true);
+      } else {
+        this.messageError(this.$t('没有找到该记录下相关索引集'));
+      }
     },
     // 收藏列表刷新, 判断当前是否有点击活跃的收藏 如有则进行数据更新
     updateActiveFavoriteData(value) {

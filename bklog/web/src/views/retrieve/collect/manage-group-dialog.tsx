@@ -142,7 +142,7 @@ export default class GroupDialog extends tsc<IProps> {
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
-  }
+  };
   sourceFilters = []; // 所属组数组
   updateSourceFilters = []; // 更变人过滤数组
 
@@ -181,6 +181,10 @@ export default class GroupDialog extends tsc<IProps> {
 
   get getGroupLabelWidth() {
     return this.$store.state.isEnLanguage ? 140 : 115;
+  }
+
+  get isUnionSearch() {
+    return this.$store.getters.isUnionSearch;
   }
 
   @Watch('selectFavoriteList', { deep: true })
@@ -636,11 +640,16 @@ export default class GroupDialog extends tsc<IProps> {
   }
 
   render() {
+    const indexSetName = (row) => {
+      const { index_set_name: indexSetName, index_set_names: indexSetNames } = row;
+      return !this.isUnionSearch ? indexSetName : (indexSetNames?.map(item => (<Tag>{item}</Tag>)) || '');
+    };
     const expandSlot = {
       default: ({ row }) => (
         <div class="expand-container">
           <div class="expand-information">
             <span>{this.$t('索引集')}</span>
+            <span>{indexSetName(row)}</span>
             <span>{row.index_set_name}</span>
           </div>
           <div class="expand-information">

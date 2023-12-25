@@ -91,6 +91,7 @@ if (hasRouteHash) {
         });
         mergeSpaceList(window.space_list);
         window.username = window.uin;
+        window.user_name = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();

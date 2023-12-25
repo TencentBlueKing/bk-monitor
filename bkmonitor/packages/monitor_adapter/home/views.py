@@ -33,6 +33,7 @@ from bkm_space.api import SpaceApi
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
+from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
@@ -48,6 +49,8 @@ def user_exit(request):
 
 
 @login_exempt
+@timezone_exempt
+@track_site_visit
 def home(request):
     """统一入口 ."""
 
@@ -76,10 +79,13 @@ def path_route_proxy(request):
     return redirect(redirect_url.format(bk_biz_id=bk_biz_id, route_path=route_path))
 
 
+@timezone_exempt
 def service_worker(request):
     return render(request, "monitor/service-worker.js", content_type="application/javascript")
 
 
+@login_exempt
+@timezone_exempt
 def manifest(request):
     return render(request, "monitor/manifest.json", content_type="application/json")
 
@@ -181,6 +187,17 @@ def dispatch_external_proxy(request):
 
         # transfer request.user 进行外部权限替换
         external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
+
+        # 如果参数不带 bk_biz_id，尝试从有权限的业务列表里选一个
+        if not bk_biz_id:
+            biz_id_list = (
+                ExternalPermission.objects.filter(authorized_user=external_user, expire_time__gt=timezone.now())
+                .values_list("bk_biz_id", flat=1)
+                .distinct()
+            )
+            if biz_id_list:
+                bk_biz_id = biz_id_list[0]
+
         if bk_biz_id:
             setattr(fake_request, "biz_id", bk_biz_id)
             setattr(request, "biz_id", bk_biz_id)
