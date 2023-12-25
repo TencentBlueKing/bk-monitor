@@ -75,7 +75,7 @@ from apps.log_search.exceptions import (
     MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
-    SearchNotTimeFieldType,
+    SearchIndicesNotExists,
     SearchUnKnowTimeField,
     SearchUnKnowTimeFieldType,
     UnionSearchErrorException,
@@ -2047,7 +2047,7 @@ class SearchHandler(object):
 
     def _set_time_filed_type(self, time_field: str, fields_from_es: list):
         if not fields_from_es:
-            raise SearchNotTimeFieldType(SearchNotTimeFieldType.MESSAGE.format(index_set_name=self.index_set_name))
+            raise SearchIndicesNotExists(SearchIndicesNotExists.MESSAGE.format(index_set_name=self.index_set_name))
 
         for item in fields_from_es:
             field_name = item["field_name"]

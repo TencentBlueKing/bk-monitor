@@ -7026,8 +7026,8 @@ msgstr ""
 "{result_tables} and cannot be added to the index set"
 
 #: apps/log_search/exceptions.py:343
-msgid "此索引没有找到时间字段类型"
-msgstr "No time field type found for this index"
+msgid "索引集对应的物理索引不存在"
+msgstr "The physical index corresponding to the index set does not exist"
 
 #: apps/log_search/exceptions.py:348
 msgid "收藏查询不存在"
