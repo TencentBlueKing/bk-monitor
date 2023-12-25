@@ -753,7 +753,7 @@ class Alarm(BaseContextObject):
         if not self.latest_assign_group:
             # 最近一次没有的话，表示没有命中分派
             return None
-        route_path = base64.b64encode(f"#/alarm-dispatch-config/{self.latest_assign_group}".encode("utf8")).decode(
+        route_path = base64.b64encode(f"#/alarm-dispatch?group_id={self.latest_assign_group}".encode("utf8")).decode(
             "utf8"
         )
         return urljoin(
