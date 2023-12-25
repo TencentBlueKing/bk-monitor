@@ -208,7 +208,7 @@ class GetObservationSceneStatusList(CacheResource):
         return (ObservationSceneStatus.NODATA.value, ObservationSceneStatus.SUCCESS.value)[checked]
 
     def collect_scene_view_id__status_map(
-        self, bk_biz_id: int, scene_view_id: str, scene_view_id__status_map: Dict[str, str]
+        self, bk_biz_id: int, scene_view_id: str, scene_view_id__status_map: Dict[str, Dict[str, str]]
     ):
         try:
             status: str = self.get_observation_scene_status(bk_biz_id, scene_view_id)
@@ -222,7 +222,7 @@ class GetObservationSceneStatusList(CacheResource):
             return
 
         if status in [ObservationSceneStatus.NODATA.value, ObservationSceneStatus.SUCCESS.value]:
-            scene_view_id__status_map[scene_view_id] = status
+            scene_view_id__status_map[scene_view_id] = {"status": status}
 
     def perform_request(self, params):
 
