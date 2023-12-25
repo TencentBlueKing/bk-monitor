@@ -31,7 +31,6 @@ class BasePanel:
         self.gridPos = gridPos
         self.datasource = datasource
         self.targets = []
-        super(BasePanel, self).__init__(**kwargs)
 
     def to_dict(self):
         pass
