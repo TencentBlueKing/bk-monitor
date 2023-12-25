@@ -302,6 +302,7 @@ class OriginalSearchAttrSerializer(serializers.Serializer):
 class UnionConfigSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     begin = serializers.IntegerField(required=False, default=0)
+    is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
 
 
 class UnionSearchAttrSerializer(SearchAttrSerializer):

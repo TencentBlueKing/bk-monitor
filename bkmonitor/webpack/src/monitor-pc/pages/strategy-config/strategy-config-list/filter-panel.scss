@@ -3,98 +3,124 @@
     display: flex;
     justify-content: space-between;
     overflow: hidden;
+
     .title {
       font-size: 14px;
       color: #313238;
     }
+
     .folding {
-      transform: rotate(-90deg);
       cursor: pointer;
+      transform: rotate(-90deg);
+
       i {
         font-size: 24px;
         color: #979ba5;
       }
     }
   }
+
   &-body {
     height: calc(100% - 26px);
     overflow: auto; 
+
     &::-webkit-scrollbar-thumb {
       display: none;
     }
+
     &.show-scrollbar {
       &::-webkit-scrollbar-thumb {
         display: initial;
       }
     }
   }
+
   &-tree {
     .bk-big-tree-node {
       .node-content {
         font-size: 12px;
       }
+
       .node-folder-icon {
         display: none;
       }
+
       &.is-root {
         padding-left: 0;
       }
+
       &:hover {
         background-color: transparent;
       }
     }
+
     .check-label-content {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      // justify-content: space-between;
       .pre-icon {
         display: inline-block;
-        font-size: 14px;
-        padding-right: 8px;
         min-width: 25px;
+        padding-right: 8px;
+        font-size: 14px;
         text-align: center;
+
         &.icon-mc-chart-alert {
-          color: #ea3636;
           font-size: 12px;
+          color: #ea3636;
         }
+
         &.icon-shixiao {
           color: #ff9c01;
         }
+
         &.icon-zanting1 {
           color: #c4c6cc;
         }
+
         &.icon-kaishi1 {
           color: #2dcb56;
         }
+
         &.icon-menu-shield {
           font-size: 16px;
-          color: #C4C6CC;
+          color: #c4c6cc;
         }
       }      
+
       .label-text {
-        width: 130px;
+        min-width: 120px;
         overflow: hidden;
-        white-space: nowrap;
         text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .label-count {
+        margin: 0 0 0 auto;
       }
     }
   }
+
   .bk-collapse-item-content {
     padding: 6px 10px 0 10px;
   }
+
   .collapse-item {
     margin-bottom: 10px;
   }
 }
+
 .slide-enter-active,
 .slide-leave-active {
   transition: all .25s ease;
 }
+
 .slide-enter,
 .slide-leave-to {
   &.performance-detail-left {
     transform: translateX(-100%);
   }
+
   &.performance-detail-right {
     transform: translateX(100%);
   }

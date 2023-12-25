@@ -23,26 +23,16 @@ from alarm_backends.service.report.tasks import (
     report_transfer_operation_data,
 )
 from alarm_backends.service.scheduler.tasks.cron import task_duration
-from bkmonitor.utils.custom_report_aggate import (
-    push_agg_data_via_json,
-    push_agg_data_via_prometheus,
-)
+from bkmonitor.utils.custom_report_aggate import register_report_task
 from metadata.task.config_refresh import refresh_es_storage
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
 
 @share_lock()
-def fetch_operation_data_and_push(parallel=True):
-    push_agg_data_via_json(wanted_job=settings.OPERATION_STATISTICS_METRIC_PUSH_JOB, parallel=parallel)
-
-
-@share_lock()
-def fetch_sli_data_and_push(parallel=True):
-    # sli 数据可能并没有 job 标签，所以容忍缺失
-    push_agg_data_via_prometheus(
-        wanted_job=settings.DEFAULT_METRIC_PUSH_JOB, push_job=get_cluster().name, allow_job_absent=True
-    )
+def register_report_task_cron():
+    """注册聚合网关上报任务"""
+    register_report_task()
 
 
 REPORT_CRONTAB = [
@@ -50,8 +40,7 @@ REPORT_CRONTAB = [
     (report_transfer_operation_data, "*/5 * * * *", "global"),
     (refresh_es_storage, "*/10 * * * *", "global"),  # NOTE: ES 周期性任务先放到当前队列中
     # SLI指标和运营数据调整到report周期任务
-    (fetch_sli_data_and_push, "* * * * *", "cluster"),
-    (fetch_operation_data_and_push, "*/5 * * * *", "global"),
+    (register_report_task_cron, "* * * * *", "cluster"),
 ]
 
 if int(settings.MAIL_REPORT_BIZ):

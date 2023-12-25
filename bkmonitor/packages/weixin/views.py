@@ -13,7 +13,10 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 from django.shortcuts import render
 
+from common.decorators import track_site_visit
 
+
+@track_site_visit
 def home(request):
     return render(request, "weixin/index.html", {"ENABLE_CONSOLE": settings.ENABLE_CONSOLE})
 

@@ -54,7 +54,7 @@ export default [
     }
   },
   {
-    path: '/trace/alarm-shield-add',
+    path: '/trace/alarm-shield/add',
     name: 'alarm-shield-add',
     components: {
       noCache: AlarmShield
@@ -74,7 +74,7 @@ export default [
     }
   },
   {
-    path: '/trace/alarm-shield-clone/:id',
+    path: '/trace/alarm-shield/clone/:id',
     name: 'alarm-shield-clone',
     components: {
       noCache: AlarmShield
@@ -95,7 +95,7 @@ export default [
     }
   },
   {
-    path: '/trace/alarm-shield-edit/:id',
+    path: '/trace/alarm-shield/edit/:id',
     name: 'alarm-shield-edit',
     components: {
       noCache: AlarmShield

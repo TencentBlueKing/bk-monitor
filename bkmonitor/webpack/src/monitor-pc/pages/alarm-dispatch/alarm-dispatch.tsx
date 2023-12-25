@@ -61,6 +61,8 @@ export default class AlarmDispatch extends tsc<{}> {
   cacheRuleGroups = [];
   /* 搜索 */
   search = '';
+  /** 是否能查询，需要依赖 getAlarmGroupList 和 getAlarmDispatchGroupData两个函数都请求完成 */
+  isSearch = false;
   /** 新建规则组弹窗 */
   visible = false;
 
@@ -176,11 +178,22 @@ export default class AlarmDispatch extends tsc<{}> {
   }
 
   created() {
+    this.getRouteParams();
     this.getAlarmDispatchGroupData();
     this.getAlarmGroupList();
     this.getKVOptionsData();
     this.getProcessPackage();
     this.$store.commit('app/SET_NAV_ROUTE_LIST', [{ name: this.$t('route-告警分派'), id: '' }]);
+  }
+
+  getRouteParams() {
+    const { groupName, group_id: groupId } = this.$route.query;
+    if (groupName) {
+      this.search = groupName as string;
+    }
+    if (groupId) {
+      this.search = groupId as string;
+    }
   }
 
   // 获取告警组数据
@@ -191,6 +204,12 @@ export default class AlarmDispatch extends tsc<{}> {
       name: item.name,
       receiver: item.users?.map(rec => rec.display_name) || []
     }));
+
+    /** 能否查询需要依赖 getAlarmGroupList 和 getAlarmDispatchGroupData两个函数都请求完成 */
+    if (this.isSearch && this.search) {
+      this.handleSearch();
+    }
+    this.isSearch = true;
   }
 
   /**
@@ -213,14 +232,14 @@ export default class AlarmDispatch extends tsc<{}> {
           })
       ) || [];
     this.loading = false;
-    this.getAlarmAssignGroupsRules(list.map(item => item.id));
+    this.getAlarmAssignGroupsRules(list?.map(item => item.id));
   }
 
   /**
    *  获取规则集
    * @param ids 规则组
    */
-  async getAlarmAssignGroupsRules(ids: number[]) {
+  async getAlarmAssignGroupsRules(ids: number[] = []) {
     this.groupLoading = true;
     const list = await listAssignRule().catch(() => (this.groupLoading = false));
     const groupData = ids.reduce((result, item) => {
@@ -234,6 +253,10 @@ export default class AlarmDispatch extends tsc<{}> {
     });
     this.cacheRuleGroups = this.ruleGroups;
     this.loading = false;
+    if (this.isSearch && this.search) {
+      this.handleSearch();
+    }
+    this.isSearch = true;
   }
 
   // 获取流程套餐
@@ -477,6 +500,12 @@ export default class AlarmDispatch extends tsc<{}> {
     } else {
       this.emptyText = window.i18n.tc('查无数据');
       this.ruleGroups = this.cacheRuleGroups;
+      const { groupName, groupId, ...arg } = this.$route.query;
+      this.$router.replace({
+        query: {
+          ...arg
+        }
+      });
     }
   }
 
