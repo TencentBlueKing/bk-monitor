@@ -67,6 +67,10 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.CharField(label=_("计算平台 MYSQL 存储集群名称"), default="default", allow_blank=True),
         ),
         (
+            "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
+            slz.CharField(label=_("计算平台 SQL 类存储集群类型"), default="mysql_storage", allow_blank=True),
+        ),
+        (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
             slz.CharField(label=_("计算平台 HDFS 存储集群名称"), default="hdfs-default", allow_blank=True),
         ),
@@ -247,6 +251,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
         ("BKPAAS_AUTHORIZED_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
+        ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label=_("METADATA 是否启用功能开关"), default=True)),
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
     ]
 )

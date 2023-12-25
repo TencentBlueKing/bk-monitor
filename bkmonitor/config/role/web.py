@@ -499,23 +499,6 @@ var _wr = function(type) {
       window.parent.postMessage({ pathname: this.location.pathname }, "*");
     });
   });
-   window.addEventListener('message', function(e) {
-        if(e && e.data ) {
-        var dom = null;
-        switch(e.data) {
-            case 'create':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(2) a');
-            break;
-            case 'folder':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(3) a');
-            break;
-            case 'import':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(4) a');
-            break;
-        }
-        dom && dom.click()
-        }
-    })
 </script>
 """,
     },
@@ -600,6 +583,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 INGESTER_HOST = os.getenv("BKAPP_INGESTER_HOST", "http://ingester.bkfta.service.consul")
+COLLOCTOR_HOST = os.getenv("BKAPP_COLLOCTOR_HOST", "")
 
 # CORS配置
 CORS_ALLOW_ALL_ORIGINS = True

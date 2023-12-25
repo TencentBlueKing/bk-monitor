@@ -42,7 +42,7 @@ export const initUnit = (num: number, type: 'num' | '%' | 'time') => {
     num: 0,
     unit: ''
   };
-  if (num === null) {
+  if (num === null || num === undefined) {
     numObj.num = '--';
     numObj.unit = '';
     return numObj;

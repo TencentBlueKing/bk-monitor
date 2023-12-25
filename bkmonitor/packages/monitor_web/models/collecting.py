@@ -16,6 +16,11 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
+
+from bkmonitor.utils.common_utils import logger
+from bkmonitor.utils.db.fields import JsonField, SymmetricJsonField
+from constants.cmdb import TargetNodeType, TargetObjectType
+from core.drf_resource import api, resource
 from monitor_web.collecting.constant import (
     OperationResult,
     OperationType,
@@ -27,11 +32,6 @@ from monitor_web.models.base import OperateRecordModelBase
 from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
 from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
-
-from bkmonitor.utils.common_utils import logger
-from bkmonitor.utils.db.fields import JsonField, SymmetricJsonField
-from constants.cmdb import TargetNodeType, TargetObjectType
-from core.drf_resource import api, resource
 
 
 class CollectConfigMeta(OperateRecordModelBase):
@@ -76,7 +76,7 @@ class CollectConfigMeta(OperateRecordModelBase):
         (TargetObjectType.HOST, _lazy("主机")),
     )
 
-    bk_biz_id = models.IntegerField("业务ID")
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
     name = models.CharField("配置名称", max_length=128)
 
     # 采集插件相关配置

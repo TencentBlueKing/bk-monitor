@@ -42,7 +42,6 @@ class EventPluginBaseModel(AbstractRecordModel):
     # 业务ID先预留，一期先默认都是公共的
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     tags = JsonField("插件标签", default=[])
-
     scenario = models.CharField("场景", max_length=64, choices=Scenario.to_choice(), default=Scenario.MONITOR)
 
     popularity = models.IntegerField("热度", default=0)

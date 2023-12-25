@@ -1,7 +1,7 @@
 plugin_id: tencent_cloud_alert
 version: 1.0.0
 plugin_display_name: 腾讯云告警拉取
-plugin_type: http_pull
+plugin_type: http_push
 summary: 拉取腾讯云监控告警历史列表
 author: 蓝鲸智云
 
@@ -132,6 +132,12 @@ ingest_config:
     option:
       page_size: 100
       total_path: "Response.TotalCount"
+
+  alert_source:
+    - TENCENT
+    - GOOGLE
+
+  collect_type: "bk-collector"
 
 # 清洗配置
 normalization_config:

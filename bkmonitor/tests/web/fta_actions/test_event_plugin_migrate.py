@@ -334,6 +334,36 @@ class TestEventPluginMigrate(TestCase):
         self.assertEqual(data["plugin_display_name"], plugin_info["plugin_display_name"])
         self.assertEqual(data["updated_instances"]["succeed_instances"], [inst["id"]])
 
+    def test_create_multi_cloud_event_plugin(self):
+        data_id_patch = mock.patch("core.drf_resource.api.metadata.get_data_id", return_value={"token": "test token"})
+        data_id_patch.start()
+        plugin_info = get_plugin_info()
+        plugin_info["ingest_config"]["collect_type"] = "bk_collector"
+        plugin_info["ingest_config"]["alert_source"] = ["TENCENT", "GOOGLE"]
+        plugin_info["plugin_type"] = "http_push"
+        r = CreateEventPluginResource()
+        data = r.request(plugin_info)
+        ingest_config = data["ingest_config"]
+        self.assertEqual(ingest_config["alert_source"], ["TENCENT", "GOOGLE"])
+        # 测试创建
+        event_plugin = EventPluginV2.objects.get(plugin_id=data["plugin_id"], version=data["version"])
+        inst_info = {
+            "bk_biz_id": 2,
+            "plugin_id": event_plugin.plugin_id,
+            "version": event_plugin.version,
+            "config_params": {param["field"]: "http://www.blueking111.com/" for param in event_plugin.config_params},
+        }
+        inst_r = CreateEventPluginInstanceResource()
+        inst_data = inst_r.request(inst_info)
+        self.assertEqual(inst_data["data_id"], 10001)
+        inst_info = GetEventPluginInstanceResource().perform_request(
+            {"bk_biz_id": 2, "plugin_id": event_plugin.plugin_id, "version": event_plugin.version}
+        )
+        print(inst_info)
+        self.assertEqual(len(inst_info["instances"][0]["collect_urls"]), 2)
+
+        data_id_patch.stop()
+
     def test_create_event_plugin(self):
         plugin_info = get_plugin_info()
         r = CreateEventPluginResource()

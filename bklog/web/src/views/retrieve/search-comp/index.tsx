@@ -260,12 +260,24 @@ export default class SearchComp extends tsc<IProps> {
    * @param {Boolean} chooserSwitch 路由的ip选择器是否打开
    */
   initConditionList(initAddition, initIPChooser, chooserSwitch = true) {
-    const addition = initAddition ?? this.retrieveParams.addition;
+    let addition = initAddition ?? this.retrieveParams.addition;
     const ipChooser = initIPChooser ?? this.retrieveParams.ip_chooser;
     this.conditionList = [];
     const isHaveIP = Boolean(Object.keys(ipChooser).length);
     if (isHaveIP) {
       this.pushCondition('ip-select', '', ipChooser, chooserSwitch);
+    }
+    // 如果初始化时没有路由传过来的条件则默认展示path和log条件
+    if (!addition.length) {
+      // log / path 操作默认展示
+      addition = this.filterFields
+        .filter(item => ['path', 'log'].includes(item.name))
+        .map(item => ({
+          field: item.name,
+          operator: item.operator,
+          value: '',
+          isInclude: true,
+        }));
     }
     addition.forEach((el) => {
       const { field, operator, value, isInclude } = el;
@@ -316,7 +328,7 @@ export default class SearchComp extends tsc<IProps> {
         if (item.conditionType === 'filed') {
         // 如果是有exists操作符则不判断是否有值 直接回填路由
           if (this.isExistsOperator(item.operator)) return true;
-          return Boolean(item.value.length);
+          return !!item.value.filter(Boolean).length;
         }
         return false;
       });
@@ -341,12 +353,14 @@ export default class SearchComp extends tsc<IProps> {
     const operatorItem = findField?.operatorList.find(item => (
       item.operator === operator || item?.wildcard_operator === operator
     )) ?? {}; // 找不到则是ip选择器
+    // 空字符串切割会时会生成一个带有空字符串的数组 空字符串应该使用空数组
+    const inputValueList = value !== '' ? value.toString().split(',') : [];
     this.conditionList.push({
       ...findField,
       id: field,
       operator,
       isInclude: isInclude ?? true,
-      value: value.toString().split(','),
+      value: inputValueList,
       operatorItem,
     });
   }

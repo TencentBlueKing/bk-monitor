@@ -139,7 +139,7 @@ export type ShowModeType = 'list' | 'dashboard' | 'default';
     SettingsWrapper: () => import(/* webpackChunkName: "k8s-settings-wrapper" */ '../settings/settings')
   }
 })
-export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> {
+export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEvent> {
   // 场景id
   @Prop({ default: 'host', type: String }) readonly sceneId: string;
   // 场景类型
