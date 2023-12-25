@@ -368,7 +368,7 @@ class UnauthorizedResultTableException(BaseSearchException):
     MESSAGE = _("用户无结果表 {result_tables} 的管理权限，无法添加到索引集中")
 
 
-class SearchNotTimeFieldType(BaseException):
+class SearchIndicesNotExists(BaseException):
     ERROR_CODE = "422"
     MESSAGE = _("[{index_set_name}]: 索引集对应的物理索引不存在")
 
