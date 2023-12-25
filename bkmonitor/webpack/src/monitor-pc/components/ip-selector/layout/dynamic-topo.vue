@@ -88,7 +88,8 @@ import {
   ITableCheckData,
   ITableConfig,
   ITreeNode,
-  SearchDataFuncType } from '../types/selector-type';
+  SearchDataFuncType
+} from '../types/selector-type';
 
 import IpListTable from './ip-list.vue';
 
@@ -161,7 +162,7 @@ export default class DynamicTopo extends Vue {
 
   @Watch('selections')
   private handleSelectionChange() {
-    this.emptyText = !!this.selections.length ? this.$t('查无数据') : this.$t('选择');
+    this.emptyText = !!this.selections.length ? this.$t('暂无数据') : this.$t('选择');
   }
 
   private created() {

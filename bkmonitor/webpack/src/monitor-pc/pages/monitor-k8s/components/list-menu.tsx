@@ -118,7 +118,7 @@ export default class ListMenu extends tsc<IListMenuProps, IListMenuEvent> {
                   type='empty'
                   scene='part'
                 >
-                  {this.$t('查无数据')}
+                  {this.$t('暂无数据')}
                 </bk-exception>
               </div>
             )}

@@ -554,7 +554,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   handleBackToOverview() {}
 
   render() {
-    if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('查无数据')}</div>;
+    if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('暂无数据')}</div>;
     return (
       <div
         id='dashboard-panel'

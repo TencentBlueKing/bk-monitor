@@ -125,7 +125,8 @@ import {
   IStatusChartOption,
   IStatusSeries,
   ITextChartOption,
-  ITextSeries } from './options/type-interface';
+  ITextSeries
+} from './options/type-interface';
 import ChartInView from './utils/chart-in-view';
 import watermarkMaker from './utils/watermarkMaker';
 import { getValueFormat } from './valueFormats';
@@ -262,7 +263,7 @@ export default class MonitorEcharts extends Vue {
 
   @Prop({
     default() {
-      return '查无数据';
+      return '暂无数据';
     }
   })
   emptyText: string;
@@ -308,14 +309,13 @@ export default class MonitorEcharts extends Vue {
             axis: 'auto',
             label: {
               show: false,
-              formatter: (params) => {
+              formatter: params => {
                 if (this.chartType !== 'line') return;
                 if (params.axisDimension === 'y') {
                   this.curValue.yAxis = params.value;
                 } else {
                   this.curValue.xAxis = params.value;
-                  this.curValue.dataIndex = params.seriesData?.length
-                    ? params.seriesData[0].dataIndex : -1;
+                  this.curValue.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
                 }
               }
             },
@@ -378,7 +378,7 @@ export default class MonitorEcharts extends Vue {
     );
   }
   get chartHeight() {
-    let { height  } = this;
+    let { height } = this;
     if (this.chartTitle) {
       height -= 36;
     }
@@ -467,8 +467,8 @@ export default class MonitorEcharts extends Vue {
   }
   // 注册Intersection监听
   registerObserver(): void {
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
         if (this.needObserver) {
           if (entry.intersectionRatio > 0) {
             this.handleSeriesData();
@@ -495,9 +495,9 @@ export default class MonitorEcharts extends Vue {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
       const data = await this.getSeriesData(startTime, endTime, isRange).catch(() => ({ series: [] }));
       if (
-        !this.isEchartsRender
-        || (Array.isArray(data) && data.length && data.some(item => item))
-        || (data && Object.prototype.hasOwnProperty.call(data, 'series') && data.series.length)
+        !this.isEchartsRender ||
+        (Array.isArray(data) && data.length && data.some(item => item)) ||
+        (data && Object.prototype.hasOwnProperty.call(data, 'series') && data.series.length)
       ) {
         await this.handleSetChartData(data);
       } else {
@@ -530,14 +530,15 @@ export default class MonitorEcharts extends Vue {
   }
   // 设置chart配置
   async handleSetChartData(data) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (!this.chart) {
         this.initChart();
       }
       if (this.isEchartsRender) {
         const series: any = deepMerge([], data || []);
-        const hasSeries =          (series && series.length > 0 && series.some(item => item.datapoints?.length))
-          || (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+        const hasSeries =
+          (series && series.length > 0 && series.some(item => item.datapoints?.length)) ||
+          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
 
         this.chartOptionInstance = new EchartOptions({
           chartType: this.chartType,
@@ -571,7 +572,7 @@ export default class MonitorEcharts extends Vue {
               this.hasInitChart = true;
               if (optionData.options.toolbox) {
                 this.initChartAction();
-                this.chart.on('dataZoom', async (event) => {
+                this.chart.on('dataZoom', async event => {
                   this.loading = true;
                   const [batch] = event.batch;
                   if (batch.startValue && batch.endValue) {
@@ -624,8 +625,8 @@ export default class MonitorEcharts extends Vue {
   // 设置tooltip
   handleSetTooltip(params) {
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
-      this.chartType === 'line'
-        && (this.curValue = {
+      this.chartType === 'line' &&
+        (this.curValue = {
           color: '',
           name: '',
           seriesIndex: -1,
@@ -640,12 +641,12 @@ export default class MonitorEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
 
-    const liHtmls = params.map((item) => {
-      let markColor = 'color: \'#fafbfd\';';
+    const liHtmls = params.map(item => {
+      let markColor = "color: '#fafbfd';";
       if (data[0].value === item.value[1]) {
-        markColor = 'color: \'#ffffff\';font-weight: bold;';
-        this.chartType === 'line'
-          && (this.curValue = {
+        markColor = "color: '#ffffff';font-weight: bold;";
+        this.chartType === 'line' &&
+          (this.curValue = {
             color: item.color,
             name: item.seriesName,
             seriesIndex: item.seriesIndex,
@@ -686,8 +687,8 @@ export default class MonitorEcharts extends Vue {
       this.chart.dispatchAction({
         type: 'restore'
       });
-      this.getSeriesData
-        && setTimeout(() => {
+      this.getSeriesData &&
+        setTimeout(() => {
           this.handleSeriesData();
         }, 100);
     }
@@ -833,7 +834,7 @@ export default class MonitorEcharts extends Vue {
       item.show = !item.show;
     } else if (actionType === 'click') {
       const hasOtherShow = this.legend.list.some(set => set.name !== item.name && set.show);
-      this.legend.list.forEach((legend) => {
+      this.legend.list.forEach(legend => {
         this.chart.dispatchAction({
           type: legend.name === item.name || !hasOtherShow ? 'legendSelect' : 'legendUnSelect',
           name: legend.name
@@ -851,7 +852,7 @@ export default class MonitorEcharts extends Vue {
         .catch(() => {});
     } else {
       toPng(this.$el as HTMLDivElement)
-        .then((dataUrl) => {
+        .then(dataUrl => {
           const tagA = document.createElement('a');
           tagA.download = `${this.title}.png`;
           tagA.href = dataUrl;
@@ -906,7 +907,7 @@ export default class MonitorEcharts extends Vue {
 
   // 初始化chart事件
   initChartEvent() {
-    this.chart.on('click', (e) => {
+    this.chart.on('click', e => {
       this.$emit('chart-click', e);
     });
   }

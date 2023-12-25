@@ -77,7 +77,7 @@ export default class AlarmDispatch extends tsc<{}> {
   currentId = null;
   /** 查看调试效果 */
   isViewDebugEffect = false;
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.tc('暂无数据');
   /** 优先级检验提示*/
   priorityErrorMsg: string | TranslateResult = '';
   /* 流程套餐*/
@@ -498,7 +498,7 @@ export default class AlarmDispatch extends tsc<{}> {
       this.ruleGroups = this.cacheRuleGroups.filter(item => filterRuleGroupList.includes(item.id));
       this.emptyText = window.i18n.tc('搜索结果为空');
     } else {
-      this.emptyText = window.i18n.tc('查无数据');
+      this.emptyText = window.i18n.tc('暂无数据');
       this.ruleGroups = this.cacheRuleGroups;
       const { groupName, groupId, ...arg } = this.$route.query;
       this.$router.replace({

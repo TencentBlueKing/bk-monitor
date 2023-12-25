@@ -25,7 +25,13 @@
 -->
 <template>
   <div class="event-center">
-    <event-tab v-model="curTab" class="tab-list" :tab-list="tabList" @change="changeTab"> </event-tab>
+    <event-tab
+      v-model="curTab"
+      class="tab-list"
+      :tab-list="tabList"
+      @change="changeTab"
+    >
+    </event-tab>
     <van-list
       ref="vanList"
       v-model="loading"
@@ -37,8 +43,15 @@
       @load="getData"
     >
       <div class="event-center-content">
-        <van-row v-show="curTab !== 'target'" gutter="11">
-          <van-col v-for="(item, index) in typeList" :key="index" span="8">
+        <van-row
+          v-show="curTab !== 'target'"
+          gutter="11"
+        >
+          <van-col
+            v-for="(item, index) in typeList"
+            :key="index"
+            span="8"
+          >
             <select-button
               :text="item.text"
               :icon="item.icon"
@@ -48,8 +61,15 @@
             </select-button>
           </van-col>
         </van-row>
-        <div v-if="listData.length" :class="['event-center-list', { 'event-center-not-pt': curTab === 'target' }]">
-          <event-list-item v-for="(item, index) in listData" :key="item.strategyId + '-' + index" :item-data="item">
+        <div
+          v-if="listData.length"
+          :class="['event-center-list', { 'event-center-not-pt': curTab === 'target' }]"
+        >
+          <event-list-item
+            v-for="(item, index) in listData"
+            :key="item.strategyId + '-' + index"
+            :item-data="item"
+          >
           </event-list-item>
         </div>
       </div>
@@ -172,7 +192,7 @@ export default class EventCenter extends Vue implements IEventCenterData {
 
   // 无数据提示
   get noDataText() {
-    return this.listData.length ? this.$tc('没有更多了') : this.$tc('查无数据');
+    return this.listData.length ? this.$tc('没有更多了') : this.$tc('暂无数据');
   }
 
   // 页面显示的list数据
@@ -211,7 +231,7 @@ export default class EventCenter extends Vue implements IEventCenterData {
   // 获取数据
   async getList() {
     await EventCenterModule.getAllList({ type: this.curTab });
-    this.tabList.forEach((item) => {
+    this.tabList.forEach(item => {
       item.count = this.count[item.value];
     });
     EventCenterModule.setListData({

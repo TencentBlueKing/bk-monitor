@@ -47,7 +47,8 @@
         <span
           class="btn"
           @click="handleAllSelected"
-        >{{ isSelectAll ? $t('清除全选') : $t('全选') }}</span>
+          >{{ isSelectAll ? $t('清除全选') : $t('全选') }}</span
+        >
       </div>
       <bk-virtual-scroll
         :list="currentTemplateData"
@@ -99,7 +100,8 @@ import {
   ITableCheckData,
   ITableConfig,
   ITemplateDataOptions,
-  SearchDataFuncType } from '../types/selector-type';
+  SearchDataFuncType
+} from '../types/selector-type';
 
 import IpListTable from './ip-list.vue';
 
@@ -157,7 +159,7 @@ export default class ServiceTemplate extends Vue {
   //   }
   @Watch('selectionIds')
   private handleSelectionIdsChange() {
-    this.emptyText = !!this.selectionIds.length ? this.$t('查无数据') : this.$t('选择');
+    this.emptyText = !!this.selectionIds.length ? this.$t('暂无数据') : this.$t('选择');
   }
 
   private created() {
@@ -257,10 +259,11 @@ export default class ServiceTemplate extends Vue {
     }, []);
   }
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  handleAllSelected() { /* 全选/清除全选 */
+  handleAllSelected() {
+    /* 全选/清除全选 */
     if (!this.currentTemplateData.length) return;
     if (this.isSelectAll) {
-      this.currentTemplateData.forEach((item) => {
+      this.currentTemplateData.forEach(item => {
         const index = this.selectionIds.indexOf(item.bk_inst_id);
         if (index > -1) {
           this.selectionIds.splice(index, 1);
@@ -268,7 +271,7 @@ export default class ServiceTemplate extends Vue {
       });
     } else {
       const selectIds = [];
-      this.currentTemplateData.forEach((item) => {
+      this.currentTemplateData.forEach(item => {
         if (!this.selectionIds.includes(item.bk_inst_id)) {
           selectIds.push(item.bk_inst_id);
         }
@@ -284,8 +287,7 @@ export default class ServiceTemplate extends Vue {
   getAllSelectedStatus() {
     if (!!this.searchValue) {
       this.isSelectAll = this.currentTemplateData.length
-        ? this.currentTemplateData
-          .every(item => this.selectionIds.includes(item.bk_inst_id))
+        ? this.currentTemplateData.every(item => this.selectionIds.includes(item.bk_inst_id))
         : false;
     }
   }

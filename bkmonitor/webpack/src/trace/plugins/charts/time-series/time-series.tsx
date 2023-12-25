@@ -639,7 +639,7 @@ export default defineComponent({
             hasSetEvent.value = true;
           }
         } else {
-          emptyText.value = t('查无数据');
+          emptyText.value = t('暂无数据');
           empty.value = true;
         }
       } catch (e) {

@@ -33,9 +33,7 @@
       v-if="chartTitle || $slots.title"
     >
       <slot name="title">
-        <div class="header-title">
-          {{ chartTitle }}{{ chartUnit ? `（${chartUnit}）` : '' }}
-        </div>
+        <div class="header-title">{{ chartTitle }}{{ chartUnit ? `（${chartUnit}）` : '' }}</div>
       </slot>
       <div
         class="header-tools"
@@ -193,7 +191,7 @@ export default class MonitorMobileEcharts extends Vue {
 
   @Prop({
     default() {
-      return '查无数据';
+      return '暂无数据';
     }
   })
   emptyText: string;
@@ -211,15 +209,13 @@ export default class MonitorMobileEcharts extends Vue {
             axis: 'auto',
             label: {
               show: false,
-              formatter: (params) => {
+              formatter: params => {
                 if (this.chartType !== 'line') return;
                 if (params.axisDimension === 'y') {
                   this.curValue.yAxis = params.value;
                 } else {
                   this.curValue.xAxis = params.value;
-                  this.curValue.dataIndex = params.seriesData?.length
-                    ? params.seriesData[0].dataIndex
-                    : -1;
+                  this.curValue.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
                 }
               }
             },
@@ -268,9 +264,14 @@ export default class MonitorMobileEcharts extends Vue {
   mounted() {
     if (this.series) {
       this.initChart();
-      this.handleSetChartData(deepMerge({}, {
-        series: this.series
-      }));
+      this.handleSetChartData(
+        deepMerge(
+          {},
+          {
+            series: this.series
+          }
+        )
+      );
     } else if (this.options?.series?.length) {
       this.initChart();
       this.handleSetChartData(deepMerge({}, this.options));
@@ -319,8 +320,8 @@ export default class MonitorMobileEcharts extends Vue {
   }
   // 注册Intersection监听
   registerObserver(): void {
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
         if (this.needObserver) {
           if (entry.intersectionRatio > 0) {
             this.handleSeriesData();
@@ -379,15 +380,16 @@ export default class MonitorMobileEcharts extends Vue {
 
   // 设置chart配置
   async handleSetChartData(data) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (!this.chart) {
         this.initChart();
       }
       const { unit, title, series } = data || {};
       title && !this.title && (this.chartTitle = title.text);
       this.chartUnit = unit || this.unit || '';
-      const hasSeries =        (series && series.length > 0 && series.some(item => item.datapoints?.length))
-        || (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+      const hasSeries =
+        (series && series.length > 0 && series.some(item => item.datapoints?.length)) ||
+        (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
       this.chartOptionInstance = new EchartOptions({
         chartType: this.chartType,
         colors: this.colors,
@@ -420,7 +422,7 @@ export default class MonitorMobileEcharts extends Vue {
           this.hasInitChart = true;
           if (optionData.options.toolbox) {
             this.initChartAction();
-            this.chart.on('dataZoom', async (event) => {
+            this.chart.on('dataZoom', async event => {
               this.loading = true;
               const [batch] = event.batch;
               if (batch.startValue && batch.endValue) {
@@ -449,8 +451,8 @@ export default class MonitorMobileEcharts extends Vue {
   // 设置tooltip
   handleSetTooltip(params) {
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
-      this.chartType === 'line'
-        && (this.curValue = {
+      this.chartType === 'line' &&
+        (this.curValue = {
           color: '',
           name: '',
           seriesIndex: -1,
@@ -467,12 +469,12 @@ export default class MonitorMobileEcharts extends Vue {
 
     const liHtmls = params
       .filter(item => !item.seriesName.match(/-no-tips$/))
-      .map((item) => {
-        let markColor = 'color: \'#fafbfd\';';
+      .map(item => {
+        let markColor = "color: '#fafbfd';";
         if (data[0].value === item.value[1]) {
-          markColor = 'color: \'#ffffff\';font-weight: bold;';
-          this.chartType === 'line'
-            && (this.curValue = {
+          markColor = "color: '#ffffff';font-weight: bold;";
+          this.chartType === 'line' &&
+            (this.curValue = {
               color: item.color,
               name: item.seriesName,
               seriesIndex: item.seriesIndex,
@@ -513,8 +515,8 @@ export default class MonitorMobileEcharts extends Vue {
       this.chart.dispatchAction({
         type: 'restore'
       });
-      this.getSeriesData
-        && setTimeout(() => {
+      this.getSeriesData &&
+        setTimeout(() => {
           this.handleSeriesData();
         }, 100);
     }
@@ -540,12 +542,12 @@ export default class MonitorMobileEcharts extends Vue {
       const hasOtherShow = this.legend.list
         .filter(item => !item.hidden)
         .some(set => set.name !== item.name && set.show);
-      this.legend.list.forEach((legend) => {
+      this.legend.list.forEach(legend => {
         this.chart.dispatchAction({
           type:
-            legend.name === item.name
-            || !hasOtherShow
-            || (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
+            legend.name === item.name ||
+            !hasOtherShow ||
+            (legend.name.includes(`${item.name}-no-tips`) && legend.hidden)
               ? 'legendSelect'
               : 'legendUnSelect',
           name: legend.name
@@ -589,7 +591,7 @@ export default class MonitorMobileEcharts extends Vue {
 
   // 初始化chart事件
   initChartEvent() {
-    this.chart.on('click', (e) => {
+    this.chart.on('click', e => {
       this.$emit('chart-click', e);
     });
   }
@@ -679,7 +681,7 @@ export default class MonitorMobileEcharts extends Vue {
       color: #63656e;
       background: white;
       border-radius: 2px;
-      box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, .2);
+      box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.2);
 
       &-title {
         margin: 6px 0 0 16px;

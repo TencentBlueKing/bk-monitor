@@ -1000,7 +1000,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               ) : (
                 <div class='chart-empty'>
                   <i class='icon-chart icon-monitor icon-mc-line'></i>
-                  <span class='text'>{this.$t('查无数据')}</span>
+                  <span class='text'>{this.$t('暂无数据')}</span>
                 </div>
               )}
               {/* <!-- 自定义事件和日志显示日志详情 --> */}
