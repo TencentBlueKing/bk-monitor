@@ -23,77 +23,77 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 let staticVersion = ''; // 静态资源版本号
-let interval = null; // 定时器
-let hasShowConfirm = false; // 是否已经弹出过提示
-/**
- * @param {number} checkInterval 检测间隔
- * @description 检测是否有新版本
- */
-export const checkHasNewVersion = (checkInterval = 20 * 1000) => {
-  interval = setTimeout(() => {
-    fetchCheckVersion()
-      .then(needRecheck => {
-        needRecheck && checkHasNewVersion();
-      })
-      .catch(() => {
-        checkHasNewVersion();
-      });
+let intervalId = null; // 定时器ID
+let hasShownConfirm = false; // 是否已经弹出过提示
+
+// 使用箭头函数简化代码，并添加注释来提高可读性
+export const checkForNewVersion = (checkInterval = 5 * 60 * 1000) => {
+  clearTimeout(intervalId); // 清除现有的定时器
+  intervalId = setTimeout(async () => {
+    try {
+      const recheck = await fetchStaticVersion(false);
+      if (recheck) checkForNewVersion(checkInterval);
+    } catch {
+      checkForNewVersion(checkInterval);
+    }
   }, checkInterval);
 };
-/**
- * @description 获取静态资源版本号
- * @returns {Promise<boolean>} 是否需要重新check
- */
-function fetchCheckVersion(clear = true): Promise<boolean> {
-  clear && clearTimeout(interval);
-  if (hasShowConfirm) return Promise.resolve(false);
-  return fetch(
-    `${window.static_url}/${process.env.APP === 'external' ? 'external' : 'monitor'}/static_version.txt`.replace(
-      /\/\//g,
-      '/'
-    )
-  ).then(async res => {
-    const txt = await res.text();
-    if (!staticVersion) {
-      staticVersion = txt;
-    } else if (staticVersion !== txt) {
-      removeVisibilitychangeListener();
-      if (hasShowConfirm) return false;
-      hasShowConfirm = true;
-      if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面'))) {
-        window.location.reload();
-        window.clearTimeout(interval);
-        return false;
-      }
-      window.requestIdleCallback(() => {
-        hasShowConfirm = false;
-        addVisibilitychangeListener();
-      });
-    }
+
+// 优化 fetchCheckVersion 方法名称，使其更直观
+const fetchStaticVersion = async (clearInterval = true) => {
+  if (clearInterval) clearTimeout(intervalId);
+  if (hasShownConfirm) return false;
+
+  const urlPrefix = process.env.APP === 'external' ? 'external' : 'monitor';
+  const response = await fetch(`${window.static_url}/${urlPrefix}/static_version.txt`.replace(/\/\//g, '/'));
+  const newVersion = await response.text();
+
+  if (!staticVersion) {
+    staticVersion = newVersion;
     return true;
-  });
-}
-function handleVisibilitychange() {
-  if (!hasShowConfirm && document.visibilityState === 'visible') {
-    fetchCheckVersion(false);
   }
-}
-/**
- * @description 监听页面切换
- */
-export function useCheckVersion() {
-  fetchCheckVersion()
+  if (staticVersion !== newVersion) {
+    return promptForReload();
+  }
+
+  return true;
+};
+
+// 将确认框和刷新页面逻辑抽出单独的函数
+const promptForReload = () => {
+  if (hasShownConfirm) return false;
+  removeVisibilityChangeListener();
+  hasShownConfirm = true;
+
+  if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面'))) {
+    window.location.reload();
+    return false;
+  }
+  hasShownConfirm = false;
+  window.requestIdleCallback(() => {
+    addVisibilityChangeListener();
+  });
+  return true;
+};
+
+const handleVisibilityChange = () => {
+  if (!hasShownConfirm && document.visibilityState === 'visible') {
+    fetchStaticVersion(false);
+  }
+};
+
+export const useCheckVersion = () => {
+  fetchStaticVersion()
     .catch(() => false)
-    .finally(() => {
-      checkHasNewVersion();
-    });
-  addVisibilitychangeListener();
-}
-export function addVisibilitychangeListener() {
-  document.addEventListener('visibilitychange', handleVisibilitychange);
-}
-export function removeVisibilitychangeListener() {
-  document.removeEventListener('visibilitychange', handleVisibilitychange);
-}
+    .finally(() => checkForNewVersion());
+  addVisibilityChangeListener();
+};
+
+export const addVisibilityChangeListener = () => {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+};
+
+export const removeVisibilityChangeListener = () => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+};
