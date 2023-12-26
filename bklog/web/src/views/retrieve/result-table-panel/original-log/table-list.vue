@@ -28,8 +28,6 @@
     :data="tableList"
     :key="tableRandomKey"
     @row-click="tableRowClick"
-    @row-mouse-enter="handleMouseEnter"
-    @row-mouse-leave="handleMouseLeave"
     @header-dragend="handleHeaderDragend"
     @sort-change="handleSortTable">
     <!-- 展开详情 -->
@@ -97,13 +95,13 @@
       v-if="showHandleOption"
       align="right"
       fixed="right"
-      width="84"
+      :width="getOperatorToolsWidth"
       :label="$t('操作')">
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
         <operator-tools
           :index="$index"
-          :cur-hover-index="curHoverIndex"
+          :row-data="row"
           :operator-config="operatorConfig"
           :handle-click="(event) => handleClickTools(event, row, operatorConfig)" />
       </template>
