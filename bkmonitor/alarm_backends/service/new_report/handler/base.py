@@ -103,9 +103,9 @@ class SendChannelHandler(object):
         send_time = datetime.datetime.now()
         send_results = []
         # 解析发送结果并记录
-        if result.get("error_code", None) is not None:
-            send_status = SendStatusEnum.SUCCESS.value if result["error_code"] == 0 else SendStatusEnum.FAILED.value
-            send_result = result["error_code"] == 0
+        if result.get("errcode", None) is not None:
+            send_status = SendStatusEnum.SUCCESS.value if result["errcode"] == 0 else SendStatusEnum.FAILED.value
+            send_result = result["errcode"] == 0
             for subscriber in self.channel.subscribers:
                 send_results.append({"id": subscriber["id"], "result": send_result})
         else:

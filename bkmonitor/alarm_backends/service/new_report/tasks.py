@@ -11,11 +11,8 @@ specific language governing permissions and limitations under the License.
 import logging
 
 import arrow
-import pytz
-from django.conf import settings
-from django.utils import timezone
 
-from alarm_backends.core.cache.cmdb import BusinessManager
+from alarm_backends.core.i18n import i18n
 from alarm_backends.service.new_report.factory import ReportFactory
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.models import Report, ReportChannel
@@ -25,6 +22,7 @@ from bkmonitor.report.utils import (
     is_run_time,
     parse_frequency,
 )
+from bkmonitor.utils.time_tools import localtime
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
@@ -34,7 +32,7 @@ def send_report(report, channels=None):
     """
     发送邮件订阅
     """
-    logger.info(f"start to send report{report.id}, current time: {arrow.now()}")
+    logger.info(f"[send_report] start to send report({report.id}), current time: {arrow.now()}")
     ReportFactory.get_handler(report).run(channels)
 
 
@@ -48,18 +46,23 @@ def new_report_detect():
     for report in reports:
         # 判断订阅是否有效
         if Report.is_invalid(report.end_time):
-            logger.info(f"report{report.id} is invalid.")
+            logger.info(f"[new_report_detect] report({report.id}) is invalid.")
             continue
         # 判断订阅是否到执行时间
-        time_zone = settings.TIME_ZONE
-        biz_info = BusinessManager.get(report.bk_biz_id)
-        if biz_info:
-            time_zone = biz_info.time_zone or time_zone
-        timezone.activate(pytz.timezone(time_zone))
+        i18n.set_biz(report.bk_biz_id)
         frequency = report.frequency
-        run_time_strings = parse_frequency(frequency, last_send_record_map[report.id]["send_time"])
+        last_send_time = (
+            localtime(last_send_record_map[report.id]["send_time"])
+            if last_send_record_map[report.id]["send_time"]
+            else None
+        )
+        run_time_strings = parse_frequency(frequency, last_send_time)
+        logger.info(
+            f"[new_report_detect] report({report.id}) last_send_time: {last_send_time},"
+            f" run_time_strings:{run_time_strings}"
+        )
         if not is_run_time(frequency, run_time_strings):
-            logger.info(f"report{report.id} not at sending time.")
+            logger.info(f"[new_report_detect] report({report.id}) is not at sending time.")
             continue
         # 根据渠道分别发送，记录最新发送轮次
         send_round = report.send_round + 1 if report.send_round else 1

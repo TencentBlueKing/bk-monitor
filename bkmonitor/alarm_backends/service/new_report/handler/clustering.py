@@ -16,7 +16,6 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.templatetags.i18n import language
 
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
@@ -231,7 +230,7 @@ class ClusteringReportHandler(BaseReportHandler):
         """
         获取渲染参数
         """
-        time_config = get_data_range(self.report.frequency)
+        time_config = get_data_range(self.report.frequency, self.report.bk_biz_id)
         try:
             result = self.query_patterns(time_config)
         except Exception as e:
