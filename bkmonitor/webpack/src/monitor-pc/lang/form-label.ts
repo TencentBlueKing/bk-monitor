@@ -402,6 +402,7 @@ export default {
   监控采集指标: 'BKMonitor',
   全部指标: 'All metrics',
   指标列表: 'Metrics',
+  指标数据: 'Metric Data',
 
   // 维度
   维度名: 'Dimension Name',
@@ -1772,5 +1773,6 @@ export default {
   '共{count}个指标': 'A total of {count} metrics',
   场景智能检测: 'Scene intelligent detection',
   过滤告警级别: 'Filter alarm severity',
-  已选择更低告警级别: 'A lower alarm severity is selected'
+  已选择更低告警级别: 'A lower alarm severity is selected',
+  事件数据: 'Event Data'
 };
