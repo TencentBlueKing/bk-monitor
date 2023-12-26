@@ -12096,11 +12096,11 @@ msgstr "Storage Instance"
 msgid "主机实例"
 msgstr "Host Instance"
 
-msgid "服务端请求数"
-msgstr "Server Request Count"
+msgid "最近1小时服务端请求数"
+msgstr "Last 1h Server Request Count"
 
-msgid "服务端错误数"
-msgstr "Server Error Count"
+msgid "最近1小时服务端错误数"
+msgstr "Last 1h Server Error Count"
 
 msgid "内存占用量"
 msgstr "Memory Usage"
@@ -12111,11 +12111,11 @@ msgstr "Database"
 msgid "库名"
 msgstr "Database Name"
 
-msgid "累积写入成功点数"
-msgstr "Cumulative Points of Successful Writes"
+msgid "最近1小时写入成功点数"
+msgstr "Last 1h Points of Successful Writes"
 
-msgid "累积写入失败点数"
-msgstr "Cumulative Points of Failed Writes"
+msgid "最近1小时写入失败点数"
+msgstr "Last 1h Points of Failed Writes"
 
 msgid "磁盘占用量"
 msgstr "Disk Usage"

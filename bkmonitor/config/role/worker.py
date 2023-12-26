@@ -270,6 +270,8 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
         # 同步空间路由数据，1小时更新一次
         ("metadata.task.sync_space.push_and_publish_space_router_task", "* */1 * * *", "global"),
+        # 检查并执行接入vm命令, 每天执行一次
+        ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     ]
 
 # Timeout for image exporter service, default set to 10 seconds
