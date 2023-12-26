@@ -261,5 +261,7 @@ export default {
   模糊检索使用通配符: 'Fuzzy search using wild-card',
   规则名不能为空: 'Rule name cannot be empty',
   匹配规则重复了: 'The matching rule is duplicated',
-  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000'
+  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000',
+  选择处理套餐: 'Select Processing Package',
+  输入告警场景: 'Input alarm scenario'
 };
