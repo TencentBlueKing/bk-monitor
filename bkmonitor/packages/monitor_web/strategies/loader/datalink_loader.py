@@ -13,6 +13,7 @@ import json
 from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
+from rest_framework.utils import encoders
 from typing_extensions import TypedDict
 
 from bkmonitor.action.serializers.assign import AssignRuleSlz
@@ -99,16 +100,9 @@ class DatalinkDefaultAlarmStrategyLoader:
                     )
                 )
                 continue
-            try:
-                new_strategy_id = self.update_strategy(item)
-                strategy_tuples.append((new_strategy_id, new_strategy_id))
-                logger.info("Succeed to update strategy({}, {})".format(self.collect_config_id, name))
-            except BaseException as err:
-                logger.exception(
-                    "Fail to load/initial strategy({}) in CollectConfig({}:{}), {}".format(
-                        item["_name"], self.collect_config_id, self.collect_config_name, err
-                    )
-                )
+            new_strategy_id = self.update_strategy(item)
+            strategy_tuples.append((new_strategy_id, name))
+            logger.info("Succeed to update strategy({}, {})".format(self.collect_config_id, name))
 
         # 添加告警分派规则
         self.update_rule_group([notice_group_id], strategy_tuples, force_update=False)
@@ -118,7 +112,7 @@ class DatalinkDefaultAlarmStrategyLoader:
         """加载默认告警策略 ."""
         _name: DatalinkStrategy = strategy.pop("_name")
         # 占位符渲染
-        strategy_str = json.dumps(strategy)
+        strategy_str = json.dumps(strategy, cls=encoders.JSONEncoder)
         strategy_str = strategy_str.replace("${{custom_label}}", self.render_label(_name))
         strategy_str = strategy_str.replace("${{bk_biz_id}}", str(self.bk_biz_id))
         strategy = json.loads(strategy_str)
@@ -142,6 +136,7 @@ class DatalinkDefaultAlarmStrategyLoader:
             "actions": [],
         }
         # 保存策略
+        logger.info("Start to save strategy, %s", strategy_config)
         return resource.strategies.save_strategy_v2(**strategy_config)["id"]
 
     def update_rule_group(
