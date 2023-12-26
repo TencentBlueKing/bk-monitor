@@ -76,7 +76,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: dayjs().format('YYYY-MM-DD hh:mm:ss'),
+        startTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
         endTime: ''
       }
     });

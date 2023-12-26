@@ -833,8 +833,6 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     });
   }
   handleSelectMentionUser(user) {
-    console.log('handleSelectMentionUser', user);
-
     if (this.formData.mention_list.map(item => item.id).includes(user.username)) return;
     this.formData.mention_list.push({
       id: user.id,

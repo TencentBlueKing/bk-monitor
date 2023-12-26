@@ -218,9 +218,9 @@ class TimeSeriesGroup(CustomGroupBase):
             else:
                 for tag in item.get("tag_list", []):
                     # 取第一个值，后面重复的直接忽略
-                    if tag in tag_dict:
+                    if not tag.get("field_name") or tag["field_name"] in tag_dict:
                         continue
-                    tag_dict[tag["field_name"]] = tag["description"]
+                    tag_dict[tag["field_name"]] = tag.get("description", "")
 
         return {
             "is_update_description": is_update_description,

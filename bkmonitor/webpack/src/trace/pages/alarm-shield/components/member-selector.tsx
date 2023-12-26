@@ -169,8 +169,8 @@ export default defineComponent({
       const data = await getUserList(params);
       setUsers(data);
     }
-    function handleFocus(v) {
-      console.log(v);
+    function handleFocus() {
+      // console.log(v);
     }
     function handleBlur() {
       key.value = random(8);

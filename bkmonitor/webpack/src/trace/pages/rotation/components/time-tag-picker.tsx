@@ -71,7 +71,6 @@ export default defineComponent({
     });
     const isShowMsg = ref(false);
 
-    const contentRef = ref<HTMLDivElement>();
     const inputRef = ref();
     const currentTime = reactive<CurrentTimeModel>({
       /** 当前输入的时间 */
@@ -105,6 +104,11 @@ export default defineComponent({
      * @param ind 索引
      */
     function handleShowTime(e: Event, time: string[], ind?: number) {
+      e.stopPropagation();
+      if (currentTime.show) {
+        handleConfirm(e);
+        return;
+      }
       currentTime.index = ind ?? -1;
       currentTime.value = [...time];
       currentTime.show = true;
@@ -145,9 +149,14 @@ export default defineComponent({
       resetInputWidth();
     }
 
+    const reg = /^(([0-1][0-9]|2[0-3]):[0-5][0-9])(?: ?)-(?: ?)(([0-1][0-9]|2[0-3]):[0-5][0-9])$/;
     const inputWidth = ref(8);
     const textTestRef = ref();
     function resetInputWidth() {
+      if (reg.test(currentTime.inputValue)) {
+        const match = currentTime.inputValue.match(reg);
+        currentTime.value = [match[1], match[3]];
+      }
       nextTick(() => {
         inputWidth.value = textTestRef.value.offsetWidth;
       });
@@ -158,13 +167,12 @@ export default defineComponent({
      */
     function handleConfirm(e: Event) {
       isShowMsg.value = false;
-      if (getEventPaths(e, '.time-picker-popover').length || contentRef.value.contains(e.target as Node)) return;
+      if (getEventPaths(e, '.time-picker-popover').length) return;
       if (!currentTime.value.length && !currentTime.inputValue) {
         initCurrentTime();
         return;
       }
 
-      const reg = /^(([0-1][0-9]|2[0-3]):[0-5][0-9])(?: ?)-(?: ?)(([0-1][0-9]|2[0-3]):[0-5][0-9])$/;
       if (currentTime.inputValue) {
         if (!reg.test(currentTime.inputValue)) {
           initCurrentTime();
@@ -208,7 +216,6 @@ export default defineComponent({
       localValue,
       currentTime,
       inputWidth,
-      contentRef,
       inputRef,
       textTestRef,
       resetInputWidth,
@@ -244,7 +251,6 @@ export default defineComponent({
           {{
             trigger: () => (
               <div
-                ref='contentRef'
                 class='content'
                 onClick={e => this.handleShowTime(e, ['00:00', '23:59'])}
               >
