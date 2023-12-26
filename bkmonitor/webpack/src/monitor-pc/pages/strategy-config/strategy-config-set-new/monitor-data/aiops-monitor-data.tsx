@@ -25,7 +25,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, Form, FormItem, Icon, Option, Select, Tag } from 'bk-magic-vue';
+import { Checkbox, Form, FormItem, Icon, Option, Select, Slider, Tag } from 'bk-magic-vue';
 
 import { multivariateAnomalyScenes } from '../../../../../monitor-api/modules/strategies';
 import { random, transformDataKey } from '../../../../../monitor-common/utils/utils';
@@ -65,7 +65,8 @@ export default class AiopsMonitorData extends tsc<IProps> {
   /** 表单数据 */
   formModel = {
     level: 0,
-    scene: ''
+    scene: '',
+    sensitivity: 50
   };
   target: any = {
     targetType: '',
@@ -129,6 +130,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
         scene_id: this.formModel.scene,
         metrics: this.scene.metrics
       },
+      sensitivity: this.formModel.sensitivity,
       unit_prefix: ''
     };
     return {
@@ -198,6 +200,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
     const sceneId = this.metricData?.[0]?.sceneConfig?.algorithms?.[0]?.config?.scene_id;
     if (sceneId) {
       this.formModel.level = this.metricData[0].sceneConfig.algorithms[0].level;
+      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0].sensitivity;
     }
     multivariateAnomalyScenes()
       .then(res => {
@@ -374,9 +377,16 @@ export default class AiopsMonitorData extends tsc<IProps> {
             </div>
           </FormItem>
           <FormItem
-            label={`${this.$t('过滤告警级别')}：`}
+            label={`${this.$t('告警级别')}：`}
             property={'level'}
             error-display-type='normal'
+            desc={{
+              content: `<div style='width: 205px'>
+               <div>${this.$t('智能生成告警级别')}：</div>
+               <div>${this.$t('将根据指标的异常程度、发生异常的指标数，为告警自动分配级别。')}<span>
+              </div>`,
+              allowHTML: true
+            }}
           >
             <div class='aiops-level-list'>
               {this.readonly
@@ -408,6 +418,14 @@ export default class AiopsMonitorData extends tsc<IProps> {
                     </Checkbox>
                   ))}
             </div>
+          </FormItem>
+          <FormItem label={`${this.$t('敏感度')}：`}>
+            <Slider
+              class='process-item'
+              show-custom-label={true}
+              custom-content={{ 0: { label: this.$t('较少告警') }, 100: { label: this.$t('较多告警') } }}
+              v-model={this.formModel.sensitivity}
+            />
           </FormItem>
         </Form>
         {this.metricData.some(item => item.canSetTarget) && this.ipSelect()}
