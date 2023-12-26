@@ -41,6 +41,7 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     LOG_ASYNC_FIELDS,
     OPERATORS,
+    FieldBuiltInEnum,
     FieldDataTypeEnum,
     SearchScopeEnum,
 )
@@ -206,6 +207,7 @@ class MappingHandlers(object):
         mapping_list: list = self._get_mapping()
         property_dict: dict = self.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
+        built_in_fields = FieldBuiltInEnum.get_choices()
         fields_list: list = [
             {
                 "field_type": field["field_type"],
@@ -217,6 +219,7 @@ class MappingHandlers(object):
                 "es_doc_values": field.get("es_doc_values", False),
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
+                "is_built_in": field["field_name"].lower() in built_in_fields,
             }
             for field in fields_result
         ]
