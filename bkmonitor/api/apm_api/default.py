@@ -362,6 +362,12 @@ class QueryDiscoverRules(ApmAPIGWResource):
     method = "POST"
 
 
+class QueryBuiltinProfileDatasourceResource(ApmAPIGWResource):
+    cache_type = CacheType.APM(60 * 60 * 24)
+    action = "/builtin_profile_datasource/"
+    method = "GET"
+
+
 class GetBkdataFlowDetail(ApmAPIGWResource):
     """
     获取Bkdata flow详情
