@@ -26,13 +26,12 @@
 
 let staticVersion = ''; // 静态资源版本号
 let interval = null; // 定时器
-let hasShowConfirm = false; // 是否已经弹出过提示
+
 /**
  * @param {number} checkInterval 检测间隔
  * @description 检测是否有新版本
  */
-export const checkHasNewVersion = (checkInterval = 2 * 60 * 1000) => {
-  if (interval || document.visibilityState !== 'visible') return;
+export const checkHasNewVersion = (checkInterval = 2 * 1000) => {
   function checkVersion() {
     window.requestIdleCallback(() => {
       interval = setTimeout(() => {
@@ -63,31 +62,23 @@ function fetchCheckVersion(): Promise<boolean> {
     const txt = await res.text();
     if (!staticVersion) {
       staticVersion = txt;
-    } else if (document.visibilityState === 'visible' && staticVersion !== txt) {
-      removeVisibilitychangeListener();
-      if (hasShowConfirm) return;
-      hasShowConfirm = true;
-      if (confirm(window.i18n.tc('检测到有新版本，点击确定刷新页面'))) {
+    } else if (staticVersion !== txt) {
+      if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面更新'))) {
         window.location.reload();
         window.clearTimeout(interval);
         return false;
       }
-      hasShowConfirm = false;
-      addVisibilitychangeListener();
     }
     return true;
   });
 }
 function handleVisibilitychange() {
   if (document.visibilityState === 'visible') {
-    if (hasShowConfirm) {
-      checkHasNewVersion();
-    } else
-      fetchCheckVersion()
-        .catch(() => false)
-        .finally(() => {
-          checkHasNewVersion();
-        });
+    fetchCheckVersion()
+      .catch(() => false)
+      .finally(() => {
+        checkHasNewVersion();
+      });
   } else {
     clearTimeout(interval);
     interval = null;
@@ -97,8 +88,13 @@ function handleVisibilitychange() {
  * @description 监听页面切换
  */
 export function useCheckVersion() {
-  handleVisibilitychange();
-  addVisibilitychangeListener();
+  fetchCheckVersion()
+    .catch(() => false)
+    .finally(() => {
+      checkHasNewVersion();
+    });
+  // handleVisibilitychange();
+  // addVisibilitychangeListener();
 }
 export function addVisibilitychangeListener() {
   document.addEventListener('visibilitychange', handleVisibilitychange);
