@@ -38,8 +38,8 @@ import {
   watch
 } from 'vue';
 import { useRoute } from 'vue-router';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
-import { addListener, removeListener } from 'resize-detector';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from '../../../../monitor-api/modules/apm_trace';
@@ -790,7 +790,6 @@ export default defineComponent({
       },
       { immediate: true }
     );
-
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
       const {
