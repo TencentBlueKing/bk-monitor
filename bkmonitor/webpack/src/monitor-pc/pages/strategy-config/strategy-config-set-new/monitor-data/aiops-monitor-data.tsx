@@ -185,6 +185,9 @@ export default class AiopsMonitorData extends tsc<IProps> {
   }
   /** 计算指标是否存在多行情况 */
   handleCalcShowOpenTag() {
+    if (!this.scene?.metrics?.length) {
+      return;
+    }
     const { height, top: parentTop } = this.tagListRef.getBoundingClientRect();
     // 单行不展示 展开/收起 按钮
     this.showTagOpen = Array.from(this.tagListRef.querySelectorAll('.bk-tag')).some(ele => {
