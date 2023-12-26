@@ -529,7 +529,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // this.addDefaultAlarmHandling();
   }
   deactivated() {
-    this.isMultivariateAnomalyDetection = false;
+    // this.isMultivariateAnomalyDetection = false;
     this.clearErrorMsg();
     (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
