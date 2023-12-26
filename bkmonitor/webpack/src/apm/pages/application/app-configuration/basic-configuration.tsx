@@ -903,7 +903,7 @@ export default class BasicInfo extends tsc<IProps> {
     const groupItem = groups[gIndex];
     const deleteList = groupItem.splice(index, 1);
 
-    if (!gIndex && !groupItem.length) {
+    if (!gIndex && !groupItem.length && groups.length === 1) {
       groups.push([this.handleGetDefaultCondition(false)]);
     }
 
@@ -915,8 +915,11 @@ export default class BasicInfo extends tsc<IProps> {
       }
     }
 
-    const list = groups.reduce((prev, cur) => prev.concat(cur), []);
     if (!!deleteList?.[0]?.key) {
+      const list = groups.reduce((prev, cur) => prev.concat(cur), []);
+      if (list[0]?.condition === 'or') {
+        delete list[0].condition;
+      }
       this.samplingRules.splice(0, this.samplingRules.length, ...list);
       this.handleConditionChange();
     }
