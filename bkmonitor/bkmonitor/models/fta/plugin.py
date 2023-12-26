@@ -172,6 +172,7 @@ class EventPluginInstance(AbstractRecordModel):
     name = models.CharField("配置名称", max_length=64, default="", blank=True)
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     data_id = models.IntegerField("数据ID", default=0)
+    token = models.CharField("关联信息token", max_length=64, default="")
     config_params = models.JSONField("插件配置实例信息", default=list)
     ingest_config = models.JSONField("插件配置信息", default=dict)
     normalization_config = models.JSONField("字段清洗规则", default=list)

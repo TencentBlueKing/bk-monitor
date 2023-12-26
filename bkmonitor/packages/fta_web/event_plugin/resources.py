@@ -13,6 +13,7 @@ import logging
 import time
 import traceback
 from collections import defaultdict
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.db import transaction
@@ -518,50 +519,48 @@ class GetEventPluginInstanceResource(Resource):
         )
         if not instances:
             plugin_info.update({"instances": [], "is_installed": False})
-        else:
-            manager = get_manager(instances[0])
-            inst_serializer = manager.get_serializer_class()
-            serializer_data = inst_serializer(instance=instances, many=True).data
-            ingest_config = plugin_info["ingest_config"]
-            push_host = (
-                settings.COLLOCTOR_HOST
-                if ingest_config.get("collect_type") == "bk_collector"
-                else settings.INGESTER_HOST
-            )
+            return plugin_info
 
-            ingest_config["ingester_host"] = push_host
-            push_url = f"{push_host}/event/{plugin_info['plugin_id']}/"
-            alert_sources = ingest_config.get("alert_source", [])
-            collect_urls = [push_url]
-            ingest_config["push_url"] = push_url
-            if instances[0].bk_biz_id:
-                # 不是全局的，需要单独配置
-                if push_host == settings.COLLOCTOR_HOST:
-                    collect_urls = []
-                    data_info = api.metadata.get_data_id(bk_data_id=instances[0].data_id, with_rt_info=False)
-                    for alert_source in alert_sources:
-                        collect_urls.append(f"{push_url}?source={alert_source}&token={data_info['token']}")
-                else:
-                    ingest_config["push_url"] = f"{push_host}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
+        manager = get_manager(instances[0])
+        inst_serializer = manager.get_serializer_class()
+        serializer_data = inst_serializer(instance=instances, many=True).data
+        ingest_config = plugin_info["ingest_config"]
+        ingest_config["ingest_host"] = settings.INGESTER_HOST
+        ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{plugin_info['plugin_id']}/"
+        # 取一个代表
+        instance = instances[0]
+        alert_sources = ingest_config.get("alert_source", [])
+        collect_urls = []
+        if not alert_sources:
+            # 如果没有的话，直接塞一个全局字段
+            alert_sources = ["global"]
+        for alert_source in alert_sources:
+            path_params = urlencode(dict(source=alert_source, token=instance.token))
+            collect_urls.append(f"{settings.COLLOCTOR_HOST}?{path_params}")
 
-            instances_data = [
-                {
-                    "id": inst_data["id"],
-                    "params_schema": inst_data["params_schema"],
-                    "updatable": inst_data["version"] != plugin_info["version"],
-                    "push_url": ingest_config["push_url"],
-                    "collect_urls": collect_urls,
-                }
-                for inst_data in serializer_data
-            ]
-            plugin_info.update(
-                {
-                    "instances": instances_data,
-                    "alert_config": AlertConfigSerializer(instances[0].list_alert_config(), many=True).data,
-                    "normalization_config": serializer_data[0]["normalization_config"],
-                    "is_installed": True,
-                }
-            )
+        if instances[0].bk_biz_id:
+            # 不是全局的，需要单独配置
+            ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{instance.plugin_id}_{instance.data_id}/"
+
+        instances_data = [
+            {
+                "id": inst_data["id"],
+                "params_schema": inst_data["params_schema"],
+                "updatable": inst_data["version"] != plugin_info["version"],
+                "push_url": ingest_config["push_url"],
+                "collect_urls": collect_urls,
+            }
+            for inst_data in serializer_data
+        ]
+        plugin_info.update(
+            {
+                "instances": instances_data,
+                "alert_config": AlertConfigSerializer(instances[0].list_alert_config(), many=True).data,
+                "normalization_config": serializer_data[0]["normalization_config"],
+                "is_installed": True,
+            }
+        )
+
         return plugin_info
 
 

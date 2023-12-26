@@ -18,6 +18,7 @@ from bkmonitor.event_plugin.serializers import (
     EventPluginBaseSerializer,
 )
 from bkmonitor.models import EventPluginInstance
+from bkmonitor.utils.cipher import transform_data_id_to_token
 
 
 class BaseEventPluginManager(metaclass=abc.ABCMeta):
@@ -65,8 +66,15 @@ class BaseEventPluginManager(metaclass=abc.ABCMeta):
         接入metadata，并生成data_id
         """
         data_id = self.accessor.access(self.get_datasource_option())
+        if data_id == self.plugin_inst.data_id:
+            return
+
+        # 仅当data_id发生变化之后才更新
+        self.plugin_inst.token = transform_data_id_to_token(
+            data_id, bk_biz_id=self.plugin_inst.bk_biz_id, app_name=self.plugin_inst.plugin_id
+        )
         self.plugin_inst.data_id = data_id
-        self.plugin_inst.save(update_fields=["data_id"])
+        self.plugin_inst.save(update_fields=["data_id", "token"])
 
     def switch(self, is_enabled: bool):
         """
