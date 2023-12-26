@@ -133,6 +133,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   popoperOperateIndex = -1;
   opetateRow = null;
   enableCreateChatGroup = false;
+  /* 关注人禁用操作 */
+  followerDisabled = false;
   get tableColumnMap() {
     return this.alertColumns.reduce((pre, cur) => {
       if (cur.disabled || cur.checked) {
@@ -545,6 +547,18 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
               row.assignee?.map(assginne => <span class='tag-item'>{assginne}</span>) || '--'
           }
         },
+        {
+          id: 'follower',
+          name: this.$t('关注人'),
+          disabled: false,
+          checked: true,
+          props: {
+            width: 200,
+            minWidth: 200,
+            formatter: (row: IEventItem) =>
+              row.follower?.map(follower => <span class='tag-item'>{follower}</span>) || '--'
+          }
+        },
         // {
         //   id: 'severity',
         //   name: this.$t('告警级别'),
@@ -752,6 +766,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   @Emit('selectChange')
   handleSelectChange(selectList: IEventItem[]) {
     this.selectedCount = selectList?.length || 0;
+    this.followerDisabled = selectList.some(item => item.followerDisabled);
     return selectList.map(item => item.id);
   }
   /**
@@ -1018,11 +1033,14 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   }
 
   /* 告警确认文案 */
-  askTipMsg(isAak, status, ackOperator) {
+  askTipMsg(isAak, status, ackOperator, followerDisabled) {
     const statusNames = {
       RECOVERED: this.$t('告警已恢复'),
       CLOSED: this.$t('告警已关闭')
     };
+    if (followerDisabled) {
+      return this.$t('关注人禁用此操作');
+    }
     if (!isAak) {
       return statusNames[status];
     }
@@ -1102,7 +1120,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 {...{ props: column.props }}
                 scopedSlots={{
                   default: ({
-                    row: { status, is_ack: isAck, ack_operator: ackOperator },
+                    row: { status, is_ack: isAck, ack_operator: ackOperator, followerDisabled },
                     $index,
                     row
                   }: {
@@ -1139,25 +1157,37 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                         <span
                           class={[
                             'operate-panel-item icon-monitor icon-duihao',
-                            { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) }
+                            { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled }
                           ]}
                           on-click={() =>
-                            !isAck && !['RECOVERED', 'CLOSED'].includes(status) && this.handleAlertConfirm(row)
+                            !isAck &&
+                            !['RECOVERED', 'CLOSED'].includes(status) &&
+                            !followerDisabled &&
+                            this.handleAlertConfirm(row)
                           }
                           v-bk-tooltips={{
                             content:
-                              isAck || ['RECOVERED', 'CLOSED'].includes(status)
-                                ? this.askTipMsg(isAck, status, ackOperator)
+                              isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled
+                                ? this.askTipMsg(isAck, status, ackOperator, followerDisabled)
                                 : this.$t('告警确认'),
                             delay: 200,
                             appendTo: 'parent'
                           }}
                         />
                         <span
-                          class='operate-panel-item icon-monitor icon-chuli'
+                          class={[
+                            'operate-panel-item icon-monitor icon-chuli',
+                            {
+                              'is-disable': followerDisabled
+                            }
+                          ]}
                           // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                          onClick={() => this.handleManualProcess(row)}
-                          v-bk-tooltips={{ content: this.$t('手动处理'), delay: 200, appendTo: 'parent' }}
+                          onClick={() => !followerDisabled && this.handleManualProcess(row)}
+                          v-bk-tooltips={{
+                            content: followerDisabled ? this.$t('关注人禁用此操作') : this.$t('手动处理'),
+                            delay: 200,
+                            appendTo: 'parent'
+                          }}
                         />
                         {/* <span class="operate-panel-item icon-monitor icon-mc-alarm-abnormal"/> */}
                         {/* <span
@@ -1372,8 +1402,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   slot='count'
                   text={true}
                   theme='primary'
+                  disabled={item.id === 'chat' ? false : this.followerDisabled}
                   class='table-prepend-clear'
-                  onClick={() => this.handleBatchSet(item.id)}
+                  onClick={() => !(item.id === 'chat' ? false : this.followerDisabled) && this.handleBatchSet(item.id)}
                 >
                   {item.name}
                 </Button>
@@ -1417,22 +1448,38 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           ref='moreItems'
         >
           <div
-            class={['more-item', { 'is-disable': this.opetateRow?.is_shielded }]}
+            class={['more-item', { 'is-disable': this.opetateRow?.is_shielded || this.opetateRow?.followerDisabled }]}
             v-bk-tooltips={{
-              content: this.opetateRow?.is_shielded
-                ? `${this.opetateRow.shield_operator?.[0] || ''}${this.$t('已屏蔽')}`
-                : '',
+              content: (() => {
+                if (this.opetateRow?.followerDisabled) {
+                  return this.$t('关注人禁用此操作');
+                }
+                return this.opetateRow?.is_shielded
+                  ? `${this.opetateRow.shield_operator?.[0] || ''}${this.$t('已屏蔽')}`
+                  : '';
+              })(),
               delay: 200,
+              placements: ['left'],
               appendTo: () => document.body
             }}
-            on-click={() => !this.opetateRow?.is_shielded && this.handleQuickShield(this.opetateRow)}
+            on-click={() =>
+              !this.opetateRow?.is_shielded &&
+              !this.opetateRow?.followerDisabled &&
+              this.handleQuickShield(this.opetateRow)
+            }
           >
             <span class='icon-monitor icon-mc-notice-shield'></span>
             <span>{window.i18n.t('快捷屏蔽')}</span>
           </div>
 
           <div
-            class='more-item'
+            class={['more-item', { 'is-disable': this.opetateRow?.followerDisabled }]}
+            v-bk-tooltips={{
+              content: this.opetateRow?.followerDisabled ? this.$t('关注人禁用此操作') : '',
+              delay: 200,
+              placements: ['left'],
+              appendTo: () => document.body
+            }}
             on-click={() => this.handleAlarmDispatch(this.opetateRow)}
           >
             <span class='icon-monitor icon-fenpai'></span>
