@@ -12134,11 +12134,11 @@ msgstr "存储实例"
 msgid "主机实例"
 msgstr "主机实例"
 
-msgid "服务端请求数"
-msgstr "服务端请求数"
+msgid "最近1小时服务端请求数"
+msgstr "最近1小时服务端请求数"
 
-msgid "服务端错误数"
-msgstr "服务端错误数"
+msgid "最近1小时服务端错误数"
+msgstr "最近1小时服务端错误数"
 
 msgid "内存占用量"
 msgstr "内存占用量"
@@ -12146,11 +12146,11 @@ msgstr "内存占用量"
 msgid "库名"
 msgstr "库名"
 
-msgid "累积写入成功点数"
-msgstr "累积写入成功点数"
+msgid "最近1小时写入成功点数"
+msgstr "最近1小时写入成功点数"
 
-msgid "累积写入失败点数"
-msgstr "累积写入失败点数"
+msgid "最近1小时写入失败点数"
+msgstr "最近1小时写入失败点数"
 
 msgid "磁盘占用量"
 msgstr "磁盘占用量"

@@ -121,9 +121,8 @@ class DatalinkDefaultAlarmStrategyLoader:
         _name: DatalinkStrategy = strategy.pop("_name")
         # 占位符渲染
         strategy_str = json.dumps(strategy)
-        strategy_str = strategy_str.replace("${{collect_config_id}}", str(self.collect_config_id))
-        strategy_str = strategy_str.replace("${{collect_config_name}}", self.collect_config_name)
         strategy_str = strategy_str.replace("${{custom_label}}", self.render_label(_name))
+        strategy_str = strategy_str.replace("${{bk_biz_id}}", str(self.bk_biz_id))
         strategy = json.loads(strategy_str)
 
         # 组装通知信息
