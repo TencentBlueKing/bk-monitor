@@ -26,33 +26,29 @@
 
 let staticVersion = ''; // 静态资源版本号
 let interval = null; // 定时器
-
+let hasShowConfirm = false; // 是否已经弹出过提示
 /**
  * @param {number} checkInterval 检测间隔
  * @description 检测是否有新版本
  */
-export const checkHasNewVersion = (checkInterval = 2 * 1000) => {
-  function checkVersion() {
-    window.requestIdleCallback(() => {
-      interval = setTimeout(() => {
-        fetchCheckVersion()
-          .then(needRecheck => {
-            needRecheck && checkVersion();
-          })
-          .catch(() => {
-            checkVersion();
-          });
-      }, checkInterval);
-    });
-  }
-  checkVersion();
+export const checkHasNewVersion = (checkInterval = 20 * 1000) => {
+  interval = setTimeout(() => {
+    fetchCheckVersion()
+      .then(needRecheck => {
+        needRecheck && checkHasNewVersion();
+      })
+      .catch(() => {
+        checkHasNewVersion();
+      });
+  }, checkInterval);
 };
 /**
  * @description 获取静态资源版本号
  * @returns {Promise<boolean>} 是否需要重新check
  */
-function fetchCheckVersion(): Promise<boolean> {
-  clearTimeout(interval);
+function fetchCheckVersion(clear = true): Promise<boolean> {
+  clear && clearTimeout(interval);
+  if (hasShowConfirm) return Promise.resolve(false);
   return fetch(
     `${window.static_url}/${process.env.APP === 'external' ? 'external' : 'monitor'}/static_version.txt`.replace(
       /\/\//g,
@@ -63,25 +59,25 @@ function fetchCheckVersion(): Promise<boolean> {
     if (!staticVersion) {
       staticVersion = txt;
     } else if (staticVersion !== txt) {
-      if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面更新'))) {
+      removeVisibilitychangeListener();
+      if (hasShowConfirm) return false;
+      hasShowConfirm = true;
+      if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面'))) {
         window.location.reload();
         window.clearTimeout(interval);
         return false;
       }
+      window.requestIdleCallback(() => {
+        hasShowConfirm = false;
+        addVisibilitychangeListener();
+      });
     }
     return true;
   });
 }
 function handleVisibilitychange() {
-  if (document.visibilityState === 'visible') {
-    fetchCheckVersion()
-      .catch(() => false)
-      .finally(() => {
-        checkHasNewVersion();
-      });
-  } else {
-    clearTimeout(interval);
-    interval = null;
+  if (!hasShowConfirm && document.visibilityState === 'visible') {
+    fetchCheckVersion(false);
   }
 }
 /**
@@ -93,8 +89,7 @@ export function useCheckVersion() {
     .finally(() => {
       checkHasNewVersion();
     });
-  // handleVisibilitychange();
-  // addVisibilitychangeListener();
+  addVisibilitychangeListener();
 }
 export function addVisibilitychangeListener() {
   document.addEventListener('visibilitychange', handleVisibilitychange);
