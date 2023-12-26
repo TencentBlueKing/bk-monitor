@@ -18,7 +18,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
     &-count {
       margin: 0 4px;
-      font-weight: bold;  
+      font-weight: bold;
     }
 
     &-clear {
@@ -291,11 +291,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 .tag-column-wrap {
   display: flex;
   align-items: center;
-  height: 59px;
   overflow: hidden;
 
   .tag-column {
-    max-height: 59px;
     padding-top: 2px;
     overflow: hidden;
   }
