@@ -18,8 +18,6 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
-from fta_web.event_plugin.handler import PackageHandler
-from fta_web.event_plugin.kafka import KafkaManager
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -27,6 +25,7 @@ from bkmonitor.event_plugin import EventPluginSerializer, get_manager, get_seria
 from bkmonitor.event_plugin.constant import EVENT_NORMAL_FIELDS
 from bkmonitor.event_plugin.serializers import (
     AlertConfigSerializer,
+    CleanConfigSerializer,
     HttpPullInstOptionSerializer,
     NormalizationConfig,
 )
@@ -38,7 +37,6 @@ from bkmonitor.models.fta import PluginStatus
 from bkmonitor.utils.serializers import StringSplitListField
 from bkmonitor.utils.template import jinja_render
 from bkmonitor.utils.time_tools import utc2biz_str
-from constants.action import GLOBAL_BIZ_ID
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.drf_resource.tools import format_serializer_errors
@@ -47,6 +45,8 @@ from core.errors.event_plugin import (
     GetKafkaConfigError,
     PluginIDExistError,
 )
+from fta_web.event_plugin.handler import PackageHandler
+from fta_web.event_plugin.kafka import KafkaManager
 
 logger = logging.getLogger("kernel_api")
 
@@ -419,6 +419,8 @@ class EventPluginInstanceBaseResource(Resource):
             validated_data["normalization_config"] = jinja_render(
                 self.event_plugin.normalization_config, config_context
             )
+        if not validated_data.get("clean_configs"):
+            validated_data["clean_configs"] = jinja_render(self.event_plugin.clean_configs, config_context)
 
         if self.event_plugin.plugin_type == PluginType.HTTP_PULL:
             self.validate_poller_data(validated_data)
@@ -432,6 +434,7 @@ class CreateEventPluginInstanceResource(EventPluginInstanceBaseResource):
         version = serializers.CharField(required=True, label="插件版本号")
         config_params = serializers.DictField(label="配置输入, kv格式")
         normalization_config = NormalizationConfig(many=True, label="字段清洗规则", required=False)
+        clean_configs = CleanConfigSerializer(many=True, required=False)
 
     def validate_request_data(self, request_data):
         validated_data = super(CreateEventPluginInstanceResource, self).validate_request_data(request_data)
@@ -519,23 +522,35 @@ class GetEventPluginInstanceResource(Resource):
             manager = get_manager(instances[0])
             inst_serializer = manager.get_serializer_class()
             serializer_data = inst_serializer(instance=instances, many=True).data
-            plugin_info["ingest_config"]["ingester_host"] = settings.INGESTER_HOST
-            push_url = f"{settings.INGESTER_HOST}/event/{plugin_info['plugin_id']}/"
+            ingest_config = plugin_info["ingest_config"]
+            push_host = (
+                settings.COLLOCTOR_HOST
+                if ingest_config.get("collect_type") == "bk_collector"
+                else settings.INGESTER_HOST
+            )
+
+            ingest_config["ingester_host"] = push_host
+            push_url = f"{push_host}/event/{plugin_info['plugin_id']}/"
+            alert_sources = ingest_config.get("alert_source", [])
+            collect_urls = [push_url]
+            ingest_config["push_url"] = push_url
             if instances[0].bk_biz_id:
-                plugin_info["ingest_config"][
-                    "push_url"
-                ] = f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
-            else:
-                plugin_info["ingest_config"]["push_url"] = push_url
+                # 不是全局的，需要单独配置
+                if push_host == settings.COLLOCTOR_HOST:
+                    collect_urls = []
+                    data_info = api.metadata.get_data_id(bk_data_id=instances[0].data_id, with_rt_info=False)
+                    for alert_source in alert_sources:
+                        collect_urls.append(f"{push_url}?source={alert_source}&token={data_info['token']}")
+                else:
+                    ingest_config["push_url"] = f"{push_host}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
 
             instances_data = [
                 {
                     "id": inst_data["id"],
                     "params_schema": inst_data["params_schema"],
                     "updatable": inst_data["version"] != plugin_info["version"],
-                    "push_url": f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
-                    if inst_data["bk_biz_id"]
-                    else push_url,
+                    "push_url": ingest_config["push_url"],
+                    "collect_urls": collect_urls,
                 }
                 for inst_data in serializer_data
             ]
@@ -547,15 +562,6 @@ class GetEventPluginInstanceResource(Resource):
                     "is_installed": True,
                 }
             )
-
-            # 注入 ingester_host 用于生成 push 请求的目标地址，考虑到后续对不同插件可能有跨云需求，所以这里先预留一个字段
-            plugin_info["ingest_config"]["ingester_host"] = settings.INGESTER_HOST
-            if instances[0].bk_biz_id and instances[0].bk_biz_id != GLOBAL_BIZ_ID:
-                plugin_info["ingest_config"][
-                    "push_url"
-                ] = f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}_{instances[0].data_id}/"
-            else:
-                plugin_info["ingest_config"]["push_url"] = f"{settings.INGESTER_HOST}/event/{instances[0].plugin_id}/"
         return plugin_info
 
 
@@ -622,3 +628,24 @@ class TailEventPluginDataResource(Resource):
         manager = KafkaManager(**params)
         events = manager.fetch_latest_messages(count=validated_data["count"])
         return events
+
+
+class DisablePluginCollectResource(Resource):
+    """
+    获取事件插件token
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        ids = serializers.CharField(label="卸载插件配置ID")
+
+    def perform_request(self, validated_data):
+        instances = EventPluginInstance.objects.get(id=validated_data["id"])
+        disabled_ids = []
+        for instance in instances:
+            if not instance.data_id:
+                # 没有dataid, 无法操作
+                continue
+            manager = get_manager(instance)
+            manager.switch(False)
+            disabled_ids.append(instance.id)
+        return {"disabled_ids": disabled_ids}
