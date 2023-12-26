@@ -41,6 +41,7 @@ from apm.models import (
     MetricDataSource,
     NormalTypeValueConfig,
     ProbeConfig,
+    ProfileDataSource,
     QpsConfig,
     RemoteServiceRelation,
     RootEndpoint,
@@ -54,6 +55,7 @@ from apm.task.tasks import create_or_update_tail_sampling
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import LogServiceRelation
 from bkm_space.utils import space_uid_to_bk_biz_id
+from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
     DataSamplingLogTypeChoices,
@@ -1388,6 +1390,28 @@ class QueryServiceStatisticsListResource(Resource):
             validated_data.get("filters"),
             validated_data.get("es_dsl"),
         )
+
+
+class QueryBuiltinProfileDatasourceResource(Resource):
+    """Query builtin profile datasource"""
+
+    class ProfileDataSourceSerializer(serializers.ModelSerializer):
+        bk_data_token = serializers.SerializerMethodField()
+
+        def get_bk_data_token(self, obj: ProfileDataSource):
+            params = {"bk_biz_id": obj.bk_biz_id, "app_name": obj.app_name, "profile_data_id": obj.bk_data_id}
+            return transform_data_id_to_v1_token(**params)
+
+        class Meta:
+            model = ProfileDataSource
+            fields = "__all__"
+
+    def perform_request(self, validated_request_data: dict):
+        builtin_source = ProfileDataSource.get_builtin_source()
+        if builtin_source is None:
+            raise ValueError(_("未找到内置数据源，请联系管理员创建"))
+
+        return self.ProfileDataSourceSerializer(builtin_source).data
 
 
 class GetBkDataFlowDetailResource(Resource):

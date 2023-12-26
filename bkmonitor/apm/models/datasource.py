@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import math
+from typing import Optional
 
 from django.conf import settings
 from django.db import models
@@ -893,6 +894,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     DATASOURCE_TYPE = ApmDataSourceConfigBase.PROFILE_DATASOURCE
 
+    BUILTIN_APP_NAME = "builtin_profile_app"
+    _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
+
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
 
@@ -914,6 +918,25 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         obj.result_table_id = essentials["result_table_id"]
         obj.save(update_fields=["bk_data_id", "result_table_id", "updated"])
         return
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def create_builtin_source(cls):
+        builtin_biz = api.cmdb.get_blueking_biz()
+        # datasource is enough, no real app created.
+        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+
+    @classmethod
+    def get_builtin_source(cls) -> Optional['ProfileDataSource']:
+        if cls._CACHE_BUILTIN_DATASOURCE:
+            return cls._CACHE_BUILTIN_DATASOURCE
+
+        builtin_biz = api.cmdb.get_blueking_biz()
+        try:
+            return cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        except cls.DoesNotExist:
+            return None
 
 
 class DataLink(models.Model):
