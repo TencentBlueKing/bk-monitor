@@ -26,6 +26,7 @@
 
 let staticVersion = ''; // 静态资源版本号
 let interval = null; // 定时器
+let hasShowConfirm = false; // 是否已经弹出过提示
 /**
  * @param {number} checkInterval 检测间隔
  * @description 检测是否有新版本
@@ -64,11 +65,14 @@ function fetchCheckVersion(): Promise<boolean> {
       staticVersion = txt;
     } else if (document.visibilityState === 'visible' && staticVersion !== txt) {
       removeVisibilitychangeListener();
+      if (hasShowConfirm) return;
+      hasShowConfirm = true;
       if (confirm(window.i18n.tc('检测到有新版本，点击确定刷新页面'))) {
         window.location.reload();
         window.clearTimeout(interval);
         return false;
       }
+      hasShowConfirm = false;
       addVisibilitychangeListener();
     }
     return true;
@@ -76,11 +80,14 @@ function fetchCheckVersion(): Promise<boolean> {
 }
 function handleVisibilitychange() {
   if (document.visibilityState === 'visible') {
-    fetchCheckVersion()
-      .catch(() => false)
-      .finally(() => {
-        checkHasNewVersion();
-      });
+    if (hasShowConfirm) {
+      checkHasNewVersion();
+    } else
+      fetchCheckVersion()
+        .catch(() => false)
+        .finally(() => {
+          checkHasNewVersion();
+        });
   } else {
     clearTimeout(interval);
     interval = null;
