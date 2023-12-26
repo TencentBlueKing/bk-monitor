@@ -127,7 +127,10 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.cmdb.service_template", "*/10 * * * *", "global"),
     ("alarm_backends.core.cache.cmdb.set_template", "*/10 * * * *", "global"),
     # model cache
-    ("alarm_backends.core.cache.strategy", "* * * * *", "global"),
+    # 策略全量更新频率降低
+    ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
+    # 策略增量更新
+    ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
     ("alarm_backends.core.cache.shield", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
     ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
@@ -270,6 +273,8 @@ if os.getenv("DISABLE_METADATA_TASK") != "True":
         ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
         # 同步空间路由数据，1小时更新一次
         ("metadata.task.sync_space.push_and_publish_space_router_task", "* */1 * * *", "global"),
+        # 检查并执行接入vm命令, 每天执行一次
+        ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     ]
 
 # Timeout for image exporter service, default set to 10 seconds

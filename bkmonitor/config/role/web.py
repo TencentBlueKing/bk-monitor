@@ -104,8 +104,7 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.authentication.ApiGatewayJWTExternalMiddleware",
     "apigw_manager.apigw.authentication.ApiGatewayJWTAppMiddleware",
     "common.middlewares.TimeZoneMiddleware",
-    "common.middlewares.ActiveBusinessMiddleware",
-    "common.middlewares.RecordLoginUserMiddleware",
+    "common.middlewares.TrackSiteVisitMiddleware",
     "version_log.middleware.VersionLogMiddleware",
     "monitor_api.middlewares.MonitorAPIMiddleware",
     "bkm_space.middleware.ParamInjectMiddleware",
@@ -499,23 +498,6 @@ var _wr = function(type) {
       window.parent.postMessage({ pathname: this.location.pathname }, "*");
     });
   });
-   window.addEventListener('message', function(e) {
-        if(e && e.data ) {
-        var dom = null;
-        switch(e.data) {
-            case 'create':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(2) a');
-            break;
-            case 'folder':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(3) a');
-            break;
-            case 'import':
-            dom = document.querySelector('.sidemenu__top .sidemenu-item:nth-child(2) .dropdown-menu li:nth-child(4) a');
-            break;
-        }
-        dom && dom.click()
-        }
-    })
 </script>
 """,
     },

@@ -179,7 +179,7 @@ export default {
     });
   },
   async beforeRouteLeave(to, from, next) {
-    if (to.name !== 'plugin-add' && to.name !== 'plugin-edit' && this.left.step < 2) {
+    if (to.name !== 'plugin-add' && to.name !== 'plugin-edit' && this.left.step < 2 && this.$store.getters.bizIdChangePedding !== to.name) {
       const needNext = await this.handleCancel(false);
       next(needNext);
     } else {

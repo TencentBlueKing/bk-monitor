@@ -271,5 +271,8 @@ export default {
   轮值规则名称长度不能超过128个字符: 'The length of the rotation rule name cannot exceed 128 characters',
   生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
   请确保企业微信群ID为32个字符: 'Please ensure that the corporate wechat Group ID is 32 characters',
-  生效结束时间不能小于今天: 'The effective end time cannot be less than today'
+  生效结束时间不能小于今天: 'The effective end time cannot be less than today',
+  通知升级必须填写时间间隔以及用户组: 'Notification upgrade must fill in the time interval and user group',
+  通知升级的用户组不能包含第一次接收告警的用户组:
+    'The user group notified of the upgrade cannot include the user group that received the alarm for the first time'
 };

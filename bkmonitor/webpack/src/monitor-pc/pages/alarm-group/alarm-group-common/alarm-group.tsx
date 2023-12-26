@@ -65,6 +65,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   keyword = '';
   tableInstance: any = null;
   tableData: any[] = [];
+  tableSize = 'small';
   detail = {
     show: false,
     id: null
@@ -90,7 +91,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 100,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: () => {}
+      formatter: () => {},
+      show: true
     },
     {
       label: i18n.t('应用告警分派规则数'),
@@ -98,9 +100,18 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: null,
       width: 200,
       props: {},
-      formatter: () => {}
+      formatter: () => {},
+      show: true
     },
-    { label: i18n.t('应用策略数'), prop: 'strategy_count', minWidth: null, width: 200, props: {}, formatter: () => {} },
+    {
+      label: i18n.t('应用策略数'),
+      prop: 'strategy_count',
+      minWidth: null,
+      width: 200,
+      props: {},
+      formatter: () => {},
+      show: true
+    },
     {
       label: i18n.t('轮值规则'),
       prop: 'duty_rules',
@@ -120,7 +131,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 180,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: row => row.desc || '--'
+      formatter: row => row.desc || '--',
+      show: true
     },
     // { label: i18n.t('更新记录'), prop: 'update', minWidth: 150, width: 150,  props: {},formatter: () => {} },
     {
@@ -131,7 +143,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 120,
       width: 120,
       props: {},
-      formatter: row => row.update_user || '--'
+      formatter: row => row.update_user || '--',
+      show: true
     },
     {
       label: i18n.t('最近更新时间'),
@@ -141,7 +154,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 220,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
+      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
+      show: true
     },
     {
       label: i18n.t('配置来源'),
@@ -151,7 +165,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.config_source || '--'
+      formatter: row => row.config_source || '--',
+      show: false
     },
     {
       label: i18n.t('配置分组'),
@@ -183,6 +198,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   handleSearch: Function = () => {};
 
+  get showTableColumnsList() {
+    return this.tableColumnsList.filter(item => item.show);
+  }
+
   get isMonitor(): boolean {
     return this.type === 'monitor';
   }
@@ -202,7 +221,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   @Watch('fromRouterName')
   fromRouterNameChange(fromName: string) {
-    console.log(fromName);
     if (['alarm-group-add', 'alarm-group-edit'].some(item => fromName.includes(item)) && this.needReflesh) {
       this.getNoticeGroupList();
     }
@@ -221,7 +239,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       handle: this.cellHandle,
       update: this.cellUpdate
     };
-    this.tableCloumnsList.forEach(column => {
+    this.tableColumnsList.forEach(column => {
       const { prop } = column;
       // eslint-disable-next-line no-param-reassign
       fnMap[prop] && (column.formatter = fnMap[prop]);
@@ -252,7 +270,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     return (
       <div class='col-appstrategy'>
         <span
-          class='strategy-num'
+          class={['strategy-num', { 'btn-disabled': !row.rules_count || row.rules_count === 0 }]}
           onClick={() => this.handleToAppDispatch(row)}
         >
           {row.rules_count || 0}
@@ -314,6 +332,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
         {this.$t('删除')}
       </bk-button>
     ];
+  }
+
+  handleSettingChange({ fields, size }) {
+    this.tableColumnsList.forEach(item => (item.show = fields.some(field => field.prop === item.prop)));
+    this.tableSize = size;
   }
 
   /**
@@ -467,7 +490,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     if (!rulesCount) return;
     this.$router.push({
       name: 'alarm-dispatch',
-      params: { groupName: name }
+      query: { groupName: name }
     });
   }
 

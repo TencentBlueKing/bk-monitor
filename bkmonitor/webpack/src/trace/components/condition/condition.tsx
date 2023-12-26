@@ -118,7 +118,6 @@ export default defineComponent({
     const hoverArea = ref([]);
 
     const cascaderChange = v => {
-      console.log('cascaderChange', v);
       emit('itemConditionChange', v);
     };
 
