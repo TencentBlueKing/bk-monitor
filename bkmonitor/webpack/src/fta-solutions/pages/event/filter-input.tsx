@@ -93,7 +93,12 @@ class FilterText {
   separator = ' ';
   fieldKey: FilterText;
   fieldValue: FilterText;
-  constructor(public text: string, public startOffset: number, public dataType: string, separator?: string) {
+  constructor(
+    public text: string,
+    public startOffset: number,
+    public dataType: string,
+    separator?: string
+  ) {
     this.endOffset = startOffset + text.length;
     this.separator = separator || ' ';
     if (dataType === 'field' && /\./.test(text)) {
@@ -250,6 +255,10 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       {
         id: 'assignee',
         name: this.$t('通知人')
+      },
+      {
+        id: 'follower',
+        name: this.$t('关注人')
       },
       {
         id: 'strategy_name',
