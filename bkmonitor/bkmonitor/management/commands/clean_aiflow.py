@@ -17,6 +17,7 @@ from bkmonitor.dataflow.flow import DataFlow
 from bkmonitor.dataflow.task.intelligent_detect import (
     StrategyIntelligentModelDetectTask,
 )
+from bkmonitor.models import AlgorithmModel, QueryConfigModel, StrategyModel
 from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from constants.data_source import DataSourceLabel
@@ -29,8 +30,6 @@ class Command(BaseCommand):
 
 
 def run_clean():
-    from bkmonitor.models import AlgorithmModel, QueryConfigModel, StrategyModel
-
     result = api.bkdata.get_data_flow_list(project_id=settings.BK_DATA_PROJECT_ID)
 
     # 找到当前计算平台已有的模型应用dataflow
@@ -58,14 +57,15 @@ def run_clean():
         strategy_to_data_flow.setdefault(int(strategy_id), []).append({"rt_id": rt_id, "flow": flow})
 
     # 找到监控平台配置了智能异常检测的所有策略
-    qs = AlgorithmModel.objects.filter(type__in=AlgorithmModel.AIOPS_ALGORITHMS).values_list("strategy_id", flat=True)
-    strategy_ids = list(qs)
-
+    strategy_ids = list(
+        AlgorithmModel.objects.filter(type__in=AlgorithmModel.AIOPS_ALGORITHMS).values_list("strategy_id", flat=True)
+    )
     strategy_ids = list(StrategyModel.objects.filter(id__in=strategy_ids).values_list("id", flat=True))
     query_configs = QueryConfig.from_models(QueryConfigModel.objects.filter(strategy_id__in=strategy_ids))
     strategy_to_query_config = {query_config.strategy_id: query_config for query_config in query_configs}
 
     # 停用掉策略已停用或删除，但是计算平台仍然在运行的dataflow
+    print("# 停用掉策略已停用或删除，但是计算平台仍然在运行的dataflow")
     for strategy_id in set(strategy_to_data_flow.keys()) - set(strategy_to_query_config.keys()):
         flow_list = strategy_to_data_flow.get(strategy_id)
         for f in flow_list:
@@ -74,6 +74,7 @@ def run_clean():
             api.bkdata.stop_data_flow(flow_id=flow_id)
 
     # 停用仍在使用AIOps策略，但结果表已被切换的flow
+    print("# 停用仍在使用AIOps策略，但结果表已被切换的flow")
     for strategy_id in set(strategy_to_query_config.keys()) & set(strategy_to_data_flow.keys()):
         rt_query_config = strategy_to_query_config.get(strategy_id)
         if rt_query_config.data_source_label == DataSourceLabel.BK_DATA:
