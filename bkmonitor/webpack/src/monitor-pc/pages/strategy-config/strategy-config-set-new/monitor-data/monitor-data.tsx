@@ -714,12 +714,19 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       {this.target.desc.message}
                       {this.target.desc.subMessage}
                     </span>,
-                    <span
-                      class='ip-wrapper-title'
-                      on-click={this.handleAddTarget}
-                    >
-                      {this.$t(this.readonly ? '查看监控目标' : '修改监控目标')}
-                    </span>,
+                    this.readonly ? (
+                      <span
+                        class='ip-wrapper-title'
+                        onClick={this.handleAddTarget}
+                      >
+                        {this.$t('查看监控目标')}
+                      </span>
+                    ) : (
+                      <span
+                        class='icon-monitor icon-bianji'
+                        onClick={this.handleAddTarget}
+                      ></span>
+                    ),
                     this.showTargetMessageTip && (
                       <span class='ip-dimension-tip'>
                         <span class='icon-monitor icon-remind'></span>
