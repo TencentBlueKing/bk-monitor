@@ -30,12 +30,10 @@ module.exports = function (api) {
       '@babel/preset-env',
       {
         targets: {
-          browsers: ['> 1%', 'last 2 versions', 'not ie <= 8'],
-          node: 'current'
+          browsers: ["last 2 Chrome versions", "last 2 Firefox versions"],
         },
         useBuiltIns: 'usage',
         corejs: 3,
-        debug: false
       }
     ],
     process.env.APP !== 'trace' ? [

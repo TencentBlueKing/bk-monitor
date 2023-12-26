@@ -28,7 +28,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkPaasLogin from '@blueking/paas-login';
 import { Input, Navigation, NavigationMenu, NavigationMenuGroup, NavigationMenuItem } from 'bk-magic-vue';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
 import { getFooter, listStickySpaces } from '../../monitor-api/modules/commons';
