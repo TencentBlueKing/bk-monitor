@@ -387,7 +387,7 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 // import { isCancel } from 'axios'
 import { debounce } from 'throttle-debounce';
 

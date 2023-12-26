@@ -13,6 +13,7 @@
   "dependencies": {
     "@blueking/bk-weweb": "0.0.25.beta.1",
     "@blueking/date-picker": "^0.0.72",
+    "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
     "@blueking/paas-login": "0.0.6",
     "@blueking/user-selector": "^1.0.5-beta.2",
@@ -25,7 +26,6 @@
     "element-ui": "2.7.2",
     "html-to-image": "^1.9.0",
     "minimist": "^1.2.6",
-    "resize-detector": "^0.3.0",
     "sortablejs": "^1.15.0",
     "throttle-debounce": "^3.0.1",
     "vue": "2.7.14",

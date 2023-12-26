@@ -230,11 +230,11 @@
 <script lang="ts">
 import { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+import { addListener, removeListener, ResizeCallback } from '@blueking/fork-resize-detector';
+import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 import Echarts, { EChartOption } from 'echarts';
 import { toBlob, toPng } from 'html-to-image';
-import dayjs from 'dayjs';
-import { addListener, removeListener, ResizeCallback } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { traceListById } from '../../monitor-api/modules/apm_trace';
