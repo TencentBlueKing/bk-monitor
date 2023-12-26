@@ -85,9 +85,10 @@ from bkmonitor.strategy.serializers import (
     YearRoundRangeSerializer,
 )
 from bkmonitor.utils.time_tools import strftime_local
-from constants.action import ActionPluginType, ActionSignal, AssignMode
+from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
+    DATALINK_SOURCE,
     HOST_SCENARIO,
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
@@ -493,6 +494,7 @@ class BaseActionRelation(AbstractConfig):
         self.strategy_id = strategy_id
         self.config_id: int = config_id
         self.user_groups: List[int] = user_groups or []
+        self.user_type = kwargs.get("user_type", UserGroupType.MAIN)
         self.signal = list(signal or [])
         self.options: dict = options or {}
         self.config: dict = config or {}
@@ -502,6 +504,7 @@ class BaseActionRelation(AbstractConfig):
             "id": self.id,
             "config_id": self.config_id,
             "user_groups": self.user_groups,
+            "user_type": self.user_type,
             "signal": self.signal,
             "options": self.options,
             "relate_type": self.RELATE_TYPE,
@@ -612,6 +615,7 @@ class BaseActionRelation(AbstractConfig):
                     strategy_id=relation.strategy_id,
                     id=relation.id,
                     user_groups=relation.validated_user_groups,
+                    user_type=relation.user_type,
                     signal=relation.signal,
                     config_id=relation.config_id,
                     config=config,
@@ -743,6 +747,7 @@ class NoticeRelation(BaseActionRelation):
                 cls(
                     strategy_id=relation.strategy_id,
                     id=relation.id,
+                    user_type=relation.user_type,
                     user_groups=relation.validated_user_groups,
                     signal=relation.signal,
                     config_id=relation.config_id,
@@ -1492,6 +1497,11 @@ class Strategy(AbstractConfig):
         priority = serializers.IntegerField(min_value=0, required=False, default=None, max_value=10000, allow_null=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
 
+        def validate_name(self, value):
+            if value.startswith("集成内置") or value.startswith("Datalink BuiltIn"):
+                raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
+            return value
+
     def __init__(
         self,
         bk_biz_id: int,
@@ -1603,6 +1613,7 @@ class Strategy(AbstractConfig):
             "path": self.path,
             "priority": self.priority,
             "priority_group_key": priority_group_key,
+            "edit_allowed": self.source != DATALINK_SOURCE,
         }
 
         config["metric_type"] = config["items"][0]["metric_type"] if config["items"] else ""

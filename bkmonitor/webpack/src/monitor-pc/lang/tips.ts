@@ -189,6 +189,7 @@ export default {
   主机当前状态: 'Host current status',
   可对当前采集内容进行检索: 'The current collection can be retrieved',
   去检索: 'To retrieve',
+  采集状态: 'Collection status',
   '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
     'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
   'tips-采集状态': 'Collection Status'
