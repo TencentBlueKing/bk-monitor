@@ -1,8 +1,8 @@
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1689064841131') format('woff2'),
-       url('monitor-icons.woff?t=1689064841131') format('woff'),
-       url('monitor-icons.ttf?t=1689064841131') format('truetype');
+  src: url('monitor-icons.woff2?t=1703323483226') format('woff2'),
+       url('monitor-icons.woff?t=1703323483226') format('woff'),
+       url('monitor-icons.ttf?t=1703323483226') format('truetype');
 }
 
 .icon-monitor {
@@ -11,6 +11,162 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-xiazai13:before {
+  content: "\e79a";
+}
+
+.icon-BCSNamespace:before {
+  content: "\e799";
+}
+
+.icon-BCSWorkload:before {
+  content: "\e794";
+}
+
+.icon-BCSNode:before {
+  content: "\e795";
+}
+
+.icon-BCSService:before {
+  content: "\e796";
+}
+
+.icon-BCSIngress:before {
+  content: "\e797";
+}
+
+.icon-BCSCluster:before {
+  content: "\e798";
+}
+
+.icon-MacOS:before {
+  content: "\e791";
+}
+
+.icon-LoadBalancer:before {
+  content: "\e792";
+}
+
+.icon-Rack:before {
+  content: "\e793";
+}
+
+.icon-mc-container:before {
+  content: "\e790";
+}
+
+.icon-mc-pod:before {
+  content: "\e78d";
+}
+
+.icon-mc-endpoint:before {
+  content: "\e78e";
+}
+
+.icon-mc-cmdb-process:before {
+  content: "\e787";
+}
+
+.icon-mc-user-experience:before {
+  content: "\e788";
+}
+
+.icon-mc-data-center:before {
+  content: "\e789";
+}
+
+.icon-mc-target-cloud:before {
+  content: "\e78a";
+}
+
+.icon-mc-relate-alert:before {
+  content: "\e78b";
+}
+
+.icon-mc-intelligent-detection:before {
+  content: "\e78c";
+}
+
+.icon-mc-not-assigned:before {
+  content: "\e785";
+}
+
+.icon-mc-all:before {
+  content: "\e786";
+}
+
+.icon-mc-lunliu:before {
+  content: "\e784";
+}
+
+.icon-mc-statistical:before {
+  content: "\e783";
+}
+
+.icon-mc-fault-list:before {
+  content: "\e77a";
+}
+
+.icon-mc-enterprise-wechat:before {
+  content: "\e77b";
+}
+
+.icon-mc-expired:before {
+  content: "\e77c";
+}
+
+.icon-mc-cancel-feedback:before {
+  content: "\e77d";
+}
+
+.icon-mc-restoration-ratio:before {
+  content: "\e77e";
+}
+
+.icon-mc-fault:before {
+  content: "\e77f";
+}
+
+.icon-mc-solved:before {
+  content: "\e780";
+}
+
+.icon-gaojing1:before {
+  content: "\e781";
+}
+
+.icon-fankuixingenyin:before {
+  content: "\e782";
+}
+
+.icon-ziyuantuopu:before {
+  content: "\e775";
+}
+
+.icon-AlertSort:before {
+  content: "\e776";
+}
+
+.icon-Pod:before {
+  content: "\e777";
+}
+
+.icon-A-ZSort:before {
+  content: "\e778";
+}
+
+.icon-guanchazhong:before {
+  content: "\e779";
+}
+
+.icon-beizhu:before {
+  content: "\e774";
+}
+
+.icon-tiaoyonglian:before {
+  content: "\e773";
 }
 
 .icon-minimap:before {
