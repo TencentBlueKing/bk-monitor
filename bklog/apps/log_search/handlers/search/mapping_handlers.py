@@ -226,7 +226,13 @@ class MappingHandlers(object):
         fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
         fields_list = self._combine_description_field(fields_list)
-        return self._combine_fields(fields_list)
+        fields_list = self._combine_fields(fields_list)
+
+        for field in fields_list:
+            # 判断是否为内置字段
+            field["is_built_in"] = field.get("field_name", "").lower() in built_in_fields
+
+        return fields_list
 
     def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value, is_union_search=False):
         """
