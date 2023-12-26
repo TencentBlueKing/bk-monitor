@@ -497,8 +497,8 @@ importers:
         specifier: ^0.0.72
         version: 0.0.72(bkui-vue@0.0.2-beta.110)(dayjs@1.11.10)(vue@2.7.14)
       '@blueking/ip-selector':
-        specifier: 0.0.1-beta.134
-        version: 0.0.1-beta.134
+        specifier: 0.2.0-beta
+        version: 0.2.0-beta
       '@blueking/paas-login':
         specifier: 0.0.6
         version: 0.0.6(bk-magic-vue@2.5.8-beta.11)(vue@2.7.14)
@@ -538,6 +538,9 @@ importers:
       sortablejs:
         specifier: ^1.15.0
         version: 1.15.0
+      throttle-debounce:
+        specifier: ^3.0.1
+        version: 3.0.1
       vue:
         specifier: 2.7.14
         version: 2.7.14
@@ -842,8 +845,8 @@ importers:
         specifier: ^0.0.72
         version: 0.0.72(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8)
       '@blueking/ip-selector':
-        specifier: 0.0.1-beta.134
-        version: 0.0.1-beta.134
+        specifier: 0.2.0-beta
+        version: 0.2.0-beta
       bkui-vue:
         specifier: 0.0.2-beta.78.beta.1
         version: 0.0.2-beta.78.beta.1(highlight.js@11.5.1)(vue@3.3.8)
@@ -941,9 +944,6 @@ importers:
       '@types/lodash':
         specifier: ^4.14.182
         version: 4.14.201
-      '@types/throttle-debounce':
-        specifier: ^5.0.0
-        version: 5.0.2
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.20.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0)(eslint@8.53.0)(typescript@4.9.5)
@@ -2752,8 +2752,8 @@ packages:
       vue: 3.3.8(typescript@4.9.5)
     dev: false
 
-  /@blueking/ip-selector@0.0.1-beta.134:
-    resolution: {integrity: sha512-8KvASVB9JczKmR0eGKnEe88avcPrfvfbP7fJESgsq7oxUDWR+eJQDo3AJjPNur+myF8KRhwTp+utvqjBvYa2yQ==}
+  /@blueking/ip-selector@0.2.0-beta:
+    resolution: {integrity: sha512-k7qwLXVLNk6HSBM7CAFp3FDSnTozfnjCD4qrvhu8fwMI+jSZs/jumsuDiGUgMCGkiAPRzFInk0zs/TTj+T85Aw==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
     dev: false
 
@@ -4172,10 +4172,6 @@ packages:
     dependencies:
       '@types/node': 20.9.0
     dev: false
-
-  /@types/throttle-debounce@5.0.2:
-    resolution: {integrity: sha512-pDzSNulqooSKvSNcksnV72nk8p7gRqN8As71Sp28nov1IgmPKWbOEIwAWvBME5pPTtaXJAvG3O4oc76HlQ4kqQ==}
-    dev: true
 
   /@types/ws@8.5.9:
     resolution: {integrity: sha512-jbdrY0a8lxfdTp/+r7Z4CkycbOFN8WX+IOchLJr3juT/xzbJ8URyTVSJ/hvNdadTgM1mnedb47n+Y31GsFnQlg==}

@@ -793,8 +793,6 @@ export default defineComponent({
 
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
-      console.log(options);
-
       const {
         checked,
         column: { field }

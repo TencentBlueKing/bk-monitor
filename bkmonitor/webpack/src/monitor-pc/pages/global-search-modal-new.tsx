@@ -424,7 +424,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
    */
   handleViewToScene(data, scene) {
     // bk_biz_id=0(搜索结果过多提示优化查询条件)
-    if (!data.view) return;
+    if (!data?.view) return;
 
     const { view, view_args: viewArgs } = data;
     const params =
@@ -434,7 +434,10 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
         result[key] = String(viewArgs.params[key]);
         return result;
       }, {});
-
+    if (scene === 'host' && data.temp_share_url) {
+      window.open(data.temp_share_url, '_blank');
+      return;
+    }
     if (scene === 'apm') {
       // APM是微前端嵌套模块需特殊处理
       const routerNamePath = view.replace('-', '/', 'gm');

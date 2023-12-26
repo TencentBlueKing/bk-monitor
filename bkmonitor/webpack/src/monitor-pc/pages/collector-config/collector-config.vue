@@ -646,6 +646,9 @@ export default {
   },
   activated() {
     this.isLeave = false;
+    setTimeout(() => {
+      !this.loading && this.initPageData();
+    }, 50);
   },
   deactivated() {
     this.isLeave = true;

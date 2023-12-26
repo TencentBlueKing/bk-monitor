@@ -86,8 +86,7 @@ export default class EsBasicInfo extends tsc<IProps> {
       this.formErrMsg[key] = '';
     });
   }
-  handleSelectToggle(status: boolean, v) {
-    console.log(status, v);
+  handleSelectToggle() {
     this.clearError();
   }
 

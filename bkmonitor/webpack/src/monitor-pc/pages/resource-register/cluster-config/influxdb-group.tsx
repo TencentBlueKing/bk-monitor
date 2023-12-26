@@ -233,8 +233,6 @@ export default class InfluxdbTest extends tsc<{}> {
   /* 提交表单 */
   handleSubmit(again: boolean) {
     // TODO 构建传参、调用接口
-    const params = { ...this.localFormData };
-    console.log(params);
     this.submitButtonLoading = true;
     setTimeout(() => {
       this.$bkMessage({

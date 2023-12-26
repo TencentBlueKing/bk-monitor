@@ -438,8 +438,8 @@ export default class ClusterConfig extends tsc<{}> {
     this.connectionStatus = !!res ? ConnectionStatus.success : ConnectionStatus.fail;
   }
   /* 资源类型为日志的查询实例列表 */
-  handleSearchInstanceList(type: string) {
-    console.log(type);
+  handleSearchInstanceList() {
+    // console.log(type);
     // TODO 调用接口
   }
   /* 用途多选checkbox校验、清除错误信息 */

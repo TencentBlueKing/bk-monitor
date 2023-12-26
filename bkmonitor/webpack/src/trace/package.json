@@ -12,7 +12,7 @@
   "dependencies": {
     "@antv/g6": "^4.7.0",
     "@blueking/date-picker": "^0.0.72",
-    "@blueking/ip-selector": "0.0.1-beta.134",
+    "@blueking/ip-selector": "0.2.0-beta",
     "bkui-vue": "0.0.2-beta.78.beta.1",
     "d3-array": "^3.1.1",
     "d3-dispatch": "^3.0.1",
@@ -53,7 +53,6 @@
     "@types/deep-freeze": "^0.1.2",
     "@types/echarts": "^4.9.10",
     "@types/lodash": "^4.14.182",
-    "@types/throttle-debounce": "^5.0.0",
     "@typescript-eslint/eslint-plugin": "^5.20.0",
     "@typescript-eslint/parser": "^5.20.0",
     "eslint": "^8.47.0",
