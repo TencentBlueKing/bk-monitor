@@ -264,5 +264,7 @@ export default {
   '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000',
   通知升级必须填写时间间隔以及用户组: 'Notification upgrade must fill in the time interval and user group',
   通知升级的用户组不能包含第一次接收告警的用户组:
-    'The user group notified of the upgrade cannot include the user group that received the alarm for the first time'
+    'The user group notified of the upgrade cannot include the user group that received the alarm for the first time',
+  选择处理套餐: 'Select Processing Package',
+  输入告警场景: 'Input alarm scenario'
 };
