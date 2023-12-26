@@ -493,7 +493,8 @@ export default class AlarmDispatch extends tsc<{}> {
             item.tag.map(key => key.split(':')[0]).includes(value) ||
             item.tag.map(value => value.split(':')[1]).includes(value) ||
             reg.test(item.user_groups.map(g => g.name)) ||
-            item.user_groups.map(g => String(g.id)).includes(value)
+            String(item.id) === value
+          // item.user_groups.map(g => String(g.id)).includes(value)
         )
         .map(item => item.id);
       this.ruleGroups = this.cacheRuleGroups.filter(item => filterRuleGroupList.includes(item.id));
