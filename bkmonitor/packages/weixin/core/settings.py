@@ -43,3 +43,11 @@ WEIXIN_STATIC_URL = os.environ.get("BKAPP_WEIXIN_STATIC_URL", "/static/weixin/")
 WEIXIN_LOGIN_URL = WEIXIN_SITE_URL + "login/"
 # 微信分享地址
 WEIXIN_SHARE_URL = WEIXIN_APP_EXTERNAL_HOST + WEIXIN_SITE_URL
+# 微信APP 重定向地址，如果有私有化部署需要填
+WEIXIN_APP_URL_PREFIX = os.environ.get("BKAPP_WEIXIN_APP_URL_PREFIX", "https://open.weixin.qq.com")
+# 微信 Agent id
+WEIXIN_AGENT_ID = os.environ.get("BKAPP_WEIXIN_AGENT_ID", "")
+# 应用于重定向 scheme 与访问 scheme 不一致的情况
+WEIXIN_APP_EXTERNAL_SCHEME = os.environ.get("BKAPP_WEIXIN_APP_EXTERNAL_SCHEME", "")
+# 企业微信的 domain
+WEIXIN_QY_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_DOMAIN", "https://qyapi.weixin.qq.com")
