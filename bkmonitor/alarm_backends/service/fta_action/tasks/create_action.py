@@ -620,7 +620,7 @@ class CreateActionProcessor:
             alerts_supervisor[alert.id] = self.get_alert_related_users(supervisors, alerts_supervisor[alert.id])
 
             # 告警关注人
-            alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_supervisor[alert.id])
+            alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_follower[alert.id])
 
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))

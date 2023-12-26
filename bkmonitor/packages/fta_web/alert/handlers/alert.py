@@ -258,6 +258,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     queries.append(Q("term", assignee=self.request_username))
                 if status == self.MY_APPOINTEE_STATUS_NAME:
                     queries.append(Q("term", appointee=self.request_username))
+                if status == self.MY_FOLLOW_STATUS_NAME:
+                    queries.append(Q("term", follower=self.request_username))
                 elif status == self.SHIELD_ABNORMAL_STATUS_NAME:
                     queries.append(Q("term", status=EventStatus.ABNORMAL) & Q("term", is_shielded=True))
                 elif status == self.NOT_SHIELD_ABNORMAL_STATUS_NAME:
