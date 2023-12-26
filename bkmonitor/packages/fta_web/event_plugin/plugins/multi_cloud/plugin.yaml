@@ -1,0 +1,272 @@
+plugin_id: tencent_cloud_alert
+version: 1.0.0
+plugin_display_name: 腾讯云告警拉取
+plugin_type: http_push
+summary: 拉取腾讯云监控告警历史列表
+author: 蓝鲸智云
+
+tags:
+  - TENCENT CLOUD
+  - GOOGLE CLOUD
+  - ALARM HISTORY
+
+
+config_params:
+  - field: begin_time
+    name: 请求开始时间
+    value: "{{begin_time}}"
+    is_required: true
+    is_sensitive: false
+    default_value: "{{begin_time}}"
+    is_hidden: true
+    desc: 内置参数，请求开始时间
+  - field: end_time
+    name: 请求结束时间
+    value: "{{end_time}}"
+    is_required: true
+    is_sensitive: false
+    default_value: "{{end_time}}"
+    is_hidden: true
+    desc: 请求结束时间
+  - field: page
+    name: 请求页码
+    value: "{{page}}"
+    is_required: true
+    is_sensitive: false
+    default_value: "{{page}}"
+    is_hidden: true
+    desc: 内置参数，请求页码
+  - field: page_size
+    name: 请求结束时间
+    value: "{{page_size}}"
+    is_required: true
+    is_sensitive: false
+    default_value: "{{page_size}}"
+    is_hidden: true
+    desc: 内置参数，每页请求数量
+  - field: method
+    name: 请求方法
+    value: ""
+    is_required: true
+    is_sensitive: false
+    default_value: POST
+    is_hidden: true
+    desc: 请求方法，默认为POST
+  - field: url
+    value: ""
+    name: 请求url
+    is_required: true
+    is_sensitive: false
+    is_hidden: true
+    default_value: "https://monitor.tencentcloudapi.com"
+    desc: 请求URL， 当前告警不需要修改
+  - field: secret_id
+    value: ""
+    name: secretId
+    is_required: true
+    is_sensitive: true
+    default_value: ""
+    desc: 云API密钥申请的标识身份ID
+  - field: secret_key
+    value: ""
+    name: secretKey
+    is_required: true
+    is_sensitive: true
+    default_value: ""
+    desc: 云API密钥申请的标识身份ID对应的唯一SecretKey，用来生成请求签名
+  - field: action
+    value: "DescribeAlarmHistories"
+    name: 查询接口
+    is_required: true
+    is_sensitive: false
+    is_hidden: true
+    default_value: "DescribeAlarmHistories"
+  - field: version
+    value: ""
+    name: 接口API版本
+    is_required: true
+    is_sensitive: false
+    is_hidden: true
+    default_value: "2018-07-24"
+  - field: region
+    value: ""
+    name: 请求数据所在区域
+    is_required: true
+    is_sensitive: false
+    default_value: "ap-guangzhou"
+    desc: 请求数据所在区域,默认华南地区(广州)， 可参照腾讯云地域列表修改
+
+ingest_config:
+  source_format: json
+  multiple_events: true
+  events_path: Response.Histories
+  method: "{{method}}"
+  url: "{{url}}"
+
+  # 鉴权配置
+  authorize:
+    auth_type: tencent_auth
+    auth_config:
+      tencent_api_auth:
+        secret_id: "{{secret_id}}"
+        secret_key: "{{secret_key}}"
+        version: "{{version}}"
+        action: "{{action}}"
+        region: "{{region}}"
+
+  # 请求体
+  body:
+    data_type: raw
+    content: '{"PageNumber":{{page}},"PageSize":{{page_size}},"Module":"monitor","EndTime":{{end_time}}}'
+    content_type: json
+
+  overlap: 60
+  # 请求超时
+  timeout: 60
+  # 请求时间格式: 时间戳
+  time_format: timestamp
+
+  # 分页配置
+  pagination:
+    type: page_number
+    option:
+      page_size: 100
+      total_path: "Response.TotalCount"
+
+  alert_source:
+    - TENCENT
+    - GOOGLE
+
+  collect_type: "bk-collector"
+
+# 清洗配置
+normalization_config:
+  - field: alert_name
+    expr: PolicyName
+  - field: event_id
+    expr: AlarmId
+  - field: description
+    expr: Content
+  - field: metric
+    expr: MetricsInfo[0].MetricName
+  - field: category
+    expr: MonitorType
+  - field: assignee
+    expr: assignee
+  - field: status
+    expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', NO_CONF: 'CLOSED'}, AlarmStatus)"
+  - field: target
+    expr: "regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || [AlarmObject] | [0]"
+  - field: target_type
+    expr: "!regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || ['HOST'] | get_field({HOST: 'HOST'}, [0])"
+  - field: severity
+    expr: "1"
+  - field: bk_biz_id
+    expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+  - field: tags
+    expr: '{"monitor_type":MonitorType, "namespace": Namespace,"region": Region,"alarm_type":AlarmType, "metrics": to_string(MetricsInfo), "policy_id": PolicyId, "alarm_object": AlarmObject}'
+  - field: time
+    expr: LastOccurTime
+  - field: source_time
+    expr: FirstOccurTime
+  - field: anomaly_time
+    expr: FirstOccurTime
+  - field: dedupe_md5
+    expr: dedupe_md5
+
+
+clean_configs:
+  # 腾讯云的清洗配置
+  - rules: # 匹配规则，可选。不提供为全部匹配
+    - key: alarmType
+      value:
+        - "metric"
+      method: eq
+      condition: and
+    - key: headers.source
+      value:
+        - "tencent"
+      method: eq
+      condition: and
+    alert_config: []
+  # 清洗配置
+    normalization_config:
+      - field: alert_name
+        expr: PolicyName
+      - field: event_id
+        expr: AlarmId
+      - field: description
+        expr: Content
+      - field: metric
+        expr: MetricsInfo[0].MetricName
+      - field: category
+        expr: MonitorType
+      - field: assignee
+        expr: assignee
+      - field: status
+        expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', NO_CONF: 'CLOSED'}, AlarmStatus)"
+      - field: target
+        expr: "regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || [AlarmObject] | [0]"
+      - field: target_type
+        expr: "!regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || ['HOST'] | get_field({HOST: 'HOST'}, [0])"
+      - field: severity
+        expr: "1"
+      - field: bk_biz_id
+        expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+      - field: tags
+        expr: '{"monitor_type":MonitorType, "namespace": Namespace,"region": Region,"alarm_type":AlarmType, "metrics": to_string(MetricsInfo), "policy_id": PolicyId, "alarm_object": AlarmObject}'
+      - field: time
+        expr: LastOccurTime
+      - field: source_time
+        expr: FirstOccurTime
+      - field: anomaly_time
+        expr: FirstOccurTime
+      - field: dedupe_md5
+        expr: dedupe_md5
+
+  - alert_config: [ ]
+    rules: # 匹配规则，可选。不提供为全部匹配
+      - key: alarmType
+        value:
+          - "metric"
+        method: eq
+        condition: and
+      - key: headers.source
+        value:
+          - "google-alert"
+        method: eq
+        condition: and
+    # 清洗配置
+    normalization_config:
+      - field: alert_name
+        expr: PolicyName
+      - field: event_id
+        expr: AlarmId
+      - field: description
+        expr: Content
+      - field: metric
+        expr: MetricsInfo[0].MetricName
+      - field: category
+        expr: MonitorType
+      - field: assignee
+        expr: assignee
+      - field: status
+        expr: "get_field({ALARM: 'ABNORMAL', OK: 'RECOVERED', NO_CONF: 'CLOSED'}, AlarmStatus)"
+      - field: target
+        expr: "regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || [AlarmObject] | [0]"
+      - field: target_type
+        expr: "!regex_extract(AlarmObject, '((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}') || ['HOST'] | get_field({HOST: 'HOST'}, [0])"
+      - field: severity
+        expr: "1"
+      - field: bk_biz_id
+        expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
+      - field: tags
+        expr: '{"monitor_type":MonitorType, "namespace": Namespace,"region": Region,"alarm_type":AlarmType, "metrics": to_string(MetricsInfo), "policy_id": PolicyId, "alarm_object": AlarmObject}'
+      - field: time
+        expr: LastOccurTime
+      - field: source_time
+        expr: FirstOccurTime
+      - field: anomaly_time
+        expr: FirstOccurTime
+      - field: dedupe_md5
+        expr: dedupe_md5

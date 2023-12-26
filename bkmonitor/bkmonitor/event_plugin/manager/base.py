@@ -53,6 +53,7 @@ class BaseEventPluginManager(metaclass=abc.ABCMeta):
             "bk_biz_id": self.plugin_inst.bk_biz_id,
             "alert_config": data["alert_config"],
             "normalization_config": normalization_config,
+            "clean_configs": data["clean_configs"],
         }
 
         option.update(data["ingest_config"] or {})
