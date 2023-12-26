@@ -271,7 +271,6 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
           showException.value = false;
           await nextTick();
           const rest = transformData(data.diagram_data);
-          console.info(rest, 'rest');
           graphDefinition.value = rest || '';
           const { svg } = await mermaid.render(graphId, graphDefinition.value);
           svgString.value = svg;

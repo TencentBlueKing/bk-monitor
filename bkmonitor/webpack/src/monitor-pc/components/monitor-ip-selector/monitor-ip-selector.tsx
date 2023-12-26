@@ -76,7 +76,6 @@ const BkIpSelector = create({
   version: '3',
   serviceConfigError: false
 });
-console.log('BkIpSelector', BkIpSelector);
 export interface IMonitorIpSelectorProps {
   panelList?: string[];
   value?: IIpV6Value;
@@ -320,7 +319,6 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   // }
   // 获取服务模板列表
   async fetchServiceTemplates(params: Record<string, any>): Promise<Array<ITemplateItem>[]> {
-    console.log('fetchServiceTemplates = ', params);
     return await templatesIpChooserTemplate(
       this.transformParams({
         scope_list: this.scopeList,

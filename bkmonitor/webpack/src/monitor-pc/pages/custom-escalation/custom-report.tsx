@@ -200,7 +200,12 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   created() {
     this.handleSearch = debounce(300, false, this.handleSearchChange);
   }
-
+  mounted() {
+    if (!this.loading && !this.tableData.loading) {
+      this.clearConditions();
+      this.init();
+    }
+  }
   beforeRouteEnter(to, from, next) {
     next(vm => {
       vm.dataReset();

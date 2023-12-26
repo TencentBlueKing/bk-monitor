@@ -53,6 +53,7 @@
 <script>
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import KvList from '../../result-comp/kv-list.vue';
+import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 
 export default {
   components: {
@@ -87,8 +88,8 @@ export default {
       return this.totalFields
         .filter(item => this.kvShowFieldsList.includes(item.field_name))
         .sort((a, b) => {
-          const sortA = a.field_name.replace(/^__+|__+/g, 'z');
-          const sortB = b.field_name.replace(/^__+|__+/g, 'z');
+          const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
           return sortA.localeCompare(sortB);
         });
     },
