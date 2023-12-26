@@ -266,7 +266,7 @@ class ClusteringReportHandler(BaseReportHandler):
             logger.exception("get space info error: {}".format(e))
 
         render_params = {
-            "language": language,
+            "bk_biz_id": self.report.bk_biz_id,
             "title": content_config["title"],
             "time_config": time_config,
             "show_year_on_year": False if scenario_config["year_on_year_hour"] == YearOnYearEnum.NOT.value else True,
@@ -291,6 +291,9 @@ class ClusteringReportHandler(BaseReportHandler):
         """
         渲染订阅
         """
+        if not render_params:
+            logger.exception(f"render_params {render_params} is None.")
+            return render_params
         render_params["title"] = render_params["title"].format(**render_params)
         render_params["mail_template_path"] = self.mail_template_path
         render_params["wechat_template_path"] = self.wechat_template_path

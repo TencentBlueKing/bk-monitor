@@ -50,10 +50,12 @@ class BaseReportHandler(object):
         render_params = self.get_render_params()
         # 渲染订阅内容,获取上下文
         context = self.render(render_params)
-        send_round = self.report.send_round or 0
+        if not context:
+            logger.exception(f"failed to send report({self.report.id}), context is None.")
+            return
         for channel in channels:
             if channel.is_enabled:
-                SendChannelHandler(channel).send(context, send_round, self.report.bk_biz_id)
+                SendChannelHandler(channel).send(context, self.report.send_round, self.report.bk_biz_id)
 
     def get_render_params(self) -> dict:
         """
