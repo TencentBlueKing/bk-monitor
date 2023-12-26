@@ -38,8 +38,8 @@ import {
   watch
 } from 'vue';
 import { useRoute } from 'vue-router';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
-import { addListener, removeListener } from 'resize-detector';
 
 import { CancelToken } from '../../../../monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from '../../../../monitor-api/modules/apm_trace';
@@ -291,7 +291,7 @@ export default defineComponent({
             {showTraceDetail.value && (
               <div>
                 <span class='duration'>{data.duration}</span>
-                <span class='time'>{`${formatDate(data.time)} ${formatTime(data.time)}`}</span>
+                <span class='time'>{`${formatDate(data.min_start_time)} ${formatTime(data.min_start_time)}`}</span>
                 {showTraceDetail.value && data.error && <span class='icon-monitor icon-mind-fill'></span>}
               </div>
             )}
@@ -790,7 +790,6 @@ export default defineComponent({
       },
       { immediate: true }
     );
-
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
       const {

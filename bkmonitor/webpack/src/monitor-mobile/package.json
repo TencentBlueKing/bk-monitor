@@ -12,9 +12,9 @@
     "fix": "npm run lint"
   },
   "dependencies": {
+    "@blueking/fork-resize-detector": "^0.0.2",
     "dayjs": "^1.11.10",
     "deepmerge": "^4.2.2",
-    "resize-detector": "^0.3.0",
     "throttle-debounce": "^3.0.1",
     "vant": "^2.5.7",
     "vconsole": "^3.3.4",
