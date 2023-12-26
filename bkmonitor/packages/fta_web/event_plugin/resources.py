@@ -628,3 +628,24 @@ class TailEventPluginDataResource(Resource):
         manager = KafkaManager(**params)
         events = manager.fetch_latest_messages(count=validated_data["count"])
         return events
+
+
+class DisablePluginCollectResource(Resource):
+    """
+    获取事件插件token
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        ids = serializers.CharField(label="卸载插件配置ID")
+
+    def perform_request(self, validated_data):
+        instances = EventPluginInstance.objects.get(id=validated_data["id"])
+        disabled_ids = []
+        for instance in instances:
+            if not instance.data_id:
+                # 没有dataid, 无法操作
+                continue
+            manager = get_manager(instance)
+            manager.switch(False)
+            disabled_ids.append(instance.id)
+        return {"disabled_ids": disabled_ids}
