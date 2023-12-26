@@ -16,7 +16,7 @@ from opentelemetry import trace
 from apm_web.constants import SamplerTypeChoices
 from apm_web.models import ApmMetaConfig, Application
 from common.log import logger
-from constants.apm import FlowType
+from constants.apm import DataSamplingLogTypeChoices, FlowType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -101,13 +101,12 @@ class SamplingHelpers:
                     span,
                     f"start to enable tail-sampling, convert config to tail-sampling param.config: {config} ----> {p}",
                 )
-                # todo
-                # api.apm_api.create_or_update_bkdata_flow(
-                #     bk_biz_id=self.bk_biz_id,
-                #     app_name=self.app_name,
-                #     flow_type=FlowType.TAIL_SAMPLING.value,
-                #     config=p,
-                # )
+                api.apm_api.create_or_update_bkdata_flow(
+                    bk_biz_id=self.bk_biz_id,
+                    app_name=self.app_name,
+                    flow_type=FlowType.TAIL_SAMPLING.value,
+                    config=p,
+                )
                 self.log(span, f"setup successfully")
             except BKAPIError as e:
                 self.log(span, f"failed to enable tail-sampling, error: {e}", level="error")
@@ -116,14 +115,12 @@ class SamplingHelpers:
             # 暂停transfer入库
             try:
                 self.log(span, f"start to stop apm_data_id trace datalink")
-                # todo
-                # response = api.apm_api.operate_apm_data_id(
-                #     bk_biz_id=self.bk_biz_id,
-                #     app_name=self.app_name,
-                #     datasource_type=DataSamplingLogTypeChoices.TRACE.value,
-                #     operate="stop",
-                # )
-                response = 1234
+                response = api.apm_api.operate_apm_data_id(
+                    bk_biz_id=self.bk_biz_id,
+                    app_name=self.app_name,
+                    datasource_type=DataSamplingLogTypeChoices.TRACE.value,
+                    operate="stop",
+                )
                 self.log(span, f"stop dataId: {response} successfully")
             except Exception as e:  # noqa
                 self.log(span, f"failed to stop transfer/bk-collect datalink, error: {e}", level="error")
