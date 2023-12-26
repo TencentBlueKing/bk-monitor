@@ -72,7 +72,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   };
   emptyType: EmptyStatusType = 'empty';
   // 表格列数据
-  tableCloumnsList = [
+  tableColumnsList = [
     {
       label: 'ID',
       prop: 'id',
@@ -192,7 +192,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   settingFields = [];
   selectedFields = [];
-  tableSize = 'small';
 
   searchCondition = [];
 
@@ -244,12 +243,12 @@ export default class AlarmGroup extends tsc<IGroupList> {
       // eslint-disable-next-line no-param-reassign
       fnMap[prop] && (column.formatter = fnMap[prop]);
     });
-    this.settingFields = this.tableCloumnsList.map(item => ({
+    this.settingFields = this.tableColumnsList.map(item => ({
       label: item.label,
       id: item.prop,
       disabled: item.disabled
     }));
-    this.selectedFields = this.tableCloumnsList
+    this.selectedFields = this.tableColumnsList
       .filter(item => item.checked)
       .map(item => ({
         label: item.label,
@@ -332,11 +331,6 @@ export default class AlarmGroup extends tsc<IGroupList> {
         {this.$t('删除')}
       </bk-button>
     ];
-  }
-
-  handleSettingChange({ fields, size }) {
-    this.tableColumnsList.forEach(item => (item.show = fields.some(field => field.prop === item.prop)));
-    this.tableSize = size;
   }
 
   /**
@@ -627,7 +621,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   onOperation={this.handleOperation}
                 />
               </div>
-              {this.tableCloumnsList
+              {this.tableColumnsList
                 .filter(item => this.selectedColumn.includes(item.prop))
                 .map(item => (
                   <bk-table-column
