@@ -58,7 +58,7 @@
     <div v-show="false">
       <div id="webConsole-html">
         <span>
-          <span v-if="!isActiveLog" class="bk-icon icon-exclamation-circle-shape"></span>
+          <span v-if="!isCanClickWebConsole" class="bk-icon icon-exclamation-circle-shape"></span>
           <span>{{toolMessage.webConsole}}</span>
           <!-- <i18n path="请前往 {0}">
             <span class="clean-str">{{$t('清洗')}}</span>
