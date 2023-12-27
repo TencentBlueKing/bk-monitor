@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-12-21 17:25+0800\n"
+"POT-Creation-Date: 2023-12-26 18:13+0800\n"
 "PO-Revision-Date: 2017-11-24 14:50+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: zh_Hans <LL@li.org>\n"
@@ -904,11 +904,8 @@ msgstr "应用名称: {}已被创建"
 msgid "未找到对应的结果表"
 msgstr "未找到对应的结果表"
 
-msgid "deepflow集群管理表"
-msgstr "deepflow集群管理表"
-
-msgid "BCS集群关联信息表"
-msgstr "BCS集群关联信息表"
+msgid "未找到内置数据源，请联系管理员创建"
+msgstr "未找到内置数据源，请联系管理员创建"
 
 msgid "字段分隔符"
 msgstr "字段分隔符"
@@ -2362,18 +2359,6 @@ msgstr "策略名称({})不能重复"
 
 msgid "策略({})不存在"
 msgstr "策略({})不存在"
-
-msgid "指标ID"
-msgstr "指标ID"
-
-msgid "指标中文名"
-msgstr "指标中文名"
-
-msgid "单位"
-msgstr "单位"
-
-msgid "指标英文名"
-msgstr "指标英文名"
 
 msgid "通知方式至少开启一项"
 msgstr "通知方式至少开启一项"
@@ -5606,6 +5591,9 @@ msgstr "空闲率"
 msgid "指标字段"
 msgstr "指标字段"
 
+msgid "单位"
+msgstr "单位"
+
 msgid "周期"
 msgstr "周期"
 
@@ -6287,6 +6275,7 @@ msgstr "bkmonitor-operator版本不支持，请升级到最新版本"
 msgid "空间不存在"
 msgstr "空间不存在"
 
+#, python-brace-format
 msgid "空间类型: {space_type_id}, 空间:{space_id}不存在"
 msgstr "空间类型: {space_type_id}, 空间:{space_id}不存在"
 
@@ -8361,6 +8350,9 @@ msgstr "维度信息"
 msgid "处理记录"
 msgstr "处理记录"
 
+msgid "指标ID"
+msgstr "指标ID"
+
 msgid "策略标签"
 msgstr "策略标签"
 
@@ -8764,9 +8756,6 @@ msgstr "正则表达式"
 msgid "通配符"
 msgstr "通配符"
 
-msgid "计算平台未接入"
-msgstr "计算平台未接入"
-
 #, python-format
 msgid "第三方组件%s异常"
 msgstr "第三方组件%s异常"
@@ -8879,6 +8868,7 @@ msgstr "请先暂停或删除相关联的任务"
 msgid "该节点存在以下运行中的拨测任务：%s，"
 msgstr "该节点存在以下运行中的拨测任务：%s，"
 
+#, python-format
 msgid "保存拨测节点失败，主机%(ip)s存在，但无bk_host_id信息"
 msgstr "保存拨测节点失败，主机%(ip)s存在，但无bk_host_id信息"
 

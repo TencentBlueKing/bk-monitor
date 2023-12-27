@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-12-21 17:25+0800\n"
+"POT-Creation-Date: 2023-12-26 18:13+0800\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #, python-brace-format
@@ -210,7 +210,7 @@ msgid "分派详情"
 msgstr "Assignment Details"
 
 msgid "维度下钻"
-msgstr "Facet"
+msgstr "Dimension drill down"
 
 msgid "关联指标"
 msgstr "Related Metric"
@@ -528,22 +528,22 @@ msgid "{% if value == 1 %} {{ abnormal_clusters }} 维度值发生离群{% endif
 msgstr "{% if value == 1 %} {{ abnormal_clusters }} dimension value is abnormal{% endif %}{% if value > 1 %} {{ abnormal_clusters }} and {{ value }} groups of dimension values are abnormal{% endif %}"
 
 msgid "{% load unit %}较前{{floor_interval}}个时间点的{{fetch_desc}}({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
-msgstr "{% load unit %}Compared to the previous {{floor_interval}} points, {{fetch_desc}} ({{floor_history_value|auto_unit:unit}}) has decreased by more than {{floor}}%"
+msgstr "{% load unit %} is more than {{floor}}% lower than the {{fetch_desc}} value ({{floor_history_value|auto_unit:unit}}) of the previous {{floor_interval}} time points."
 
 msgid "{% load unit %}较前{{ceil_interval}}个时间点的{{fetch_desc}}({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
-msgstr "{% load unit %}Compared to the previous {{ceil_interval}} points, {{fetch_desc}} ({{ceil_history_value|auto_unit:unit}}) has increased by more than {{ceil}}%"
+msgstr "{% load unit %} is more than {{ceil}}% higher than the {{fetch_desc}} value ({{ceil_history_value|auto_unit:unit}}) of the previous {{ceil_interval}} time points."
 
 msgid "均值"
-msgstr "Mean"
+msgstr "average"
 
 msgid "瞬间值"
-msgstr "Instant Value"
+msgstr "last"
 
 msgid "{% load unit %}较前{{floor_interval}}天内同一时刻绝对值的{{fetch_desc}}({{floor_history_value|auto_unit:unit}})下降超过{{floor}}%"
-msgstr "{% load unit %}Compared to the same time within the previous {{floor_interval}} days, absolute value of {{fetch_desc}} ({{floor_history_value|auto_unit:unit}}) has decreased by more than {{floor}}%"
+msgstr "{% load unit %} is more than {{floor}}% lower than the {{fetch_desc}} absolute value ({{floor_history_value|auto_unit:unit}}) at the same time in the previous {{floor_interval}} days."
 
 msgid "{% load unit %}较前{{ceil_interval}}天内同一时刻绝对值的{{fetch_desc}}({{ceil_history_value|auto_unit:unit}})上升超过{{ceil}}%"
-msgstr "{% load unit %}Compared to the same time within the previous {{ceil_interval}} days, absolute value of {{fetch_desc}} ({{ceil_history_value|auto_unit:unit}}) has increased by more than {{ceil}}%"
+msgstr "{% load unit %} is more than {{ceil}}% higher than the {{fetch_desc}} absolute value ({{ceil_history_value|auto_unit:unit}}) at the same time in the previous {{ceil_interval}} days."
 
 msgid "{% load unit %}智能模型检测到异常{% if alert_msg is not None %}, 异常类型: {{ alert_msg }}{% endif %}{% if anomaly_score is not None %}, 异常分值: {{ anomaly_score }}{% endif %}{% if previous_point is not None %}, 前一时刻值{{ previous_point.value | auto_unit:unit }}{% endif %}"
 msgstr "{% load unit %} Intelligent model detects anomaly {% if alert_msg is not None %}, abnormal type: {{alert_msg}} {% endif %} {% if anomaly_score is not None %}, anomaly points: {{ anomaly_score }}{% endif %} {% if previous_point is not None %}, previous time value {{ previous_point.value | auto_unit:unit }}{% endif %}"
@@ -814,7 +814,7 @@ msgid "每批Log发送大小"
 msgstr "Batch Size of Logs Send"
 
 msgid "db慢命令配置"
-msgstr "DB Slow Query Configuration"
+msgstr "DB Slow commond Configuration"
 
 msgid "db配置"
 msgstr "DB Configuration"
@@ -891,11 +891,8 @@ msgstr "Application name: {} has been created"
 msgid "未找到对应的结果表"
 msgstr "No corresponding result table"
 
-msgid "deepflow集群管理表"
-msgstr "DeepFlow Cluster Management Table"
-
-msgid "BCS集群关联信息表"
-msgstr "BCS Cluster Association Information Table"
+msgid "未找到内置数据源，请联系管理员创建"
+msgstr "Built-in data source not found, please contact the administrator to create it"
 
 msgid "字段分隔符"
 msgstr "Field Separator"
@@ -1441,13 +1438,13 @@ msgid "APM Doris 存储配置"
 msgstr "APM Doris Storage Configuration"
 
 msgid "APM Profiling 开启应用白名单"
-msgstr "APM Profiling Enable Application Whitelist"
+msgstr "APM Profiling Whitelist"
 
 msgid "APM Profiling 开启功能"
-msgstr "APM Profiling Enable Feature"
+msgstr "Enable APM Profiling"
 
 msgid "APM 前端是否开启EBPF功能"
-msgstr "APM Frontend EBPF Feature Enabled"
+msgstr "Enable APM Frontend EBPF"
 
 msgid "蓝鲸监控机器人名称"
 msgstr "BK-Monitor Robot Name"
@@ -1726,16 +1723,16 @@ msgid "仪表盘管理"
 msgstr "Dashboard Management"
 
 msgid "仪表盘实例查看"
-msgstr "Dashboard Instance View"
+msgstr "View Dashboard"
 
 msgid "仪表盘实例编辑"
-msgstr "Dashboard Instance Edit"
+msgstr "Edit Dashboard"
 
 msgid "新建仪表盘"
-msgstr "Create New Dashboard"
+msgstr "New Dashboard"
 
 msgid "仪表盘配置管理"
-msgstr "Dashboard Configuration Management"
+msgstr "Dashboard Management"
 
 msgid "导出"
 msgstr "Export"
@@ -2349,18 +2346,6 @@ msgstr "Strategic name ({}) cannot be repeated"
 
 msgid "策略({})不存在"
 msgstr "Rule ({}) does not exist"
-
-msgid "指标ID"
-msgstr "Metric ID"
-
-msgid "指标中文名"
-msgstr "Metric Chinese Name"
-
-msgid "单位"
-msgstr "Unit"
-
-msgid "指标英文名"
-msgstr "Metric English Name"
 
 msgid "通知方式至少开启一项"
 msgstr "Open at least one notification method"
@@ -5593,6 +5578,9 @@ msgstr "Idle Rate"
 msgid "指标字段"
 msgstr "Metric Field"
 
+msgid "单位"
+msgstr "Unit"
+
 msgid "周期"
 msgstr "Interval"
 
@@ -6274,6 +6262,7 @@ msgstr "Bkmonitor-Operator version is not supported, please upgrade to the lates
 msgid "空间不存在"
 msgstr "Space Does Not Exist"
 
+#, python-brace-format
 msgid "空间类型: {space_type_id}, 空间:{space_id}不存在"
 msgstr "Space Type: {space_type_id}, Space: {space_id} Does Not Exist"
 
@@ -7103,7 +7092,7 @@ msgid "自定义组已删除，请确认后重试"
 msgstr "The custom group has been deleted, please confirm it after confirmation"
 
 msgid "对应结果表不存在"
-msgstr "Corresponding Result Table Does Not Exist"
+msgstr "Result Table Does Not Exist"
 
 msgid "事件组ID[{}]不存在，请确认后重试"
 msgstr "Event Group ID [{}] does not exist"
@@ -7630,19 +7619,19 @@ msgid "请求次数"
 msgstr "Number of requests"
 
 msgid "平均耗时"
-msgstr "Average Time"
+msgstr "Average Druation"
 
 msgid "错误数"
-msgstr "Error Number"
+msgstr "Errors"
 
 msgid "慢语句占比"
 msgstr "Slow Query Ratio"
 
 msgid "操作"
-msgstr "Actions"
+msgstr "Operation"
 
 msgid "调用链"
-msgstr "Call Chain"
+msgstr "Trace"
 
 msgid "统计"
 msgstr "Statistics"
@@ -7654,7 +7643,7 @@ msgid "时间"
 msgstr "Time"
 
 msgid "请求耗时"
-msgstr "Request Latency"
+msgstr "Elapsed Time"
 
 msgid "DB实例"
 msgstr "DB Instance"
@@ -8085,7 +8074,7 @@ msgid "关联日志平台日志需要选择业务"
 msgstr "Related log platform logs need to choose business"
 
 msgid "监控平台新APM应用创建"
-msgstr "New APM Application Creation in Monitoring Platform"
+msgstr "New APM Application Creation in BK-Monitor"
 
 msgid "有新APM应用创建，请关注！应用名称：{}, 应用别名：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}"
 msgstr "New APM Application Created, Please Pay Attention! Application Name: {}, Application Alias: {}, Business ID: {}, Business Name: {}, Creator: {}, Creation Time: {}"
@@ -8342,6 +8331,9 @@ msgstr "Dimension Information"
 
 msgid "处理记录"
 msgstr "Handling Records"
+
+msgid "指标ID"
+msgstr "Metric ID"
 
 msgid "策略标签"
 msgstr "Rule Label"
@@ -8746,9 +8738,6 @@ msgstr "Regular Expression"
 msgid "通配符"
 msgstr "Wildcard"
 
-msgid "计算平台未接入"
-msgstr "Computing Platform Not Integrated"
-
 #, python-format
 msgid "第三方组件%s异常"
 msgstr "The third party components(%s) exception"
@@ -8861,8 +8850,9 @@ msgstr "Please pause or delete the associated tasks"
 msgid "该节点存在以下运行中的拨测任务：%s，"
 msgstr "The following check task has running at this module:%s,"
 
+#, python-format
 msgid "保存拨测节点失败，主机%(ip)s存在，但无bk_host_id信息"
-msgstr "Save Dial Test Node Failed, Host %(ip)s Exists But No bk_host_id Information"
+msgstr "Save Check Node Failed, Host %(ip)s Exists But No bk_host_id Information"
 
 #, python-format
 msgid "保存拨测节点失败，主机%(ip)s不存在：bk_host_id=%(bk_host_id)s"
@@ -9736,7 +9726,7 @@ msgid "自定义指标英文名不允许为空"
 msgstr "The English name of the custom index is not allowed to be empty"
 
 msgid "自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名"
-msgstr "Custom Metric English Names Can Only Contain Letters, Numbers, and Underscores, and Must Start with a Letter, Prefix Cannot Duplicate Plugin Names"
+msgstr "Custom Metric Name Can Only Contain Letters, Numbers, and Underscores, and Must Start with a Letter, Prefix Cannot Duplicate Plugin Names"
 
 msgid "自定义指标英文名已存在"
 msgstr "The English name of the custom metric already exists"
@@ -10373,7 +10363,7 @@ msgstr ""
 "2.Associate with BlueKing Configuration Platform Service Template to Obtain the Hosts Under This Service Template"
 
 msgid "关联服务模版"
-msgstr "Associated Service Template"
+msgstr "Related Service Template"
 
 msgid "对象列表"
 msgstr "Object List"
@@ -10432,7 +10422,7 @@ msgid "运营状态"
 msgstr "Operation Status"
 
 msgid "位数"
-msgstr "Bit Count"
+msgstr "Bits"
 
 msgid "内存容量(MB)"
 msgstr "Memory Capacity (MB)"
@@ -10624,7 +10614,7 @@ msgid "已收藏"
 msgstr "Favorited"
 
 msgid "未收藏"
-msgstr "Unfair"
+msgstr "Not Favorited"
 
 #, python-brace-format
 msgid "搜索到 {count} 处理记录"
@@ -10901,13 +10891,13 @@ msgid "trace分钟请求最小耗时"
 msgstr "TRCE minute request time consumption time"
 
 msgid "trace总请求耗时"
-msgstr "Total Trace Request Latency"
+msgstr "Total Trace Duration"
 
 msgid "trace分钟总请求耗时"
-msgstr "Total Trace Request Latency per Minute"
+msgstr "Total Trace Duration per Minute"
 
 msgid "trace总请求耗时bucket"
-msgstr "Total Trace Request Latency Bucket"
+msgstr "Total Trace Duration Bucket"
 
 msgid "需要过滤的事件数"
 msgstr "Number of events that need to be filtered"
@@ -11135,7 +11125,7 @@ msgid "常用"
 msgstr "Commonly Used"
 
 msgid "依赖bkmonitorbeat采集器, 在节点管理安装"
-msgstr "Dependent on bkmonitorbeat Collector, Install via Node Management"
+msgstr "Dependent on bkmonitorbeat Collector, Install at BK-Nodeman"
 
 msgid "通过对挂载磁盘的文件状态ro进行判断，类似Linux命令：fgrep ' ro,' /proc/mounts"
 msgstr "Judging by the file status of the mount disk, similar to the Linux command: Fgrep 'Ro,' /Proc /Mounts"
@@ -11144,7 +11134,7 @@ msgid "查看corefile生成路径：cat /proc/sys/kernel/core_pattern，确保�
 msgstr "View Corefile generating path: Cat/Proc/SYS/KERNEL/CORE_PATTERN, ensure that in a certain directory, such as/data/corefile/core_%e_%t"
 
 msgid "依赖bkmonitorbeat采集器, 在节点管理安装,会自动根据core_pattern监听文件目录"
-msgstr "Dependent on bkmonitorbeat Collector, Install via Node Management, Will Automatically Monitor File Directories Based on core_pattern"
+msgstr "Dependence on bkmonitorbeat collector, in BK-Nodeman and installation, it will automatically follow the Core_Pattern monitoring file directory"
 
 msgid "【不推荐】"
 msgstr "[Not Recommended]"
@@ -11165,19 +11155,19 @@ msgid "通过对/proc/vmstat的oom_kill计数器进行判断告警，如递增�
 msgstr "Through the judgment alarm of the OOM_KILL counter of/proc/vmstat, it is determined that the OOM alarm is judged if it is increasing."
 
 msgid "依赖bkmonitorbeat采集器的安装 ，在节点管理进行安装"
-msgstr "Installation Dependent on bkmonitorbeat Collector, Proceed with Installation via Node Management"
+msgstr "Installation Dependent on bkmonitorbeat Collector, Install at BK-Nodeman"
 
 msgid "检测原理：通过最近2次的uptime数据对比，满足cur_uptime < pre_uptime，则判断为重启"
 msgstr "Detection principle: Through the recent uptime data comparison to meet the Cur_uptime <pre_uptime, judge it as a restart"
 
 msgid "依赖bk-collector采集器的安装，在节点管理进行安装"
-msgstr "Installation Dependent on bk-collector Collector, Proceed with Installation via Node Management"
+msgstr "Installation Dependent on bk-collector Collector, Install at BK-Nodeman"
 
 msgid "由监控后台部署的bk-collector去探测目标IP是否存活。"
-msgstr "bk-collector Deployed by Monitoring Backend to Detect if Target IP is Alive."
+msgstr "bk-collector Deployed by BK-Monitor to Detect if Target IP is Alive."
 
 msgid "依赖bkmonitorbeat采集器的安装，在节点管理进行安装"
-msgstr "Installation Dependent on bkmonitorbeat Collector, Proceed with Installation via Node Management"
+msgstr "Installation Dependent on bkmonitorbeat Collector, Install at BK-Nodeman"
 
 msgid "对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警"
 msgstr "Determine the survival status of the process port in CMDB. If it is not satisfied with the preset data status, alarm is generated."
