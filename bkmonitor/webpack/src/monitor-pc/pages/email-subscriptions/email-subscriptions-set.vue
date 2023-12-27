@@ -309,9 +309,9 @@ import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
 import { bkForm, bkFormItem } from 'bk-magic-vue';
 import Sortable from 'sortablejs';
 
+import { getDashboardList } from '../../../monitor-api/modules/grafana';
 import { getNoticeWay } from '../../../monitor-api/modules/notice_group';
 import {
-  graphsListByBiz,
   groupList,
   reportContent,
   reportCreateOrUpdate,
@@ -730,7 +730,9 @@ export default class SubscriptionsSet extends Vue {
   async setFullReportContents(ids: string[]) {
     const graghsList = await this.getGraphsListByBiz(ids);
     this.formData.fullReportContents.forEach((item: any) => {
-      const bizGraph = graghsList.find(graph => graph[item.curBizId]);
+      const bizGraph = graghsList.find((graph) => {
+        return graph[item.curBizId];
+      });
       if (bizGraph) {
         item.curGrafanaName = bizGraph[item.curBizId].find(graph => graph.uid === item.curGrafana)?.text
         || item.curGrafana;
@@ -743,7 +745,7 @@ export default class SubscriptionsSet extends Vue {
     if (ids.length) {
       await Promise.all(ids.map(async (id) => {
         const graphBiziId = {};
-        const res = await graphsListByBiz({ bk_biz_id: id });
+        const res = await getDashboardList({ bk_biz_id: id }).catch(() => []);
         graphBiziId[id] = res;
         promiseList.push(graphBiziId);
       }));
