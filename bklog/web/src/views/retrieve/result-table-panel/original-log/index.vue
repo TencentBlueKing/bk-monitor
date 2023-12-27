@@ -175,8 +175,8 @@ export default {
   watch: {
     routeIndexSet: {
       immediate: true,
-      handler() {
-        this.requestFiledConfig();
+      handler(val) {
+        if (!!val) this.requestFiledConfig();
       },
     },
   },
