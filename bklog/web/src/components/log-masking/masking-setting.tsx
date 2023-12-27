@@ -38,7 +38,7 @@ import MaskingAddRule from './masking-add-rule';
 import './masking-setting.scss';
 import $http from '../../api';
 import EmptyStatus from '../empty-status/index.vue';
-import { deepClone, formatDate } from '../../common/util';
+import { deepClone, utcFormatDate } from '../../common/util';
 import i18n from '../../language/i18n.js';
 import * as authorityMap from '../../common/authority-map';
 
@@ -793,7 +793,7 @@ export default class MaskingSetting extends tsc<IProps> {
               key={'updatedAt'}
               scopedSlots={{
                 default: ({ row }) => [
-                  <span class="overflow-tips" v-bk-overflow-tips>{formatDate(row.updatedAt)}</span>,
+                  <span class="overflow-tips" v-bk-overflow-tips>{utcFormatDate(row.updatedAt)}</span>,
                 ],
               }}
             ></TableColumn>

@@ -452,7 +452,6 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
   }
   /* 删除一个组 */
   handleDeleteGroup(index: number) {
-    console.log(index);
     this.groupList.splice(index, 1);
     this.metricsMap = new Map();
     this.matchMetricsMap = new Map();

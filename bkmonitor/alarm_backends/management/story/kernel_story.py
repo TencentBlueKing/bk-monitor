@@ -183,6 +183,7 @@ class CacheCronJobCheck(CheckStep):
         ]
         for k in [getattr(StrategyCacheManager, key) for key in keys]:
             ttl = cache.ttl(k)
+
             if ttl and ttl < StrategyCacheManager.CACHE_TIMEOUT - 60 * 30:
                 # 30分钟未刷新
                 p = StrategyCacheCronError(f"key: {k}在30分钟内未刷新", self.story)
