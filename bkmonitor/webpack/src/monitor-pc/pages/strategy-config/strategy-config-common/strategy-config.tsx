@@ -26,6 +26,7 @@
  */
 import { Component, Inject, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import {
   Badge,
   Button,
@@ -39,7 +40,6 @@ import {
   TableColumn
 } from 'bk-magic-vue';
 import dayjs from 'dayjs';
-import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { CancelToken } from '../../../../monitor-api/index';

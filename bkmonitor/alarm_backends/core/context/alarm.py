@@ -215,6 +215,7 @@ class Alarm(BaseContextObject):
 
         # 拓扑维度特殊处理
         display_dimensions = copy.deepcopy(self.display_dimensions)
+
         dimension_string_list = []
         if self.parent.alert.agg_dimensions:
             # 当存在agg_dimensions的顺序列表是，直接使用
@@ -705,6 +706,24 @@ class Alarm(BaseContextObject):
         if not self.parent.alert:
             return ""
         return ",".join(self.parent.alert.assignee)
+
+    @cached_property
+    def receivers(self):
+        """
+        通知人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.assignee or []
+
+    @cached_property
+    def appointees(self):
+        """
+        负责人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.appointee or []
 
     @cached_property
     def ack_operator(self):

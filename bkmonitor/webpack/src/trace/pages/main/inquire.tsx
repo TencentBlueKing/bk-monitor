@@ -216,7 +216,6 @@ export default defineComponent({
     const traceSortKey = ref('');
     // 收藏列表
     const collectList = shallowRef<IFavoriteItem[]>([]);
-    const collectCheckValue = ref(queryScopeParams());
     getCollectList();
     /* collect dialog */
     const collectDialog = reactive({
@@ -236,7 +235,7 @@ export default defineComponent({
 
     const isLoading = computed<boolean>(() => store.loading);
     const isPreCalculationMode = computed(() => store.traceListMode === 'pre_calculation');
-
+    const collectCheckValue = ref(queryScopeParams());
     const setSelectedTypeByRoute = () => {
       const listType = (route.query.listType as ListType) || 'trace';
       const selectedType = JSON.parse((route.query.selectedType as string) || '[]');
@@ -397,13 +396,13 @@ export default defineComponent({
       const filters: IFilterItem[] = [];
 
       // 收集 Trace 列表 表头的查询信息
-      Object.keys(traceColumnFilters?.value || {}).forEach(key => {
+      Object.keys(traceColumnFilters.value || {}).forEach(key => {
         // 特殊处理trace视角表头状态码在非标准字段查询模式下的key和operator值
         const isOriginStatusCodeFilter = key === 'root_service_status_code' && !isPreCalculationMode.value;
         filters.push({
           key: isOriginStatusCodeFilter ? 'status_code' : key,
           operator: isOriginStatusCodeFilter ? 'logic' : 'equal',
-          value: traceColumnFilters?.value?.[key]
+          value: traceColumnFilters.value?.[key]
         });
       });
       // 收集 耗时 区间信息

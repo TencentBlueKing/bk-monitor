@@ -463,7 +463,7 @@
 </template>
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { queryAsyncTaskResult } from '../../../../../monitor-api/modules/commons';
 import {

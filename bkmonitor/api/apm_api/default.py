@@ -360,3 +360,9 @@ class QueryDiscoverRules(ApmAPIGWResource):
 
     action = "/query_discover_rules/"
     method = "POST"
+
+
+class QueryBuiltinProfileDatasourceResource(ApmAPIGWResource):
+    cache_type = CacheType.APM(60 * 60 * 24)
+    action = "/builtin_profile_datasource/"
+    method = "GET"
