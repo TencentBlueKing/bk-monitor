@@ -378,7 +378,7 @@ VARIABLES = [
             {
                 "name": "alarm.detail_url",
                 "desc": _lazy("告警详情链接"),
-                "example": _lazy("http://paas.blueking.com/o/bk_monitorv3/?bizId=1&actionId=2#event-center"),
+                "example": "http://paas.blueking.com/o/bk_monitorv3/?bizId=1&actionId=2#event-center",
             },
             {"name": "alarm.related_info", "desc": _lazy("关联信息"), "example": _lazy("集群(公共组件) 模块(consul)")},
             {

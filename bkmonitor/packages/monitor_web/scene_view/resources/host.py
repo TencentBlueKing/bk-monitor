@@ -212,12 +212,12 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 },
                 "children": [
                     {
-                        "name": _("IPv4"),
+                        "name": "IPv4",
                         "type": "string",
                         "value": host.bk_host_innerip,
                     },
                     {
-                        "name": _("IPv6"),
+                        "name": "IPv6",
                         "type": "string",
                         "value": host.bk_host_innerip_v6,
                     },
@@ -231,12 +231,12 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "need_copy": bool(host.bk_host_outerip),
                 "children": [
                     {
-                        "name": _("IPv4"),
+                        "name": "IPv4",
                         "type": "string",
                         "value": host.bk_host_outerip,
                     },
                     {
-                        "name": _("IPv6"),
+                        "name": "IPv6",
                         "type": "string",
                         "value": host.bk_host_outerip_v6,
                     },
@@ -270,11 +270,11 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                     },
                 ],
             },
-            {"name": _("CPU"), "type": "string", "value": str(getattr(host, "bk_cpu", ""))},
+            {"name": "CPU", "type": "string", "value": str(getattr(host, "bk_cpu", ""))},
             {"name": _("内存容量(MB)"), "type": "string", "value": str(getattr(host, "bk_mem", ""))},
             {"name": _("磁盘容量(GB)"), "type": "string", "value": str(getattr(host, "bk_disk", ""))},
             {
-                "name": _("Docker"),
+                "name": "Docker",
                 "type": "string",
                 "value": docker_info,
                 "count": 2,
@@ -413,7 +413,7 @@ class GetHostProcessListResource(Resource):
             if not attrs.get("bk_host_id") and (
                 not attrs.get("bk_target_ip") or attrs.get("bk_target_cloud_id") is None
             ):
-                raise ValidationError(_("bk_host_id or bk_target_ip and bk_target_cloud_id must be provided"))
+                raise ValidationError("bk_host_id or bk_target_ip and bk_target_cloud_id must be provided")
             return attrs
 
     def perform_request(self, params):
