@@ -28,6 +28,7 @@ import { alertTopN, listAlertTags } from '../../../../monitor-api/modules/alert'
 import { getAssignConditionKeys, searchObjectAttribute } from '../../../../monitor-api/modules/assign';
 import { listEventPlugin } from '../../../../monitor-api/modules/event_plugin';
 import { getVariableValue } from '../../../../monitor-api/modules/grafana';
+import { listUsersUser } from '../../../../monitor-api/modules/model';
 import {
   getMetricListV2,
   getScenarioList,
@@ -37,6 +38,9 @@ import {
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 
 import { CONDITIONS, ICondtionItem } from './index';
+
+/* 通知人员需支持远程搜索 */
+export const NOTICE_USERS_KEY = 'notice_users';
 
 /* 每个key 包含的value选项数组 */
 export type TValueMap = Map<string, { id: string; name: string }[]>;
@@ -193,7 +197,7 @@ export async function allKVOptions(
   let i = 0;
   const awaitAll = () => {
     i += 1;
-    if (i === 10) {
+    if (i === 11) {
       end?.();
     }
   };
@@ -206,10 +210,10 @@ export async function allKVOptions(
           name: item.display_key
         }))
         .filter(item => item.id !== 'tags');
-      keys.push({
-        id: 'notice_users',
-        name: window.i18n.tc('通知人员')
-      });
+      // keys.push({
+      //   id: 'notice_users',
+      //   name: window.i18n.tc('通知人员')
+      // });
       setData('keys', '', keys);
       awaitAll();
     })
@@ -391,6 +395,27 @@ export async function allKVOptions(
   })
     .then(data => {
       setCMDBOptions(data, 'host');
+      awaitAll();
+    })
+    .catch(() => {
+      awaitAll();
+    });
+  // 通知人员(默认获取20个，其他的通过远程搜索)
+  listUsersUser({
+    app_code: 'bk-magicbox',
+    page: 1,
+    page_size: 20,
+    fuzzy_lookups: ''
+  })
+    .then(data => {
+      setData(
+        'valueMap',
+        NOTICE_USERS_KEY,
+        data.results.map(item => ({
+          id: item.username,
+          name: item.display_name
+        }))
+      );
       awaitAll();
     })
     .catch(() => {
