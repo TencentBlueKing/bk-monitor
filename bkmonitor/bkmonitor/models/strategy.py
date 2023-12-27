@@ -724,9 +724,9 @@ class DefaultStrategyBizAccessModel(Model):
         null=False,
         blank=False,
         choices=(
-            ("os", _lazy("os")),
-            ("gse", _lazy("gse")),
-            ("k8s", _lazy("k8s")),
+            ("os", "os"),
+            ("gse", "gse"),
+            ("k8s", "k8s"),
         ),
     )
 
