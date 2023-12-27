@@ -167,8 +167,7 @@ class DatalinkDefaultAlarmStrategyLoader:
                 ],
                 "additional_tags": [{"key": "idx", "value": self.build_rule_idx(strategy_id)}],
             }
-            if strategy_name == DatalinkStrategy.COLLECTING_SYS_ALARM:
-                rule["user_type"] = "follower"
+            rule["user_type"] = "follower" if strategy_name == DatalinkStrategy.COLLECTING_SYS_ALARM else "main"
             rules.append(rule)
 
         tool = RuleGroupTool(bk_biz_id=self.bk_biz_id)
