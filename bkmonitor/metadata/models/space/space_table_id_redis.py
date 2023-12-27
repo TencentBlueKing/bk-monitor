@@ -557,11 +557,16 @@ class SpaceTableIDRedis:
         ):
             return True
 
+        is_platform_data_id = data_id_detail["is_platform_data_id"]
         # 对自定义插件的处理，兼容黑白名单对类型的更改
         # 黑名单时，会更改为单指标单表
-        if measurement_type == MeasurementType.BK_EXPORTER.value or (
-            data_id_detail["etl_config"] == EtlConfigs.BK_EXPORTER.value
-            and measurement_type == MeasurementType.BK_SPLIT.value
+        if is_platform_data_id and (
+            measurement_type == MeasurementType.BK_EXPORTER.value
+            or (
+                data_id_detail["etl_config"]
+                in [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value]
+                and measurement_type == MeasurementType.BK_SPLIT.value
+            )
         ):
             # 如果space_id与data_id所属空间UID相同，则不需要过滤
             if data_id_detail["space_uid"] == f"{space_type}__{space_id}":
@@ -569,7 +574,6 @@ class SpaceTableIDRedis:
             else:
                 return True
 
-        is_platform_data_id = data_id_detail["is_platform_data_id"]
         # 可以执行到以下代码，必然是自定义时序的数据源
         # 1. 非公共的(全空间或指定空间类型)自定义时序，查询时，不需要任何查询条件
         if not is_platform_data_id:
