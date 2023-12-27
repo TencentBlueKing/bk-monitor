@@ -469,7 +469,11 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
    * @param id
    */
   handleSelectIndex({ id }) {
-    document.getElementById(id)?.scrollIntoView?.();
+    document.querySelector('.chart-wrapper-old .scroll-in')?.classList.remove('scroll-in');
+    const dom = document.getElementById(id);
+    if (!dom) return;
+    dom.scrollIntoView?.();
+    dom.classList.add('scroll-in');
   }
   handleDownSampleChange(downSampleRange: string) {
     this.downSampleRange = downSampleRange;
