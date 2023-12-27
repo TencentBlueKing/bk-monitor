@@ -589,4 +589,13 @@ export default {
   责任人: 'Responsible',
   索引字段: 'Index Set Fields',
   'label-内置字段': 'Built-in Fields',
+  订阅场景: 'Subscription scenario',
+  敏感度: 'Sensitivity',
+  最大展示数量: 'Maximum number of impressions',
+  展示同比: 'Show year-on-year',
+  生成附件: 'Generate attachment',
+  邮件标题: 'Mail title',
+  订阅人: 'Subscriber',
+  发送频率: 'Send frequency',
+  有效时间范围: 'Valid time range'
 };
