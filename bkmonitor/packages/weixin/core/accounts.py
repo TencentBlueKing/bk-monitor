@@ -106,13 +106,14 @@ class WeixinAccount(WeixinAccountSingleton):
         path = weixin_settings.WEIXIN_LOGIN_URL
         # 获取当前访问地址，用于授权后重定向
         # 如果识别到/o/bk_monitorv3 ，替换为客户的实际 path
-        if request.get_full_path().startswith(settings.SITE_URL):
+        if (
+            request.get_full_path().startswith(settings.SITE_URL + "weixin/")
+            and weixin_settings.WEIXIN_SITE_URL != settings.SITE_URL + "weixin/"
+        ):
             full_path = request.get_full_path().replace(settings.SITE_URL + "weixin/", weixin_settings.WEIXIN_SITE_URL)
         else:
             full_path = request.get_full_path()
         query = urllib.parse.urlencode({"c_url": full_path})
-        # query = "c_url={}".format(request.get_full_path())
-        # callback_url = urlparse.urlunsplit((url.scheme, url.netloc, path, query, url.fragment))
         scheme = weixin_settings.WEIXIN_APP_EXTERNAL_SCHEME or url.scheme
         callback_url = urllib.parse.urlunsplit(
             (scheme, weixin_settings.WEIXIN_APP_EXTERNAL_HOST, path, query, url.fragment)
@@ -183,7 +184,7 @@ class WeixinAccount(WeixinAccountSingleton):
         data = self.weixin_api.get_user_info(base_data.get("access_token"), base_data.get("userid"))
 
         return {
-            "openid": base_data.get("userid"),
+            "openid": base_data.get("userid" if weixin_settings.IS_QY_WEIXIN else "openid"),
             "userid": base_data.get("userid"),
             "nickname": data.get("name", ""),
             "gender": data.get("gender", ""),
