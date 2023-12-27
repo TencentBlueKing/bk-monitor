@@ -24,12 +24,72 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import { debounce } from '../../../monitor-common/utils/utils';
+import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+
+import PageHeader, { ToolsFormData } from './components/page-header';
 
 import './profiling.scss';
 
 export default defineComponent({
+  name: 'ProfilingPage',
+  setup() {
+    const { t } = useI18n();
+    const searchFormData = reactive({
+      autoQuery: true
+    });
+    const isShowFavorite = ref(false);
+    const isShowSearch = ref(true);
+    const toolsFormData = ref<ToolsFormData>({
+      timeRange: DEFAULT_TIME_RANGE,
+      timezone: getDefautTimezone(),
+      refreshInterval: -1
+    });
+    function handleToolFormDataChange(val: ToolsFormData) {
+      toolsFormData.value = val;
+      handleQueryScopeDebounce();
+    }
+    function handleShowTypeChange(type: 'search' | 'favorite') {
+      if (type === 'search') isShowSearch.value = !isShowSearch.value;
+      else isShowFavorite.value = !isShowFavorite.value;
+    }
+
+    const handleQueryScopeDebounce = debounce(handleQuery, 300, false);
+
+    function handleQuery(isBtnClick = false) {
+      if (!isBtnClick && !searchFormData.autoQuery) return;
+    }
+
+    return {
+      t,
+      isShowFavorite,
+      isShowSearch,
+      toolsFormData,
+      handleToolFormDataChange,
+      handleShowTypeChange
+    };
+  },
+
   render() {
-    return <div>profiling</div>;
+    return (
+      <div class='profiling-page'>
+        <PageHeader
+          v-model={this.toolsFormData}
+          isShowFavorite={this.isShowFavorite}
+          isShowSearch={this.isShowSearch}
+          onShowTypeChange={this.handleShowTypeChange}
+          onChange={this.handleToolFormDataChange}
+        ></PageHeader>
+        <div class='page-content'>
+          <div class='favorite-list-wrap'></div>
+          <div class='search-form-wrap'></div>
+          <div class='view-wrap'></div>
+        </div>
+      </div>
+    );
   }
 });
