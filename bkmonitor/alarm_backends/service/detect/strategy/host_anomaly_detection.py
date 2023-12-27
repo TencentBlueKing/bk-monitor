@@ -20,13 +20,13 @@ from alarm_backends.service.detect.strategy import (
 from bkmonitor.aiops.alert.utils import parse_anomaly
 
 """
-MultivariateAnomalyDetection：多指标异常检测算法基于计算平台的计算结果，再基于结果表的is_anomaly值来进行判断。
+HostAnomalyDetection：主机异常检测算法基于计算平台的计算结果，再基于结果表的is_anomaly值来进行判断。
 """
 
 logger = logging.getLogger("detect")
 
 
-class MultivariateAnomalyDetection(BasicAlgorithmsCollection):
+class HostAnomalyDetection(BasicAlgorithmsCollection):
     def gen_expr(self):
         expr = "value > 0"
         yield ExprDetectAlgorithms(
@@ -39,9 +39,10 @@ class MultivariateAnomalyDetection(BasicAlgorithmsCollection):
         )
 
     def get_context(self, data_point):
-        context = super(MultivariateAnomalyDetection, self).get_context(data_point)
+        context = super(HostAnomalyDetection, self).get_context(data_point)
         anomaly_sort = parse_anomaly(data_point.values["anomaly_sort"], self.config)
-        context.update({"anomaly_sort": anomaly_sort})
+        extra_info = data_point.values["extra_info"]
+        context.update({"anomaly_sort": anomaly_sort, "extra_info": extra_info})
         return context
 
     def anomaly_message_template_tuple(self, data_point):

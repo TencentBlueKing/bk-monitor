@@ -11,7 +11,9 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
+from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.dataflow.node.machine_learning import (
+    HostAnomalySceneServiceNode,
     MultivariateAnomalySceneServiceNode,
     SceneServiceNode,
     SimilarMetricClusteringServiceNode,
@@ -27,6 +29,7 @@ from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import HDFSStorageNode, TSpiderStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
 from constants.aiops import SceneSet
+from core.drf_resource import api
 
 
 class StrategyIntelligentModelDetectTask(BaseTask):
@@ -95,12 +98,6 @@ class StrategyIntelligentModelDetectTask(BaseTask):
             parent=scene_service_node,
         )
 
-        # hdfs_result_storage_node = HDFSStorageNode(
-        #     source_rt_id=scene_service_node.output_table_name,
-        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
-        #     parent=scene_service_node,
-        # )
-
         self.node_list = [
             stream_source_node,
             strategy_process_node,
@@ -108,8 +105,6 @@ class StrategyIntelligentModelDetectTask(BaseTask):
             # strategy_storage_node,
             scene_service_node,
             tspider_result_storage_node,
-            # 去除hdfs存储节点
-            # hdfs_result_storage_node,
         ]
 
         self.data_flow = None
@@ -193,12 +188,6 @@ class MultivariateAnomalyAggIntelligentModelDetectTask(BaseTask):
             parent=result_real_time_node,
         )
 
-        # hdfs_result_storage_node = HDFSStorageNode(
-        #     source_rt_id=result_real_time_node.output_table_name,
-        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
-        #     parent=result_real_time_node,
-        # )
-
         self.node_list.extend([merge_node, result_real_time_node, tspider_result_storage_node])
 
 
@@ -271,19 +260,12 @@ class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
             parent=scene_service_node,
         )
 
-        # hdfs_result_storage_node = HDFSStorageNode(
-        #     source_rt_id=scene_service_node.output_table_name,
-        #     storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS,
-        #     parent=scene_service_node,
-        # )
-
         self.node_list = [
             stream_source_node,
             strategy_process_node,
             # strategy_storage_node,
             scene_service_node,
             tspider_result_storage_node,
-            # hdfs_result_storage_node,
         ]
 
         self.data_flow = None
@@ -355,3 +337,61 @@ class MetricRecommendTask(BaseTask):
     @property
     def flow_name(self):
         return "{} {}".format(self.access_bk_biz_id, self.FLOW_NAME_KEY)
+
+
+class HostAnomalyIntelligentDetectTask(BaseTask):
+    FLOW_NAME_KEY = _("主机异常检测结果评级")
+
+    def __init__(self, strategy_id, access_bk_biz_id, scene_id, plan_id, metric_field, agg_dimensions, plan_args):
+        self.strategy_id = strategy_id
+        self.access_bk_biz_id = access_bk_biz_id
+        self.node_list = []
+
+        source_rt_id = self.get_stream_source_from_host_scene_flow(access_bk_biz_id)
+        system_stream_source_node = StreamSourceNode(source_rt_id)
+
+        plan_args.update({"$ignore_periodic": 1})
+        scene_service_node = HostAnomalySceneServiceNode(
+            source_rt_id=system_stream_source_node.output_table_name,
+            metric_field=metric_field,
+            agg_dimensions=agg_dimensions,
+            parent=system_stream_source_node,
+            plan_args=plan_args,
+            plan_id=plan_id,
+            scene_id=scene_id,
+            strategy_id=strategy_id,
+        )
+
+        scene_service_node_storage_node = TSpiderStorageNode(
+            source_rt_id=scene_service_node.output_table_name,
+            storage_expires=settings.BK_DATA_DATA_EXPIRES_DAYS,
+            parent=scene_service_node,
+        )
+
+        self.node_list = [
+            system_stream_source_node,
+            scene_service_node,
+            scene_service_node_storage_node,
+        ]
+
+        self.data_flow = None
+        self.output_table_name = scene_service_node.output_table_name
+
+    @property
+    def flow_name(self):
+        # 模型名称如果有变更，需要同步修改维护dataflow的定时任务逻辑
+        return "{} {} {}".format(self.strategy_id, self.FLOW_NAME_KEY, self.access_bk_biz_id)
+
+    def get_stream_source_from_host_scene_flow(self, access_bk_biz_id):
+        """从主机场景检测的FLOW中获取主机多指标异常检测策略的数据源.
+
+        :param access_bk_biz_id: 接入策略的空间ID
+        :return: 作为数据源的结果表ID
+        """
+        # 查询该业务是否配置有ai设置
+        ai_setting = AiSetting(bk_biz_id=access_bk_biz_id)
+        host_scene_rt = ai_setting.multivariate_anomaly_detection.host.intelligent_detect["result_table_id"]
+        scene_service_application = api.bkdata.get_scene_service_application_info(result_table_id=host_scene_rt)
+        for node_info in scene_service_application["flow_node_mapping"].values():
+            if node_info["result_table_id"].endswith(settings.BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX):
+                return node_info["result_table_id"]
