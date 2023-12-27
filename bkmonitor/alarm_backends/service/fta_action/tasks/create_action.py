@@ -607,9 +607,7 @@ class CreateActionProcessor:
 
             # 对历史的内容需要去重
             # TODO 需要确认告警通知人指的时候收集了所有接收到通知的总和吗？
-            alerts_assignee[alert.id] = self.get_alert_related_users(
-                assignees + followers + supervisors, alerts_assignee[alert.id]
-            )
+            alerts_assignee[alert.id] = self.get_alert_related_users(assignees + supervisors, alerts_assignee[alert.id])
 
             # 告警负责人字段，替换为当前的负责人
             if assignees:
