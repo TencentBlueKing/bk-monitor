@@ -27,7 +27,7 @@ from apps.utils.log import logger
 from apps.log_databus.constants import DEFAULT_TIME_FORMAT, DEFAULT_CATEGORY_ID, MAX_SYNC_CLEAN_TTL
 from apps.log_databus.models import BKDataClean
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import Scenario
+from apps.log_search.models import Scenario, LogIndexSetData
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 
@@ -98,6 +98,9 @@ class BKDataCleanUtils:
     def create_index_set(cls, insert_objs, bk_biz_id: int, category_id=DEFAULT_CATEGORY_ID):
         index_set_dict = {}
         for insert_obj in insert_objs:
+            # 如果已经存在，就不创建
+            if LogIndexSetData.objects.fiiter(result_table_id=insert_obj["result_table_id"]).exists():
+                continue
             index_set = IndexSetHandler.create(
                 index_set_name=insert_obj["result_table_name"],
                 space_uid=bk_biz_id_to_space_uid(bk_biz_id),
