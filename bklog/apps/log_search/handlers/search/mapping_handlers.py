@@ -230,7 +230,8 @@ class MappingHandlers(object):
 
         for field in fields_list:
             # 判断是否为内置字段
-            field["is_built_in"] = field.get("field_name", "").lower() in built_in_fields
+            field_name = field.get("field_name", "").lower()
+            field["is_built_in"] = field_name in built_in_fields or field_name.startswith("__ext.")
 
         return fields_list
 
