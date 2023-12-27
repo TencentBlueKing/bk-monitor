@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import abc
+import json
 import logging
 
 import six
@@ -16,7 +17,6 @@ from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
-from core.drf_resource.contrib.api import INTERFACE_COMMON_PARAMS
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ class BkPluginScheduleResource(BkPluginBaseResource):
 
 
 class BkPluginSystemResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "{}/prod".format(settings.APIGW_BASE_URL.format("paasv3").rstrip("/"))  # paasv3网关地址
+    base_url = settings.PAASV3_APIGW_BASE_URL or "%s/api/c/compapi/v2/bk_paas/" % settings.BK_COMPONENT_API_URL
     module_name = "bk_plugin_system"
     IS_STANDARD_FORMAT = False
 
@@ -146,13 +146,16 @@ class BkPluginSystemResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             super(BkPluginSystemResource, self).get_request_url(validated_request_data).format(**validated_request_data)
         )
 
-    def full_request_data(self, validated_request_data):
-        # 组装通用参数：SaaS凭证
+    def get_headers(self):
+        headers = super(BkPluginSystemResource, self).get_headers()
+
+        # 替换掉通用参数中的bk_app_code和bk_app_secret
         if settings.BK_PLUGIN_APP_INFO:
-            validated_request_data.update(settings.BK_PLUGIN_APP_INFO)
-        else:
-            validated_request_data.update(INTERFACE_COMMON_PARAMS)
-        return validated_request_data
+            auth_info = json.loads(headers["x-bkapi-authorization"])
+            auth_info.update(settings.BK_PLUGIN_APP_INFO)
+            headers["x-bkapi-authorization"] = json.dumps(auth_info)
+
+        return headers
 
 
 class BkPluginListResource(BkPluginSystemResource):

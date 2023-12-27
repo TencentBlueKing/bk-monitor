@@ -9,10 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 
-from django.conf import settings
 from bkmonitor.utils.local import local
 from constants.cmdb import BIZ_ID_FIELD_NAMES
 from constants.common import SourceApp
@@ -80,46 +78,9 @@ def fetch_biz_id_from_request(request, view_kwargs):
             body_unicode = request.body.decode("utf-8")
             body = json.loads(body_unicode)
             biz_id = fetch_biz_id_from_dict(body)
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             pass
     return biz_id
-
-
-# todo 这个名字不合适
-def get_common_headers():
-    headers = {}
-    try:
-        from django.utils import translation
-
-        language = translation.get_language()
-        if language:
-            headers["blueking-language"] = language
-
-        # 默认追加app_code和app_secret信息
-        headers["X-Bk-App-Code"] = settings.APP_CODE
-        headers["X-Bk-App-Secret"] = settings.SECRET_KEY
-
-    except Exception:
-        pass
-
-    return headers
-
-
-# def get_request(peaceful=False):
-#     if hasattr(local, 'current_request'):
-#         return local.current_request
-#     elif not peaceful:
-#         raise Exception("get_request: current thread hasn't request.")
-#
-#
-# def get_x_request_id():
-#     x_request_id = ''
-#     http_request = get_request()
-#     if hasattr(http_request, 'META'):
-#         meta = http_request.META
-#         x_request_id = (meta.get('HTTP_X_REQUEST_ID', '')
-#                         if isinstance(meta, dict) else '')
-#     return x_request_id
 
 
 def get_request_username(default=""):
