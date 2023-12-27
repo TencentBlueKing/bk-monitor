@@ -74,6 +74,9 @@ importers:
 
   src/apm:
     dependencies:
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -98,9 +101,6 @@ importers:
       monitor-ui:
         specifier: workspace:^1.0.0
         version: link:../monitor-ui
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -192,6 +192,9 @@ importers:
       '@blueking/bk-weweb':
         specifier: 0.0.2-5.beta.1
         version: 0.0.2-5.beta.1
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       async-validator:
         specifier: ^3.5.2
         version: 3.5.2
@@ -204,9 +207,6 @@ importers:
       deepmerge:
         specifier: ^4.2.2
         version: 4.3.1
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -384,15 +384,15 @@ importers:
 
   src/monitor-mobile:
     dependencies:
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       dayjs:
         specifier: ^1.11.10
         version: 1.11.10
       deepmerge:
         specifier: ^4.2.2
         version: 4.3.1
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -496,6 +496,9 @@ importers:
       '@blueking/date-picker':
         specifier: ^0.0.72
         version: 0.0.72(bkui-vue@0.0.2-beta.110)(dayjs@1.11.10)(vue@2.7.14)
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
@@ -532,9 +535,6 @@ importers:
       minimist:
         specifier: ^1.2.6
         version: 1.2.8
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       sortablejs:
         specifier: ^1.15.0
         version: 1.15.0
@@ -681,6 +681,9 @@ importers:
       '@antv/g6':
         specifier: ^4.6.4
         version: 4.8.23
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@codemirror/autocomplete':
         specifier: ^0.19.9
         version: 0.19.15
@@ -744,9 +747,6 @@ importers:
       monitor-vue-grid-layout:
         specifier: 0.0.1
         version: 0.0.1(@interactjs/core@1.10.20)(@interactjs/utils@1.10.20)
-      resize-detector:
-        specifier: ^0.2.2
-        version: 0.2.2
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -844,6 +844,9 @@ importers:
       '@blueking/date-picker':
         specifier: ^0.0.72
         version: 0.0.72(bkui-vue@0.0.2-beta.78.beta.1)(dayjs@1.11.10)(vue@3.3.8)
+      '@blueking/fork-resize-detector':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@blueking/ip-selector':
         specifier: 0.2.0-beta
         version: 0.2.0-beta
@@ -910,9 +913,6 @@ importers:
       reselect:
         specifier: ^4.1.5
         version: 4.1.8
-      resize-detector:
-        specifier: ^0.3.0
-        version: 0.3.0
       throttle-debounce:
         specifier: ^3.0.1
         version: 3.0.1
@@ -2750,6 +2750,10 @@ packages:
       bkui-vue: 0.0.2-beta.78.beta.1(highlight.js@11.5.1)(vue@3.3.8)
       dayjs: 1.11.10
       vue: 3.3.8(typescript@4.9.5)
+    dev: false
+
+  /@blueking/fork-resize-detector@0.0.2:
+    resolution: {integrity: sha512-gHy4ulTJzy1IG/2o+X13hkC/pN9hbD3WTJz2h9ILSMZy7jHdpQt2Utj0Ppn8MSS/go9QKm0fbHFvNUaLt1/tVw==}
     dev: false
 
   /@blueking/ip-selector@0.2.0-beta:
@@ -11389,14 +11393,6 @@ packages:
 
   /reselect@4.1.8:
     resolution: {integrity: sha512-ab9EmR80F/zQTMNeneUr4cv+jSwPJgIlvEmVwLerwrWVbpLlBuls9XHzIeTFy4cegU2NHBp3va0LKOzU5qFEYQ==}
-    dev: false
-
-  /resize-detector@0.2.2:
-    resolution: {integrity: sha512-X07ADfFqXoyfbx4/PSzr7EBF9e/RwrcS9UoPBMbau11agg5uad39ysMmXFCu0o5C3hhKbs0X/cSl85OwPIpZLQ==}
-    dev: false
-
-  /resize-detector@0.3.0:
-    resolution: {integrity: sha512-R/tCuvuOHQ8o2boRP6vgx8hXCCy87H1eY9V5imBYeVNyNVpuL9ciReSccLj2gDcax9+2weXy3bc8Vv+NRXeEvQ==}
     dev: false
 
   /resize-observer-polyfill@1.5.1:
