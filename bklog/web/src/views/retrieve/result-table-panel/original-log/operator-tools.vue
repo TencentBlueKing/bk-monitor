@@ -128,18 +128,18 @@ export default {
       } else {
         if (!__ext) return false;
         if (!__ext.container_id) return false;
-        queryData = { cluster_id: __ext.container_id };
+        queryData = { container_id: __ext.container_id };
         if (__ext.io_tencent_bcs_cluster) {
           Object.assign(queryData, {
-            container_id: __ext.io_tencent_bcs_cluster,
+            cluster: __ext.io_tencent_bcs_cluster,
           });
         } else if (__ext.bk_bcs_cluster_id) {
           Object.assign(queryData, {
-            container_id: __ext.bk_bcs_cluster_id,
+            cluster: __ext.bk_bcs_cluster_id,
           });
         }
       }
-      if (!queryData.cluster_id || !queryData.container_id) return false;
+      if (!queryData.cluster || !queryData.container_id) return false;
       return true;
     },
     toolMessage() {
