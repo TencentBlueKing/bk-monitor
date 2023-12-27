@@ -354,7 +354,10 @@ export default {
      * 跳转到 监控下的 我的订阅
      */
     goToMySubscription() {
-      window.open(`${window.MONITOR_URL}/#/?isShowMySubscription=true`, '_blank');
+      const query = this.$route.query.bizId ? `?${this.$route.query.bizId}` : '';
+      window.open(`${window.MONITOR_URL}/${query}#/my-report`, '_blank');
+      // 20231225 暂不需要
+      // window.open(`${window.MONITOR_URL}/#/?isShowMySubscription=true`, '_blank');
     },
   },
 };

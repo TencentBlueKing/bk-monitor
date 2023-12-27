@@ -97,14 +97,15 @@ class NavTools extends DocumentLinkMixin {
     this.globalSearchShow = false;
   }
 
+  /** 20231226 暂不使用 */
   /** vue-router 加载时间过长，导致没法直接在 mounted 中判断，故通过监听的方式去控制 我的订阅 弹窗是否打开 */
-  @Watch('$route.query')
-  handleQueryChange() {
-    // 从 日志平台 跳转过来时会通过 url 参数开启 我的订阅 弹窗。
-    if (this.$route.query.isShowMySubscription) {
-      this.isShowMySubscriptionModal = this.$route.query.isShowMySubscription === 'true';
-    }
-  }
+  // @Watch('$route.query')
+  // handleQueryChange() {
+  //   // 从 日志平台 跳转过来时会通过 url 参数开启 我的订阅 弹窗。
+  //   if (this.$route.query.isShowMySubscription) {
+  //     this.isShowMySubscriptionModal = this.$route.query.isShowMySubscription === 'true';
+  //   }
+  // }
 
   created() {
     this.helpList = [
@@ -439,8 +440,12 @@ class NavTools extends DocumentLinkMixin {
                   <li
                     class='nav-item'
                     onClick={() => {
-                      this.isShowMySubscriptionModal = false;
-                      this.isShowMyApplyModal = true;
+                      // 20231225 暂时不用
+                      // this.isShowMySubscriptionModal = false;
+                      // this.isShowMyApplyModal = true;
+                      this.$router.push({
+                        name: 'my-applied-report'
+                      });
                       this.$nextTick(() => {
                         (this.$refs.popoveruser as any)?.hideHandler?.();
                       });
@@ -451,8 +456,12 @@ class NavTools extends DocumentLinkMixin {
                   <li
                     class='nav-item'
                     onClick={() => {
-                      this.isShowMyApplyModal = false;
-                      this.isShowMySubscriptionModal = true;
+                      // 20231225 暂时不用
+                      // this.isShowMyApplyModal = false;
+                      // this.isShowMySubscriptionModal = true;
+                      this.$router.push({
+                        name: 'my-report'
+                      });
                       this.$nextTick(() => {
                         (this.$refs.popoveruser as any)?.hideHandler?.();
                       });
@@ -501,7 +510,9 @@ class NavTools extends DocumentLinkMixin {
           ]
           // #endif
         }
-        {this.isShowMyApplyModal && (
+
+        {/* 20231225 暂时不用 */}
+        {/* {this.isShowMyApplyModal && (
           <SettingModal
             title={this.$t('我申请的').toString()}
             show={this.isShowMyApplyModal}
@@ -512,9 +523,10 @@ class NavTools extends DocumentLinkMixin {
           >
             <MyApply></MyApply>
           </SettingModal>
-        )}
+        )} */}
 
-        {this.isShowMySubscriptionModal && (
+        {/* 20231225 暂时不用 */}
+        {/* {this.isShowMySubscriptionModal && (
           <SettingModal
             title={this.$t('我的订阅').toString()}
             show={this.isShowMySubscriptionModal}
@@ -525,7 +537,7 @@ class NavTools extends DocumentLinkMixin {
           >
             <MySubscription></MySubscription>
           </SettingModal>
-        )}
+        )} */}
       </div>
     );
   }

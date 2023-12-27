@@ -47,7 +47,8 @@ class QuickCreateSubscription extends tsc<IProps> {
   @Prop({ type: [Number, String], default: 0 }) indexSetId: number | string;
 
   isSaving = false;
-  isSending = true;
+  isSending = false;
+  isShowSendingSuccessDialog = false;
   handleSave() {
     (this.$refs.refOfCreateSubscriptionForm as any)
       ?.validateAllForms?.()
@@ -101,10 +102,11 @@ class QuickCreateSubscription extends tsc<IProps> {
       data: formData
     })
       .then(() => {
-        this.$bkMessage({
-          theme: 'success',
-          message: this.$t('发送成功'),
-        });
+        // this.$bkMessage({
+        //   theme: 'success',
+        //   message: this.$t('发送成功'),
+        // });
+        this.isShowSendingSuccessDialog = true;
       })
       .catch(console.log)
       .finally(() => {
@@ -151,6 +153,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 <bk-button
                   theme='primary'
                   outline
+                  loading={this.isSending}
                   slot='dropdown-trigger'
                   style={{ width: '88px', marginRight: '8px' }}
                 >
@@ -188,6 +191,16 @@ class QuickCreateSubscription extends tsc<IProps> {
             </div>
           </div>
         </bk-sideslider>
+
+        <bk-dialog v-model={this.isShowSendingSuccessDialog} theme="primary" show-footer={false} position={{ top: ''}}>
+          <div slot='header' class='test-send-success-dialog-header'>
+            <i class='bk-icon icon-check-circle-shape' style='color: rgb(45, 202, 86);'></i>
+            <span style='margin-left: 10px;'>{this.$t('发送测试邮件成功')}</span>
+          </div>
+          <div class='test-send-success-dialog-content'>
+            {this.$t('邮件任务已生成, 请一分钟后到邮箱查看')}
+          </div>
+        </bk-dialog>
       </div>
     );
   }

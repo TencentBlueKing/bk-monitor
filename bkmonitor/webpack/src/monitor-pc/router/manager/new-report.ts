@@ -29,6 +29,8 @@ import { RouteConfig } from 'vue-router';
 import * as newReportAuth from '../../pages/new-report/authority-map';
 
 const NewReport = () => import(/* webpackChunkName: 'NewReport' */ '../../pages/new-report/new-report');
+const MyReport = () => import(/* webpackChunkName: 'MyReport' */ '../../pages/my-subscription/my-subscription');
+const MyAppliedReport = () => import(/* webpackChunkName: 'MyAppliedReport' */ '../../pages/my-apply/my-apply');
 export default [
   {
     path: '/trace/new-report-config',
@@ -63,6 +65,38 @@ export default [
         map: newReportAuth,
         page: [newReportAuth.MANAGE_AUTH]
       },
+      route: {
+        parent: 'new-report-config'
+      },
+      noNavBar: true
+    }
+  },
+  {
+    path: '/my-report',
+    name: 'my-report',
+    components: {
+      noCache: MyReport
+    },
+    meta: {
+      title: '我的订阅',
+      needBack: true,
+      navId: 'new-report-config',
+      route: {
+        parent: 'new-report-config'
+      },
+      noNavBar: true
+    }
+  },
+  {
+    path: '/my-applied-report',
+    name: 'my-applied-report',
+    components: {
+      noCache: MyAppliedReport
+    },
+    meta: {
+      title: '我的申请',
+      needBack: true,
+      navId: 'new-report-config',
       route: {
         parent: 'new-report-config'
       },

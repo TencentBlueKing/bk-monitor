@@ -1281,9 +1281,9 @@ class QuickCreateSubscription extends tsc<IProps> {
                       on-change={v => {
                         console.log('on-change', v);
                         const userChannel = this.formData.channels.find(item => item.channel_name === 'user');
-                        userChannel.subscribers = v.map(item => {
+                        userChannel.subscribers = v.map(username => {
                           return {
-                            id: item.username,
+                            id: username,
                             type: 'user',
                             is_enabled: true
                           }
