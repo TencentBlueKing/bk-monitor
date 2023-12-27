@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Emit, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 import { Checkbox, Form, FormItem, Icon, Option, Select, Tag } from 'bk-magic-vue';
 
 import { multivariateAnomalyScenes } from '../../../../../monitor-api/modules/strategies';
 import { random, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
+import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
@@ -54,7 +55,7 @@ interface IProps {
     StrategyTargetTable
   }
 })
-export default class AiopsMonitorData extends tsc<IProps> {
+class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   /* 指标数据 */
   @Prop({ default: () => [], type: Array }) metricData: NewMetricDetail[];
   @Prop({ default: () => ({ target_detail: [] }), type: Object }) defaultCheckedTarget: any;
@@ -116,6 +117,8 @@ export default class AiopsMonitorData extends tsc<IProps> {
     { id: 2, name: this.$t('预警'), icon: 'icon-mind-fill' },
     { id: 3, name: this.$t('提醒'), icon: 'icon-tips' }
   ];
+
+  metricpopoerInstance = null;
 
   @Emit('change')
   handleChange(value?) {
@@ -243,6 +246,36 @@ export default class AiopsMonitorData extends tsc<IProps> {
     return this.createForm.validate();
   }
 
+  /**
+   * @description 展示指标tip
+   * @param e
+   * @param item
+   */
+  handleMetricMouseenter(e: MouseEvent, item: MetricDetail) {
+    let content = '';
+    try {
+      content = this.handleGetMetricTipsContent(item);
+    } catch (error) {
+      // content = `${this.$t('指标不存在')}`;
+    }
+    if (content) {
+      this.metricpopoerInstance = this.$bkPopover(e.target, {
+        content,
+        placement: 'top',
+        theme: 'monitor-metric-input',
+        arrow: true,
+        flip: false
+      });
+      this.metricpopoerInstance?.show?.(100);
+    }
+  }
+
+  handleMetricMouseleave() {
+    this.metricpopoerInstance?.hide?.();
+    this.metricpopoerInstance?.destroy?.();
+    this.metricpopoerInstance = null;
+  }
+
   render() {
     return (
       <div
@@ -312,7 +345,13 @@ export default class AiopsMonitorData extends tsc<IProps> {
                   ref='tagListRef'
                 >
                   {this.scene.metrics.map(metric => (
-                    <Tag>{metric.name}</Tag>
+                    <Tag
+                      key={metric.metric_id}
+                      onMouseenter={e => this.handleMetricMouseenter(e, metric.metric)}
+                      onMouseleave={this.handleMetricMouseleave}
+                    >
+                      {metric.name}
+                    </Tag>
                   ))}
                 </div>
                 {this.showTagOpen && (
@@ -453,3 +492,5 @@ export default class AiopsMonitorData extends tsc<IProps> {
     );
   }
 }
+
+export default tsx.ofType<IProps>().convert(AiopsMonitorData);
