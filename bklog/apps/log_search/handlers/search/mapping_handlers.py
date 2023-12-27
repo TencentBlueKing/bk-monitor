@@ -150,7 +150,10 @@ class MappingHandlers(object):
     def add_clustered_fields(self, field_list):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
         if clustering_config and clustering_config.clustered_rt:
-            field_list.extend(PATTERN_SEARCH_FIELDS)
+            all_field_names = [field["field_name"] for field in field_list if "field_name" in field]
+            for field in PATTERN_SEARCH_FIELDS:
+                if field["field_name"] not in all_field_names:
+                    field_list.append(field)
             return field_list
         return field_list
 
