@@ -31,7 +31,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # 查询路由表，忽略掉已经存在数据的记录
         proxy_storage_list = (
-            models.InfluxDBStorage.objects.exclude(influxdb_proxy_storage_id=None)
+            models.InfluxDBStorage.objects.filter(influxdb_proxy_storage_id=None)
             .values("storage_cluster_id", "proxy_cluster_name")
             .distinct()
         )
