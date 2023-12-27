@@ -404,12 +404,12 @@ VARIABLES = [
             },
             {
                 "name": "alarm.topo_related_info",
-                "desc": "TOPO" + _lazy("关联信息"),
+                "desc": _lazy("TOPO关联信息"),
                 "example": _lazy("集群(公共组件) 模块(consul)"),
             },
             {
                 "name": "alarm.alert_info",
-                "desc": _lazy("回调数据") + "[new]",
+                "desc": _lazy("回调数据【new】"),
                 "example": _lazy(json.dumps({"alarm": "the new version content of webhook"})),
             },
             {
