@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, reactive, ref, nextTick } from 'vue';
+import { defineComponent, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
@@ -599,6 +599,7 @@ export default defineComponent({
                               display-key='id'
                               save-key='id'
                               search-key={['id']}
+                              content-width={238}
                             ></TagInput>
                           </div>
 

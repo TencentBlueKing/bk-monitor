@@ -500,10 +500,7 @@ class MySubscription extends tsc<{}> {
                 display-key='id'
                 save-key='id'
                 search-key={['id']}
-                // popoverOptions={{
-                //   extCls: 'resend-tag-input'
-                // }}
-                // ext-cls='resend-tag-input'
+                content-width={247}
               ></bk-tag-input>
             </div>
 

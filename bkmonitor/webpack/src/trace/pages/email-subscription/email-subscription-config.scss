@@ -113,8 +113,8 @@
   }
 
   &.cancelled {
-    background: #E1ECFF;
-    border: 1px solid #699DF4;
+    background: #e1ecff;
+    border: 1px solid #699df4;
   }
 }
 
@@ -127,12 +127,12 @@
     font-size: 12px;
 
     .success-text {
-      color: #2DCB56;
+      color: #2dcb56;
       font-size: 12px;
     }
 
     .fail-text {
-      color: #EA3636;
+      color: #ea3636;
       font-size: 12px;
     }
   }
@@ -140,7 +140,7 @@
   .header-confirm-text {
     margin-top: 14px;
     font-size: 12px;
-    color: #63656E;
+    color: #63656e;
   }
 
   .tag-content {
@@ -172,7 +172,7 @@
       margin-left: 10px;
       font-size: 14px;
       line-height: 14px;
-      color: #63656E;
+      color: #63656e;
     }
   }
 }
@@ -180,7 +180,7 @@
 .edit-subscription-sideslider-container {
   .bk-modal-content {
     height: calc(100vh - 52px);
-    background-color: #F5F7FA;
+    background-color: #f5f7fa;
   }
 
   .create-subscription-container {
@@ -196,8 +196,10 @@
     left: 0;
     bottom: 0;
     padding: 10px 24px;
-    background: #FFFFFF;
-    box-shadow: 0 -1px 0 0 #DCDEE5, 0 -3px 4px 0 #4070cb0f;
+    background: #ffffff;
+    box-shadow:
+      0 -1px 0 0 #dcdee5,
+      0 -3px 4px 0 #4070cb0f;
   }
 }
 
@@ -211,4 +213,12 @@
     /* stylelint-disable-next-line declaration-no-important */
     min-height: 60px !important;
   }
+}
+
+.bk-tag-input-popover-content .bk-selector-list .bk-selector-list-item .text {
+  display: inline-block;
+  width: 236px;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 20px;
 }
