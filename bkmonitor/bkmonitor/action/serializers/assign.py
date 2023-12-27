@@ -13,7 +13,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
-from constants.action import GLOBAL_BIZ_ID, ActionPluginType
+from constants.action import GLOBAL_BIZ_ID, ActionPluginType, UserGroupType
 from constants.alert import AlertAssignSeverity
 from constants.strategy import DATALINK_SOURCE
 
@@ -93,6 +93,7 @@ class BaseAlertAssignRuleSlz(serializers.Serializer):
 class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
     bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
     assign_group_id = serializers.IntegerField(label="分派组ID", required=True)
+    user_type = serializers.ChoiceField(label="通知人员类型", choices=UserGroupType.CHOICE)
 
     class Meta:
         model = AlertAssignRule
@@ -106,6 +107,7 @@ class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
             "actions",
             "alert_severity",
             "additional_tags",
+            "user_type",
         )
 
     def validate_actions(self, value):
