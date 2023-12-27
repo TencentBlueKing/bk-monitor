@@ -28,6 +28,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
 
+import { listUsersUser } from '../../../../monitor-api/modules/model';
 import { Debounce, deepClone, random } from '../../../../monitor-common/utils';
 import HorizontalScrollContainer from '../../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { getEventPaths } from '../../../utils';
@@ -39,6 +40,7 @@ import {
   ISpecialOptions,
   KEY_FILTER_TAGS,
   KEY_TAG_MAPS,
+  NOTICE_USERS_KEY,
   TGroupKeys,
   TValueMap
 } from '../typing/condition';
@@ -65,6 +67,7 @@ interface IProps {
   onSettingsChange?: () => void;
   onValidate?: (v: boolean) => void;
   onRepeat?: (v: boolean) => void;
+  onValueMapChange?: (v: { key: string; values: { id: string; name: string }[] }) => void;
   replaceData?: IListItem[];
 }
 
@@ -216,6 +219,8 @@ export default class CommonCondition extends tsc<IProps> {
   secondSearch = '';
   /* 当前key选项分类标签 */
   keyTypeTag = EKeyTags.all;
+  /* 是否为通知人员 需要展示远程的人员搜索 */
+  isUserKey = false;
 
   /* 是否不可点击(只读状态) */
   get canNotClick() {
@@ -397,6 +402,7 @@ export default class CommonCondition extends tsc<IProps> {
         this.selectType = TypeEnum.method;
       } else if (lastTag.type === TypeEnum.method) {
         const key = this.tagList[index].condition.field;
+        this.isUserKey = key === NOTICE_USERS_KEY;
         const values = this.getCurValuesList(key);
         this.curList = values.map(item => ({
           ...item,
@@ -418,6 +424,7 @@ export default class CommonCondition extends tsc<IProps> {
         this.setInputFocus();
       } else if (lastTag.type === TypeEnum.value) {
         const key = this.tagList[index].condition.field;
+        this.isUserKey = key === NOTICE_USERS_KEY;
         const values = this.getCurValuesList(key);
         this.curIndex = [index, len - 1];
         this.curList = values.map(item => ({
@@ -516,6 +523,16 @@ export default class CommonCondition extends tsc<IProps> {
   @Debounce(300)
   handleSearchChange(v) {
     this.searchValue = v;
+    if (this.isUserKey) {
+      listUsersUser({
+        app_code: 'bk-magicbox',
+        page: 1,
+        page_size: 20,
+        fuzzy_lookups: this.searchValue
+      }).then(data => {
+        console.log(data);
+      });
+    }
   }
   @Debounce(300)
   handleSecondSearchChange(v) {
@@ -808,6 +825,7 @@ export default class CommonCondition extends tsc<IProps> {
     this.popInstance?.hide?.(0);
     this.popInstance?.destroy?.();
     this.searchValue = '';
+    this.isUserKey = false;
     this.handleSecondPopHidden();
     if (isOnlyHide) return;
     this.popInstance = null;
