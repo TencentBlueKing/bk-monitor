@@ -15,6 +15,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.db.models.query import QuerySet
+from django.db.utils import IntegrityError
 
 from metadata import models
 
@@ -62,8 +63,12 @@ class Command(BaseCommand):
             return
 
         # 创建记录
-        self._bulk_create_proxy_storage(proxy_cluster_list, proxy_storage_map)
-        self.stdout.write(self.style.SUCCESS("init influxdb proxy storage successfully"))
+        try:
+            self._bulk_create_proxy_storage(proxy_cluster_list, proxy_storage_map)
+            self.stdout.write(self.style.SUCCESS("init influxdb proxy storage successfully"))
+        except IntegrityError as e:
+            self.stderr.write(f"bulk create proxy storage error, {e}")
+            return
 
         # 更新路由表
         self._update_router_field()
