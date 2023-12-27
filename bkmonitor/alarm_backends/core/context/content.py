@@ -160,7 +160,7 @@ class DefaultContent(BaseContextObject):
     # 被分派人
     @cached_property
     def appointees(self):
-        all_appointees = getattr(self.parent, "appointees", None)
+        all_appointees = getattr(self.parent.alert, "appointees", None)
         if isinstance(all_appointees, list):
             return ",".join(all_appointees)
         return all_appointees

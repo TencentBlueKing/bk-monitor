@@ -194,6 +194,9 @@ msgstr "Value"
 msgid "关联信息"
 msgstr "Related Information"
 
+msgid "日志关联信息"
+msgstr "Log's Related Information"
+
 msgid "被分派人"
 msgstr "Assigned"
 

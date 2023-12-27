@@ -215,6 +215,7 @@ class Alarm(BaseContextObject):
 
         # 拓扑维度特殊处理
         display_dimensions = copy.deepcopy(self.display_dimensions)
+
         dimension_string_list = []
         if self.parent.alert.agg_dimensions:
             # 当存在agg_dimensions的顺序列表是，直接使用
