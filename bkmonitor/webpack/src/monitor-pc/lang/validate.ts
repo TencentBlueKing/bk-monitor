@@ -261,5 +261,8 @@ export default {
   模糊检索使用通配符: 'Fuzzy search using wild-card',
   规则名不能为空: 'Rule name cannot be empty',
   匹配规则重复了: 'The matching rule is duplicated',
-  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000'
+  '优先级应为 0 - 10000 之间的整数': 'Priority should be an integer between 0 - 10000',
+  通知升级必须填写时间间隔以及用户组: 'Notification upgrade must fill in the time interval and user group',
+  通知升级的用户组不能包含第一次接收告警的用户组:
+    'The user group notified of the upgrade cannot include the user group that received the alarm for the first time'
 };

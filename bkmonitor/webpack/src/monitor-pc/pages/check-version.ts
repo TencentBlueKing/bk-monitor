@@ -23,71 +23,77 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 let staticVersion = ''; // 静态资源版本号
-let interval = null; // 定时器
-/**
- * @param {number} checkInterval 检测间隔
- * @description 检测是否有新版本
- */
-export const checkHasNewVersion = (checkInterval = 2 * 60 * 1000) => {
-  if (interval || document.visibilityState !== 'visible') return;
-  function checkVersion() {
-    window.requestIdleCallback(() => {
-      interval = setTimeout(() => {
-        fetchCheckVersion()
-          .then(needRecheck => {
-            needRecheck && checkVersion();
-          })
-          .catch(() => {
-            checkVersion();
-          });
-      }, checkInterval);
-    });
-  }
-  checkVersion();
-};
-/**
- * @description 获取静态资源版本号
- * @returns {Promise<boolean>} 是否需要重新check
- */
-function fetchCheckVersion(): Promise<boolean> {
-  clearTimeout(interval);
-  return fetch(
-    `${window.static_url}/${process.env.APP === 'external' ? 'external' : 'monitor'}/static_version.txt`.replace(
-      /\/\//g,
-      '/'
-    )
-  ).then(async res => {
-    const txt = await res.text();
-    if (!staticVersion) {
-      staticVersion = txt;
-    } else if (document.visibilityState === 'visible' && staticVersion !== txt) {
-      if (confirm(window.i18n.tc('检测到有新版本，点击确定刷新页面'))) {
-        window.location.reload();
-        window.clearTimeout(interval);
-        return false;
-      }
+let intervalId = null; // 定时器ID
+let hasShownConfirm = false; // 是否已经弹出过提示
+
+// 使用箭头函数简化代码，并添加注释来提高可读性
+export const checkForNewVersion = (checkInterval = 5 * 60 * 1000) => {
+  clearTimeout(intervalId); // 清除现有的定时器
+  intervalId = setTimeout(async () => {
+    try {
+      const recheck = await fetchStaticVersion(false);
+      if (recheck) checkForNewVersion(checkInterval);
+    } catch {
+      checkForNewVersion(checkInterval);
     }
+  }, checkInterval);
+};
+
+// 优化 fetchCheckVersion 方法名称，使其更直观
+const fetchStaticVersion = async (clearInterval = true) => {
+  if (clearInterval) clearTimeout(intervalId);
+  if (hasShownConfirm) return false;
+
+  const urlPrefix = process.env.APP === 'external' ? 'external' : 'monitor';
+  const response = await fetch(`${window.static_url}/${urlPrefix}/static_version.txt`.replace(/\/\//g, '/'));
+  const newVersion = await response.text();
+
+  if (!staticVersion) {
+    staticVersion = newVersion;
     return true;
-  });
-}
-function handleVisibilitychange() {
-  if (document.visibilityState === 'visible') {
-    fetchCheckVersion()
-      .catch(() => false)
-      .finally(() => {
-        checkHasNewVersion();
-      });
-  } else {
-    clearTimeout(interval);
-    interval = null;
   }
-}
-/**
- * @description 监听页面切换
- */
-export function useCheckVersion() {
-  handleVisibilitychange();
-  document.addEventListener('visibilitychange', handleVisibilitychange);
-}
+  if (staticVersion !== newVersion) {
+    return promptForReload();
+  }
+
+  return true;
+};
+
+// 将确认框和刷新页面逻辑抽出单独的函数
+const promptForReload = () => {
+  if (hasShownConfirm) return false;
+  removeVisibilityChangeListener();
+  hasShownConfirm = true;
+
+  if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面'))) {
+    window.location.reload();
+    return false;
+  }
+  hasShownConfirm = false;
+  window.requestIdleCallback(() => {
+    addVisibilityChangeListener();
+  });
+  return true;
+};
+
+const handleVisibilityChange = () => {
+  if (!hasShownConfirm && document.visibilityState === 'visible') {
+    fetchStaticVersion(false);
+  }
+};
+
+export const useCheckVersion = () => {
+  fetchStaticVersion()
+    .catch(() => false)
+    .finally(() => checkForNewVersion());
+  addVisibilityChangeListener();
+};
+
+export const addVisibilityChangeListener = () => {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+};
+
+export const removeVisibilityChangeListener = () => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+};

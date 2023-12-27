@@ -487,8 +487,8 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             name: '发送历史',
             icon: 'icon-monitor icon-mc-history menu-icon',
             id: 'email-subscriptions-history',
-            path: '/email-subscriptions-history',
-            href: '#/email-subscriptions-history',
+            path: '/email-subscriptions/history',
+            href: '#/email-subscriptions/history',
             hidden: false,
             canStore: true
           }

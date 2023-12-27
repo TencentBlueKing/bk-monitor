@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import math
 from typing import List, Tuple
 
 from django.conf import settings
@@ -62,7 +63,7 @@ def batch_request(
     # 根据请求总数并发请求
     pool = ThreadPool(thread_num)
     futures = []
-    while start <= (count if app in use_offset_app_list else count // limit + 1):
+    while start <= (count if app in use_offset_app_list else math.ceil(count / limit)):
         refresh_params[app](params, start, limit)
         futures.append(pool.apply_async(func, kwds=params.copy()))
         start += limit if app in use_offset_app_list else 1

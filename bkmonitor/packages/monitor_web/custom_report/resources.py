@@ -627,7 +627,7 @@ class CreateCustomTimeSeries(Resource):
         return "{}.{}".format(database_name, "base")
 
     @staticmethod
-    def get_data_id(data_name, operator, space_uid):
+    def get_data_id(data_name, operator, space_uid=None):
         try:
             data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
         except BKAPIError:
@@ -639,8 +639,9 @@ class CreateCustomTimeSeries(Resource):
                 "type_label": DataTypeLabel.TIME_SERIES,
                 "source_label": DataSourceLabel.CUSTOM,
                 "option": {"inject_local_time": True},
-                "space_uid": space_uid,
             }
+            if space_uid:
+                param.update(space_uid=space_uid)
             data_id_info = api.metadata.create_data_id(param)
         else:
             raise CustomValidationNameError(data=data_id_info["bk_data_id"], msg=_("数据源名称[{}]已存在").format(data_name))
@@ -671,7 +672,12 @@ class CreateCustomTimeSeries(Resource):
 
         # 当前业务
         data_name = self.data_name(validated_request_data["bk_biz_id"], validated_request_data["name"])
-        space_uid = self.get_space_uid(int(validated_request_data["bk_biz_id"]))
+        # 如果 bk_biz_id 为 0，意味着是全局业务配置，这种情况不需要空间
+        space_uid = (
+            None
+            if validated_request_data["bk_biz_id"] == 0
+            else self.get_space_uid(int(validated_request_data["bk_biz_id"]))
+        )
         try:
             # 保证 data id 已存在
             bk_data_id = self.get_data_id(data_name, operator, space_uid)

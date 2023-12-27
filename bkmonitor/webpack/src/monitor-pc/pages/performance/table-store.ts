@@ -515,7 +515,6 @@ export default class TableStore {
       });
     const topofield = this.fieldData.find(item => ['cluster_module'].includes(item.id));
     topofield.options = treeList;
-    console.info(treeList);
     return treeList;
   }
   public updateFieldDataOptions() {
@@ -750,7 +749,6 @@ export default class TableStore {
     const { curValue, originValue } = this.getCompareValue(item, field);
     if (field.dynamic) {
       const value = Array.isArray(curValue[0]) ? curValue[0] : Array.isArray(curValue) ? curValue : [curValue];
-      console.info(value, originValue, '++++++=');
       return value.some(val => {
         return originValue.includes(val);
       });

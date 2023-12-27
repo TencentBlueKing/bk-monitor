@@ -38,9 +38,9 @@ import {
   watch
 } from 'vue';
 import G6, { Graph, IEdge, INode } from '@antv/g6';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
-import { addListener, removeListener } from 'resize-detector';
 
 import { traceDiagram } from '../../../monitor-api/modules/apm_trace';
 import { formatDuration } from '../../components/trace-view/utils/date';

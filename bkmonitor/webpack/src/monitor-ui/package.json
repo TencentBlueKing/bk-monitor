@@ -36,7 +36,7 @@
     "echarts": "^4.8.0",
     "html-to-image": "^1.9.0",
     "monitor-vue-grid-layout": "0.0.1",
-    "resize-detector": "^0.2.2",
+    "@blueking/fork-resize-detector": "^0.0.2",
     "throttle-debounce": "^3.0.1",
     "vue": "2.7.14",
     "vue-class-component": "^7.2.6",

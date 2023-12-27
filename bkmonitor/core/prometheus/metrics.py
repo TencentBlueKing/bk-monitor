@@ -436,7 +436,7 @@ ALARM_CACHE_TASK_TIME = Histogram(
     name="bkmonitor_alarm_cache_task_time",
     documentation="数据缓存任务执行耗时",
     labelnames=("bk_biz_id", "type", "exception"),
-    buckets=(10, 30, 60, INF),
+    buckets=(1, 3, 5, 10, 30, 60, 300, INF),
 )
 
 # mail report

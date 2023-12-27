@@ -4,10 +4,10 @@
   .metric-alias {
     width: 28px;
     height: 36px;
-    line-height: 36px;
-    text-align: center;
-    color: #3a84ff;
     font-size: 14px;
+    line-height: 36px;
+    color: #3a84ff;
+    text-align: center;
   }
 
   .icon-arrow-turn {
@@ -16,9 +16,9 @@
 
   .metric-main {
     padding: 8px;
-    border-radius: 2px;
-    background-color: #f5f7fa;
     overflow: hidden;
+    background-color: #f5f7fa;
+    border-radius: 2px;
 
     &:not(.is-expression) {
       flex: 1;
@@ -29,28 +29,28 @@
     }
 
     .metric-configs-list {
-      flex: 1;
       display: flex;
-      justify-content: space-between;
+      flex: 1;
       flex-wrap: wrap;
+      justify-content: space-between;
       margin-top: -16px;
     }
 
     .configs-item {
       display: flex;
-      white-space: nowrap;
-      margin-top: 16px;
       min-height: 20px;
+      margin-top: 16px;
       line-height: 20px;
+      white-space: nowrap;
 
       &:not(:last-child) {
         margin-right: 16px;
       }
 
       .configs-label {
-        color: #63656e;
-        font-weight: 700;
         margin-right: 8px;
+        font-weight: 700;
+        color: #63656e;
       }
 
       .configs-value {
@@ -68,11 +68,11 @@
         .groupby-item {
           display: inline-block;
           height: 22px;
-          line-height: 22px;
-          border: 1px solid rgba(151,155,165,.30);
-          border-radius: 2px;
           padding: 0 10px;
+          line-height: 22px;
           background: #fafbfd;
+          border: 1px solid rgba(151, 155, 165, .3);
+          border-radius: 2px;
 
           &:not(:last-child) {
             margin-right: 10px;
@@ -81,7 +81,6 @@
       }
 
       .configs-expression {
-
       }
     }
 
@@ -89,4 +88,9 @@
       flex: 1;
     }
   }
+}
+
+.monitor-metric-popover-theme {
+  padding: 8px;
+  line-height: 20px;
 }
