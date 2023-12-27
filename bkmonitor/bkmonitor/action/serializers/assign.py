@@ -93,7 +93,7 @@ class BaseAlertAssignRuleSlz(serializers.Serializer):
 class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
     bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
     assign_group_id = serializers.IntegerField(label="分派组ID", required=True)
-    user_type = serializers.ChoiceField(label="通知人员类型", choices=UserGroupType.CHOICE)
+    user_type = serializers.ChoiceField(label="通知人员类型", choices=UserGroupType.CHOICE, default=UserGroupType.MAIN)
 
     class Meta:
         model = AlertAssignRule
