@@ -202,10 +202,7 @@ export default {
         return;
       }
       // 缓存其余的宽度
-      const widthObj = this.visibleFields.reduce((pre, cur, index) => {
-        pre[index] = cur.width;
-        return pre;
-      }, {});
+      const widthObj = {};
       widthObj[index] = Math.ceil(newWidth);
 
       let columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));

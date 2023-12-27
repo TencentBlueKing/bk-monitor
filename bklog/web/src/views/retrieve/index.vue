@@ -1350,7 +1350,7 @@ export default {
         // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
         if (columnObj?.[bizId] && columnObj[bizId].indexsetIds?.includes(indexId)) return;
 
-        if (this.tableData.list.length && this.visibleFields.length) {
+        if (this.tableData?.list.length && this.visibleFields.length) {
           this.visibleFields.forEach((field) => {
             field.width = calculateTableColsWidth(field, this.tableData.list);
           });

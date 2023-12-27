@@ -280,9 +280,7 @@ export default {
           await this.submitFieldsSet(this.currentClickConfigID);
         }
         this.$store.commit('updateClearTableWidth', 1);
-        // 判断当前页, 如果是排序时 不更新字段
-        const isRequestFields = this.activeFieldTab !== 'sort';
-        this.$emit('confirm', this.shadowVisible, this.showFieldAlias, isRequestFields);
+        this.$emit('confirm', this.shadowVisible, this.showFieldAlias, true);
       } catch (error) {
         console.warn(error);
       } finally {
