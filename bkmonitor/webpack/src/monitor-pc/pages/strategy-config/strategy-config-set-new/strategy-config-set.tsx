@@ -910,6 +910,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     this.loading = true;
     this.strategyId = 0;
+    this.editAllowed = true;
     const promiseList = [];
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
