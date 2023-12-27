@@ -30,8 +30,8 @@ from apm.core.deepflow.constants import (
     L7_PROTOCOL_POSTGRE,
     L7_PROTOCOL_REDIS,
 )
-from apm_web.constants import EbpfTapSideType, EbpfSignalSourceType
-from constants.apm import SpanKind
+from apm_web.constants import EbpfSignalSourceType, EbpfTapSideType
+from constants.apm import EbpfQueryType, SpanKind
 
 logger = logging.getLogger("apm")
 
@@ -304,7 +304,6 @@ class EBPFHandler:
 
     @classmethod
     def signal_source_to_string(cls, signal_source: int):
-
         switcher = {
             0: EbpfSignalSourceType.SIGNAL_SOURCE_PACKET,
             1: EbpfSignalSourceType.SIGNAL_SOURCE_XFLOW,
@@ -359,20 +358,32 @@ class EBPFHandler:
         return ''.join(random.choice('0123456789abcdef') for _ in range(16))
 
     @classmethod
-    def l7_flow_log_to_resource_span(cls, item: dict):
+    def type_to_str(cls, tag_type):
+        switcher = {0: "Request", 1: "Response", 2: "Session"}
+        return switcher.get(tag_type, "Session")
 
+    @classmethod
+    def l7_flow_log_to_resource_span(cls, item: dict):
         span = Span()
         span_attrs = span.attributes
         span_resource = span.resource
         status = span.status
         span.trace_id = item.get("trace_id")
-        signal_source = cls.signal_source_to_string(item.get("signal_source"))
+        span.start_time = item.get("start_time_us")
+        span.end_time = item.get("end_time_us")
+        signal_source = item.get("Enum(signal_source)")
+        if not signal_source:
+            signal_source = cls.signal_source_to_string(item.get("signal_source"))
 
         # 将ebpf的span_id作为parent_span_id，都挂到上一层应用span下
         # 自身的span_id则重新生成
         span_id = item.get("span_id")
         parent_span_id = item.get("parent_span_id")
-        if signal_source == EbpfSignalSourceType.SIGNAL_SOURCE_OTEL:
+        if item.get("query_type") == EbpfQueryType.EBPF_ID:
+            # 如果是通过 ebpf_id 查询出来的数据, 保留父子关系
+            span.parent_span_id = parent_span_id
+            span.span_id = span_id
+        elif signal_source == EbpfSignalSourceType.SIGNAL_SOURCE_OTEL:
             # 如果是OTEL应用层的span，保留父子关系
             span.parent_span_id = parent_span_id
             span.span_id = span_id
@@ -380,10 +391,10 @@ class EBPFHandler:
             span.parent_span_id = span_id
             span.span_id = cls.new_span_id()
 
-        if item.get("start_time"):
+        if not span.start_time and item.get("start_time"):
             span.start_time = cls.str_time_to_unit_time(item.get("start_time"))
 
-        if item.get("end_time"):
+        if not span.end_time and item.get("end_time"):
             span.end_time = cls.str_time_to_unit_time(item.get("end_time"))
 
         if item.get("kind"):
@@ -521,7 +532,10 @@ class EBPFHandler:
         status["message"] = cls.response_status_to_span_status_message(item.get("response_status"))
 
         cls.put_value_map(span_attrs, "df.span.endpoint", item.get("endpoint"))
-        cls.put_value_map(span_attrs, "df.span.type", item.get("Enum(type)"))
+        if item.get("Enum(type)"):
+            cls.put_value_map(span_attrs, "df.span.type", item.get("Enum(type)"))
+        elif item.get("type"):
+            cls.put_value_map(span_attrs, "df.span.type", cls.type_to_str(item.get("type")))
 
         # 数据补充
         if not span_resource.get("service.name"):

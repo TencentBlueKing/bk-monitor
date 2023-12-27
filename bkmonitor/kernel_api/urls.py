@@ -112,6 +112,7 @@ urlpatterns = [
     url(r"^o/bk_monitorv3/query-api/rest/v2/", include(router.urls)),
     url(r"^query-api/o/bk_monitorv3/rest/v2/", include(router.urls)),
     url(r"^apm_api/v1/", include("apm.urls")),
+    url(r"^apm_api/v1/", include("apm_ebpf.urls")),
 ]
 
 
