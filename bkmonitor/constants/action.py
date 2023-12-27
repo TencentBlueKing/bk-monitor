@@ -352,6 +352,7 @@ VARIABLES = [
             },
             {"name": "content.ack_operators", "desc": _lazy("确认人"), "example": "admin"},
             {"name": "content.ack_reason", "desc": _lazy("确认原因"), "example": "Process Later"},
+            {"name": "content.receivers", "desc": _lazy("通知人"), "example": "lisa,tony"},
         ],
     },
     {
@@ -427,6 +428,16 @@ VARIABLES = [
                 "name": "alarm.recommended_metrics",
                 "desc": _lazy("关联指标"),
                 "example": "0 个指标,0 个维度",
+            },
+            {
+                "name": "alarm.assignee",
+                "desc": _lazy("通知人"),
+                "example": ["lisa", "tony"],
+            },
+            {
+                "name": "alarm.appointee",
+                "desc": _lazy("负责人"),
+                "example": ["lisa", "tony"],
             },
         ],
     },

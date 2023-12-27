@@ -61,6 +61,7 @@ class DefaultContent(BaseContextObject):
         "assign_detail",
         "anomaly_dimensions",
         "recommended_metrics",
+        "receivers",
     )
 
     def __getattribute__(self, item):
@@ -160,10 +161,27 @@ class DefaultContent(BaseContextObject):
     # 被分派人
     @cached_property
     def appointees(self):
-        all_appointees = getattr(self.parent.alert, "appointees", None)
-        if isinstance(all_appointees, list):
-            return ",".join(all_appointees)
-        return all_appointees
+        """
+        负责人信息
+        """
+        if not self.parent.alert:
+            return None
+
+        if not self.parent.alert.appointee:
+            return None
+        return ",".join(self.parent.alert.appointee)
+
+    @cached_property
+    def receivers(self):
+        """
+        历史负责人 + 知会人信息
+        """
+        if not self.parent.alert:
+            return None
+
+        if not self.parent.alert.assignee:
+            return None
+        return ",".join(self.parent.alert.assignee)
 
     # 分派原因
     @cached_property
@@ -334,6 +352,7 @@ class DimensionCollectContent(DefaultContent):
         "assign_detail": defaultdict(lambda: _lazy("分派详情")),
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
+        "receivers": defaultdict(lambda: _lazy("通知人")),
     }
 
     # 短信
@@ -469,6 +488,7 @@ class MultiStrategyCollectContent(DefaultContent):
         "assign_detail": defaultdict(lambda: _lazy("分派详情")),
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
+        "receivers": defaultdict(lambda: _lazy("通知人")),
     }
 
     # 微信

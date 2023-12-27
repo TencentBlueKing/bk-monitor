@@ -712,6 +712,24 @@ class Alarm(BaseContextObject):
         return ",".join(self.parent.alert.assignee)
 
     @cached_property
+    def assignee(self):
+        """
+        通知人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.assignee or []
+
+    @cached_property
+    def appointee(self):
+        """
+        负责人列表
+        """
+        if not self.parent.alert:
+            return []
+        return self.parent.alert.appointee or []
+
+    @cached_property
     def ack_operator(self):
         if not self.parent.alert:
             return ""
