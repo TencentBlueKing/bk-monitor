@@ -712,7 +712,7 @@ class Alarm(BaseContextObject):
         return ",".join(self.parent.alert.assignee)
 
     @cached_property
-    def assignee(self):
+    def receivers(self):
         """
         通知人列表
         """
@@ -721,7 +721,7 @@ class Alarm(BaseContextObject):
         return self.parent.alert.assignee or []
 
     @cached_property
-    def appointee(self):
+    def appointees(self):
         """
         负责人列表
         """

@@ -164,24 +164,18 @@ class DefaultContent(BaseContextObject):
         """
         负责人信息
         """
-        if not self.parent.alert:
-            return None
-
-        if not self.parent.alert.appointee:
-            return None
-        return ",".join(self.parent.alert.appointee)
+        if self.parent.alarm.appointees:
+            return ",".join(self.parent.alarm.appointees)
+        return None
 
     @cached_property
     def receivers(self):
         """
         历史负责人 + 知会人信息
         """
-        if not self.parent.alert:
-            return None
-
-        if not self.parent.alert.assignee:
-            return None
-        return ",".join(self.parent.alert.assignee)
+        if self.parent.alarm.receivers:
+            return ",".join(self.parent.alarm.receivers)
+        return None
 
     # 分派原因
     @cached_property
@@ -344,7 +338,7 @@ class DimensionCollectContent(DefaultContent):
         "detail": defaultdict(lambda: _lazy("详情"), {"sms": _lazy("告警ID")}),
         "current_value": defaultdict(lambda: _lazy("当前值")),
         "related_info": defaultdict(lambda: _lazy("关联信息")),
-        "appointees": defaultdict(lambda: _lazy("被分派人")),
+        "appointees": defaultdict(lambda: _lazy("负责人")),
         "assign_reason": defaultdict(lambda: _lazy("分派原因")),
         "ack_reason": defaultdict(lambda: _lazy("确认原因")),
         "ack_operators": defaultdict(lambda: _lazy("确认人")),
@@ -480,7 +474,7 @@ class MultiStrategyCollectContent(DefaultContent):
         "detail": defaultdict(lambda: _lazy("详情"), {"sms": _lazy("告警ID"), "markdown": ""}),
         "current_value": defaultdict(lambda: _lazy("当前值")),
         "related_info": defaultdict(lambda: _lazy("关联信息")),
-        "appointees": defaultdict(lambda: _lazy("被分派人")),
+        "appointees": defaultdict(lambda: _lazy("负责人")),
         "assign_reason": defaultdict(lambda: _lazy("分派原因")),
         "ack_reason": defaultdict(lambda: _lazy("确认原因")),
         "ack_operators": defaultdict(lambda: _lazy("确认人")),

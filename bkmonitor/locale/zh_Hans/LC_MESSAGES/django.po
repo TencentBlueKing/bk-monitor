@@ -207,9 +207,6 @@ msgstr "当前值"
 msgid "关联信息"
 msgstr "关联信息"
 
-msgid "日志关联信息"
-msgstr "日志关联信息"
-
 msgid "被分派人"
 msgstr "被分派人"
 

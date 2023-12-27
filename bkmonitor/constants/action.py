@@ -430,14 +430,14 @@ VARIABLES = [
                 "example": "0 个指标,0 个维度",
             },
             {
-                "name": "alarm.assignee",
+                "name": "alarm.receivers",
                 "desc": _lazy("通知人"),
                 "example": ["lisa", "tony"],
             },
             {
-                "name": "alarm.appointee",
+                "name": "alarm.appointees",
                 "desc": _lazy("负责人"),
-                "example": ["lisa", "tony"],
+                "example": ["admin", "leader"],
             },
         ],
     },
