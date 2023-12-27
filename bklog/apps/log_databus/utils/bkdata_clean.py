@@ -99,7 +99,7 @@ class BKDataCleanUtils:
         index_set_dict = {}
         for insert_obj in insert_objs:
             # 如果已经存在，就不创建
-            if LogIndexSetData.objects.fiiter(result_table_id=insert_obj["result_table_id"]).exists():
+            if LogIndexSetData.objects.filter(result_table_id=insert_obj["result_table_id"]).exists():
                 continue
             index_set = IndexSetHandler.create(
                 index_set_name=insert_obj["result_table_name"],
