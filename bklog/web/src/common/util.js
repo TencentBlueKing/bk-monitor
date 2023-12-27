@@ -905,6 +905,7 @@ export const calculateTableColsWidth = (field, list) => {
               - parseTableRowData(a, field.field_name, field.field_type).length;
   });
   if (firstLoadList[0]) {
+    if (['ip', 'serverIp'].includes(field.field_name)) return 124;
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')

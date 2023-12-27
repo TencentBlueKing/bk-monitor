@@ -29,8 +29,6 @@
       :show-header="false"
       :outer-border="false"
       @row-click="tableRowClick"
-      @row-mouse-enter="handleMouseEnter"
-      @row-mouse-leave="handleMouseLeave"
       @header-dragend="handleHeaderDragend">
       <!-- 展开详情 -->
       <bk-table-column
@@ -90,14 +88,14 @@
         align="right"
         fixed="right"
         :label="$t('操作')"
-        :width="84"
+        :width="getOperatorToolsWidth"
         :resizable="false">
         <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
           <operator-tools
             :index="$index"
             log-type="origin"
-            :cur-hover-index="curHoverIndex"
+            :row-data="row"
             :operator-config="operatorConfig"
             :handle-click="(event) => handleClickTools(event, row, operatorConfig)" />
         </template>

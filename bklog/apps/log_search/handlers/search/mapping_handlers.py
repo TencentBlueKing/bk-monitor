@@ -219,6 +219,7 @@ class MappingHandlers(object):
                 "es_doc_values": field.get("es_doc_values", False),
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
+                "is_built_in": field["field_name"].lower() in built_in_fields,
             }
             for field in fields_result
         ]
