@@ -112,7 +112,7 @@ export default class RotationDetail extends tsc<IProps> {
   }
 
   handleToEdit() {
-    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation-edit/${this.detailData.id}`;
+    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation/edit/${this.detailData.id}`;
     window.open(url);
   }
 

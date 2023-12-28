@@ -32,12 +32,12 @@ export default [
     component: () => import(/* webpackChunkName: "inquire" */ '../../pages/rotation/rotation')
   },
   {
-    path: '/rotation-add',
+    path: '/rotation/add',
     name: 'rotation-add',
     component: () => import(/* webpackChunkName: "inquire" */ '../../pages/rotation/rotation-config')
   },
   {
-    path: '/rotation-edit/:id',
+    path: '/rotation/edit/:id',
     name: 'rotation-edit',
     component: () => import(/* webpackChunkName: "inquire" */ '../../pages/rotation/rotation-config')
   }

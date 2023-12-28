@@ -269,14 +269,12 @@ export default class RotationConfig extends tsc<IProps> {
     return dutyNoticeConfigToParams(this.noticeConfig);
   }
 
-  validate() {
-    return new Promise(async (resolve, _reject) => {
-      if (!this.dutyList.length) {
-        this.errMsg = this.$t('请选择值班规则') as string;
-      }
-      const noticeValidate = await this.noticeConfigRef.validate();
-      resolve(!this.errMsg && noticeValidate);
-    });
+  async validate() {
+    if (!this.dutyList.length) {
+      this.errMsg = this.$t('请选择值班规则') as string;
+    }
+    const noticeValidate = await this.noticeConfigRef.validate();
+    return !this.errMsg && noticeValidate;
   }
 
   /**
@@ -405,7 +403,7 @@ export default class RotationConfig extends tsc<IProps> {
    * @description 跳转到新增轮值页
    */
   handleToAddRotation() {
-    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation-add`;
+    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation/add`;
     window.open(url);
   }
   /**
@@ -413,7 +411,7 @@ export default class RotationConfig extends tsc<IProps> {
    * @param item
    */
   handleToEditRotation(item) {
-    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation-edit/${item.id}`;
+    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation/edit/${item.id}`;
     this.curToEditDutyId = item.id;
     window.open(url);
   }
@@ -487,10 +485,10 @@ export default class RotationConfig extends tsc<IProps> {
   /**
    * @description 监听切换到当前浏览器标签页
    */
-  async handleDocumentvisibilitychange() {
+  handleDocumentvisibilitychange() {
     if (!document.hidden) {
       if (!!this.curToEditDutyId) {
-        await this.handleRefresh().catch(() => []);
+        this.handleRefresh().catch(() => []);
         // this.curToEditDutyId = 0;
       }
     }
