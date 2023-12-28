@@ -374,23 +374,6 @@ export default class App extends tsc<{}> {
    */
   handleBeforeNavChange(newId: string, oldId: string) {
     this.handleHeaderSettingShowChange(false);
-    // if (
-    //   [
-    //     'strategy-config-add',
-    //     'strategy-config-edit',
-    //     'strategy-config-target',
-    //     'alarm-shield-add',
-    //     'alarm-shield-edit',
-    //     'plugin-add',
-    //     'plugin-edit'
-    //   ].includes(this.$route.name)
-    // ) {
-    //   // if (newId !== oldId) {
-    //   //   this.$router.push({
-    //   //     name: newId
-    //   //   });
-    //   // }
-    // }
     if (changeNoticeRouteList.includes(this.$route.name)) {
       if (newId !== oldId) {
         this.$router.push({

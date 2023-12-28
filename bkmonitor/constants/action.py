@@ -334,6 +334,16 @@ VARIABLES = [
             {"name": "content.sms_forced_related_info", "desc": _lazy("关联信息(短信强制发送)"), "example": ""},
             {"name": "content.anomaly_dimensions", "desc": _lazy("维度下钻"), "example": ""},
             {"name": "content.recommended_metrics", "desc": _lazy("关联指标"), "example": ""},
+            {"name": "content.appointees", "desc": _lazy("负责人"), "example": "admin,leader"},
+            {"name": "content.assign_reason", "desc": _lazy("分派原因"), "example": "system problem"},
+            {
+                "name": "content.assign_detail",
+                "desc": _lazy("分派详情"),
+                "example": "http://www.bk.com/?bizId=2#/alarm-dispatch?group_id=1",
+            },
+            {"name": "content.ack_operators", "desc": _lazy("确认人"), "example": "admin"},
+            {"name": "content.ack_reason", "desc": _lazy("确认原因"), "example": "Process Later"},
+            {"name": "content.receivers", "desc": _lazy("通知人"), "example": "lisa,tony"},
         ],
     },
     {
@@ -369,13 +379,29 @@ VARIABLES = [
             {
                 "name": "alarm.detail_url",
                 "desc": _lazy("告警详情链接"),
-                "example": _lazy("http://paas.blueking.com/o/bk_monitorv3/?bizId=1&actionId=2#event-center"),
+                "example": "http://paas.blueking.com/o/bk_monitorv3/?bizId=1&actionId=2#event-center",
             },
             {"name": "alarm.related_info", "desc": _lazy("关联信息"), "example": _lazy("集群(公共组件) 模块(consul)")},
             {
                 "name": "alarm.callback_message",
                 "desc": _lazy("回调数据"),
                 "example": _lazy(json.dumps({"alarm": "json文本格式"})),
+            },
+            {
+                "name": "alarm.log_related_info",
+                "desc": _lazy("日志关联信息"),
+                "example": "ERROR 25854 metadata space_table_id_redis.py[330] "
+                "space_type: bkci, space_id:_evanxu not found table_id and data_id...",
+            },
+            {
+                "name": "alarm.topo_related_info",
+                "desc": _lazy("TOPO关联信息"),
+                "example": _lazy("集群(公共组件) 模块(consul)"),
+            },
+            {
+                "name": "alarm.alert_info",
+                "desc": _lazy("回调数据【new】"),
+                "example": _lazy(json.dumps({"alarm": "the new version content of webhook"})),
             },
             {
                 "name": "alarm.bkm_info",
@@ -393,6 +419,16 @@ VARIABLES = [
                 "name": "alarm.recommended_metrics",
                 "desc": _lazy("关联指标"),
                 "example": "0 个指标,0 个维度",
+            },
+            {
+                "name": "alarm.receivers",
+                "desc": _lazy("通知人"),
+                "example": ["lisa", "tony"],
+            },
+            {
+                "name": "alarm.appointees",
+                "desc": _lazy("负责人"),
+                "example": ["admin", "leader"],
             },
         ],
     },
@@ -427,7 +463,6 @@ VARIABLES = [
             {"name": "action_instance.operate_target_string", "desc": _lazy("执行对象"), "example": "127.0.0.1"},
             {"name": "action_instance.bk_biz_id", "desc": _lazy("业务ID"), "example": "2"},
             {"name": "action_instance.start_time", "desc": _lazy("开始时间"), "example": "1970-08-01 10:00:00+08:00"},
-            # {"name": "action_instance.end_time", "desc": _lazy("结束时间"), "example": "1970-08-01 10:00:00+08:00"},
             {"name": "action_instance.duration", "desc": _lazy("执行耗时(秒)"), "example": "130"},
             {"name": "action_instance.duration_string", "desc": _lazy("执行耗时字符串"), "example": "2m 10s"},
             {"name": "action_instance.status_display", "desc": _lazy("执行状态"), "example": "执行中"},

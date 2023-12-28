@@ -313,16 +313,16 @@ export default class DashboardPanels extends Vue {
   @Inject('authorityMap') authorityMap;
   @InjectReactive('downSampleRange') downSampleRange;
   @InjectReactive('readonly') readonly;
-  private activeName = [];
-  private groupList = [];
-  private collectList = [];
-  private collectShow = false;
-  private totalCount = 0;
-  private isSingleChart = false;
-  private showViewDetail = false;
-  private viewQueryConfig = {};
-  private errorMsg = '';
-  private onlyChartHeight = 210;
+  activeName = [];
+  groupList = [];
+  collectList = [];
+  collectShow = false;
+  totalCount = 0;
+  isSingleChart = false;
+  showViewDetail = false;
+  viewQueryConfig = {};
+  errorMsg = '';
+  onlyChartHeight = 210;
   get chartOptions() {
     return deepMerge(
       {
@@ -877,9 +877,14 @@ export default class DashboardPanels extends Vue {
       display: flex;
       margin-right: 10px;
       margin-bottom: 10px;
-      border: 0;
+      border: 2px solid transparent;
       border-radius: 2px;
       box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+
+      &.scroll-in {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-color: #3a84ff !important;
+      }
 
       &.has-child {
         padding-right: 0;
