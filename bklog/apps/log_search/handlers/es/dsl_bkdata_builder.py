@@ -25,8 +25,8 @@ import time
 from apps.log_search.constants import CONTEXT_GSE_INDEX_SIZE
 from apps.log_search.handlers.es.bk_mock_body import (
     BODY_DATA_FOR_CONTEXT,
-    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG,
     BODY_DATA_FOR_CONTEXT_SCENARIO_ES,
+    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG,
 )
 
 
@@ -237,11 +237,10 @@ class DslCreateSearchContextBodyScenarioLog(object):
         return self._body
 
 
-class DslCreateSearchContextBodyScenarioES:
-
+class DslCreateSearchContextBodyCustomField:
     def __init__(self, **kwargs):
         """
-        第三方ES上下文查询构造请求参数
+        自定义字段上下文查询构造请求参数
         """
         size = kwargs.get("size")
         start = kwargs.get("start")
@@ -267,28 +266,10 @@ class DslCreateSearchContextBodyScenarioES:
 
         if order == "-":
             order_use = "desc"
-            body_data["query"]["bool"]["filter"].append(
-                {
-                    "range": {
-                        range_field: {
-                            "gte": int(range_field_value),
-                            "lte": int(range_field_value) - CONTEXT_GSE_INDEX_SIZE
-                        }
-                    }
-                }
-            )
+            body_data["query"]["bool"]["filter"].append({"range": {range_field: {"lt": range_field_value}}})
 
         if order == "+":
-            body_data["query"]["bool"]["filter"].append(
-                {
-                    "range": {
-                        range_field: {
-                            "gte": int(range_field_value) + CONTEXT_GSE_INDEX_SIZE,
-                            "lte": int(range_field_value)
-                        }
-                    }
-                }
-            )
+            body_data["query"]["bool"]["filter"].append({"range": {range_field: {"gte": range_field_value}}})
 
         sort = []
         for item in sort_fields:
@@ -499,11 +480,10 @@ class DslCreateSearchTailBodyScenarioLog:
         return self._body
 
 
-class DslCreateSearchTailBodyScenarioES:
-
+class DslCreateSearchTailBodyCustomField:
     def __init__(self, **kwargs):
         """
-        第三方ES实时日志查询构造请求参数
+        自定义字段实时日志查询构造请求参数
         """
         start = kwargs.get("start")
         zero = kwargs.get("zero", False)
@@ -534,28 +514,11 @@ class DslCreateSearchTailBodyScenarioES:
             order_use = "desc"
 
             body_data["query"]["bool"]["filter"].append(
-                {
-                    "range": {
-                        time_field: {
-                            "gte": int(time.time() * 1000) - 300000,
-                            "lte": int(time.time() * 1000)
-                        }
-                    }
-                }
+                {"range": {time_field: {"gte": int(time.time() * 1000) - 300000}}}
             )
 
         elif range_field_value:
-
-            body_data["query"]["bool"]["filter"].append(
-                {
-                    "range": {
-                        range_field: {
-                            "lt": int(range_field_value) + CONTEXT_GSE_INDEX_SIZE,
-                            "gt": int(range_field_value)
-                        }
-                    }
-                }
-            )
+            body_data["query"]["bool"]["filter"].append({"range": {range_field: {"gt": range_field_value}}})
 
         sort = []
         for item in sort_fields:

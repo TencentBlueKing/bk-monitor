@@ -80,12 +80,12 @@ from apps.log_search.exceptions import (
     UnionSearchFieldsFailException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
+    DslCreateSearchContextBodyCustomField,
     DslCreateSearchContextBodyScenarioBkData,
     DslCreateSearchContextBodyScenarioLog,
-    DslCreateSearchContextBodyScenarioES,
+    DslCreateSearchTailBodyCustomField,
     DslCreateSearchTailBodyScenarioBkData,
     DslCreateSearchTailBodyScenarioLog,
-    DslCreateSearchTailBodyScenarioES,
 )
 from apps.log_search.handlers.es.indices_optimizer_context_tail import (
     IndicesOptimizerContextTail,
@@ -1108,11 +1108,12 @@ class SearchHandler(object):
                 raise BaseSearchSortListException(BaseSearchSortListException.MESSAGE.format(sort_item=field))
 
     def search_context(self):
-
         if self.scenario_id in [Scenario.BKDATA, Scenario.LOG] and (not self.gseindex and not self.gseIndex):
             raise BaseSearchGseIndexNoneException()
 
-        if self.scenario_id == Scenario.ES and not (self.index_set_obj.target_fields and self.index_set_obj.sort_fields):
+        if self.scenario_id == Scenario.ES and not (
+            self.index_set_obj.target_fields and self.index_set_obj.sort_fields
+        ):
             return {"total": 0, "took": 0, "list": []}
 
         context_indice = IndicesOptimizerContextTail(
@@ -1219,7 +1220,10 @@ class SearchHandler(object):
         return {"list": []}
 
     def _get_context_body(self, order):
-        if self.scenario_id == Scenario.BKDATA:
+        target_fields = self.index_set_obj.target_fields
+        sort_fields = self.index_set_obj.sort_fields
+
+        if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
             return DslCreateSearchContextBodyScenarioBkData(
                 size=self.size,
                 start=self.start,
@@ -1247,14 +1251,14 @@ class SearchHandler(object):
                 sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
             ).body
 
-        if self.scenario_id == Scenario.ES:
-            return DslCreateSearchContextBodyScenarioES(
+        if self.scenario_id in [Scenario.ES, Scenario.BKDATA]:
+            return DslCreateSearchContextBodyCustomField(
                 size=self.size,
                 start=self.start,
                 order=order,
                 target_fields=self.index_set_obj.target_fields,
                 sort_fields=self.index_set_obj.sort_fields,
-                params=self.search_dict
+                params=self.search_dict,
             ).body
 
         return {}
@@ -1267,7 +1271,11 @@ class SearchHandler(object):
             return {"total": 0, "took": 0, "list": []}
         else:
             body: Dict = {}
-            if self.scenario_id == Scenario.BKDATA:
+
+            target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
+            sort_fields = self.index_set_obj.target_fields if self.index_set_obj else []
+
+            if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
                 body: Dict = DslCreateSearchTailBodyScenarioBkData(
                     sort_list=["dtEventTimeStamp", "gseindex", "_iteration_idx"],
                     size=self.size,
@@ -1294,20 +1302,17 @@ class SearchHandler(object):
                     zero=self.zero,
                 ).body
 
-            if self.scenario_id == Scenario.ES:
-                target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
-                sort_fields = self.index_set_obj.target_fields if self.index_set_obj else []
-
+            if self.scenario_id in [Scenario.ES, Scenario.BKDATA]:
                 if not target_fields or not sort_fields:
                     return {"total": 0, "took": 0, "list": []}
 
-                body: Dict = DslCreateSearchTailBodyScenarioES(
+                body: Dict = DslCreateSearchTailBodyCustomField(
                     start=self.start,
                     zero=self.zero,
                     time_field=self.time_field,
                     target_fields=target_fields,
                     sort_fields=sort_fields,
-                    params=self.search_dict
+                    params=self.search_dict,
                 ).body
 
             result = BkLogApi.dsl({"indices": tail_indice, "scenario_id": self.scenario_id, "body": body})
