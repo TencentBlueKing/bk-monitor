@@ -269,14 +269,12 @@ export default class RotationConfig extends tsc<IProps> {
     return dutyNoticeConfigToParams(this.noticeConfig);
   }
 
-  validate() {
-    return new Promise(async (resolve, _reject) => {
-      if (!this.dutyList.length) {
-        this.errMsg = this.$t('请选择值班规则') as string;
-      }
-      const noticeValidate = await this.noticeConfigRef.validate();
-      resolve(!this.errMsg && noticeValidate);
-    });
+  async validate() {
+    if (!this.dutyList.length) {
+      this.errMsg = this.$t('请选择值班规则') as string;
+    }
+    const noticeValidate = await this.noticeConfigRef.validate();
+    return !this.errMsg && noticeValidate;
   }
 
   /**
