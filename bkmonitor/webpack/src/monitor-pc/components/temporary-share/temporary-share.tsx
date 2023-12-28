@@ -133,7 +133,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   }
   setDefaultSettings() {
     const { from, to, timezone } = this.$route.query as Record<string, string>;
-    console.info(from, to, '-----------');
     this.querySettings = [
       {
         id: 'time',
@@ -143,7 +142,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
         timezone: timezone || window.timezone
       }
     ];
-    console.info(this.querySettings, from, to, '-----------');
   }
   // 通用api查询参数
   getShareTokenParams() {
@@ -451,7 +449,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
   }
   handleTableTimezoneChange(val: string, row) {
     row.timezone = val;
-    console.info('row', row, val);
     this.updateShareToken();
   }
   handleCanChange(v, row) {

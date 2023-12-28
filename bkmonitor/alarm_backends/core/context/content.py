@@ -61,6 +61,7 @@ class DefaultContent(BaseContextObject):
         "assign_detail",
         "anomaly_dimensions",
         "recommended_metrics",
+        "receivers",
     )
 
     def __getattribute__(self, item):
@@ -160,10 +161,21 @@ class DefaultContent(BaseContextObject):
     # 被分派人
     @cached_property
     def appointees(self):
-        all_appointees = getattr(self.parent, "appointees", None)
-        if isinstance(all_appointees, list):
-            return ",".join(all_appointees)
-        return all_appointees
+        """
+        负责人信息
+        """
+        if self.parent.alarm.appointees:
+            return ",".join(self.parent.alarm.appointees)
+        return None
+
+    @cached_property
+    def receivers(self):
+        """
+        历史负责人 + 知会人信息
+        """
+        if self.parent.alarm.receivers:
+            return ",".join(self.parent.alarm.receivers)
+        return None
 
     # 分派原因
     @cached_property
@@ -326,7 +338,7 @@ class DimensionCollectContent(DefaultContent):
         "detail": defaultdict(lambda: _lazy("详情"), {"sms": _lazy("告警ID")}),
         "current_value": defaultdict(lambda: _lazy("当前值")),
         "related_info": defaultdict(lambda: _lazy("关联信息")),
-        "appointees": defaultdict(lambda: _lazy("被分派人")),
+        "appointees": defaultdict(lambda: _lazy("负责人")),
         "assign_reason": defaultdict(lambda: _lazy("分派原因")),
         "ack_reason": defaultdict(lambda: _lazy("确认原因")),
         "ack_operators": defaultdict(lambda: _lazy("确认人")),
@@ -334,6 +346,7 @@ class DimensionCollectContent(DefaultContent):
         "assign_detail": defaultdict(lambda: _lazy("分派详情")),
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
+        "receivers": defaultdict(lambda: _lazy("通知人")),
     }
 
     # 短信
@@ -461,7 +474,7 @@ class MultiStrategyCollectContent(DefaultContent):
         "detail": defaultdict(lambda: _lazy("详情"), {"sms": _lazy("告警ID"), "markdown": ""}),
         "current_value": defaultdict(lambda: _lazy("当前值")),
         "related_info": defaultdict(lambda: _lazy("关联信息")),
-        "appointees": defaultdict(lambda: _lazy("被分派人")),
+        "appointees": defaultdict(lambda: _lazy("负责人")),
         "assign_reason": defaultdict(lambda: _lazy("分派原因")),
         "ack_reason": defaultdict(lambda: _lazy("确认原因")),
         "ack_operators": defaultdict(lambda: _lazy("确认人")),
@@ -469,6 +482,7 @@ class MultiStrategyCollectContent(DefaultContent):
         "assign_detail": defaultdict(lambda: _lazy("分派详情")),
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
+        "receivers": defaultdict(lambda: _lazy("通知人")),
     }
 
     # 微信

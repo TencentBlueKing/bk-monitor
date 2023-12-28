@@ -472,6 +472,7 @@ export default {
           this.fetchPageData();
         }
         this.resetFavoriteValue();
+        this.$store.commit('updateUnionIndexList', []);
         this.$refs.searchCompRef?.clearAllCondition();
       },
       immediate: true,
@@ -1652,11 +1653,11 @@ export default {
         });
     },
     initToolTipsMessage(config) {
-      const { contextAndRealtime, bkmonitor } = config;
+      const { contextAndRealtime, bcsWebConsole } = config;
       return {
-        monitorWeb: bkmonitor.is_active ? this.$t('监控告警') : bkmonitor.extra?.reason,
-        realTimeLog: contextAndRealtime.is_active ? this.$t('实时日志') : contextAndRealtime.extra?.reason,
-        contextLog: contextAndRealtime.is_active ? this.$t('上下文') : contextAndRealtime.extra?.reason,
+        webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
+        realTimeLog: contextAndRealtime.is_active ? this.$t('实时日志') : contextAndRealtime?.extra?.reason,
+        contextLog: contextAndRealtime.is_active ? this.$t('上下文') : contextAndRealtime?.extra?.reason,
       };
     },
     // 检索头部点击编辑收藏

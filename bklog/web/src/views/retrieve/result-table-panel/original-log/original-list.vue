@@ -29,8 +29,6 @@
       :show-header="false"
       :outer-border="false"
       @row-click="tableRowClick"
-      @row-mouse-enter="handleMouseEnter"
-      @row-mouse-leave="handleMouseLeave"
       @header-dragend="handleHeaderDragend">
       <!-- 展开详情 -->
       <bk-table-column
@@ -58,15 +56,6 @@
             </span>
           </template>
         </bk-table-column>
-        <!-- <template v-if="operatorConfig.isShowSourceField">
-          <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`" width="130">
-            <template slot-scope="{ row }">
-              <span class="str-content origin-str">
-                {{ getTableColumnContent(row, visibleFields[0]) }}
-              </span>
-            </template>
-          </bk-table-column>
-        </template> -->
         <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
@@ -92,6 +81,15 @@
             </div>
           </template>
         </bk-table-column>
+        <template v-if="operatorConfig.isShowSourceField">
+          <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`" width="180">
+            <template slot-scope="{ row }">
+              <span class="str-content origin-str">
+                {{ getTableColumnContent(row, visibleFields[0]) }}
+              </span>
+            </template>
+          </bk-table-column>
+        </template>
       </template>
       <!-- 操作按钮 -->
       <bk-table-column
@@ -99,14 +97,14 @@
         align="right"
         fixed="right"
         :label="$t('操作')"
-        :width="84"
+        :width="getOperatorToolsWidth"
         :resizable="false">
         <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
           <operator-tools
             :index="$index"
             log-type="origin"
-            :cur-hover-index="curHoverIndex"
+            :row-data="row"
             :operator-config="operatorConfig"
             :handle-click="(event) => handleClickTools(event, row, operatorConfig)" />
         </template>
@@ -153,6 +151,10 @@ export default {
     scrollContent() {
       return document.querySelector('.result-scroll-container');
     },
+  },
+  activated() {
+    // keep-alive之后再进入到原始日志时需要重新布局表格
+    this.$refs.resultTable.doLayout();
   },
 };
 </script>
