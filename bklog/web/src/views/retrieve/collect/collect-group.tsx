@@ -25,6 +25,7 @@ import { Component, Prop, Inject } from 'vue-property-decorator';
 import { utcFormatDate } from '../../../common/util';
 import GroupDropdown from './component/group-dropdown';
 import { IGroupItem, IFavoriteItem } from './collect-index';
+import { Popover } from 'bk-magic-vue';
 import './collect-group.scss';
 
 interface ICollectProps {
