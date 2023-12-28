@@ -120,6 +120,10 @@ export default {
     };
   },
   computed: {
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
     isActiveLog() {
       return this.operatorConfig?.contextAndRealtime.is_active;
     },
@@ -159,10 +163,6 @@ export default {
     isShowSourceField() {
       return this.operatorConfig?.isShowSourceField;
     },
-    ...mapGetters({
-      unionIndexList: 'unionIndexList',
-      isUnionSearch: 'isUnionSearch',
-    }),
   },
   methods: {
     handleCheckClick(clickType, isActive = false) {
