@@ -405,7 +405,7 @@ export default class RotationConfig extends tsc<IProps> {
    * @description 跳转到新增轮值页
    */
   handleToAddRotation() {
-    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation-add`;
+    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation/add`;
     window.open(url);
   }
   /**
@@ -413,7 +413,7 @@ export default class RotationConfig extends tsc<IProps> {
    * @param item
    */
   handleToEditRotation(item) {
-    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation-edit/${item.id}`;
+    const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/rotation/edit/${item.id}`;
     this.curToEditDutyId = item.id;
     window.open(url);
   }

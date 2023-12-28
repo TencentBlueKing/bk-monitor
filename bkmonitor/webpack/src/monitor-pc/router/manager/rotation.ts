@@ -51,7 +51,7 @@ export default [
     }
   },
   {
-    path: '/trace/rotation-add',
+    path: '/trace/rotation/add',
     name: 'rotation-add',
     components: {
       noCache: Rotation
@@ -71,7 +71,7 @@ export default [
     }
   },
   {
-    path: '/trace/rotation-edit/:id',
+    path: '/trace/rotation/edit/:id',
     name: 'rotation-edit',
     components: {
       noCache: Rotation
