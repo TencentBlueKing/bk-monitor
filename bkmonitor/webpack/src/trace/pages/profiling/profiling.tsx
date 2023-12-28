@@ -30,63 +30,116 @@ import { useI18n } from 'vue-i18n';
 import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { monitorDrag } from '../../utils/drag-directive';
 
-import PageHeader, { ToolsFormData } from './components/page-header';
+import FavoriteList from './components/favorite-list';
+import PageHeader from './components/page-header';
+import { ToolsFormData } from './typings/page-header';
 
 import './profiling.scss';
 
 export default defineComponent({
   name: 'ProfilingPage',
+  directives: { monitorDrag },
   setup() {
     const { t } = useI18n();
-    const searchFormData = reactive({
-      autoQuery: true
-    });
-    const isShowFavorite = ref(false);
-    const isShowSearch = ref(true);
     const toolsFormData = ref<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefautTimezone(),
       refreshInterval: -1
     });
+    const favoriteState = reactive({
+      defaultWidth: 240,
+      width: 240,
+      isShow: false
+    });
+    const searchState = reactive({
+      isShow: true,
+      defaultWidth: 420,
+      width: 420,
+      autoQuery: true
+    });
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
       handleQueryScopeDebounce();
     }
-    function handleShowTypeChange(type: 'search' | 'favorite') {
-      if (type === 'search') isShowSearch.value = !isShowSearch.value;
-      else isShowFavorite.value = !isShowFavorite.value;
+    function handleShowTypeChange(type: 'search' | 'favorite', status: boolean) {
+      if (type === 'search') {
+        searchState.isShow = status;
+      } else {
+        favoriteState.isShow = status;
+      }
+    }
+    function handleWidthChange(type: 'search' | 'favorite', width: number) {
+      if (type === 'search') {
+        searchState.width = width;
+      } else {
+        favoriteState.width = width;
+      }
     }
 
     const handleQueryScopeDebounce = debounce(handleQuery, 300, false);
 
     function handleQuery(isBtnClick = false) {
-      if (!isBtnClick && !searchFormData.autoQuery) return;
+      if (!isBtnClick && !searchState.autoQuery) return;
     }
 
     return {
       t,
-      isShowFavorite,
-      isShowSearch,
+      favoriteState,
+      searchState,
       toolsFormData,
       handleToolFormDataChange,
-      handleShowTypeChange
+      handleShowTypeChange,
+      handleWidthChange
     };
   },
 
   render() {
     return (
       <div class='profiling-page'>
-        <PageHeader
-          v-model={this.toolsFormData}
-          isShowFavorite={this.isShowFavorite}
-          isShowSearch={this.isShowSearch}
-          onShowTypeChange={this.handleShowTypeChange}
-          onChange={this.handleToolFormDataChange}
-        ></PageHeader>
+        <div class='page-header'>
+          <PageHeader
+            v-model={this.toolsFormData}
+            isShowFavorite={this.favoriteState.isShow}
+            isShowSearch={this.searchState.isShow}
+            onShowTypeChange={this.handleShowTypeChange}
+            onChange={this.handleToolFormDataChange}
+          ></PageHeader>
+        </div>
         <div class='page-content'>
-          <div class='favorite-list-wrap'></div>
-          <div class='search-form-wrap'></div>
+          {this.favoriteState.isShow && (
+            <div
+              class='favorite-list-wrap'
+              v-monitor-drag={{
+                minWidth: 200,
+                maxWidth: 500,
+                defaultWidth: this.favoriteState.defaultWidth,
+                autoHidden: true,
+                theme: 'simple',
+                isShow: this.favoriteState.isShow,
+                onHidden: () => this.handleShowTypeChange('favorite', false),
+                onWidthChange: width => this.handleWidthChange('favorite', width)
+              }}
+            >
+              <FavoriteList></FavoriteList>
+            </div>
+          )}
+          {this.searchState.isShow && (
+            <div
+              class='search-form-wrap'
+              v-monitor-drag={{
+                minWidth: 200,
+                maxWidth: 800,
+                defaultWidth: this.searchState.defaultWidth,
+                autoHidden: true,
+                theme: 'simple',
+                isShow: this.searchState.isShow,
+                onHidden: () => this.handleShowTypeChange('search', false),
+                onWidthChange: width => this.handleWidthChange('search', width)
+              }}
+            ></div>
+          )}
           <div class='view-wrap'></div>
         </div>
       </div>

@@ -29,14 +29,9 @@ import { useI18n } from 'vue-i18n';
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
 import { DEFAULT_TIME_RANGE, TimeRangeType } from '../../../components/time-range/utils';
+import { ToolsFormData } from '../typings/page-header';
 
 import './page-header.scss';
-
-export interface ToolsFormData {
-  timeRange: TimeRangeType;
-  timezone: string;
-  refreshInterval: number;
-}
 
 export default defineComponent({
   name: 'PageHeader',
@@ -87,8 +82,8 @@ export default defineComponent({
       handleEmitData();
     }
 
-    function handleShowTypeChange(showType: 'search' | 'favorite') {
-      emit('showTypeChange', showType);
+    function handleShowTypeChange(showType: 'search' | 'favorite', status: boolean) {
+      emit('showTypeChange', showType, status);
     }
 
     function handleEmitData() {
@@ -133,7 +128,7 @@ export default defineComponent({
                         'light-icon': !this.isShowFavorite
                       }
                     ]}
-                    onClick={() => this.handleShowTypeChange('favorite')}
+                    onClick={() => this.handleShowTypeChange('favorite', !this.isShowFavorite)}
                   >
                     <span class='icon-monitor icon-mc-uncollect'></span>
                   </div>
@@ -144,7 +139,7 @@ export default defineComponent({
                       delay: 200
                     }}
                     class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
-                    onClick={() => this.handleShowTypeChange('search')}
+                    onClick={() => this.handleShowTypeChange('search', !this.isShowSearch)}
                   >
                     <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
                   </div>
