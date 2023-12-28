@@ -104,7 +104,7 @@
                 @setPopperInstance="setPopperInstance"
                 @modifyFields="modifyFields"
                 @confirm="confirmModifyFields"
-                @cancel="closeDropdown" />
+                @cancel="cancelModifyFields" />
             </div>
           </bk-popover>
         </div>
@@ -202,9 +202,14 @@ export default {
       this.closeDropdown();
       if (isUpdateSelectList) this.requestFiledConfig();
     },
+    cancelModifyFields() {
+      this.closeDropdown();
+      this.requestFiledConfig();
+    },
     /** 更新显示字段 */
     modifyFields(displayFieldNames, showFieldAlias) {
       this.$emit('fieldsUpdated', displayFieldNames, showFieldAlias);
+      this.$emit('shouldRetrieve');
     },
     closeDropdown() {
       this.showFieldsSetting = false;

@@ -54,7 +54,7 @@ class ErrorPredicate(AttributePredicate):
 
     @classmethod
     def predicate(cls, attribute_key, attribute_value):
-        if attribute_value == _("ERROR"):
+        if attribute_value == "ERROR":
             return True
         return False
 

@@ -39,7 +39,7 @@ import {
 import FingerSelectColumn from '../result-table-panel/log-clustering/components/finger-select-column.vue';
 import ManageInput from './component/manage-input';
 import $http from '../../../api';
-import { deepClone, random, formatDate } from '../../../common/util';
+import { deepClone, random, utcFormatDate } from '../../../common/util';
 import EmptyStatus from '@/components/empty-status';
 import './manage-group-dialog.scss';
 import jsCookie from 'js-cookie';
@@ -933,7 +933,7 @@ export default class GroupDialog extends tsc<IProps> {
               key={'column_update_time'}
               scopedSlots={{
                 default: ({ row }) => [
-                  <span class="overflow-tips" v-bk-overflow-tips>{formatDate(row.updated_at)}</span>,
+                  <span class="overflow-tips" v-bk-overflow-tips>{utcFormatDate(row.updated_at)}</span>,
                 ],
               }}
             ></TableColumn>

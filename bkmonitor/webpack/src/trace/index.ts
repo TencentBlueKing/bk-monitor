@@ -34,7 +34,7 @@ import { Message } from 'bkui-vue';
 import Api from '../monitor-api/api';
 import { setVue } from '../monitor-api/utils/index';
 import * as serviceWorker from '../monitor-common/service-worker/service-wroker';
-import { getUrlParam, setGlobalBizId } from '../monitor-common/utils';
+import { getUrlParam, mergeSpaceList, setGlobalBizId } from '../monitor-common/utils';
 
 import directives from './directive/index';
 import App from './pages/app';
@@ -71,6 +71,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       Object.keys(data).forEach(key => {
         window[key.toLocaleLowerCase()] = data[key];
       });
+      mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
       window.cc_biz_id = +window.bk_biz_id;
@@ -95,7 +96,9 @@ if (window.__POWERED_BY_BK_WEWEB__) {
             window[key.toLocaleLowerCase()] = data[key];
           });
         });
-      serviceWorker.register();
     })
-    .catch(e => console.error(e));
+    .catch(e => console.error(e))
+    .finally(() => {
+      serviceWorker.immediateRegister();
+    });
 }

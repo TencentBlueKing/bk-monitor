@@ -387,7 +387,7 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 // import { isCancel } from 'axios'
 import { debounce } from 'throttle-debounce';
 
@@ -646,6 +646,9 @@ export default {
   },
   activated() {
     this.isLeave = false;
+    setTimeout(() => {
+      !this.loading && this.initPageData();
+    }, 50);
   },
   deactivated() {
     this.isLeave = true;

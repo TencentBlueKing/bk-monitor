@@ -102,7 +102,6 @@ export default {
   data() {
     return {
       formatDate,
-      curHoverIndex: -1, // 当前鼠标hover行的索引
       cacheExpandStr: [], // 记录展开收起的行
       cacheOverFlowCol: [], // 记录超出四行高度的列
       tableRandomKey: '',
@@ -121,6 +120,9 @@ export default {
     }),
     showHandleOption() {
       return Boolean(this.visibleFields.length);
+    },
+    getOperatorToolsWidth() {
+      return this.operatorConfig?.bcsWebConsole.is_active ? '84' : '58';
     },
   },
   watch: {
@@ -198,13 +200,6 @@ export default {
       if (column.className && column.className.includes('original-str')) return;
       const ele = this.$refs.resultTable;
       ele.toggleRowExpansion(row);
-      this.curHoverIndex = -1;
-    },
-    handleMouseEnter(index) {
-      this.curHoverIndex = index;
-    },
-    handleMouseLeave() {
-      this.curHoverIndex = -1;
     },
     handleHeaderDragend(newWidth, oldWidth, { index }) {
       const { params: { indexId }, query: { bizId } } = this.$route;
@@ -212,10 +207,7 @@ export default {
         return;
       }
       // 缓存其余的宽度
-      const widthObj = this.visibleFields.reduce((pre, cur, index) => {
-        pre[index] = cur.width;
-        return pre;
-      }, {});
+      const widthObj = {};
       widthObj[index] = Math.ceil(newWidth);
 
       let columnObj = JSON.parse(localStorage.getItem('table_column_width_obj'));
