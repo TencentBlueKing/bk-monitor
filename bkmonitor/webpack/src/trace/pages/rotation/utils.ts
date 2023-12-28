@@ -126,6 +126,7 @@ export function validReplaceRotationData(data: ReplaceDataModel) {
       if (data.date.value.every(item => !item.workTime.length)) {
         return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
       }
+      break;
     }
     case RotationSelectTypeEnum.Weekly:
     case RotationSelectTypeEnum.Monthly: {
@@ -135,6 +136,7 @@ export function validReplaceRotationData(data: ReplaceDataModel) {
       if (data.date.workTimeType === 'datetime_range' && data.date.value.every(item => !item.workTime.length)) {
         return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
       }
+      break;
     }
   }
   if (data.date.value.some(date => validTimeOverlap(date.workTime)))
