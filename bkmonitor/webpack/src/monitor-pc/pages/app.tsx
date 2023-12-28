@@ -344,14 +344,14 @@ export default class App extends tsc<{}> {
   async handleMenuItemClick(item) {
     let hasRouteChange = this.$route.path !== item.path;
     const isMicroApp = microRouteNameList.includes(item.id);
-    const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
+    // const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
     // 屏蔽是微应用 需特殊处理
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;
     }
     if (hasRouteChange && !!item.href) {
       await this.$nextTick();
-      if (isMicroApp || !(this.$router as any).history.pending || isPeddingMicroApp) {
+      if (!(this.$router as any).history.pending) {
         const route = item.usePath ? { path: item.path } : { name: item.id };
         !item.noCache &&
           this.setUserStoreMenu({
@@ -359,11 +359,11 @@ export default class App extends tsc<{}> {
           });
         if (isMicroApp) {
           location.hash = item.href;
-          setTimeout(() => {
-            (this.$router as any).history.pending = null;
-          }, 2000);
         } else this.$router.push(route);
       }
+      setTimeout(() => {
+        (this.$router as any).history.pending = null;
+      }, 2000);
     }
   }
   /**
@@ -382,6 +382,7 @@ export default class App extends tsc<{}> {
       }
       return false;
     }
+    (this.$router as any).history.pending = null;
     return true;
   }
   // 切换业务

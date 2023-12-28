@@ -1,0 +1,85 @@
+.replace-table-wrap-content-component {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    border: 1px solid #dcdee5;
+  }
+
+  .flex {
+    display: flex;
+  }
+
+  .rotation-config-form-item + .rotation-config-form-item {
+    margin-top: 12px;
+  }
+
+  .form-item-label {
+    width: auto;
+    min-width: auto;
+  }
+
+  .form-item-content {
+    flex: 1;
+  }
+
+  .table-header {
+    background: #fafbfd;
+
+    .title-content {
+      width: 50%;
+      padding-left: 24px;
+      font-weight: normal;
+      line-height: 40px;
+      text-align: left;
+    }
+
+    .step2 {
+      align-items: center;
+    }
+
+    .step-text {
+      color: #ea3636;
+    }
+  }
+
+  .table-item {
+    position: relative;
+  }
+
+  .delete-btn {
+    position: absolute;
+    top: 2.5%;
+    right: -40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 95%;
+    font-size: 15px;
+    color: #ff5656;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+  }
+
+  .table-footer {
+    height: 40px;
+    background: #fff;
+    border: 1px solid #dcdee5;
+
+    .footer-content {
+      padding-left: 26.5px;
+    }
+
+    .add-icon {
+      margin-right: 10.5px;
+    }
+  }
+
+  .mr8 {
+    margin-right: 8px;
+  }
+}
