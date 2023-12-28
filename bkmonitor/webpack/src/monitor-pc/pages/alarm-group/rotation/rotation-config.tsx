@@ -487,10 +487,10 @@ export default class RotationConfig extends tsc<IProps> {
   /**
    * @description 监听切换到当前浏览器标签页
    */
-  async handleDocumentvisibilitychange() {
+  handleDocumentvisibilitychange() {
     if (!document.hidden) {
       if (!!this.curToEditDutyId) {
-        await this.handleRefresh().catch(() => []);
+        this.handleRefresh().catch(() => []);
         // this.curToEditDutyId = 0;
       }
     }
