@@ -163,11 +163,11 @@ class ApmFlow:
         self._finished_flow()
 
     def _finished_flow(self):
-        self._update_field("last_process_time", timezone.now())
+        self._update_field({"last_process_time": timezone.now()})
         if not self.flow.is_finished:
-            self._update_field("is_finished", True)
-            self._update_field("finished_time", timezone.now())
-            self._update_field("status", FlowStatus.SUCCESS.value)
+            self._update_field(
+                {"is_finished": True, "finished_time": timezone.now(), "status": FlowStatus.SUCCESS.value}
+            )
 
     @classmethod
     def _query_access_conf(cls, data_id):
@@ -236,7 +236,7 @@ class ApmFlow:
                 if self._is_diff(self.flow.deploy_config, params):
                     self.logger.info(f"datasource configuration updates!")
                     api.bkdata.update_deploy_plan(raw_data_id=self.flow.deploy_data_id, **params)
-                    self._update_field("deploy_config", params)
+                    self._update_field({"deploy_config": params})
                     self.logger.info(
                         f"datasource configuration updates successfully, will use: {self.flow.deploy_data_id}"
                     )
@@ -245,8 +245,7 @@ class ApmFlow:
             else:
                 self.logger.info("flow.deploy_data_id not found, start create")
                 raw_data_id = api.bkdata.access_deploy_plan(**params)["raw_data_id"]
-                self._update_field("deploy_config", params)
-                self._update_field("deploy_data_id", raw_data_id)
+                self._update_field({"deploy_config": params, "deploy_data_id": raw_data_id})
                 self.logger.info(
                     f"create deploy successfully, "
                     f"raw_data_id: {raw_data_id}(name: {self.deploy_name}) "
@@ -257,13 +256,11 @@ class ApmFlow:
 
     def _raise_exc(self, exception, status, stack=None):
         self.logger.exception(f"change status to {status}. error={exception}. stack={stack}")
-        self._update_field("status", status)
-        self._update_field("last_process_time", timezone.now())
+        self._update_field({"status": status, "last_process_time": timezone.now()})
         raise ValueError(exception)
 
-    def _update_field(self, field_name, field_value):
-        BkdataFlowConfig.objects.filter(id=self.flow.id).update(**{field_name: field_value})
-        self.flow.refresh_from_db()
+    def _update_field(self, field_params):
+        self.flow = BkdataFlowConfig.objects.update_or_create(id=self.flow.id, defaults=field_params)[0]
 
     def _config_cleans(self):
         """配置清洗"""
@@ -288,13 +285,17 @@ class ApmFlow:
                     self.logger.info(f"databus cleans configuration updates!")
                     api.bkdata.update_databus_cleans(processing_id=self.flow.databus_clean_id, **params)
                     self.logger.info(f"databus cleans configuration update successfully")
-                    self._update_field("databus_clean_config", params)
+                    self._update_field({"databus_clean_config": params})
             else:
                 result = api.bkdata.databus_cleans(**params)
                 self.logger.info(f"create databus cleans: {self.cleans_names} successfully, response: {result}")
-                self._update_field("databus_clean_config", params)
-                self._update_field("databus_clean_result_table_id", result["result_table_id"])
-                self._update_field("databus_clean_id", result["id"])
+                self._update_field(
+                    {
+                        "databus_clean_config": params,
+                        "databus_clean_result_table_id": result["result_table_id"],
+                        "databus_clean_id": result["id"],
+                    }
+                )
         except BKAPIError as e:
             self._raise_exc(f"create cleans failed: {e}", FlowStatus.CONFIG_CLEANS_FAILED.value, traceback.format_exc())
 
@@ -345,7 +346,7 @@ class ApmFlow:
         )
 
     def _auth_project(self):
-        self._update_field("project_id", self._BKBASE_PROJECT_ID)
+        self._update_field({"project_id": self._BKBASE_PROJECT_ID})
 
         if not check_has_permission(self._BKBASE_PROJECT_ID, self.flow.databus_clean_result_table_id):
             self.logger.info(
@@ -371,12 +372,11 @@ class ApmFlow:
         """配置&启动flow"""
 
         try:
-            #
             flow = self.flow_instance()
             flow.create_flow(project_id=self._BKBASE_PROJECT_ID)
             flow.start_flow()
             self.logger.info(f"start flow successfully, flow_id: {flow.data_flow.flow_id}")
-            self._update_field("flow_id", flow.data_flow.flow_id)
+            self._update_field({"flow_id": flow.data_flow.flow_id})
         except Exception as e:  # noqa
             self._raise_exc(
                 f"failed to start flow, error: {e}", FlowStatus.CONFIG_FLOW_FAILED.value, traceback.format_exc()
