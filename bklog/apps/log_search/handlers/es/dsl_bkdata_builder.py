@@ -25,7 +25,8 @@ import time
 from apps.log_search.constants import CONTEXT_GSE_INDEX_SIZE
 from apps.log_search.handlers.es.bk_mock_body import (
     BODY_DATA_FOR_CONTEXT,
-    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG, BODY_DATA_FOR_CONTEXT_SCENARIO_ES,
+    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG,
+    BODY_DATA_FOR_CONTEXT_SCENARIO_ES,
 )
 
 
