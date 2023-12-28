@@ -304,7 +304,7 @@ class SpanOptionValues(OptionValues):
     API = api.apm_api.query_span_option_values
 
     FIELDS = [
-        OptionValues.Field(id="span_name", source=OptionValues.Source.ES, label=_("Span Name")),
+        OptionValues.Field(id="span_name", source=OptionValues.Source.ES, label="Span Name"),
         OptionValues.Field(id="status.code", source=OptionValues.Source.METHOD, label=_("状态")),
         OptionValues.Field(id="kind", source=OptionValues.Source.METHOD, label=_("类型")),
         OptionValues.Field(id="resource.telemetry.sdk.version", source=OptionValues.Source.ES, label=_("版本")),

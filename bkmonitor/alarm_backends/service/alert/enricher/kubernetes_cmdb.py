@@ -195,7 +195,7 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                 {
                     "key": "ipv6",
                     "value": ipv6,
-                    "display_key": _("ipv6"),
+                    "display_key": "ipv6",
                     "display_value": ipv6,
                 }
             )
