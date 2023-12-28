@@ -26,6 +26,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
 import alarmShield from './modules/alarm-shield';
+import EmailSubscription from './modules/email-subscription';
 import homeRoutes from './modules/home';
 
 const router = createRouter({
@@ -36,6 +37,10 @@ const router = createRouter({
       path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
     })),
     ...alarmShield.map(item => ({
+      ...item,
+      path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
+    })),
+    ...EmailSubscription.map(item => ({
       ...item,
       path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/')
     })),

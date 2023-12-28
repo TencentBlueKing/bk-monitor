@@ -2,7 +2,7 @@
 
 /apidoc/
 /web/index-dev.html
-/web/package-lock.json
+# /web/package-lock.json
 /static/dist/
 /bin/
 /blueapps/
