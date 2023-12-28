@@ -26,34 +26,96 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { MetricDetail } from '../typings';
+
 import './aiops-monitor-metric-select.scss';
 
 interface IProps {
   value?: string[];
-  metrics?: any[];
+  metrics?: MetricDetail[];
 }
 
 @Component
 export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
-  @Prop({ type: Array, default: () => [] }) metrics: any[];
+  @Prop({ type: Array, default: () => [] }) metrics: MetricDetail[];
 
   localValue = [];
-  tags = [];
+  tags: MetricDetail[] = [];
+
+  showSelector = false;
+
+  showAll = false;
 
   @Watch('value', { immediate: true })
   handleWatchValue(value: string[]) {
     if (JSON.stringify(value) !== JSON.stringify(this.localValue)) {
       this.localValue = this.value;
+      this.handleGetMetricTag();
+    }
+  }
+  @Watch('metrics', { immediate: true })
+  handleWatchMetrics(value) {
+    if (value.length) {
+      this.handleGetMetricTag();
     }
   }
 
-  handleGetMetricTag() {}
+  /**
+   * @description 获取tag数据
+   */
+  handleGetMetricTag() {
+    const metricMap = new Map();
+    this.metrics.forEach(item => {
+      metricMap.set(item.metric_id, item);
+    });
+    const tags = [];
+    this.localValue.forEach(id => {
+      const metric = metricMap.get(id);
+      if (metric) {
+        tags.push(metric);
+      }
+    });
+    this.tags = tags;
+    this.$nextTick(() => {
+      this.getOverflowHideCount();
+    });
+  }
+
+  handleClick() {
+    this.showAll = !this.showAll;
+  }
+
+  /**
+   * @description 获取隐藏的数据
+   */
+  getOverflowHideCount() {
+    const tagsWrap = this.$el.querySelector('.tag-select-wrap');
+    const tagsEl = tagsWrap.querySelectorAll('.tag-item');
+    for (let i = 0; i < tagsEl.length; i++) {
+      const width = tagsEl[i].offsetWidth;
+      console.log(width, i);
+    }
+  }
 
   render() {
     return (
-      <span class='aiops-monitor-metric-select-component'>
-        <div class='tag-select-wrap'></div>
+      <span
+        class={['aiops-monitor-metric-select-component', { 'show-all': this.showAll }]}
+        onClick={this.handleClick}
+      >
+        <div class='tag-select-wrap'>
+          {this.tags.map(item => (
+            <div
+              key={item.metric_id}
+              class='tag-item'
+            >
+              <span>{item.name}</span>
+              <span class='icon-monitor icon-mc-close'></span>
+            </div>
+          ))}
+        </div>
+        <div class='icon-monitor icon-arrow-down'></div>
       </span>
     );
   }
