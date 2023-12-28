@@ -48,6 +48,7 @@ interface IProps {
   metricData?: NewMetricDetail[];
   defaultCheckedTarget?: any;
   readonly?: boolean;
+  isEdit?: boolean;
   onChange?: (sceneConfig: ISceneConfig) => void;
   onTargetTypeChange?: (type: string) => void;
   onTargetChange?: (value) => void;
@@ -62,6 +63,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   @Prop({ default: () => [], type: Array }) metricData: NewMetricDetail[];
   @Prop({ default: () => ({ target_detail: [] }), type: Object }) defaultCheckedTarget: any;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
+  @Prop({ type: Boolean, default: false }) isEdit: boolean;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
   @Ref('createForm') createForm: Form;
   @Ref('tagListRef') tagListRef: HTMLDivElement;
@@ -183,7 +185,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     }
   }
   /** 场景切换 */
-  handleScenSelected(value) {
+  handleScenSelected(value, isInitMetrics = true) {
     this.formModel.scene = value;
     this.scene = this.scenes.find(item => item.scene_id === this.formModel.scene);
     this.allMetrics =
@@ -192,7 +194,9 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
         ...item,
         metric: undefined
       })) || [];
-    this.metrics = (this.scene?.metrics || []).map(item => item.metric_id);
+    if (isInitMetrics) {
+      this.metrics = this.scene?.metrics?.map(item => item.metric_id) || [];
+    }
     this.$nextTick(() => {
       this.handleCalcShowOpenTag();
     });
@@ -217,12 +221,13 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     if (sceneId) {
       this.formModel.level = this.metricData[0].sceneConfig.algorithms[0].level;
       this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0].sensitivity;
+      this.metrics = this.metricData[0].sceneConfig.algorithms[0]?.config?.metrics?.map(item => item.metric_id) || [];
     }
     multivariateAnomalyScenes()
       .then(res => {
         this.scenes = res;
         if (sceneId) {
-          this.handleScenSelected(sceneId);
+          this.handleScenSelected(sceneId, false);
         } else if (this.$route.query?.scene_id) {
           this.handleScenSelected(this.$route.query.scene_id);
         }
@@ -323,7 +328,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                 value={this.formModel.scene}
                 clearable={false}
                 behavior='simplicity'
-                onSelected={this.handleScenSelected}
+                onSelected={v => this.handleScenSelected(v)}
               >
                 {this.scenes.map(scene => (
                   <Option
