@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 import { logServiceRelationBkLogIndexSet } from '@api/modules/apm_service';
 import dayjs from 'dayjs';
 
-import { Scenario, YearOnYearHour } from '../email-subscription-config';
+import { Scenario } from '../mapping';
 
 import './subscription-detail.scss';
 
@@ -99,6 +99,11 @@ export default defineComponent({
       return indexSetIDList.value.find(item => item.id === props.detailInfo?.scenario_config?.index_set_id)?.name || '';
     });
 
+    function getYearOnYearHour(type: number) {
+      if (type === 0) return t('不比对');
+      return t('{0}小时前', [type]);
+    }
+
     onMounted(() => {
       logServiceRelationBkLogIndexSet()
         .then(response => {
@@ -110,7 +115,8 @@ export default defineComponent({
       t,
       formatFrequency,
       getTimeRange,
-      indexSetName
+      indexSetName,
+      getYearOnYearHour
     };
   },
   render() {
@@ -122,7 +128,7 @@ export default defineComponent({
             <div class='label'>
               <span>{window.i18n.t('订阅场景')}</span>
             </div>
-            <span class='value'>{Scenario[this.detailInfo?.scenario]}</span>
+            <span class='value'>{this.t(Scenario[this.detailInfo?.scenario])}</span>
           </div>
 
           <div class='row'>
@@ -165,7 +171,7 @@ export default defineComponent({
               <div class='label'>
                 <span>{window.i18n.t('展示同比')}</span>
               </div>
-              <span class='value'>{YearOnYearHour[this.detailInfo?.scenario_config?.year_on_year_hour]}</span>
+              <span class='value'>{this.getYearOnYearHour(this.detailInfo?.scenario_config?.year_on_year_hour)}</span>
             </div>
           )}
 

@@ -530,9 +530,9 @@ class MySubscription extends tsc<{}> {
     };
     return (
       <div class='my-apply-container'>
-        <div class='header-title'>{this.$t('我的订阅')}</div>
+        {/* <div class='header-title'>{this.$t('我的订阅')}</div> */}
 
-        <div class='temp-container'>
+        <div>
           <div class='header-container'>
             <div class='radio-container'>
               <div

@@ -70,37 +70,37 @@ export default [
       },
       noNavBar: true
     }
-  },
-  {
-    path: '/my-report',
-    name: 'my-report',
-    components: {
-      noCache: MyReport
-    },
-    meta: {
-      title: '我的订阅',
-      needBack: true,
-      navId: 'new-report-config',
-      route: {
-        parent: 'new-report-config'
-      },
-      noNavBar: true
-    }
-  },
-  {
-    path: '/my-applied-report',
-    name: 'my-applied-report',
-    components: {
-      noCache: MyAppliedReport
-    },
-    meta: {
-      title: '我的申请',
-      needBack: true,
-      navId: 'new-report-config',
-      route: {
-        parent: 'new-report-config'
-      },
-      noNavBar: true
-    }
   }
+  // {
+  //   path: '/my-report',
+  //   name: 'my-report',
+  //   components: {
+  //     noCache: MyReport
+  //   },
+  //   meta: {
+  //     title: '我的订阅',
+  //     needBack: true,
+  //     navId: 'new-report-config',
+  //     route: {
+  //       parent: 'new-report-config'
+  //     },
+  //     noNavBar: true
+  //   }
+  // },
+  // {
+  //   path: '/my-applied-report',
+  //   name: 'my-applied-report',
+  //   components: {
+  //     noCache: MyAppliedReport
+  //   },
+  //   meta: {
+  //     title: '我的申请',
+  //     needBack: true,
+  //     navId: 'new-report-config',
+  //     route: {
+  //       parent: 'new-report-config'
+  //     },
+  //     noNavBar: true
+  //   }
+  // }
 ] as RouteConfig[];

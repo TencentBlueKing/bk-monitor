@@ -14,11 +14,11 @@ enum Scenario {
 }
 
 enum PatternLevelEnum {
-  '01' = 0,
-  '03' = 25,
+  '01' = 100,
+  '03' = 75,
   '05' = 50,
-  '07' = 75,
-  '09' = 100
+  '07' = 25,
+  '09' = 0
 }
 
 interface IProps {

@@ -100,9 +100,9 @@ class MyApply extends tsc<{}> {
   render() {
     return (
       <div class='my-apply-container'>
-        <div class='header-title'>{this.$t('我的订阅')}</div>
+        {/* <div class='header-title'>{this.$t('我的订阅')}</div> */}
 
-        <div class='temp-container'>
+        <div>
           <div class='header-container'>
             {/* 纯前端筛选即可 */}
             <div class='radio-container'>

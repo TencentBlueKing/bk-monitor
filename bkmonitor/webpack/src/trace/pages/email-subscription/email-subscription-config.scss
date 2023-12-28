@@ -123,17 +123,17 @@
   padding: 16px;
 
   .success-header-text {
-    color: #63656e;
     font-size: 12px;
+    color: #63656e;
 
     .success-text {
-      color: #2dcb56;
       font-size: 12px;
+      color: #2dcb56;
     }
 
     .fail-text {
-      color: #ea3636;
       font-size: 12px;
+      color: #ea3636;
     }
   }
 
@@ -154,9 +154,9 @@
 }
 
 .slider-header-container {
-  width: 100%;
   display: flex;
   justify-content: space-between;
+  width: 100%;
 
   .title-container {
     display: flex;
@@ -185,20 +185,19 @@
 
   .create-subscription-container {
     position: relative;
-    padding: 24px 24px 76px 24px;
     height: calc(100vh - 52px);
+    padding: 24px 24px 76px 24px;
     overflow-y: auto;
   }
 
   .footer-bar {
-    width: 100%;
     position: absolute;
-    left: 0;
     bottom: 0;
+    left: 0;
+    width: 100%;
     padding: 10px 24px;
-    background: #ffffff;
-    box-shadow:
-      0 -1px 0 0 #dcdee5,
+    background: #fff;
+    box-shadow: 0 -1px 0 0 #dcdee5,
       0 -3px 4px 0 #4070cb0f;
   }
 }
@@ -218,7 +217,7 @@
 .bk-tag-input-popover-content .bk-selector-list .bk-selector-list-item .text {
   display: inline-block;
   width: 236px;
-  white-space: normal;
-  word-break: break-all;
   line-height: 20px;
+  word-break: break-all;
+  white-space: normal;
 }
