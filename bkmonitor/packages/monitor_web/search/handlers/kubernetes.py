@@ -103,7 +103,7 @@ class K8sSearchHandler(BaseSearchHandler):
             search_results.append(
                 SearchResultItem(
                     bk_biz_id=self.bk_biz_id,
-                    title=_("[Cluster] {name}").format(name=cluster["name"]),
+                    title="[Cluster] {name}".format(name=cluster["name"]),
                     view="k8s-detail",
                     view_args={"query": view_args},
                 )

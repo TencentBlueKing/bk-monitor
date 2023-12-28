@@ -68,7 +68,7 @@
         @page-limit-change="handlePageLimitChange">
         <bk-table-column :label="$t('时间')" min-width="10">
           <template slot-scope="{ row }">
-            {{ formatDate(new Date(row.created_at).getTime()) }}
+            {{ utcFormatDate(row.created_at) }}
           </template>
         </bk-table-column>
         <bk-table-column
@@ -94,13 +94,13 @@
 </template>
 
 <script>
-import { formatDate } from '@/common/util';
 import ChartComponent from './chart-component';
 import TimeRange from '@/components/time-range/time-range';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import EmptyStatus from '@/components/empty-status';
 import dayjs from 'dayjs';
 import { updateTimezone } from '../../../../../language/dayjs';
+import { utcFormatDate } from '../../../../../common/util';
 
 export default {
   components: {
@@ -116,7 +116,7 @@ export default {
   },
   data() {
     return {
-      formatDate,
+      utcFormatDate,
       timesChartLoading: true,
       timesChartData: null,
       frequencyChartLoading: true,

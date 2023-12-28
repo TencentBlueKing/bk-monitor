@@ -415,8 +415,8 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
    * 移除超出提示
    */
   removeOverflow() {
-    const overflowList = this.tagListRef.querySelectorAll('.tag-overflow');
-    if (!overflowList.length) return;
+    const overflowList = this.tagListRef?.querySelectorAll('.tag-overflow');
+    if (!overflowList?.length) return;
     overflowList.forEach(item => {
       this.tagListRef.removeChild(item);
     });

@@ -98,7 +98,6 @@ class MonitorEventDelayCheck(CheckStep):
     name = "check AlertPoller delay"
 
     def check(self):
-
         cache = Cache("service")
         ip_topics = cache.hgetall(ALERT_HOST_DATA_ID_KEY.get_key())
         topics = []
@@ -169,9 +168,9 @@ class CacheCronJobCheck(CheckStep):
         # 随机抽取一条策略缓存
         _, random_key = cache.scan(0, f"{cache_key.KEY_PREFIX}.cache.strategy_*")
         ttl = cache.ttl(random_key[0]) if random_key else None
-        if ttl and ttl < StrategyCacheManager.CACHE_TIMEOUT - 60 * 5:
+        if ttl and ttl < StrategyCacheManager.CACHE_TIMEOUT - 60 * 30:
             # 30分钟未刷新
-            p = StrategyCacheCronError(f"key: {random_key[0]}在5分钟内未刷新", self.story)
+            p = StrategyCacheCronError(f"key: {random_key[0]}在30分钟内未刷新", self.story)
             p_list.append(p)
             return p_list
         # 针对策略缓存步骤逐一检查
@@ -184,9 +183,10 @@ class CacheCronJobCheck(CheckStep):
         ]
         for k in [getattr(StrategyCacheManager, key) for key in keys]:
             ttl = cache.ttl(k)
-            if ttl and ttl < StrategyCacheManager.CACHE_TIMEOUT - 60 * 5:
+
+            if ttl and ttl < StrategyCacheManager.CACHE_TIMEOUT - 60 * 30:
                 # 30分钟未刷新
-                p = StrategyCacheCronError(f"key: {k}在5分钟内未刷新", self.story)
+                p = StrategyCacheCronError(f"key: {k}在30分钟内未刷新", self.story)
                 p_list.append(p)
                 break
 

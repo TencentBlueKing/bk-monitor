@@ -418,7 +418,7 @@ class DefaultInstanceNameConfig:
             cls.SERVICE_NAME: _("服务模块"),
             cls.LANGUAGE: _("语言"),
             cls.HOST_NAME: _("主机名称"),
-            cls.HOST_IP: _("IP"),
+            cls.HOST_IP: "IP",
             cls.HOST_PORT: _("端口"),
         }.get(key, key)
 
