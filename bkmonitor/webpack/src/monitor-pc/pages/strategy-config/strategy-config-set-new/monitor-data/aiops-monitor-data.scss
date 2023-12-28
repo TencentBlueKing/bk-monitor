@@ -124,9 +124,15 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
     line-height: 16px;
   }
 
+  .metric-select {
+    .bk-label-text {
+      margin-top: 10px;
+    }
+  }
+
   .aiops-tag-wrap {
-    padding-left: 110px;
-    margin: 8px 0px 16px;
+    // padding-left: 110px;
+    // margin: 8px 0px 16px;
 
     .aiops-tag-content {
       position: relative;

@@ -37,6 +37,8 @@ import StrategyTargetTable from '../../strategy-config-detail/strategy-config-de
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
 import { ISceneConfig, MetricDetail, MetricType } from '../typings';
 
+import AiopsMonitorMetricSelect from './aiops-monitor-metric-select';
+
 import './aiops-monitor-data.scss';
 
 interface NewMetricDetail extends MetricDetail {
@@ -106,6 +108,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   scene = null;
   /* 当前场景指标 */
   metrics = [];
+  allMetrics = [];
   /** 场景加载 */
   isLoading = false;
   targetContainerHeight = 0;
@@ -183,6 +186,13 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   handleScenSelected(value) {
     this.formModel.scene = value;
     this.scene = this.scenes.find(item => item.scene_id === this.formModel.scene);
+    this.allMetrics =
+      this.scene?.metrics?.map(item => ({
+        ...item.metric,
+        ...item,
+        metric: undefined
+      })) || [];
+    this.metrics = (this.scene?.metrics || []).map(item => item.metric_id);
     this.$nextTick(() => {
       this.handleCalcShowOpenTag();
     });
@@ -327,51 +337,68 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               </Select>
             )}
           </FormItem>
-          <div class='aiops-tag-wrap'>
-            {this.scene?.metrics?.length > 0 && (
-              <div class={['aiops-tag-content', this.tagOpen && 'aiops-tag-content-open']}>
-                <i18n
-                  path='共{count}个指标'
-                  tag='span'
-                  class='nowrap'
-                >
-                  <span
-                    slot='count'
-                    class='aiops-tag-count'
-                  >
-                    {this.scene.metrics.length}
-                  </span>
-                </i18n>
-                ：
-                <div
-                  class='aiops-tag-list'
-                  ref='tagListRef'
-                >
-                  {this.scene.metrics.map(metric => (
-                    <Tag
-                      key={metric.metric_id}
-                      onMouseenter={e => this.handleMetricMouseenter(e, metric.metric)}
-                      onMouseleave={this.handleMetricMouseleave}
+          <FormItem
+            label={`${this.$t('指标')}：`}
+            error-display-type='normal'
+            class='metric-select'
+            property={'scene'}
+          >
+            {this.readonly ? (
+              <div class='aiops-tag-wrap'>
+                {this.scene?.metrics?.length > 0 && (
+                  <div class={['aiops-tag-content', this.tagOpen && 'aiops-tag-content-open']}>
+                    <i18n
+                      path='共{count}个指标'
+                      tag='span'
+                      class='nowrap'
                     >
-                      {metric.name}
-                    </Tag>
-                  ))}
-                </div>
-                {this.showTagOpen && (
-                  <span
-                    class='aiops-tag-toggle nowrap'
-                    onClick={() => (this.tagOpen = !this.tagOpen)}
-                  >
-                    <Icon
-                      style='font-size: 18px;'
-                      type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
-                    />
-                    {this.$t(this.tagOpen ? '收起' : '展开')}
-                  </span>
+                      <span
+                        slot='count'
+                        class='aiops-tag-count'
+                      >
+                        {this.scene.metrics.length}
+                      </span>
+                    </i18n>
+                    ：
+                    <div
+                      class='aiops-tag-list'
+                      ref='tagListRef'
+                    >
+                      {this.scene.metrics.map(metric => (
+                        <span
+                          key={metric.metric_id}
+                          onMouseenter={e => this.handleMetricMouseenter(e, metric.metric)}
+                          onMouseleave={this.handleMetricMouseleave}
+                        >
+                          <Tag>{metric.name}</Tag>
+                        </span>
+                      ))}
+                    </div>
+                    {this.showTagOpen && (
+                      <span
+                        class='aiops-tag-toggle nowrap'
+                        onClick={() => (this.tagOpen = !this.tagOpen)}
+                      >
+                        <Icon
+                          style='font-size: 18px;'
+                          type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
+                        />
+                        {this.$t(this.tagOpen ? '收起' : '展开')}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
+            ) : (
+              <div class='aiops-metric-select'>
+                <AiopsMonitorMetricSelect
+                  value={this.metrics}
+                  metrics={this.allMetrics}
+                ></AiopsMonitorMetricSelect>
+              </div>
             )}
-          </div>
+          </FormItem>
+
           <FormItem
             label={`${this.$t('监控目标')}：`}
             error-display-type='normal'
