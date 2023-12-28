@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import os
 
 from django.conf import settings
 
@@ -31,6 +32,7 @@ class TailSamplingFlow(ApmFlow):
     # Flow入库的ES存储资源命名格式
     _BKDATA_ES_CLUSTER_NAME_FORMAT = "apm_storage_{cluster_name}"
     _BKDATA_ES_CLUSTER_ID_FORMAT = "apm_storage_id_{cluster_id}"
+    _FLINK_CODE_FILENAME = os.path.join(settings.BASE_DIR, "apm/core/handlers/bk_data/tail_sampling_flink.java")
 
     def __init__(self, trace_datasource, config):
         super(TailSamplingFlow, self).__init__(
@@ -173,6 +175,7 @@ class TailSamplingFlow(ApmFlow):
         es_extra_data = {}
         instance = TraceDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
+        # Step1: 获取应用的ES配置并对接入Bkbase
         # Res1: 获取Trace数据表名称
         es_extra_data["table_name"] = instance.result_table_id.replace(".", "_")
         self.logger.info(f"es_extra_data collect, table_name: {es_extra_data['table_name']}")
@@ -239,4 +242,9 @@ class TailSamplingFlow(ApmFlow):
 
         es_extra_data["cluster_name"] = bkdata_cluster_id
         self.logger.info(f"es_extra_data collect, cluster_name: {es_extra_data['cluster_name']}")
-        return super(TailSamplingFlow, self).flow_instance(es_extra_data=es_extra_data)
+
+        # Step2: 获取计算节点代码
+        with open(self._FLINK_CODE_FILENAME, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        return super(TailSamplingFlow, self).flow_instance(es_extra_data=es_extra_data, flink_code=content)
