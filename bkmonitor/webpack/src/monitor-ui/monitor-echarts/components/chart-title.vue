@@ -46,7 +46,8 @@
         <span
           class="title-interval"
           v-if="hasMetric && extendMetricData.collect_interval"
-        >{{ extendMetricData.collect_interval }}m</span>
+          >{{ extendMetricData.collect_interval }}m</span
+        >
         <i
           v-show="showMore"
           v-if="hasMetric"
@@ -131,7 +132,7 @@ export default class ChartTitle extends Vue {
     let content = '';
     switch (status) {
       case 1:
-        content = this.$t('已设置 {0} 个告警', [strategy_number]);
+        content = this.$t('已设置 {0} 个策略', [strategy_number]);
         break;
       case 2:
         content = this.$t('告警中，告警数量：{0}', [alert_number]);
@@ -225,12 +226,15 @@ export default class ChartTitle extends Vue {
     const relatedId = data.related_id;
     if (resultTableLabel === 'uptimecheck' && !relatedId) {
       const list = elList.bk_monitor_time_series;
-      elList.bk_monitor_time_series = list.filter(item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名'));
+      elList.bk_monitor_time_series = list.filter(
+        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名')
+      );
     }
     const curElList = elList[curActive] || [...options];
-    let content =      curActive === 'bk_log_search_time_series'
-      ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
-      : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
+    let content =
+      curActive === 'bk_log_search_time_series'
+        ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
+        : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
     if (data.collect_config) {
       const collectorConfig = data.collect_config
         .split(';')
@@ -243,7 +247,7 @@ export default class ChartTitle extends Vue {
       const index = curElList.indexOf(item => item.label === this.$t('指标别名'));
       curElList.splice(index, 1);
     }
-    curElList.forEach((item) => {
+    curElList.forEach(item => {
       content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
     });
     return content;
@@ -309,7 +313,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         align-items: center;
         justify-content: center;
         padding: 0 2px;
-        border: 1px solid rgba(151, 155, 165, .3);
+        border: 1px solid rgba(151, 155, 165, 0.3);
         border-radius: 2px;
         font-weight: normal;
         margin-left: 6px;

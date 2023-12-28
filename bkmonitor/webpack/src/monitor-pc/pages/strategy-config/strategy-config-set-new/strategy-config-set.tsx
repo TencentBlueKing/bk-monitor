@@ -885,7 +885,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.baseConfigEl?.clearErrorMsg();
     this.detectionRulesEl?.clearErrorMsg();
     this.alarmHandlingListRef?.clearError();
-    this.noticeConfigRef.clearError();
+    this.noticeConfigRef?.clearError();
     // this.alarmHandlingRef?.clearErrorMsg();
     // this?.alarmHandlingRef?.clearErrorMsg();
   }

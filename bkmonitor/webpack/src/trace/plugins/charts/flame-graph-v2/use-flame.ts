@@ -90,8 +90,6 @@ export class FlameChart<D extends BaseDataType> {
     this.mainData = main;
     this.threadsData = threads;
     this.maxDepth = maxDepth;
-    console.info('mainData', this.mainData);
-    console.info('threadsData', this.threadsData);
     select(this.chartDom).selectAll('*').remove();
     select(this.chartDom)
       .append('svg:svg')

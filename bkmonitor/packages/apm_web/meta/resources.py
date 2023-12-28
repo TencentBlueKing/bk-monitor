@@ -716,7 +716,7 @@ class ListApplicationResource(PageListResource):
                 action_id=ActionEnum.VIEW_APM_APPLICATION.id,
                 asyncable=True,
             ),
-            StatusTableFormat(id="apdex", name=_("Apdex"), status_map_cls=Apdex, filterable=True, asyncable=True),
+            StatusTableFormat(id="apdex", name="Apdex", status_map_cls=Apdex, filterable=True, asyncable=True),
             NumberTableFormat(id="request_count", name=_("调用次数"), sortable=True, asyncable=True),
             NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), sortable=True, unit="ns", decimal=2, asyncable=True),
             NumberTableFormat(id="error_rate", name=_("错误率"), sortable=True, decimal=2, unit="percent", asyncable=True),

@@ -497,9 +497,9 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   }
   handleItemMoved(newY: number, panel: PanelModel) {
     this.movedId = panel.id;
-    if (panel.type === 'row') {
-      console.info();
-    }
+    // if (panel.type === 'row') {
+    //   console.info();
+    // }
   }
   /**
    * @description: 拖拽视图

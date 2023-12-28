@@ -63,10 +63,19 @@ export default class MyComponent extends tsc<{}> {
   }
   @Watch('url', { immediate: true })
   async handleUrlChange() {
+    if (this.$store.getters.bizIdChangePedding) {
+      this.loading = true;
+      this.grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+      setTimeout(() => (this.loading = false), 2000);
+      return;
+    }
+    this.loading = true;
     const grafanaUrl = await this.handleGetGrafanaUrl();
     if (!this.grafanaUrl) {
       this.grafanaUrl = grafanaUrl;
+      setTimeout(() => (this.loading = false), 2000);
     } else {
+      this.loading = false;
       const url = new URL(grafanaUrl);
       this.iframeRef?.contentWindow.postMessage(
         {
@@ -78,10 +87,9 @@ export default class MyComponent extends tsc<{}> {
     }
   }
   async handleGetGrafanaUrl() {
-    this.loading = true;
     let grafanaUrl = '';
     if (!this.url) {
-      if (this.$route.name === 'grafana-home') {
+      if (this.$route.name === 'grafana-home' || this.$store.getters.bizIdChangePedding) {
         grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       } else {
         const list = await getDashboardList().catch(() => []);
@@ -151,7 +159,6 @@ export default class MyComponent extends tsc<{}> {
     localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
   }
   handleLoad() {
-    setTimeout(() => (this.loading = false), 100);
     this.$nextTick(() => {
       const iframeContent = this.iframeRef?.contentWindow;
       this.iframeRef?.focus();
@@ -228,7 +235,7 @@ export default class MyComponent extends tsc<{}> {
     return (
       <div
         class='grafana-wrap'
-        v-monitor-loading='{ isLoading: loading }'
+        v-monitor-loading={{ isLoading: this.loading }}
       >
         <iframe
           onLoad={this.handleLoad}

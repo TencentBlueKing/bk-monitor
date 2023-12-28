@@ -233,8 +233,7 @@ export default class Calendar extends tsc<{}> {
   }
 
   /** 合并日历 */
-  async handleMergeCalendar(id: string | string[]) {
-    console.log(id);
+  async handleMergeCalendar() {
     await this.$nextTick();
     this.curCalendarInfo.selectedId = '';
   }
