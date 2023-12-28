@@ -590,4 +590,6 @@ export default {
   收藏名称: 'Collection name',
   历史记录: 'History record',
   字段来源: 'Field Source'
+  索引字段: 'Index Set Fields',
+  'label-内置字段': 'Built-in Fields',
 };

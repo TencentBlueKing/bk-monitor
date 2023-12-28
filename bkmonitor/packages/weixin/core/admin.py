@@ -18,8 +18,8 @@ from weixin.core.models import BkWeixinUser
 class BkWeixinUserAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {"fields": ("userid", "openid", "nickname")}),
-        (_("Personal info"), {"fields": ("gender", "country", "province", "city", "email", "mobile")}),
-        (_("Extra info"), {"fields": ("avatar_url", "qr_code")}),
+        ("Personal info", {"fields": ("gender", "country", "province", "city", "email", "mobile")}),
+        ("Extra info", {"fields": ("avatar_url", "qr_code")}),
     )
 
     list_display = ("userid", "openid", "nickname", "mobile", "email")

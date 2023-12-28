@@ -25,10 +25,10 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bkui-vue';
 // import stackTrace from './data.json';
 import * as echarts from 'echarts';
-import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { traceDiagram } from '../../../../monitor-api/modules/apm_trace';
