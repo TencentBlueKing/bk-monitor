@@ -41,7 +41,11 @@ import './fixed-rotation-tab.scss';
 export interface FixedDataModel {
   id?: number;
   key: number;
-  type: RotationSelectTypeEnum.Weekly | RotationSelectTypeEnum.Monthly | RotationSelectTypeEnum.DateRange;
+  type:
+    | RotationSelectTypeEnum.Weekly
+    | RotationSelectTypeEnum.Monthly
+    | RotationSelectTypeEnum.DateRange
+    | RotationSelectTypeEnum.Daily;
   workDays: (string | number)[];
   workDateRange: [];
   workTime: string[][];
@@ -65,6 +69,7 @@ export default defineComponent({
     const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
 
     const typeList = [
+      { label: t('每天'), value: RotationSelectTypeEnum.Daily },
       { label: t('按周'), value: RotationSelectTypeEnum.Weekly },
       { label: t('按月'), value: RotationSelectTypeEnum.Monthly },
       { label: t('指定时间'), value: RotationSelectTypeEnum.DateRange }

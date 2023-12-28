@@ -336,6 +336,13 @@ export function fixedRotationTransform(data, type) {
   return filterData.map(item => {
     let dutyTimeItem;
     switch (item.type) {
+      case RotationSelectTypeEnum.Daily: {
+        dutyTimeItem = {
+          work_type: item.type,
+          work_time: item.workTime.map(item => item.join('--'))
+        };
+        break;
+      }
       case RotationSelectTypeEnum.Weekly:
       case RotationSelectTypeEnum.Monthly: {
         dutyTimeItem = {
