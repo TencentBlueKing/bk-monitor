@@ -55,7 +55,6 @@ class ApplyDatasourceResource(ApmAPIGWResource):
 
 
 class DetailApplicationResource(ApmAPIGWResource):
-    cache_type = CacheType.APM(60 * 60 * 24)
     action = "/detail_apm_application/"
     method = "GET"
 
