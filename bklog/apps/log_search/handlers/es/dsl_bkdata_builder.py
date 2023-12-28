@@ -25,11 +25,11 @@ import time
 from apps.log_search.constants import CONTEXT_GSE_INDEX_SIZE
 from apps.log_search.handlers.es.bk_mock_body import (
     BODY_DATA_FOR_CONTEXT,
-    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG,
+    BODY_DATA_FOR_CONTEXT_SCENARIO_LOG, BODY_DATA_FOR_CONTEXT_SCENARIO_ES,
 )
 
 
-class DslBkDataCreateSearchContextBody(object):
+class DslCreateSearchContextBodyScenarioBkData(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
@@ -154,7 +154,7 @@ class DslBkDataCreateSearchContextBody(object):
         return self._body
 
 
-class DslBkDataCreateSearchContextBodyScenarioLog(object):
+class DslCreateSearchContextBodyScenarioLog(object):
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
@@ -236,7 +236,90 @@ class DslBkDataCreateSearchContextBodyScenarioLog(object):
         return self._body
 
 
-class DslBkDataCreateSearchTailBody:
+class DslCreateSearchContextBodyScenarioES:
+
+    def __init__(self, **kwargs):
+        """
+        第三方ES上下文查询构造请求参数
+        """
+        size = kwargs.get("size")
+        start = kwargs.get("start")
+        order = kwargs.get("order")
+
+        # 定位字段 排序字段
+        target_fields: list = kwargs.get("target_fields", [])
+        sort_fields: list = kwargs.get("sort_fields", [])
+
+        params: dict = kwargs.get("params", {})
+
+        self._body = None
+
+        if not target_fields or not sort_fields:
+            return
+
+        # 取优先级最高的字段为范围查询字段
+        range_field = target_fields[0]
+        range_field_value: int = params.get(range_field, 0)
+
+        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
+        order_use: str = "asc"
+
+        if order == "-":
+            order_use = "desc"
+            body_data["query"]["bool"]["filter"].append(
+                {
+                    "range": {
+                        range_field: {
+                            "gte": int(range_field_value),
+                            "lte": int(range_field_value) - CONTEXT_GSE_INDEX_SIZE
+                        }
+                    }
+                }
+            )
+
+        if order == "+":
+            body_data["query"]["bool"]["filter"].append(
+                {
+                    "range": {
+                        range_field: {
+                            "gte": int(range_field_value) + CONTEXT_GSE_INDEX_SIZE,
+                            "lte": int(range_field_value)
+                        }
+                    }
+                }
+            )
+
+        sort = []
+        for item in sort_fields:
+            sort.append({item: {"order": order_use}})
+        body_data["sort"] = sort
+
+        for item in target_fields:
+            item_value = params.get(item)
+            if item_value:
+                body_data["query"]["bool"]["must"].append(
+                    {
+                        "match": {
+                            item: {
+                                "query": item_value,
+                                "operator": "and",
+                            }
+                        }
+                    }
+                )
+
+        body_data["size"] = size
+
+        body_data["from"] = abs(start)
+
+        self._body = body_data
+
+    @property
+    def body(self):
+        return self._body
+
+
+class DslCreateSearchTailBodyScenarioBkData:
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
@@ -361,7 +444,7 @@ class DslBkDataCreateSearchTailBody:
         return self._body
 
 
-class DslBkDataCreateSearchTailBodyScenarioLog:
+class DslCreateSearchTailBodyScenarioLog:
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
@@ -408,6 +491,97 @@ class DslBkDataCreateSearchTailBodyScenarioLog:
         else:
             body_data["size"] = 30
         body_data["from"] = start
+        self._body = body_data
+
+    @property
+    def body(self):
+        return self._body
+
+
+class DslCreateSearchTailBodyScenarioES:
+
+    def __init__(self, **kwargs):
+        """
+        第三方ES实时日志查询构造请求参数
+        """
+        start = kwargs.get("start")
+        zero = kwargs.get("zero", False)
+
+        time_field: str = kwargs.get("time_field")
+
+        # 定位字段 排序字段
+        target_fields: list = kwargs.get("target_fields", [])
+        sort_fields: list = kwargs.get("sort_fields", [])
+
+        params: dict = kwargs.get("params", {})
+
+        self._body = None
+
+        if not target_fields or not sort_fields:
+            return
+
+        # 取优先级最高的字段为范围查询字段
+        range_field = target_fields[0]
+        range_field_value: int = params.get(range_field, 0)
+
+        self._body = None
+        body_data = copy.deepcopy(BODY_DATA_FOR_CONTEXT_SCENARIO_ES)
+
+        order_use: str = "asc"
+        if zero:
+            # 用当前时间往后前5分钟开始查询
+            order_use = "desc"
+
+            body_data["query"]["bool"]["filter"].append(
+                {
+                    "range": {
+                        time_field: {
+                            "gte": int(time.time() * 1000) - 300000,
+                            "lte": int(time.time() * 1000)
+                        }
+                    }
+                }
+            )
+
+        elif range_field_value:
+
+            body_data["query"]["bool"]["filter"].append(
+                {
+                    "range": {
+                        range_field: {
+                            "lt": int(range_field_value) + CONTEXT_GSE_INDEX_SIZE,
+                            "gt": int(range_field_value)
+                        }
+                    }
+                }
+            )
+
+        sort = []
+        for item in sort_fields:
+            sort.append({item: {"order": order_use}})
+
+        body_data["sort"] = sort
+
+        for item in target_fields:
+            item_value = params.get(item)
+            if item_value:
+                body_data["query"]["bool"]["must"].append(
+                    {
+                        "match": {
+                            item: {
+                                "query": item_value,
+                                "operator": "and",
+                            }
+                        }
+                    }
+                )
+
+        if zero:
+            body_data["size"] = 500
+        else:
+            body_data["size"] = 30
+        body_data["from"] = start
+
         self._body = body_data
 
     @property

@@ -59,6 +59,7 @@ class IndexSetViewSet(ModelViewSet):
     model = LogIndexSet
     search_fields = ("index_set_name",)
     lookup_value_regex = "[^/]+"
+    filter_fields_exclude = ["target_fields", "sort_fields"]
 
     def get_permissions(self):
         try:
@@ -98,6 +99,9 @@ class IndexSetViewSet(ModelViewSet):
             time_field_unit = serializers.ChoiceField(
                 required=False, default=None, choices=TimeFieldUnitEnum.get_choices()
             )
+
+            target_fields = serializers.ListField(required=False, default=[])
+            sort_fields = serializers.ListField(required=False, default=[])
 
             class Meta:
                 model = LogIndexSet
@@ -429,6 +433,8 @@ class IndexSetViewSet(ModelViewSet):
             time_field_unit=data["time_field_unit"],
             bk_app_code=data.get("bk_app_code"),
             is_editable=data.get("is_editable"),
+            target_fields=data.get("target_fields", []),
+            sort_fields=data.get("sort_fields", []),
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
@@ -491,6 +497,8 @@ class IndexSetViewSet(ModelViewSet):
             time_field_type=data["time_field_type"],
             time_field_unit=data["time_field_unit"],
             storage_cluster_id=storage_cluster_id,
+            target_fields=data.get("target_fields", []),
+            sort_fields=data.get("sort_fields", []),
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
@@ -562,6 +570,8 @@ class IndexSetViewSet(ModelViewSet):
             storage_cluster_id=data.get("storage_cluster_id"),
             category_id=data.get("category_id"),
             collector_config_id=data.get("collector_config_id"),
+            target_fields=data.get("target_fields", []),
+            sort_fields=data.get("sort_fields", []),
         )
         return Response(self.get_serializer_class()(instance=index_set).data)
 
