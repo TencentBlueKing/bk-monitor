@@ -10,14 +10,50 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
+from django.utils.translation import ugettext as _
+
 from bkmonitor.dataflow.node.processor import (
     FlinkStreamCodeDefine,
     FlinkStreamCodeOutputField,
     FlinkStreamNode,
+    RealTimeNode,
 )
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import ElasticsearchStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
+
+
+class EmptyRealTimeNode(RealTimeNode):
+    def __init__(self, from_result_table_id, bk_biz_id, app_name, parent):
+        self.from_result_table_id = from_result_table_id
+        self.bk_biz_id = bk_biz_id
+        self.app_name = app_name
+        self.parent_list = [parent]
+        self.node_id = None
+
+    @property
+    def config(self):
+        return {
+            "bk_biz_id": self.bk_biz_id,
+            "sql": self._sql,
+            "table_name": self.table_name,
+            "name": self.name,
+            "window_type": "none",
+            "output_name": self.table_name,
+            "from_result_table_ids": [self.from_result_table_id],
+        }
+
+    @property
+    def name(self):
+        return _("[临时]空计算节点")
+
+    @property
+    def table_name(self):
+        return f"tail_{self.app_name}_output"
+
+    @property
+    def _sql(self):
+        return f"SELECT span_id, trace_id, span_info, datetime FROM {self.from_result_table_id}"
 
 
 class TailSamplingFlinkNode(FlinkStreamNode):
@@ -520,7 +556,7 @@ public class CodeTransform extends AbstractFlinkBasicTransform {
                     || ("reg").equalsIgnoreCase(method) || ("nreg").equalsIgnoreCase(method)) {
                 valueType = "String";
             }
-            String[] split = key.split("\\.", 2);
+            String[] split = key.split("\\\\.", 2);
             List<String> keys = new ArrayList<>(split.length);
             Collections.addAll(keys, split);
             boolean compare;
@@ -735,11 +771,24 @@ class APMTailSamplingTask(BaseTask):
         self.es_extra_data = es_extra_data
 
         stream_source_node = StreamSourceNode(self.rt_id)
-        flink_node = TailSamplingFlinkNode(
-            source_rt_id=stream_source_node.output_table_name,
-            name="tail_sampling",
+        # TODO !临时方案 因Bkbase未上线pulsar 使用空实时节点作为数据中转
+        empty_node = EmptyRealTimeNode(
+            from_result_table_id=stream_source_node.output_table_name,
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
             parent=stream_source_node,
         )
+        flink_node = TailSamplingFlinkNode(
+            source_rt_id=empty_node.output_table_name,
+            name="tail_sampling",
+            parent=empty_node,
+        )
+
+        # flink_node = TailSamplingFlinkNode(
+        #     source_rt_id=stream_source_node.output_table_name,
+        #     name="tail_sampling",
+        #     parent=stream_source_node,
+        # )
 
         es_storage_node = ElasticsearchStorageNode(
             cluster=self.es_extra_data["cluster_name"],
@@ -754,7 +803,7 @@ class APMTailSamplingTask(BaseTask):
             parent=flink_node,
         )
 
-        self.node_list = [stream_source_node, flink_node, es_storage_node]
+        self.node_list = [stream_source_node, empty_node, flink_node, es_storage_node]
 
     @property
     def flow_name(self):

@@ -585,7 +585,7 @@ class FlinkStreamNode(ProcessorNode, abc.ABC):
             "from_nodes": [
                 {
                     "from_result_table_ids": [
-                        self.parent_list[0].source_rt_id,
+                        self.source_rt_id,
                     ],
                     "id": self.parent_list[0].node_id,
                 }

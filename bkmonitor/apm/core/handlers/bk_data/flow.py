@@ -20,12 +20,13 @@ from django.utils.datetime_safe import datetime
 from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models import BkdataFlowConfig
 from bkmonitor.dataflow.auth import check_has_permission
+from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 from metadata.models.storage import DataBusStatus
 
 
-class _Logger:
+class _BkdataFlowLogger:
     """携带基础信息日志打印"""
 
     def __init__(self, name, bk_biz_id, app_name, flow_instance_id):
@@ -67,6 +68,7 @@ class ApmFlow:
     _BKBASE_PROJECT_ID = None
     _FLOW = None
     _FLOW_TYPE = None
+    _FLOW_FETCH_STATUS_THRESHOLD = settings.APM_APP_BKDATA_FETCH_STATUS_THRESHOLD
 
     def __init__(self, bk_biz_id, app_name, data_id, config):
         self.data_id = data_id
@@ -90,7 +92,7 @@ class ApmFlow:
                 deploy_bk_biz_id=self.bkdata_bk_biz_id,
             )
 
-        self.logger = _Logger(self._NAME, self.bk_biz_id, self.app_name, self.flow.id)
+        self.logger = _BkdataFlowLogger(self._NAME, self.bk_biz_id, self.app_name, self.flow.id)
         self.logger.info(f"start flow, use bkbase bk_biz_id: {self.bkdata_bk_biz_id}(app bk_biz_id: {self.bk_biz_id})")
 
     @property
@@ -179,7 +181,7 @@ class ApmFlow:
                 a.pop(i, None)
                 b.pop(i, None)
 
-        return json.dumps(a, sort_keys=True) != json.dumps(b, sort_keys=True)
+        return count_md5(a) != count_md5(b)
 
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
@@ -261,7 +263,7 @@ class ApmFlow:
 
     def _update_field(self, field_name, field_value):
         BkdataFlowConfig.objects.filter(id=self.flow.id).update(**{field_name: field_value})
-        self.flow = BkdataFlowConfig.objects.get(id=self.flow.id)
+        self.flow.refresh_from_db()
 
     def _config_cleans(self):
         """配置清洗"""
@@ -303,7 +305,7 @@ class ApmFlow:
             self._raise_exc(f"cleans table id not found", FlowStatus.CONFIG_CLEANS_START_FAILED.value)
 
         etl_status = self._get_etl_status(FlowStatus.CONFIG_CLEANS_START_FAILED.value)
-        for i in range(10):
+        for i in range(self._FLOW_FETCH_STATUS_THRESHOLD):
             if etl_status == DataBusStatus.RUNNING:
                 self.logger.info(f"check etl status: {etl_status}, break. loop: {i}")
                 break

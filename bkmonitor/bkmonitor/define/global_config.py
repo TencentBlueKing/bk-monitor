@@ -140,6 +140,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label=_("APM应用默认副本数"), default=0)),
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label=_("APM应用默认索引分片数"), default=3)),
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label=_("APM应用操作数据平台所用到的用户名"), default="")),
+        (
+            "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
+            slz.IntegerField(label=_("APM应用操作BkdataFlow时拉取运行状态的最大操作次数"), default=10),
+        ),
         ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label=_("APM尾部采样项目id"), default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label=_("APM虚拟指标项目id"), default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label=_("APM虚拟指标存储过期时间"), default=30)),
