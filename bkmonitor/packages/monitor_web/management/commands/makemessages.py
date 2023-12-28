@@ -9,22 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-from django.contrib import admin
-from django.utils.translation import ugettext_lazy as _
-from weixin.core.models import BkWeixinUser
+from django.core.management.commands import makemessages
 
 
-class BkWeixinUserAdmin(admin.ModelAdmin):
-    fieldsets = (
-        (None, {"fields": ("userid", "openid", "nickname")}),
-        ("Personal info", {"fields": ("gender", "country", "province", "city", "email", "mobile")}),
-        ("Extra info", {"fields": ("avatar_url", "qr_code")}),
-    )
-
-    list_display = ("userid", "openid", "nickname", "mobile", "email")
-    search_fields = ("userid", "nickname")
-    ordering = ("userid",)
-
-
-admin.site.register(BkWeixinUser, BkWeixinUserAdmin)
+class Command(makemessages.Command):
+    """
+    自定义 makemessages 命令添加关键字
+    """
+    xgettext_options = makemessages.Command.xgettext_options + ['--keyword=_lazy']

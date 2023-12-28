@@ -1399,6 +1399,7 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
         label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False, default=EncodingsEnum.UTF.value
     )
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)

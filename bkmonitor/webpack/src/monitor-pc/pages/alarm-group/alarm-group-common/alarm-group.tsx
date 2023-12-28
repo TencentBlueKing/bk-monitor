@@ -73,16 +73,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   emptyType: EmptyStatusType = 'empty';
   // 表格列数据
   tableColumnsList = [
-    {
-      label: 'ID',
-      prop: 'id',
-      disabled: true,
-      checked: true,
-      minWidth: null,
-      width: 90,
-      props: {},
-      formatter: row => `#${row.id}`
-    },
+    { label: 'ID', prop: 'id', minWidth: null, width: 90, props: {}, formatter: row => `#${row.id}`, show: true },
     {
       label: i18n.t('名称'),
       prop: 'name',
@@ -176,7 +167,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.app || '--'
+      formatter: row => row.app || '--',
+      show: true
     },
     {
       label: i18n.t('操作'),
@@ -186,7 +178,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: null,
       width: 130,
       props: {},
-      formatter: () => {}
+      formatter: () => {},
+      show: true
     }
   ];
 
@@ -332,6 +325,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
       </bk-button>
     ];
   }
+
+  // handleSettingChange({ fields, size }) {
+  //   this.tableColumnsList.forEach(item => (item.show = fields.some(field => field.prop === item.prop)));
+  //   this.tableSize = size;
+  // }
 
   /**
    * @description: 跳转告警组新增编辑

@@ -28,7 +28,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import BkPaasLogin from '@blueking/paas-login';
 import { Input, Navigation, NavigationMenu, NavigationMenuGroup, NavigationMenuItem } from 'bk-magic-vue';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { loginRefreshIntercept } from '../common/login-refresh-intercept';
 import { getFooter, listStickySpaces } from '../../monitor-api/modules/commons';
@@ -58,7 +58,6 @@ import './app.scss';
 import introduce from '../common/introduce';
 import { isAuthority } from '../router/router';
 
-const microRouteNameList = ['alarm-shield', 'rotation'];
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',
@@ -68,6 +67,7 @@ const changeNoticeRouteList = [
   'plugin-add',
   'plugin-edit'
 ];
+const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
@@ -374,23 +374,6 @@ export default class App extends tsc<{}> {
    */
   handleBeforeNavChange(newId: string, oldId: string) {
     this.handleHeaderSettingShowChange(false);
-    // if (
-    //   [
-    //     'strategy-config-add',
-    //     'strategy-config-edit',
-    //     'strategy-config-target',
-    //     'alarm-shield-add',
-    //     'alarm-shield-edit',
-    //     'plugin-add',
-    //     'plugin-edit'
-    //   ].includes(this.$route.name)
-    // ) {
-    //   // if (newId !== oldId) {
-    //   //   this.$router.push({
-    //   //     name: newId
-    //   //   });
-    //   // }
-    // }
     if (changeNoticeRouteList.includes(this.$route.name)) {
       if (newId !== oldId) {
         this.$router.push({

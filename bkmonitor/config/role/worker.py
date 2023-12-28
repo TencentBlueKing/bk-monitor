@@ -207,6 +207,8 @@ ACTION_TASK_CRONTAB = [
     ("alarm_backends.service.fta_action.tasks.dispatch_demo_action_tasks", "* * * * *", "global"),
     # 定期进行告警索引轮转 隔天创建，时间稍微拉长一点，避免短时间任务堵塞的时候容易过期，导致创建不成功
     ("bkmonitor.documents.tasks.rollover_indices", "*/24 * * * *", "global"),
+    # 定期清理停用的ai 策略对应的flow任务(每天2点半)
+    ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
 ]
 
 if os.getenv("DISABLE_METADATA_TASK") != "True":
