@@ -75,7 +75,7 @@ class SendChannelHandler(object):
     订阅渠道处理器
     """
 
-    send_cls_map = {
+    SEND_CLS_MAP = {
         ChannelEnum.USER.value: send_email,
         ChannelEnum.EMAIL.value: send_email,
         ChannelEnum.WXBOT.value: send_wxbot,
@@ -86,10 +86,13 @@ class SendChannelHandler(object):
         初始化对应订阅配置
         """
         self.channel = channel
-        self.send_cls = self.send_cls_map[channel.channel_name]
+        self.send_cls = self.SEND_CLS_MAP[channel.channel_name]
 
     def send(self, context, send_round, bk_biz_id=None):
         subscribers = self.fetch_subscribers(bk_biz_id)
+        # 补充提示词
+        if self.channel.send_text:
+            context["send_text"] = self.channel.send_text
         result = self.send_cls(context, subscribers)
         if not result:
             logger.exception(

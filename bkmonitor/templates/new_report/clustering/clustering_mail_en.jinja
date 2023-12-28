@@ -18,6 +18,9 @@
     }
 </style>
 <body>
+{% if send_text %}
+<p>提示: {{ send_text }}</p>
+{% endif %}
 <p>Time Range: {{ time_config.start_time }} - {{ time_config.end_time }}</p>
 <p>Space Name: {{ space_name }}</p>
 <p>Index Set Name: {{ index_set_name }}</p>

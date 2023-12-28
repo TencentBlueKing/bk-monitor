@@ -81,7 +81,9 @@ class GetReportListResource(Resource):
 
     @staticmethod
     def check_permission(bk_biz_id, raise_exception=False):
-        return Permission().is_allowed(
+        permission_obj = Permission()
+        permission_obj.skip_check = False
+        return permission_obj.is_allowed(
             ActionEnum.MANAGE_REPORT,
             [ResourceEnum.BUSINESS.create_instance(bk_biz_id)],
             raise_exception=raise_exception,
@@ -219,7 +221,7 @@ class GetReportListResource(Resource):
         return new_reports
 
     def perform_request(self, validated_request_data):
-        report_qs = Report.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        report_qs = Report.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).order_by("-update_time")
 
         # 根据角色过滤
         if validated_request_data["create_type"]:

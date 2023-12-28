@@ -20,6 +20,7 @@ from django.conf import settings
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
 from bkm_space.api import SpaceApi
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import Report
 from bkmonitor.report.utils import get_data_range
 from constants.new_report import (
@@ -160,8 +161,9 @@ class ClusteringReportHandler(BaseReportHandler):
         return {pattern["signature"]: result["list"][0][clustering_field]}
 
     def generate_log_search_url(self, config: dict, time_config: dict, signature: str = "") -> str:
+        space_uid = bk_biz_id_to_space_uid(self.report.bk_biz_id)
         params = {
-            "spaceUid": self.report.bk_biz_id,
+            "spaceUid": space_uid,
             "keyword": config.get("query_string", "*"),
             "addition": config.get("addition", []),
             "host_scopes": config.get("host_scopes", {}),
