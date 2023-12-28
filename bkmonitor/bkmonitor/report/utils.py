@@ -14,7 +14,6 @@ from collections import defaultdict
 import arrow
 from django.db.models import Q
 
-from alarm_backends.core.i18n import i18n
 from bkmonitor.models import ReportSendRecord, logger
 from bkmonitor.utils.range import TIME_MATCH_CLASS_MAP
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
@@ -90,6 +89,8 @@ def get_last_send_record_map(report_qs):
 
 
 def get_data_range(frequency: dict, bk_biz_id: int) -> dict:
+    from alarm_backends.core.i18n import i18n
+
     i18n.set_biz(bk_biz_id)
     now_time = localtime(datetime.datetime.now())
     # 如果没有频率参数，默认取最近一天的数据
