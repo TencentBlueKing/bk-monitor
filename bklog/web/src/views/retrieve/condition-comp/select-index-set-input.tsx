@@ -117,6 +117,10 @@ export default class SelectIndexSetInput extends tsc<{}> {
     }
   }
 
+  isShowNotVal(item) {
+    return item.tags.some(item => item.tag_id === 4);
+  }
+
   render() {
     const inputShowDom = () => {
       if (this.isAloneType) {
@@ -141,13 +145,14 @@ export default class SelectIndexSetInput extends tsc<{}> {
         >
           {this.selectedItemList.map(item => (
             <div class="select-tag width-limit-tag">
-              <span
-                class="title-overflow"
-                v-bk-overflow-tips={{
-                  content: `${item.indexName}${item.lightenName}`,
-                }}
-              >
-                {`${item.indexName}${item.lightenName}`}
+              <span class="tag-name">
+                {this.isShowNotVal(item) && <i class="not-val"></i>}
+                <span
+                  v-bk-overflow-tips={{
+                    content: `${item.indexName}${item.lightenName}`,
+                  }}
+                  class="title-overflow"
+                >{`${item.indexName}${item.lightenName}`}</span>
               </span>
             </div>
           ))}

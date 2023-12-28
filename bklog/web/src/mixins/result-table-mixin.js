@@ -245,7 +245,7 @@ export default {
       if (field) {
         const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
         const fieldType = field.field_type;
-        const isUnionSource = field.tag === 'union-source';
+        const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
         let unionContent = '';
@@ -396,7 +396,7 @@ export default {
     },
     getTableColumnContent(row, field) {
       // 日志来源 展示来源的索引集名称
-      if (field.tag === 'union-source') {
+      if (field?.tag === 'union-source') {
         return this.unionIndexItemList.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ?? '';
       }
       return this.tableRowDeepView(row, field.field_name, field.field_type);

@@ -472,6 +472,7 @@ export default {
           this.fetchPageData();
         }
         this.resetFavoriteValue();
+        this.$store.commit('updateUnionIndexList', []);
         this.$refs.searchCompRef?.clearAllCondition();
       },
       immediate: true,

@@ -207,6 +207,7 @@ export default class QueryStatement extends tsc<IProps> {
       }
 
       if (tagIDList.includes(4)) {
+        item.isNotVal = true;
         // 无数据索引集
         notDataList.push(item);
       } else if (item.is_favorite) {
@@ -243,7 +244,10 @@ export default class QueryStatement extends tsc<IProps> {
     this.indexSetList.forEach((item) => {
       item.tags?.forEach((tag) => {
         // 无数据 不加入标签
-        if (tag.tag_id === 4) return;
+        if (tag.tag_id === 4) {
+          item.isNotVal = true;
+          return;
+        };
         if (!labelMap.has(tag.tag_id)) labelMap.set(tag.tag_id, tag);
       });
       // 所有的收藏索引集
@@ -762,7 +766,10 @@ export default class QueryStatement extends tsc<IProps> {
               ]}
               onClick={() => this.handleClickFavorite(item)}
             >
-              <span class="name title-overflow">{item.name}</span>
+              <span class="name title-overflow">
+                {item.isNotVal && <i class="not-val"></i>}
+                <span>{item.name}</span>
+              </span>
               <span
                 class="cancel"
                 onClick={e => this.handleCancelFavorite(item, e)}
@@ -947,7 +954,10 @@ export default class QueryStatement extends tsc<IProps> {
               type="stroke"
               onClose={() => this.handleCloseSelectTag(item)}
             >
-              {item.indexName}
+              <span class="tag-name">
+                {item.isNotVal && <i class="not-val"></i>}
+                <span>{item.indexName}</span>
+              </span>
             </Tag>
           ))}
         </div>
@@ -1004,6 +1014,7 @@ export default class QueryStatement extends tsc<IProps> {
                     >
                       <span class="index-info">
                         {indexHandDom(item)}
+                        {item.isNotVal && <i class="not-val"></i>}
                         <span class="index-name" v-bk-overflow-tips>
                           {item.indexName}
                         </span>

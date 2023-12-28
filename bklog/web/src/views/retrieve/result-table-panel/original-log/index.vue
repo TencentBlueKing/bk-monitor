@@ -243,7 +243,6 @@ export default {
       // 更新config
       await this.$http
         .request('retrieve/postFieldsConfig', {
-          params: { index_set_id: this.routeIndexSet },
           data: {
             index_set_id: this.routeIndexSet,
             index_set_ids: this.unionIndexList,
