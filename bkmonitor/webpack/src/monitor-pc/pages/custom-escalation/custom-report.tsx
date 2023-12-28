@@ -498,6 +498,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 this.hasManageAuth ? this.addCustomEscalation() : this.handleShowAuthorityDetail(this.manageAuthDetail)
               }
             >
+              <span class='icon-monitor icon-plus-line mr-6'></span>
               {this.$t('新建')}
             </Button>
             <Input
