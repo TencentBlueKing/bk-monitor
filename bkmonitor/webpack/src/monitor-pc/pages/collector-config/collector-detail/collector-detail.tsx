@@ -136,7 +136,9 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     this.active = v;
     if (this.active === TabEnum.TargetDetail) {
       this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount);
-      this.allData[TabEnum.TargetDetail].topicKey = random(8);
+      setTimeout(() => {
+        this.allData[TabEnum.TargetDetail].topicKey = random(8);
+      }, 300);
     } else if (this.active === TabEnum.StorageState) {
       this.getStorageStateData();
       this.allData[TabEnum.StorageState].topicKey = random(8);

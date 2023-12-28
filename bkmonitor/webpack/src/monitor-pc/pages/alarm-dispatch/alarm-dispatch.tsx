@@ -701,6 +701,7 @@ export default class AlarmDispatch extends tsc<{}> {
                               detailData={this.detailData}
                               processPackage={this.processPackage}
                               actions={row.actions}
+                              userType={row.user_type}
                             />
                           )
                         }}
