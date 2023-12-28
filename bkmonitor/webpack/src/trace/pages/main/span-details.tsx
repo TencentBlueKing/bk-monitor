@@ -36,7 +36,7 @@ import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exc
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
-import ProfilingGraph from '../../plugins/charts/profiling-graph/profiling-graph';
+import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
@@ -1159,7 +1159,7 @@ export default defineComponent({
                         loading={isTabPanelLoading.value}
                         style='height: 100%;'
                       >
-                        <ProfilingGraph
+                        <ProfilingFlameGraph
                           appName={appName.value}
                           profileId={originalData.value.span_id}
                           start={originalData.value.start_time}
