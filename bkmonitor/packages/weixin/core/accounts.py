@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import random
 import time
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
@@ -49,7 +49,7 @@ class WeixinAccount(WeixinAccountSingleton):
     """
 
     # 跳转到微信重定向链接
-    WEIXIN_OAUTH_URL = weixin_settings.WEIXIN_APP_URL_PREFIX + "/connect/oauth2/authorize"
+    WEIXIN_OAUTH_URL = urljoin(weixin_settings.WEIXIN_APP_URL_PREFIX, "/connect/oauth2/authorize")
 
     def __init__(self):
         if weixin_settings.IS_QY_WEIXIN:
