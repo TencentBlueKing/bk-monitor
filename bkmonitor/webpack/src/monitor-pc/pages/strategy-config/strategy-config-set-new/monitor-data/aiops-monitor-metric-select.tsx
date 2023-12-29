@@ -26,26 +26,36 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MetricDetail } from '../typings';
+import { random } from '../../../../../monitor-common/utils';
+import MetricSelector from '../../../../components/metric-selector/metric-selector';
+import { IScenarioItem, MetricDetail, MetricType } from '../typings';
 
 import './aiops-monitor-metric-select.scss';
 
 interface IProps {
   value?: string[];
   metrics?: MetricDetail[];
+  scenarioList?: IScenarioItem[];
+  onChange?: (v: string[]) => void;
 }
 
 @Component
 export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
   @Prop({ type: Array, default: () => [] }) metrics: MetricDetail[];
+  @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
 
   localValue = [];
   tags: MetricDetail[] = [];
 
   showSelector = false;
+  selectTargetId = '';
 
   showAll = false;
+
+  created() {
+    this.selectTargetId = `aiops-monitor-metric-select-component-id-${random(8)}`;
+  }
 
   @Watch('value', { immediate: true })
   handleWatchValue(value: string[]) {
@@ -81,9 +91,17 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
       this.getOverflowHideCount();
     });
   }
-
+  /**
+   * @description 点击当前组件
+   */
   handleClick() {
     this.showAll = !this.showAll;
+    this.$nextTick(() => {
+      this.getOverflowHideCount();
+      if (this.showAll) {
+        this.showSelector = true;
+      }
+    });
   }
 
   /**
@@ -91,31 +109,101 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
    */
   getOverflowHideCount() {
     const tagsWrap = this.$el.querySelector('.tag-select-wrap');
-    const tagsEl = tagsWrap.querySelectorAll('.tag-item');
-    for (let i = 0; i < tagsEl.length; i++) {
-      const width = tagsEl[i].offsetWidth;
-      console.log(width, i);
+    const countClassName = 'overflow-count';
+    const dels = tagsWrap.querySelectorAll(`.${countClassName}`);
+    console.log(dels);
+    dels.forEach(el => {
+      el.parentNode.removeChild(el);
+    });
+    if (this.showAll) {
+      return;
     }
+    const tagsEl = tagsWrap.querySelectorAll('.tag-item');
+    // 容器宽度
+    const wrapWidth = (this.$el as any).offsetWidth - 24;
+    // 隐藏的数量tag宽度
+    const countWrapWidth = 36;
+    let countWidth = 0;
+    let overflowCount = 0;
+    let insertIndex = 0;
+    for (let i = 0; i < tagsEl.length; i++) {
+      const width = (tagsEl[i] as any).offsetWidth;
+      countWidth += width + 4;
+      if (countWidth > wrapWidth - countWrapWidth) {
+        if (!insertIndex) {
+          insertIndex = i;
+        }
+        overflowCount += 1;
+      }
+    }
+    if (overflowCount) {
+      const countEl = document.createElement('span');
+      countEl.className = countClassName;
+      countEl.innerHTML = `+${overflowCount}`;
+      tagsWrap.insertBefore(countEl, tagsWrap.children[insertIndex]);
+    }
+  }
+
+  /**
+   * @description 展示指标选择器
+   * @param v
+   */
+  handleShowSelector(v: boolean) {
+    this.showSelector = v;
+    if (!v) {
+      this.showAll = false;
+      this.$nextTick(() => {
+        this.getOverflowHideCount();
+      });
+    }
+  }
+  /**
+   * @description 删除
+   * @param event
+   * @param index
+   */
+  handleDel(event: Event, index: number) {
+    event.stopPropagation();
+    this.tags.splice(index, 1);
+    this.$nextTick(() => {
+      this.getOverflowHideCount();
+    });
+  }
+
+  handleChange() {
+    this.localValue = this.tags.map(item => item.metric_id);
+    this.$emit('change', this.localValue);
   }
 
   render() {
     return (
       <span
         class={['aiops-monitor-metric-select-component', { 'show-all': this.showAll }]}
+        id={this.selectTargetId}
         onClick={this.handleClick}
       >
         <div class='tag-select-wrap'>
-          {this.tags.map(item => (
+          {this.tags.map((item, index) => (
             <div
               key={item.metric_id}
               class='tag-item'
             >
               <span>{item.name}</span>
-              <span class='icon-monitor icon-mc-close'></span>
+              <span
+                class='icon-monitor icon-mc-close'
+                onClick={e => this.handleDel(e, index)}
+              ></span>
             </div>
           ))}
         </div>
         <div class='icon-monitor icon-arrow-down'></div>
+        <MetricSelector
+          show={this.showSelector}
+          targetId={`#${this.selectTargetId}`}
+          type={MetricType.TimeSeries}
+          scenarioList={this.scenarioList}
+          onShowChange={val => this.handleShowSelector(val)}
+        ></MetricSelector>
       </span>
     );
   }
