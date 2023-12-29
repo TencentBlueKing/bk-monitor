@@ -595,7 +595,7 @@ class GetEventPluginTokenResource(Resource):
                 instance.data_id, bk_biz_id=instance.bk_biz_id, app_name=instance.plugin_id
             )
             instance.save()
-        return instance.token
+        return {"token": instance.token}
 
 
 class TailEventPluginDataResource(Resource):
