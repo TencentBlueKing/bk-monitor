@@ -35,7 +35,7 @@ import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
-import { ISceneConfig, MetricDetail, MetricType } from '../typings';
+import { IScenarioItem, ISceneConfig, MetricDetail, MetricType } from '../typings';
 
 import AiopsMonitorMetricSelect from './aiops-monitor-metric-select';
 
@@ -49,6 +49,7 @@ interface IProps {
   defaultCheckedTarget?: any;
   readonly?: boolean;
   isEdit?: boolean;
+  scenarioList?: IScenarioItem[];
   onChange?: (sceneConfig: ISceneConfig) => void;
   onTargetTypeChange?: (type: string) => void;
   onTargetChange?: (value) => void;
@@ -64,6 +65,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   @Prop({ default: () => ({ target_detail: [] }), type: Object }) defaultCheckedTarget: any;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ type: Boolean, default: false }) isEdit: boolean;
+  @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
   @Ref('createForm') createForm: Form;
   @Ref('tagListRef') tagListRef: HTMLDivElement;
@@ -204,7 +206,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   }
   /** 计算指标是否存在多行情况 */
   handleCalcShowOpenTag() {
-    if (!this.scene?.metrics?.length) {
+    if (!this.scene?.metrics?.length || !this.tagListRef) {
       return;
     }
     const { height, top: parentTop } = this.tagListRef.getBoundingClientRect();
@@ -399,6 +401,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                 <AiopsMonitorMetricSelect
                   value={this.metrics}
                   metrics={this.allMetrics}
+                  scenarioList={this.scenarioList}
                 ></AiopsMonitorMetricSelect>
               </div>
             )}
