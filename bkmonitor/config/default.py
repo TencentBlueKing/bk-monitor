@@ -407,6 +407,7 @@ ACTIVE_VIEWS = {
         "as_code": "monitor_web.as_code.views",
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
+        "email_subscription": "monitor_web.email_subscription.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {

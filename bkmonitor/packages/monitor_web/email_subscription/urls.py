@@ -8,24 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from .as_code import *  # noqa
-from .base import *  # noqa
-from .bcs_base import *  # noqa
-from .bcs_cluster import *  # noqa
-from .bcs_container import *  # noqa
-from .bcs_label import *  # noqa
-from .bcs_monitor import *  # noqa
-from .bcs_node import *  # noqa
-from .bcs_pod import *  # noqa
-from .bcs_pod_monitor import *  # noqa
-from .bcs_service import *  # noqa
-from .bcs_service_monitor import *  # noqa
-from .bcs_workload import *  # noqa
-from .config import GlobalConfig  # noqa
-from .email_subscription import *  # noqa
-from .fta import *  # noqa
-from .healthz import *  # noqa
-from .metric_list_cache import *  # noqa
-from .statistics import *  # noqa
-from .strategy import *  # noqa
-from .token import *  # noqa
+
+
+from django.conf.urls import include, url
+
+from core.drf_resource.routers import ResourceRouter
+from monitor_web.email_subscription import views
+
+router = ResourceRouter()
+router.register_module(views)
+
+urlpatterns = [
+    url(r"^", include(router.urls)),
+]

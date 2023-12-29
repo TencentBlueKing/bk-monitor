@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from django.contrib.auth import get_user_model
 
 from alarm_backends.core.cache.mail_report import MailReportCacheManager
+from alarm_backends.service.email_subscription.factory import SubscriptionFactory
 from alarm_backends.service.report.handler import ReportHandler
 from alarm_backends.service.report.tasks import render_mails
 from bkmonitor.action.serializers.report import (
@@ -19,7 +20,12 @@ from bkmonitor.action.serializers.report import (
     ReportChannelSerializer,
     ReportContentSerializer,
 )
-from bkmonitor.models import ReportItems
+from bkmonitor.email_subscription.serializers import (
+    ChannelSerializer,
+    ContentConfigSerializer,
+    ScenarioConfigSerializer,
+)
+from bkmonitor.models import EmailSubscription, ReportItems, SubscriptionChannel
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, resource
@@ -119,6 +125,40 @@ class TestReportMail(Resource):
         return "success"
 
 
+class SendSubscription(Resource):
+    """
+    发送订阅报表测试
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        subscription_id = serializers.IntegerField(required=False)
+        name = serializers.CharField(required=False)
+        bk_biz_id = serializers.IntegerField(required=False)
+        scenario = serializers.CharField(label="订阅场景", required=False)
+        channels = ChannelSerializer(many=True, required=False)
+        frequency = FrequencySerializer(required=False)
+        content_config = ContentConfigSerializer(required=False)
+        scenario_config = ScenarioConfigSerializer(required=False)
+        start_time = serializers.IntegerField(label="开始时间", required=False, default=None)
+        end_time = serializers.IntegerField(label="结束时间", required=False, default=None)
+        is_manager_created = serializers.BooleanField(required=False, default=False)
+        is_enabled = serializers.BooleanField(required=False, default=True)
+
+    def perform_request(self, validated_request_data):
+        channels = []
+        # 若订阅id不存在则为测试发送，使用缺省值绑定测试发送记录
+        subscription_id = validated_request_data.get("subscription_id", -1)
+        for channel in validated_request_data["channels"]:
+            channel["subscription_id"] = subscription_id
+            channels.append(SubscriptionChannel(**channel))
+        if validated_request_data["subscription_id"]:
+            subscription = EmailSubscription.objects.get(id=validated_request_data["subscription_id"])
+        else:
+            subscription = EmailSubscription(validated_request_data)
+        SubscriptionFactory.get_handler(subscription).run(channels)
+        return "success"
+
+
 class MailReportViewSet(ResourceViewSet):
     """
     邮件订阅
@@ -128,6 +168,7 @@ class MailReportViewSet(ResourceViewSet):
         ResourceRoute("GET", GetStatisticsByJson, endpoint="get_statistics_by_json"),
         ResourceRoute("GET", GetSettingAndNotifyGroup, endpoint="get_setting_and_notify_group"),
         ResourceRoute("POST", TestReportMail, endpoint="test_report_mail"),
+        ResourceRoute("POST", SendSubscription, endpoint="send_subscription"),
         ResourceRoute("GET", resource.report.group_list, endpoint="group_list"),
         ResourceRoute("POST", IsSuperuser, endpoint="is_superuser"),
     ]
