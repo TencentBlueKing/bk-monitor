@@ -88,8 +88,8 @@ export default defineComponent({
         log_display_count: 30,
         year_on_year_hour: 1,
         generate_attachment: true,
-        // 暂不配置，先写这个作为默认提交
-        is_show_new_pattern: true,
+        // 是否只展示新类
+        is_show_new_pattern: false,
         // 这个同比配置也不需要前端展示，暂不开放配置入口 （不用管）
         year_on_year_change: 'all'
       },
@@ -1191,6 +1191,17 @@ export default defineComponent({
                   <Radio.Group v-model={this.formData.scenario_config.generate_attachment}>
                     <Radio label={true}>{window.i18n.t('是')}</Radio>
                     <Radio label={false}>{window.i18n.t('否')}</Radio>
+                  </Radio.Group>
+                </Form.FormItem>
+
+                <Form.FormItem
+                  label={window.i18n.t('只展示新类')}
+                  property='scenario_config.is_show_new_pattern'
+                  required
+                >
+                  <Radio.Group v-model={this.formData.scenario_config.is_show_new_pattern}>
+                    <Radio label={true}>{this.t('是')}</Radio>
+                    <Radio label={false}>{this.t('否')}</Radio>
                   </Radio.Group>
                 </Form.FormItem>
               </div>
