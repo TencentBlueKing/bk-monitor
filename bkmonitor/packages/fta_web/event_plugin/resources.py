@@ -509,6 +509,12 @@ class CollectorProxyHostInfo(ProxyHostInfo):
 
     DEFAULT_PROXY_PORT = 4318
 
+    def get_listen_port(self):
+        """
+        监听端口修改
+        """
+        return ProxyHostInfo.DEFAULT_PROXY_PORT
+
 
 class GetEventPluginInstanceResource(Resource):
     """
@@ -538,16 +544,15 @@ class GetEventPluginInstanceResource(Resource):
         ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{plugin_info['plugin_id']}/"
         # 取一个代表
         instance = instances[0]
+        if instances[0].bk_biz_id:
+            # 不是全局的，需要单独配置
+            ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{instance.plugin_id}_{instance.data_id}/"
         alert_sources = ingest_config.get("alert_sources", [])
         if alert_sources:
             collect_url = "${PROXY_IP}:4318/fta/v1/event/?source=${source}&token=${token}"
         else:
             # 没有区分告警推送来源
             collect_url = "${PROXY_IP}:4318/fta/v1/event/?token=${token}"
-
-        if instances[0].bk_biz_id:
-            # 不是全局的，需要单独配置
-            ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{instance.plugin_id}_{instance.data_id}/"
 
         instances_data = [
             {
@@ -585,16 +590,12 @@ class GetEventPluginTokenResource(Resource):
         if not instance.data_id:
             raise DataIDNotSetError()
 
-        if instance.ingest_config.get("collect_type", "bk_ingestor") == "bk_ingestor":
-            data_id_info = api.metadata.get_data_id(bk_data_id=instance.data_id, with_rt_info=False)
-            return {"token": data_id_info["token"]}
-
         if not instance.token:
             instance.token = transform_data_id_to_token(
                 instance.data_id, bk_biz_id=instance.bk_biz_id, app_name=instance.plugin_id
             )
             instance.save()
-        return instance
+        return instance.token
 
 
 class TailEventPluginDataResource(Resource):
