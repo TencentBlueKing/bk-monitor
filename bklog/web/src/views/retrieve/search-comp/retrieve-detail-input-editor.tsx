@@ -89,6 +89,11 @@ export default class UiQuery extends Mixins(classDragMixin) {
     },
     autoDetectHighContrast: false,
     roundedSelection: false,
+    renderWhitespace: 'none',
+    renderIndentGuides: false,
+    trimAutoWhitespace: false,
+    renderControlCharacters: true,
+    insertSpaces: false,
   };
   /** 提示样式 */
   placeholderStyle = {
@@ -149,8 +154,8 @@ export default class UiQuery extends Mixins(classDragMixin) {
       // 设置语法规则
       tokenizer: {
         root: [
-          [/\b(AND|OR|and|or)\b/i, 'AND-OR-color'],
-          [/\b(NOT)\b/i, 'NOT-color'],
+          [/\s+(AND|and|OR|or)\s+/g, 'AND-OR-color'],
+          [/\s+(NOT)\s+/g, 'NOT-color'],
         ],
       },
     });
