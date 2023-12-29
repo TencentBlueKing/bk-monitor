@@ -988,6 +988,7 @@ export default class QueryStatement extends tsc<IProps> {
               show-count={false}
               name={group.name}
               id={(group as any).id}
+              class={{ 'not-child': !group.children.length }}
               scopedSlots={{
                 'group-name': () => {
                   return group.name && group.children.length ? (

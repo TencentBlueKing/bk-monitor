@@ -101,14 +101,15 @@
     height: 8px;
     border-radius: 50%;
     margin-left: 4px;
-    background: #FFE6E6;
-    border: 1px solid #EA3636;
+    background: #ffe6e6;
+    border: 1px solid #ea3636;
   }
 
   .tag-name {
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
+
     .not-val {
       margin: 0 4px 0 0;
     }
@@ -146,10 +147,11 @@
         }
       }
 
-      .bk-option-group-name:empty {
-        border-top: none;
+      &.not-child {
+        .bk-option-group-name {
+          border: none;
+        }
       }
-      
 
       &:first-child {
         .bk-option-group-name {
@@ -333,13 +335,13 @@
       cursor: pointer;
       align-items: center;
 
+      @include flex-justify(space-between);
+
       .not-val {
         margin: 0 4px 0 0;
         display: inline-block;
         flex-shrink: 0;
       }
-
-      @include flex-justify(space-between);
 
       &:hover {
         background: #f0f1f5;
