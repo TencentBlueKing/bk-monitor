@@ -197,6 +197,7 @@ export default {
       isAllowedCreate: null,
       emptyType: 'empty',
       isInit: true,
+      selectLabelList: [],
     };
   },
   computed: {
