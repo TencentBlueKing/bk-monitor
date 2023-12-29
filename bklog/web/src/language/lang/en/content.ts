@@ -595,5 +595,6 @@ export default {
   变量说明: 'Variable description',
   示例: 'Example',
   内容配置: 'Content configuration',
-  变量列表: 'Variable list'
+  变量列表: 'Variable list',
+  '邮件任务已生成，请一分钟后到邮箱查看': 'The email task has been generated, please check your mailbox in one minute'
 };

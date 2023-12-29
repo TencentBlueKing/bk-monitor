@@ -72,7 +72,7 @@ export default defineComponent({
       }
     }
   },
-  setup(props) {
+  setup(props, { emit }) {
     const { t } = useI18n();
     const formData = reactive({
       scenario: 'clustering',
@@ -783,6 +783,18 @@ export default defineComponent({
       return indexSetIDList.value.find(item => item.id === formData.scenario_config.index_set_id)?.name || '';
     });
 
+    function handleExistedReportNameClick(reportId) {
+      emit('select-existed-report', reportId);
+    }
+
+    watch(
+      () => props.detailInfo,
+      () => {
+        console.log('props.detailInfo change');
+      },
+      { deep: true }
+    );
+
     onMounted(() => {
       if (props.mode === 'quick') setFormData();
       logServiceRelationBkLogIndexSet()
@@ -828,7 +840,9 @@ export default defineComponent({
       isIncludeWeekend,
       goToTargetScene,
       errorTips,
-      existedReportList
+      existedReportList,
+      handleExistedReportNameClick,
+      setFormData
     };
   },
   render() {
@@ -884,7 +898,12 @@ export default defineComponent({
                                     return this.existedReportList.map((item, index) => {
                                       return (
                                         <span>
-                                          <span style='color: #3A84FF;cursor: pointer;'>{item.name}</span>
+                                          <span
+                                            style='color: #3A84FF;cursor: pointer;'
+                                            onClick={() => this.handleExistedReportNameClick(item.id)}
+                                          >
+                                            {item.name}
+                                          </span>
                                           {index + 1 === this.existedReportList.length ? '' : ' , '}
                                         </span>
                                       );
@@ -985,7 +1004,12 @@ export default defineComponent({
                                     return this.existedReportList.map((item, index) => {
                                       return (
                                         <span>
-                                          <span style='color: #3A84FF;cursor: pointer;'>{item.name}</span>
+                                          <span
+                                            style='color: #3A84FF;cursor: pointer;'
+                                            onClick={() => this.handleExistedReportNameClick(item.id)}
+                                          >
+                                            {item.name}
+                                          </span>
                                           {index + 1 === this.existedReportList.length ? '' : ' , '}
                                         </span>
                                       );
