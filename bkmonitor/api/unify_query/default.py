@@ -124,7 +124,7 @@ class QueryDataResource(UnifyQueryAPIResource):
         start_time = serializers.CharField()
         end_time = serializers.CharField()
         step = serializers.CharField()
-        space_uid = serializers.CharField()
+        space_uid = serializers.CharField(allow_blank=True)
         down_sample_range = serializers.CharField(allow_blank=True)
         timezone = serializers.CharField(required=False)
 

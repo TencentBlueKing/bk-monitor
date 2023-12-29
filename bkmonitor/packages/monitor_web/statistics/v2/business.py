@@ -9,17 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import arrow
+from django.utils.functional import cached_property
 
 from apm_web.constants import DataStatus
 from apm_web.models import Application
-from django.utils.functional import cached_property
-from monitor.models import UptimeCheckTask
-from monitor_web.models.custom_report import CustomEventGroup
-from monitor_web.statistics.v2.base import TIME_RANGE, BaseCollector
-from utils.business import ACTIVE_BIZ_LAST_VISIT_TIME
-from utils.redis_client import redis_cli
-
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import (
     AlgorithmModel,
     BCSCluster,
@@ -30,6 +24,11 @@ from bkmonitor.models import (
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.statistics.metric import Metric, register
 from metadata.models import TimeSeriesGroup
+from monitor.models import UptimeCheckTask
+from monitor_web.models.custom_report import CustomEventGroup
+from monitor_web.statistics.v2.base import TIME_RANGE, BaseCollector
+from utils.business import ACTIVE_BIZ_LAST_VISIT_TIME
+from utils.redis_client import redis_cli
 
 
 class BusinessCollector(BaseCollector):
@@ -107,8 +106,9 @@ class BusinessCollector(BaseCollector):
             interval=60,
             group_by=["bk_biz_id"],
         )
+        query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
         try:
-            records = data_source.query_data(
+            records = query.query_data(
                 start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
             )
         except Exception:
@@ -134,9 +134,9 @@ class BusinessCollector(BaseCollector):
             interval=60,
             group_by=["bk_biz_id"],
         )
-
+        query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
         try:
-            records = data_source.query_data(
+            records = query.query_data(
                 start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
             )
         except Exception:
@@ -162,7 +162,8 @@ class BusinessCollector(BaseCollector):
     def apm_biz_count(self):
         return (
             Application.objects.filter(
-                bk_biz_id__in=list(self.biz_info.keys()), is_enabled=True, data_status=DataStatus.NORMAL)
+                bk_biz_id__in=list(self.biz_info.keys()), is_enabled=True, data_status=DataStatus.NORMAL
+            )
             .values_list("bk_biz_id", flat=True)
             .distinct()
             .count()
