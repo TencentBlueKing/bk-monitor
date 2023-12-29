@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import json
 import logging
 import time
@@ -176,12 +177,14 @@ class ApmFlow:
 
     @classmethod
     def _is_diff(cls, a, b, exclude_fields=None):
+        a_copy = copy.deepcopy(a)
+        b_copy = copy.deepcopy(b)
         if exclude_fields:
             for i in exclude_fields:
-                a.pop(i, None)
-                b.pop(i, None)
+                a_copy.pop(i, None)
+                b_copy.pop(i, None)
 
-        return count_md5(a) != count_md5(b)
+        return count_md5(a_copy) != count_md5(b_copy)
 
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
