@@ -48,6 +48,7 @@ const { i18n } = window;
 export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRetrieval.IEvent> {
   @Prop({ type: Boolean, default: false }) autoQuery: boolean;
   @Prop({ type: Boolean, default: false }) isFavoriteUpdate: boolean;
+  @Prop({ type: Array, default: false }) where: IFilterCondition.localValue[];
   @Prop({ type: String, default: '' }) drillKeywords: string;
   @Prop({ type: Object }) compareValue: IDataRetrievalView.ICompareValue;
   @Prop({ type: [String, Number], default: 60 }) eventInterval: EventRetrievalViewType.intervalType;
@@ -187,10 +188,22 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     }
   }
 
+  @Emit('filterConditionListChange')
+  @Watch('currentDimensionsList')
+  currentDimensionsListChange() {
+    return this.currentDimensionsList;
+  }
+
   @Watch('eventInterval')
   @Watch('compareValue.tools.timeRange')
   timeRangeChange() {
     this.getGroupByList();
+  }
+
+  @Watch('where')
+  handleWhereChange(val: IFilterCondition.localValue[]) {
+    this.localValue.where = val;
+    this.handleEventQuery();
   }
 
   @Watch('chartTimeRange')
