@@ -500,10 +500,7 @@ class MySubscription extends tsc<{}> {
                 display-key='id'
                 save-key='id'
                 search-key={['id']}
-                // popoverOptions={{
-                //   extCls: 'resend-tag-input'
-                // }}
-                // ext-cls='resend-tag-input'
+                content-width={247}
               ></bk-tag-input>
             </div>
 
@@ -533,9 +530,9 @@ class MySubscription extends tsc<{}> {
     };
     return (
       <div class='my-apply-container'>
-        <div class='header-title'>{this.$t('我的订阅')}</div>
+        {/* <div class='header-title'>{this.$t('我的订阅')}</div> */}
 
-        <div class='temp-container'>
+        <div>
           <div class='header-container'>
             <div class='radio-container'>
               <div

@@ -88,7 +88,7 @@ class NavTools extends DocumentLinkMixin {
   defauleSearchPlaceholder = `${this.$t('全站搜索')} Ctrl + k`;
   globalSearchPlaceholder = this.defauleSearchPlaceholder;
   isShowMyApplyModal = false;
-  isShowMySubscriptionModal = false;
+  isShowMyReportModal = false;
 
   // 全局弹窗在路由变化时需要退出
   @Watch('$route.name')
@@ -99,13 +99,13 @@ class NavTools extends DocumentLinkMixin {
 
   /** 20231226 暂不使用 */
   /** vue-router 加载时间过长，导致没法直接在 mounted 中判断，故通过监听的方式去控制 我的订阅 弹窗是否打开 */
-  // @Watch('$route.query')
-  // handleQueryChange() {
-  //   // 从 日志平台 跳转过来时会通过 url 参数开启 我的订阅 弹窗。
-  //   if (this.$route.query.isShowMySubscription) {
-  //     this.isShowMySubscriptionModal = this.$route.query.isShowMySubscription === 'true';
-  //   }
-  // }
+  @Watch('$route.query')
+  handleQueryChange() {
+    // 从 日志平台 跳转过来时会通过 url 参数开启 我的订阅 弹窗。
+    if (this.$route.query.isShowMyReport) {
+      this.isShowMyReportModal = this.$route.query.isShowMyReport === 'true';
+    }
+  }
 
   created() {
     this.helpList = [
@@ -440,9 +440,8 @@ class NavTools extends DocumentLinkMixin {
                   <li
                     class='nav-item'
                     onClick={() => {
-                      // 20231225 暂时不用
-                      // this.isShowMySubscriptionModal = false;
-                      // this.isShowMyApplyModal = true;
+                      this.isShowMyReportModal = false;
+                      this.isShowMyApplyModal = true;
                       this.$router.push({
                         name: 'my-applied-report'
                       });
@@ -456,9 +455,8 @@ class NavTools extends DocumentLinkMixin {
                   <li
                     class='nav-item'
                     onClick={() => {
-                      // 20231225 暂时不用
-                      // this.isShowMyApplyModal = false;
-                      // this.isShowMySubscriptionModal = true;
+                      this.isShowMyApplyModal = false;
+                      this.isShowMyReportModal = true;
                       this.$router.push({
                         name: 'my-report'
                       });
@@ -511,8 +509,7 @@ class NavTools extends DocumentLinkMixin {
           // #endif
         }
 
-        {/* 20231225 暂时不用 */}
-        {/* {this.isShowMyApplyModal && (
+        {this.isShowMyApplyModal && (
           <SettingModal
             title={this.$t('我申请的').toString()}
             show={this.isShowMyApplyModal}
@@ -523,21 +520,20 @@ class NavTools extends DocumentLinkMixin {
           >
             <MyApply></MyApply>
           </SettingModal>
-        )} */}
+        )}
 
-        {/* 20231225 暂时不用 */}
-        {/* {this.isShowMySubscriptionModal && (
+        {this.isShowMyReportModal && (
           <SettingModal
             title={this.$t('我的订阅').toString()}
-            show={this.isShowMySubscriptionModal}
+            show={this.isShowMyReportModal}
             zIndex={2000}
             onChange={v => {
-              this.isShowMySubscriptionModal = v;
+              this.isShowMyReportModal = v;
             }}
           >
             <MySubscription></MySubscription>
           </SettingModal>
-        )} */}
+        )}
       </div>
     );
   }

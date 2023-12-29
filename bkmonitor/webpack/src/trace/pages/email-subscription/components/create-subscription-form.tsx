@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, defineExpose, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, PropType, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { copyText, deepClone, transformDataKey } from '@common/utils';
 import {
@@ -47,7 +47,7 @@ import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from '../../../../monitor-api/modules/apm_service';
 import { getExistReports, getVariables } from '../../../../monitor-api/modules/new_report';
 import MemberSelect from '../../../components/member-select/member-select';
-import { Scenario } from '../email-subscription-config';
+import { Scenario } from '../mapping';
 
 import './create-subscription-form.scss';
 
@@ -206,11 +206,11 @@ export default defineComponent({
     });
     const pattenLevelSlider = ref(0);
     enum PatternLevelEnum {
-      '01' = 0,
-      '03' = 25,
+      '01' = 100,
+      '03' = 75,
       '05' = 50,
-      '07' = 75,
-      '09' = 100
+      '07' = 25,
+      '09' = 0
     }
     function handleSliderChange() {
       // const sliderMapping = {
@@ -690,12 +690,14 @@ export default defineComponent({
     }
 
     const isShowExistSubscriptionTips = ref(false);
+    const existedReportList = ref([]);
     function checkExistSubscriptions() {
       getExistReports({
         scenario: formData.scenario,
         index_set_id: formData.scenario_config.index_set_id
       })
         .then((response: []) => {
+          existedReportList.value = response;
           isShowExistSubscriptionTips.value = !!response.length;
         })
         .catch(console.log);
@@ -732,6 +734,13 @@ export default defineComponent({
             }
           })
         };
+        // 根据 时间范围 添加相对应的表达式，日志平台的时间选择会用得上。
+        const rangeObj = getTimeRangeObj(dataRange.value);
+        if (rangeObj) {
+          const unit = String(rangeObj.time_level || 'minutes').at(0);
+          query.start_time = `now-${rangeObj.number || 15}${unit}`;
+          query.end_time = 'now';
+        }
         const qs = new URLSearchParams(query as any).toString();
         window.open(`${window.bk_log_search_url}#/retrieve/${formData.scenario_config.index_set_id}?${qs}`);
       }
@@ -783,10 +792,6 @@ export default defineComponent({
         .catch(console.log);
     });
 
-    defineExpose({
-      validateAllForms
-    });
-
     return {
       t,
       formData,
@@ -822,7 +827,8 @@ export default defineComponent({
       handleTimeRangeChange,
       isIncludeWeekend,
       goToTargetScene,
-      errorTips
+      errorTips,
+      existedReportList
     };
   },
   render() {
@@ -836,7 +842,9 @@ export default defineComponent({
             label-width='200'
           >
             {this.mode === 'quick' && (
-              <Form.FormItem label={window.i18n.t('订阅场景')}>{Scenario[this.formData.scenario]}</Form.FormItem>
+              <Form.FormItem label={window.i18n.t('订阅场景')}>
+                {this.t(Scenario[this.formData.scenario])}
+              </Form.FormItem>
             )}
             {this.mode === 'quick' && (
               // <Form.FormItem label={window.i18n.t('索引集')}>{this.indexSetName}</Form.FormItem>
@@ -869,9 +877,21 @@ export default defineComponent({
                         title: () => {
                           return (
                             <div>
-                              <i18n-t keypath='当前已存在相同索引集的订阅 {0} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'>
-                                <span style={{ color: '#3A84FF' }}>{this.duplicatedIndexIdName}</span>
-                              </i18n-t>
+                              <i18n-t
+                                keypath='当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'
+                                v-slots={{
+                                  btn: () => {
+                                    return this.existedReportList.map((item, index) => {
+                                      return (
+                                        <span>
+                                          <span style='color: #3A84FF;cursor: pointer;'>{item.name}</span>
+                                          {index + 1 === this.existedReportList.length ? '' : ' , '}
+                                        </span>
+                                      );
+                                    });
+                                  }
+                                }}
+                              />
                             </div>
                           );
                         }
@@ -958,9 +978,21 @@ export default defineComponent({
                         title: () => {
                           return (
                             <div>
-                              <i18n-t keypath='当前已存在相同索引集的订阅 {0} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'>
-                                <span style={{ color: '#3A84FF' }}>{this.duplicatedIndexIdName}</span>
-                              </i18n-t>
+                              <i18n-t
+                                keypath='当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？'
+                                v-slots={{
+                                  btn: () => {
+                                    return this.existedReportList.map((item, index) => {
+                                      return (
+                                        <span>
+                                          <span style='color: #3A84FF;cursor: pointer;'>{item.name}</span>
+                                          {index + 1 === this.existedReportList.length ? '' : ' , '}
+                                        </span>
+                                      );
+                                    });
+                                  }
+                                }}
+                              />
                             </div>
                           );
                         }
@@ -1098,7 +1130,7 @@ export default defineComponent({
                     <Slider
                       class='slider'
                       v-model={this.pattenLevelSlider}
-                      step='25'
+                      step={25}
                       custom-content={this.customSliderContent}
                       onChange={this.handleSliderChange}
                     ></Slider>

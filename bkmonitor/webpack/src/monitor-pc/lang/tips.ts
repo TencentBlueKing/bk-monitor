@@ -196,8 +196,8 @@ export default {
   '已成功发送 {0} 个，失败 {1} 个内部用户': '{0} successfully sent, {1} failed internal users',
   '已成功发送 {0} 个，失败 {1} 个外部邮件': '{0} successfully sent, {1} failed external messages',
   '已成功发送 {0} 个，失败 {1} 个企业微信群': '{0} successfully sent, {1} failed enterprise WeChat groups',
-  '当前已存在相同索引集的订阅 {0} ，请确认是否要创建新订阅或是直接修改已有订阅内容？':
-    'There is currently a subscription {0} for the same index set. Please confirm whether you want to create a new subscription or directly modify the existing subscription content?',
+  '当前已存在相同索引集的订阅 {btn} ，请确认是否要创建新订阅或是直接修改已有订阅内容？':
+    'There is currently a subscription {btn} for the same index set. Please confirm whether you want to create a new subscription or directly modify the existing subscription content?',
   请输入搜索条件: 'Please enter the search condition',
   确定重新发送给以下用户: 'Confirm to resend to the following users:',
   确定重新发送给以下邮件: 'Confirm to resend to the following emails:',

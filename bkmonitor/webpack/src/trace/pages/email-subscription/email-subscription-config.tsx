@@ -1,3 +1,4 @@
+/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,14 +24,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, reactive, ref, nextTick } from 'vue';
+import { defineComponent, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
   cloneReport,
   createOrUpdateReport,
   deleteReport,
-  getReport,
   getReportList,
   getSendRecords,
   sendReport
@@ -48,49 +48,22 @@ import {
   Sideslider,
   Switcher,
   Table,
-  Tag,
   TagInput
 } from 'bkui-vue';
+import { Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
+import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
+import { getDefaultReportData, TestSendingTarget } from './types';
 
 import './email-subscription-config.scss';
 
-enum SendMode {
-  periodic = window.i18n.t('周期发送'),
-  'one_time' = window.i18n.t('仅发一次')
-}
+type TooltipsToggleMapping = {
+  [key: number]: boolean;
+};
 
-enum SendStatus {
-  failed = window.i18n.t('发送失败'),
-  partial_failed = window.i18n.t('发送部分失败'),
-  success = window.i18n.t('发送成功'),
-  no_status = window.i18n.t('未发送')
-}
-
-enum ChannelName {
-  email = window.i18n.t('外部邮件'),
-  wxbot = window.i18n.t('企业微信群'),
-  user = window.i18n.t('内部用户')
-}
-
-export enum Scenario {
-  clustering = window.i18n.t('日志聚类'),
-  dashboard = window.i18n.t('仪表盘'),
-  scene = window.i18n.t('观测场景')
-}
-
-export enum YearOnYearHour {
-  0 = window.i18n.t('不比对'),
-  1 = window.i18n.t('{0}小时前', [1]),
-  2 = window.i18n.t('{0}小时前', [2]),
-  3 = window.i18n.t('{0}小时前', [3]),
-  6 = window.i18n.t('{0}小时前', [6]),
-  12 = window.i18n.t('{0}小时前', [12]),
-  24 = window.i18n.t('{0}小时前', [24])
-}
 export default defineComponent({
   name: 'EmailSubscriptionConfig',
   setup() {
@@ -105,50 +78,16 @@ export default defineComponent({
       order: '',
       conditions: []
     });
-    function handleGoToCreateConfigPage() {
-      router.push({
-        name: 'create-subscription'
-      });
-    }
-    function handleInputKeydown() {
-      resetAndGetSubscriptionList();
-    }
-    function handleClone() {
-      cloneDialog.loading = true;
-      cloneReport({
-        report_id: cloneDialog.subscription_id
-      })
-        .then(() => {
-          fetchSubscriptionList();
-        })
-        .catch(console.log)
-        .finally(() => {
-          cloneDialog.loading = false;
-          cloneDialog.isShow = false;
-        });
-    }
-    function handleDeleteRow() {
-      deleteDialog.loading = true;
-      deleteReport({
-        report_id: deleteDialog.subscription_id
-      })
-        .then(() => {
-          fetchSubscriptionList();
-        })
-        .catch(console.log)
-        .finally(() => {
-          deleteDialog.loading = false;
-          deleteDialog.isShow = false;
-        });
-    }
-    const toggleMap = reactive({});
+    // 控制 订阅列表 中多个 tooltips 的显隐
+    const toggleMap = reactive<TooltipsToggleMapping>({});
+    // 显示 发送记录 的 dialog
     const isShowSendRecord = ref(false);
     const table = reactive({
       data: [],
       columns: {
         fields: [
           {
-            label: `${window.i18n.t('订阅名称')}`,
+            label: `${t('订阅名称')}`,
             field: 'name',
             render: ({ data }) => {
               return (
@@ -158,66 +97,65 @@ export default defineComponent({
                   onClick={() => {
                     subscriptionDetail.value = data;
                     isShowSubscriptionDetailSideslider.value = true;
-                    // getSubscriptionDetail(data.id);
                   }}
                 >
-                  {window.i18n.t(`${data.name}`)}
+                  {t(`${data.name}`)}
                 </Button>
               );
             }
           },
           {
-            label: `${window.i18n.t('通知渠道')}`,
+            label: `${t('通知渠道')}`,
             field: 'channels',
             render: ({ data }) => {
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {data.channels.map(item => ChannelName[item.channel_name]).toString()}
+                  {data.channels.map(item => t(ChannelName[item.channel_name])).toString()}
                 </div>
               );
             }
           },
           {
-            label: `${window.i18n.t('订阅场景')}`,
+            label: `${t('订阅场景')}`,
             field: 'scenario',
             render: ({ data }) => {
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {Scenario[data.scenario]}
+                  {t(Scenario[data.scenario])}
                 </div>
               );
             }
           },
           {
-            label: `${window.i18n.t('发送模式')}`,
+            label: `${t('发送模式')}`,
             field: 'send_mode',
             render: ({ data }) => {
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {SendMode[data.send_mode]}
+                  {t(SendMode[data.send_mode])}
                 </div>
               );
             },
             filter: {
               list: [
                 {
-                  text: window.i18n.t('周期发送'),
+                  text: t('周期发送'),
                   value: 'periodic'
                 },
                 {
-                  text: window.i18n.t('仅发一次'),
+                  text: t('仅发一次'),
                   value: 'one_time'
                 }
               ],
@@ -225,13 +163,13 @@ export default defineComponent({
             }
           },
           {
-            label: `${window.i18n.t('发送时间')}`,
+            label: `${t('发送时间')}`,
             field: 'send_time',
             render: ({ data }) => {
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {getSendFrequencyText(data)}
@@ -240,7 +178,7 @@ export default defineComponent({
             }
           },
           {
-            label: `${window.i18n.t('最近一次发送时间')}`,
+            label: `${t('最近一次发送时间')}`,
             field: 'last_send_time',
             sort: {
               value: null
@@ -249,56 +187,56 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {data.last_send_time || window.i18n.t('未发送')}
+                  {data.last_send_time || t('未发送')}
                 </div>
               );
             }
           },
           {
-            label: `${window.i18n.t('发送状态')}`,
+            label: `${t('发送状态')}`,
             field: 'send_status',
             render: ({ data }) => {
               return data.send_status !== 'no_status' ? (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   <i
                     class={['icon-circle', data.send_status]}
                     style={{ marginRight: '10px' }}
                   ></i>
-                  {SendStatus[data.send_status]}
+                  {t(SendStatus[data.send_status])}
                 </div>
               ) : (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
-                  {window.i18n.t('未发送')}
+                  {t('未发送')}
                 </div>
               );
             },
             filter: {
               list: [
                 {
-                  text: `${window.i18n.t('发送成功')}`,
+                  text: `${t('发送成功')}`,
                   value: 'success'
                 },
                 {
-                  text: `${window.i18n.t('未发送')}`,
+                  text: `${t('未发送')}`,
                   value: 'no_status'
                 },
                 // {
-                //   text: `${window.i18n.t('发送部分失败')}`,
+                //   text: `${t('发送部分失败')}`,
                 //   value: 'partial_failed'
                 // },
                 {
-                  text: `${window.i18n.t('发送失败')}`,
+                  text: `${t('发送失败')}`,
                   value: 'failed'
                 }
               ],
@@ -306,13 +244,13 @@ export default defineComponent({
             }
           },
           {
-            label: `${window.i18n.t('创建人')}`,
+            label: `${t('创建人')}`,
             field: 'create_user',
             render: ({ data }) => {
               return (
                 <div
                   class={{
-                    'gray-text': queryData.query_type === 'invalid' ? false : data?.is_invalid
+                    'gray-text': queryData.query_type === 'invalid' ? false : data.is_invalid
                   }}
                 >
                   {data.create_user}
@@ -321,7 +259,7 @@ export default defineComponent({
             }
           },
           {
-            label: `${window.i18n.t('启/停')}`,
+            label: `${t('启/停')}`,
             field: 'is_enabled',
             render: ({ data, index }) => {
               return (
@@ -336,14 +274,14 @@ export default defineComponent({
             }
           },
           {
-            label: `${window.i18n.t('创建时间')}`,
+            label: `${t('创建时间')}`,
             field: 'create_time',
             sort: {
               value: null
             }
           },
           {
-            label: `${window.i18n.t('操作')}`,
+            label: `${t('操作')}`,
             field: 'action',
             width: `${(window.i18n.locale as unknown as string) === 'zhCN' ? '150px' : '170px'}`,
             render: row => {
@@ -358,7 +296,7 @@ export default defineComponent({
                       getSendingRecordList();
                     }}
                   >
-                    {window.i18n.t('发送记录')}
+                    {t('发送记录')}
                   </Button>
 
                   <Button
@@ -370,7 +308,7 @@ export default defineComponent({
                       isShowEditSideslider.value = true;
                     }}
                   >
-                    {window.i18n.t('编辑')}
+                    {t('编辑')}
                   </Button>
 
                   {/* 实现方式有问题，看看有没有其它的实现方式 */}
@@ -392,7 +330,7 @@ export default defineComponent({
                               cloneDialog.name = row.data.name;
                             }}
                           >
-                            {window.i18n.t('克隆')}
+                            {t('克隆')}
                           </div>
                           <div
                             class='popover-item'
@@ -403,7 +341,7 @@ export default defineComponent({
                               deleteDialog.name = row.data.name;
                             }}
                           >
-                            {window.i18n.t('删除')}
+                            {t('删除')}
                           </div>
                         </div>
                       )
@@ -432,6 +370,7 @@ export default defineComponent({
         showLineHeight: false
       }
     });
+    // 根据 table 字段生成对应的字段显隐 setting
     table.settings.fields = table.columns.fields.map(item => {
       return {
         label: item.label,
@@ -439,27 +378,28 @@ export default defineComponent({
       };
     });
     table.settings.checked = table.columns.fields
-      // 先不展示，让用户自己手动开。
+      // 这里先不展示 创建时间 ，让用户自己手动开。
       .filter(item => !['create_time'].includes(item.field))
       .map(item => item.field);
 
-    const toggleMapForSendRecord = reactive({});
+    // 发送记录 里控制多个 tooltips 的显隐
+    const toggleMapForSendRecord = reactive<TooltipsToggleMapping>({});
     const sendRecordTable = reactive({
       data: [],
       columns: {
         fields: [
           {
-            label: `${window.i18n.t('发送时间')}`,
+            label: `${t('发送时间')}`,
             field: 'send_time'
           },
           {
-            label: `${window.i18n.t('类型')}`,
+            label: `${t('类型')}`,
             render: ({ data }) => {
-              return ChannelName[data.channel_name];
+              return t(ChannelName[data.channel_name]);
             }
           },
           {
-            label: `${window.i18n.t('接收人')}`,
+            label: `${t('接收人')}`,
             render: ({ data }) => {
               return (
                 // 显示的内容量会很多，这里样式调整一下。
@@ -470,18 +410,18 @@ export default defineComponent({
             }
           },
           {
-            label: `${window.i18n.t('发送结果')}`,
+            label: `${t('发送结果')}`,
             render: ({ data }) => {
               return (
                 <div>
                   <i class={['icon-circle', data.send_status]} />
-                  <span style='margin-left: 10px;'>{SendStatus[data.send_status]}</span>
+                  <span style='margin-left: 10px;'>{t(SendStatus[data.send_status])}</span>
                 </div>
               );
             }
           },
           {
-            label: `${window.i18n.t('操作')}`,
+            label: `${t('操作')}`,
             render: ({ data, index }) => {
               return (
                 <Popover
@@ -556,49 +496,20 @@ export default defineComponent({
                               2. 确定重新发送给以下失败邮件
                               3. 确定重新发送给以下失败用户
                             */}
-                            {window.i18n.t(headerConfirmText)}
+                            {t(headerConfirmText)}
                           </div>
-
-                          {/* <div class='tag-content'>
-                            {data.tempSendResult.map((item, index) => {
-                              if (['success'].includes(data.send_status) && item.result) {
-                                return (
-                                  <Tag
-                                    closable={data.tempSendResult.filter(target => target.result).length > 1}
-                                    onClose={() => {
-                                      data.tempSendResult.splice(index, 1);
-                                    }}
-                                  >
-                                    {item.id}
-                                  </Tag>
-                                );
-                              }
-                              if (['partial_failed', 'failed'].includes(data.send_status) && !item.result) {
-                                return (
-                                  <Tag
-                                    closable={data.tempSendResult.filter(target => !target.result).length > 1}
-                                    onClose={() => {
-                                      data.tempSendResult.splice(index, 1);
-                                    }}
-                                  >
-                                    {item.id}
-                                  </Tag>
-                                );
-                              }
-                              return null;
-                            })}
-                          </div> */}
 
                           <div style='margin-top: 10px;'>
                             <TagInput
                               v-model={data.selectedTag}
                               list={data.tempSendResult}
-                              placeholder={window.i18n.t('请选择')}
+                              placeholder={t('请选择')}
                               has-delete-icon
                               trigger='focus'
                               display-key='id'
                               save-key='id'
                               search-key={['id']}
+                              content-width={238}
                             ></TagInput>
                           </div>
 
@@ -609,11 +520,10 @@ export default defineComponent({
                               loading={isResending.value}
                               disabled={!data.selectedTag.length}
                               onClick={() => {
-                                console.log(data);
                                 handleResendSubscription(data, index);
                               }}
                             >
-                              {window.i18n.t('确定')}
+                              {t('确定')}
                             </Button>
 
                             <Button
@@ -622,7 +532,7 @@ export default defineComponent({
                                 toggleMapForSendRecord[index] = false;
                               }}
                             >
-                              {window.i18n.t('取消')}
+                              {t('取消')}
                             </Button>
                           </div>
                         </div>
@@ -654,7 +564,7 @@ export default defineComponent({
                       });
                     }}
                   >
-                    {window.i18n.t('重新发送')}
+                    {t('重新发送')}
                   </Button>
                 </Popover>
               );
@@ -665,14 +575,84 @@ export default defineComponent({
       isLoading: false
     });
 
+    // 显隐 订阅详情 抽屉组件
     const isShowSubscriptionDetailSideslider = ref(false);
+    // 显隐 编辑订阅 抽屉组件
     const isShowEditSideslider = ref(false);
 
+    // 显隐 测试发送 的 dropdownMenu 组件
     const isShowDropdownMenu = ref(false);
+    // 测试发送 是否loading
     const isSending = ref(false);
-    async function testSending(to) {
-      const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms().catch(console.log);
-      console.log('testSending', tempFormData);
+    // 子组件 里面是大表单
+    const refOfCreateSubscriptionForm = ref();
+    // 是否显示 测试发送 完成后的弹窗
+    const isShowTestSendResult = ref(false);
+    // 订阅详情 数据，这个数据是来源于 订阅列表 里，该列表是带有详情的，不需要再请求即可获得。
+    const subscriptionDetail = ref(getDefaultReportData());
+    const cloneDialog = reactive({
+      isShow: false,
+      loading: false,
+      subscription_id: 0,
+      name: ''
+    });
+
+    const deleteDialog = reactive({
+      isShow: false,
+      loading: false,
+      subscription_id: 0,
+      name: ''
+    });
+
+    // 发送记录 里 重新发送 的 loading
+    const isResending = ref(false);
+
+    // 是否 发送给自己 的弹窗确认
+    const sendMyselfDialog = reactive({
+      isShow: false
+    });
+
+    function handleGoToCreateConfigPage() {
+      router.push({
+        name: 'create-subscription'
+      });
+    }
+
+    function handleInputKeydown() {
+      resetAndGetSubscriptionList();
+    }
+
+    function handleClone() {
+      cloneDialog.loading = true;
+      cloneReport({
+        report_id: cloneDialog.subscription_id
+      })
+        .then(() => {
+          fetchSubscriptionList();
+        })
+        .finally(() => {
+          cloneDialog.loading = false;
+          cloneDialog.isShow = false;
+        });
+    }
+
+    function handleDeleteRow() {
+      deleteDialog.loading = true;
+      deleteReport({
+        report_id: deleteDialog.subscription_id
+      })
+        .then(() => {
+          fetchSubscriptionList();
+        })
+        .finally(() => {
+          deleteDialog.loading = false;
+          deleteDialog.isShow = false;
+        });
+    }
+
+    async function testSending(to: TestSendingTarget) {
+      // 先校验一次子组件的表单
+      const tempFormData = await refOfCreateSubscriptionForm.value.validateAllForms();
       if (!tempFormData) return;
       const clonedFormData = deepClone(tempFormData);
       if (to === 'self') {
@@ -691,9 +671,7 @@ export default defineComponent({
         ];
         clonedFormData.channels = selfChannels;
       }
-      if (to === 'all') {
-        console.log(refOfCreateSubscriptionForm.value);
-      }
+      // 删除无用 key
       /* eslint-disable */
       const {
         create_time,
@@ -714,49 +692,29 @@ export default defineComponent({
       isSending.value = true;
       await sendReport(formData)
         .then(() => {
-          // Message({
-          //   theme: 'success',
-          //   message: window.i18n.t('发送成功')
-          // });
           isShowTestSendResult.value = true;
         })
-        .catch(console.log)
         .finally(() => {
           isSending.value = false;
           isShowDropdownMenu.value = false;
         });
     }
 
-    const refOfCreateSubscriptionForm = ref();
-
     function resetAndGetSubscriptionList() {
       queryData.page = 1;
       queryData.page_size = 20;
       fetchSubscriptionList();
     }
+
     function fetchSubscriptionList() {
       table.isLoading = true;
       getReportList(queryData)
         .then(response => {
-          console.log(response);
           table.data = response;
         })
-        .catch(console.log)
         .finally(() => {
           table.isLoading = false;
         });
-    }
-
-    const subscriptionDetail = ref({});
-    function getSubscriptionDetail(subscription_id) {
-      getReport({
-        subscription_id
-      })
-        .then(response => {
-          console.log(response);
-          subscriptionDetail.value = response;
-        })
-        .catch(console.log);
     }
 
     function handleSetEnable(index) {
@@ -769,52 +727,29 @@ export default defineComponent({
         });
     }
 
-    const cloneDialog = reactive({
-      isShow: false,
-      loading: false,
-      subscription_id: 0,
-      name: ''
-    });
-
-    const deleteDialog = reactive({
-      isShow: false,
-      loading: false,
-      subscription_id: 0,
-      name: ''
-    });
-
     function getSendingRecordList() {
       sendRecordTable.isLoading = true;
       getSendRecords({
         report_id: subscriptionDetail.value.id
       })
         .then(response => {
-          console.log(response);
           sendRecordTable.data = response;
         })
-        .catch(console.log)
         .finally(() => {
           sendRecordTable.isLoading = false;
         });
     }
 
+    // TODO：这个该怎么封装好？
     function getSendFrequencyText(data) {
       const hourTextMap = {
-        0.5: window.i18n.tc('每个小时整点,半点发送'),
-        1: window.i18n.tc('每个小时整点发送'),
-        2: window.i18n.tc('从0点开始,每隔2小时整点发送'),
-        6: window.i18n.tc('从0点开始,每隔6小时整点发送'),
-        12: window.i18n.tc('每天9:00,21:00发送')
+        0.5: t('每个小时整点,半点发送'),
+        1: t('每个小时整点发送'),
+        2: t('从0点开始,每隔2小时整点发送'),
+        6: t('从0点开始,每隔6小时整点发送'),
+        12: t('每天9:00,21:00发送')
       };
-      const weekMap = [
-        window.i18n.t('周一'),
-        window.i18n.t('周二'),
-        window.i18n.t('周三'),
-        window.i18n.t('周四'),
-        window.i18n.t('周五'),
-        window.i18n.t('周六'),
-        window.i18n.t('周日')
-      ];
+      const weekMap = [t('周一'), t('周二'), t('周三'), t('周四'), t('周五'), t('周六'), t('周日')];
       let str = '';
       if (!data?.frequency?.type) return '';
       switch (data.frequency.type) {
@@ -848,32 +783,12 @@ export default defineComponent({
       return `${startTime} ~ ${endTime}`;
     }
 
-    const isResending = ref(false);
     function handleResendSubscription(data, index) {
       isResending.value = true;
       const channels = [
         {
           is_enabled: true,
           channel_name: data.channel_name,
-          // subscribers: data.tempSendResult
-          //   .filter(item => {
-          //     if (['success'].includes(data.send_status) && item.result) {
-          //       return item;
-          //     }
-          //     if (['partial_failed', 'failed'].includes(data.send_status) && !item.result) {
-          //       return item;
-          //     }
-          //   })
-          //   .map(item => {
-          //     const o = {
-          //       id: item.id,
-          //       is_enabled: true
-          //     };
-          //     if (item.type) {
-          //       o.type = item.type;
-          //     }
-          //     return o;
-          //   })
           subscribers: data.tempSendResult
             .filter(item => {
               return data.selectedTag.includes(item.id);
@@ -894,19 +809,15 @@ export default defineComponent({
         .then(() => {
           Message({
             theme: 'success',
-            message: window.i18n.t('发送成功')
+            message: t('发送成功')
           });
         })
-        .catch(console.log)
         .finally(() => {
           isResending.value = false;
           toggleMapForSendRecord[index] = false;
         });
     }
 
-    const sendMyselfDialog = reactive({
-      isShow: false
-    });
     async function handleSendMyself() {
       isSending.value = true;
       const selfChannels = [
@@ -924,6 +835,7 @@ export default defineComponent({
       ];
       const clonedFormData = deepClone(subscriptionDetail.value);
       clonedFormData.channels = selfChannels;
+      // 去掉无用 key ，这些都来自于 后端返回 ，前端用不着，但后端不让上传的
       /* eslint-disable */
       const {
         create_time,
@@ -944,20 +856,13 @@ export default defineComponent({
       formData.report_id = id;
       await sendReport(formData)
         .then(() => {
-          // Message({
-          //   theme: 'success',
-          //   message: window.i18n.t('发送成功')
-          // });
           isShowTestSendResult.value = true;
         })
-        .catch(console.log)
         .finally(() => {
           isSending.value = false;
           sendMyselfDialog.isShow = false;
         });
     }
-
-    const isShowTestSendResult = ref(false);
 
     onMounted(() => {
       fetchSubscriptionList();
@@ -1038,6 +943,7 @@ export default defineComponent({
                 />
                 <span>{this.t('已失效')}</span>
               </Radio.Button>
+              {/* 暂时不需要 */}
               {/* <Radio.Button label='cancelled'>
                 <i
                   class='icon-circle cancelled'
@@ -1052,7 +958,8 @@ export default defineComponent({
               class='search-input'
               onEnter={this.handleInputKeydown}
               onClear={this.handleInputKeydown}
-              placeholder={window.i18n.t('请输入搜索条件')}
+              onBlur={this.handleInputKeydown}
+              placeholder={this.t('请输入搜索条件')}
               v-slots={{
                 suffix: () => (
                   <div class='suffix-icon'>
@@ -1072,7 +979,7 @@ export default defineComponent({
         <Loading loading={this.table.isLoading}>
           <Table
             data={this.table.data}
-            columns={this.table.columns.fields}
+            columns={this.table.columns.fields as Column[]}
             border={['outer']}
             settings={this.table.settings}
             style='margin-top: 16px;background-color: white;'
@@ -1081,16 +988,13 @@ export default defineComponent({
               limit: this.queryData.page_size,
               count: this.table.data.length,
               onChange: pageNum => {
-                console.log(pageNum);
                 this.queryData.page = pageNum;
               },
               onLimitChange: limit => {
-                console.log(limit);
                 this.queryData.page_size = limit;
               }
             }}
-            onColumnFilter={({ checked, column, index }) => {
-              console.log({ checked, column, index });
+            onColumnFilter={({ checked, column }) => {
               let currentIndex = -1;
               const result = this.queryData.conditions.filter((item, index) => {
                 if (item.key === column.field) {
@@ -1115,8 +1019,7 @@ export default defineComponent({
               }
               this.fetchSubscriptionList();
             }}
-            onColumnSort={({ column, index, type }) => {
-              console.log({ column, index, type });
+            onColumnSort={({ column, type }) => {
               if (type !== 'null') {
                 this.queryData.order = `${type === 'asc' ? '' : '-'}${column.field}`;
               } else {
@@ -1152,7 +1055,7 @@ export default defineComponent({
                   {this.t('有效时间范围')}:
                 </div>
                 <div class='value'>
-                  {this.formatTimeRange(this.subscriptionDetail?.start_time, this.subscriptionDetail?.end_time)}
+                  {this.formatTimeRange(this.subscriptionDetail.start_time, this.subscriptionDetail.end_time)}
                 </div>
               </div>
             </div>
@@ -1160,7 +1063,7 @@ export default defineComponent({
             <Loading loading={this.sendRecordTable.isLoading}>
               <Table
                 data={this.sendRecordTable.data}
-                columns={this.sendRecordTable.columns.fields}
+                columns={this.sendRecordTable.columns.fields as Column[]}
                 style='margin-top: 16px;'
               />
             </Loading>
@@ -1178,8 +1081,8 @@ export default defineComponent({
               return (
                 <div class='slider-header-container'>
                   <div class='title-container'>
-                    <span class='title'>{window.i18n.t('订阅详情')}</span>
-                    <span class='sub-title'>-&nbsp;{this.subscriptionDetail?.name}</span>
+                    <span class='title'>{this.t('订阅详情')}</span>
+                    <span class='sub-title'>-&nbsp;{this.subscriptionDetail.name}</span>
                   </div>
 
                   <div class='operation-container'>
@@ -1189,7 +1092,7 @@ export default defineComponent({
                         this.sendMyselfDialog.isShow = true;
                       }}
                     >
-                      {window.i18n.t('发送给自己')}
+                      {this.t('发送给自己')}
                     </Button>
                     <Button
                       outline
@@ -1200,7 +1103,7 @@ export default defineComponent({
                         this.isShowEditSideslider = true;
                       }}
                     >
-                      {window.i18n.t('编辑')}
+                      {this.t('编辑')}
                     </Button>
 
                     <Popover
@@ -1209,10 +1112,10 @@ export default defineComponent({
                         content: () => {
                           return (
                             <div>
-                              <div>{`${window.i18n.t('更新人')}: ${this.subscriptionDetail?.update_user}`}</div>
-                              <div>{`${window.i18n.t('更新时间')}: ${this.subscriptionDetail?.update_time}`}</div>
-                              <div>{`${window.i18n.t('创建人')}: ${this.subscriptionDetail?.create_user}`}</div>
-                              <div>{`${window.i18n.t('创建时间')}: ${this.subscriptionDetail?.create_time}`}</div>
+                              <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
+                              <div>{`${this.t('更新时间')}: ${this.subscriptionDetail.update_time}`}</div>
+                              <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
+                              <div>{`${this.t('创建时间')}: ${this.subscriptionDetail.create_time}`}</div>
                             </div>
                           );
                         }
@@ -1261,25 +1164,19 @@ export default defineComponent({
                 theme='primary'
                 style={{ width: '88px', marginRight: '8px' }}
                 onClick={() => {
-                  this.refOfCreateSubscriptionForm
-                    .validateAllForms()
-                    .then(response => {
-                      console.log(response);
-                      createOrUpdateReport(response)
-                        .then(() => {
-                          Message({
-                            theme: 'success',
-                            message: window.i18n.t('保存成功')
-                          });
-                          this.fetchSubscriptionList();
-                          this.isShowEditSideslider = false;
-                        })
-                        .catch(console.log);
-                    })
-                    .catch(console.log());
+                  this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
+                    createOrUpdateReport(response).then(() => {
+                      Message({
+                        theme: 'success',
+                        message: this.t('保存成功')
+                      });
+                      this.fetchSubscriptionList();
+                      this.isShowEditSideslider = false;
+                    });
+                  });
                 }}
               >
-                {window.i18n.t('保存')}
+                {this.t('保存')}
               </Button>
               <Dropdown
                 isShow={this.isShowDropdownMenu}
@@ -1290,10 +1187,10 @@ export default defineComponent({
                     return (
                       <Dropdown.DropdownMenu>
                         <Dropdown.DropdownItem onClick={() => this.testSending('self')}>
-                          {window.i18n.t('给自己')}
+                          {this.t('给自己')}
                         </Dropdown.DropdownItem>
                         <Dropdown.DropdownItem onClick={() => this.testSending('all')}>
-                          {window.i18n.t('给全员')}
+                          {this.t('给全员')}
                         </Dropdown.DropdownItem>
                       </Dropdown.DropdownMenu>
                     );
@@ -1309,7 +1206,7 @@ export default defineComponent({
                     this.isShowDropdownMenu = !this.isShowDropdownMenu;
                   }}
                 >
-                  {window.i18n.t('测试发送')}
+                  {this.t('测试发送')}
                 </Button>
               </Dropdown>
               <Button
@@ -1318,7 +1215,7 @@ export default defineComponent({
                   this.isShowEditSideslider = false;
                 }}
               >
-                {window.i18n.t('取消')}
+                {this.t('取消')}
               </Button>
             </div>
           </div>
@@ -1328,44 +1225,44 @@ export default defineComponent({
         <Dialog
           isShow={this.cloneDialog.isShow}
           isLoading={this.cloneDialog.loading}
-          title={window.i18n.t('提示')}
-          confirmText={window.i18n.t('确认')}
-          cancelText={window.i18n.t('取消')}
+          title={this.t('提示')}
+          confirmText={this.t('确认')}
+          cancelText={this.t('取消')}
           onClosed={() => {
             this.cloneDialog.isShow = false;
           }}
           onConfirm={this.handleClone}
         >
-          <div>{window.i18n.t('是否克隆 {0} ?', [this.cloneDialog.name])}</div>
+          <div>{this.t('是否克隆 {0} ?', [this.cloneDialog.name])}</div>
         </Dialog>
 
         {/* 删除确认 */}
         <Dialog
           isShow={this.deleteDialog.isShow}
           isLoading={this.deleteDialog.loading}
-          title={window.i18n.t('提示')}
-          confirmText={window.i18n.t('确认')}
-          cancelText={window.i18n.t('取消')}
+          title={this.t('提示')}
+          confirmText={this.t('确认')}
+          cancelText={this.t('取消')}
           onClosed={() => {
             this.deleteDialog.isShow = false;
           }}
           onConfirm={this.handleDeleteRow}
         >
-          <div>{window.i18n.t('是否删除 {0} ?', [this.deleteDialog.name])}</div>
+          <div>{this.t('是否删除 {0} ?', [this.deleteDialog.name])}</div>
         </Dialog>
 
         <Dialog
           isShow={this.sendMyselfDialog.isShow}
           isLoading={this.isSending}
-          title={window.i18n.t('提示')}
-          confirmText={window.i18n.t('确认')}
-          cancelText={window.i18n.t('取消')}
+          title={this.t('提示')}
+          confirmText={this.t('确认')}
+          cancelText={this.t('取消')}
           onClosed={() => {
             this.sendMyselfDialog.isShow = false;
           }}
           onConfirm={this.handleSendMyself}
         >
-          <div>{window.i18n.t('是否发送给自己?')}</div>
+          <div>{this.t('是否发送给自己?')}</div>
         </Dialog>
 
         <Dialog
@@ -1383,7 +1280,7 @@ export default defineComponent({
                     marginLeft: '30px'
                   }}
                 >
-                  {window.i18n.t('邮件任务已生成, 请一分钟后到邮箱查看')}
+                  {this.t('邮件任务已生成, 请一分钟后到邮箱查看')}
                 </div>
               );
             },
@@ -1400,7 +1297,7 @@ export default defineComponent({
                       fontWeight: 'bold'
                     }}
                   >
-                    {window.i18n.t('发送测试邮件成功')}
+                    {this.t('发送测试邮件成功')}
                   </span>
                 </div>
               );

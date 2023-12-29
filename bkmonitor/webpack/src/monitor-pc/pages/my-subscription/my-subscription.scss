@@ -225,3 +225,11 @@
 .resend-tag-input {
   z-index: 3000;
 }
+
+.bk-selector-list .bk-selector-list-item .text {
+  display: inline-block;
+  width: 236px;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 20px;
+}

@@ -14,11 +14,11 @@ enum Scenario {
 }
 
 enum PatternLevelEnum {
-  '01' = 0,
-  '03' = 25,
+  '01' = 100,
+  '03' = 75,
   '05' = 50,
-  '07' = 75,
-  '09' = 100
+  '07' = 25,
+  '09' = 0
 }
 
 interface IProps {
@@ -32,23 +32,23 @@ const EXCLUDES_WEEKEND = [1, 2, 3, 4, 5];
 const hourOption = [
   {
     id: 0.5,
-    name: window.mainComponent.$t('0.5小时')
+    name: window.mainComponent.$t('{0}小时', [0.5])
   },
   {
     id: 1,
-    name: window.mainComponent.$t('1小时')
+    name: window.mainComponent.$t('{0}小时', [1])
   },
   {
     id: 2,
-    name: window.mainComponent.$t('2小时')
+    name: window.mainComponent.$t('{0}小时', [2])
   },
   {
     id: 6,
-    name: window.mainComponent.$t('6小时')
+    name: window.mainComponent.$t('{0}小时', [6])
   },
   {
     id: 12,
-    name: window.mainComponent.$t('12小时')
+    name: window.mainComponent.$t('{0}小时', [12])
   }
 ];
 const customSliderContent = {
@@ -84,27 +84,27 @@ const YOYList = [
   },
   {
     id: 1,
-    name: window.mainComponent.$t('1小时前')
+    name: window.mainComponent.$t('{0}小时前', [1]),
   },
   {
     id: 2,
-    name: window.mainComponent.$t('2小时前')
+    name: window.mainComponent.$t('{0}小时前', [2])
   },
   {
     id: 3,
-    name: window.mainComponent.$t('3小时前')
+    name: window.mainComponent.$t('{0}小时前', [3])
   },
   {
     id: 6,
-    name: window.mainComponent.$t('6小时前')
+    name: window.mainComponent.$t('{0}小时前', [6])
   },
   {
     id: 12,
-    name: window.mainComponent.$t('12小时前')
+    name: window.mainComponent.$t('{0}小时前', [12])
   },
   {
     id: 24,
-    name: window.mainComponent.$t('24小时前')
+    name: window.mainComponent.$t('{0}小时前', [24])
   }
 ];
 const timeRangeOption = [

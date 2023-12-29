@@ -1,16 +1,16 @@
 .create-subscription-container {
-    position: relative;
-    padding: 24px 24px 60px 24px;
-    height: calc(100vh - 52px);
-    overflow-y: auto;
+  position: relative;
+  height: calc(100vh - 52px);
+  padding: 24px 24px 60px 24px;
+  overflow-y: auto;
 }
 
 .footer-bar {
-    width: 100%;
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    padding: 10px 24px;
-    background: #FFFFFF;
-    box-shadow: 0 -1px 0 0 #DCDEE5, 0 -3px 4px 0 #4070cb0f;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 10px 24px;
+  background: #fff;
+  box-shadow: 0 -1px 0 0 #dcdee5, 0 -3px 4px 0 #4070cb0f;
 }

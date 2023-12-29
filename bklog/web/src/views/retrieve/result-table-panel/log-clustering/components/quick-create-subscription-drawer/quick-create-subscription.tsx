@@ -122,6 +122,7 @@ class QuickCreateSubscription extends tsc<IProps> {
           ext-cls='quick-create-subscription-slider'
           transfer
           title={this.$t('新增订阅')}
+          quick-close
           before-close={() => {
             this.$emit('change', false);
           }}
