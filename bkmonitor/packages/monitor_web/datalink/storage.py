@@ -91,8 +91,8 @@ class InfluxdbStorager(Storager):
             "content": {
                 "keys": [
                     {"key": "host_name", "name": _("主机实例")},
-                    {"key": "influxdb_httpd_req", "name": _("服务端请求数")},
-                    {"key": "influxdb_httpd_server_error", "name": _("服务端错误数")},
+                    {"key": "influxdb_httpd_req_1h_increase", "name": _("最近1小时服务端请求数")},
+                    {"key": "influxdb_httpd_server_error_1h_increase", "name": _("最近1小时服务端错误数")},
                     {"key": "influxdb_runtime_sys", "name": _("内存占用量")},
                 ],
                 "values": [],
@@ -104,8 +104,8 @@ class InfluxdbStorager(Storager):
             "content": {
                 "keys": [
                     {"key": "database", "name": _("库名")},
-                    {"key": "influxdb_shard_write_points_ok", "name": _("累积写入成功点数")},
-                    {"key": "influxdb_shard_write_point_err", "name": _("累积写入失败点数")},
+                    {"key": "influxdb_shard_write_points_ok_1h_increase", "name": _("最近1小时写入成功点数")},
+                    {"key": "influxdb_shard_write_point_err_1h_increase", "name": _("最近1小时写入失败点数")},
                     {"key": "influxdb_shard_disk_bytes", "name": _("磁盘占用量")},
                     {"key": "influxdb_database_num_series", "name": _("Series数量")},
                 ],
@@ -147,21 +147,25 @@ class InfluxdbStorager(Storager):
         content["values"] = values
         return content
 
-    def handle_status_instance_influxdb_httpd_req(self, host_name: str) -> str:
+    def handle_status_instance_influxdb_httpd_req_1h_increase(self, host_name: str) -> str:
         ret = self._query_cluster_metric(
-            "influxdb.httpd.req", bkm_cluster=self.handle_info_instance_cluster_name(), bkm_hostname=host_name
+            "influxdb_httpd_req_1h_increase",
+            bkm_cluster=self.handle_info_instance_cluster_name(),
+            bkm_hostname=host_name,
         )
         return humanize.intcomma(ret[1]) if ret is not None else "-"
 
-    def handle_status_instance_influxdb_httpd_server_error(self, host_name: str) -> str:
+    def handle_status_instance_influxdb_httpd_server_error_1h_increase(self, host_name: str) -> str:
         ret = self._query_cluster_metric(
-            "influxdb.httpd.server_error", bkm_cluster=self.handle_info_instance_cluster_name(), bkm_hostname=host_name
+            "influxdb_httpd_server_error_1h_increase",
+            bkm_cluster=self.handle_info_instance_cluster_name(),
+            bkm_hostname=host_name,
         )
         return humanize.intcomma(ret[1]) if ret is not None else "-"
 
     def handle_status_instance_influxdb_runtime_sys(self, host_name: str) -> str:
         ret = self._query_cluster_metric(
-            "influxdb.runtime.sys", bkm_cluster=self.handle_info_instance_cluster_name(), bkm_hostname=host_name
+            "influxdb_runtime_sys", bkm_cluster=self.handle_info_instance_cluster_name(), bkm_hostname=host_name
         )
         return humanize.naturalsize(ret[1]) if ret is not None else "-"
 
@@ -179,27 +183,31 @@ class InfluxdbStorager(Storager):
         content["values"] = [val]
         return content
 
-    def handle_status_database_influxdb_shard_write_points_ok(self, database: str):
+    def handle_status_database_influxdb_shard_write_points_ok_1h_increase(self, database: str):
         ret = self._query_cluster_metric(
-            "influxdb.shard.write_points_ok", bkm_cluster=self.handle_info_instance_cluster_name(), database=database
+            "influxdb_shard_write_points_ok_1h_increase",
+            bkm_cluster=self.handle_info_instance_cluster_name(),
+            database=database,
         )
         return humanize.intcomma(ret[1]) if ret is not None else "-"
 
-    def handle_status_database_influxdb_shard_write_point_err(self, database: str):
+    def handle_status_database_influxdb_shard_write_point_err_1h_increase(self, database: str):
         ret = self._query_cluster_metric(
-            "influxdb.shard.write_points_err", bkm_cluster=self.handle_info_instance_cluster_name(), database=database
+            "influxdb_shard_write_points_err_1h_increase",
+            bkm_cluster=self.handle_info_instance_cluster_name(),
+            database=database,
         )
         return humanize.intcomma(ret[1]) if ret is not None else "-"
 
     def handle_status_database_influxdb_shard_disk_bytes(self, database: str):
         ret = self._query_cluster_metric(
-            "influxdb.shard.disk_bytes", bkm_cluster=self.handle_info_instance_cluster_name(), database=database
+            "influxdb_shard_disk_bytes", bkm_cluster=self.handle_info_instance_cluster_name(), database=database
         )
         return humanize.naturalsize(ret[1]) if ret is not None else "-"
 
     def handle_status_database_influxdb_database_num_series(self, database: str):
         ret = self._query_cluster_metric(
-            "influxdb.database.num_series", bkm_cluster=self.handle_info_instance_cluster_name(), database=database
+            "influxdb_database_num_series", bkm_cluster=self.handle_info_instance_cluster_name(), database=database
         )
         return humanize.intcomma(ret[1]) if ret is not None else "-"
 

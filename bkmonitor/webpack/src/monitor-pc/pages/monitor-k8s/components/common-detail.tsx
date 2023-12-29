@@ -430,7 +430,11 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
    * 根据索引定位到图表位置
    */
   handleScrollToIndex(item: IIndexListItem) {
-    document.getElementById(`${item.id}__key__`)?.scrollIntoView?.();
+    document.querySelector('.dashboard-panel .scroll-in')?.classList.remove('scroll-in');
+    const dom = document.getElementById(`${item.id}__key__`);
+    if (!dom) return;
+    dom.scrollIntoView?.();
+    dom.classList.add('scroll-in');
   }
 
   /**

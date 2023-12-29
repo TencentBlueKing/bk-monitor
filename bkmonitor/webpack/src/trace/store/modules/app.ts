@@ -25,7 +25,6 @@
  */
 import { defineStore } from 'pinia';
 
-import { mergeSpaceList } from '../../../monitor-common/utils';
 import { ISpaceItem } from '../../typings';
 
 export interface IAppState {
@@ -43,7 +42,7 @@ export const useAppStore = defineStore('app', {
     navId: 'home',
     userName: window.user_name,
     bizId: window.cc_biz_id,
-    bizList: mergeSpaceList(window.space_list, window.bk_biz_list),
+    bizList: window.space_list,
     csrfCookieName: window.csrf_cookie_name || '',
     siteUrl: window.site_url,
     bkUrl: window.bk_url

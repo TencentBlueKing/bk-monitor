@@ -233,14 +233,14 @@ export default class AlarmDispatch extends tsc<{}> {
           })
       ) || [];
     this.loading = false;
-    this.getAlarmAssignGroupsRules(list.map(item => item.id));
+    this.getAlarmAssignGroupsRules(list?.map(item => item.id));
   }
 
   /**
    *  获取规则集
    * @param ids 规则组
    */
-  async getAlarmAssignGroupsRules(ids: number[]) {
+  async getAlarmAssignGroupsRules(ids: number[] = []) {
     this.groupLoading = true;
     const list = await listAssignRule().catch(() => (this.groupLoading = false));
     const groupData = ids.reduce((result, item) => {

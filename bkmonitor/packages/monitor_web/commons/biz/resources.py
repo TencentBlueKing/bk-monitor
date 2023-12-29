@@ -123,8 +123,7 @@ class ListSpacesResource(Resource):
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
 
     def perform_request(self, validated_request_data) -> [dict]:
-        request = get_request()
-        username = request.user.username
+        username = get_request_username()
 
         if validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息

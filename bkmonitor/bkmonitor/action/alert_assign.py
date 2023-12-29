@@ -495,7 +495,7 @@ class AlertAssignMatchManager:
             "text": content,
             "url": urllib.parse.urljoin(
                 settings.BK_MONITOR_HOST,
-                "?bizId={bk_biz_id}#/alarm-dispatch-config/{group_id}".format(
+                "?bizId={bk_biz_id}#/alarm-dispatch?group_id={group_id}".format(
                     bk_biz_id=self.bk_biz_id, group_id=self.matched_group_info["group_id"]
                 ),
             ),

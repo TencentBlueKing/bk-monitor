@@ -53,7 +53,7 @@ def create_default_notice_group(bk_biz_id: int, group_name=None) -> int:
     return UserGroup.objects.get(bk_biz_id=bk_biz_id, name=group_name).id
 
 
-def _get_or_create_user_grouop(bk_biz_id, group_name, receivers):
+def _get_or_create_user_group(bk_biz_id, group_name, receivers):
     if not UserGroup.objects.filter(name=group_name, bk_biz_id=bk_biz_id).exists():
         user_group_serializer = UserGroupDetailSlz(
             data={
@@ -87,7 +87,7 @@ def get_or_create_plugin_manager_group(bk_biz_id: int) -> Optional[int]:
         ].bk_biz_maintainer
         receivers = [{"type": "user", "id": user} for user in blueking_maintainers]
 
-    return _get_or_create_user_grouop(bk_biz_id, _("【蓝鲸】官方插件管理员"), receivers)
+    return _get_or_create_user_group(bk_biz_id, _("【蓝鲸】官方插件管理员"), receivers)
 
 
 def get_or_create_gse_manager_group(bk_biz_id: int) -> Optional[int]:
@@ -98,7 +98,7 @@ def get_or_create_gse_manager_group(bk_biz_id: int) -> Optional[int]:
         return None
     receivers = [{"type": "user", "id": user} for user in settings.GSE_MANAGERS]
 
-    return _get_or_create_user_grouop(bk_biz_id, _("【蓝鲸】GSE管理员"), receivers)
+    return _get_or_create_user_group(bk_biz_id, _("【蓝鲸】GSE管理员"), receivers)
 
 
 def get_or_create_ops_notice_group(bk_biz_id: int) -> Optional[int]:

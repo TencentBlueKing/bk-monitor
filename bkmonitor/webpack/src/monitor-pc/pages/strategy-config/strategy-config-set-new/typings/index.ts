@@ -166,6 +166,7 @@ export class MetricDetail {
   metric_type = null;
   logMetricList: IMetricDetail[] = null;
   sceneConfig?: ISceneConfig = null;
+  promql_metric?: string;
   constructor(public metricDetail?: IMetricDetail) {
     if (!metricDetail) return;
     Object.keys(metricDetail).forEach(key => {

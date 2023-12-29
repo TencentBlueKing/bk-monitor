@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import List
 
+import pytz
 from dateutil.relativedelta import relativedelta
 from django.utils.translation import ugettext as _
 
@@ -446,20 +447,52 @@ class AlertAssignee:
         """
         if not user_groups:
             return
-        current_datetime = datetime.now(tz=timezone.utc)
-        duty_groups = list(UserGroup.objects.filter(id__in=user_groups, need_duty=True).values_list("id", flat=True))
-        for duty_plan in DutyPlan.objects.filter(user_group_id__in=duty_groups).order_by("order"):
-            if not duty_plan.is_active_plan(current_datetime):
-                # 当前计划没有生效则不获取
+        duty_groups = UserGroup.objects.filter(id__in=user_groups, need_duty=True).only(
+            "timezone", "id", "duty_rules"
+        )
+        group_duty_plans = defaultdict(dict)
+        for duty_plan in DutyPlan.objects.filter(user_group_id__in=duty_groups, is_effective=1).order_by("order"):
+            rule_id = duty_plan.duty_rule_id
+            if rule_id not in group_duty_plans[duty_plan.user_group_id]:
+                group_duty_plans[duty_plan.user_group_id][rule_id] = []
+            group_duty_plans[duty_plan.user_group_id][rule_id].append(duty_plan)
+
+        for group in duty_groups:
+            if group.id not in group_duty_plans:
+                # 如果当前告警组没有值班计划，直接返回
                 continue
-            group_users = self.all_group_users[duty_plan.user_group_id]
-            for user in duty_plan.users:
-                if user["type"] == "group":
-                    for username in self.biz_group_users.get(user["id"]) or []:
-                        if username not in group_users:
-                            group_users.append(username)
-                elif user["type"] == "user" and user["id"] not in group_users:
-                    group_users.append(user["id"])
+            self.get_group_duty_users(group, group_duty_plans[group.id])
+
+    def get_group_duty_users(self, group, group_duty_plans):
+        """
+        获取当前用户组的值班用户
+        """
+        for rule_id in group.duty_rules:
+            is_rule_matched = False
+            if rule_id not in group_duty_plans:
+                # 如果当前规则不存在计划中，继续下一个规则
+                continue
+
+            alert_time = datetime.now(tz=pytz.timezone(group.timezone))
+
+            for duty_plan in group_duty_plans[rule_id]:
+                if not duty_plan.is_active_plan(data_time=time_tools.datetime2str(alert_time)):
+                    # 当前计划没有生效则不获取
+                    continue
+                # 如果当前轮值规则适配生效，则需要终止下一个规则生效
+                is_rule_matched = True
+                group_users = self.all_group_users[duty_plan.user_group_id]
+                for user in duty_plan.users:
+                    if user["type"] == "group":
+                        for username in self.biz_group_users.get(user["id"]) or []:
+                            if username not in group_users:
+                                group_users.append(username)
+                    elif user["type"] == "user" and user["id"] not in group_users:
+                        group_users.append(user["id"])
+            if is_rule_matched:
+                # 适配到了对应的轮值规则，中止
+                logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id)
+                return
 
     def get_assignee_by_user_groups(self, by_group=False, user_type=UserGroupType.MAIN):
         """

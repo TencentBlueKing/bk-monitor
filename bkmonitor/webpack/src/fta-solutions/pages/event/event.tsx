@@ -189,7 +189,7 @@ const filterIconMap = {
   // },
   MY_FOLLOW: {
     color: '#FF9C01',
-    icon: 'icon-xiazai13'
+    icon: 'icon-mc-note'
   },
   MY_APPOINTEE: {
     color: '#699DF4',

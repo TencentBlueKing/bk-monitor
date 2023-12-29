@@ -104,7 +104,7 @@ export default {
   '最大{max}天': 'Max {max} Days',
   '触发次数(近 7 天)': 'Trigger times (last 7 days)',
   '剩余 {n} 条数据': 'Remaining {n} pieces of data',
-  '已设置 {0} 个告警': 'Already Set {0} Alarms',
+  '已设置 {0} 个策略': 'Already Set {0} Strategy',
   '从 {0} 至 {1}': 'From {0} to {1}',
   '有{n}个关联的策略': '{n} associated rules',
   '已选{count}个': 'selected: {count}',
