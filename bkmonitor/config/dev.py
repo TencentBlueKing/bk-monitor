@@ -63,6 +63,14 @@ DATABASES = {
         "HOST": "localhost",
         "PORT": "3306",
     },
+    "metadata": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": APP_CODE,
+        "USER": "root",
+        "PASSWORD": "",
+        "HOST": "localhost",
+        "PORT": "3306",
+    },
 }
 
 # 前后端开发模式下支持跨域配置
