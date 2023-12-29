@@ -416,13 +416,13 @@ export class RelationGraph extends CommonSimpleChart {
         this.inited = true;
         if (this.isOverview) {
           this.empty = !this.graphData.nodes.length;
-          this.emptyText = !this.graphData.nodes.length ? window.i18n.tc('查无数据') : '';
+          this.emptyText = !this.graphData.nodes.length ? window.i18n.tc('暂无数据') : '';
           if (!this.empty) {
             this.initGraph();
           }
         } else {
           this.empty = !this.tableData.length;
-          this.emptyText = !this.tableData.length ? window.i18n.tc('查无数据') : '';
+          this.emptyText = !this.tableData.length ? window.i18n.tc('暂无数据') : '';
         }
       } else {
         this.empty = true;

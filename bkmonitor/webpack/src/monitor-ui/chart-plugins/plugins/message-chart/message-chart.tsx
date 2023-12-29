@@ -101,9 +101,9 @@ export default class MessageChart extends CommonSimpleChart {
       if (res) {
         this.inited = true;
         this.empty = !this.series.length;
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {

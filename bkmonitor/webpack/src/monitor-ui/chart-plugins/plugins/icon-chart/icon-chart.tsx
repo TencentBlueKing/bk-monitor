@@ -51,7 +51,7 @@ class IconChart extends CommonSimpleChart {
   /** 图表数据 */
   chartDataList: any[] = [];
   inited = false;
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.tc('暂无数据');
   empty = true;
 
   /**
@@ -105,7 +105,7 @@ class IconChart extends CommonSimpleChart {
         this.inited = true;
         this.empty = false;
         if (!data.length) {
-          this.emptyText = window.i18n.tc('查无数据');
+          this.emptyText = window.i18n.tc('暂无数据');
           this.empty = true;
         }
       }

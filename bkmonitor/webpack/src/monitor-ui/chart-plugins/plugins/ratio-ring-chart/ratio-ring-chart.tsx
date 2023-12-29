@@ -59,7 +59,7 @@ class RatioRingChart extends CommonSimpleChart {
   legendData = [];
   inited = false;
   metrics: IExtendMetricData[];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.tc('暂无数据');
   empty = true;
   chartOption: EChartOption;
   panelTitle = '';
@@ -151,7 +151,7 @@ class RatioRingChart extends CommonSimpleChart {
           this.handleResetLegendHeight();
         });
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {

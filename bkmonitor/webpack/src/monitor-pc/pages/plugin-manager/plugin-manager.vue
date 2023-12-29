@@ -67,7 +67,7 @@
               accept=".gz, .tgz"
               multiple="multiple"
               @change="handleFileChange"
-            >
+            />
           </bk-button>
           <!-- <bk-button class="left-button" :disabled="header.delete" @click="handleDeletePlugin">
                         删除
@@ -102,8 +102,8 @@
           class="plugin-table"
           v-bkloading="{ isLoading: table.loading }"
           :empty-text="table.message"
-          @row-mouse-enter="(i) => (table.hoverIndex = i)"
-          @row-mouse-leave="(i) => (table.hoverIndex = -1)"
+          @row-mouse-enter="i => (table.hoverIndex = i)"
+          @row-mouse-leave="i => (table.hoverIndex = -1)"
           @sort-change="handleSortChange"
           tooltip-effect="dark"
           :data="table.data"
@@ -181,9 +181,9 @@
           >
             <template slot-scope="scope">
               <div class="col-label">
-                <span
-                  v-if="scope.$index !== table.editIndex"
-                >{{ scope.row.label_info.first_label_name }}/{{ scope.row.label_info.second_label_name }}</span>
+                <span v-if="scope.$index !== table.editIndex"
+                  >{{ scope.row.label_info.first_label_name }}/{{ scope.row.label_info.second_label_name }}</span
+                >
               </div>
             </template>
           </bk-table-column>
@@ -364,11 +364,15 @@
             <span
               class="monitor-btn"
               @click="handleLabelChange"
-            > {{ $t('确定') }} </span>
+            >
+              {{ $t('确定') }}
+            </span>
             <span
               class="monitor-btn"
               @click="handleResetLable"
-            > {{ $t('清空') }} </span>
+            >
+              {{ $t('清空') }}
+            </span>
           </div>
         </div>
       </div>
@@ -399,8 +403,10 @@
           :class="{ 'btn-disabled': !tablePopover.data.delete_allowed }"
           class="operator-group-btn"
           :text="true"
-          @click="tablePopover.data.delete_allowed
-            && handleDeletePlugin(tablePopover.data.plugin_id, tablePopover.data.plugin_display_name)"
+          @click="
+            tablePopover.data.delete_allowed &&
+              handleDeletePlugin(tablePopover.data.plugin_id, tablePopover.data.plugin_display_name)
+          "
         >
           {{ $t('删除') }}
         </span>
@@ -428,7 +434,8 @@ import {
   exportPluginCollectorPlugin,
   importPluginCollectorPlugin,
   listCollectorPlugin,
-  tagOptionsCollectorPlugin } from '../../../monitor-api/modules/model';
+  tagOptionsCollectorPlugin
+} from '../../../monitor-api/modules/model';
 import { saveAndReleasePlugin } from '../../../monitor-api/modules/plugin';
 import introduce from '../../common/introduce';
 import { commonPageSizeMixin } from '../../common/mixins';
@@ -604,10 +611,10 @@ export default {
     }
   },
   created() {
-    this.$store.getters.bizList.forEach((item) => {
+    this.$store.getters.bizList.forEach(item => {
       this.bizMap[item.id] = item.text;
     });
-    this.handleSearchKey = debounce(300, (v) => {
+    this.handleSearchKey = debounce(300, v => {
       this.pagination.page = 1;
       this.header.keyword = v;
       this.getPluginListData();
@@ -616,7 +623,7 @@ export default {
     this.getLabelList();
   },
   beforeRouteEnter(to, from, next) {
-    next(async (vm) => {
+    next(async vm => {
       if (!['plugin-add', 'plugin-edit', 'plugin-detail'].includes(from.name)) {
         vm.header.keyword = '';
         vm.pagination.page = 1;
@@ -679,8 +686,8 @@ export default {
       this.tablePopover.instance?.show(100);
     },
     getLabelList() {
-      return getLabel({ include_admin_only: false }).then((data) => {
-        data.forEach((item) => {
+      return getLabel({ include_admin_only: false }).then(data => {
+        data.forEach(item => {
           const children = item.children.map(label => ({
             firstName: item.name,
             value: '',
@@ -710,10 +717,10 @@ export default {
       this.emptyType = this.header.keyword ? 'search-empty' : 'empty';
       !this.popover.list.length && this.getTagList();
       listCollectorPlugin(params, { cancelToken: new CancelToken(c => (this.cancelListRequest = c)) })
-        .then((data) => {
+        .then(data => {
           let total = 0;
           if (data.count) {
-            this.panel.tabs.forEach((item) => {
+            this.panel.tabs.forEach(item => {
               item.num = data.count[item.alias || item.name] || 0;
               total += item.num;
             });
@@ -728,12 +735,12 @@ export default {
         .finally(() => {
           this.loading = false;
           this.table.loading = false;
-          this.table.message = params.search_key ? this.$t('搜索无数据') : this.$t('查无数据');
+          this.table.message = params.search_key ? this.$t('搜索无数据') : this.$t('暂无数据');
         });
     },
     getTagList() {
       tagOptionsCollectorPlugin()
-        .then((data) => {
+        .then(data => {
           this.popover.list = data;
         })
         .catch(() => {
@@ -879,14 +886,17 @@ export default {
         data: null
       }));
       this.fileArr.forEach((item, index) => {
-        const interval = setInterval(() => {
-          item.percent += 0.16;
-          if (item.percent > 0.96) {
-            window.clearInterval(interval);
-          }
-        }, 50 + index * 50);
+        const interval = setInterval(
+          () => {
+            item.percent += 0.16;
+            if (item.percent > 0.96) {
+              window.clearInterval(interval);
+            }
+          },
+          50 + index * 50
+        );
         importPluginCollectorPlugin({ file_data: item.file })
-          .then((data) => {
+          .then(data => {
             item.data = data;
             item.percent = 1;
             item.percentShow = false;
@@ -953,7 +963,7 @@ export default {
         }
       }, 50);
       importPluginCollectorPlugin({ file_data: file })
-        .then((data) => {
+        .then(data => {
           // 缓存导入的配置数据
           this[SET_PLUGIN_CONFIG](data);
 
@@ -967,9 +977,10 @@ export default {
             }
             this.dialog.status = 4; // 重名
             this.dialog.data = data;
-            this.dialog.update =              (data.is_official && data.duplicate_type === 'official' && data.conflict_title.length === 0)
-              || (data.is_official && data.duplicate_type === 'custom')
-              || (!data.is_official && data.duplicate_type === 'custom' && data.conflict_title.length === 0);
+            this.dialog.update =
+              (data.is_official && data.duplicate_type === 'official' && data.conflict_title.length === 0) ||
+              (data.is_official && data.duplicate_type === 'custom') ||
+              (!data.is_official && data.duplicate_type === 'custom' && data.conflict_title.length === 0);
           } else if (!isSuperUser && data.is_official) {
             data.conflict_detail = this.$t('您没有权限导入官方插件');
             this.dialog.data = data;
@@ -1053,7 +1064,7 @@ export default {
     handlePluginExport(pluginId) {
       this.loading = true;
       exportPluginCollectorPlugin(pluginId)
-        .then((data) => {
+        .then(data => {
           const url = data.download_url;
           if (url) {
             downFile(url);
@@ -1126,7 +1137,7 @@ export default {
           interactive: true,
           onHidden: () => {
             const list = this.label.selectedLabels.split(',');
-            this.label.list.forEach((item) => {
+            this.label.list.forEach(item => {
               if (list.includes(item.id)) {
                 item.value = item.id;
               } else {
@@ -1149,7 +1160,7 @@ export default {
     },
     handleResetLable() {
       this.label.instance.hide(100);
-      this.label.list.forEach((item) => {
+      this.label.list.forEach(item => {
         item.value = '';
       });
       this.label.selectedLabels = '';
@@ -1161,19 +1172,26 @@ export default {
     renderHeader(h) {
       // 这里原先是用 jsx 实现，但由于 VSCode 对 .vue 文件的 jsx 格式支持不太友好，
       // 导致下面的代码没法正常显示其应有的样式，故将 jsx 换成手写 render funtion。
-      return h('span', {
-        on: {
-          click: e => this.handleShow(e)
+      return h(
+        'span',
+        {
+          on: {
+            click: e => this.handleShow(e)
+          },
+          class: {
+            'dropdown-trigger': true,
+            ' plugin-label': true,
+            selected: this.labelKeyword
+          },
+          slot: 'dropdown-trigger'
         },
-        class: {
-          'dropdown-trigger': true,
-          ' plugin-label': true,
-          selected: this.labelKeyword
-        },
-        slot: 'dropdown-trigger'
-      }, [this.$t('分类'), h('i', {
-        class: 'icon-monitor icon-filter-fill'
-      })]);
+        [
+          this.$t('分类'),
+          h('i', {
+            class: 'icon-monitor icon-filter-fill'
+          })
+        ]
+      );
     },
     getManageAuth(row) {
       if (row.bk_biz_id === 0) {
@@ -1236,7 +1254,7 @@ export default {
 
     &:hover {
       color: #3a84ff;
-      background: rgba(234, 243, 255, .7);
+      background: rgba(234, 243, 255, 0.7);
     }
 
     span {
@@ -1469,7 +1487,7 @@ export default {
 
                 span {
                   *font-size: 10px;
-                  transform: scale(.83, .83);
+                  transform: scale(0.83, 0.83);
                 }
               }
             }

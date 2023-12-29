@@ -698,7 +698,7 @@ export default defineComponent({
                           />
                         </div>
                       ) : (
-                        <div class='empty-chart'>{window.i18n.t('查无数据')}</div>
+                        <div class='empty-chart'>{window.i18n.t('暂无数据')}</div>
                       )}
                     </div>
                   </div>

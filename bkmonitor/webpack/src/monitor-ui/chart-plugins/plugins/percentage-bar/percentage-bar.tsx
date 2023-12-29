@@ -62,7 +62,7 @@ class PercentageBarChart extends CommonSimpleChart {
   /** 图表数据 */
   chartDataList: any[] = [];
   metrics: IExtendMetricData[];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.tc('暂无数据');
   empty = true;
   // 查看更多链接
   viewMoreLink = '';
@@ -149,7 +149,7 @@ class PercentageBarChart extends CommonSimpleChart {
         this.empty = false;
         this.$nextTick(this.handleResize);
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
     } catch (e) {

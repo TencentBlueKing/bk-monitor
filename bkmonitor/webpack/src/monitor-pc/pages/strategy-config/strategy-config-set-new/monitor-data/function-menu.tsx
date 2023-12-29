@@ -220,7 +220,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
                 </div>
               )}
               {(!this.filterList?.length || !this.activeFuncList?.length) && (
-                <div class='panel-desc'>{this.$t('查无数据')}</div>
+                <div class='panel-desc'>{this.$t('暂无数据')}</div>
               )}
             </div>
           </div>

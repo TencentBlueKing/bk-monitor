@@ -335,7 +335,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
     panel?.updateRealHeight(height);
   }
   render() {
-    if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('查无数据')}</div>;
+    if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('暂无数据')}</div>;
     return (
       <div
         id='dashboard-panel'
