@@ -93,7 +93,7 @@ export const isPostiveInt = val => /^[1-9][0-9]*$/.test(`${val}`);
  * @param {Object} data  数据源
  * @param {Boolean} flag 转换方向 default: false; false: snake_case命名转换为camelCase命名 true: camelCase命名转snake_case命名
  */
-export const transformDataKey = (data = {}, flag = false) => {
+export const transformDataKey = (data = {}, flag = false, excludeKey = []) => {
   if (!['[object Array]', '[object Object]'].includes(Object.prototype.toString.call(data))) return data;
   const result = {};
   if (Array.isArray(data)) {
@@ -102,6 +102,10 @@ export const transformDataKey = (data = {}, flag = false) => {
   Object.keys(data).forEach(key => {
     const matchList = flag ? key.match(/([A-Z])/g) : key.match(/(_[a-zA-Z])/g);
     let newKey = key;
+    if (excludeKey.includes(key)) {
+      result[newKey] = data[key];
+      return;
+    }
     const item = data[key];
     if (matchList) {
       matchList.forEach(set => {
