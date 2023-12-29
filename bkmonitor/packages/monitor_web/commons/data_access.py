@@ -453,7 +453,6 @@ class PluginDataAccessor(DataAccessor):
             # 新增插件均为单指标单表
             is_split_measurement = True
             self.create_dataid()
-            # todo 当后续流程失败时，通过`ModifyDataIdResource`将 dataname 重名即可。
 
         if not is_split_measurement:
             # 没开自动发现，且非新增插件
@@ -504,7 +503,11 @@ class PluginDataAccessor(DataAccessor):
                         }
                     }
                 )
-                api.metadata.create_time_series_group(**params)
+                # 如果创建失败，则弃用该dataid，以免未开启自动发现的插件走create_rt的逻辑
+                try:
+                    api.metadata.create_time_series_group(**params)
+                except:  # noqa
+                    api.metadata.modify_data_id({"data_id": self.data_id, "data_name": f"{self.data_name}_deprecated"})
         else:
             self.create_rt()
         return self.data_id
