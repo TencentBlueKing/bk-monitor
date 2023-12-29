@@ -102,6 +102,7 @@
             class="mc-btn-add"
             style="margin-right: 8px"
           >
+            <span class="icon-monitor icon-plus-line mr-6"></span>
             {{ $t('新建') }}
           </bk-button>
           <!-- <bk-button theme="default" @click="handleToLogCollection"> {{ $t('日志采集') }} </bk-button> -->
@@ -1300,6 +1301,9 @@ export default {
   lang="scss"
   scoped
 >
+.mr-6 {
+  margin-right: 6px;
+}
 .collector-config {
   margin: 24px;
   font-size: 12px;

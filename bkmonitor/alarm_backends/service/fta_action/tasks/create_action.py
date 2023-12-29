@@ -146,7 +146,7 @@ def create_interval_actions(
         logger.info("create polled actions(%s) for alert(%s)", len(actions), alert_id)
     except BaseException as e:
         exc = e
-        logger.info("create polled actions for alert(%s) failed: %s", alert_id, e)
+        logger.exception("create polled actions for alert(%s) failed: %s", alert_id, e)
 
     metrics.ACTION_CREATE_PROCESS_COUNT.labels(
         status=metrics.StatusEnum.from_exc(exc), exception=exc, **public_labels

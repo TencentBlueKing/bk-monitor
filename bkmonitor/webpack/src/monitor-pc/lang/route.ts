@@ -100,6 +100,7 @@ export default {
   'route-指标管理': 'Metrics Manage',
   'route-配置应用': 'Configuration Application',
   'route-应用监控': 'Application Monitoring',
+  'route-轮值': 'Rotation',
   'route-管理': 'Management',
   // 面包屑 标题定位
   'route-新建策略': 'New Alert Rules',
@@ -135,6 +136,8 @@ export default {
   'route-链路管理': 'Link Management',
   'route-加载中...': 'Loading...',
   'route-数据源管理': 'DataSource Management',
+  'route-编辑轮值': 'Edit Rotation',
+  'route-新增轮值': 'Add Rotation',
 
   // 功能页面标题
 
