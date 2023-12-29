@@ -13,7 +13,6 @@ import logging
 import time
 import traceback
 from collections import defaultdict
-from urllib.parse import urlencode
 
 from django.conf import settings
 from django.db import transaction
@@ -35,6 +34,7 @@ from bkmonitor.models import EventPluginV2
 from bkmonitor.models import EventPluginV2 as EventPlugin
 from bkmonitor.models import PluginMainType, PluginType, Scenario
 from bkmonitor.models.fta import PluginStatus
+from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.serializers import StringSplitListField
 from bkmonitor.utils.template import jinja_render
 from bkmonitor.utils.time_tools import utc2biz_str
@@ -48,6 +48,7 @@ from core.errors.event_plugin import (
 )
 from fta_web.event_plugin.handler import PackageHandler
 from fta_web.event_plugin.kafka import KafkaManager
+from monitor_web.custom_report.resources import ProxyHostInfo
 
 logger = logging.getLogger("kernel_api")
 
@@ -501,6 +502,14 @@ class UpdateEventPluginInstanceResource(EventPluginInstanceBaseResource):
         return {"id": self.instance.id, "data_id": self.instance.data_id}
 
 
+class CollectorProxyHostInfo(ProxyHostInfo):
+    """
+    collector对应的管控区域列表
+    """
+
+    DEFAULT_PROXY_PORT = 4318
+
+
 class GetEventPluginInstanceResource(Resource):
     """
     获取插件在当前业务下的告警实例
@@ -529,14 +538,12 @@ class GetEventPluginInstanceResource(Resource):
         ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{plugin_info['plugin_id']}/"
         # 取一个代表
         instance = instances[0]
-        alert_sources = ingest_config.get("alert_source", [])
-        collect_urls = []
-        if not alert_sources:
-            # 如果没有的话，直接塞一个全局字段
-            alert_sources = ["global"]
-        for alert_source in alert_sources:
-            path_params = urlencode(dict(source=alert_source, token=instance.token))
-            collect_urls.append(f"{settings.COLLOCTOR_HOST}?{path_params}")
+        alert_sources = ingest_config.get("alert_sources", [])
+        if alert_sources:
+            collect_url = "${PROXY_IP}:4318/fta/v1/event/?source={alert_source}&token=${token}"
+        else:
+            # 没有区分告警推送来源
+            collect_url = "${PROXY_IP}:4318/fta/v1/event/?token=${token}"
 
         if instances[0].bk_biz_id:
             # 不是全局的，需要单独配置
@@ -548,7 +555,9 @@ class GetEventPluginInstanceResource(Resource):
                 "params_schema": inst_data["params_schema"],
                 "updatable": inst_data["version"] != plugin_info["version"],
                 "push_url": ingest_config["push_url"],
-                "collect_urls": collect_urls,
+                "collect_url": collect_url,
+                "alert_sources": alert_sources,
+                "proxy_hosts": CollectorProxyHostInfo.request(bk_biz_id=instance.bk_biz_id),
             }
             for inst_data in serializer_data
         ]
@@ -577,8 +586,16 @@ class GetEventPluginTokenResource(Resource):
         if not instance.data_id:
             raise DataIDNotSetError()
 
-        data_id_info = api.metadata.get_data_id(bk_data_id=instance.data_id, with_rt_info=False)
-        return {"token": data_id_info["token"]}
+        if instance.ingest_config["collect_type"] == "bk_ingestor":
+            data_id_info = api.metadata.get_data_id(bk_data_id=instance.data_id, with_rt_info=False)
+            return {"token": data_id_info["token"]}
+
+        if not instance.token:
+            instance.token = transform_data_id_to_token(
+                instance.data_id, bk_biz_id=instance.bk_biz_id, app_name=instance.plugin_id
+            )
+            instance.save()
+        return instance
 
 
 class TailEventPluginDataResource(Resource):
