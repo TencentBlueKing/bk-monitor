@@ -183,8 +183,8 @@ class QuickCreateSubscription extends tsc<IProps> {
       log_display_count: 30,
       year_on_year_hour: 1,
       generate_attachment: true,
-      // 展示范围，暂不需要？
-      is_show_new_pattern: true,
+      // 是否只展示新类
+      is_show_new_pattern: false,
       // 这个同比配置也不需要前端展示，暂不开放配置入口 （不用管）
       year_on_year_change: 'all',
     },
@@ -265,6 +265,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   defaultGroupList = [];
 
   isGenerateAttach = 1;
+  isShowNewPattern = 0;
 
   errorTips = {
     user: {
@@ -993,6 +994,22 @@ class QuickCreateSubscription extends tsc<IProps> {
                     v-model={this.isGenerateAttach}
                     onChange={() => {
                       this.formData.scenario_config.generate_attachment = !!this.isGenerateAttach;
+                    }}
+                  >
+                    <bk-radio label={1}>{this.$t('是')}</bk-radio>
+                    <bk-radio label={0}>{this.$t('否')}</bk-radio>
+                  </bk-radio-group>
+                </bk-form-item>
+
+                <bk-form-item
+                  label={this.$t('只展示新类')}
+                  property='scenario_config.generate_attachment'
+                  required
+                >
+                  <bk-radio-group
+                    v-model={this.isShowNewPattern}
+                    onChange={() => {
+                      this.formData.scenario_config.is_show_new_pattern = !!this.isShowNewPattern;
                     }}
                   >
                     <bk-radio label={1}>{this.$t('是')}</bk-radio>

@@ -597,5 +597,6 @@ export default {
   邮件标题: 'Mail title',
   订阅人: 'Subscriber',
   发送频率: 'Send frequency',
-  有效时间范围: 'Valid time range'
+  有效时间范围: 'Valid time range',
+  只展示新类: 'Only show new classes'
 };

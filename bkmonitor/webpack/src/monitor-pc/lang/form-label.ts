@@ -1783,5 +1783,6 @@ export default {
   提示文案: 'Prompt text',
   最大展示数量: 'Maximum display number',
   内容配置: 'Content configuration',
-  邮件配置: 'Email configuration'
+  邮件配置: 'Email configuration',
+  只展示新类: 'Only show new classes'
 };

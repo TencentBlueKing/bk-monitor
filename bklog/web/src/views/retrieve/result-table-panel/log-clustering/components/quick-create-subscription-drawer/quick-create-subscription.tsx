@@ -193,7 +193,7 @@ class QuickCreateSubscription extends tsc<IProps> {
           </div>
         </bk-sideslider>
 
-        <bk-dialog v-model={this.isShowSendingSuccessDialog} theme="primary" show-footer={false} position={{ top: ''}}>
+        <bk-dialog v-model={this.isShowSendingSuccessDialog} theme="primary" show-footer={false} ext-cls='test-sending-result-dialog'>
           <div slot='header' class='test-send-success-dialog-header'>
             <i class='bk-icon icon-check-circle-shape' style='color: rgb(45, 202, 86);'></i>
             <span style='margin-left: 10px;'>{this.$t('发送测试邮件成功')}</span>
