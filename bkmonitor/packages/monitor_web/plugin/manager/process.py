@@ -31,6 +31,7 @@ class BuildInProcessDimension(object):
         "pid": _("进程序号"),
         "listen_address": _("监听地址"),
         "listen_port": _("监听端口"),
+        "bkm_up_code": _("采集状态码"),
     }
 
     def __init__(self, field_name):
@@ -61,6 +62,7 @@ class BuildInProcessMetric(object):
         "process.perf.cpu_total_ticks": (_("整体占用时间"), "ms"),
         "process.perf.cpu_user": (_("进程占用用户态时间"), "ms"),
         "process.perf.cpu_start_time": (_("进程启动时间"), "none"),
+        "process.perf.bkm_gather_up": (_("采集心跳"), "none"),
         "process.port.alive": (_("端口存活"), "none"),
     }
 
@@ -107,8 +109,9 @@ class ProcessPluginManager(BuiltInPluginManager):
                 "memory_rss_pct",
                 "memory_share",
                 "memory_size",
+                "bkm_gather_up",
             ],
-            "dimensions": ["process_name", "pid"],
+            "dimensions": ["process_name", "pid", "bkm_up_code"],
         },
         "port": {"metric_list": ["alive"], "dimensions": ["listen_address", "listen_port", "process_name", "pid"]},
     }
