@@ -123,13 +123,15 @@ export default class Config extends tsc<IConfig> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
+        extCls: 'copy-error-message'
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
+      extCls: 'copy-success-message'
     });
   }
 
@@ -243,6 +245,22 @@ export default class Config extends tsc<IConfig> {
                     ></i>
                   </span>
                 </div>
+                {this.pushConfigData.collectUrls?.length > 0 && (
+                  <div class='push-config-row'>
+                    <span class='push-label'>Collect URL</span>
+                    <div class='collect-url-list'>
+                      {this.pushConfigData.collectUrls.map(url => (
+                        <span class='push-content'>
+                          <span class='text'>{url}</span>
+                          <i
+                            class='icon-monitor icon-mc-copy'
+                            onClick={() => this.handleCopy(url)}
+                          ></i>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : undefined
           }

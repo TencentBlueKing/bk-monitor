@@ -117,6 +117,7 @@ export interface IPushConfigData {
   sourceFormat: string;
   pluginId: string;
   pushUrl?: string;
+  collectUrls?: string[];
 }
 
 export interface INormalizationTable {

@@ -112,7 +112,8 @@ export default class EventSourceDetail extends tsc<IDetail> {
     sourceFormat: '',
     ingesterHost: '',
     pluginId: '',
-    pushUrl: ''
+    pushUrl: '',
+    collectUrls: []
   };
   /* pull 类型下 配置表单 */
   paramsSchema = [];
@@ -231,6 +232,7 @@ export default class EventSourceDetail extends tsc<IDetail> {
     this.pushConfigData.sourceFormat = sourceFormat;
     this.pushConfigData.pluginId = pluginId;
     this.pushConfigData.pushUrl = pushUrl;
+    this.pushConfigData.collectUrls = instances?.[0]?.collect_urls || [];
     // 接入引导md
     this.tutorialMd = this.handleMdMediaSrc(tutorial);
     this.isInstalled = isInstalled;
