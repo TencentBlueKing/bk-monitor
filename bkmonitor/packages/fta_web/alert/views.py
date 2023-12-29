@@ -28,23 +28,27 @@ logger = logging.getLogger(__name__)
 
 class AlertViewSet(ResourceViewSet):
     def check_alert_permission(self):
-        if self.action not in [
+        read_actions = [
             "alert/detail",
             "alert/get_experience",
-            "alert/save_experience",
             "alert/log",
             "event/search",
             "alert/event_count",
             "alert/related_info",
             "alert/extend_fields",
-            "alert/ack",
             "alert/graph_query",
             "event/date_histogram",
             "strategy_snapshot",
-            "event/top_n",
             "action/search",
+        ]
+        write_actions = [
+            "alert/save_experience",
+            "alert/ack",
+            "event/top_n",
             "alert/feedback",
-        ]:
+        ]
+        all_actions = read_actions + write_actions
+        if self.action not in all_actions:
             return False
 
         # 从请求参数提取出ID字段
@@ -63,20 +67,34 @@ class AlertViewSet(ResourceViewSet):
         if not alert_ids:
             return False
 
-        # 判断负责人是否在里面
-        alerts = AlertDocument.mget(alert_ids, fields=["assignee", "appointee", "supervisor"])
+        # 通知人， 负责人,关注人在可以查看相关的告警
+        alerts = AlertDocument.mget(alert_ids, fields=["assignee", "appointee", "supervisor", "follower"])
 
         if not alerts:
             return False
 
         username = self.request.user.username
         alerts_users = collections.defaultdict(list)
+        alert_followers = collections.defaultdict(list)
         for alert in alerts:
             alerts_users[alert.id].extend(alert.assignee)
             alerts_users[alert.id].extend(alert.appointee)
             alerts_users[alert.id].extend(alert.supervisor)
+            alert_followers[alert.id].extend(alert.follower)
 
+        result = True
         for users in alerts_users.values():
+            if username not in users:
+                # 读权限的，设置result为False, 可以根据Follower进行下一步判断
+                result = False
+                break
+        if result or self.action in write_actions:
+            # 如果在负责人的权限下可以通过，直接返回
+            # 如果当前操作为写操作，没有权限也可以直接返回
+            return result
+
+        # 查看信息的动作，根据关注人再进行一次处理
+        for users in alert_followers.values():
             if username not in users:
                 return False
         return True

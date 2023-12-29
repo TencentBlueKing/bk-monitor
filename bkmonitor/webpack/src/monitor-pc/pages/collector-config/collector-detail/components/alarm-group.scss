@@ -1,0 +1,231 @@
+.alarm-group-wrap {
+  // min-height: 60px;
+  // padding: 12px 20px;
+  // background: #f5f6fa;
+  // border-radius: 2px;
+  .alarm-group-tag-list {
+    margin-top: -8px;
+    margin-left: -4px;
+
+    & > span {
+      margin-top: 8px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+  }
+
+  .alarm-group-tag {
+    position: relative;
+    display: inline-block;
+    // min-width: 88px;
+    height: 22px;
+    padding: 0 24px 0 10px;
+    line-height: 22px;
+    color: #63656e;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    &:hover {
+      color: #3b83ff;
+      border: 1px solid #3b83ff;
+    }
+
+    .tag-text {
+      display: inline-block;
+      max-width: 300px;
+      height: 20px;
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 20px;
+      text-align: left;
+      text-overflow: ellipsis; 
+      white-space: nowrap;
+    }
+
+    .icon-mc-close {
+      position: absolute;
+      top: 3px;
+      right: 4px;
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+      line-height: 1;
+    }
+  }
+
+  .tag-active {
+    color: #fff;
+    background-color: #3a84ff;
+  }
+
+  .add-btn {
+    position: relative;
+    // border: 1px dashed #c4c6cc;
+    box-sizing: border-box;
+    display: inline-block;
+    max-height: 22px;
+    overflow: hidden;
+    // border-radius: 2px;
+    .add-tag {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      height: 20px;
+      overflow: hidden;
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+      border-radius: 2px;
+
+      .add-tag-text {
+        line-height: 20px;
+      }
+
+      .icon-mc-add {
+        margin-left: -8px;
+        font-size: 20px;
+        line-height: 20px;
+      }
+    }
+
+    .disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+
+    .alarm-group-select {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-block;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      line-height: 22px;
+      opacity: 0;
+
+      .bk-select-name {
+        height: 22px;
+      }
+    }
+  }
+}
+
+.is-readonly {
+  .alarm-group-tag-list {
+    .alarm-group-tag {
+      padding: 0 10px;
+
+    }
+  }
+}
+
+.alarm-group-popover {
+  ::v-deep .bk-option-content {
+    padding: 0;
+  }
+
+  .alarm-group-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 52px;
+    padding: 0 10px 0 20px;
+
+    &:hover {
+      // background-color: #e1ecff;
+    }
+
+    .group-content {
+      flex: 1;
+      overflow: hidden;
+      line-height: 20px;
+
+      .item-name,
+      .item-person {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .item-person-title {
+          color: #63656e;
+        }
+      }
+
+      .item-name {
+        font-weight: 700;
+        color: #63656e;
+      }
+
+      .item-person {
+        color: #979ba5;
+      }
+    }
+
+    .check-icon {
+      font-size: 22px;
+    }
+  }
+
+  .is-disabled {
+    .item-name,
+    .item-person {
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #c4c6cc !important;
+    }
+  }
+
+  .bk-select-extension {
+    padding: 0 0 0 16px;
+    cursor: pointer;
+
+    .add-text {
+      margin-left: 5px;
+    }
+  }
+
+  .add-container {
+    flex: 1;
+  }
+
+  .loading-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 32px;
+    cursor: pointer;
+
+    .status-loading {
+      height: 16px;
+    }
+
+    .icon-zhongzhi1 {
+      font-size: 12px;
+    }
+
+    &::after {
+      position: absolute;
+      top: 8px;
+      left: -1px;
+      width: 1px;
+      height: 16px;
+      content: '';
+      background: #dcdee5;
+    }
+
+    &:hover {
+      background: #dcdee5;
+
+      &::after {
+        display: none;
+      }
+    }
+  }
+}

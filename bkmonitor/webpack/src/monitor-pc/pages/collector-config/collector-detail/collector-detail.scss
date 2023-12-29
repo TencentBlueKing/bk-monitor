@@ -1,0 +1,51 @@
+.collector-detail-page {
+  // max-height: calc(100vh - 94px);
+  padding: 24px;
+  // overflow-y: auto;
+
+  .bk-tab-section {
+    /* stylelint-disable-next-line declaration-no-important */
+    height: auto !important;
+  }
+
+  .mt-24 {
+    margin-top: 24px;
+  }
+
+  .mb-24 {
+    margin-bottom: 24px;
+  }
+
+  .bk-tab.monitor-tab {
+    .bk-tab-label-item {
+      padding: 0 24px;
+    }
+  }
+
+  .collector-status-details-component {
+    padding: 0;
+  }
+
+  .tab-right-tip {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 8px;
+    line-height: 20px;
+    color: #63656e;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    .icon-tishi {
+      margin-right: 4px;
+      font-size: 14px;
+    }
+
+    .link-btn {
+      margin-left: 4px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}

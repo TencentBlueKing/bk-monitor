@@ -146,6 +146,9 @@ class ConvergeProcessor(object):
         self.dimension = self.get_dimension(safe_length=128)
 
     def set_converge_count_and_timedelta(self, converge_config):
+        """
+        设置默认收敛策略
+        """
         if self.instance_type == ConvergeType.ACTION:
             if self.instance.action_config["plugin_type"] == ActionPluginType.NOTICE:
                 converge_config["timedelta"] = CONST_MINUTES * 2
@@ -241,7 +244,6 @@ class ConvergeProcessor(object):
             client.decr(self.lock_key)
 
     def run_converge(self):
-
         # 告警屏蔽优先级最高，如果屏蔽了，则都不需要处理，直接不做收敛
         if self.instance_type == ConvergeType.ACTION:
             if self.instance.status in ActionStatus.END_STATUS:
@@ -418,8 +420,9 @@ class ConvergeProcessor(object):
             self.instance.update_time = end_time
             if end_time:
                 self.instance.need_poll = need_poll(self.instance)
-            self.instance.save(update_fields=["outputs", "status", "end_time", "update_time", "need_poll", "ex_data",
-                                              "execute_times"])
+            self.instance.save(
+                update_fields=["outputs", "status", "end_time", "update_time", "need_poll", "ex_data", "execute_times"]
+            )
             if self.instance.status in ActionStatus.END_STATUS:
                 return
 
@@ -452,7 +455,7 @@ class ConvergeProcessor(object):
             client = FTA_NOTICE_COLLECT_KEY.client
             collect_key = FTA_NOTICE_COLLECT_KEY.get_key(
                 **{
-                    "notice_way": self.context["notice_way"],
+                    "notice_way": self.context["group_notice_way"],
                     "action_signal": self.instance.signal,
                     "alert_id": "_".join([str(a) for a in self.instance.alerts]),
                 }

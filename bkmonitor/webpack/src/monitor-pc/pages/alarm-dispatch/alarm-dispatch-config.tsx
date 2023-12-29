@@ -193,6 +193,8 @@ export default class AlarmDispatchConfig extends tsc<{}> {
   /* 批量删除、撤回tips disabled */
   batchTipsDisabled = false;
 
+  editAllowed = true;
+
   /* 是否可调试 */
   get canDebug() {
     return (
@@ -301,6 +303,7 @@ export default class AlarmDispatchConfig extends tsc<{}> {
     this.priorityList = list.map(item => item.priority);
     if (targetRuleGroup) {
       this.ruleGroupData = targetRuleGroup;
+      this.editAllowed = !!targetRuleGroup?.edit_allowed;
     }
   }
 
@@ -1457,13 +1460,22 @@ export default class AlarmDispatchConfig extends tsc<{}> {
             <div class='opreate-warp'></div>
           </div>
           <div class='config-footer'>
-            <Button
-              theme='primary'
-              onClick={() => this.handleStartDebug()}
-              class='mr10'
+            <span
+              v-bk-tooltips={{
+                placements: ['top'],
+                content: this.$t('内置的分派规则组不允许修改'),
+                disabled: this.editAllowed
+              }}
             >
-              {this.$t('调试并生效')}
-            </Button>
+              <Button
+                theme='primary'
+                onClick={() => this.handleStartDebug()}
+                class='mr10'
+                disabled={!this.editAllowed}
+              >
+                {this.$t('调试并生效')}
+              </Button>
+            </span>
             <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>
           </div>
         </div>

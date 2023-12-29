@@ -32,6 +32,7 @@ from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -75,6 +76,9 @@ from monitor_web.models import (
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.strategies.loader.datalink_loader import (
+    DatalinkDefaultAlarmStrategyLoader,
+)
 from monitor_web.tasks import append_metric_list_cache
 from utils import business
 from utils.query_data import TSDataBase
@@ -995,6 +999,10 @@ class SaveCollectConfigResource(Resource):
 
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
+
+        # 采集配置完成
+        DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+
         return save_result
 
     @staticmethod

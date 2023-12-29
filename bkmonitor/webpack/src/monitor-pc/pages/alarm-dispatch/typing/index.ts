@@ -154,6 +154,7 @@ export class RuleGroupData {
   priority = 0;
   ruleData = [];
   settings = {};
+  editAllowed = false;
   constructor(data: IRuleGroup) {
     const TEMP_THIS = JSON.parse(JSON.stringify(this));
     Object.keys(TEMP_THIS).forEach(key => {

@@ -102,7 +102,6 @@ export default {
   '已动态选择{0}个节点': '{0} nodes have been dynamically selected',
   '已选择{0}个服务模板': '{0} service templates selected',
   '已选择{0}个集群模板': '{0} cluster templates selected',
-  '日志文件为绝对路径，可使用通配符': 'The log file is an absolute path, wildcards can be used',
   固定值班: 'Fixed Duty',
   交替轮值: 'Alternate Shifts',
   日常值班: 'Daily Duty',

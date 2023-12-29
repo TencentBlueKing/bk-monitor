@@ -228,7 +228,8 @@ export default class AlarmDispatch extends tsc<{}> {
             name: item.name,
             priority: item.priority,
             isExpan: true,
-            ruleData: []
+            ruleData: [],
+            editAllowed: !!item?.edit_allowed
           })
       ) || [];
     this.loading = false;
@@ -492,7 +493,8 @@ export default class AlarmDispatch extends tsc<{}> {
             item.tag.map(key => key.split(':')[0]).includes(value) ||
             item.tag.map(value => value.split(':')[1]).includes(value) ||
             reg.test(item.user_groups.map(g => g.name)) ||
-            item.user_groups.map(g => String(g.id)).includes(value)
+            String(item.id) === value
+          // item.user_groups.map(g => String(g.id)).includes(value)
         )
         .map(item => item.id);
       this.ruleGroups = this.cacheRuleGroups.filter(item => filterRuleGroupList.includes(item.id));
@@ -611,16 +613,26 @@ export default class AlarmDispatch extends tsc<{}> {
                     {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
                     {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
                     <div
-                      class='edit-btn-wrap'
-                      onClick={() => this.handleToConfig(item.id)}
+                      class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
+                      v-bk-tooltips={{
+                        placements: ['top'],
+                        content: this.$t('内置的分派规则组不允许修改'),
+                        disabled: item.editAllowed
+                      }}
+                      onClick={() => item.editAllowed && this.handleToConfig(item.id)}
                     >
                       <span class='icon-monitor icon-bianji'></span>
                       <span>{this.$t('配置规则')}</span>
                     </div>
                     <div
-                      class='del-btn-wrap'
+                      class={['del-btn-wrap', { 'del-btn-disabled': !item.editAllowed }]}
+                      v-bk-tooltips={{
+                        placements: ['top'],
+                        content: this.$t('内置的分派规则组不允许修改'),
+                        disabled: item.editAllowed
+                      }}
                       onClick={e => {
-                        this.handleDeleteGroup(e, item);
+                        item.editAllowed && this.handleDeleteGroup(e, item);
                       }}
                     >
                       <span class='icon-monitor icon-mc-delete-line'></span>
@@ -689,6 +701,7 @@ export default class AlarmDispatch extends tsc<{}> {
                               detailData={this.detailData}
                               processPackage={this.processPackage}
                               actions={row.actions}
+                              userType={row.user_type}
                             />
                           )
                         }}

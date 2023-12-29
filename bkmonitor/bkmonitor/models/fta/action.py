@@ -40,6 +40,7 @@ from constants.action import (
     ConvergeStatus,
     ConvergeType,
     NoticeWay,
+    UserGroupType,
 )
 from constants.alert import EVENT_SEVERITY, EventSeverity
 from core.errors.api import BKAPIError
@@ -348,9 +349,23 @@ class ActionInstance(AbstractRecordModel):
         创建通知子任务
         :return:
         """
+        # 分别创建负责人和关注人通知
+        sub_actions = self.batch_create_sub_actions() + self.batch_create_sub_actions(followed=True)
+        if sub_actions and need_create:
+            ActionInstance.objects.bulk_create(sub_actions)
+        logger.info("create sub notice actions %s for parent action %s", len(sub_actions), self.id)
+        return sub_actions
+
+    def batch_create_sub_actions(self, followed=False):
+        """
+        根据notify分批次实现
+        """
         notify_info = self.inputs.get("notify_info", {})
-        exclude_notice_ways = self.inputs.get("exclude_notice_ways", [])
+        if followed:
+            # 如果是关注人通知，则用follower的配置
+            notify_info = self.inputs.get("follow_notify_info", {})
         sub_actions = []
+        exclude_notice_ways = self.inputs.get("exclude_notice_ways", [])
         mention_users_list = notify_info.pop("wxbot_mention_users", [])
         wxbot_mention_users = defaultdict(list)
         for mention_users_dict in mention_users_list:
@@ -364,14 +379,12 @@ class ActionInstance(AbstractRecordModel):
             for notice_receiver in notice_receivers:
                 if not notice_receiver:
                     continue
-                sub_actions.append(self.create_sub_notice_action(notice_way, notice_receiver, wxbot_mention_users))
-
-        if need_create:
-            ActionInstance.objects.bulk_create(sub_actions)
-        logger.info("create sub notice actions %s for parent action %s", len(sub_actions), self.id)
+                sub_actions.append(
+                    self.create_sub_notice_action(notice_way, notice_receiver, wxbot_mention_users, followed)
+                )
         return sub_actions
 
-    def create_sub_notice_action(self, notice_way, notice_receiver, mention_users=None):
+    def create_sub_notice_action(self, notice_way, notice_receiver, mention_users=None, followed=False):
         """
         创建一个处理套餐
         :param notice_way:通知方式
@@ -379,7 +392,12 @@ class ActionInstance(AbstractRecordModel):
         :param mention_users:提醒人员
         :return:
         """
-        inputs = {"notice_way": notice_way, "notice_receiver": notice_receiver, "mention_users": mention_users}
+        inputs = {
+            "notice_way": notice_way,
+            "notice_receiver": notice_receiver,
+            "mention_users": mention_users,
+            "followed": followed,
+        }
         inputs.update(self.inputs)
         sub_action = ActionInstance(inputs=inputs, parent_action_id=self.id, is_parent_action=False)
         for field, value in self.__dict__.items():
@@ -800,9 +818,7 @@ class ConvergeRelation(models.Model):
         return ConvergeInstance.objects.get(id=self.related_id)
 
     def __unicode__(self):
-        return "Inc-{} | relate_instance-{}({})".format(
-            self.converge_id.id, self.relate_instance.id, self.relate_instance
-        )
+        return "Inc-{} | relate_instance-{}({})".format(self.converge_id, self.relate_instance.id, self.relate_instance)
 
 
 class StrategyActionConfigRelation(AbstractRecordModel):
@@ -824,6 +840,7 @@ class StrategyActionConfigRelation(AbstractRecordModel):
     relate_type = models.CharField("关联类型", max_length=32, choices=RELATE_TYPE_CHOICES, default=RelateType.NOTICE)
     signal = models.JSONField("触发信号", default=default_list)
     user_groups = models.JSONField("用户组", default=default_list)
+    user_type = models.CharField("人员类型", default=UserGroupType.MAIN, choices=UserGroupType.CHOICE, max_length=32)
     options = models.JSONField("高级设置", default=default_dict)
 
     class Meta:

@@ -52,14 +52,18 @@ class AlertDocument(BaseDocument):
     latest_time = Date(format=BaseDocument.DATE_FORMAT)
     # 首次异常时间
     first_anomaly_time = Date(format=BaseDocument.DATE_FORMAT)
-    # 告警负责人
+
+    # 告警负责人，对应页面上的通知人
     assignee = field.Keyword(multi=True)
 
     # 指派负责人
     appointee = field.Keyword(multi=True)
 
-    # 关注人
+    # 升级关注人
     supervisor = field.Keyword(multi=True)
+
+    # 关注人, 只可以查看，不可以操作
+    follower = field.Keyword(multi=True)
 
     # 持续时间
     duration = field.Long()

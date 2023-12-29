@@ -183,5 +183,5 @@ export default {
   瞬间值: 'Last',
   '来源：{0}': 'Source: {0}',
   内部通知人: 'Internal Notifier',
-  暂无数据: 'No Data'
+  通知人员类型: 'Notification person type'
 };

@@ -12,7 +12,9 @@ specific language governing permissions and limitations under the License.
 from django.db import models
 from django.utils.translation import ugettext as _
 
+from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils.model_manager import AbstractRecordModel
+from constants.action import UserGroupType
 
 
 class AlertAssignGroup(AbstractRecordModel):
@@ -34,6 +36,7 @@ class AlertAssignGroup(AbstractRecordModel):
     path = models.CharField("资源路径", max_length=128, default="", blank=True, null=True)
     hash = models.CharField("原始配置摘要", max_length=64, default="", blank=True, null=True)
     snippet = models.TextField("配置片段", default="", blank=True, null=True)
+    source = models.CharField("来源系统", default=get_source_app_code, max_length=32, null=True, blank=True)
 
     def __str__(self):
         return f"{self.name}-{self.priority}"
@@ -57,7 +60,8 @@ class AlertAssignRule(models.Model):
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     event_source = models.JSONField("告警来源", default=list)
     scenario = models.JSONField("监控对象", default=list)
-    user_groups = models.JSONField("用户组", default=list, blank=False)
+    user_groups = models.JSONField("负责人用户组", default=list)
+    user_type = models.CharField("人员类型", default=UserGroupType.MAIN, choices=UserGroupType.CHOICE, max_length=32)
     conditions = models.JSONField("条件组", default=list)
     actions = models.JSONField("处理事件", default=list)
     is_enabled = models.BooleanField("是否启用", default=False)

@@ -1,0 +1,151 @@
+.alert-topic-component {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 52px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 2px;
+
+  .ml-8 {
+    margin-left: 8px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .mr-6 {
+    margin-right: 6px;
+  }
+
+  .split-line {
+    width: 1px;
+    height: 16px;
+    margin: 0 24px;
+    background: #dcdee5;
+  }
+
+  .left-wrap {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    white-space: nowrap;
+
+    .cur-alert {
+      display: flex;
+      align-items: center;
+      line-height: 20px;
+
+      .icon-mc-check-fill {
+        font-size: 16px;
+        color: #2dcb56;
+      }
+
+      .icon-danger {
+        font-size: 16px;
+        color: #ea3636;
+      }
+    }
+
+    .alert-histogram {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      line-height: 20px;
+
+      .alert-msg {
+        display: flex;
+        align-items: center;
+
+        .sub-msg {
+          color: #979ba5;
+        }
+      }
+
+      .alert-link {
+        flex: 1;
+        // max-width: 366px;
+        max-width: 188px;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .right-wrap {
+    display: flex;
+    align-items: flex-start;
+
+    .receive-msg {
+      display: flex;
+      align-items: center;
+      line-height: 20px;
+      white-space: nowrap;
+
+      .icon-mc-alarm-create {
+        font-size: 16px;
+      }
+
+      .dash-text {
+        border-bottom: 1px dashed #63656e;
+      }
+    }
+
+    .group-wrap {
+      display: flex;
+      align-items: flex-start;
+
+      .group-title {
+        display: flex;
+        align-items: center;
+        line-height: 20px;
+        white-space: nowrap;
+
+        .icon-mc-add-strategy {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+}
+
+.alert-topic-component-pop-alert {
+  .tippy-tooltip {
+    padding: 0;
+  }
+
+  .alert-topic-component-alert-name {
+    max-width: 400px;
+    // max-height: 160px;
+    padding: 0 12px 12px 20px;
+    overflow-y: auto;
+
+    .item-name {
+      position: relative;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #313238;
+
+      &::before {
+        position: absolute;
+        top: 4px;
+        left: -8px;
+        width: 4px;
+        height: 12px;
+        content: '';
+        background: #3a84ff;
+      }
+    }
+
+    .item-description {
+      margin-top: 4px;
+      font-size: 12px;
+      line-height: 16px;
+      color: #63656e;
+      white-space: pre-wrap;
+    }
+  }
+}

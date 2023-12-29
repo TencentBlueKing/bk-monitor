@@ -255,7 +255,7 @@ export const getRouteConfig = () => {
             },
             {
               name: '轮值',
-              icon: 'icon-monitor icon-lunliu menu-icon',
+              icon: 'icon-monitor icon-mc-lunliu menu-icon',
               id: 'rotation',
               path: '/trace/rotation',
               canStore: true,

@@ -1,0 +1,67 @@
+.link-status-component {
+  height: 100%;
+  background-color: #fff;
+
+  .panel-title {
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #63656e;
+  }
+
+  .chart-panel {
+    display: flex;
+    gap: 24px;
+
+    .chart-container {
+      flex: 1;
+    }
+  }
+
+  .divider {
+    margin: 25px 0;
+  }
+
+  .table-container {
+    .title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+
+      .refresh-btn {
+        width: 26px;
+        height: 26px;
+        line-height: 26px;
+        text-align: center;
+        cursor: pointer;
+        background: #fff;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+      }
+    }
+  }
+
+  .mr8 {
+    margin-right: 8px;
+  }
+}
+
+.data-status-sideslider {
+  .sideslider-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 20px;
+  }
+
+  .bk-sideslider-wrapper {
+    .bk-sideslider-content {
+      overflow: hidden;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
+  }
+}

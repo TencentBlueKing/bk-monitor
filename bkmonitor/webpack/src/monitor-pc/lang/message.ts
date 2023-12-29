@@ -227,6 +227,7 @@ export default {
   无告警: 'No alarms',
   无数据: 'No data',
   暂无权限: 'No permission',
+  暂无数据: 'No Data',
   查无数据: 'No data',
   暂无收藏: 'No favorite',
   暂无搜索: 'No search result',
