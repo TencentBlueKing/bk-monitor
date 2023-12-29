@@ -708,7 +708,7 @@ class UserGroupType:
     MAIN = "main"
     FOLLOWER = "follower"
 
-    CHOICE = [(MAIN, "负责人"), (FOLLOWER, "负责人")]
+    CHOICE = [(MAIN, "负责人"), (FOLLOWER, "关注人")]
 
 
 class MessageQueueSignal:
