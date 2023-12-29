@@ -585,7 +585,7 @@ class GetEventPluginTokenResource(Resource):
         if not instance.data_id:
             raise DataIDNotSetError()
 
-        if instance.ingest_config["collect_type"] == "bk_ingestor":
+        if instance.ingest_config.get("collect_type", "bk_ingestor") == "bk_ingestor":
             data_id_info = api.metadata.get_data_id(bk_data_id=instance.data_id, with_rt_info=False)
             return {"token": data_id_info["token"]}
 
