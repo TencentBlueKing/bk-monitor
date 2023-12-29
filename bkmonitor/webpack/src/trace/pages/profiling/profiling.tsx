@@ -31,9 +31,11 @@ import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { monitorDrag } from '../../utils/drag-directive';
+import HandleBtn from '../main/handle-btn/handle-btn';
 
 import FavoriteList from './components/favorite-list';
 import PageHeader from './components/page-header';
+import ProfilingRetrieval from './components/profiling-retrieval';
 import { ToolsFormData } from './typings/page-header';
 
 import './profiling.scss';
@@ -55,9 +57,11 @@ export default defineComponent({
     });
     const searchState = reactive({
       isShow: true,
-      defaultWidth: 420,
-      width: 420,
-      autoQuery: true
+      defaultWidth: 400,
+      width: 400,
+      autoQuery: true,
+      canQuery: true,
+      formData: {}
     });
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
@@ -78,6 +82,12 @@ export default defineComponent({
       }
     }
 
+    function handleAutoQueryChange(val: boolean) {
+      searchState.autoQuery = val;
+    }
+    function handleQueryClear() {}
+    function handleAddFavorite() {}
+
     const handleQueryScopeDebounce = debounce(handleQuery, 300, false);
 
     function handleQuery(isBtnClick = false) {
@@ -91,6 +101,10 @@ export default defineComponent({
       toolsFormData,
       handleToolFormDataChange,
       handleShowTypeChange,
+      handleAutoQueryChange,
+      handleQuery,
+      handleQueryClear,
+      handleAddFavorite,
       handleWidthChange
     };
   },
@@ -138,7 +152,22 @@ export default defineComponent({
                 onHidden: () => this.handleShowTypeChange('search', false),
                 onWidthChange: width => this.handleWidthChange('search', width)
               }}
-            ></div>
+            >
+              <ProfilingRetrieval>
+                {{
+                  query: () => (
+                    <HandleBtn
+                      autoQuery={this.searchState.autoQuery}
+                      canQuery={this.searchState.canQuery}
+                      onChangeAutoQuery={this.handleAutoQueryChange}
+                      onQuery={() => this.handleQuery(true)}
+                      onClear={this.handleQueryClear}
+                      onAdd={this.handleAddFavorite}
+                    ></HandleBtn>
+                  )
+                }}
+              </ProfilingRetrieval>
+            </div>
           )}
           <div class='view-wrap'></div>
         </div>

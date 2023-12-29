@@ -91,4 +91,10 @@
       }
     }
   }
+
+  .group-container {
+    height: calc(100vh - 240px);
+    margin-right: 4px;
+    overflow-y: auto;
+  }
 }
