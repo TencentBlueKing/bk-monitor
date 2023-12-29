@@ -14,10 +14,13 @@ from apm.resources import (
     ApplyDatasourceResource,
     CreateApplicationResource,
     CreateApplicationSimpleResource,
+    CreateOrUpdateBkdataFlowResource,
     DeleteAppConfigResource,
     DeleteApplicationResource,
+    GetBkDataFlowDetailResource,
     ListApplicationResources,
     ListEsClusterInfoResource,
+    OperateApmDataIdResource,
     QueryAppByHostInstanceResource,
     QueryAppByTraceResource,
     QueryBuiltinProfileDatasourceResource,
@@ -98,6 +101,9 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("GET", QueryMetricDimensionsResource, endpoint="query_metric_dimensions"),
         ResourceRoute("POST", QueryDiscoverRulesResource, endpoint="query_discover_rules"),
         ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
+        ResourceRoute("GET", GetBkDataFlowDetailResource, endpoint="get_bkdata_flow"),
+        ResourceRoute("POST", CreateOrUpdateBkdataFlowResource, endpoint="create_or_update_bkdata_flow"),
+        ResourceRoute("POST", OperateApmDataIdResource, endpoint="operate_apm_dataid"),
     ]
 
 

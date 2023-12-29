@@ -9,8 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import abc
+from dataclasses import asdict, dataclass, field
+from typing import List
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -513,3 +514,98 @@ class OffLineCalculateNode(ProcessorNode, abc.ABC):
             "window_info": window_info,
         }
         return base_config
+
+
+@dataclass
+class FlinkStreamCodeOutputField:
+    field_name: str
+    field_alias: str
+    event_time: bool = False
+    field_type: str = "string"
+    validate: dict = field(
+        default_factory=lambda: {
+            "name": {"status": False, "errorMsg": "HOME:必填项不可为空"},
+            "alias": {"status": False, "errorMsg": "HOME:必填项不可为空"},
+        }
+    )
+
+
+@dataclass
+class FlinkStreamCodeDefine:
+    args: str
+    language: str
+    code: str
+    output_fields: List[FlinkStreamCodeOutputField]
+
+
+class FlinkStreamNode(ProcessorNode, abc.ABC):
+    NODE_TYPE = "flink_streaming"
+    PROJECT_PREFIX = ""
+
+    def __init__(self, source_rt_id, name, *args, **kwargs):
+        super(FlinkStreamNode, self).__init__(*args, **kwargs)
+        self.source_rt_id = source_rt_id
+        self.bk_biz_id, self.process_table_name = source_rt_id.split("_", 1)
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def code(self) -> FlinkStreamCodeDefine:
+        raise NotImplementedError
+
+    @property
+    def table_name(self):
+        return f"{self.process_table_name}_output"
+
+    @property
+    def result_table_id(self):
+        return f"{self.bk_biz_id}_{self.table_name}"
+
+    @property
+    def config(self):
+        return {
+            "bk_biz_id": int(self.bk_biz_id),
+            "name": self.name,
+            "code": self.code.code,
+            "processing_name": self.table_name,
+            "user_args": self.code.args,
+            "programming_language": self.code.language,
+            "outputs": [
+                {
+                    "bk_biz_id": self.bk_biz_id,
+                    "fields": [asdict(i) for i in self.code.output_fields],
+                    "output_name": self.table_name,
+                    "table_name": self.table_name,
+                }
+            ],
+            "advanced": {"use_savepoint": True},
+            "from_nodes": [
+                {
+                    "from_result_table_ids": [
+                        self.source_rt_id,
+                    ],
+                    "id": self.parent_list[0].node_id,
+                }
+            ],
+        }
+
+    def __eq__(self, other):
+        if isinstance(other, dict):
+            config = self.config
+            try:
+                if (
+                    config["bk_biz_id"] == other["bk_biz_id"]
+                    and config["from_nodes"][0]["from_result_table_ids"]
+                    == other["from_nodes"][0]["from_result_table_ids"]
+                    and config["outputs"][0]["table_name"] == other["outputs"][0]["table_name"]
+                ):
+                    return True
+            except (KeyError, IndexError):
+                pass
+
+        elif isinstance(other, self.__class__):
+            return self == other.config
+        return False
