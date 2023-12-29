@@ -1,8 +1,8 @@
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1699927188028') format('woff2'),
-    url('monitor-icons.woff?t=1699927188028') format('woff'),
-    url('monitor-icons.ttf?t=1699927188028') format('truetype');
+  src: url('monitor-icons.woff2?t=1703833310980') format('woff2'),
+    url('monitor-icons.woff?t=1703833310980') format('woff'),
+    url('monitor-icons.ttf?t=1703833310980') format('truetype');
 }
 
 .icon-monitor {
@@ -12,6 +12,14 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-Flame1:before {
+  content: '\e79d';
+}
+
+.icon-fenping:before {
+  content: '\e79e';
 }
 
 .icon-mc-arrow-down:before {
