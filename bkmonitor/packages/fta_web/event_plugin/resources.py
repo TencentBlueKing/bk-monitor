@@ -540,7 +540,7 @@ class GetEventPluginInstanceResource(Resource):
         instance = instances[0]
         alert_sources = ingest_config.get("alert_sources", [])
         if alert_sources:
-            collect_url = "${PROXY_IP}:4318/fta/v1/event/?source={alert_source}&token=${token}"
+            collect_url = "${PROXY_IP}:4318/fta/v1/event/?source=${source}&token=${token}"
         else:
             # 没有区分告警推送来源
             collect_url = "${PROXY_IP}:4318/fta/v1/event/?token=${token}"
@@ -554,10 +554,9 @@ class GetEventPluginInstanceResource(Resource):
                 "id": inst_data["id"],
                 "params_schema": inst_data["params_schema"],
                 "updatable": inst_data["version"] != plugin_info["version"],
-                "push_url": ingest_config["push_url"],
-                "collect_url": collect_url,
+                "push_url": collect_url,
                 "alert_sources": alert_sources,
-                "proxy_hosts": CollectorProxyHostInfo.request(bk_biz_id=instance.bk_biz_id),
+                "proxy_hosts": CollectorProxyHostInfo().request(bk_biz_id=instance.bk_biz_id),
             }
             for inst_data in serializer_data
         ]
