@@ -1,0 +1,113 @@
+.rotation-config-duty-notice-config {
+  width: 1036px;
+  padding: 18px 14px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
+  .mt-16 {
+    margin-top: 16px;
+  }
+
+  .mt-24 {
+    margin-top: 24px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .mr-12 {
+    margin-right: 12px;
+  }
+
+  .width-60 {
+    width: 60px;
+  }
+
+  .width-200 {
+    width: 200px;
+  }
+
+  .width-148 {
+    width: 148px;
+  }
+
+  .width-168 {
+    width: 168px;
+  }
+
+  .width-305 {
+    width: 305px;
+  }
+
+  .width-488 {
+    width: 488px;
+  }
+
+  .err-msg {
+    font-size: 12px;
+    line-height: 30px;
+    color: #ff5656;
+  }
+
+  .form-item-big {
+    display: flex;
+    align-items: center;
+
+    .form-item-label {
+      margin-right: 8px;
+      color: #313238;
+    }
+  }
+
+  .form-item {
+    display: flex;
+    align-items: flex-start;
+
+    .form-item-label {
+      display: flex;
+      justify-content: flex-end;
+      width: 122px;
+      padding-right: 22px;
+      line-height: 30px;
+      white-space: nowrap;
+
+      &.en {
+        width: 170px;
+      }
+    }
+
+    .form-item-content {
+      display: flex;
+      align-items: center;
+
+      .content-text {
+        color: #63656e;
+        white-space: nowrap;
+      }
+
+      .input-left {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 100%;
+        padding: 0 4px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .input-right-select {
+        .bk-select {
+          border: 0;
+        }
+      }
+
+      .icon-tips {
+        font-size: 16px;
+        color: #c4c6cc;
+      }
+    }
+  }
+}
