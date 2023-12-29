@@ -250,7 +250,7 @@ class IngestConfigSerializer(serializers.Serializer):
     multiple_events = serializers.BooleanField(label="是否需要拆分事件", default=False)
     events_path = serializers.CharField(label="事件所在路径", default="", allow_blank=True)
     collect_type = serializers.CharField(label="接收类型", default="bk-ingestor", allow_blank=False)
-    alert_source = serializers.ListField(label="告警来源", default=list)
+    alert_sources = serializers.ListField(label="告警来源", default=list)
 
 
 class HttpPushPluginSerializer(EventPluginSerializer):

@@ -33,6 +33,10 @@ mock.patch(
     "bkmonitor.event_plugin.accessor.EventPluginInstAccessor.access",
     return_value=10001,
 ).start()
+mock.patch(
+    "fta_web.event_plugin.resources.CollectorProxyHostInfo.request",
+    return_value=[],
+).start()
 
 from fta_web.handlers import install_global_event_plugin, register_event_plugin
 
@@ -339,12 +343,12 @@ class TestEventPluginMigrate(TestCase):
         data_id_patch.start()
         plugin_info = get_plugin_info()
         plugin_info["ingest_config"]["collect_type"] = "bk_collector"
-        plugin_info["ingest_config"]["alert_source"] = ["TENCENT", "GOOGLE"]
+        plugin_info["ingest_config"]["alert_sources"] = [{"code": "TENCENT", "name": "腾讯云"}]
         plugin_info["plugin_type"] = "http_push"
         r = CreateEventPluginResource()
         data = r.request(plugin_info)
         ingest_config = data["ingest_config"]
-        self.assertEqual(ingest_config["alert_source"], ["TENCENT", "GOOGLE"])
+        self.assertEqual(ingest_config["alert_sources"], [{"code": "TENCENT", "name": "腾讯云"}])
         # 测试创建
         event_plugin = EventPluginV2.objects.get(plugin_id=data["plugin_id"], version=data["version"])
         inst_info = {
@@ -360,7 +364,7 @@ class TestEventPluginMigrate(TestCase):
             {"bk_biz_id": 2, "plugin_id": event_plugin.plugin_id, "version": event_plugin.version}
         )
         print(inst_info)
-        self.assertEqual(len(inst_info["instances"][0]["collect_urls"]), 2)
+        self.assertTrue("source" in inst_info["instances"][0]["push_url"])
 
         data_id_patch.stop()
 
