@@ -108,7 +108,7 @@ export function getDefaultReportData(): Report {
     update_time: '1970-01-01 00:00:00+0000',
     name: '',
     bk_biz_id: 0,
-    scenario: '',
+    scenario: 'clustering',
     frequency: {
       hour: 0,
       type: 0,

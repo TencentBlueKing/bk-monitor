@@ -103,6 +103,21 @@ export default defineComponent({
 
     const isShowTestSendResult = ref(false);
 
+    /**
+     * 跳转到 订阅管理 页，并用 reportId 请求详情，最后打开编辑抽屉
+     * 凑出一个 URL 即可
+     * 所需 URL 查询参数 isShowEditSlider, reportId,
+     */
+    function handleGoToReportListPage(reportId) {
+      router.push({
+        name: 'new-report-config',
+        query: {
+          reportId,
+          isShowEditSlider: 'true'
+        }
+      });
+    }
+
     return {
       t,
       router,
@@ -112,7 +127,8 @@ export default defineComponent({
       handleSave,
       refOfCreateSubscriptionForm,
       isShowTestSendResult,
-      isShowDropdownMenu
+      isShowDropdownMenu,
+      handleGoToReportListPage
     };
   },
   render() {
@@ -122,6 +138,7 @@ export default defineComponent({
           <CreateSubscriptionForm
             ref='refOfCreateSubscriptionForm'
             mode='normal'
+            onSelectExistedReport={this.handleGoToReportListPage}
           ></CreateSubscriptionForm>
         </div>
         <div class='footer-bar'>
@@ -189,7 +206,7 @@ export default defineComponent({
                     marginLeft: '30px'
                   }}
                 >
-                  {window.i18n.t('邮件任务已生成, 请一分钟后到邮箱查看')}
+                  {window.i18n.t('邮件任务已生成，请一分钟后到邮箱查看')}
                 </div>
               );
             },

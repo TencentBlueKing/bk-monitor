@@ -221,3 +221,15 @@
   word-break: break-all;
   white-space: normal;
 }
+
+.loading-edit-slider {
+  .bk-loading-mask {
+    /* stylelint-disable-next-line declaration-no-important */
+    z-index: 1004 !important;
+  }
+
+  .bk-loading-indicator {
+    /* stylelint-disable-next-line declaration-no-important */
+    z-index: 1005 !important;
+  }
+}

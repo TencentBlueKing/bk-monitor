@@ -24,17 +24,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, reactive, ref } from 'vue';
+import { defineComponent, nextTick, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
-import {
-  cloneReport,
-  createOrUpdateReport,
-  deleteReport,
-  getReportList,
-  getSendRecords,
-  sendReport
-} from '@api/modules/new_report';
+import { useRoute, useRouter } from 'vue-router';
 import { deepClone } from '@common/utils';
 import {
   Button,
@@ -53,6 +45,16 @@ import {
 import { Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
 
+import {
+  cloneReport,
+  createOrUpdateReport,
+  deleteReport,
+  getReport,
+  getReportList,
+  getSendRecords,
+  sendReport
+} from '../../../monitor-api/modules/new_report';
+
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
@@ -69,6 +71,7 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const router = useRouter();
+    const route = useRoute();
     const queryData = reactive({
       create_type: 'manager',
       query_type: 'all',
@@ -864,7 +867,52 @@ export default defineComponent({
         });
     }
 
+    const isFetchReport = ref(false);
+    /** 点击已存在的相同索引集对应的 订阅名称 时，切换 编辑抽屉的 订阅详情 内容 */
+    function handleReportDetailChange(reportId) {
+      isFetchReport.value = true;
+      getReport({
+        report_id: reportId
+      })
+        .then(response => {
+          subscriptionDetail.value = response;
+          nextTick(() => {
+            refOfCreateSubscriptionForm.value.setFormData();
+          });
+        })
+        .finally(() => {
+          isFetchReport.value = false;
+        });
+    }
+
+    const isShowCreateReportFormComponent = ref(true);
+    function checkNeedShowEditSlider() {
+      const { reportId, isShowEditSlider } = route.query;
+      if (isShowEditSlider !== 'true') return;
+
+      isShowCreateReportFormComponent.value = false;
+      isShowEditSideslider.value = true;
+      isFetchReport.value = true;
+      getReport({
+        report_id: reportId
+      })
+        .then(response => {
+          subscriptionDetail.value = response;
+          nextTick(() => {
+            refOfCreateSubscriptionForm.value.setFormData();
+          });
+        })
+        .catch(() => {
+          isShowEditSideslider.value = false;
+        })
+        .finally(() => {
+          isFetchReport.value = false;
+          isShowCreateReportFormComponent.value = true;
+        });
+    }
+
     onMounted(() => {
+      checkNeedShowEditSlider();
       fetchSubscriptionList();
     });
     return {
@@ -894,7 +942,10 @@ export default defineComponent({
       handleSendMyself,
       toggleMapForSendRecord,
       isShowTestSendResult,
-      isShowDropdownMenu
+      isShowDropdownMenu,
+      handleReportDetailChange,
+      isFetchReport,
+      isShowCreateReportFormComponent
     };
   },
   render() {
@@ -1150,75 +1201,83 @@ export default defineComponent({
           ext-cls='edit-subscription-sideslider-container'
           transfer
         >
-          <div>
-            <div class='create-subscription-container'>
-              <CreateSubscriptionForm
-                ref='refOfCreateSubscriptionForm'
-                mode='quick'
-                detailInfo={this.subscriptionDetail}
-              ></CreateSubscriptionForm>
-            </div>
+          <Loading
+            class='loading-edit-slider'
+            loading={this.isFetchReport}
+          >
+            <div>
+              <div class='create-subscription-container'>
+                {this.isShowCreateReportFormComponent && (
+                  <CreateSubscriptionForm
+                    ref='refOfCreateSubscriptionForm'
+                    mode='quick'
+                    detailInfo={this.subscriptionDetail}
+                    onSelectExistedReport={this.handleReportDetailChange}
+                  ></CreateSubscriptionForm>
+                )}
+              </div>
 
-            <div class='footer-bar'>
-              <Button
-                theme='primary'
-                style={{ width: '88px', marginRight: '8px' }}
-                onClick={() => {
-                  this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
-                    createOrUpdateReport(response).then(() => {
-                      Message({
-                        theme: 'success',
-                        message: this.t('保存成功')
-                      });
-                      this.fetchSubscriptionList();
-                      this.isShowEditSideslider = false;
-                    });
-                  });
-                }}
-              >
-                {this.t('保存')}
-              </Button>
-              <Dropdown
-                isShow={this.isShowDropdownMenu}
-                trigger='manual'
-                placement='top-start'
-                v-slots={{
-                  content: () => {
-                    return (
-                      <Dropdown.DropdownMenu>
-                        <Dropdown.DropdownItem onClick={() => this.testSending('self')}>
-                          {this.t('给自己')}
-                        </Dropdown.DropdownItem>
-                        <Dropdown.DropdownItem onClick={() => this.testSending('all')}>
-                          {this.t('给全员')}
-                        </Dropdown.DropdownItem>
-                      </Dropdown.DropdownMenu>
-                    );
-                  }
-                }}
-              >
+              <div class='footer-bar'>
                 <Button
                   theme='primary'
-                  outline
-                  loading={this.isSending}
                   style={{ width: '88px', marginRight: '8px' }}
                   onClick={() => {
-                    this.isShowDropdownMenu = !this.isShowDropdownMenu;
+                    this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
+                      createOrUpdateReport(response).then(() => {
+                        Message({
+                          theme: 'success',
+                          message: this.t('保存成功')
+                        });
+                        this.fetchSubscriptionList();
+                        this.isShowEditSideslider = false;
+                      });
+                    });
                   }}
                 >
-                  {this.t('测试发送')}
+                  {this.t('保存')}
                 </Button>
-              </Dropdown>
-              <Button
-                style={{ width: '88px' }}
-                onClick={() => {
-                  this.isShowEditSideslider = false;
-                }}
-              >
-                {this.t('取消')}
-              </Button>
+                <Dropdown
+                  isShow={this.isShowDropdownMenu}
+                  trigger='manual'
+                  placement='top-start'
+                  v-slots={{
+                    content: () => {
+                      return (
+                        <Dropdown.DropdownMenu>
+                          <Dropdown.DropdownItem onClick={() => this.testSending('self')}>
+                            {this.t('给自己')}
+                          </Dropdown.DropdownItem>
+                          <Dropdown.DropdownItem onClick={() => this.testSending('all')}>
+                            {this.t('给全员')}
+                          </Dropdown.DropdownItem>
+                        </Dropdown.DropdownMenu>
+                      );
+                    }
+                  }}
+                >
+                  <Button
+                    theme='primary'
+                    outline
+                    loading={this.isSending}
+                    style={{ width: '88px', marginRight: '8px' }}
+                    onClick={() => {
+                      this.isShowDropdownMenu = !this.isShowDropdownMenu;
+                    }}
+                  >
+                    {this.t('测试发送')}
+                  </Button>
+                </Dropdown>
+                <Button
+                  style={{ width: '88px' }}
+                  onClick={() => {
+                    this.isShowEditSideslider = false;
+                  }}
+                >
+                  {this.t('取消')}
+                </Button>
+              </div>
             </div>
-          </div>
+          </Loading>
         </Sideslider>
 
         {/* 克隆确认 */}
@@ -1280,7 +1339,7 @@ export default defineComponent({
                     marginLeft: '30px'
                   }}
                 >
-                  {this.t('邮件任务已生成, 请一分钟后到邮箱查看')}
+                  {this.t('邮件任务已生成，请一分钟后到邮箱查看')}
                 </div>
               );
             },
