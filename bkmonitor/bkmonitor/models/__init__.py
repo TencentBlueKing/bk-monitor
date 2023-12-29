@@ -21,6 +21,7 @@ from .bcs_pod_monitor import *  # noqa
 from .bcs_service import *  # noqa
 from .bcs_service_monitor import *  # noqa
 from .bcs_workload import *  # noqa
+from .cluster import *  # noqa
 from .config import GlobalConfig  # noqa
 from .fta import *  # noqa
 from .healthz import *  # noqa
