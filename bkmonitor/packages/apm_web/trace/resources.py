@@ -502,7 +502,13 @@ class TraceDetailResource(Resource):
         app_name = serializers.CharField(label="应用名称")
         trace_id = serializers.CharField(label="Trace ID")
         displays = serializers.ListField(
-            child=serializers.ChoiceField(choices=TraceWaterFallDisplayKey.choices()), allow_empty=True, required=False
+            child=serializers.ChoiceField(
+                choices=TraceWaterFallDisplayKey.choices(),
+                default=TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY,
+            ),
+            default=list,
+            allow_empty=True,
+            required=False,
         )
 
     def perform_request(self, validated_request_data):
@@ -511,6 +517,7 @@ class TraceDetailResource(Resource):
                 "bk_biz_id": validated_request_data["bk_biz_id"],
                 "app_name": validated_request_data["app_name"],
                 "trace_id": validated_request_data["trace_id"],
+                "displays": validated_request_data["displays"],
             }
         )
         if not data.get("trace_data"):
@@ -550,7 +557,13 @@ class TraceDiagramResource(Resource):
 
         diagram_type = serializers.ChoiceField(label="图表类型", choices=("flamegraph", "sequence", "topo", "statistics"))
         displays = serializers.ListField(
-            child=serializers.ChoiceField(choices=TraceWaterFallDisplayKey.choices()), allow_empty=True, required=False
+            child=serializers.ChoiceField(
+                choices=TraceWaterFallDisplayKey.choices(),
+                default=TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY,
+            ),
+            default=list,
+            allow_empty=True,
+            required=False,
         )
         diff_trace_id = serializers.CharField(label="对比 TraceID", required=False, allow_null=True, allow_blank=True)
         prefer_raw = serializers.BooleanField(label="是否优先展示原始数据", required=False, default=False)
@@ -559,7 +572,7 @@ class TraceDiagramResource(Resource):
         filter = TraceStatisticsResource.RequestSerializer.FilterSerializer(label="过滤", required=False, allow_null=True)
         group_fields = serializers.ListField(child=serializers.CharField(), label="分组字段列表", required=False)
 
-    def get_comparison_details(self, bk_biz_id: str, app_name: str, trace_id: str) -> dict:
+    def get_comparison_details(self, bk_biz_id: str, app_name: str, trace_id: str, displays: list) -> dict:
         """获取对比详情
         - 先尝试从 DB 中查询已收藏的 Trace
         - 不存在则尝试查询
@@ -567,7 +580,7 @@ class TraceDiagramResource(Resource):
         starred_comparisons = TraceComparison.objects.filter(trace_id=trace_id)
         if not starred_comparisons:
             diff_trace = api.apm_api.query_trace_detail(
-                {"bk_biz_id": bk_biz_id, "app_name": app_name, "trace_id": trace_id}
+                {"bk_biz_id": bk_biz_id, "app_name": app_name, "trace_id": trace_id, "displays": displays}
             )
             if not diff_trace.get("trace_data"):
                 raise ValueError(_lazy("trace_id: {} 不存在").format(trace_id))
@@ -582,6 +595,7 @@ class TraceDiagramResource(Resource):
                 "bk_biz_id": validated_request_data["bk_biz_id"],
                 "app_name": validated_request_data["app_name"],
                 "trace_id": validated_request_data["trace_id"],
+                "displays": validated_request_data["displays"],
             }
         )
         if not original_data.get("trace_data"):
@@ -589,7 +603,7 @@ class TraceDiagramResource(Resource):
 
         # TODO: displays would be [] instead of None in GET request
         # and handle_trace will return {} if [] is passed in, which is not clearly defined.
-        displays = validated_request_data.get("displays") or [TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY]
+        displays = validated_request_data.get("displays") or []
         if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
             displays.append(TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY)
 
@@ -611,6 +625,7 @@ class TraceDiagramResource(Resource):
                 bk_biz_id=validated_request_data["bk_biz_id"],
                 app_name=validated_request_data["app_name"],
                 trace_id=validated_request_data["diff_trace_id"],
+                displays=displays,
             )
 
             other_handled_data = TraceHandler.handle_trace(

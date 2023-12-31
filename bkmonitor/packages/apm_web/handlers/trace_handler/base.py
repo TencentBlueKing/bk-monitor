@@ -234,11 +234,10 @@ class TraceHandler:
 
     @classmethod
     def handle_trace(cls, app_name, trace_data: list, trace_id: str, relation_mapping: dict, displays: list = None):
-        if displays is None:
-            displays = [TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY]
-
-        if not displays:
-            return {}
+        # otel data must be in displays choice
+        displays = displays or []
+        if TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY not in displays:
+            displays.append(TraceWaterFallDisplayKey.SOURCE_CATEGORY_OPENTELEMETRY)
 
         # 节点隐藏处理
         trace_data = cls.display_filter(trace_data, displays)
