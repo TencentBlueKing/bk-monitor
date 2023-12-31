@@ -16,12 +16,7 @@ from django.utils.translation import ugettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
-from apm_web.constants import (
-    DEFAULT_DIFF_TRACE_MAX_NUM,
-    CategoryEnum,
-    QueryMode,
-    TraceWaterFallDisplayKey,
-)
+from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
@@ -45,6 +40,7 @@ from constants.apm import (
     PreCalculateSpecificField,
     SpanStandardField,
     TraceListQueryMode,
+    TraceWaterFallDisplayKey,
 )
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError

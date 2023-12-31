@@ -30,14 +30,13 @@ from apm_web.constants import (
     EbpfTapSideType,
     SpanSourceCategory,
     Status,
-    TraceWaterFallDisplayKey,
 )
 from apm_web.handlers.trace_handler.display_handler import DisplayHandler
 from apm_web.handlers.trace_handler.virtual_span import VirtualSpanHandler
 from apm_web.icon import TraceIcon, get_icon_url
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import group_by, percentile
-from constants.apm import OtlpKey, SpanKind
+from constants.apm import OtlpKey, SpanKind, TraceWaterFallDisplayKey
 from core.unit import load_unit
 
 
