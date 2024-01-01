@@ -125,8 +125,32 @@ class LogColShowTypeEnum(ChoicesEnum):
     )
 
 
+class ReportCreateTypeEnum(ChoicesEnum):
+    MANAGER = "manager"
+    SELF = "self"
+
+    _choices_labels = (
+        (MANAGER, _lazy("管理员")),
+        (SELF, _lazy("自己")),
+    )
+
+
+class ReportQueryTypeEnum(ChoicesEnum):
+    INVALID = "invalid"
+    CANCELLED = "cancelled"
+    AVAILABLE = "available"
+    ALL = "all"
+
+    _choices_labels = (
+        (INVALID, _lazy("失效")),
+        (CANCELLED, _lazy("已取消")),
+        (AVAILABLE, _lazy("生效")),
+        (ALL, _lazy("全部")),
+    )
+
+
 CLUSTERING_VARIABLES = [
-    {"name": "time", "description": "系统时间", "example": "2023-10-10 22:00:00"},
+    {"name": "time", "description": "系统时间", "example": "20231010"},
     {"name": "index_set_name", "description": "索引集名称", "example": "apm_demo_app_1111"},
     {"name": "business_name", "description": "业务名称", "example": "测试业务"},
 ]

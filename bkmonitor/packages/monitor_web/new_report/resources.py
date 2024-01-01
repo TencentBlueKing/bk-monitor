@@ -37,6 +37,8 @@ from bkmonitor.utils.user import get_local_username
 from constants.new_report import (
     SUBSCRIPTION_VARIABLES_MAP,
     ChannelEnum,
+    ReportCreateTypeEnum,
+    ReportQueryTypeEnum,
     SendModeEnum,
     SendStatusEnum,
     StaffEnum,
@@ -72,8 +74,8 @@ class GetReportListResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
         search_key = serializers.CharField(required=False, label="搜索关键字", default="", allow_null=True, allow_blank=True)
-        query_type = serializers.CharField(required=False, label="查询类型", default="all")
-        create_type = serializers.CharField(required=False, label="创建类型", default="self")
+        query_type = serializers.CharField(required=False, label="查询类型", default=ReportQueryTypeEnum.ALL.value)
+        create_type = serializers.CharField(required=False, label="创建类型", default=ReportCreateTypeEnum.SELF.value)
         conditions = serializers.ListField(required=False, child=serializers.DictField(), default=[], label="查询条件")
         page = serializers.IntegerField(required=False, default=1, label="页数")
         page_size = serializers.IntegerField(required=False, default=10, label="每页数量")
@@ -121,19 +123,19 @@ class GetReportListResource(Resource):
         )
         available_report_ids = report_ids - cancelled_report_ids - invalid_report_ids
         query_type_map = {
-            "invalid": invalid_report_ids,
-            "cancelled": cancelled_report_ids,
-            "available": available_report_ids,
-            "all": report_ids,
+            ReportQueryTypeEnum.INVALID.value: invalid_report_ids,
+            ReportQueryTypeEnum.CANCELLED.value: cancelled_report_ids,
+            ReportQueryTypeEnum.AVAILABLE.value: available_report_ids,
+            ReportQueryTypeEnum.ALL.value: report_ids,
         }
         return qs.filter(id__in=query_type_map[query_type])
 
     @staticmethod
     def filter_by_create_type(create_type: str, report_qs):
-        if create_type == "self":
+        if create_type == ReportCreateTypeEnum.SELF.value:
             # 当前用户的订阅
             report_qs = GetReportListResource.filter_by_user(report_qs)
-        elif create_type == "manager":
+        elif create_type == ReportCreateTypeEnum.MANAGER.value:
             # 管理员创建的订阅
             report_qs = report_qs.filter(is_manager_created=True)
 

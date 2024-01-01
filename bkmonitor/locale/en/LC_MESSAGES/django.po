@@ -12080,3 +12080,24 @@ msgstr "Storage [%s] corresponding to the query engine absent"
 
 msgid "关联指标"
 msgstr "Related Metric"
+
+msgid "序号"
+msgstr "Index"
+
+msgid "是否新增"
+msgstr "Is New Pattern"
+
+msgid "数据指纹"
+msgstr "Data Fingerprint"
+
+msgid "数量"
+msgstr "Quantity"
+
+msgid "占比"
+msgstr "Percentage"
+
+msgid "同比数量"
+msgstr "Year-on-Year Quantity"
+
+msgid "同比变化"
+msgstr "Year-on-Year Change"

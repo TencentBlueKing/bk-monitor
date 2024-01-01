@@ -10,12 +10,14 @@ specific language governing permissions and limitations under the License.
 """
 import base64
 import csv
+import io
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.utils.translation import ugettext as _
 
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
@@ -183,15 +185,16 @@ class ClusteringReportHandler(BaseReportHandler):
         return url
 
     def get_attachments(self, context):
-        csv_file = open('attachments.csv', 'w', newline='')
-        csv_writer = csv.writer(csv_file)
+        # 内存中创建虚拟文件对象
+        csv_buffer = io.StringIO()
+        csv_writer = csv.writer(csv_buffer)
         rows = []
         log_col_show_type = context['log_col_show_type']
         group_by = context['group_by']
         if context["show_year_on_year"]:
-            title_headers = ["序号", "是否新增", "数据指纹", "数量", "占比", "同比数量", "同比变化", log_col_show_type]
+            title_headers = [_("序号"), _("是否新增"), _("数据指纹"), _("数量"), _("占比"), _("同比数量"), _("同比变化"), log_col_show_type]
         else:
-            title_headers = ["序号", "是否新增", "数据指纹", "数量", "占比", log_col_show_type]
+            title_headers = [_("序号"), _("是否新增"), _("数据指纹"), _("数量"), _("占比"), log_col_show_type]
         title_headers.extend(group_by)
         rows.append(title_headers)
 
@@ -213,11 +216,10 @@ class ClusteringReportHandler(BaseReportHandler):
 
         for row in rows:
             csv_writer.writerow(row)
-        csv_file.close()
+        clustering_content = csv_buffer.getvalue()
+        csv_buffer.close()
 
-        # 读取文件内容并转换为字符串
-        with open('attachments.csv', 'r') as file:
-            clustering_content = file.read()
+        # 读取内存内容并转换为字符串
         attachments = [
             {
                 "filename": f"{context['title']}.csv",
