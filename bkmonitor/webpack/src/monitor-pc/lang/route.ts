@@ -135,7 +135,7 @@ export default {
   'route-链路管理': 'Link Management',
   'route-加载中...': 'Loading...',
   'route-数据源管理': 'DataSource Management',
-  'route-profiling': 'Profiling',
+  'route-Profiling检索': 'Profiling',
   'route-编辑轮值': 'Edit Rotation',
   'route-新增轮值': 'Add Rotation',
 
