@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { Span } from '../../../components/trace-view/typings';
@@ -98,8 +99,9 @@ export default defineComponent({
     'serviceStatisticsChange'
   ],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const emptyTextMap = {
-      'empty-app': window.i18n.t('暂无应用')
+      'empty-app': t('暂无应用')
     };
 
     const store = useTraceStore();
