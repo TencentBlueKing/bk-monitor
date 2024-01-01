@@ -98,7 +98,7 @@ def external(request):
     external_user = request.META.get("HTTP_USER", "") or request.META.get("USER", "")
     biz_id_list = (
         ExternalPermission.objects.filter(authorized_user=external_user, expire_time__gt=timezone.now())
-        .values_list("bk_biz_id", flat=1)
+        .values_list("bk_biz_id", flat=True)
         .distinct()
     )
     # 新增space_uid的支持
@@ -193,7 +193,7 @@ def dispatch_external_proxy(request):
         if not bk_biz_id:
             biz_id_list = (
                 ExternalPermission.objects.filter(authorized_user=external_user, expire_time__gt=timezone.now())
-                .values_list("bk_biz_id", flat=1)
+                .values_list("bk_biz_id", flat=True)
                 .distinct()
             )
             if biz_id_list:

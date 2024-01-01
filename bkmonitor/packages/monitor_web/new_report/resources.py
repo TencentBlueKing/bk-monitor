@@ -91,14 +91,14 @@ class GetReportListResource(Resource):
 
     @staticmethod
     def filter_by_search_key(qs, search_key):
-        origin_report_ids = set(qs.values_list("id", flat=1))
+        origin_report_ids = set(qs.values_list("id", flat=True))
         # 搜索订阅名称
-        filter_report_ids = set(qs.filter(name__contains=search_key).values_list("id", flat=1))
+        filter_report_ids = set(qs.filter(name__contains=search_key).values_list("id", flat=True))
         # 搜索订阅人
         filter_report_ids |= set(
             ReportChannel.objects.filter(
                 subscribers__contains={"id": search_key}, report_id__in=origin_report_ids
-            ).values_list("report_id", flat=1)
+            ).values_list("report_id", flat=True)
         )
 
         return qs.filter(id__in=filter_report_ids)
@@ -106,7 +106,7 @@ class GetReportListResource(Resource):
     @staticmethod
     def filter_by_query_type(qs, query_type):
         invalid_report_ids = set()
-        report_ids = set(qs.values_list("id", flat=1))
+        report_ids = set(qs.values_list("id", flat=True))
         username = get_request_username()
         # 已失效订阅列表
         for report in qs:
@@ -117,7 +117,7 @@ class GetReportListResource(Resource):
             ReportChannel.objects.filter(
                 subscribers__contains=[{"id": username, "type": StaffEnum.USER.value, "is_enabled": False}],
                 report_id__in=report_ids,
-            ).values_list("report_id", flat=1)
+            ).values_list("report_id", flat=True)
         )
         available_report_ids = report_ids - cancelled_report_ids - invalid_report_ids
         query_type_map = {
@@ -129,7 +129,7 @@ class GetReportListResource(Resource):
         return qs.filter(id__in=query_type_map[query_type])
 
     @staticmethod
-    def filter_by_create_type(create_type, report_qs):
+    def filter_by_create_type(create_type: str, report_qs):
         if create_type == "self":
             # 当前用户的订阅
             report_qs = GetReportListResource.filter_by_user(report_qs)
@@ -163,9 +163,11 @@ class GetReportListResource(Resource):
             total_Q_query |= Q_item
 
         # 筛选出对应的items
-        report_ids = list(report_qs.values_list("id", flat=1))
+        report_ids = list(report_qs.values_list("id", flat=True))
         filter_report_ids = list(
-            ReportChannel.objects.filter(total_Q_query & Q(report_id__in=report_ids)).values_list("report_id", flat=1)
+            ReportChannel.objects.filter(total_Q_query & Q(report_id__in=report_ids)).values_list(
+                "report_id", flat=True
+            )
         )
         return report_qs.filter(id__in=filter_report_ids)
 
@@ -185,7 +187,7 @@ class GetReportListResource(Resource):
                 external_filter_dict[key] = value
         return db_filter_dict, external_filter_dict
 
-    def sort_reports(self, reports, order):
+    def sort_reports(self, reports: list, order: str) -> list:
         reverse_order = False
         if order.startswith('-'):
             reverse_order = True
@@ -200,7 +202,7 @@ class GetReportListResource(Resource):
         for report in reports:
             report["channels"] = report_channels_map.get(report["id"], [])
             report["is_invalid"] = Report.is_invalid(report["end_time"])
-            report["is_self_subscribed"] = True if report["create_user"] == current_user else False
+            report["is_self_subscribed"] = report["create_user"] == current_user
             record_info = last_send_record_map[report["id"]]
             if record_info:
                 report["last_send_time"] = record_info["send_time"]
@@ -245,7 +247,7 @@ class GetReportListResource(Resource):
             report_qs = report_qs.filter(Q(**db_filter_dict))
 
         reports = list(report_qs.values())
-        report_ids = list(report_qs.values_list("id", flat=1))
+        report_ids = list(report_qs.values_list("id", flat=True))
 
         # 获取订阅渠道列表
         report_channels_map = defaultdict(list)
@@ -533,7 +535,7 @@ class GetApplyRecordsResource(Resource):
     def perform_request(self, validated_request_data):
         username = get_request().user.username
         qs = ReportApplyRecord.objects.filter(create_user=username).order_by("-create_time")
-        report_ids = qs.values_list("report_id", flat=1)
+        report_ids = qs.values_list("report_id", flat=True)
         apply_records = list(qs.values())
         report_infos = Report.origin_objects.filter(id__in=report_ids).values("id", "name")
         report_id_to_name = {}
@@ -577,9 +579,10 @@ class GetExistReportsResource(Resource):
         )
         if validated_request_data.get("create_type"):
             qs = GetReportListResource.filter_by_create_type(validated_request_data["create_type"], qs)
-        reports = list(qs.values())
+        reports = list(qs.values("id", "name"))
         exist_report_list = []
         for report in reports:
+            # 目前仅支持日志聚类模块检索条件
             if validated_request_data["index_set_id"]:
                 if report["scenario_config"].get("index_set_id", None) == validated_request_data["index_set_id"]:
                     exist_report_list.append(report)

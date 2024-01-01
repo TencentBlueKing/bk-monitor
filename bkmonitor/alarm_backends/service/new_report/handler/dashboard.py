@@ -16,6 +16,12 @@ class DashboardReportHandler(BaseReportHandler):
     仪表盘订阅管理器
     """
 
+    def get_render_params(self) -> dict:
+        """
+        获取渲染参数
+        """
+        pass
+
     def render(self, render_params: dict) -> dict:
         """
         渲染订阅

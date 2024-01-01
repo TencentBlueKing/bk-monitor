@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+from abc import abstractmethod
 
 from bkmonitor.models.report import (
     ChannelEnum,
@@ -49,25 +50,28 @@ class BaseReportHandler(object):
         # 获取渲染参数
         render_params = self.get_render_params()
         # 渲染订阅内容,获取上下文
-        context = self.render(render_params)
-        if not context:
-            logger.exception(f"failed to send report({self.report.id}), context is None.")
+        try:
+            context = self.render(render_params)
+        except Exception as e:
+            logger.exception(f"[] failed to send report({self.report.id or self.report.name}), render error: {e}")
             return
         for channel in channels:
             if channel.is_enabled:
                 SendChannelHandler(channel).send(context, self.report.send_round, self.report.bk_biz_id)
 
+    @abstractmethod
     def get_render_params(self) -> dict:
         """
         获取渲染参数
         """
-        pass
+        raise NotImplementedError("get_render_params() method is not implemented.")
 
+    @abstractmethod
     def render(self, render_params: dict) -> dict:
         """
         渲染订阅
         """
-        pass
+        raise NotImplementedError("render() method is not implemented.")
 
 
 class SendChannelHandler(object):
@@ -86,6 +90,8 @@ class SendChannelHandler(object):
         初始化对应订阅配置
         """
         self.channel = channel
+        if not self.SEND_CLS_MAP.get(channel.channel_name):
+            raise Exception(f"SEND_CLS_MAP doesn't have channel name: {channel.channel_name}")
         self.send_cls = self.SEND_CLS_MAP[channel.channel_name]
 
     def send(self, context, send_round, bk_biz_id=None):
@@ -169,9 +175,5 @@ class SendChannelHandler(object):
                 elif user["id"] in subscribers and not user["is_enabled"]:
                     # 如果 is_enabled=False 该用户已取消订阅
                     subscribers.remove(user["id"])
-        subscribers = list(set(subscribers))
-        if "admin" in subscribers:
-            subscribers.remove("admin")
-        if "system" in subscribers:
-            subscribers.remove("system")
+        subscribers = list(set(subscribers) - {"admin", "system"})
         return subscribers
