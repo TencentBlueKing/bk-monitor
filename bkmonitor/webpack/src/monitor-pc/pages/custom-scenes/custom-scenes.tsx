@@ -25,6 +25,7 @@
  */
 import { Component, Mixins } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+import axios from 'axios';
 import { Button, DropdownMenu, Input } from 'bk-magic-vue';
 
 import { getLabel } from '../../../monitor-api/modules/commons';
@@ -119,6 +120,10 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
   loading = false;
   authorityMap = { ...authMap };
   emptyStatusType: EmptyStatusType = 'empty';
+  /* status loading  */
+  statusLoading = false;
+
+  cancelTokenSource = null;
   // 是否显示引导页
   get showGuidePage() {
     return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
@@ -193,18 +198,33 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
       scenarioName: this.scenarioLabels?.[item.scenario] || '--'
     }));
     const sceneViewIds = this.tableData.data.map(item => item.scene_view_id);
+    this.cancelTokenSource?.cancel?.();
     this.setAsyncStatusData(sceneViewIds);
   }
 
   /* 异步加载 */
   setAsyncStatusData(sceneViewIds = []) {
-    getObservationSceneStatusList({ scene_view_ids: sceneViewIds }).then(res => {
-      this.tableData.data.forEach(item => {
-        if (res[item.scene_view_id as string]?.status) {
-          item.status = res[item.scene_view_id as string].status;
+    this.statusLoading = true;
+    this.cancelTokenSource = axios.CancelToken.source();
+    getObservationSceneStatusList(
+      { scene_view_ids: sceneViewIds },
+      {
+        cancelToken: this.cancelTokenSource.token
+      }
+    )
+      .then(res => {
+        this.statusLoading = false;
+        this.tableData.data.forEach(item => {
+          if (res[item.scene_view_id as string]?.status) {
+            item.status = res[item.scene_view_id as string].status;
+          }
+        });
+      })
+      .catch(error => {
+        if (!axios.isCancel(error)) {
+          this.statusLoading = false;
         }
       });
-    });
   }
 
   /* 点击新建 */
@@ -437,18 +457,21 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
                     <div class='subtitle'>{row.sub_name}</div>
                   </div>
                 ),
-                status: (row: ITableItem) => (
-                  <div class='column-status'>
-                    {row.status ? (
-                      <CommonStatus
-                        type={row.status}
-                        text={STATUS_TYPE[row.status]}
-                      ></CommonStatus>
-                    ) : (
-                      '--'
-                    )}
-                  </div>
-                ),
+                status: (row: ITableItem) =>
+                  this.statusLoading ? (
+                    <div class='spinner'></div>
+                  ) : (
+                    <div class='column-status'>
+                      {row.status ? (
+                        <CommonStatus
+                          type={row.status}
+                          text={STATUS_TYPE[row.status]}
+                        ></CommonStatus>
+                      ) : (
+                        '--'
+                      )}
+                    </div>
+                  ),
                 strategy: (row: ITableItem) => (
                   <div class='column-count'>
                     {row.strategy_count > 0 ? (

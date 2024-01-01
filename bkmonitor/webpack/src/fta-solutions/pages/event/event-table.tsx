@@ -398,7 +398,6 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     id={key}
                     v-bk-overflow-tips={{
                       allowHTML: true,
-                      theme: 'light common-table',
                       interactive: true
                     }}
                   >

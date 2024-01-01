@@ -328,18 +328,6 @@ class AlertStatus:
     CLOSED = "CLOSED"
 
 
-class DataSamplingLogTypeChoices:
-    TRACE = "trace"
-    METRIC = "metric"
-
-    @classmethod
-    def choices(cls):
-        return [
-            (cls.TRACE, cls.TRACE),
-            (cls.METRIC, cls.METRIC),
-        ]
-
-
 class ServiceDetailReqTypeChoices:
     GET = "get"
     SET = "set"
@@ -385,11 +373,15 @@ class SamplerTypeChoices:
     """采样类型枚举"""
 
     RANDOM = "random"
+    TAIL = "tail"
+    EMPTY = "empty"
 
     @classmethod
     def choices(cls):
         return [
-            (cls.RANDOM, _("随机")),
+            (cls.RANDOM, _("随机采样")),
+            (cls.TAIL, _("尾部采样")),
+            (cls.EMPTY, _("不采样")),
         ]
 
 
@@ -418,7 +410,7 @@ class DefaultInstanceNameConfig:
             cls.SERVICE_NAME: _("服务模块"),
             cls.LANGUAGE: _("语言"),
             cls.HOST_NAME: _("主机名称"),
-            cls.HOST_IP: _("IP"),
+            cls.HOST_IP: "IP",
             cls.HOST_PORT: _("端口"),
         }.get(key, key)
 
@@ -714,7 +706,6 @@ APM_APPLICATION_DEFAULT_METRIC = {
     "error_rate": 0.0,
     "error_count": 0,
 }
-
 
 # 慢命令key, attributes.db.is_slow
 APM_IS_SLOW_ATTR_KEY = "db.is_slow"

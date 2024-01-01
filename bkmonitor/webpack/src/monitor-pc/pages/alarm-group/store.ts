@@ -30,6 +30,7 @@ export default class TableStore {
   public page: number;
   public pageSize: number;
   public pageList: number[];
+  public searchCondition: { id: string; name: string; values?: { id: string; name: string }[] }[] = [];
   public constructor(originData) {
     originData.forEach(set => {
       const item = set;
@@ -47,6 +48,9 @@ export default class TableStore {
     if (this.keyword.length) {
       ret = ret.filter(item => item.name.toLocaleLowerCase().includes(keyword) || item.id.toString().includes(keyword));
     }
+    if (this.searchCondition.length) {
+      ret = this.handleSearchCondition(ret);
+    }
     this.total = ret.length;
     return ret.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
   }
@@ -57,5 +61,54 @@ export default class TableStore {
     this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
     this.pageList = [10, 20, 50, 100];
     this.total = 0;
+  }
+
+  /**
+   * @description 条件搜索
+   * @param data
+   * @returns
+   */
+  public handleSearchCondition(data) {
+    const searchIds = [];
+    const searchNames = [];
+    const searcOthers = [];
+    const searchRules = [];
+    this.searchCondition.forEach(c => {
+      if (c.id === 'id') {
+        c?.values?.forEach(v => {
+          searchIds.push(v.id);
+        });
+      }
+      if (c.id === 'name') {
+        c?.values?.forEach(v => {
+          searchNames.push(v.id);
+        });
+      }
+      if (c.id === 'rule') {
+        c?.values?.forEach(v => {
+          searchRules.push(v.id);
+        });
+      }
+      if (typeof c.values === 'undefined') {
+        searcOthers.push(c.id);
+      }
+    });
+    return data.filter(item => {
+      const iss = [];
+      if (searchIds.length) {
+        iss.push(searchIds.includes(String(item.id)));
+      }
+      if (searchNames.length) {
+        iss.push(searchNames.some(name => (item.name as string).indexOf(name) > -1));
+      }
+      if (searcOthers.length) {
+        iss.push(searcOthers.some(name => (item.name as string).indexOf(name) > -1));
+      }
+      if (searchRules.length) {
+        // iss.push(searchRules.some(id => item.duty_rules.map(d => String(d)).indexOf(id) > -1));
+        iss.push(searchRules.some(id => item.dutyRuleNames.some(d => d.name === id)));
+      }
+      return iss.length ? iss.some(is => is) : true;
+    });
   }
 }
