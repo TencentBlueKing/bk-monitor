@@ -71,6 +71,10 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.CharField(label="计算平台 SQL 类存储集群类型", default="mysql_storage", allow_blank=True),
         ),
         (
+            "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
+            slz.CharField(label=_("计算平台 SQL 类存储集群类型"), default="mysql_storage", allow_blank=True),
+        ),
+        (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
             slz.CharField(label="计算平台 HDFS 存储集群名称", default="hdfs-default", allow_blank=True),
         ),
@@ -140,6 +144,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="APM应用默认副本数", default=0)),
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="APM应用默认索引分片数", default=3)),
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="")),
+        (
+            "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
+            slz.IntegerField(label=_("APM应用操作BkdataFlow时拉取运行状态的最大操作次数"), default=10),
+        ),
+        ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label=_("APM尾部采样项目id"), default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),

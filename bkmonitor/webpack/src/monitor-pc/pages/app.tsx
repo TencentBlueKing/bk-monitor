@@ -344,14 +344,14 @@ export default class App extends tsc<{}> {
   async handleMenuItemClick(item) {
     let hasRouteChange = this.$route.path !== item.path;
     const isMicroApp = microRouteNameList.includes(item.id);
-    const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
+    // const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
     // 屏蔽是微应用 需特殊处理
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;
     }
     if (hasRouteChange && !!item.href) {
       await this.$nextTick();
-      if (isMicroApp || !(this.$router as any).history.pending || isPeddingMicroApp) {
+      if (!(this.$router as any).history.pending) {
         const route = item.usePath ? { path: item.path } : { name: item.id };
         !item.noCache &&
           this.setUserStoreMenu({
@@ -359,11 +359,11 @@ export default class App extends tsc<{}> {
           });
         if (isMicroApp) {
           location.hash = item.href;
-          setTimeout(() => {
-            (this.$router as any).history.pending = null;
-          }, 2000);
         } else this.$router.push(route);
       }
+      setTimeout(() => {
+        (this.$router as any).history.pending = null;
+      }, 2000);
     }
   }
   /**
@@ -382,6 +382,7 @@ export default class App extends tsc<{}> {
       }
       return false;
     }
+    (this.$router as any).history.pending = null;
     return true;
   }
   // 切换业务
@@ -404,7 +405,9 @@ export default class App extends tsc<{}> {
     // 跳转
     if (navId === 'grafana') {
       this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', 'grafana-home');
-      await this.handleUpdateRoute({ bizId: `${v}` }, promise, '/grafana/home');
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise, '/grafana/home').then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
       window.requestIdleCallback(() => {
         this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
       });
@@ -413,14 +416,23 @@ export default class App extends tsc<{}> {
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);
       if (parentRoute) {
         this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
-        this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
+        const hasAuth = await this.handleUpdateRoute({ bizId: `${v}` }, promise);
+        hasAuth &&
+          this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
+            this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+          });
+        if (!hasAuth) {
           this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
-        });
+        }
         return;
       }
-      await this.handleUpdateRoute({ bizId: `${v}` }, promise);
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
     } else {
-      await this.handleUpdateRoute({ bizId: `${v}` }, promise);
+      await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
+        hasAuth && (this.routeViewKey = random(10));
+      });
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
@@ -456,11 +468,11 @@ export default class App extends tsc<{}> {
             title: '无权限'
           }
         });
-        return;
+        return false;
       }
     }
     await Promise.all(promiseList);
-    this.routeViewKey = random(10);
+    return true;
   }
   handleClickBizSelect() {
     this.showBizList = !this.showBizList;

@@ -120,6 +120,7 @@
 </template>
 
 <script>
+import { mapState } from 'vuex';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
