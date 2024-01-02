@@ -23,7 +23,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.event_plugin import EventPluginSerializer, get_manager, get_serializer
-from bkmonitor.event_plugin.constant import EVENT_NORMAL_FIELDS
+from bkmonitor.event_plugin.constant import EVENT_NORMAL_FIELDS, CollectType
 from bkmonitor.event_plugin.serializers import (
     AlertConfigSerializer,
     CleanConfigSerializer,
@@ -542,7 +542,6 @@ class GetEventPluginInstanceResource(Resource):
         serializer_data = inst_serializer(instance=instances, many=True).data
         ingest_config = plugin_info["ingest_config"]
         collect_host = settings.INGESTER_HOST
-
         ingest_config["ingest_host"] = collect_host
         collect_url = f"{collect_host}/event/{plugin_info['plugin_id']}/"
         # 取一个代表
@@ -551,7 +550,7 @@ class GetEventPluginInstanceResource(Resource):
             # 不是全局的，需要单独配置
             collect_url = f"{collect_host}/event/{instance.plugin_id}_{instance.data_id}/"
         alert_sources = ingest_config.get("alert_sources", [])
-        if ingest_config.get("collect_type") == "bk_collector":
+        if ingest_config.get("collect_type") == CollectType.BK_COLLECTOR:
             collect_host = (
                 settings.OUTER_COLLOCTOR_HOST if ingest_config.get("is_external") else settings.INNER_COLLOCTOR_HOST
             )
@@ -562,7 +561,6 @@ class GetEventPluginInstanceResource(Resource):
                 collect_url = os.path.join(collect_host, "/fta/v1/event/?token={{token}}")
 
         ingest_config.update({"ingest_host": collect_host, "push_url": collect_url})
-
         instances_data = [
             {
                 "id": inst_data["id"],
@@ -600,9 +598,9 @@ class GetEventPluginTokenResource(Resource):
             raise DataIDNotSetError()
 
         if not instance.token:
-            if instance.ingest_config.get("collect_type") != "bk_collector":
+            if instance.ingest_config.get("collect_type") != CollectType.BK_COLLECTOR:
                 data_info = api.metadata.get_data_id(bk_data_id=instance.data_id)
-                instance.token = data_info.get("token, ")
+                instance.token = data_info.get("token", "")
             else:
                 instance.token = transform_data_id_to_token(
                     instance.data_id, bk_biz_id=instance.bk_biz_id, app_name=instance.plugin_id
