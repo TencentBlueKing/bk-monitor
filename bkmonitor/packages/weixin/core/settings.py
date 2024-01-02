@@ -44,6 +44,6 @@ WEIXIN_AGENT_ID = os.environ.get("BKAPP_WEIXIN_AGENT_ID", "")
 # 应用于重定向 scheme 与访问 scheme 不一致的情况
 WEIXIN_APP_EXTERNAL_SCHEME = os.environ.get("BKAPP_WEIXIN_APP_EXTERNAL_SCHEME", "")
 # 企业微信的 api domain，用于 api调用
-WEIXIN_QY_API_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_API_DOMAIN", "https://qyapi.weixin.qq.com")
+WEIXIN_QY_API_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_API_DOMAIN", "https://qyapi.weixin.qq.com").rstrip("/")
 # 企业微信的 web domain，用于 oauth2
-WEIXIN_QY_OPEN_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_OPEN_DOMAIN", "https://open.weixin.qq.com")
+WEIXIN_QY_OPEN_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_OPEN_DOMAIN", "https://open.weixin.qq.com").rstrip("/")
