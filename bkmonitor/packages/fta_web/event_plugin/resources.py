@@ -570,7 +570,7 @@ class GetEventPluginInstanceResource(Resource):
                 "updatable": inst_data["version"] != plugin_info["version"],
                 "push_url": collect_url,
                 "alert_sources": alert_sources,
-                "proxy_hosts": CollectorProxyHostInfo().request(bk_biz_id=instance.bk_biz_id),
+                "proxy_hosts": CollectorProxyHostInfo().request(bk_biz_id=instance.bk_biz_id)
             }
             for inst_data in serializer_data
         ]
@@ -600,9 +600,13 @@ class GetEventPluginTokenResource(Resource):
             raise DataIDNotSetError()
 
         if not instance.token:
-            instance.token = transform_data_id_to_token(
-                instance.data_id, bk_biz_id=instance.bk_biz_id, app_name=instance.plugin_id
-            )
+            if instance.ingest_config.get("collect_type") != "bk_collector":
+                data_info = api.metadata.get_data_id(bk_data_id=instance.data_id)
+                instance.token = data_info.get("token, ")
+            else:
+                instance.token = transform_data_id_to_token(
+                    instance.data_id, bk_biz_id=instance.bk_biz_id, app_name=instance.plugin_id
+                )
             instance.save()
         return {"token": instance.token}
 
