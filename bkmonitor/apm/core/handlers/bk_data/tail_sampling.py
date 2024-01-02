@@ -33,6 +33,7 @@ class TailSamplingFlow(ApmFlow):
     _BKDATA_ES_CLUSTER_NAME_FORMAT = "apm_storage_{cluster_name}"
     _BKDATA_ES_CLUSTER_ID_FORMAT = "apm_storage_id_{cluster_id}"
     _FLINK_CODE_FILENAME = os.path.join(settings.BASE_DIR, "apm/core/handlers/bk_data/tail_sampling_flink.java")
+    # bkbase dataId直连方式接入用到的场景ID 为协商的固定值
     _BKDATA_CUSTOM_SCENARIO_ID = 47
 
     def __init__(self, trace_datasource, config):
