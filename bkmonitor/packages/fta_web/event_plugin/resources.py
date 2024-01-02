@@ -10,9 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 import abc
 import logging
-import os
 import time
 import traceback
+import urllib.parse
 from collections import defaultdict
 
 from django.conf import settings
@@ -548,13 +548,13 @@ class GetEventPluginInstanceResource(Resource):
         instance = instances[0]
         if instances[0].bk_biz_id:
             # 不是全局的，需要单独配置
-            collect_url = f"{collect_host}/event/{instance.plugin_id}_{instance.data_id}/"
+            collect_url = urllib.parse.urljoin(collect_host,  f"/event/{instance.plugin_id}_{instance.data_id}/")
         alert_sources = ingest_config.get("alert_sources", [])
         if ingest_config.get("collect_type") == CollectType.BK_COLLECTOR:
             collect_host = (
                 settings.OUTER_COLLOCTOR_HOST if ingest_config.get("is_external") else settings.INNER_COLLOCTOR_HOST
             )
-            collect_url = os.path.join(collect_host, "/fta/v1/event/?token={{token}}")
+            collect_url = urllib.parse.urljoin(collect_host, "/fta/v1/event/?token={{token}}")
             if alert_sources:
                 # 有区分告警推送来源
                 collect_url = collect_url + "&source={{source}}"
