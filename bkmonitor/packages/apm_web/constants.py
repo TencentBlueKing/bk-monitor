@@ -602,26 +602,6 @@ class QueryMode:
         ]
 
 
-class TraceWaterFallDisplayKey:
-    """trace瀑布列表显示勾选项"""
-
-    # 来源: OT
-    SOURCE_CATEGORY_OPENTELEMETRY = "source_category_opentelemetry"
-    # 来源: EBPF
-    SOURCE_CATEGORY_EBPF = "source_category_ebpf"
-
-    # 虚拟节点
-    VIRTUAL_SPAN = "virtual_span"
-
-    @classmethod
-    def choices(cls):
-        return [
-            (cls.SOURCE_CATEGORY_OPENTELEMETRY, "OT"),
-            (cls.SOURCE_CATEGORY_EBPF, "EBPF"),
-            (cls.VIRTUAL_SPAN, _("虚拟节点")),
-        ]
-
-
 class SpanSourceCategory:
     """Span来源分类"""
 

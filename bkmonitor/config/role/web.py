@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import os
+from urllib.parse import urljoin
 
 import six
 from blueapps.conf.log import get_logging_config_dict
@@ -542,9 +543,9 @@ WEIXIN_SITE_URL = os.environ.get("BKAPP_WEIXIN_SITE_URL", SITE_URL + "weixin/")
 # 蓝鲸微信本地静态文件请求URL前缀
 WEIXIN_STATIC_URL = os.environ.get("BKAPP_WEIXIN_STATIC_URL", STATIC_URL + "weixin/")
 # 蓝鲸微信登录的URL
-WEIXIN_LOGIN_URL = SITE_URL + "weixin/login/"
+WEIXIN_LOGIN_URL = urljoin(WEIXIN_SITE_URL, "login/")
 # 微信分享地址
-WEIXIN_SHARE_URL = WEIXIN_APP_EXTERNAL_HOST + SITE_URL
+WEIXIN_SHARE_URL = urljoin(WEIXIN_APP_EXTERNAL_HOST, WEIXIN_SITE_URL)
 
 # 微信调试开关
 WX_USER = os.environ.get("BKAPP_WX_USER", None) == 1
