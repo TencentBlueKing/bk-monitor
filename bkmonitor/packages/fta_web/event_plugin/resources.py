@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import abc
 import logging
+import os
 import time
 import traceback
 from collections import defaultdict
@@ -540,19 +541,27 @@ class GetEventPluginInstanceResource(Resource):
         inst_serializer = manager.get_serializer_class()
         serializer_data = inst_serializer(instance=instances, many=True).data
         ingest_config = plugin_info["ingest_config"]
-        ingest_config["ingest_host"] = settings.INGESTER_HOST
-        ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{plugin_info['plugin_id']}/"
+        collect_host = settings.INGESTER_HOST
+
+        ingest_config["ingest_host"] = collect_host
+        collect_url = f"{collect_host}/event/{plugin_info['plugin_id']}/"
         # 取一个代表
         instance = instances[0]
         if instances[0].bk_biz_id:
             # 不是全局的，需要单独配置
-            ingest_config["push_url"] = f"{settings.INGESTER_HOST}/event/{instance.plugin_id}_{instance.data_id}/"
+            collect_url = f"{collect_host}/event/{instance.plugin_id}_{instance.data_id}/"
         alert_sources = ingest_config.get("alert_sources", [])
-        if alert_sources:
-            collect_url = "${PROXY_IP}:4318/fta/v1/event/?source=${source}&token=${token}"
-        else:
-            # 没有区分告警推送来源
-            collect_url = "${PROXY_IP}:4318/fta/v1/event/?token=${token}"
+        if ingest_config.get("collect_type") == "bk_collector":
+            collect_host = (
+                settings.OUTER_COLLOCTOR_HOST if ingest_config.get("is_external") else settings.INNER_COLLOCTOR_HOST
+            )
+            if not alert_sources:
+                collect_url = os.path.join(collect_host, "/fta/v1/event/?source={{source}}&token={{token}}")
+            else:
+                # 没有区分告警推送来源
+                collect_url = os.path.join(collect_host, "/fta/v1/event/?token={{token}}")
+
+        ingest_config.update({"ingest_host": collect_host, "push_url": collect_url})
 
         instances_data = [
             {

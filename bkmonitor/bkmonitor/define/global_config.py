@@ -178,9 +178,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         (
             "BK_DATA_MULTIVARIATE_HOST_RT_ID",
-            slz.CharField(
-                label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"
-            ),
+            slz.CharField(label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"),
         ),
         (
             "BK_DATA_ROBOT_LINK_LIST",
@@ -257,6 +255,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
         ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label="METADATA 是否启用功能开关", default=True)),
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
+        ("INNER_COLLOCTOR_HOST", slz.CharField(label="collector内网域名", default="")),
+        ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),
     ]
 )
 

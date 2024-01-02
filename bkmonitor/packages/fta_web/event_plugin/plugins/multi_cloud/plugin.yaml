@@ -14,6 +14,7 @@ ingest_config:
   multiple_events: true
   events_path: data
   alert_source: ["TENCENT", "GOOGLE"]
+  is_external: true
 
 # 清洗配置
 normalization_config:
