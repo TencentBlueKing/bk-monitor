@@ -88,6 +88,8 @@ CREATE_SUCCESS = {
         "source_app_code": settings.APP_CODE,
         "tag_ids": "",
         "is_editable": True,
+        "sort_fields": [],
+        "target_fields": [],
     },
     "code": 0,
     "message": "",
@@ -155,6 +157,8 @@ UPDATE_INDEX_SET = {
     "source_app_code": settings.APP_CODE,
     "tag_ids": "[]",
     "is_editable": True,
+    "sort_fields": [],
+    "target_fields": [],
 }
 
 NOT_EDITABLE_RETURN = {
@@ -235,6 +239,8 @@ INDEX_SET_LISTS = {
             "bk_biz_id": 2,
             "permission": {},
             "is_editable": True,
+            "sort_fields": [],
+            "target_fields": [],
         }
     ],
 }
@@ -355,6 +361,8 @@ RETRIEVE_LIST = {
     "source_app_code": settings.APP_CODE,
     "tag_ids": "[]",
     "is_editable": True,
+    "sort_fields": [],
+    "target_fields": [],
 }
 
 

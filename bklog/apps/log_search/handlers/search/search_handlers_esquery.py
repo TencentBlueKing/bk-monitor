@@ -80,10 +80,12 @@ from apps.log_search.exceptions import (
     UnionSearchFieldsFailException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
-    DslBkDataCreateSearchContextBody,
-    DslBkDataCreateSearchContextBodyScenarioLog,
-    DslBkDataCreateSearchTailBody,
-    DslBkDataCreateSearchTailBodyScenarioLog,
+    DslCreateSearchContextBodyCustomField,
+    DslCreateSearchContextBodyScenarioBkData,
+    DslCreateSearchContextBodyScenarioLog,
+    DslCreateSearchTailBodyCustomField,
+    DslCreateSearchTailBodyScenarioBkData,
+    DslCreateSearchTailBodyScenarioLog,
 )
 from apps.log_search.handlers.es.indices_optimizer_context_tail import (
     IndicesOptimizerContextTail,
@@ -157,6 +159,8 @@ class SearchHandler(object):
 
         self.scenario_id: str = ""
         self.storage_cluster_id: int = -1
+
+        self.index_set_obj = None
 
         # 构建索引集字符串, 并初始化scenario_id、storage_cluster_id
         self.indices: str = self._init_indices_str(index_set_id)
@@ -1104,10 +1108,13 @@ class SearchHandler(object):
                 raise BaseSearchSortListException(BaseSearchSortListException.MESSAGE.format(sort_item=field))
 
     def search_context(self):
-        if self.scenario_id not in [Scenario.BKDATA, Scenario.LOG]:
-            return {"total": 0, "took": 0, "list": []}
-        if not self.gseindex and not self.gseIndex:
+        if self.scenario_id in [Scenario.BKDATA, Scenario.LOG] and (not self.gseindex and not self.gseIndex):
             raise BaseSearchGseIndexNoneException()
+
+        if self.scenario_id == Scenario.ES and not (
+            self.index_set_obj.target_fields and self.index_set_obj.sort_fields
+        ):
+            return {"total": 0, "took": 0, "list": []}
 
         context_indice = IndicesOptimizerContextTail(
             self.indices, self.scenario_id, dtEventTimeStamp=self.dtEventTimeStamp, search_type_tag="context"
@@ -1213,8 +1220,11 @@ class SearchHandler(object):
         return {"list": []}
 
     def _get_context_body(self, order):
-        if self.scenario_id == Scenario.BKDATA:
-            return DslBkDataCreateSearchContextBody(
+        target_fields = self.index_set_obj.target_fields
+        sort_fields = self.index_set_obj.sort_fields
+
+        if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+            return DslCreateSearchContextBodyScenarioBkData(
                 size=self.size,
                 start=self.start,
                 gseindex=self.gseindex,
@@ -1228,7 +1238,7 @@ class SearchHandler(object):
             ).body
 
         if self.scenario_id == Scenario.LOG:
-            return DslBkDataCreateSearchContextBodyScenarioLog(
+            return DslCreateSearchContextBodyScenarioLog(
                 size=self.size,
                 start=self.start,
                 gseIndex=self.gseIndex,
@@ -1240,18 +1250,33 @@ class SearchHandler(object):
                 order=order,
                 sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
             ).body
+
+        if self.scenario_id in [Scenario.ES, Scenario.BKDATA]:
+            return DslCreateSearchContextBodyCustomField(
+                size=self.size,
+                start=self.start,
+                order=order,
+                target_fields=self.index_set_obj.target_fields,
+                sort_fields=self.index_set_obj.sort_fields,
+                params=self.search_dict,
+            ).body
+
         return {}
 
     def search_tail_f(self):
         tail_indice = IndicesOptimizerContextTail(
             self.indices, self.scenario_id, dtEventTimeStamp=self.dtEventTimeStamp, search_type_tag="tail"
         ).index
-        if self.scenario_id not in [Scenario.BKDATA, Scenario.LOG]:
+        if self.scenario_id not in [Scenario.BKDATA, Scenario.LOG, Scenario.ES]:
             return {"total": 0, "took": 0, "list": []}
         else:
             body: Dict = {}
-            if self.scenario_id == Scenario.BKDATA:
-                body: Dict = DslBkDataCreateSearchTailBody(
+
+            target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
+            sort_fields = self.index_set_obj.target_fields if self.index_set_obj else []
+
+            if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+                body: Dict = DslCreateSearchTailBodyScenarioBkData(
                     sort_list=["dtEventTimeStamp", "gseindex", "_iteration_idx"],
                     size=self.size,
                     start=self.start,
@@ -1264,7 +1289,7 @@ class SearchHandler(object):
                     zero=self.zero,
                 ).body
             if self.scenario_id == Scenario.LOG:
-                body: Dict = DslBkDataCreateSearchTailBodyScenarioLog(
+                body: Dict = DslCreateSearchTailBodyScenarioLog(
                     sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
                     size=self.size,
                     start=self.start,
@@ -1276,6 +1301,20 @@ class SearchHandler(object):
                     logfile=self.logfile,
                     zero=self.zero,
                 ).body
+
+            if self.scenario_id in [Scenario.ES, Scenario.BKDATA]:
+                if not target_fields or not sort_fields:
+                    return {"total": 0, "took": 0, "list": []}
+
+                body: Dict = DslCreateSearchTailBodyCustomField(
+                    start=self.start,
+                    zero=self.zero,
+                    time_field=self.time_field,
+                    target_fields=target_fields,
+                    sort_fields=sort_fields,
+                    params=self.search_dict,
+                ).body
+
             result = BkLogApi.dsl({"indices": tail_indice, "scenario_id": self.scenario_id, "body": body})
 
             result: dict = self._deal_query_result(result)
@@ -1297,6 +1336,7 @@ class SearchHandler(object):
     def _init_indices_str(self, index_set_id: int) -> str:
         tmp_index_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if tmp_index_obj:
+            self.index_set_obj = tmp_index_obj
             self.scenario_id = tmp_index_obj.scenario_id
             self.storage_cluster_id = tmp_index_obj.storage_cluster_id
             # 根据检索条件addition中的字段，判断是否需要查询聚类结果表
