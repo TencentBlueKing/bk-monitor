@@ -258,6 +258,12 @@ class ContainerConfigSerializer(serializers.Serializer):
     collector_type = serializers.CharField(label=_("容器采集类型"))
 
 
+class MultilineSerializer(serializers.Serializer):
+    multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
+    multiline_maxLines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
+    multiline_timeout = serializers.CharField(label=_("最大耗时"), required=False, allow_blank=True, allow_null=True)
+
+
 class BcsContainerConfigSerializer(serializers.Serializer):
     namespaces = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("命名空间"), default=[])
     container = ContainerSerializer(required=False, label=_("指定容器"), default={})
@@ -266,6 +272,7 @@ class BcsContainerConfigSerializer(serializers.Serializer):
     data_encoding = serializers.CharField(required=False, label=_("日志字符集"))
     enable_stdout = serializers.BooleanField(required=False, label=_("是否采集标准输出"), default=False)
     conditions = PluginConditionSerializer(label=_("过滤条件"), required=False)
+    multiline = MultilineSerializer(label=_("段日志配置"), required=False)
 
 
 class CollectorCreateSerializer(serializers.Serializer):
@@ -1127,6 +1134,11 @@ class SwitchBCSCollectorStorageSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
     storage_cluster_id = serializers.IntegerField(label=_("存储集群id"), required=True)
+
+
+class GetBCSCollectorStorageSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+    bcs_cluster_id = serializers.CharField(label=_("bcs集群id"), required=True)
 
 
 class ListBCSCollectorWithoutRuleSerializer(serializers.Serializer):

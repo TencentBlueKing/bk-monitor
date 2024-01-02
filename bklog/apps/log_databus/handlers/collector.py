@@ -3033,6 +3033,24 @@ class CollectorHandler(object):
             result.append(rule)
         return result
 
+    def get_bcs_collector_storage(self, bcs_cluster_id, bk_biz_id=None):
+        bcs_storage_config = BcsStorageClusterConfig.objects.filter(
+            bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
+        ).first()
+        toggle = FeatureToggleObject.toggle(BCS_COLLECTOR)
+        conf = toggle.feature_config if toggle else {}
+        # 优先使用传的集群ID, 传的集群ID和bcs业务指定存储集群都不存在时, 使用第一个默认集群
+        storage_cluster_id = (
+            bcs_storage_config.storage_cluster_id if bcs_storage_config else conf.get("storage_cluster_id")
+        )
+        if not storage_cluster_id:
+            es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
+            for es in es_clusters:
+                if es["cluster_config"]["is_default_cluster"]:
+                    storage_cluster_id = es["cluster_config"]["cluster_id"]
+
+        return storage_cluster_id
+
     @transaction.atomic
     def create_bcs_container_config(self, data, bk_app_code="bk_bcs"):
         conf = self.get_bcs_config(
@@ -3119,6 +3137,7 @@ class CollectorHandler(object):
                             "conditions": config["conditions"]
                             if config.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **config.get("multiline", {}),
                         },
                         workload_type=workload_type,
                         workload_name=workload_name,
@@ -3143,6 +3162,7 @@ class CollectorHandler(object):
                             "conditions": config["conditions"]
                             if config.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
+                            **config.get("multiline", {}),
                         },
                         workload_type=workload_type,
                         workload_name=workload_name,
