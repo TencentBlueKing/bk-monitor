@@ -24,10 +24,27 @@
  * IN THE SOFTWARE.
  */
 
-import { SearchType } from './profiling';
+export enum SearchType {
+  Profiling = 'profiling',
+  Upload = 'upload'
+}
 
+export enum ConditionType {
+  /** 查询项 */
+  Where = 'where',
+  /** 对比项 */
+  Comparison = 'comparison'
+}
+
+export interface ConditionItem {
+  key: string;
+  method: 'eq';
+  value: string | string[];
+}
 export interface RetrievalFormData {
   type: SearchType;
   isComparison: boolean;
   server: string;
+  where: ConditionItem[];
+  comparisonWhere: ConditionItem[];
 }

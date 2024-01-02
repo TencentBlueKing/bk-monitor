@@ -37,6 +37,7 @@ import FavoriteList from './components/favorite-list';
 import PageHeader from './components/page-header';
 import ProfilingRetrieval from './components/profiling-retrieval';
 import { ToolsFormData } from './typings/page-header';
+import { PanelType, SearchState, SearchType } from './typings';
 
 import './profiling.scss';
 
@@ -51,35 +52,40 @@ export default defineComponent({
       refreshInterval: -1
     });
     const favoriteState = reactive({
-      defaultWidth: 240,
-      width: 240,
       isShow: false
     });
-    const searchState = reactive({
+    const searchState = reactive<SearchState>({
       isShow: true,
-      defaultWidth: 400,
-      width: 400,
       autoQuery: true,
       canQuery: true,
-      formData: {}
+      formData: {
+        type: SearchType.Profiling,
+        isComparison: false,
+        server: '',
+        where: [],
+        comparisonWhere: []
+      }
     });
-    function handleToolFormDataChange(val: ToolsFormData) {
-      toolsFormData.value = val;
-      handleQueryScopeDebounce();
-    }
-    function handleShowTypeChange(type: 'search' | 'favorite', status: boolean) {
+    /**
+     * 检索面板和收藏面板显示状态切换
+     * @param type 面板类型
+     * @param status 显示状态
+     */
+    function handleShowTypeChange(type: PanelType, status: boolean) {
       if (type === 'search') {
         searchState.isShow = status;
       } else {
         favoriteState.isShow = status;
       }
     }
-    function handleWidthChange(type: 'search' | 'favorite', width: number) {
-      if (type === 'search') {
-        searchState.width = width;
-      } else {
-        favoriteState.width = width;
-      }
+    function handleToolFormDataChange(val: ToolsFormData) {
+      toolsFormData.value = val;
+      handleQueryDebounce();
+    }
+
+    function handleSearchFormDataChange(val: SearchState['formData']) {
+      searchState.formData = val;
+      handleQueryDebounce();
     }
 
     function handleAutoQueryChange(val: boolean) {
@@ -88,7 +94,7 @@ export default defineComponent({
     function handleQueryClear() {}
     function handleAddFavorite() {}
 
-    const handleQueryScopeDebounce = debounce(handleQuery, 300, false);
+    const handleQueryDebounce = debounce(handleQuery, 300, false);
 
     function handleQuery(isBtnClick = false) {
       if (!isBtnClick && !searchState.autoQuery) return;
@@ -105,7 +111,7 @@ export default defineComponent({
       handleQuery,
       handleQueryClear,
       handleAddFavorite,
-      handleWidthChange
+      handleSearchFormDataChange
     };
   },
 
@@ -128,12 +134,11 @@ export default defineComponent({
               v-monitor-drag={{
                 minWidth: 200,
                 maxWidth: 500,
-                defaultWidth: this.favoriteState.defaultWidth,
+                defaultWidth: 240,
                 autoHidden: true,
                 theme: 'simple',
                 isShow: this.favoriteState.isShow,
-                onHidden: () => this.handleShowTypeChange('favorite', false),
-                onWidthChange: width => this.handleWidthChange('favorite', width)
+                onHidden: () => this.handleShowTypeChange(PanelType.Favorite, false)
               }}
             >
               <FavoriteList></FavoriteList>
@@ -145,15 +150,17 @@ export default defineComponent({
               v-monitor-drag={{
                 minWidth: 200,
                 maxWidth: 800,
-                defaultWidth: this.searchState.defaultWidth,
+                defaultWidth: 400,
                 autoHidden: true,
                 theme: 'simple',
                 isShow: this.searchState.isShow,
-                onHidden: () => this.handleShowTypeChange('search', false),
-                onWidthChange: width => this.handleWidthChange('search', width)
+                onHidden: () => this.handleShowTypeChange(PanelType.Search, false)
               }}
             >
-              <ProfilingRetrieval>
+              <ProfilingRetrieval
+                formData={this.searchState.formData}
+                onChange={this.handleSearchFormDataChange}
+              >
                 {{
                   query: () => (
                     <HandleBtn

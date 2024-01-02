@@ -24,12 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, watch } from 'vue';
+import { defineComponent, PropType, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 
+import { ConditionType, SearchType } from '../typings';
+import { RetrievalFormData } from '../typings/profiling-retrieval';
+
 import ApplicationCascade from './application-cascade';
+import ConditionItem from './condition-item';
 
 import './profiling-retrieval.scss';
 
@@ -37,7 +41,7 @@ export default defineComponent({
   name: 'ProfilingRetrieval',
   props: {
     formData: {
-      type: Object,
+      type: Object as PropType<RetrievalFormData>,
       default: () => null
     }
   },
@@ -47,36 +51,78 @@ export default defineComponent({
     const retrievalType = [
       {
         label: t('持续 Profiling'),
-        value: 'continuous'
+        value: SearchType.Profiling
       },
       {
         label: t('上传 Profiling'),
-        value: 'upload'
+        value: SearchType.Upload
       }
     ];
-    const localFormData = reactive({
-      type: 'continuous',
-      servers: null,
+    const localFormData = reactive<RetrievalFormData>({
+      type: SearchType.Profiling,
+      server: null,
       isComparison: false,
-      where: []
+      where: [],
+      comparisonWhere: []
     });
     watch(
       () => props.formData,
       newVal => {
-        if (props.formData) {
-          Object.assign(localFormData, newVal);
-        }
+        newVal && Object.assign(localFormData, newVal);
       }
     );
 
-    function handleTypeChange(type: string) {
+    /**
+     * 检索类型切换
+     * @param type 检索类型
+     */
+    function handleTypeChange(type: SearchType) {
       if (localFormData.type === type) return;
       localFormData.type = type;
       handleEmitChange();
     }
 
+    /**
+     * 对比模式开关
+     * @param val 开关状态
+     */
     function handleComparisonChange(val: boolean) {
       localFormData.isComparison = val;
+      handleEmitChange();
+    }
+
+    /**
+     * 添加条件
+     * @param type 条件类型
+     */
+    function addCondition(type: ConditionType) {
+      if (type === ConditionType.Where) {
+        localFormData.where.push({
+          key: '',
+          method: 'eq',
+          value: ''
+        });
+      } else {
+        localFormData.comparisonWhere.push({
+          key: '',
+          method: 'eq',
+          value: ''
+        });
+      }
+    }
+
+    /**
+     * 条件修改
+     * @param val 修改后的值
+     * @param index 条件索引
+     * @param type 条件类型
+     */
+    function handleConditionChange(val, index, type: ConditionType) {
+      if (type === ConditionType.Where) {
+        localFormData.where[index] = val;
+      } else {
+        localFormData.comparisonWhere[index] = val;
+      }
       handleEmitChange();
     }
 
@@ -89,7 +135,9 @@ export default defineComponent({
       localFormData,
       retrievalType,
       handleTypeChange,
-      handleComparisonChange
+      handleComparisonChange,
+      addCondition,
+      handleConditionChange
     };
   },
   render() {
@@ -110,7 +158,7 @@ export default defineComponent({
           </Button.ButtonGroup>
 
           <div class='form-wrap'>
-            {this.localFormData.type === 'continuous' && (
+            {this.localFormData.type === SearchType.Profiling && (
               <div class='service form-item'>
                 <div class='label'>{this.t('应用/服务')}</div>
                 <div class='content'>
@@ -124,14 +172,24 @@ export default defineComponent({
                 <Switcher
                   modelValue={this.localFormData.isComparison}
                   theme='primary'
+                  size='small'
                   onChange={this.handleComparisonChange}
                 />
               </div>
             </div>
             <div class='search-panel'>
               <div class='search-title'>{this.t('查询项')}</div>
-
-              <Button class='add-condition'>
+              {this.localFormData.where.map((item, index) => (
+                <ConditionItem
+                  class='condition-item'
+                  data={item}
+                  onChange={val => this.handleConditionChange(val, index, ConditionType.Where)}
+                />
+              ))}
+              <Button
+                class='add-condition'
+                onClick={() => this.addCondition(ConditionType.Where)}
+              >
                 <Plus class='f22' />
                 {this.t('添加条件')}
               </Button>
@@ -139,7 +197,17 @@ export default defineComponent({
             {this.localFormData.isComparison && (
               <div class='search-panel'>
                 <div class='search-title'>{this.t('对比项')}</div>
-                <Button class='add-condition'>
+                {this.localFormData.comparisonWhere.map((item, index) => (
+                  <ConditionItem
+                    class='condition-item'
+                    data={item}
+                    onChange={val => this.handleConditionChange(val, index, ConditionType.Comparison)}
+                  />
+                ))}
+                <Button
+                  class='add-condition'
+                  onClick={() => this.addCondition(ConditionType.Comparison)}
+                >
                   <Plus class='f22' />
                   {this.t('添加条件')}
                 </Button>

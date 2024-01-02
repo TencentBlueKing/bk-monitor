@@ -23,16 +23,55 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, PropType, reactive, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { Select } from 'bkui-vue';
+
+import { ConditionItem } from '../typings';
+
+import './condition-item.scss';
 
 export default defineComponent({
   name: 'ConditionItem',
+  props: {
+    data: {
+      type: Object as PropType<ConditionItem>,
+      default: () => null
+    }
+  },
+  emits: ['change'],
+  setup(props) {
+    const { t } = useI18n();
+    const localValue = reactive<ConditionItem>({
+      key: '',
+      method: 'eq',
+      value: ''
+    });
 
-  setup() {
-    return {};
+    watch(
+      () => props.data,
+      newVal => {
+        newVal && Object.assign(localValue, newVal);
+      }
+    );
+
+    return {
+      t,
+      localValue
+    };
   },
 
   render() {
-    return <div></div>;
+    return (
+      <div class='condition-item-component'>
+        <div class='header-label'>
+          <span class='label'>{this.t('服务名称')}</span>
+          <span class={['method', this.localValue.method]}>=</span>
+        </div>
+        <div class='content'>
+          <Select />
+        </div>
+      </div>
+    );
   }
 });
