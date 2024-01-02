@@ -123,12 +123,11 @@ class EnhancedGetContextResource(Resource):
                     f"[get_basic_context] space_uid not found: " f"uid -> {space_uid} not in space_list -> {space_list}"
                 )
                 if settings.DEMO_BIZ_ID:
-                    bk_biz_id = settings.DEMO_BIZ_ID
+                    bk_biz_id = int(settings.DEMO_BIZ_ID)
         elif not bk_biz_id:
             bk_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
 
         context = get_basic_context(request, space_list, bk_biz_id)
-        context["SPACE_LIST"] = space_list
         context["CSRF_TOKEN"] = get_token(request)
 
         field_formatter(context)

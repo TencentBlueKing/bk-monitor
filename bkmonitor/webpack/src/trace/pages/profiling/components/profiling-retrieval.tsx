@@ -56,7 +56,9 @@ export default defineComponent({
     ];
     const localFormData = reactive({
       type: 'continuous',
-      isComparison: false
+      servers: null,
+      isComparison: false,
+      where: []
     });
     watch(
       () => props.formData,
@@ -107,7 +109,7 @@ export default defineComponent({
             ))}
           </Button.ButtonGroup>
 
-          <div class='continuous-form-wrap'>
+          <div class='form-wrap'>
             {this.localFormData.type === 'continuous' && (
               <div class='service form-item'>
                 <div class='label'>{this.t('应用/服务')}</div>
@@ -126,12 +128,24 @@ export default defineComponent({
                 />
               </div>
             </div>
-          </div>
+            <div class='search-panel'>
+              <div class='search-title'>{this.t('查询项')}</div>
 
-          <Button class='add-condition'>
-            <Plus class='f22' />
-            {this.t('添加条件')}
-          </Button>
+              <Button class='add-condition'>
+                <Plus class='f22' />
+                {this.t('添加条件')}
+              </Button>
+            </div>
+            {this.localFormData.isComparison && (
+              <div class='search-panel'>
+                <div class='search-title'>{this.t('对比项')}</div>
+                <Button class='add-condition'>
+                  <Plus class='f22' />
+                  {this.t('添加条件')}
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div class='retrieve-button-tools-group'>{this.$slots.query?.()}</div>
         </div>

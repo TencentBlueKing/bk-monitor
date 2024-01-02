@@ -380,7 +380,7 @@ export default {
           if (res.data) {
             const collect = res.data;
             this.isPhysics = collect.environment !== 'container';
-            if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics) {
+            if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics && collect?.params.paths) {
               collect.params.paths = collect.params.paths.map(item => ({ value: item }));
             }
             // 如果当前页面采集流程未完成 则展示流程服务页面

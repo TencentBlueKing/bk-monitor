@@ -137,6 +137,17 @@ export const getRouteConfig = () => {
           usePath: true,
           // isBeta: window.platform?.te === false,
           canStore: true
+        },
+        {
+          name: 'Profiling检索',
+          icon: 'icon-monitor icon-mc-menu-trace menu-icon',
+          navName: 'Profiling检索',
+          id: 'profiling',
+          path: '/trace/profiling',
+          href: '#/trace/profiling',
+          usePath: true,
+          // isBeta: window.platform?.te === false,
+          canStore: true
         }
       ]
     },
@@ -252,6 +263,14 @@ export const getRouteConfig = () => {
               path: '/alarm-group',
               canStore: true,
               href: '#/alarm-group'
+            },
+            {
+              name: '轮值',
+              icon: 'icon-monitor icon-lunliu menu-icon',
+              id: 'rotation',
+              path: '/trace/rotation',
+              canStore: true,
+              href: '#/trace/rotation'
             },
             {
               name: '指标管理',
@@ -472,8 +491,8 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
             name: '发送历史',
             icon: 'icon-monitor icon-mc-history menu-icon',
             id: 'email-subscriptions-history',
-            path: '/email-subscriptions-history',
-            href: '#/email-subscriptions-history',
+            path: '/email-subscriptions/history',
+            href: '#/email-subscriptions/history',
             hidden: false,
             canStore: true
           }

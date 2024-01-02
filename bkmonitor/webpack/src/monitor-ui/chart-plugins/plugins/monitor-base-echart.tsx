@@ -107,6 +107,7 @@ class MonitorBaseEchart extends BaseEchart {
   initChart() {
     if (!this.instance) {
       setTimeout(() => {
+        if (!this.chartRef) return;
         this.instance = echarts.init(this.chartRef);
         this.instance.setOption(this.monitorEchartOptions);
         this.initPropsWatcher();

@@ -9,12 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.db.models.query import QuerySet
+from django.db.utils import IntegrityError
 
 from metadata import models
 
@@ -28,32 +29,49 @@ class Command(BaseCommand):
     DEFAULT_SERVICE_NAME = "bkmonitorv3"
 
     def handle(self, *args, **options):
-        # 如果存在记录，则认为已经初始化，不需要再次创建
-        if models.InfluxDBProxyStorage.objects.first():
-            self.stdout.write("records of InfluxDBProxyStorage has created")
-            return
-        # 查询路由表
-        proxy_storage_list = models.InfluxDBStorage.objects.values(
-            "storage_cluster_id", "proxy_cluster_name"
-        ).distinct()
+        # 查询路由表，忽略掉已经存在数据的记录
+        proxy_storage_list = (
+            models.InfluxDBStorage.objects.filter(influxdb_proxy_storage_id=None)
+            .values("storage_cluster_id", "proxy_cluster_name")
+            .distinct()
+        )
         if not proxy_storage_list:
-            self.stdout.write("result table router is null")
+            self.stdout.write(" not found null influxdb_proxy_storage_id records!")
             return
         # 查询集群信息
         proxy_cluster_list = models.ClusterInfo.objects.filter(cluster_type="influxdb").values(
             "cluster_id", "domain_name"
         )
+
+        # 已经存在时，则忽略，否则创建
+        # 过滤出已经存在的proxy和集群的关联关系的记录
+        exist_data = [
+            (obj["proxy_cluster_id"], obj["instance_cluster_name"])
+            for obj in models.InfluxDBProxyStorage.objects.values("proxy_cluster_id", "instance_cluster_name")
+        ]
+
         # 组装数据
         proxy_storage_map = {}
         for ps in proxy_storage_list:
+            # 如果已经存在，则忽略
+            if (ps["storage_cluster_id"], ps["proxy_cluster_name"]) in exist_data:
+                continue
             proxy_storage_map.setdefault(ps["storage_cluster_id"], []).append(ps["proxy_cluster_name"])
 
+        if not proxy_storage_map:
+            self.stdout.write("no new influxdb proxy and cluster create!")
+            return
+
         # 创建记录
-        created = self._bulk_create_proxy_storage(proxy_cluster_list, proxy_storage_map)
-        self.stdout.write(self.style.SUCCESS("init influxdb proxy storage successfully"))
+        try:
+            self._bulk_create_proxy_storage(proxy_cluster_list, proxy_storage_map)
+            self.stdout.write(self.style.SUCCESS("init influxdb proxy storage successfully"))
+        except IntegrityError as e:
+            self.stderr.write(f"bulk create proxy storage error, {e}")
+            return
 
         # 更新路由表
-        self._update_router_field(created)
+        self._update_router_field()
         self.stdout.write(self.style.SUCCESS("update influxdb router field successfully"))
 
         # 增加一次推送
@@ -113,11 +131,7 @@ class Command(BaseCommand):
         influxdb_proxy_storage.update(is_default=True)
         return True
 
-    def _update_router_field(self, created: Optional[bool] = True):
-        # 如果`influxdb_proxy_storage`没有创建，则跳过
-        if not created:
-            return
-
+    def _update_router_field(self):
         proxy_storages = models.InfluxDBProxyStorage.objects.values("id", "proxy_cluster_id", "instance_cluster_name")
         proxy_storage_map = {
             (f"{ps['proxy_cluster_id']}", f"{ps['instance_cluster_name']}"): ps["id"] for ps in proxy_storages
