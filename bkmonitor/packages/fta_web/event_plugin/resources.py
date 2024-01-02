@@ -554,11 +554,10 @@ class GetEventPluginInstanceResource(Resource):
             collect_host = (
                 settings.OUTER_COLLOCTOR_HOST if ingest_config.get("is_external") else settings.INNER_COLLOCTOR_HOST
             )
-            if not alert_sources:
-                collect_url = os.path.join(collect_host, "/fta/v1/event/?source={{source}}&token={{token}}")
-            else:
-                # 没有区分告警推送来源
-                collect_url = os.path.join(collect_host, "/fta/v1/event/?token={{token}}")
+            collect_url = os.path.join(collect_host, "/fta/v1/event/?token={{token}}")
+            if alert_sources:
+                # 有区分告警推送来源
+                collect_url = collect_url + "&source={{source}}"
 
         ingest_config.update({"ingest_host": collect_host, "push_url": collect_url})
         instances_data = [
@@ -659,7 +658,7 @@ class TailEventPluginDataResource(Resource):
 
 class DisablePluginCollectResource(Resource):
     """
-    获取事件插件token
+    停止数据采集
     """
 
     class RequestSerializer(serializers.Serializer):
