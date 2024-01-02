@@ -488,7 +488,8 @@ class RelatedLogChart extends CommonSimpleChart {
                     v-bk-tooltips={{
                       content: this.selectedOptionAlias,
                       theme: 'light',
-                      placement: 'top-start'
+                      placement: 'top-start',
+                      allowHTML: false
                     }}
                   >
                     {this.relatedIndexSetList.map(option => (

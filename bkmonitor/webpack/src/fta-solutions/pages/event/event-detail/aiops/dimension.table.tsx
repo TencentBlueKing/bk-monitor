@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Exception, Table, TableColumn } from 'bk-magic-vue';
 
 import { Debounce } from '../../../../../monitor-common/utils/utils';
+import { xssFilter } from '../../../../../monitor-common/utils/xss';
 import DimensionLine from '../../../../../monitor-ui/chart-plugins/plugins/aiops-dimension-point/aiops-dimension-point';
 
 import { EventReportType, IAnomalyDimensions } from './types';
@@ -76,6 +77,7 @@ export default class DimensionTable extends tsc<IProps> {
         v-bk-tooltips={{
           content: this.$t(content),
           maxWidth: 188,
+          allowHTML: false,
           onShown: () => {
             this.reportEventLog?.(EventReportType.Tips);
           }
@@ -95,24 +97,24 @@ export default class DimensionTable extends tsc<IProps> {
     let contentHtml = '';
     row.anomaly_score_top10.forEach(item => {
       const W = this.getWidth(item.anomaly_score);
-      labelHtml += `<li onclick="handleTipsItem(${item.is_anomaly},'${item.id}')">
+      labelHtml += `<li onclick="handleTipsItem(${xssFilter(item.is_anomaly)},'${xssFilter(item.id)}')">
         <span class="label ${item.is_anomaly ? 'is-anomaly-label' : ''}">
-        ${item.dimension_value}
+        ${xssFilter(item.dimension_value)}
         </span>
         <i class="icon-monitor icon-mc-position-tips"></i>
-        <span class='num num-position' style='right: -${item.anomaly_score === 0 ? 24 : W}px;margin-left: 0px'>${
-          item.anomaly_score
-        }</span>
+        <span class='num num-position' style='right: -${
+          item.anomaly_score === 0 ? 24 : W
+        }px;margin-left: 0px'>${xssFilter(item.anomaly_score)}</span>
         </li>`;
       contentHtml += `<li>
         <span style='width:${W}px' class='progress ${item.is_anomaly ? 'is-abnormal' : ''}'>
           <span class="progress-bar" style='width: ${item.anomaly_score === 0 ? 0 : 100}%' ></span>
-          <span class='num'>${item.anomaly_score}</span>
+          <span class='num'>${xssFilter(item.anomaly_score)}</span>
         </span>
         </li>`;
     });
     const content = `<div class='aiops-dimension-tips-content'>
-      <p>${this.$t('异常分值')}（${row.anomaly_dimension_alias}）</p>
+      <p>${this.$t('异常分值')}（${xssFilter(row.anomaly_dimension_alias)}）</p>
       <div class='aiops-dimension-tips-content-msg'>
         <ul class='label-content'>${labelHtml}</ul>
         <ul class='content'>${contentHtml}</ul>
@@ -123,7 +125,7 @@ export default class DimensionTable extends tsc<IProps> {
         <span
           v-bk-tooltips={{
             extCls: 'aiops-dimension-tips',
-            allowHtml: true,
+            allowHTML: true,
             ...setTooltips(content, 'bottom'),
             delay: 0,
             onShown: v => {
