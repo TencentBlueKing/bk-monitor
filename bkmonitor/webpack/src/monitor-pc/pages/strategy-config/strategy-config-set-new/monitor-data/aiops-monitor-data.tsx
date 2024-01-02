@@ -136,19 +136,27 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     if (value) {
       return value;
     }
+    const metricsSet = new Set(this.metrics);
+    const metrics = [];
+    this.scene?.metrics?.forEach(item => {
+      if (metricsSet.has(item.metric_id)) {
+        metrics.push(item);
+      }
+    });
     const algorithm = {
       level: this.formModel.level,
       type: MetricType.MultivariateAnomalyDetection,
       config: {
         scene_id: this.formModel.scene,
-        metrics: this.scene.metrics
+        metrics
       },
       sensitivity: this.formModel.sensitivity,
       unit_prefix: ''
     };
     return {
       ...this.scene,
-      query_configs: [{ ...this.scene.query_config }],
+      metrics,
+      query_configs: this.scene?.query_config ? [{ ...this.scene.query_config }] : [],
       algorithms: [algorithm]
     };
   }
@@ -225,7 +233,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     const sceneId = this.metricData?.[0]?.sceneConfig?.algorithms?.[0]?.config?.scene_id;
     if (sceneId) {
       this.formModel.level = this.metricData[0].sceneConfig.algorithms[0].level;
-      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0].sensitivity;
+      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0].sensitivity || 0;
       this.metrics = this.metricData[0].sceneConfig.algorithms[0]?.config?.metrics?.map(item => item.metric_id) || [];
     }
     multivariateAnomalyScenes()
@@ -297,6 +305,24 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     this.metricpopoerInstance?.hide?.();
     this.metricpopoerInstance?.destroy?.();
     this.metricpopoerInstance = null;
+  }
+
+  /**
+   * @description 指标选择变化
+   * @param v
+   */
+  handleMetricChange(v) {
+    this.metrics = v;
+    this.handleChange();
+  }
+
+  /**
+   * @description 敏感度变化
+   * @param v
+   */
+  handleSensitivity(v) {
+    this.formModel.sensitivity = v;
+    this.handleChange();
   }
 
   render() {
@@ -406,6 +432,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                   metrics={this.allMetrics}
                   scenarioList={this.scenarioList}
                   defaultScenario={this.defaultScenario}
+                  onChange={this.handleMetricChange}
                 ></AiopsMonitorMetricSelect>
               </div>
             )}
@@ -505,7 +532,8 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
               class='process-item'
               show-custom-label={true}
               custom-content={{ 0: { label: this.$t('较少告警') }, 100: { label: this.$t('较多告警') } }}
-              v-model={this.formModel.sensitivity}
+              value={this.formModel.sensitivity}
+              onInput={this.handleSensitivity}
             />
           </FormItem>
         </Form>

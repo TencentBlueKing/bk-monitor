@@ -131,7 +131,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
     for (let i = 0; i < tagsEl.length; i++) {
       const width = (tagsEl[i] as any).offsetWidth;
       countWidth += width + 4;
-      if (countWidth > wrapWidth - countWrapWidth) {
+      if (countWidth > wrapWidth - countWrapWidth && countWidth !== wrapWidth) {
         if (!insertIndex) {
           insertIndex = i;
         }
