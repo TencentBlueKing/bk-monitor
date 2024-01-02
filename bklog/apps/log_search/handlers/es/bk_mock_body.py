@@ -33,3 +33,10 @@ BODY_DATA_FOR_CONTEXT_SCENARIO_LOG = {
     "from": "",
     "sort": [],
 }
+
+BODY_DATA_FOR_CONTEXT_SCENARIO_ES = {
+    "query": {"bool": {"filter": [], "must": []}},
+    "size": "",
+    "from": "",
+    "sort": [],
+}
