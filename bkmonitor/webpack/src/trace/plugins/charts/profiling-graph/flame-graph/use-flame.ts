@@ -31,6 +31,8 @@ import { NumberValue, scaleLinear } from 'd3-scale';
 import { BaseType, select, Selection, ValueFn } from 'd3-selection';
 import { curveCatmullRom, line } from 'd3-shape';
 
+import 'd3-transition';
+
 import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
 
 import {

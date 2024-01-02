@@ -24,20 +24,30 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+export interface ViewModeItem {
+  id: string;
+  icon: string;
+}
 
-import ProfilingGraph from '../../plugins/charts/profiling-graph/profiling-graph';
+export interface ProfilingTableItem {
+  location: string;
+  self: string;
+  Total: string;
+  color?: string;
+}
 
-import './profiling.scss';
+export interface TableColumn {
+  id: string;
+  sort: string;
+}
 
-export default defineComponent({
-  render() {
-    return (
-      <div>
-        <div style='height: 800px;margin: 20px;'>
-          <ProfilingGraph />
-        </div>
-      </div>
-    );
-  }
-});
+export interface ITableTipsDetail {
+  left?: number; // 提示框左边距离画布左边的距离
+  top?: number; // 提示框上边距离画布上边的距离
+  title?: string;
+  proportion?: string | number;
+  duration?: string;
+  diffDuration?: string;
+  diffValue?: number | string;
+  id?: string;
+}

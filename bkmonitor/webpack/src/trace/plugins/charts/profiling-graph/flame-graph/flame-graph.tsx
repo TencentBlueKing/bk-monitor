@@ -34,6 +34,7 @@ import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueF
 import { getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
+import { FLAME_DATA } from '../mock';
 
 import {
   BaseDataType,
@@ -49,13 +50,14 @@ import {
 import { FlameChart } from './use-flame';
 
 import '../../flame-graph-v2/flame-graph.scss';
+import './flame-graph.scss';
 
 const usFormat = getValueFormat('µs');
 const boundryBody = true;
 const MaxScale = 1000;
 const MinScale = 100;
 const scaleStep = 20;
-const paddingLeft = 6;
+const paddingLeft = 16;
 
 export default defineComponent({
   name: 'FlameGraph',
@@ -91,6 +93,10 @@ export default defineComponent({
     bizId: {
       type: [Number, String],
       required: true
+    },
+    showGraphTools: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess'],
@@ -130,18 +136,22 @@ export default defineComponent({
         showException.value = false;
         try {
           const { bizId, appName, start, end, profileId } = props;
-          const data = await profileQuery(
-            {
-              bk_biz_id: bizId,
-              app_name: appName,
-              start,
-              end,
-              profile_id: profileId
-            },
-            {
-              needCancel: true
-            }
-          ).catch(() => false);
+
+          // TODO
+          // const data = await profileQuery(
+          //   {
+          //     bk_biz_id: bizId,
+          //     app_name: appName,
+          //     start,
+          //     end,
+          //     profile_id: profileId
+          //   },
+          //   {
+          //     needCancel: true
+          //   }
+          // ).catch(() => false);
+          const data = FLAME_DATA;
+
           if (data?.flame_data) {
             if (props.diffTraceId) {
               emit('diffTraceSuccess');
@@ -150,12 +160,14 @@ export default defineComponent({
             await nextTick();
             initScale();
             if (!chartRef.value?.clientWidth) return;
+
             graphInstance = new FlameChart(
               initGraphData(data.flame_data),
               {
                 w: chartRef.value.clientWidth - paddingLeft * 2,
                 c: 20,
-                minHeight: window.innerHeight - wrapperRef.value?.getBoundingClientRect().top - 40,
+                // minHeight: window.innerHeight - wrapperRef.value?.getBoundingClientRect().top - 40,
+                minHeight: wrapperRef.value?.getBoundingClientRect().height - 40,
                 direction: props.textDirection,
                 keywords: props.filterKeywords,
                 getFillColor: (d: BaseDataType) => {
@@ -322,7 +334,8 @@ export default defineComponent({
       if (!wrapperRef.value) return;
       const rect = wrapperRef.value.getBoundingClientRect();
       const { width } = rect;
-      graphInstance.resizeGraph(width - 12, window.innerHeight - rect.top - 40);
+      // graphInstance.resizeGraph(width - 12, window.innerHeight - rect.top - 40);
+      graphInstance.resizeGraph(width - 32, wrapperRef.value?.getBoundingClientRect().height - 40);
       setSvgRect();
     }
     /**
@@ -463,7 +476,7 @@ export default defineComponent({
         {{
           main: () => (
             <div
-              class='flame-graph-wrapper'
+              class='flame-graph-wrapper profiling-flame-graph'
               tabindex={1}
               onBlur={this.handleClickWrapper}
               onClick={this.handleClickWrapper}
@@ -578,51 +591,55 @@ export default defineComponent({
                 onStoreImg={this.handleStoreImg}
                 onScaleChange={this.handlesSaleValueChange}
               /> */}
-              <Popover
-                trigger='manual'
-                isShow={this.showLegend}
-                theme='light'
-                placement='top-start'
-                allowHtml={false}
-                arrow={false}
-                zIndex={1001}
-                extCls='flame-graph-tools-popover'
-                width={this.graphToolsRect.width}
-                height={this.graphToolsRect.height}
-                content={this.flameToolsPopoverContent}
-                boundary={'parent'}
-                renderType='auto'
-              >
-                {{
-                  default: () => (
-                    <GraphTools
-                      style={{
-                        left: `${this.graphToolsRect.left}px`,
-                        display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
-                      }}
-                      class='topo-graph-tools'
-                      scaleValue={this.scaleValue}
-                      maxScale={MaxScale}
-                      minScale={MinScale}
-                      showThumbnail={false}
-                      showLegend={false}
-                      scaleStep={scaleStep}
-                      legendActive={this.showLegend}
-                      onStoreImg={this.handleStoreImg}
-                      onScaleChange={this.handlesSaleValueChange}
-                      onShowLegend={this.handleShowLegend}
-                    />
-                  ),
-                  content: () => (
-                    <div
-                      class='flame-tools-popover-content'
-                      ref='flameToolsPopoverContent'
-                    >
-                      <ViewLegend />
-                    </div>
-                  )
-                }}
-              </Popover>
+              {this.showGraphTools ? (
+                <Popover
+                  trigger='manual'
+                  isShow={this.showLegend}
+                  theme='light'
+                  placement='top-start'
+                  allowHtml={false}
+                  arrow={false}
+                  zIndex={1001}
+                  extCls='flame-graph-tools-popover'
+                  width={this.graphToolsRect.width}
+                  height={this.graphToolsRect.height}
+                  content={this.flameToolsPopoverContent}
+                  boundary={'parent'}
+                  renderType='auto'
+                >
+                  {{
+                    default: () => (
+                      <GraphTools
+                        style={{
+                          left: `${this.graphToolsRect.left}px`,
+                          display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
+                        }}
+                        class='topo-graph-tools'
+                        scaleValue={this.scaleValue}
+                        maxScale={MaxScale}
+                        minScale={MinScale}
+                        showThumbnail={false}
+                        showLegend={false}
+                        scaleStep={scaleStep}
+                        legendActive={this.showLegend}
+                        onStoreImg={this.handleStoreImg}
+                        onScaleChange={this.handlesSaleValueChange}
+                        onShowLegend={this.handleShowLegend}
+                      />
+                    ),
+                    content: () => (
+                      <div
+                        class='flame-tools-popover-content'
+                        ref='flameToolsPopoverContent'
+                      >
+                        <ViewLegend />
+                      </div>
+                    )
+                  }}
+                </Popover>
+              ) : (
+                ''
+              )}
             </div>
           )
         }}

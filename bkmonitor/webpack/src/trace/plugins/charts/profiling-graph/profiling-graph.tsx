@@ -23,3 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { defineComponent, ref } from 'vue';
+
+import ChartTitle from './chart-title/chart-title';
+import FrameGraph from './flame-graph/flame-graph';
+import TableGraph from './table-graph/table-graph';
+
+import './profiling-graph.scss';
+
+export default defineComponent({
+  name: 'ProfilingGraph',
+  setup() {
+    // 当前视图模式
+    const activeMode = ref('table');
+
+    /** 切换视图模式 */
+    const handleModeChange = (val: string) => {
+      activeMode.value = val;
+    };
+
+    return {
+      activeMode,
+      handleModeChange
+    };
+  },
+  render() {
+    return (
+      <div class='profiling-graph'>
+        <ChartTitle
+          activeMode={this.activeMode}
+          onModeChange={this.handleModeChange}
+        />
+        <div class='profiling-graph-content'>
+          {['table', 'tableAndFlame'].includes(this.activeMode) ? <TableGraph /> : ''}
+          {['flame', 'tableAndFlame'].includes(this.activeMode) ? (
+            <FrameGraph
+              appName={'bkmonitor_production'}
+              profileId={'3d0d77e0669cdb72'}
+              start={1703747947993154}
+              end={1703747948022443}
+              bizId={2}
+              showGraphTools={false}
+            />
+          ) : (
+            ''
+          )}
+        </div>
+      </div>
+    );
+  }
+});

@@ -1168,6 +1168,15 @@ export default defineComponent({
                           textDirection={ellipsisDirection.value}
                           onUpdate:loading={val => (isTabPanelLoading.value = val)}
                         />
+                        {/* <ProfilingFlameGraph
+                          appName={'bkmonitor_production'}
+                          profileId={'3d0d77e0669cdb72'}
+                          start={1703747947993154}
+                          end={1703747948022443}
+                          bizId={2}
+                          textDirection={ellipsisDirection.value}
+                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                        /> */}
                       </Loading>
                     )
                   }
