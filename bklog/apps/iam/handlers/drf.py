@@ -25,16 +25,16 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 DRF 插件
 """
 from functools import wraps  # noqa
-from typing import List, Callable  # noqa
+from typing import Callable, List  # noqa
 
 from django.conf import settings  # noqa
+from iam import Resource  # noqa
 from rest_framework import permissions  # noqa
 
-from iam import Resource  # noqa
-from . import Permission  # noqa
-from .actions import ActionMeta, ActionEnum  # noqa
-from .resources import ResourceEnum, ResourceMeta  # noqa
 from ..exceptions import NotHaveInstanceIdError  # noqa
+from . import Permission  # noqa
+from .actions import ActionEnum, ActionMeta  # noqa
+from .resources import ResourceEnum, ResourceMeta  # noqa
 
 
 class IAMPermission(permissions.BasePermission):
@@ -56,7 +56,9 @@ class IAMPermission(permissions.BasePermission):
         client = Permission()
         for action in self.actions:
             client.is_allowed(
-                action=action, resources=self.resources, raise_exception=True,
+                action=action,
+                resources=self.resources,
+                raise_exception=True,
             )
         return True
 
@@ -148,9 +150,7 @@ class InstanceActionPermission(IAMPermission):
 
 
 class InstanceActionForDataPermission(InstanceActionPermission):
-    def __init__(
-        self, iam_instance_id_key, *args, get_instance_id: Callable = lambda _id: _id,
-    ):
+    def __init__(self, iam_instance_id_key, *args, get_instance_id: Callable = lambda _id: _id):
         self.iam_instance_id_key = iam_instance_id_key
         self.get_instance_id = get_instance_id
         super(InstanceActionForDataPermission, self).__init__(*args)
@@ -166,6 +166,32 @@ class InstanceActionForDataPermission(InstanceActionPermission):
         resource = self.resource_meta.create_instance(self.get_instance_id(instance_id))
         self.resources = [resource]
         return super(InstanceActionPermission, self).has_permission(request, view)
+
+
+class BatchIAMPermission(IAMPermission):
+    """IAM实例列表批量鉴权"""
+
+    def __init__(self, iam_instance_ids_key, actions: List[ActionMeta], resource_meta: ResourceMeta):
+        self.resource_meta = resource_meta
+        self.iam_instance_ids_key = iam_instance_ids_key
+        super(BatchIAMPermission, self).__init__(actions)
+
+    def has_permission(self, request, view):
+        # 跳过权限校验
+        if settings.IGNORE_IAM_PERMISSION:
+            return True
+
+        if request.method == "GET":
+            data = request.query_params
+        else:
+            data = request.data
+
+        instance_ids = data.get(self.iam_instance_ids_key) or view.kwargs.get(self.iam_instance_ids_key)
+        if not instance_ids:
+            raise NotHaveInstanceIdError
+
+        self.resources = [self.resource_meta.create_instance(instance_id) for instance_id in instance_ids]
+        return super(BatchIAMPermission, self).has_permission(request, view)
 
 
 def insert_permission_field(

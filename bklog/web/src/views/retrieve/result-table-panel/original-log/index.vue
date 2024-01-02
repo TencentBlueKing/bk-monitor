@@ -44,6 +44,7 @@
             size="small"
             searchable
             ref="configSelectRef"
+            :disabled="fieldConfigIsLoading"
             :clearable="false"
             :value="filedSettingConfigID"
             :popover-min-width="240"
@@ -120,7 +121,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapGetters } from 'vuex';
 import TableLog from './table-log.vue';
 import FieldsSetting from '../../result-comp/fields-setting';
 import ExportLog from '../../result-comp/export-log.vue';
@@ -153,7 +154,7 @@ export default {
       showAsyncExport: false, // 异步下载弹窗
       exportLoading: false,
       fieldsConfigList: [],
-      selectConfigID: null,
+      fieldConfigIsLoading: false,
     };
   },
   computed: {
@@ -169,15 +170,22 @@ export default {
     filedSettingConfigID() { // 当前索引集的显示字段ID
       return this.$store.state.retrieve.filedSettingConfigID;
     },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+    watchQueryIndexValue() {
+      return `${this.routeIndexSet}_${this.unionIndexList.join(',')}`;
+    },
     routeIndexSet() {
       return this.$route.params.indexId;
     },
   },
   watch: {
-    routeIndexSet: {
+    watchQueryIndexValue: {
       immediate: true,
-      handler(val) {
-        if (!!val) this.requestFiledConfig();
+      handler() {
+        if (this.routeIndexSet) this.requestFiledConfig();
       },
     },
   },
@@ -214,15 +222,20 @@ export default {
     },
     async requestFiledConfig() {
       /** 获取配置列表 */
-      this.isLoading = true;
+      this.fieldConfigIsLoading = true;
       try {
         const res = await this.$http.request('retrieve/getFieldsListConfig', {
-          params: { index_set_id: this.routeIndexSet, scope: 'default' },
+          data: {
+            index_set_id: this.routeIndexSet,
+            index_set_ids: this.unionIndexList,
+            scope: 'default',
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+          },
         });
         this.fieldsConfigList = res.data;
       } catch (error) {
       } finally {
-        this.isLoading = false;
+        this.fieldConfigIsLoading = false;
       }
     },
     async handleSelectFieldConfig(configID, option) {
@@ -230,10 +243,12 @@ export default {
       // 更新config
       await this.$http
         .request('retrieve/postFieldsConfig', {
-          params: { index_set_id: this.$route.params.indexId },
           data: {
-            display_fields: displayFields,
-            sort_list: sortList,
+            index_set_id: this.routeIndexSet,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+            display_fields: this.shadowVisible,
+            sort_list: this.shadowSort,
             config_id: configID,
           },
         })
