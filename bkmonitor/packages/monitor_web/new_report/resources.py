@@ -581,7 +581,7 @@ class GetExistReportsResource(Resource):
         )
         if validated_request_data.get("create_type"):
             qs = GetReportListResource.filter_by_create_type(validated_request_data["create_type"], qs)
-        reports = list(qs.values("id", "name"))
+        reports = list(qs.values())
         exist_report_list = []
         for report in reports:
             # 目前仅支持日志聚类模块检索条件
