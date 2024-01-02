@@ -6101,6 +6101,9 @@ msgstr "Business"
 msgid "研发项目"
 msgstr "BK-CI"
 
+msgid "蓝鲸应用"
+msgstr "BK-SaaS"
+
 #: apps/log_measure/handlers/metric_collectors/business.py:134
 msgid "有配置日志采集业务"
 msgstr "Configured log collection service"
