@@ -1,116 +1,29 @@
 .profiling-page {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
   height: 100%;
-  color: #63656e;
 
-  &-content {
-    flex: 1;
+  .page-header {
+    width: 100%;
+  }
 
-    .aside-wrap {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
+  .page-content {
+    display: flex;
+    height: calc(100% - 52px);
+
+    .favorite-list-wrap {
+      width: 240px;
       height: 100%;
-      padding: 0 24px;
-      background-color: white;
-
-      .aside-title {
-        display: flex;
-        align-items: center;
-        height: 22px;
-        margin: 16px 0 ;
-        font-size: 14px;
-        color: #313238;
-      }
-
-      .aside-button-group {
-        display: flex;
-        width: 100%;
-        margin-bottom: 16px;
-
-        .bk-button {
-          display: flex;
-          flex: 1;
-          align-items: center;
-          font-size: 12px;
-        }
-      }
-
-      .aside-common-form {
-        .bk-form-label {
-          font-size: 12px;
-        }
-
-        .copy-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          margin-left: 4px;
-          font-size: 16px;
-          color: #3a84ff;
-          cursor: pointer;
-          background: #f0f1f5;
-          border-radius: 2px;
-        }
-
-        .label-equal {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          height: 14px;
-          margin-left: 6px;
-          color: #ff9c01;
-        }
-      }
-
-      .aside-compare {
-        display: flex;
-        align-items: center;
-        margin-bottom: 24px;
-
-        .bk-switcher {
-          margin-left: 16px;
-        }
-      }
-
-      .search-title {
-        display: flex;
-        align-items: center;
-        height: 24px;
-        padding-left: 8px;
-        margin-bottom: 15px;
-        font-size: 14px;
-        color: #313238;
-        background: #f0f1f5;
-        border-radius: 2px;
-      }
-
-      .add-button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        margin-bottom: 24px;
-
-        .add-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 24px;
-          // color: #3a84ff;
-        }
-      }
     }
 
-    .main-wrap {
+    .search-form-wrap {
+      background-color: #fff;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
+    }
+
+    .view-wrap {
       display: flex;
+      flex: 1;
       flex-direction: column;
-      width: 100%;
-      height: 100%;
+      padding: 16px 24px 24px;
 
       .empty-wrap {
         display: flex;

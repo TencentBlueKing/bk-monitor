@@ -1,5 +1,3 @@
-import { RetrievalFormData } from './profiling-retrieval';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,14 +23,33 @@ import { RetrievalFormData } from './profiling-retrieval';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface SearchState {
-  isShow: boolean;
-  autoQuery: boolean;
-  canQuery: boolean;
-  formData: RetrievalFormData;
-}
-
-export enum PanelType {
-  Favorite = 'favorite',
-  Search = 'search'
+// 收藏列表
+export declare namespace IFavList {
+  interface favGroupList {
+    name: string;
+    id: number;
+    editable: boolean;
+    favorites: favList[];
+  }
+  interface favList {
+    config: any;
+    create_user: string;
+    group_id: number | object;
+    id: number;
+    name: string;
+    update_time: string;
+    update_user: string;
+  }
+  interface groupList {
+    group_name: string;
+    group_id: number;
+  }
+  interface IProps {
+    value: favList[];
+    checkedValue: favList;
+  }
+  interface IEvent {
+    deleteFav?: number;
+    selectFav?: any;
+  }
 }

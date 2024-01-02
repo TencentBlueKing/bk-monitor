@@ -1,5 +1,3 @@
-import { RetrievalFormData } from './profiling-retrieval';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,14 +23,14 @@ import { RetrievalFormData } from './profiling-retrieval';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface SearchState {
-  isShow: boolean;
-  autoQuery: boolean;
-  canQuery: boolean;
-  formData: RetrievalFormData;
-}
+import { defineComponent } from 'vue';
 
-export enum PanelType {
-  Favorite = 'favorite',
-  Search = 'search'
-}
+import './profiling-retrieval-view.scss';
+
+export default defineComponent({
+  name: 'ProfilingRetrievalView',
+  setup() {},
+  render() {
+    return <div class='profiling-retrieval-view-component'></div>;
+  }
+});

@@ -26,247 +26,184 @@
 
 import { defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Button, Form, ResizeLayout, Select, Switcher } from 'bkui-vue';
 
 import { debounce } from '../../../monitor-common/utils/utils';
 import { getDefautTimezone } from '../../../monitor-pc/i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { monitorDrag } from '../../utils/drag-directive';
+import HandleBtn from '../main/handle-btn/handle-btn';
 
-import PageHeader, { ToolsFormData } from './components/page-header';
-import EmptyCard from './empty-card';
-import { SearchType } from './typings';
+import EmptyCard from './components/empty-card';
+import FavoriteList from './components/favorite-list';
+import PageHeader from './components/page-header';
+import ProfilingRetrievalView from './components/profiling-retrieval-view';
+import RetrievalSearch from './components/retrieval-search';
+import UploadRetrievalView from './components/upload-retrieval-view';
+import { ToolsFormData } from './typings/page-header';
+import { PanelType, SearchState, SearchType } from './typings';
 
 import './profiling.scss';
 
 export default defineComponent({
   name: 'ProfilingPage',
+  directives: { monitorDrag },
   setup() {
     const { t } = useI18n();
-    const searchFormData = reactive({
-      autoQuery: true
-    });
-    const isShowFavorite = ref(false);
-    const isShowSearch = ref(true);
-    const searchType = ref<SearchType>(SearchType.Profiling); // 检索类型
     const toolsFormData = ref<ToolsFormData>({
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefautTimezone(),
       refreshInterval: -1
     });
+    const favoriteState = reactive({
+      isShow: false
+    });
+    const searchState = reactive<SearchState>({
+      isShow: true,
+      autoQuery: true,
+      canQuery: true,
+      formData: {
+        type: SearchType.Profiling,
+        isComparison: false,
+        server: '',
+        where: [],
+        comparisonWhere: []
+      }
+    });
+    const isEmpty = ref(true);
+    /**
+     * 检索面板和收藏面板显示状态切换
+     * @param type 面板类型
+     * @param status 显示状态
+     */
+    function handleShowTypeChange(type: PanelType, status: boolean) {
+      if (type === 'search') {
+        searchState.isShow = status;
+      } else {
+        favoriteState.isShow = status;
+      }
+    }
     function handleToolFormDataChange(val: ToolsFormData) {
       toolsFormData.value = val;
-      handleQueryScopeDebounce();
-    }
-    function handleShowTypeChange(type: 'search' | 'favorite') {
-      if (type === 'search') isShowSearch.value = !isShowSearch.value;
-      else isShowFavorite.value = !isShowFavorite.value;
+      handleQueryDebounce();
     }
 
-    const handleQueryScopeDebounce = debounce(handleQuery, 300, false);
+    function handleSearchFormDataChange(val: SearchState['formData']) {
+      searchState.formData = val;
+      handleQueryDebounce();
+    }
+
+    function handleAutoQueryChange(val: boolean) {
+      searchState.autoQuery = val;
+    }
+    function handleQueryClear() {}
+    function handleAddFavorite() {}
+
+    const handleQueryDebounce = debounce(handleQuery, 300, false);
 
     function handleQuery(isBtnClick = false) {
-      if (!isBtnClick && !searchFormData.autoQuery) return;
+      if (!isBtnClick && !searchState.autoQuery) return;
+      isEmpty.value = false;
     }
-    function handleSearchTypeChange(type: SearchType) {
-      searchType.value = type;
-    }
+
     return {
       t,
-      isShowFavorite,
-      isShowSearch,
+      isEmpty,
+      favoriteState,
+      searchState,
       toolsFormData,
-      searchType,
       handleToolFormDataChange,
       handleShowTypeChange,
-      handleSearchTypeChange
+      handleAutoQueryChange,
+      handleQuery,
+      handleQueryClear,
+      handleAddFavorite,
+      handleSearchFormDataChange
     };
   },
 
   render() {
-    const createProfilingComp = () => {
-      return (
-        <>
-          <Form
-            class='aside-common-form'
-            formType='vertical'
-          >
-            <Form.FormItem label={this.$t('应用 / 服务')}>
-              <div style='display: flex'>
-                <Select style='flex: 1'></Select>
-                <span class='icon-monitor icon-mc-copy-fill copy-icon'></span>
-              </div>
-            </Form.FormItem>
-          </Form>
-          <div class='aside-compare'>
-            {this.$t('对比模式')} <Switcher size='small' />
+    const renderView = () => {
+      if (this.isEmpty)
+        return (
+          <div class='empty-wrap'>
+            <EmptyCard
+              title={this.$t('持续 Profiling')}
+              desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
+            />
+            <EmptyCard
+              title={this.$t('上传 Profiling')}
+              desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}
+            />
           </div>
-          <div class='search-title'>{this.$t('查询项')}</div>
-          <Form
-            class='aside-common-form'
-            formType='vertical'
-          >
-            <Form.FormItem
-              v-slots={{
-                label: () => (
-                  <span style='display:flex;align-items:center;'>
-                    {this.$t('服务名称')} <span class='label-equal'>=</span>
-                  </span>
-                )
-              }}
-            >
-              <Select></Select>
-            </Form.FormItem>
-            <Form.FormItem
-              v-slots={{
-                label: () => (
-                  <span style='display:flex;align-items:center;'>
-                    {this.$t('接口名称')} <span class='label-equal'>=</span>
-                  </span>
-                )
-              }}
-            >
-              <Select></Select>
-            </Form.FormItem>
-          </Form>
-          <Button
-            class='add-button'
-            outline
-            theme='primary'
-          >
-            <span class='icon-monitor icon-mc-add add-icon' /> {this.$t('添加条件')}
-          </Button>
-          <div class='search-title'>{this.$t('对比项')}</div>
-          <Form
-            class='aside-common-form'
-            formType='vertical'
-          >
-            <Form.FormItem
-              v-slots={{
-                label: () => (
-                  <span style='display:flex;align-items:center;'>
-                    {this.$t('服务名称')} <span class='label-equal'>=</span>
-                  </span>
-                )
-              }}
-            >
-              <Select></Select>
-            </Form.FormItem>
-            <Form.FormItem
-              v-slots={{
-                label: () => (
-                  <span style='display:flex;align-items:center;'>
-                    {this.$t('接口名称')} <span class='label-equal'>=</span>
-                  </span>
-                )
-              }}
-            >
-              <Select></Select>
-            </Form.FormItem>
-          </Form>
-          <Button
-            class='add-button'
-            outline
-            theme='primary'
-          >
-            <span class='icon-monitor icon-mc-add add-icon' /> {this.$t('添加条件')}
-          </Button>
-        </>
-      );
+        );
+
+      if (this.searchState.formData.type === SearchType.Profiling) return <ProfilingRetrievalView />;
+
+      return <UploadRetrievalView />;
     };
-    const createUploadComp = () => {
-      return (
-        <>
-          <div class='aside-compare'>
-            {this.$t('对比模式')} <Switcher size='small' />
-          </div>
-          <Form
-            class='aside-common-form'
-            formType='vertical'
-          >
-            <Form.FormItem
-              v-slots={{
-                label: () => (
-                  <span style='display:flex;align-items:center;'>
-                    {this.$t('服务名称')} <span class='label-equal'>=</span>
-                  </span>
-                )
-              }}
-            >
-              <Select></Select>
-            </Form.FormItem>
-            <Form.FormItem
-              v-slots={{
-                label: () => (
-                  <span style='display:flex;align-items:center;'>
-                    {this.$t('接口名称')} <span class='label-equal'>=</span>
-                  </span>
-                )
-              }}
-            >
-              <Select></Select>
-            </Form.FormItem>
-          </Form>
-          <Button
-            class='add-button'
-            outline
-            theme='primary'
-          >
-            <span class='icon-monitor icon-mc-add add-icon' /> {this.$t('添加条件')}
-          </Button>
-        </>
-      );
-    };
+
     return (
       <div class='profiling-page'>
-        <PageHeader
-          v-model={this.toolsFormData}
-          isShowFavorite={this.isShowFavorite}
-          isShowSearch={this.isShowSearch}
-          onShowTypeChange={this.handleShowTypeChange}
-          onChange={this.handleToolFormDataChange}
-        ></PageHeader>
-        <ResizeLayout
-          class='profiling-page-content'
-          immediate={true}
-          min={200}
-          max={800}
-          v-slots={{
-            aside: () => (
-              <div class='aside-wrap'>
-                <div class='aside-title'>Profiling 检索</div>
-                <Button.ButtonGroup class='aside-button-group'>
-                  <Button
-                    selected={this.searchType === SearchType.Profiling}
-                    onClick={() => this.handleSearchTypeChange(SearchType.Profiling)}
-                  >
-                    {this.$t('持续 Profiling')}
-                  </Button>
-                  <Button
-                    selected={this.searchType === SearchType.Upload}
-                    onClick={() => this.handleSearchTypeChange(SearchType.Upload)}
-                  >
-                    {this.$t('上传 Profiling')}
-                  </Button>
-                </Button.ButtonGroup>
-                {this.searchType === SearchType.Profiling ? createProfilingComp() : createUploadComp()}
-              </div>
-            ),
-            main: () => (
-              <div class='main-wrap'>
-                <div class='empty-wrap'>
-                  <EmptyCard
-                    title={this.$t('持续 Profiling')}
-                    desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
-                  />
-                  <EmptyCard
-                    title={this.$t('上传 Profiling')}
-                    desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}
-                  />
-                </div>
-              </div>
-            )
-          }}
-        ></ResizeLayout>
+        <div class='page-header'>
+          <PageHeader
+            v-model={this.toolsFormData}
+            isShowFavorite={this.favoriteState.isShow}
+            isShowSearch={this.searchState.isShow}
+            onShowTypeChange={this.handleShowTypeChange}
+            onChange={this.handleToolFormDataChange}
+          ></PageHeader>
+        </div>
+        <div class='page-content'>
+          {this.favoriteState.isShow && (
+            <div
+              class='favorite-list-wrap'
+              v-monitor-drag={{
+                minWidth: 200,
+                maxWidth: 500,
+                defaultWidth: 240,
+                autoHidden: true,
+                theme: 'simple',
+                isShow: this.favoriteState.isShow,
+                onHidden: () => this.handleShowTypeChange(PanelType.Favorite, false)
+              }}
+            >
+              <FavoriteList></FavoriteList>
+            </div>
+          )}
+          {this.searchState.isShow && (
+            <div
+              class='search-form-wrap'
+              v-monitor-drag={{
+                minWidth: 200,
+                maxWidth: 800,
+                defaultWidth: 400,
+                autoHidden: true,
+                theme: 'simple',
+                isShow: this.searchState.isShow,
+                onHidden: () => this.handleShowTypeChange(PanelType.Search, false)
+              }}
+            >
+              <RetrievalSearch
+                formData={this.searchState.formData}
+                onChange={this.handleSearchFormDataChange}
+              >
+                {{
+                  query: () => (
+                    <HandleBtn
+                      autoQuery={this.searchState.autoQuery}
+                      canQuery={this.searchState.canQuery}
+                      onChangeAutoQuery={this.handleAutoQueryChange}
+                      onQuery={() => this.handleQuery(true)}
+                      onClear={this.handleQueryClear}
+                      onAdd={this.handleAddFavorite}
+                    ></HandleBtn>
+                  )
+                }}
+              </RetrievalSearch>
+            </div>
+          )}
+          <div class='view-wrap'>{renderView()}</div>
+        </div>
       </div>
     );
   }

@@ -1,5 +1,3 @@
-import { RetrievalFormData } from './profiling-retrieval';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,14 +23,34 @@ import { RetrievalFormData } from './profiling-retrieval';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface SearchState {
-  isShow: boolean;
-  autoQuery: boolean;
-  canQuery: boolean;
-  formData: RetrievalFormData;
-}
+import { defineComponent } from 'vue';
+import { Popover } from 'bkui-vue';
 
-export enum PanelType {
-  Favorite = 'favorite',
-  Search = 'search'
-}
+import './application-cascade.scss';
+
+export default defineComponent({
+  name: 'ApplicationCascade',
+  setup() {},
+  render() {
+    return (
+      <div class='application-cascade-component'>
+        <Popover
+          placement='bottom-start'
+          arrow={false}
+          theme='light'
+          trigger='click'
+        >
+          {{
+            default: () => (
+              <div class='trigger-wrap'>
+                <div class='text-content'></div>
+                <span class='icon-monitor icon-arrow-down'></span>
+              </div>
+            ),
+            content: () => <div class='application-cascade-popover-content'>12312</div>
+          }}
+        </Popover>
+      </div>
+    );
+  }
+});

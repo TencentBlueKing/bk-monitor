@@ -1,0 +1,18 @@
+.condition-item-component {
+  font-size: 12px;
+
+  .header-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+    line-height: 20px;
+
+    .method {
+      margin-left: 8px;
+
+      &.eq {
+        color: #ff9c01;
+      }
+    }
+  }
+}

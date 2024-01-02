@@ -1,5 +1,3 @@
-import { RetrievalFormData } from './profiling-retrieval';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,14 +23,53 @@ import { RetrievalFormData } from './profiling-retrieval';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface SearchState {
-  isShow: boolean;
-  autoQuery: boolean;
-  canQuery: boolean;
-  formData: RetrievalFormData;
-}
+import { defineComponent, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { Button, Dialog, Upload } from 'bkui-vue';
+import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
-export enum PanelType {
-  Favorite = 'favorite',
-  Search = 'search'
-}
+import './upload-retrieval-view.scss';
+
+export default defineComponent({
+  name: 'UploadRetrievalView',
+  setup() {
+    const { t } = useI18n();
+
+    const uploadDialogShow = ref(false);
+
+    return {
+      t,
+      uploadDialogShow
+    };
+  },
+  render() {
+    return (
+      <div class='upload-retrieval-view-component'>
+        <div class='upload-wrap'>
+          <Button
+            theme='primary'
+            onClick={() => (this.uploadDialogShow = true)}
+          >
+            <UploadIcon />
+            {this.t('上传文件')}
+          </Button>
+        </div>
+
+        <Dialog
+          is-show={this.uploadDialogShow}
+          title={this.t('上传文件')}
+          show-mask={false}
+        >
+          {{
+            default: () => (
+              <div>
+                <Upload></Upload>
+              </div>
+            ),
+            footer: () => <div class=''></div>
+          }}
+        </Dialog>
+      </div>
+    );
+  }
+});

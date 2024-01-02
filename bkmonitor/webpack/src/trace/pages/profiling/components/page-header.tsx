@@ -29,14 +29,9 @@ import { useI18n } from 'vue-i18n';
 import { getDefautTimezone } from '../../../../monitor-pc/i18n/dayjs';
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
 import { DEFAULT_TIME_RANGE, TimeRangeType } from '../../../components/time-range/utils';
+import { ToolsFormData } from '../typings/page-header';
 
 import './page-header.scss';
-
-export interface ToolsFormData {
-  timeRange: TimeRangeType;
-  timezone: string;
-  refreshInterval: number;
-}
 
 export default defineComponent({
   name: 'PageHeader',
@@ -87,8 +82,8 @@ export default defineComponent({
       handleEmitData();
     }
 
-    function handleShowTypeChange(showType: 'search' | 'favorite') {
-      emit('showTypeChange', showType);
+    function handleShowTypeChange(showType: 'search' | 'favorite', status: boolean) {
+      emit('showTypeChange', showType, status);
     }
 
     function handleEmitData() {
@@ -107,53 +102,52 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='page-header-component'>
-        <PageToolHeader
-          timeRange={this.toolsFormData.timeRange}
-          timezone={this.toolsFormData.timezone}
-          refreshInterval={this.toolsFormData.refreshInterval}
-          onTimeRangeChange={this.handleTimeRangeChange}
-          onTimezoneChange={this.handleTimezoneChange}
-          onRefreshIntervalChange={this.handleRefreshIntervalChange}
-          onImmediateRefresh={this.handleImmediateRefresh}
-        >
-          {{
-            prepend: () => (
-              <div class='page-header-left'>
-                <div class='icon-container'>
-                  <div
-                    v-bk-tooltips={{
-                      content: this.isShowFavorite ? this.t('点击收起收藏') : this.t('点击展开收藏'),
-                      placements: ['bottom'],
-                      delay: 200
-                    }}
-                    class={[
-                      'result-icon-box',
-                      {
-                        'light-icon': !this.isShowFavorite
-                      }
-                    ]}
-                    onClick={() => this.handleShowTypeChange('favorite')}
-                  >
-                    <span class='icon-monitor icon-mc-uncollect'></span>
-                  </div>
-                  <div
-                    v-bk-tooltips={{
-                      content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
-                      placements: ['bottom'],
-                      delay: 200
-                    }}
-                    class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
-                    onClick={() => this.handleShowTypeChange('search')}
-                  >
-                    <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
-                  </div>
+      <PageToolHeader
+        class='page-header-component'
+        timeRange={this.toolsFormData.timeRange}
+        timezone={this.toolsFormData.timezone}
+        refreshInterval={this.toolsFormData.refreshInterval}
+        onTimeRangeChange={this.handleTimeRangeChange}
+        onTimezoneChange={this.handleTimezoneChange}
+        onRefreshIntervalChange={this.handleRefreshIntervalChange}
+        onImmediateRefresh={this.handleImmediateRefresh}
+      >
+        {{
+          prepend: () => (
+            <div class='page-header-left'>
+              <div class='icon-container'>
+                <div
+                  v-bk-tooltips={{
+                    content: this.isShowFavorite ? this.t('点击收起收藏') : this.t('点击展开收藏'),
+                    placements: ['bottom'],
+                    delay: 200
+                  }}
+                  class={[
+                    'result-icon-box',
+                    {
+                      'light-icon': !this.isShowFavorite
+                    }
+                  ]}
+                  onClick={() => this.handleShowTypeChange('favorite', !this.isShowFavorite)}
+                >
+                  <span class='icon-monitor icon-mc-uncollect'></span>
+                </div>
+                <div
+                  v-bk-tooltips={{
+                    content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
+                    placements: ['bottom'],
+                    delay: 200
+                  }}
+                  class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
+                  onClick={() => this.handleShowTypeChange('search', !this.isShowSearch)}
+                >
+                  <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
                 </div>
               </div>
-            )
-          }}
-        </PageToolHeader>
-      </div>
+            </div>
+          )
+        }}
+      </PageToolHeader>
     );
   }
 });

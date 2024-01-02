@@ -1,5 +1,3 @@
-import { RetrievalFormData } from './profiling-retrieval';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,14 +23,28 @@ import { RetrievalFormData } from './profiling-retrieval';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface SearchState {
-  isShow: boolean;
-  autoQuery: boolean;
-  canQuery: boolean;
-  formData: RetrievalFormData;
+
+export enum SearchType {
+  Profiling = 'profiling',
+  Upload = 'upload'
 }
 
-export enum PanelType {
-  Favorite = 'favorite',
-  Search = 'search'
+export enum ConditionType {
+  /** 查询项 */
+  Where = 'where',
+  /** 对比项 */
+  Comparison = 'comparison'
+}
+
+export interface ConditionItem {
+  key: string;
+  method: 'eq';
+  value: string | string[];
+}
+export interface RetrievalFormData {
+  type: SearchType;
+  isComparison: boolean;
+  server: string;
+  where: ConditionItem[];
+  comparisonWhere: ConditionItem[];
 }
