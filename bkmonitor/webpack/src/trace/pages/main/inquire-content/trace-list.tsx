@@ -291,7 +291,7 @@ export default defineComponent({
             {showTraceDetail.value && (
               <div>
                 <span class='duration'>{data.duration}</span>
-                <span class='time'>{`${formatDate(data.time)} ${formatTime(data.time)}`}</span>
+                <span class='time'>{`${formatDate(data.min_start_time)} ${formatTime(data.min_start_time)}`}</span>
                 {showTraceDetail.value && data.error && <span class='icon-monitor icon-mind-fill'></span>}
               </div>
             )}

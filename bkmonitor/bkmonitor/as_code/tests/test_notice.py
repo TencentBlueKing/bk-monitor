@@ -10,12 +10,14 @@ specific language governing permissions and limitations under the License.
 """
 import pytest
 import yaml
+from django.test import TestCase
 from schema import SchemaError
 
 from bkmonitor.as_code.constants import MinVersion
 from bkmonitor.as_code.parse_yaml import NoticeGroupConfigParser, SnippetRenderer
 
 pytestmark = pytest.mark.django_db
+TestCase.databases = {"default", "monitor_api"}
 
 DATA_PATH = "bkmonitor/as_code/tests/data/"
 
@@ -33,6 +35,19 @@ def test_notice_parse():
     config = p.parse(code_config)
     assert config
 
+    with open(f"{DATA_PATH}notice/ops_duty.yaml", "r") as f:
+        code_config = yaml.safe_load(f.read())
+        result, message, code_config = SnippetRenderer.render(code_config, {"base.yaml": snippet})
+    duty_rules = {"test rules": 1}
+    p = NoticeGroupConfigParser(2, duty_rules)
+    code_config = p.check(code_config)
+    assert code_config["duty_rules"] == ["test rules"]
+
+    config = p.parse(code_config)
+    assert config
+    print("config", config)
+    assert config["duty_rules"] == [1]
+
     with open(f"{DATA_PATH}notice/duty.yaml", "r") as f:
         code_config = yaml.safe_load(f.read())
         result, message, code_config = SnippetRenderer.render(code_config, {"base.yaml": snippet})
@@ -42,6 +57,7 @@ def test_notice_parse():
     assert code_config["version"] == MinVersion.USER_GROUP
     config = p.parse(code_config)
     assert config
+    assert config["duty_rules"]
 
 
 def test_invalid_version_notice_parse():
