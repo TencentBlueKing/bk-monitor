@@ -39,15 +39,8 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
 
 
-if settings.BKDATA_QUERY_API_BASE_URL:
-
-    class BkDataQueryAPIGWResource(BkDataAPIGWResource):
-        base_url = settings.BKDATA_QUERY_API_BASE_URL
-
-else:
-
-    class BkDataQueryAPIGWResource(BkDataAPIGWResource):
-        pass
+class BkDataQueryAPIGWResource(BkDataAPIGWResource):
+    base_url = settings.BKDATA_QUERY_API_BASE_URL or BkDataAPIGWResource.base_url
 
 
 class ListResultTableResource(BkDataAPIGWResource):
