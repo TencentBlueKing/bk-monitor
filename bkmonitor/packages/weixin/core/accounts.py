@@ -12,8 +12,9 @@ specific language governing permissions and limitations under the License.
 
 import random
 import time
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import ugettext as _
 from six.moves import range, urllib
@@ -48,7 +49,7 @@ class WeixinAccount(WeixinAccountSingleton):
     """
 
     # 跳转到微信重定向链接
-    WEIXIN_OAUTH_URL = "https://open.weixin.qq.com/connect/oauth2/authorize"
+    WEIXIN_OAUTH_URL = urljoin(weixin_settings.WEIXIN_APP_URL_PREFIX, "/connect/oauth2/authorize")
 
     def __init__(self):
         if weixin_settings.IS_QY_WEIXIN:
@@ -60,10 +61,13 @@ class WeixinAccount(WeixinAccountSingleton):
         """
         是否来自微信访问
         """
+        # 如果有HTTP_X_ORIGINAL_URI，则取HTTP_X_ORIGINAL_URI的值，否则，使用当前请求的路径
+        request_path = request.META.get("HTTP_X_ORIGINAL_URI") or request.path
+        host = request.META.get(weixin_settings.X_FORWARDED_WEIXIN_HOST) or request.get_host()
         if (
             weixin_settings.USE_WEIXIN
-            and request.path.startswith(weixin_settings.WEIXIN_SITE_URL)
-            and request.get_host() == weixin_settings.WEIXIN_APP_EXTERNAL_HOST
+            and request_path.startswith(weixin_settings.WEIXIN_SITE_URL)
+            and host == weixin_settings.WEIXIN_APP_EXTERNAL_HOST
         ):
             return True
         return False
@@ -88,6 +92,7 @@ class WeixinAccount(WeixinAccountSingleton):
             "response_type": "code",
             "scope": weixin_settings.WEIXIN_SCOPE,
             "state": state,
+            "agentid": weixin_settings.WEIXIN_AGENT_ID,
         }
         params = urllib.parse.urlencode(params)
         redirect_uri = "{}?{}#wechat_redirect".format(self.WEIXIN_OAUTH_URL, params)
@@ -99,10 +104,19 @@ class WeixinAccount(WeixinAccountSingleton):
         """
         url = urllib.parse.urlparse(request.build_absolute_uri())
         path = weixin_settings.WEIXIN_LOGIN_URL
-        query = "c_url={}".format(request.get_full_path())
-        # callback_url = urlparse.urlunsplit((url.scheme, url.netloc, path, query, url.fragment))
+        # 获取当前访问地址，用于授权后重定向
+        # 如果识别到/o/bk_monitorv3 ，替换为客户的实际 path
+        if (
+            request.get_full_path().startswith(settings.SITE_URL + "weixin/")
+            and weixin_settings.WEIXIN_SITE_URL != settings.SITE_URL + "weixin/"
+        ):
+            full_path = request.get_full_path().replace(settings.SITE_URL + "weixin/", weixin_settings.WEIXIN_SITE_URL)
+        else:
+            full_path = request.get_full_path()
+        query = urllib.parse.urlencode({"c_url": full_path})
+        scheme = weixin_settings.WEIXIN_APP_EXTERNAL_SCHEME or url.scheme
         callback_url = urllib.parse.urlunsplit(
-            (url.scheme, weixin_settings.WEIXIN_APP_EXTERNAL_HOST, path, query, url.fragment)
+            (scheme, weixin_settings.WEIXIN_APP_EXTERNAL_HOST, path, query, url.fragment)
         )
         state = self.set_weixin_oauth_state(request)
         redirect_uri = self.get_oauth_redirect_url(callback_url, state)
@@ -170,7 +184,7 @@ class WeixinAccount(WeixinAccountSingleton):
         data = self.weixin_api.get_user_info(base_data.get("access_token"), base_data.get("userid"))
 
         return {
-            "openid": base_data.get("openid"),
+            "openid": base_data.get("userid" if weixin_settings.IS_QY_WEIXIN else "openid"),
             "userid": base_data.get("userid"),
             "nickname": data.get("name", ""),
             "gender": data.get("gender", ""),
