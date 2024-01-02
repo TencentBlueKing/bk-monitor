@@ -658,7 +658,7 @@ class TailEventPluginDataResource(Resource):
 
 class DisablePluginCollectResource(Resource):
     """
-    获取事件插件token
+    停止数据采集
     """
 
     class RequestSerializer(serializers.Serializer):
