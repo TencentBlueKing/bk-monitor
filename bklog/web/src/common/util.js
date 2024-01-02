@@ -506,6 +506,14 @@ export function formatDate(val, isTimzone = true) {
   const time = date.toTimeString().slice(0, 8);
   return `${yyyy}-${mm}-${dd} ${time}`;
 }
+/**
+ * @desc: days时间格式化
+ * @param {String} val
+ * @returns {String}
+ */
+export function daysFormatDate(val) {
+  return dayjs(val).format('YYYY-MM-DD HH:mm:ss');
+}
 
 /**
   * 格式化文件大小
@@ -905,6 +913,7 @@ export const calculateTableColsWidth = (field, list) => {
               - parseTableRowData(a, field.field_name, field.field_type).length;
   });
   if (firstLoadList[0]) {
+    if (['ip', 'serverIp'].includes(field.field_name)) return 124;
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
@@ -987,3 +996,14 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 };
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
+
+export const utcFormatDate = (val) => {
+  const date = new Date(val);
+
+  if (isNaN(date.getTime())) {
+    console.warn('无效的时间');
+    return '';
+  }
+
+  return formatDate(date.getTime());
+};

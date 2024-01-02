@@ -1176,6 +1176,11 @@ RT_RESERVED_WORD_EXAC = [
     "filename",
     "items",
     "utctime",
+    "__dist_01",
+    "__dist_03",
+    "__dist_05",
+    "__dist_07",
+    "__dist_09",
     # wineventlog field
     "winEventApi",
     "winEventActivityId",

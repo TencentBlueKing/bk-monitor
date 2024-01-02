@@ -40,6 +40,7 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
     BatchIAMPermission,
+    InstanceActionForDataPermission,
     InstanceActionPermission,
     ViewBusinessPermission,
     insert_permission_field,
@@ -111,9 +112,18 @@ class SearchViewSet(APIViewSet):
 
         if self.action in ["operators", "user_search_history"]:
             return []
-        if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "config", "history"]:
+
+        if self.action in ["bizs", "search", "context", "tailf", "export", "fields", "history"]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
-        if self.action in ["union_search"]:
+
+        if self.action in ["union_search", "config"]:
+            if self.action == "config":
+                if self.request.data.get("index_set_type", IndexSetType.SINGLE.value) == IndexSetType.SINGLE.value:
+                    return [
+                        InstanceActionForDataPermission("index_set_id", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+                    ]
+                else:
+                    return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
             self.request.data["index_set_ids"] = [
                 config["index_set_id"] for config in self.request.data.get("union_configs", [])
             ]

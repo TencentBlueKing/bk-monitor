@@ -552,5 +552,15 @@ export default {
   暂无采样日志: 'No sampling log',
   '正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…': 'The collection configuration is being delivered. It will take 3-5 minutes to generate the collection log. Please configure the desensitization rules later...',
   '脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。': 'The desensitization preview will output the corresponding desensitization results based on your sampling log, and multiple samples will output multiple desensitization results.',
-  '分组模式下，暂不支持添加{n}' : 'In group mode, adding {n} is not supported for the time being.'
+  '分组模式下，暂不支持添加{n}' : 'In group mode, adding {n} is not supported for the time being.',
+  '已选择{0}个索引集': '{0} index sets selected',
+  每次最多可选择10项: 'A maximum of 10 items can be selected at a time',
+  已有同名收藏: 'There is already a favorite with the same name',
+  多索引集: 'Multiple index sets',
+  已失效: 'Expired',
+  该字段在以下索引集存在冲突: 'This field has a conflict in the following index set',
+  '{0}日志来源': '{0} log source',
+  停用状态下无法添加标签: 'Cannot add label when disabled.',
+  '内置标签名，请重新填写': 'Built-in label, please reset fill in',
+  '联合查询无法进行异步下载，可直接下载前1万条数据': 'Joint query cannot be downloaded asynchronously, but the first 10,000 pieces of data can be downloaded directly.',
 };

@@ -76,7 +76,7 @@ const router = new VueRouter({
   mode: 'hash',
   routes
 });
-const isAuthority = async (page: string | string[]) => {
+export const isAuthority = async (page: string | string[]) => {
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
     action_ids: Array.isArray(page) ? page : [page]
   });

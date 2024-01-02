@@ -204,7 +204,7 @@ class IndexSetHandler(APIModel):
     @classmethod
     def post_list(cls, index_sets):
         """
-        补充存储集数据分类、数据源、集群名称字段
+        补充存储集数据分类、数据源、集群名称字段、标签信息
         :param index_sets:
         :return:
         """
@@ -217,8 +217,16 @@ class IndexSetHandler(APIModel):
             cluster_map = IndexSetHandler.get_cluster_map()
         scenario_choices = dict(Scenario.CHOICES)
 
+        tag_ids_mapping = dict()
+        tag_ids_all = set()
+
         multi_execute_func = MultiExecuteFunc()
         for _index in index_sets:
+            # 标签处理
+            if _index["tag_ids"]:
+                tag_ids_mapping[int(_index["index_set_id"])] = _index["tag_ids"]
+                tag_ids_all = tag_ids_all.union(set(_index["tag_ids"]))
+
             _index["category_name"] = GlobalCategoriesEnum.get_display(_index["category_id"])
             _index["scenario_name"] = scenario_choices.get(_index["scenario_id"])
             _index["storage_cluster_name"] = ",".join(
@@ -257,6 +265,18 @@ class IndexSetHandler(APIModel):
                 _index["time_field_unit"] = TimeFieldUnitEnum.MILLISECOND.value
                 _index["time_field"] = time_field
         result = multi_execute_func.run()
+
+        # 获取标签信息
+        index_set_tag_objs = IndexSetTag.objects.filter(tag_id__in=tag_ids_all)
+        index_set_tag_mapping = {
+            obj.tag_id: {
+                "name": InnerTag.get_choice_label(obj.name),
+                "color": obj.color,
+                "tag_id": obj.tag_id,
+            }
+            for obj in index_set_tag_objs
+        }
+
         for _index in index_sets:
             if _index["scenario_id"] == Scenario.BKDATA:
                 _index["storage_cluster_id"] = result.get(_index["index_set_id"], {}).get("storage_cluster_id")
@@ -268,6 +288,17 @@ class IndexSetHandler(APIModel):
                         .split(",")
                     }
                 )
+
+            # 补充标签信息
+            _index.pop("tag_ids")
+            tag_ids = tag_ids_mapping.get(int(_index["index_set_id"]), [])
+            if not tag_ids:
+                _index["tags"] = list()
+                continue
+
+            _index["tags"] = [
+                index_set_tag_mapping.get(int(tag_id)) for tag_id in tag_ids if index_set_tag_mapping.get(int(tag_id))
+            ]
 
         return index_sets
 
@@ -798,11 +829,12 @@ class IndexSetHandler(APIModel):
 
         tag_ids = list(index_set_obj.tag_ids)
 
-        tag_ids.append(str(tag_id))
+        if str(tag_id) not in tag_ids:
+            tag_ids.append(str(tag_id))
 
-        index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.tag_ids = tag_ids
 
-        index_set_obj.save()
+            index_set_obj.save()
 
         return
 
@@ -820,7 +852,7 @@ class IndexSetHandler(APIModel):
 
         if tag_ids and str(tag_id) in tag_ids:
             tag_ids.remove(str(tag_id))
-            index_set_obj.tag_ids = list(set(tag_ids))
+            index_set_obj.tag_ids = tag_ids
             index_set_obj.save()
 
         return
@@ -832,7 +864,7 @@ class IndexSetHandler(APIModel):
         """
         # 名称校验
         if (
-            params["name"] in list(InnerTag.get_dict_choices().keys())
+            params["name"] in list(InnerTag.get_dict_choices().values())
             or IndexSetTag.objects.filter(name=params["name"]).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
@@ -857,6 +889,7 @@ class IndexSetHandler(APIModel):
                 _data["is_built_in"] = True
             else:
                 _data["is_built_in"] = False
+            _data["name"] = InnerTag.get_choice_label(obj.name)
             ret.append(_data)
 
         return ret

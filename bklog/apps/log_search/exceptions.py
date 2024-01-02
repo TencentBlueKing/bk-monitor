@@ -250,7 +250,7 @@ class IndexSetInnerTagOperatorException(BaseIndexSetException):
 
 class IndexSetTagNameExistException(BaseIndexSetException):
     ERROR_CODE = "329"
-    MESSAGE = _("标签名称: [{tag_id}] 已存在")
+    MESSAGE = _("标签名称: [{name}] 已存在")
 
 
 # =================================================
@@ -368,9 +368,9 @@ class UnauthorizedResultTableException(BaseSearchException):
     MESSAGE = _("用户无结果表 {result_tables} 的管理权限，无法添加到索引集中")
 
 
-class SearchNotTimeFieldType(BaseException):
+class SearchIndicesNotExists(BaseException):
     ERROR_CODE = "422"
-    MESSAGE = _("此索引没有找到时间字段类型")
+    MESSAGE = _("[{index_set_name}]: 索引集对应的物理索引不存在")
 
 
 class FavoriteSearchNotExists(BaseException):

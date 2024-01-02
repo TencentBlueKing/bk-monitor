@@ -7,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Optional
+from typing import Any, Dict
 
 from django.db import models
+
 from monitor_web.extend_account.constants import VisitSource
 
 
@@ -17,24 +18,19 @@ class UserAccessRecordManager(models.Manager):
     """用户访问信息管理器"""
 
     @staticmethod
-    def _get_visit_source(request) -> VisitSource:
-        """通过 path 来获取访问来源"""
-        if request.path.startswith("/weixin"):
+    def _get_visit_source(source: str) -> VisitSource:
+        """通过 source 来获取访问来源"""
+        if source == "weixin":
             return VisitSource.MOBILE
         else:
             return VisitSource.PC
 
-    @staticmethod
-    def _get_bk_biz_id(request) -> Optional[str]:
-        """通过 cookie 获取当前用户访问时的 biz 内容"""
-        return request.COOKIES.get("bk_biz_id")
-
-    def update_or_create_by_request(self, request) -> "UserAccessRecord":
+    def update_or_create_by_space(self, username: str, source: str, space_info: Dict[str, Any]) -> "UserAccessRecord":
         """通过 request 尝试创建"""
         extra_info, _ = self.update_or_create(
-            username=request.user.username,
-            source=self._get_visit_source(request).value,
-            bk_biz_id=self._get_bk_biz_id(request),
+            username=username,
+            source=self._get_visit_source(source).value,
+            bk_biz_id=int(space_info["bk_biz_id"]),
         )
         return extra_info
 

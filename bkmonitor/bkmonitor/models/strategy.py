@@ -407,7 +407,7 @@ class StrategyHistoryModel(Model):
     """
 
     strategy_id = models.IntegerField("关联策略ID", db_index=True)
-    create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    create_time = models.DateTimeField("创建时间", auto_now_add=True, db_index=True)
     create_user = models.CharField("创建者", max_length=32)
     content = models.JSONField("保存内容", default=dict)
     operate = models.CharField(
@@ -724,9 +724,9 @@ class DefaultStrategyBizAccessModel(Model):
         null=False,
         blank=False,
         choices=(
-            ("os", _lazy("os")),
-            ("gse", _lazy("gse")),
-            ("k8s", _lazy("k8s")),
+            ("os", "os"),
+            ("gse", "gse"),
+            ("k8s", "k8s"),
         ),
     )
 

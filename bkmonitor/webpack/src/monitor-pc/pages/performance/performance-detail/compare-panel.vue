@@ -228,7 +228,7 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
-import { addListener, removeListener } from 'resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
 import { DEFAULT_REFLESH_LIST } from '../../../common/constant';
 import MonitorDateRange from '../../../components/monitor-date-range/monitor-date-range.vue';

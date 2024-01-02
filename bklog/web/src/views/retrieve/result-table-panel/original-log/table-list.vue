@@ -28,8 +28,6 @@
     :data="tableList"
     :key="tableRandomKey"
     @row-click="tableRowClick"
-    @row-mouse-enter="handleMouseEnter"
-    @row-mouse-leave="handleMouseLeave"
     @header-dragend="handleHeaderDragend"
     @sort-change="handleSortTable">
     <!-- 展开详情 -->
@@ -54,7 +52,7 @@
     <template v-for="(field, index) in visibleFields">
       <bk-table-column
         align="left"
-        :sortable="field.es_doc_values"
+        :sortable="field.es_doc_values && field.tag !== 'union-source'"
         :column-key="field.field_name"
         :key="field.field_name"
         :min-width="field.minWidth"
@@ -70,9 +68,10 @@
               :title="isWrap ? '' : tableRowDeepView(row, field.field_name, field.field_type)">
               <table-column
                 :is-wrap="isWrap"
-                :content="tableRowDeepView(row, field.field_name, field.field_type)"
+                :content="getTableColumnContent(row, field)"
                 :field-name="field.field_name"
                 :field-type="field.field_type"
+                :field-tag="field.tag"
                 @iconClick="(type, content) => handleIconClick(type, content, field, row)"
                 @computedHeight="handleOverColumn(field.field_name)" />
               <p
@@ -97,13 +96,13 @@
       v-if="showHandleOption"
       align="right"
       fixed="right"
-      width="84"
+      :width="getOperatorToolsWidth"
       :label="$t('操作')">
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
         <operator-tools
           :index="$index"
-          :cur-hover-index="curHoverIndex"
+          :row-data="row"
           :operator-config="operatorConfig"
           :handle-click="(event) => handleClickTools(event, row, operatorConfig)" />
       </template>

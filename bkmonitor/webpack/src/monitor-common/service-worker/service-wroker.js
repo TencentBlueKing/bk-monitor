@@ -85,10 +85,6 @@ const checkValidServiceWorker = (swUrl, config) => {
 
 export const register = config => {
   if ('serviceWorker' in navigator) {
-    // const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href)
-    // if (publicUrl.origin !== window.location.origin) {
-    //     return
-    // }
     window.addEventListener('load', () => {
       const swUrl = `${window.site_url}service-worker.js`;
       if (isLocalhost) {
@@ -97,12 +93,28 @@ export const register = config => {
           console.log('This web app is being served cache-first by a service worker');
         });
       } else {
-        registerValidSW(swUrl, config);
+        window.requestIdleCallback(() => {
+          registerValidSW(swUrl, config);
+        });
       }
     });
   }
 };
-
+export const immediateRegister = config => {
+  if ('serviceWorker' in navigator) {
+    const swUrl = `${window.site_url}service-worker.js`;
+    if (isLocalhost) {
+      checkValidServiceWorker(swUrl, config);
+      navigator.serviceWorker.ready.then(() => {
+        console.log('This web app is being served cache-first by a service worker');
+      });
+    } else {
+      window.requestIdleCallback(() => {
+        registerValidSW(swUrl, config);
+      });
+    }
+  }
+};
 export const unregister = () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then(registration => {

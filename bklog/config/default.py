@@ -73,6 +73,7 @@ INSTALLED_APPS += (
     "apps.grafana",
     "bk_monitor",
     "home_application",
+    "console",
     "pipeline",
     "pipeline.log",
     "pipeline.engine",
@@ -846,7 +847,7 @@ BCS_CC_SSM_SWITCH = os.getenv("BKAPP_BCS_CC_SSM_SWITCH", "on")
 BCS_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_APIGATEWAY_HOST", "")
 BCS_CC_APIGATEWAY_HOST = os.getenv("BKAPP_BCS_CC_APIGATEWAY_HOST", "")
 BK_SSM_HOST = os.getenv("BKAPP_SSM_HOST", "http://bkssm.service.consul:5000/api/v1/auth/access-tokens")
-BCS_WEB_CONSOLE_DOMAIN = ""
+BCS_WEB_CONSOLE_DOMAIN = os.getenv("BKAPP_BCS_WEB_CONSOLE_DOMAIN", "")
 BKLOG_CONFIG_KIND = os.getenv("BKAPP_BKLOG_CONFIG_KIND", "BkLogConfig")
 BKLOG_CONFIG_API_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_API_VERSION", "bk.tencent.com/v1alpha1")
 BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
