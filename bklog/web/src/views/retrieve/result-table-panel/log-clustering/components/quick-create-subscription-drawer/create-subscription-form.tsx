@@ -515,7 +515,7 @@ class QuickCreateSubscription extends tsc<IProps> {
      * @param { * } val
      */
   handleCopy(text) {
-    copyText(`{${text}}`, msg => {
+    copyText(`{{${text}}}`, msg => {
       this.$bkMessage({
         message: msg,
         theme: 'error'
@@ -650,6 +650,12 @@ class QuickCreateSubscription extends tsc<IProps> {
       this.formData.end_time = null;
       // 点击 仅一次 时刷新一次时间。
       this.frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ss');
+    } else {
+      // 把丢掉的 start_time 和 end_time 补回去
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const [start_time, end_time] = this.formData.timerange;
+      this.formData.start_time = dayjs(start_time).unix();
+      this.formData.end_time = dayjs(end_time).unix();
     }
   }
 

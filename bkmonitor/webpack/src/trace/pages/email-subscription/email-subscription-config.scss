@@ -48,6 +48,14 @@
   .gray-text {
     color: #93a1a1;
   }
+
+  .bk-pagination {
+    padding: 0 16px;
+
+    .bk-pagination-total-num {
+      align-self: end;
+    }
+  }
 }
 
 .email-subscription-popover {
@@ -178,6 +186,8 @@
 }
 
 .edit-subscription-sideslider-container {
+  position: fixed;
+
   .bk-modal-content {
     height: calc(100vh - 52px);
     background-color: #f5f7fa;
@@ -200,6 +210,10 @@
     box-shadow: 0 -1px 0 0 #dcdee5,
       0 -3px 4px 0 #4070cb0f;
   }
+}
+
+.detail-subscription-sideslider-container {
+  position: fixed;
 }
 
 .test-send-result-dialog {
