@@ -136,11 +136,11 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
                   ></bk-progress>
                 </div>
                 <i
-                  class='icon-monitor icon-jia'
+                  class='icon bk-icon icon-enlarge-line'
                   onClick={() => this.handleAddConditon('eq', item, val)}
                 ></i>
                 <i
-                  class='icon-monitor icon-jian'
+                  class='icon bk-icon icon-narrow-line'
                   onClick={() => this.handleAddConditon('neq', item, val)}
                 ></i>
               </div>
