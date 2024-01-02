@@ -9,9 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import os
-from urllib.parse import urljoin
 
 from django.conf import settings
 
@@ -22,8 +20,6 @@ X_FORWARDED_WEIXIN_HOST = "HTTP_X_FORWARDED_WEIXIN_HOST"
 USE_WEIXIN = os.environ.get("BKAPP_USE_WEIXIN", None) == "1"
 # 是否为企业微信
 IS_QY_WEIXIN = os.environ.get("BKAPP_IS_QY_WEIXIN", None) == "1"
-# django 配置, 可使用自定义HOST
-USE_X_FORWARDED_HOST = USE_WEIXIN
 # 微信公众号的app id/企业微信corp id
 WEIXIN_APP_ID = os.environ.get("BKAPP_WEIXIN_APP_ID", "")
 # 微信公众号的app secret/企业微信应用的secret
@@ -37,18 +33,17 @@ WEIXIN_APP_EXTERNAL_HOST = os.environ.get("BKAPP_WEIXIN_APP_EXTERNAL_HOST", "")
 WEIXIN_SCOPE = "snsapi_userinfo"
 
 # 蓝鲸微信请求URL前缀
-WEIXIN_SITE_URL = os.environ.get("BKAPP_WEIXIN_SITE_URL", "weixin/")
+WEIXIN_SITE_URL = os.environ.get("BKAPP_WEIXIN_SITE_URL", settings.SITE_URL + "weixin/")
 # 蓝鲸微信本地静态文件请求URL前缀
-WEIXIN_STATIC_URL = os.environ.get("BKAPP_WEIXIN_STATIC_URL", "/static/weixin/")
+WEIXIN_STATIC_URL = os.environ.get("BKAPP_WEIXIN_STATIC_URL", settings.STATIC_URL + "weixin/")
 # 蓝鲸微信登录的URL
-WEIXIN_LOGIN_URL = urljoin(WEIXIN_SITE_URL, "login/")
-# 微信分享地址
-WEIXIN_SHARE_URL = urljoin(WEIXIN_APP_EXTERNAL_HOST, WEIXIN_SITE_URL)
-# 微信APP 重定向地址，如果有私有化部署需要填
-WEIXIN_APP_URL_PREFIX = os.environ.get("BKAPP_WEIXIN_APP_URL_PREFIX", "https://open.weixin.qq.com")
+WEIXIN_LOGIN_URL = WEIXIN_SITE_URL.rstrip("/") + "/weixin/login/"
+
 # 微信 Agent id
 WEIXIN_AGENT_ID = os.environ.get("BKAPP_WEIXIN_AGENT_ID", "")
 # 应用于重定向 scheme 与访问 scheme 不一致的情况
 WEIXIN_APP_EXTERNAL_SCHEME = os.environ.get("BKAPP_WEIXIN_APP_EXTERNAL_SCHEME", "")
-# 企业微信的 domain
-WEIXIN_QY_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_DOMAIN", "https://qyapi.weixin.qq.com")
+# 企业微信的 api domain，用于 api调用
+WEIXIN_QY_API_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_API_DOMAIN", "https://qyapi.weixin.qq.com")
+# 企业微信的 web domain，用于 oauth2
+WEIXIN_QY_OPEN_DOMAIN = os.environ.get("BKAPP_WEIXIN_QY_OPEN_DOMAIN", "https://open.weixin.qq.com")

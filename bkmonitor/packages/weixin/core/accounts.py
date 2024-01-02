@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import random
 import time
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
@@ -49,7 +49,7 @@ class WeixinAccount(WeixinAccountSingleton):
     """
 
     # 跳转到微信重定向链接
-    WEIXIN_OAUTH_URL = urljoin(weixin_settings.WEIXIN_APP_URL_PREFIX, "/connect/oauth2/authorize")
+    WEIXIN_OAUTH_URL = f"{weixin_settings.WEIXIN_QY_OPEN_DOMAIN}/connect/oauth2/authorize"
 
     def __init__(self):
         if weixin_settings.IS_QY_WEIXIN:
@@ -61,12 +61,14 @@ class WeixinAccount(WeixinAccountSingleton):
         """
         是否来自微信访问
         """
+        if not weixin_settings.USE_WEIXIN:
+            return False
+
         # 如果有HTTP_X_ORIGINAL_URI，则取HTTP_X_ORIGINAL_URI的值，否则，使用当前请求的路径
         request_path = request.META.get("HTTP_X_ORIGINAL_URI") or request.path
         host = request.META.get(weixin_settings.X_FORWARDED_WEIXIN_HOST) or request.get_host()
         if (
-            weixin_settings.USE_WEIXIN
-            and request_path.startswith(weixin_settings.WEIXIN_SITE_URL)
+            request_path.startswith(weixin_settings.WEIXIN_SITE_URL)
             and host == weixin_settings.WEIXIN_APP_EXTERNAL_HOST
         ):
             return True
@@ -104,15 +106,8 @@ class WeixinAccount(WeixinAccountSingleton):
         """
         url = urllib.parse.urlparse(request.build_absolute_uri())
         path = weixin_settings.WEIXIN_LOGIN_URL
-        # 获取当前访问地址，用于授权后重定向
-        # 如果识别到/o/bk_monitorv3 ，替换为客户的实际 path
-        if (
-            request.get_full_path().startswith(settings.SITE_URL + "weixin/")
-            and weixin_settings.WEIXIN_SITE_URL != settings.SITE_URL + "weixin/"
-        ):
-            full_path = request.get_full_path().replace(settings.SITE_URL + "weixin/", weixin_settings.WEIXIN_SITE_URL)
-        else:
-            full_path = request.get_full_path()
+        # 将重定向地址改为外部访问地址
+        full_path = request.get_full_path().replace(settings.SITE_URL + "weixin/", weixin_settings.WEIXIN_SITE_URL)
         query = urllib.parse.urlencode({"c_url": full_path})
         scheme = weixin_settings.WEIXIN_APP_EXTERNAL_SCHEME or url.scheme
         callback_url = urllib.parse.urlunsplit(
