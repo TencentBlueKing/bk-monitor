@@ -36,6 +36,7 @@ interface IProps {
   value?: string[];
   metrics?: MetricDetail[];
   scenarioList?: IScenarioItem[];
+  defaultScenario?: string;
   onChange?: (v: string[]) => void;
 }
 
@@ -44,6 +45,8 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: string[];
   @Prop({ type: Array, default: () => [] }) metrics: MetricDetail[];
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
+  /* 默认选择的监控对象 */
+  @Prop({ type: String, default: '' }) defaultScenario: string;
 
   localValue = [];
   tags: MetricDetail[] = [];
@@ -111,7 +114,6 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
     const tagsWrap = this.$el.querySelector('.tag-select-wrap');
     const countClassName = 'overflow-count';
     const dels = tagsWrap.querySelectorAll(`.${countClassName}`);
-    console.log(dels);
     dels.forEach(el => {
       el.parentNode.removeChild(el);
     });
@@ -165,6 +167,7 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   handleDel(event: Event, index: number) {
     event.stopPropagation();
     this.tags.splice(index, 1);
+    this.handleChange();
     this.$nextTick(() => {
       this.getOverflowHideCount();
     });
@@ -173,6 +176,20 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
   handleChange() {
     this.localValue = this.tags.map(item => item.metric_id);
     this.$emit('change', this.localValue);
+  }
+
+  handleChecked(v: { checked: boolean; id: string }) {
+    const fIndex = this.localValue.findIndex(id => v.id === id);
+    if (v.checked) {
+      fIndex < 0 && this.localValue.push(v.id);
+    } else {
+      fIndex >= 0 && this.localValue.splice(fIndex, 1);
+    }
+    this.$emit('change', this.localValue);
+    this.handleGetMetricTag();
+    this.$nextTick(() => {
+      this.getOverflowHideCount();
+    });
   }
 
   render() {
@@ -202,7 +219,12 @@ export default class AiopsMonitorMetricSelect extends tsc<IProps> {
           targetId={`#${this.selectTargetId}`}
           type={MetricType.TimeSeries}
           scenarioList={this.scenarioList}
+          customMetrics={this.metrics}
+          multiple={true}
+          metricIds={this.localValue}
+          defaultScenario={this.defaultScenario}
           onShowChange={val => this.handleShowSelector(val)}
+          onChecked={val => this.handleChecked(val)}
         ></MetricSelector>
       </span>
     );

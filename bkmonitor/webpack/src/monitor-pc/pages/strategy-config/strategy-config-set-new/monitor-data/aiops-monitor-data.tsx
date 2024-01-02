@@ -50,6 +50,7 @@ interface IProps {
   readonly?: boolean;
   isEdit?: boolean;
   scenarioList?: IScenarioItem[];
+  defaultScenario?: string;
   onChange?: (sceneConfig: ISceneConfig) => void;
   onTargetTypeChange?: (type: string) => void;
   onTargetChange?: (value) => void;
@@ -66,6 +67,8 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ type: Boolean, default: false }) isEdit: boolean;
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
+  /* 默认选择的监控对象 */
+  @Prop({ type: String, default: '' }) defaultScenario: string;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
   @Ref('createForm') createForm: Form;
   @Ref('tagListRef') tagListRef: HTMLDivElement;
@@ -402,6 +405,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
                   value={this.metrics}
                   metrics={this.allMetrics}
                   scenarioList={this.scenarioList}
+                  defaultScenario={this.defaultScenario}
                 ></AiopsMonitorMetricSelect>
               </div>
             )}

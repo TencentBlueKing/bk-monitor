@@ -2391,6 +2391,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           metricData={this.metricData as any}
           isEdit={this.isEdit}
           scenarioList={this.scenarioAllList}
+          defaultScenario={this.baseConfig.scenario}
           onChange={this.handleSceneConfigChange}
           onTargetTypeChange={this.handleTargetTypeChange}
           onTargetChange={this.handleTargetChange}
