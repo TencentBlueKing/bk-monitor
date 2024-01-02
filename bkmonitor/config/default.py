@@ -407,6 +407,7 @@ ACTIVE_VIEWS = {
         "as_code": "monitor_web.as_code.views",
         "share": "monitor_web.share.views",
         "promql_import": "monitor_web.promql_import.views",
+        "new_report": "monitor_web.new_report.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -1338,3 +1339,6 @@ IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
+
+# 邮件订阅审批服务ID
+REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))

@@ -295,6 +295,21 @@ export const getRouteConfig = () => {
             }
           ]
         },
+        {
+        name: '订阅管理',
+        shortName: '管理',
+        id: 'new-report-management',
+        children: [
+          {
+            name: '订阅配置',
+            icon: 'icon-monitor icon-mc-youjian menu-icon',
+            id: 'new-report-config',
+            path: '/trace/new-report-config',
+            href: '#/trace/new-report-config',
+            canStore: true
+          }
+        ]
+      },
         window.enable_aiops
           ? {
               name: '智能设置',

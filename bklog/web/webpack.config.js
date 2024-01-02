@@ -28,7 +28,7 @@ const fs = require('fs');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const CliMonacoWebpackPlugin = require('@blueking/bkmonitor-cli/node_modules/monaco-editor-webpack-plugin');
+const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const devHost = 'appdev.bktencent.com';
 const loginHost = 'https://paas-dev.bktencent.com';
@@ -85,7 +85,7 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
+module.exports = (baseConfig, { mobile, production, fta, email = false }) => {
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
@@ -124,7 +124,7 @@ module.exports = (baseConfig, {mobile, production, fta, email = false}) => {
       }),
     );
   } else if (!email) {
-    config.plugins.push(new LogWebpackPlugin({...logPluginConfig, mobile, fta}));
+    config.plugins.push(new LogWebpackPlugin({ ...logPluginConfig, mobile, fta }));
     config.plugins.push(
       new CopyWebpackPlugin({
         patterns: [

@@ -44,6 +44,11 @@ export const allRouteConfig: IRouteConfig[] = [
     id: 'alarm-shield',
     name: 'route-屏蔽',
     route: 'alarm-shield'
+  },
+  {
+    id: 'new-report-config',
+    name: 'route-订阅配置',
+    route: 'new-report-config'
   }
 ];
 

@@ -84,3 +84,11 @@ class TokenVerifyResource(ITSMBaseResource):
 
     class RequestSerializer(serializers.Serializer):
         token = serializers.CharField(label="校验码", required=True)
+
+
+class GetTicketStatusResource(ITSMBaseResource):
+    action = "get_ticket_status"
+    method = "get"
+
+    class RequestSerializer(serializers.Serializer):
+        sn = serializers.CharField(label="单号", required=True)
