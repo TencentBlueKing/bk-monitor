@@ -23,6 +23,7 @@ from apm.models import BkdataFlowConfig
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import api, resource
+from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from metadata.models.storage import DataBusStatus
 
@@ -188,7 +189,7 @@ class ApmFlow:
 
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
-        """获取数据源API请求参数"""
+        """获取数据源API请求参数(接入方式: KAFKA)"""
         access_conf = cls._query_access_conf(data_id)
         return {
             "data_scenario": "queue",
@@ -254,7 +255,7 @@ class ApmFlow:
                     f"raw_data_id: {raw_data_id}(name: {self.deploy_name}) "
                     f"in bkdata-bk_biz_id: {self.bkdata_bk_biz_id}"
                 )
-        except (BKAPIError, KeyError) as e:
+        except (BKAPIError, KeyError, CustomException) as e:
             self._raise_exc(f"create deploy failed: {e}", FlowStatus.CONFIG_DEPLOY_FAILED.value, traceback.format_exc())
 
     def _raise_exc(self, exception, status, stack=None):
