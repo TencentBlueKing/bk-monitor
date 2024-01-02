@@ -33,6 +33,7 @@ class TailSamplingFlow(ApmFlow):
     _BKDATA_ES_CLUSTER_NAME_FORMAT = "apm_storage_{cluster_name}"
     _BKDATA_ES_CLUSTER_ID_FORMAT = "apm_storage_id_{cluster_id}"
     _FLINK_CODE_FILENAME = os.path.join(settings.BASE_DIR, "apm/core/handlers/bk_data/tail_sampling_flink.java")
+    _BKDATA_CUSTOM_SCENARIO_ID = 47
 
     def __init__(self, trace_datasource, config):
         super(TailSamplingFlow, self).__init__(
@@ -167,6 +168,33 @@ class TailSamplingFlow(ApmFlow):
     @property
     def cleans_table_id(self):
         return f"{self.cleans_names}_{self.app_name}"[:50]
+
+    @classmethod
+    def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
+        """使用dataId互认方式接入数据源"""
+
+        return {
+            "operator": operator,
+            "bk_username": operator,
+            "data_scenario": "custom",
+            "data_scenario_id": cls._BKDATA_CUSTOM_SCENARIO_ID,
+            "permission": "permission",
+            "bk_biz_id": bk_biz_id,
+            "description": deploy_description or name,
+            "access_raw_data": {
+                "tags": [],
+                "raw_data_name": name,
+                "maintainer": operator,
+                "raw_data_alias": name,
+                "data_source_tags": ["server"],
+                "data_region": "inland",
+                "data_source": "data_source",
+                "data_encoding": "UTF-8",
+                "sensitivity": "private",
+                "description": deploy_description or name,
+                "preassigned_data_id": data_id,
+            },
+        }
 
     def flow_instance(self):
         """

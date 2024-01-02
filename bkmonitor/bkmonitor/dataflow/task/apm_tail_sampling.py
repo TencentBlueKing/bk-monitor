@@ -59,27 +59,34 @@ class EmptyRealTimeNode(RealTimeNode):
 class TailSamplingFlinkNode(FlinkStreamNode):
     PROJECT_PREFIX = "bkapm"
 
+    # 会话过期时间
+    _TRACE_GAP_MIN = 30
+    # 标记状态最大存活时间
+    _TRACE_TIMEOUT_MIN = 1440
+    # 分析trace中span最大数量
+    _MAX_SPAN_COUNT = 10000
+    # 采样百分比
+    _SAMPLING_RATIO = 100
+
     def __init__(
         self,
         source_rt_id,
         flink_code,
         conditions=None,
-        trace_gap_min=30,
-        trace_timeout_min=1440,
-        max_span_count=10000,
-        sampling_ratio=100,
+        trace_gap_min=None,
+        trace_timeout_min=None,
+        max_span_count=None,
+        sampling_ratio=None,
         *args,
         **kwargs,
     ):
         super(TailSamplingFlinkNode, self).__init__(source_rt_id, *args, **kwargs)
-        if conditions is None:
-            conditions = []
         self.flink_code = flink_code
-        self.conditions = conditions
-        self.trace_gap_min = trace_gap_min
-        self.trace_timeout_min = trace_timeout_min
-        self.max_span_count = max_span_count
-        self.sampling_ratio = sampling_ratio
+        self.conditions = conditions or []
+        self.trace_gap_min = trace_gap_min or self._TRACE_GAP_MIN
+        self.trace_timeout_min = trace_timeout_min or self._TRACE_TIMEOUT_MIN
+        self.max_span_count = max_span_count or self._MAX_SPAN_COUNT
+        self.sampling_ratio = sampling_ratio or self._SAMPLING_RATIO
 
     @property
     def args(self):
@@ -197,9 +204,13 @@ class APMTailSamplingTask(BaseTask):
         )
         flink_node = TailSamplingFlinkNode(
             source_rt_id=empty_node.output_table_name,
+            flink_code=self.flink_code,
+            conditions=self.config.get("tail_conditions"),
+            trace_gap_min=self.config.get("tail_trace_session_gap_min"),
+            trace_timeout_min=self.config.get("tail_trace_mark_timeout"),
+            sampling_ratio=self.config.get("tail_percentage"),
             name="tail_sampling",
             parent=empty_node,
-            flink_code=self.flink_code,
         )
 
         # flink_node = TailSamplingFlinkNode(
