@@ -581,7 +581,7 @@ export default defineComponent({
      * @param { * } val
      */
     function handleCopy(text) {
-      copyText(`{${text}}`, msg => {
+      copyText(`{{${text}}}`, msg => {
         Message({
           message: msg,
           theme: 'error'
@@ -770,6 +770,12 @@ export default defineComponent({
           formData.end_time = null;
           // 点击 仅一次 时刷新一次时间。
           if (isNotChooseOnlyOnce) frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ss');
+        } else {
+          // 把丢掉的 start_time 和 end_time 补回去
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          const [start_time, end_time] = formData.timerange;
+          formData.start_time = dayjs(start_time).unix();
+          formData.end_time = dayjs(end_time).unix();
         }
       }
     );
@@ -1260,6 +1266,8 @@ export default defineComponent({
                   placement='bottom-start'
                   theme='light'
                   width='420px'
+                  popoverDelay={0}
+                  componentEventDelay={300}
                   v-slots={{
                     content: () => {
                       return (
@@ -1331,6 +1339,8 @@ export default defineComponent({
                   placement='bottom-start'
                   theme='light'
                   width='420px'
+                  popoverDelay={0}
+                  componentEventDelay={300}
                   v-slots={{
                     content: () => {
                       return (

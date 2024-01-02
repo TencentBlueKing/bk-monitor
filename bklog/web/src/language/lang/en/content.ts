@@ -596,5 +596,16 @@ export default {
   示例: 'Example',
   内容配置: 'Content configuration',
   变量列表: 'Variable list',
-  '邮件任务已生成，请一分钟后到邮箱查看': 'The email task has been generated, please check your mailbox in one minute'
+  '邮件任务已生成，请一分钟后到邮箱查看': 'The email task has been generated, please check your mailbox in one minute',
+  发送测试邮件成功: 'Sent test Email successful',
+  包含周末: 'Weekends',
+  星期一: 'Monday',
+  星期二: 'Tuesday',
+  星期三: 'Wednesday',
+  星期四: 'Thursday',
+  星期五: 'Friday',
+  星期六: 'Saturday',
+  星期日: 'Sunday',
+  号: 'th',
+  选择通知对象: 'Select notification recipients'
 };

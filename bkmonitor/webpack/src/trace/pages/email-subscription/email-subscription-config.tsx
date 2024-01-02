@@ -1125,8 +1125,7 @@ export default defineComponent({
           v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
           // 根据显示内容要动态调整。
           width={640}
-          quick-close={false}
-          transfer
+          ext-cls='detail-subscription-sideslider-container'
           v-slots={{
             header: () => {
               return (
@@ -1197,7 +1196,6 @@ export default defineComponent({
           v-model={[this.isShowEditSideslider, 'isShow']}
           title={'编辑'}
           width={960}
-          quick-close={false}
           ext-cls='edit-subscription-sideslider-container'
           transfer
         >
