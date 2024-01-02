@@ -33,9 +33,12 @@ import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { monitorDrag } from '../../utils/drag-directive';
 import HandleBtn from '../main/handle-btn/handle-btn';
 
+import EmptyCard from './components/empty-card';
 import FavoriteList from './components/favorite-list';
 import PageHeader from './components/page-header';
-import ProfilingRetrieval from './components/profiling-retrieval';
+import ProfilingRetrievalView from './components/profiling-retrieval-view';
+import RetrievalSearch from './components/retrieval-search';
+import UploadRetrievalView from './components/upload-retrieval-view';
 import { ToolsFormData } from './typings/page-header';
 import { PanelType, SearchState, SearchType } from './typings';
 
@@ -66,6 +69,7 @@ export default defineComponent({
         comparisonWhere: []
       }
     });
+    const isEmpty = ref(true);
     /**
      * 检索面板和收藏面板显示状态切换
      * @param type 面板类型
@@ -98,10 +102,12 @@ export default defineComponent({
 
     function handleQuery(isBtnClick = false) {
       if (!isBtnClick && !searchState.autoQuery) return;
+      isEmpty.value = false;
     }
 
     return {
       t,
+      isEmpty,
       favoriteState,
       searchState,
       toolsFormData,
@@ -116,6 +122,26 @@ export default defineComponent({
   },
 
   render() {
+    const renderView = () => {
+      if (this.isEmpty)
+        return (
+          <div class='empty-wrap'>
+            <EmptyCard
+              title={this.$t('持续 Profiling')}
+              desc={this.$t('直接进行 精准查询，定位到 Trace 详情')}
+            />
+            <EmptyCard
+              title={this.$t('上传 Profiling')}
+              desc={this.$t('可以切换到 范围查询，根据条件筛选 Trace')}
+            />
+          </div>
+        );
+
+      if (this.searchState.formData.type === SearchType.Profiling) return <ProfilingRetrievalView />;
+
+      return <UploadRetrievalView />;
+    };
+
     return (
       <div class='profiling-page'>
         <div class='page-header'>
@@ -157,7 +183,7 @@ export default defineComponent({
                 onHidden: () => this.handleShowTypeChange(PanelType.Search, false)
               }}
             >
-              <ProfilingRetrieval
+              <RetrievalSearch
                 formData={this.searchState.formData}
                 onChange={this.handleSearchFormDataChange}
               >
@@ -173,10 +199,10 @@ export default defineComponent({
                     ></HandleBtn>
                   )
                 }}
-              </ProfilingRetrieval>
+              </RetrievalSearch>
             </div>
           )}
-          <div class='view-wrap'></div>
+          <div class='view-wrap'>{renderView()}</div>
         </div>
       </div>
     );

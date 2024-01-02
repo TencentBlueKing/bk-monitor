@@ -102,53 +102,52 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='page-header-component'>
-        <PageToolHeader
-          timeRange={this.toolsFormData.timeRange}
-          timezone={this.toolsFormData.timezone}
-          refreshInterval={this.toolsFormData.refreshInterval}
-          onTimeRangeChange={this.handleTimeRangeChange}
-          onTimezoneChange={this.handleTimezoneChange}
-          onRefreshIntervalChange={this.handleRefreshIntervalChange}
-          onImmediateRefresh={this.handleImmediateRefresh}
-        >
-          {{
-            prepend: () => (
-              <div class='page-header-left'>
-                <div class='icon-container'>
-                  <div
-                    v-bk-tooltips={{
-                      content: this.isShowFavorite ? this.t('点击收起收藏') : this.t('点击展开收藏'),
-                      placements: ['bottom'],
-                      delay: 200
-                    }}
-                    class={[
-                      'result-icon-box',
-                      {
-                        'light-icon': !this.isShowFavorite
-                      }
-                    ]}
-                    onClick={() => this.handleShowTypeChange('favorite', !this.isShowFavorite)}
-                  >
-                    <span class='icon-monitor icon-mc-uncollect'></span>
-                  </div>
-                  <div
-                    v-bk-tooltips={{
-                      content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
-                      placements: ['bottom'],
-                      delay: 200
-                    }}
-                    class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
-                    onClick={() => this.handleShowTypeChange('search', !this.isShowSearch)}
-                  >
-                    <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
-                  </div>
+      <PageToolHeader
+        class='page-header-component'
+        timeRange={this.toolsFormData.timeRange}
+        timezone={this.toolsFormData.timezone}
+        refreshInterval={this.toolsFormData.refreshInterval}
+        onTimeRangeChange={this.handleTimeRangeChange}
+        onTimezoneChange={this.handleTimezoneChange}
+        onRefreshIntervalChange={this.handleRefreshIntervalChange}
+        onImmediateRefresh={this.handleImmediateRefresh}
+      >
+        {{
+          prepend: () => (
+            <div class='page-header-left'>
+              <div class='icon-container'>
+                <div
+                  v-bk-tooltips={{
+                    content: this.isShowFavorite ? this.t('点击收起收藏') : this.t('点击展开收藏'),
+                    placements: ['bottom'],
+                    delay: 200
+                  }}
+                  class={[
+                    'result-icon-box',
+                    {
+                      'light-icon': !this.isShowFavorite
+                    }
+                  ]}
+                  onClick={() => this.handleShowTypeChange('favorite', !this.isShowFavorite)}
+                >
+                  <span class='icon-monitor icon-mc-uncollect'></span>
+                </div>
+                <div
+                  v-bk-tooltips={{
+                    content: this.isShowSearch ? this.t('点击收起检索') : this.t('点击展开检索'),
+                    placements: ['bottom'],
+                    delay: 200
+                  }}
+                  class={['result-icon-box', { 'light-icon': !this.isShowSearch }]}
+                  onClick={() => this.handleShowTypeChange('search', !this.isShowSearch)}
+                >
+                  <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
                 </div>
               </div>
-            )
-          }}
-        </PageToolHeader>
-      </div>
+            </div>
+          )
+        }}
+      </PageToolHeader>
     );
   }
 });

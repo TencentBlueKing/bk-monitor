@@ -35,10 +35,10 @@ import { RetrievalFormData } from '../typings/profiling-retrieval';
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
 
-import './profiling-retrieval.scss';
+import './retrieval-search.scss';
 
 export default defineComponent({
-  name: 'ProfilingRetrieval',
+  name: 'RetrievalSearch',
   props: {
     formData: {
       type: Object as PropType<RetrievalFormData>,
@@ -142,7 +142,7 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='profiling-retrieval-component'>
+      <div class='retrieval-search-component'>
         <div class='title'>{this.t('Profiling 检索')}</div>
         <div class='search-form-wrap'>
           <Button.ButtonGroup class='type-button-group'>
