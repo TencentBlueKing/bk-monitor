@@ -84,3 +84,11 @@ EVENT_NORMAL_FIELDS = [
         "field_type": "string",
     },
 ]
+
+
+class CollectType:
+    """
+    推送采集类型
+    """
+    BK_COLLECTOR = "bk_collector"
+    BK_INGESTOR = "bk_ingestor"
