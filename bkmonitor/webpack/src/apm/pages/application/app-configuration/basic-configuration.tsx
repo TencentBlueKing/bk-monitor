@@ -598,12 +598,14 @@ export default class BasicInfo extends tsc<IProps> {
       params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
     } else if (params.application_sampler_config.sampler_type === 'tail') {
       params.application_sampler_config.sampler_percentage = Number(samplerPercentage);
-      params.application_sampler_config.tail_conditions = this.samplingRules.map(item => {
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        const { key_alias, type, ...rest } = item;
-        // 时间类型输入组件默认单位为秒 后端传参要求单位为纳秒
-        return { ...rest, value: type === 'time' ? [String(rest.value * Math.pow(10, 6))] : rest.value };
-      });
+      params.application_sampler_config.tail_conditions = this.samplingRules
+        .map(item => {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          const { key_alias, type, ...rest } = item;
+          // 时间类型输入组件默认单位为秒 后端传参要求单位为纳秒
+          return { ...rest, value: type === 'time' ? [String(rest.value * Math.pow(10, 6))] : rest.value };
+        })
+        .filter(item => item.value.length);
     }
 
     if (this.isShowLog2TracesFormItem) {
