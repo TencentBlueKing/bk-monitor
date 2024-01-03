@@ -67,6 +67,7 @@ class _BkdataFlowLogger:
 class ApmFlow:
     _NAME = None
     _BKBASE_OPERATOR = settings.APM_APP_BKDATA_OPERATOR
+    _BKBASE_MAINTAINER = settings.APM_APP_BKDATA_MAINTAINER
     _BKBASE_PROJECT_ID = None
     _FLOW = None
     _FLOW_TYPE = None
@@ -191,6 +192,8 @@ class ApmFlow:
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
         """获取数据源API请求参数(接入方式: KAFKA)"""
         access_conf = cls._query_access_conf(data_id)
+        maintainers = ",".join(list(set([operator] + cls._BKBASE_MAINTAINER)))
+
         return {
             "data_scenario": "queue",
             "bk_biz_id": bk_biz_id,
@@ -198,7 +201,7 @@ class ApmFlow:
             "bk_username": operator,
             "access_raw_data": {
                 "raw_data_name": name,
-                "maintainer": operator,
+                "maintainer": maintainers,
                 "raw_data_alias": name,
                 "data_source": "kafka",
                 "data_encoding": "UTF-8",
