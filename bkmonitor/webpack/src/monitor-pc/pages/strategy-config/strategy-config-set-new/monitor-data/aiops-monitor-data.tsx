@@ -23,18 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-import { Checkbox, Form, FormItem, Icon, Option, Select, Tag } from 'bk-magic-vue';
+import { Component, Emit, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
+import { Checkbox, Form, FormItem, Icon, Option, Select, Slider, Tag } from 'bk-magic-vue';
 
 import { multivariateAnomalyScenes } from '../../../../../monitor-api/modules/strategies';
 import { random, transformDataKey } from '../../../../../monitor-common/utils/utils';
 import { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
+import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { handleSetTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
-import { ISceneConfig, MetricDetail, MetricType } from '../typings';
+import { IScenarioItem, ISceneConfig, MetricDetail, MetricType } from '../typings';
+
+import AiopsMonitorMetricSelect from './aiops-monitor-metric-select';
 
 import './aiops-monitor-data.scss';
 
@@ -45,6 +48,9 @@ interface IProps {
   metricData?: NewMetricDetail[];
   defaultCheckedTarget?: any;
   readonly?: boolean;
+  isEdit?: boolean;
+  scenarioList?: IScenarioItem[];
+  defaultScenario?: string;
   onChange?: (sceneConfig: ISceneConfig) => void;
   onTargetTypeChange?: (type: string) => void;
   onTargetChange?: (value) => void;
@@ -54,18 +60,23 @@ interface IProps {
     StrategyTargetTable
   }
 })
-export default class AiopsMonitorData extends tsc<IProps> {
+class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   /* 指标数据 */
   @Prop({ default: () => [], type: Array }) metricData: NewMetricDetail[];
   @Prop({ default: () => ({ target_detail: [] }), type: Object }) defaultCheckedTarget: any;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
+  @Prop({ type: Boolean, default: false }) isEdit: boolean;
+  @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
+  /* 默认选择的监控对象 */
+  @Prop({ type: String, default: '' }) defaultScenario: string;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
   @Ref('createForm') createForm: Form;
   @Ref('tagListRef') tagListRef: HTMLDivElement;
   /** 表单数据 */
   formModel = {
     level: 0,
-    scene: ''
+    scene: '',
+    sensitivity: 50
   };
   target: any = {
     targetType: '',
@@ -104,6 +115,7 @@ export default class AiopsMonitorData extends tsc<IProps> {
   scene = null;
   /* 当前场景指标 */
   metrics = [];
+  allMetrics = [];
   /** 场景加载 */
   isLoading = false;
   targetContainerHeight = 0;
@@ -117,23 +129,34 @@ export default class AiopsMonitorData extends tsc<IProps> {
     { id: 3, name: this.$t('提醒'), icon: 'icon-tips' }
   ];
 
+  metricpopoerInstance = null;
+
   @Emit('change')
   handleChange(value?) {
     if (value) {
       return value;
     }
+    const metricsSet = new Set(this.metrics);
+    const metrics = [];
+    this.scene?.metrics?.forEach(item => {
+      if (metricsSet.has(item.metric_id)) {
+        metrics.push(item);
+      }
+    });
     const algorithm = {
       level: this.formModel.level,
       type: MetricType.MultivariateAnomalyDetection,
       config: {
         scene_id: this.formModel.scene,
-        metrics: this.scene.metrics
+        metrics
       },
+      sensitivity: this.formModel.sensitivity,
       unit_prefix: ''
     };
     return {
       ...this.scene,
-      query_configs: [{ ...this.scene.query_config }],
+      metrics,
+      query_configs: this.scene?.query_config ? [{ ...this.scene.query_config }] : [],
       algorithms: [algorithm]
     };
   }
@@ -175,9 +198,18 @@ export default class AiopsMonitorData extends tsc<IProps> {
     }
   }
   /** 场景切换 */
-  handleScenSelected(value) {
+  handleScenSelected(value, isInitMetrics = true) {
     this.formModel.scene = value;
     this.scene = this.scenes.find(item => item.scene_id === this.formModel.scene);
+    this.allMetrics =
+      this.scene?.metrics?.map(item => ({
+        ...item.metric,
+        ...item,
+        metric: undefined
+      })) || [];
+    if (isInitMetrics) {
+      this.metrics = this.scene?.metrics?.map(item => item.metric_id) || [];
+    }
     this.$nextTick(() => {
       this.handleCalcShowOpenTag();
     });
@@ -185,6 +217,9 @@ export default class AiopsMonitorData extends tsc<IProps> {
   }
   /** 计算指标是否存在多行情况 */
   handleCalcShowOpenTag() {
+    if (!this.scene?.metrics?.length || !this.tagListRef) {
+      return;
+    }
     const { height, top: parentTop } = this.tagListRef.getBoundingClientRect();
     // 单行不展示 展开/收起 按钮
     this.showTagOpen = Array.from(this.tagListRef.querySelectorAll('.bk-tag')).some(ele => {
@@ -198,12 +233,14 @@ export default class AiopsMonitorData extends tsc<IProps> {
     const sceneId = this.metricData?.[0]?.sceneConfig?.algorithms?.[0]?.config?.scene_id;
     if (sceneId) {
       this.formModel.level = this.metricData[0].sceneConfig.algorithms[0].level;
+      this.formModel.sensitivity = this.metricData[0].sceneConfig.algorithms[0].sensitivity || 0;
+      this.metrics = this.metricData[0].sceneConfig.algorithms[0]?.config?.metrics?.map(item => item.metric_id) || [];
     }
     multivariateAnomalyScenes()
       .then(res => {
         this.scenes = res;
         if (sceneId) {
-          this.handleScenSelected(sceneId);
+          this.handleScenSelected(sceneId, false);
         } else if (this.$route.query?.scene_id) {
           this.handleScenSelected(this.$route.query.scene_id);
         }
@@ -240,6 +277,54 @@ export default class AiopsMonitorData extends tsc<IProps> {
     return this.createForm.validate();
   }
 
+  /**
+   * @description 展示指标tip
+   * @param e
+   * @param item
+   */
+  handleMetricMouseenter(e: MouseEvent, item: MetricDetail) {
+    let content = '';
+    try {
+      content = this.handleGetMetricTipsContent(item);
+    } catch (error) {
+      // content = `${this.$t('指标不存在')}`;
+    }
+    if (content) {
+      this.metricpopoerInstance = this.$bkPopover(e.target, {
+        content,
+        placement: 'top',
+        theme: 'monitor-metric-input',
+        arrow: true,
+        flip: false
+      });
+      this.metricpopoerInstance?.show?.(100);
+    }
+  }
+
+  handleMetricMouseleave() {
+    this.metricpopoerInstance?.hide?.();
+    this.metricpopoerInstance?.destroy?.();
+    this.metricpopoerInstance = null;
+  }
+
+  /**
+   * @description 指标选择变化
+   * @param v
+   */
+  handleMetricChange(v) {
+    this.metrics = v;
+    this.handleChange();
+  }
+
+  /**
+   * @description 敏感度变化
+   * @param v
+   */
+  handleSensitivity(v) {
+    this.formModel.sensitivity = v;
+    this.handleChange();
+  }
+
   render() {
     return (
       <div
@@ -270,11 +355,12 @@ export default class AiopsMonitorData extends tsc<IProps> {
               <span>{this.scene?.scene_name}</span>
             ) : (
               <Select
+                class='scene-selector'
                 loading={this.isLoading}
                 value={this.formModel.scene}
                 clearable={false}
                 behavior='simplicity'
-                onSelected={this.handleScenSelected}
+                onSelected={v => this.handleScenSelected(v)}
               >
                 {this.scenes.map(scene => (
                   <Option
@@ -288,45 +374,71 @@ export default class AiopsMonitorData extends tsc<IProps> {
               </Select>
             )}
           </FormItem>
-          <div class='aiops-tag-wrap'>
-            {this.scene?.metrics?.length > 0 && (
-              <div class={['aiops-tag-content', this.tagOpen && 'aiops-tag-content-open']}>
-                <i18n
-                  path='共{count}个指标'
-                  tag='span'
-                  class='nowrap'
-                >
-                  <span
-                    slot='count'
-                    class='aiops-tag-count'
-                  >
-                    {this.scene.metrics.length}
-                  </span>
-                </i18n>
-                ：
-                <div
-                  class='aiops-tag-list'
-                  ref='tagListRef'
-                >
-                  {this.scene.metrics.map(metric => (
-                    <Tag>{metric.name}</Tag>
-                  ))}
-                </div>
-                {this.showTagOpen && (
-                  <span
-                    class='aiops-tag-toggle nowrap'
-                    onClick={() => (this.tagOpen = !this.tagOpen)}
-                  >
-                    <Icon
-                      style='font-size: 18px;'
-                      type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
-                    />
-                    {this.$t(this.tagOpen ? '收起' : '展开')}
-                  </span>
+          <FormItem
+            label={`${this.$t('指标')}：`}
+            error-display-type='normal'
+            class='metric-select'
+            property={'scene'}
+          >
+            {this.readonly ? (
+              <div class='aiops-tag-wrap'>
+                {this.scene?.metrics?.length > 0 && (
+                  <div class={['aiops-tag-content', this.tagOpen && 'aiops-tag-content-open']}>
+                    <i18n
+                      path='共{count}个指标'
+                      tag='span'
+                      class='nowrap'
+                    >
+                      <span
+                        slot='count'
+                        class='aiops-tag-count'
+                      >
+                        {this.scene.metrics.length}
+                      </span>
+                    </i18n>
+                    ：
+                    <div
+                      class='aiops-tag-list'
+                      ref='tagListRef'
+                    >
+                      {this.scene.metrics.map(metric => (
+                        <span
+                          key={metric.metric_id}
+                          onMouseenter={e => this.handleMetricMouseenter(e, metric.metric)}
+                          onMouseleave={this.handleMetricMouseleave}
+                        >
+                          <Tag>{metric.name}</Tag>
+                        </span>
+                      ))}
+                    </div>
+                    {this.showTagOpen && (
+                      <span
+                        class='aiops-tag-toggle nowrap'
+                        onClick={() => (this.tagOpen = !this.tagOpen)}
+                      >
+                        <Icon
+                          style='font-size: 18px;'
+                          type={!this.tagOpen ? 'angle-double-down' : 'angle-double-up'}
+                        />
+                        {this.$t(this.tagOpen ? '收起' : '展开')}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
+            ) : (
+              <div class='aiops-metric-select'>
+                <AiopsMonitorMetricSelect
+                  value={this.metrics}
+                  metrics={this.allMetrics}
+                  scenarioList={this.scenarioList}
+                  defaultScenario={this.defaultScenario}
+                  onChange={this.handleMetricChange}
+                ></AiopsMonitorMetricSelect>
+              </div>
             )}
-          </div>
+          </FormItem>
+
           <FormItem
             label={`${this.$t('监控目标')}：`}
             error-display-type='normal'
@@ -374,9 +486,16 @@ export default class AiopsMonitorData extends tsc<IProps> {
             </div>
           </FormItem>
           <FormItem
-            label={`${this.$t('过滤告警级别')}：`}
+            label={`${this.$t('告警级别')}：`}
             property={'level'}
             error-display-type='normal'
+            desc={{
+              content: `<div style='width: 205px'>
+               <div>${this.$t('智能生成告警级别')}：</div>
+               <div>${this.$t('将根据指标的异常程度、发生异常的指标数，为告警自动分配级别。')}<span>
+              </div>`,
+              allowHTML: true
+            }}
           >
             <div class='aiops-level-list'>
               {this.readonly
@@ -408,6 +527,15 @@ export default class AiopsMonitorData extends tsc<IProps> {
                     </Checkbox>
                   ))}
             </div>
+          </FormItem>
+          <FormItem label={`${this.$t('敏感度')}：`}>
+            <Slider
+              class='process-item'
+              show-custom-label={true}
+              custom-content={{ 0: { label: this.$t('较少告警') }, 100: { label: this.$t('较多告警') } }}
+              value={this.formModel.sensitivity}
+              onInput={this.handleSensitivity}
+            />
           </FormItem>
         </Form>
         {this.metricData.some(item => item.canSetTarget) && this.ipSelect()}
@@ -450,3 +578,5 @@ export default class AiopsMonitorData extends tsc<IProps> {
     );
   }
 }
+
+export default tsx.ofType<IProps>().convert(AiopsMonitorData);

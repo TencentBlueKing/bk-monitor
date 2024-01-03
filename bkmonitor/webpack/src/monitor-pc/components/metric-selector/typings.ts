@@ -33,10 +33,14 @@ export type MetricSelectorProps = {
   metricKey?: string;
   isPromql?: boolean;
   defaultScenario?: string;
+  customMetrics?: MetricDetail[];
+  multiple?: boolean;
+  metricIds?: string[];
 } & MetricPopoverProps;
 
 export type MetricSelectorEvents = {
   onSelected: MetricDetail;
+  onChecked: (obj: { checked: boolean; id: string }) => void;
 } & MetricPopoverEvents;
 
 export interface MetricPopoverProps {

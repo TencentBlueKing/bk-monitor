@@ -529,7 +529,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // this.addDefaultAlarmHandling();
   }
   deactivated() {
-    this.isMultivariateAnomalyDetection = false;
     this.clearErrorMsg();
     (this.$refs.noticeConfigNew as NoticeConfigNew)?.excludePopInit();
   }
@@ -901,6 +900,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     this.loading = true;
     this.strategyId = 0;
+    this.isMultivariateAnomalyDetection = false;
     const promiseList = [];
     if (!this.scenarioList?.length) {
       promiseList.push(this.getScenarioList());
@@ -2389,6 +2389,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           ref='aiopsMonitorData'
           defaultCheckedTarget={this.defaultCheckedTarget}
           metricData={this.metricData as any}
+          isEdit={this.isEdit}
+          scenarioList={this.scenarioAllList}
+          defaultScenario={this.baseConfig.scenario}
           onChange={this.handleSceneConfigChange}
           onTargetTypeChange={this.handleTargetTypeChange}
           onTargetChange={this.handleTargetChange}

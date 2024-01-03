@@ -77,6 +77,10 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
         /* stylelint-disable-next-line declaration-no-important */
         margin-left: 0px !important;
       }
+
+      .scene-selector {
+        min-width: 480px;
+      }
     }
 
     .bk-select {
@@ -87,6 +91,28 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
         height: 24px;
         padding-left: 0px;
       }
+    }
+
+    .process-item {
+      width: 320px;
+      height: 16px;
+      color: #979ba5;
+
+      .bk-slider-label {
+        &:first-child {
+          justify-content: start;
+          transform: translateX(0);
+        }
+
+        &:last-child {
+          justify-content: end;
+          transform: translateX(-100%);
+        }
+      }
+    }
+
+    .aiops-metric-select {
+      padding-top: 6px;
     }
   }
 
@@ -106,9 +132,15 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
     line-height: 16px;
   }
 
+  .metric-select {
+    .bk-label-text {
+      margin-top: 10px;
+    }
+  }
+
   .aiops-tag-wrap {
-    padding-left: 110px;
-    margin: 8px 0px 16px;
+    // padding-left: 110px;
+    // margin: 8px 0px 16px;
 
     .aiops-tag-content {
       position: relative;
