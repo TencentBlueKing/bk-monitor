@@ -2639,7 +2639,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 <div
                   v-bk-tooltips={{
                     disabled: this.submitBtnTipDisabled,
-                    content: this.$t('未选择监控数据')
+                    content: this.$t('未选择监控数据'),
+                    allowHTML: false
                   }}
                 >
                   <bk-button

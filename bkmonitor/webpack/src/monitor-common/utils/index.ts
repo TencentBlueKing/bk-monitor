@@ -189,6 +189,6 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
   // 返回修改后的颜色，格式与输入颜色相同（"#" 开头或不带 "#"）
   return (color.startsWith('#') ? '#' : '') + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 };
-
 export * from './constant';
 export * from './utils';
+export * from './xss';

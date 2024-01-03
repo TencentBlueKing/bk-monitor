@@ -1422,7 +1422,8 @@ export default class BasicInfo extends tsc<IProps> {
                               trigger: 'mouseenter',
                               zIndex: 9999,
                               disabled: !item.key,
-                              boundary: document.body
+                              boundary: document.body,
+                              allowHTML: false
                             }}
                             onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
                           >
@@ -1622,7 +1623,8 @@ export default class BasicInfo extends tsc<IProps> {
                       }
                       v-bk-tooltips={{
                         content: this.$t('已经没有可用的维度'),
-                        disabled: this.instanceOptionList.length !== this.localInstanceList.length
+                        disabled: this.instanceOptionList.length !== this.localInstanceList.length,
+                        allowHTML: false
                       }}
                     >
                       <span class='icon-monitor icon-plus-line'></span>
@@ -1647,7 +1649,8 @@ export default class BasicInfo extends tsc<IProps> {
                               class='instance-config-option'
                               v-bk-tooltips={{
                                 content: this.$t('已经添加'),
-                                disabled: !this.localInstanceList.some(val => val.id === option.id)
+                                disabled: !this.localInstanceList.some(val => val.id === option.id),
+                                allowHTML: false
                               }}
                             >
                               <span class='instance-name'>{option.name}</span>
@@ -1910,7 +1913,7 @@ export default class BasicInfo extends tsc<IProps> {
           )}
           <div
             class='history-btn'
-            v-bk-tooltips={{ content: this.$t('变更记录') }}
+            v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
             onClick={() => (this.record.show = true)}
           >
             <i class='icon-monitor icon-lishijilu'></i>

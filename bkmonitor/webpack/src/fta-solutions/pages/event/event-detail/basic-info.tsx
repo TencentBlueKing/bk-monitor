@@ -311,7 +311,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                       <span
                         on-click={item.click ? item.click : false}
                         class={['icon-monitor', item.icon]}
-                        v-bk-tooltips={{ content: item.iconTip }}
+                        v-bk-tooltips={{ content: item.iconTip, allowHTML: false }}
                       >
                         <span class='icon-title'>{item?.iconText || ''}</span>
                       </span>
@@ -337,7 +337,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                   <span
                     on-click={item.click ? item.click : false}
                     class={['icon-monitor', item.icon]}
-                    v-bk-tooltips={{ content: item.iconTip }}
+                    v-bk-tooltips={{ content: item.iconTip, allowHTML: false }}
                   >
                     <span class='icon-title'>{item.iconText || ''}</span>
                   </span>
@@ -484,7 +484,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               {this.getTagComponent(severity)}
               <span
                 class='basic-title-name'
-                v-bk-tooltips={{ content: alert_name }}
+                v-bk-tooltips={{ content: alert_name, allowHTML: false }}
               >
                 {alert_name}
               </span>

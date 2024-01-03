@@ -56,7 +56,7 @@
           <span class="title">{{ item.name }}</span>
           <span
             class="des"
-            v-bk-tooltips="{ content: handleBelonging(item), delay: 300 }"
+            v-bk-tooltips="{ content: handleBelonging(item), delay: 300, allowHTML: false }"
           >&nbsp;{{ `- ${$t('所属:')}${handleBelonging(item)}` }}</span>
         </span>
         <span
