@@ -546,7 +546,10 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                 <div
                   class='item-content-kv-tip'
                   v-bk-tooltips={{
-                    content: child.tags?.map(item => `<span>${item.key}：${item.value}</span><br/>`)?.join('') || '',
+                    content:
+                      child.tags
+                        ?.map(item => `<span>${xssFilter(item.key)}：${xssFilter(item.value)}</span><br/>`)
+                        ?.join('') || '',
                     allowHTML: true,
                     disabled: (child.tags?.length || 0) <= 4
                   }}

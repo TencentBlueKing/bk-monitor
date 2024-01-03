@@ -97,7 +97,7 @@ export default class DimensionTable extends tsc<IProps> {
     let contentHtml = '';
     row.anomaly_score_top10.forEach(item => {
       const W = this.getWidth(item.anomaly_score);
-      labelHtml += `<li onclick="handleTipsItem(${xssFilter(item.is_anomaly)},'${xssFilter(item.id)}')">
+      labelHtml += `<li onclick="handleTipsItem(${item.is_anomaly},'${item.id}')">
         <span class="label ${item.is_anomaly ? 'is-anomaly-label' : ''}">
         ${xssFilter(item.dimension_value)}
         </span>
