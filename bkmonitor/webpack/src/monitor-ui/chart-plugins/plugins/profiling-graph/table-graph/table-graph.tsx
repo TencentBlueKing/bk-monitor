@@ -23,85 +23,67 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import { defineComponent, ref, shallowRef, Teleport } from 'vue';
+import { PROFILING_TABLE_DATA } from '../../../../../trace/plugins/charts/profiling-graph/mock.ts';
+import { ITableTipsDetail, ProfilingTableItem, TableColumn } from '../../../typings';
 
-import {
-  ITableTipsDetail,
-  ProfilingTableItem,
-  TableColumn
-} from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
-import { PROFILING_TABLE_DATA } from '../mock';
-
-// import { ColorTypes } from './../../flame-graph-v2/types';
 import './table-graph.scss';
 
-// const valueColumnWidth = 150;
+@Component
+export default class ProfilingTableChart extends tsc<{}> {
+  /** 表格数据 */
+  tableData: ProfilingTableItem[] = PROFILING_TABLE_DATA;
+  tableColumns: TableColumn[] = [
+    { id: 'Location', sort: '' },
+    { id: 'Self', sort: '' },
+    { id: 'Total', sort: '' }
+  ];
+  tipDetail: ITableTipsDetail = {};
 
-export default defineComponent({
-  name: 'ProfilingTableGraph',
-  setup() {
-    /** 表格数据 */
-    const tableData = ref<ProfilingTableItem[]>(PROFILING_TABLE_DATA);
-    const tableColumns = ref<TableColumn[]>([
-      { id: 'Location', sort: '' },
-      { id: 'Self', sort: '' },
-      { id: 'Total', sort: '' }
-    ]);
-    const tipDetail = shallowRef<ITableTipsDetail>({});
-
-    const getColStyle = (row: ProfilingTableItem) => {
-      const { color } = row;
-      return {
-        'background-image': `linear-gradient(${color}, ${color})`,
-        // 'background-position': `-${Math.round(Math.random() * valueColumnWidth)}px 0px`,
-        'background-position': `-80px 0px`,
-        'background-repeat': 'no-repeat'
-      };
-    };
-    /** 列字段排序 */
-    const handleSort = (col: TableColumn) => {
-      col.sort = col.sort === 'desc' ? 'asc' : 'desc';
-      tableColumns.value = tableColumns.value.map(item => {
-        return {
-          ...item,
-          sort: col.id === item.id ? col.sort : ''
-        };
-      });
-    };
-    const handleRowMouseMove = (e: MouseEvent) => {
-      let axisLeft = e.pageX;
-      let axisTop = e.pageY;
-      if (axisLeft + 394 > window.innerWidth) {
-        axisLeft = axisLeft - 394 - 20;
-      } else {
-        axisLeft = axisLeft + 20;
-      }
-      if (axisTop + 120 > window.innerHeight) {
-        axisTop = axisTop - 120;
-      } else {
-        axisTop = axisTop;
-      }
-      tipDetail.value = {
-        left: axisLeft,
-        top: axisTop,
-        title: 'sync.(*Mutex).Unlock'
-      };
-    };
-    const handleRowMouseout = () => {
-      tipDetail.value = {};
-    };
-
+  getColStyle(row: ProfilingTableItem) {
+    const { color } = row;
     return {
-      tableColumns,
-      tableData,
-      getColStyle,
-      handleSort,
-      tipDetail,
-      handleRowMouseMove,
-      handleRowMouseout
+      'background-image': `linear-gradient(${color}, ${color})`,
+      // 'background-position': `-${Math.round(Math.random() * valueColumnWidth)}px 0px`,
+      'background-position': `-80px 0px`,
+      'background-repeat': 'no-repeat'
     };
-  },
+  }
+  /** 列字段排序 */
+  handleSort(col: TableColumn) {
+    col.sort = col.sort === 'desc' ? 'asc' : 'desc';
+    this.tableColumns = this.tableColumns.map(item => {
+      return {
+        ...item,
+        sort: col.id === item.id ? col.sort : ''
+      };
+    });
+  }
+  handleRowMouseMove(e: MouseEvent) {
+    let axisLeft = e.pageX;
+    let axisTop = e.pageY;
+    if (axisLeft + 394 > window.innerWidth) {
+      axisLeft = axisLeft - 394 - 20;
+    } else {
+      axisLeft = axisLeft + 20;
+    }
+    if (axisTop + 120 > window.innerHeight) {
+      axisTop = axisTop - 120;
+    } else {
+      axisTop = axisTop;
+    }
+    this.tipDetail = {
+      left: axisLeft,
+      top: axisTop,
+      title: 'sync.(*Mutex).Unlock'
+    };
+  }
+  handleRowMouseout() {
+    this.tipDetail = {};
+  }
+
   render() {
     return (
       <div class='profiling-table-graph'>
@@ -144,35 +126,33 @@ export default defineComponent({
           </tbody>
         </table>
 
-        <Teleport to='body'>
-          <div
-            class='table-graph-row-tips'
-            style={{
-              left: `${this.tipDetail.left || 0}px`,
-              top: `${this.tipDetail.top || 0}px`,
-              display: this.tipDetail.title ? 'block' : 'none'
-            }}
-          >
-            {this.tipDetail.title && [
-              <div class='funtion-name'>{this.tipDetail.title}</div>,
-              <table class='tips-table'>
-                <thead>
-                  <th></th>
-                  <th>Self (% of total CPU)</th>
-                  <th>Total (% of total CPU)</th>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>CPU Time</td>
-                    <td>4.32 minutes(9.33%)</td>
-                    <td>5.33 minutes(11.52%)</td>
-                  </tr>
-                </tbody>
-              </table>
-            ]}
-          </div>
-        </Teleport>
+        <div
+          class='table-graph-row-tips'
+          style={{
+            left: `${this.tipDetail.left || 0}px`,
+            top: `${this.tipDetail.top || 0}px`,
+            display: this.tipDetail.title ? 'block' : 'none'
+          }}
+        >
+          {this.tipDetail.title && [
+            <div class='funtion-name'>{this.tipDetail.title}</div>,
+            <table class='tips-table'>
+              <thead>
+                <th></th>
+                <th>Self (% of total CPU)</th>
+                <th>Total (% of total CPU)</th>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>CPU Time</td>
+                  <td>4.32 minutes(9.33%)</td>
+                  <td>5.33 minutes(11.52%)</td>
+                </tr>
+              </tbody>
+            </table>
+          ]}
+        </div>
       </div>
     );
   }
-});
+}

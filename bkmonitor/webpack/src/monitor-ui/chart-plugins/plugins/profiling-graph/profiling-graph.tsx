@@ -1,12 +1,13 @@
+/* eslint-disable max-len */
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,8 +24,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component } from 'vue-property-decorator';
+import { ofType } from 'vue-tsx-support';
 
-import { defineComponent, ref } from 'vue';
+import { PanelModel } from '../../typings';
+import { CommonSimpleChart } from '../common-simple-chart';
 
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
@@ -32,23 +36,25 @@ import TableGraph from './table-graph/table-graph';
 
 import './profiling-graph.scss';
 
-export default defineComponent({
-  name: 'ProfilingGraph',
-  setup() {
-    // 当前视图模式
-    const activeMode = ref('tableAndFlame');
+interface IProfilingChartProps {
+  panel: PanelModel;
+}
 
-    /** 切换视图模式 */
-    const handleModeChange = (val: string) => {
-      activeMode.value = val;
-    };
+@Component
+class ProfilingChart extends CommonSimpleChart {
+  empty = false;
+  emptyText = '查无数据';
+  // 视图模式
+  activeMode = 'tableAndFlame';
 
-    return {
-      activeMode,
-      handleModeChange
-    };
-  },
+  handleModeChange(val: string) {
+    this.activeMode = val;
+  }
+
   render() {
+    if (this.empty) {
+      return <div class='empty-chart'>{this.emptyText}</div>;
+    }
     return (
       <div class='profiling-graph'>
         <ChartTitle
@@ -64,7 +70,6 @@ export default defineComponent({
               start={1703747947993154}
               end={1703747948022443}
               bizId={2}
-              showGraphTools={false}
             />
           ) : (
             ''
@@ -73,4 +78,6 @@ export default defineComponent({
       </div>
     );
   }
-});
+}
+
+export default ofType<IProfilingChartProps>().convert(ProfilingChart);

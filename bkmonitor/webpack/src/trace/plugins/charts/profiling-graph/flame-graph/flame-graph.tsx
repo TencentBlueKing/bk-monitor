@@ -23,19 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { HierarchyNode } from 'd3-hierarchy';
 import { addListener, removeListener } from 'resize-detector';
 import { debounce } from 'throttle-debounce';
 
 import { profileQuery } from '../../../../../monitor-api/modules/apm_profile';
-import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
-import { getSingleDiffColor } from '../../../../utils/compare';
-import GraphTools from '../../flame-graph/graph-tools/graph-tools';
-import ViewLegend from '../../view-legend/view-legend';
-import { FLAME_DATA } from '../mock';
-
+import { FlameChart } from '../../../../../monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
 import {
   BaseDataType,
   CommonMenuList,
@@ -46,8 +41,12 @@ import {
   ITipsDetail,
   IZoomRect,
   RootId
-} from './../../flame-graph-v2/types';
-import { FlameChart } from './use-flame';
+} from '../../../../../monitor-ui/chart-plugins/typings/flame-graph';
+import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
+import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
+import GraphTools from '../../flame-graph/graph-tools/graph-tools';
+import ViewLegend from '../../view-legend/view-legend';
+import { FLAME_DATA } from '../mock';
 
 import '../../flame-graph-v2/flame-graph.scss';
 import './flame-graph.scss';
@@ -105,6 +104,7 @@ export default defineComponent({
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
     const showException = ref(false);
+    const showDiffLegend = ref(false);
     const tipDetail = shallowRef<ITipsDetail>({});
     const contextMenuRect = ref<IContextMenuRect>({
       left: 0,
@@ -121,6 +121,8 @@ export default defineComponent({
     let svgRect: DOMRect = null;
     // 放大系数
     const scaleValue = ref(100);
+
+    const diffPercentList = computed(() => COMPARE_DIFF_COLOR_LIST.map(val => `${val.value}%`));
 
     watch(
       () => props.textDirection,
@@ -455,7 +457,9 @@ export default defineComponent({
       handlesSaleValueChange,
       flameToolsPopoverContent,
       showLegend,
-      handleShowLegend
+      handleShowLegend,
+      diffPercentList,
+      showDiffLegend
     };
   },
   render() {
@@ -474,7 +478,18 @@ export default defineComponent({
         initialDivide={'0px'}
       >
         {{
-          main: () => (
+          main: () => [
+            this.showDiffLegend && (
+              <div class='profiling-compare-legend'>
+                <span class='tag tag-new'>added</span>
+                <div class='percent-queue'>
+                  {this.diffPercentList.map((item, index) => (
+                    <span class={`percent-tag tag-${index + 1}`}>{item}</span>
+                  ))}
+                </div>
+                <span class='tag tag-removed'>removed</span>
+              </div>
+            ),
             <div
               class='flame-graph-wrapper profiling-flame-graph'
               tabindex={1}
@@ -641,7 +656,7 @@ export default defineComponent({
                 ''
               )}
             </div>
-          )
+          ]
         }}
       </ResizeLayout>
     );

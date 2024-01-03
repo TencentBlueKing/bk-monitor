@@ -23,50 +23,43 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+import { DropdownMenu, Input } from 'bk-magic-vue';
 
-import { defineComponent, ref } from 'vue';
-import { Dropdown, Input } from 'bkui-vue';
-
-import { ViewModeItem } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
+import { ViewModeItem } from '../../../typings/profiling-graph';
 
 import './chart-title.scss';
 
-export default defineComponent({
-  name: 'ProfilingGraphTitle',
-  props: {
-    activeMode: {
-      type: String,
-      required: true
-    }
-  },
-  emits: ['modeChange'],
-  setup(props, { emit }) {
-    const downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
-    const viewModeList: ViewModeItem[] = [
-      { id: 'table', icon: 'table' },
-      { id: 'tableAndFlame', icon: 'fenping' },
-      { id: 'flame', icon: 'Flame1' },
-      { id: 'topo', icon: 'Component' }
-    ];
+interface IChartTitleProps {
+  activeMode: string;
+}
+interface IChartTitleEvent {
+  onModeChange: string;
+}
 
-    const ellipsisDirection = ref('ltr');
+@Component
+export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> {
+  @Prop({ required: true, type: String }) activeMode: string;
 
-    /** 切换视图模式 */
-    const handleModeChange = (val: string) => {
-      emit('modeChange', val);
-    };
-    const handleEllipsisDirectionChange = (val: string) => {
-      ellipsisDirection.value = val;
-    };
+  downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
+  viewModeList: ViewModeItem[] = [
+    { id: 'table', icon: 'table' },
+    { id: 'tableAndFlame', icon: 'fenping' },
+    { id: 'flame', icon: 'Flame1' },
+    { id: 'topo', icon: 'Component' }
+  ];
+  ellipsisDirection = 'ltr';
 
-    return {
-      downloadTypeMaps,
-      viewModeList,
-      handleModeChange,
-      ellipsisDirection,
-      handleEllipsisDirectionChange
-    };
-  },
+  @Emit('modeChange')
+  handleModeChange(val) {
+    return val;
+  }
+
+  handleEllipsisDirectionChange(val: string) {
+    this.ellipsisDirection = val;
+  }
+
   render() {
     return (
       <div class='profiling-chart-title'>
@@ -80,7 +73,7 @@ export default defineComponent({
             </div>
           ))}
         </div>
-        <Input type='search' />
+        <Input right-icon='bk-icon icon-search' />
         <div class='ellipsis-direction button-group'>
           <div
             class={`button-group-item ${this.ellipsisDirection === 'ltr' ? 'active' : ''}`}
@@ -95,27 +88,28 @@ export default defineComponent({
             <i class='icon-monitor icon-YZ'></i>
           </div>
         </div>
-        {/* <div class='download-button'>
-          <i class='icon-monitor icon-xiazai1'></i>
-        </div> */}
 
-        <Dropdown
-          placement='bottom-end'
-          v-slots={{
-            content: () => (
-              <Dropdown.DropdownMenu>
-                {this.downloadTypeMaps.map(item => (
-                  <Dropdown.DropdownItem class='profiling-view-download-menu-item'>{item}</Dropdown.DropdownItem>
-                ))}
-              </Dropdown.DropdownMenu>
-            )
-          }}
+        <DropdownMenu
+          class='option-dropdown-menu'
+          align='right'
         >
-          <div class='download-button'>
-            <i class='icon-monitor icon-xiazai1'></i>
+          <div slot='dropdown-trigger'>
+            <div class='download-button'>
+              <i class='icon-monitor icon-xiazai1'></i>
+            </div>
           </div>
-        </Dropdown>
+          <ul
+            class='bk-dropdown-list'
+            slot='dropdown-content'
+          >
+            {this.downloadTypeMaps.map(item => (
+              <li class='profiling-view-download-menu-item'>
+                <a class='profiling-view-download-menu-item'>{item}</a>
+              </li>
+            ))}
+          </ul>
+        </DropdownMenu>
       </div>
     );
   }
-});
+}

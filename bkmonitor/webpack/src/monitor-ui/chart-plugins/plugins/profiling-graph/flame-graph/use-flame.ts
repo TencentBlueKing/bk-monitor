@@ -34,9 +34,9 @@ import { curveCatmullRom, line } from 'd3-shape';
 import 'd3-transition';
 
 import { getValueFormat } from '../../../../../monitor-ui/monitor-echarts/valueFormats';
-
 import {
   BaseDataType,
+  BaseRect,
   ColorTypes,
   IFlameChartOptions,
   IFlameData,
@@ -44,8 +44,8 @@ import {
   IOtherData,
   RootId,
   ThreadPos
-} from './../../flame-graph-v2/types';
-import { BaseRect } from './types';
+} from '../../../typings';
+
 import { findChildById, findRegionById, getHashVal } from './utils';
 
 const usFormat = getValueFormat('µs');
