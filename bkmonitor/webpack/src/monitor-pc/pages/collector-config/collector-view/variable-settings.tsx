@@ -458,7 +458,7 @@ export default class VariableSettings extends tsc<IVariableSettings, IVariableSe
                 <div class='variable-item'>
                   <div
                     class='item-title'
-                    v-bk-tooltips={{ content: `${item.dimension}`, placements: ['top'] }}
+                    v-bk-tooltips={{ content: `${item.dimension}`, placements: ['top'], allowHTML: false }}
                   >
                     {item.aliaName}
                   </div>

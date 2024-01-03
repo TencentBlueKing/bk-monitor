@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.datetime_safe import datetime
 
 from apm.core.handlers.bk_data.constants import FlowStatus
-from apm.models import BkdataFlowConfig
+from apm.models import ApmApplication, BkdataFlowConfig
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.utils.common_utils import count_md5
 from core.drf_resource import api, resource
@@ -67,6 +67,7 @@ class _BkdataFlowLogger:
 class ApmFlow:
     _NAME = None
     _BKBASE_OPERATOR = settings.APM_APP_BKDATA_OPERATOR
+    _BKBASE_MAINTAINER = settings.APM_APP_BKDATA_MAINTAINER
     _BKBASE_PROJECT_ID = None
     _FLOW = None
     _FLOW_TYPE = None
@@ -96,6 +97,7 @@ class ApmFlow:
 
         self.logger = _BkdataFlowLogger(self._NAME, self.bk_biz_id, self.app_name, self.flow.id)
         self.logger.info(f"start flow, use bkbase bk_biz_id: {self.bkdata_bk_biz_id}(app bk_biz_id: {self.bk_biz_id})")
+        self.application = ApmApplication.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
     @property
     def deploy_description(self):
@@ -188,9 +190,12 @@ class ApmFlow:
         return count_md5(a_copy) != count_md5(b_copy)
 
     @classmethod
-    def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
+    def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):
         """获取数据源API请求参数(接入方式: KAFKA)"""
         access_conf = cls._query_access_conf(data_id)
+        # 数据管理员 = operator + APM默认维护人 + 应用创建者
+        maintainers = ",".join(list(set([operator] + cls._BKBASE_MAINTAINER + extra_maintainers or [])))
+
         return {
             "data_scenario": "queue",
             "bk_biz_id": bk_biz_id,
@@ -198,7 +203,7 @@ class ApmFlow:
             "bk_username": operator,
             "access_raw_data": {
                 "raw_data_name": name,
-                "maintainer": operator,
+                "maintainer": maintainers,
                 "raw_data_alias": name,
                 "data_source": "kafka",
                 "data_encoding": "UTF-8",
@@ -232,7 +237,12 @@ class ApmFlow:
     def _config_deploy(self):
         """配置数据源"""
         params = self.get_deploy_params(
-            self.bkdata_bk_biz_id, self.data_id, self._BKBASE_OPERATOR, self.deploy_name, self.deploy_description
+            self.bkdata_bk_biz_id,
+            self.data_id,
+            self._BKBASE_OPERATOR,
+            self.deploy_name,
+            self.deploy_description,
+            extra_maintainers=[self.application.create_user],
         )
 
         try:
