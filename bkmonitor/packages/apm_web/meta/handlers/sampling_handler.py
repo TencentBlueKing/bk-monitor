@@ -118,7 +118,7 @@ class SamplingHelpers:
                 response = api.apm_api.operate_apm_data_id(
                     bk_biz_id=self.bk_biz_id,
                     app_name=self.app_name,
-                    datasource_type=DataSamplingLogTypeChoices.TRACE.value,
+                    datasource_type=DataSamplingLogTypeChoices.TRACE,
                     operate="stop",
                 )
                 self.log(span, f"stop dataId: {response} successfully")

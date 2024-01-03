@@ -13,13 +13,13 @@ specific language governing permissions and limitations under the License.
 import abc
 
 import six
-from constants.dataflow import AutoOffsetResets
-from core.drf_resource import APIResource
 from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request
+from constants.dataflow import AutoOffsetResets
+from core.drf_resource import APIResource
 
 
 class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -37,6 +37,10 @@ class BkDataAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     def get_request_url(self, validated_request_data):
         return super(BkDataAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
+
+
+class BkDataQueryAPIGWResource(BkDataAPIGWResource):
+    base_url = settings.BKDATA_QUERY_API_BASE_URL or BkDataAPIGWResource.base_url
 
 
 class ListResultTableResource(BkDataAPIGWResource):
@@ -90,7 +94,7 @@ class GetResultTableResource(BkDataAPIGWResource):
         )
 
 
-class QueryDataResource(BkDataAPIGWResource):
+class QueryDataResource(BkDataQueryAPIGWResource):
     """
     查询数据
     """
@@ -372,6 +376,8 @@ class DeployPlanRequestSerializer(CommonRequestSerializer):
         description = serializers.CharField(required=False, label="数据源描述")
         tags = serializers.ListField(required=False, label="数据标签")
         data_source_tags = serializers.ListField(required=False, label="数据源标签")
+        data_region = serializers.CharField(required=False, label="地区")
+        preassigned_data_id = serializers.IntegerField(required=False, label="DataId(互认方式下适用)")
 
     class AccessConfInfoSerializer(serializers.Serializer):
         class CollectionModelSerializer(serializers.Serializer):
@@ -399,9 +405,10 @@ class DeployPlanRequestSerializer(CommonRequestSerializer):
         resource = ConfResourceSerializer(required=True, label="接入对象资源")
 
     data_scenario = serializers.CharField(required=True, label="接入场景")
+    data_scenario_id = serializers.CharField(required=False, label="接入场景ID")
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
     access_raw_data = AccessRawDataSerializer(required=True, label="接入源数据信息")
-    access_conf_info = AccessConfInfoSerializer(required=True, label="接入配置信息")
+    access_conf_info = AccessConfInfoSerializer(required=False, label="接入配置信息")
     description = serializers.CharField(required=False, allow_blank=True, label="接入数据备注")
     bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
 
