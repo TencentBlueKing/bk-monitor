@@ -262,6 +262,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
         ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label="METADATA 是否启用功能开关", default=True)),
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
+        ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
     ]
 )
 
