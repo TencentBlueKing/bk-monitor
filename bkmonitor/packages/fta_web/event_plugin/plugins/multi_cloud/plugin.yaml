@@ -16,6 +16,8 @@ ingest_config:
   alert_sources:
     - code: TENCENT
       name: 腾讯云
+    - code: GOOGLE
+      name: 谷歌云
   is_external: true
   collect_type: bk_collector
 
@@ -57,7 +59,7 @@ normalization_config:
 clean_configs:
   # 谷歌云的清洗配置
   - rules:
-    - key: headers.user-agent
+    - key: headers."user-agent"
       value:
         - "Google-Alerts"
       method: eq
@@ -91,7 +93,7 @@ clean_configs:
       - field: bk_biz_id
         expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
       - field: tags
-        expr: "{scoping_project_id: incident.scoping_project_id, scoping_project_number: incident.scoping_project_number, observed_value: condition.observed_value, resource: to_string(incident.resource), resource_id: incident.resource_id, resource_display_name: incident.resource_display_name, metric: to_string(incident.metric), metadata: to_string(incident.metadata), policy_user_labels: to_string(incident.policy_user_labels), condition: to_string(incident.condition)}"
+        expr: "merge({scoping_project_id: incident.scoping_project_id, scoping_project_number: incident.scoping_project_number, observed_value: incident.observed_value, resource: to_string(incident.resource), resource_id: incident.resource_id, resource_display_name: incident.resource_display_name, metric: to_string(incident.metric), policy_user_labels: to_string(incident.policy_user_labels), condition: to_string(incident.condition)}, {system_labels: to_string(incident.metadata.system_labels), user_labels: to_string(incident.metadata.user_labels)})"
       - field: time
         expr: incident.started_at
       - field: anomaly_time
@@ -126,7 +128,7 @@ clean_configs:
       - field: bk_biz_id
         expr: "bk_biz_id || '{{plugin_inst_biz_id}}'"
       - field: tags
-        expr: "{alarmObjInfo: to_string(alarmObjInfo), alarm_type: alarmType, policyId: alarmPolicyInfo.policyId}"
+        expr: "merge({region: alarmObjInfo.region, namespace: alarmObjInfo.namespace, appId: alarmObjInfo.appId, uin: alarmObjInfo.uin, unInstanceId: alarmObjInfo.dimensions.unInstanceId, objId: alarmObjInfo.dimensions.objId, content: alarmObjInfo.content, summary: alarmObjInfo.summary}, {Module: alarmObjInfo.tags.Module, alertname: alarmObjInfo.tags.alertname, tcloud_prometheus_instance_id: alarmObjInfo.tags.tcloud_prometheus_instance_id, tcloud_region_name: alarmObjInfo.tags.tcloud_region_name},{alarm_type: alarmType, policyId: alarmPolicyInfo.policyId})"
       - field: time
         expr: firstOccurTime
       - field: source_time

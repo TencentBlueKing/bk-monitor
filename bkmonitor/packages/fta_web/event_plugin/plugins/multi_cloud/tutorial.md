@@ -1,55 +1,42 @@
-#### 1. 根据配置自动拉取一天以内的腾讯云告警历史
+## 1. PUSH URL 路径配置
+source配置
 
-#### 2.返回数据格式
-腾讯云回调地址： www.webhook.com
+配置腾讯云，路径必填source为TENCENT
 
-配置告警回调方法、： https://cloud.tencent.com/document/product/248/50409
-```json
-    {"Histories": [
-            {
-                "AlarmId": "c36494f8-ae38-45cb-8089-e14006bcfc67",
-                "MonitorType": "MT_QCE",
-                "Namespace": "cvm_device",
-                "AlarmObject": "127.0.0.1 (内) | 服务器01 | 基础网络",
-                "Content": "CPU利用率 >0%",
-                "FirstOccurTime": 1603117860,
-                "LastOccurTime": 1603162964,
-                "AlarmStatus": "ALARM",
-                "PolicyId": "policy-abc01",
-                "PolicyName": "CVM告警策略1",
-                "VPC": "0",
-                "ProjectId": 0,
-                "ProjectName": "默认项目",
-                "InstanceGroup": [
-                    {
-                        "Id": 430,
-                        "Name": "example-instance-group"
-                    }
-                ],
-                "ReceiverUids": [],
-                "ReceiverGroups": [
-                    1544
-                ],
-                "NoticeWays": [
-                    "SMS",
-                    "EMAIL",
-                    "WECHAT"
-                ],
-                "EventId": 0,
-                "AlarmType": "METRIC",
-                "OriginId": "1278441",
-                "Region": "gz",
-                "PolicyExists": 1,
-                "MetricsInfo": [
-                    {
-                        "QceNamespace": "qce/cvm",
-                        "MetricName": "CpuUsage",
-                        "Period": 60,
-                        "Value": "86.5",
-                        "Description": "CPU利用率"
-                    }
-                ],
-                "Dimensions": null
-            }]
-  }
-```
+配置谷歌云，路径选填source为GOOGLE
+
+(注：路径上的token即保密的Token)
+
+## 2. 告警回调配置指引
+以下指引腾讯云及谷歌云的告警回调配置
+### 腾讯云
+（1）访问腾讯云可观测平台：进入腾讯云可观测平台的通知模板页面：https://console.cloud.tencent.com/monitor/alarm/notice。
+
+（2）创建新通知模板：在通知模板页面上，单击 "新建通知模板" 按钮，进入页面。
+
+（3）配置通知模板：在新建通知模板页面上，填写基本信息，并在接口回调模块中输入一个公网可访问的 URL 作为回调接口地址（例如域名或 IP[:端口][/path]）。告警信息将实时推送到该地址。
+
+（4）绑定告警策略：返回告警策略列表页面，单击需绑定告警回调的策略名称，进入管理告警策略页面，将刚创建的通知模板与告警策略关联。
+
+（5）接收告警信息：腾讯云可观测平台将通过 HTTP POST 请求将告警消息推送到您系统的 URL 地址。您可以参考告警回调参数说明，对推送的告警信息进一步处理。
+
+（6）查看告警历史：当告警策略被触发后，您可在告警历史页面查看告警详情，包括触发条件、告警信息以及通知状态等。
+
+具体详情可参考腾讯云官网：https://cloud.tencent.com/document/product/248/50409
+
+### 谷歌云
+（1）准备 Webhook 处理程序：请先确定一个用于接收来自 Monitoring 的 Webhook 数据的公共端点网址。
+
+（2）访问 Google Cloud 控制台：登录到 Google Cloud 控制台，然后从导航面板中选择 "Monitoring"，接着选择 "notifications"（提醒）。
+
+（3）修改通知渠道：在提醒页面上，点击 "修改通知渠道" 。
+
+（4）添加新的 Webhook：在 "网络钩子" 部分，点击 "新增"。 
+
+（5）填写表单：请确保填写完整的对话框，包括 Webhook 处理程序的端点网址。
+
+（6）点测试连接：点击 "测试连接" 按钮，系统将向指定的网络钩子端点发送测试载荷。请访问接收端点以确认是否成功接收。
+
+（7）保存设置：确认一切正常后，点击 "保存" 以完成设置。
+
+具体详情可参考谷歌云官网：https://cloud.google.com/monitoring/support/notification-options?hl=zh-cn#webhooks
