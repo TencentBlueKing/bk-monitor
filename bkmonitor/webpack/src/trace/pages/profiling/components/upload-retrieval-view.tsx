@@ -25,7 +25,7 @@
  */
 import { defineComponent, PropType, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Button, Dialog, Select, Upload } from 'bkui-vue';
+import { Button, Dialog, Exception, Select, Upload } from 'bkui-vue';
 import { Spinner, Upload as UploadIcon } from 'bkui-vue/lib/icon';
 
 import { ConditionType, RetrievalFormData } from '../typings';
@@ -45,6 +45,7 @@ export default defineComponent({
 
     const uploadDialogShow = ref(false);
     const active = ref<ConditionType>(ConditionType.Where);
+    const selectFile = ref(null);
 
     function handleUploadTypeChange(type: ConditionType) {
       active.value = type;
@@ -57,6 +58,7 @@ export default defineComponent({
       t,
       uploadDialogShow,
       active,
+      selectFile,
       handleUploadTypeChange,
       handleUploadConfirm
     };
@@ -77,11 +79,15 @@ export default defineComponent({
           <div class='file-select'>
             {this.formData.isComparison && <div class='label where'>{this.t('查询项')}</div>}
             <Select
+              v-model={this.selectFile}
               popoverOptions={{
                 extCls: 'upload-select-popover'
               }}
             >
-              <Select.Option>
+              <Select.Option
+                id='1'
+                name='Profile-2023-11-22-06-02-27.json （原文件名）'
+              >
                 <div class='upload-select-item'>
                   <div class='left'>
                     <div class='status'>
@@ -128,6 +134,16 @@ export default defineComponent({
               <Select></Select>
             </div>
           )}
+        </div>
+
+        <div class='chart-wrap'>
+          <Exception
+            class='loading-wrap'
+            type='search-empty'
+          >
+            <div class='text'>{this.t('文件解析中')}</div>
+            <div class='desc'>{this.t('文件解析可能耗费较长时间，可先选择已解析文件查看')}</div>
+          </Exception>
         </div>
 
         <Dialog
