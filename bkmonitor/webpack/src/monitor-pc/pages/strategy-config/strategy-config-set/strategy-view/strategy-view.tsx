@@ -124,11 +124,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = value;
-    this.toolRef.timeRange = value;
-    this.tools.timeRange = value;
-    this.showRestore = true;
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.toolRef.timeRange = value;
+      this.tools.timeRange = value;
+      this.showRestore = true;
+    }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
