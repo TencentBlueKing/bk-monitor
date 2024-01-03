@@ -24,8 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+export enum ViewModeType {
+  Table = 'table',
+  Combine = 'combine',
+  Flame = 'flame',
+  Topo = 'topo'
+}
+
 export interface ViewModeItem {
-  id: string;
+  id: ViewModeType;
   icon: string;
 }
 

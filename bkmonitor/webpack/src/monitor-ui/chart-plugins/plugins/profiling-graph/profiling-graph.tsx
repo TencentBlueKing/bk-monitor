@@ -27,7 +27,7 @@
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import { PanelModel } from '../../typings';
+import { PanelModel, ViewModeType } from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
 
 import ChartTitle from './chart-title/chart-title';
@@ -45,9 +45,9 @@ class ProfilingChart extends CommonSimpleChart {
   empty = false;
   emptyText = '查无数据';
   // 视图模式
-  activeMode = 'tableAndFlame';
+  activeMode: ViewModeType = ViewModeType.Combine;
 
-  handleModeChange(val: string) {
+  handleModeChange(val: ViewModeType) {
     this.activeMode = val;
   }
 
@@ -62,8 +62,8 @@ class ProfilingChart extends CommonSimpleChart {
           onModeChange={this.handleModeChange}
         />
         <div class='profiling-graph-content'>
-          {['table', 'tableAndFlame'].includes(this.activeMode) ? <TableGraph /> : ''}
-          {['flame', 'tableAndFlame'].includes(this.activeMode) ? (
+          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) ? <TableGraph /> : ''}
+          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) ? (
             <FrameGraph
               appName={'bkmonitor_production'}
               profileId={'3d0d77e0669cdb72'}

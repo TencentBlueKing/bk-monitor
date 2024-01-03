@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, PropType, ref } from 'vue';
 import { Dropdown, Input } from 'bkui-vue';
 
-import { ViewModeItem } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
+import { ViewModeItem, ViewModeType } from '../../../../../monitor-ui/chart-plugins/typings/profiling-graph';
 
 import './chart-title.scss';
 
@@ -35,7 +35,7 @@ export default defineComponent({
   name: 'ProfilingGraphTitle',
   props: {
     activeMode: {
-      type: String,
+      type: String as PropType<ViewModeType>,
       required: true
     }
   },
@@ -43,16 +43,16 @@ export default defineComponent({
   setup(props, { emit }) {
     const downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
     const viewModeList: ViewModeItem[] = [
-      { id: 'table', icon: 'table' },
-      { id: 'tableAndFlame', icon: 'mc-fenping' },
-      { id: 'flame', icon: 'mc-flame' },
-      { id: 'topo', icon: 'Component' }
+      { id: ViewModeType.Table, icon: 'table' },
+      { id: ViewModeType.Combine, icon: 'mc-fenping' },
+      { id: ViewModeType.Flame, icon: 'mc-flame' },
+      { id: ViewModeType.Topo, icon: 'Component' }
     ];
 
     const ellipsisDirection = ref('ltr');
 
     /** 切换视图模式 */
-    const handleModeChange = (val: string) => {
+    const handleModeChange = (val: ViewModeType) => {
       emit('modeChange', val);
     };
     const handleEllipsisDirectionChange = (val: string) => {

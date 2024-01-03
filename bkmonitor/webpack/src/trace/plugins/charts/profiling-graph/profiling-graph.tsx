@@ -26,6 +26,8 @@
 
 import { defineComponent, ref } from 'vue';
 
+import { ViewModeType } from '../../../../monitor-ui/chart-plugins/typings';
+
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
@@ -36,10 +38,10 @@ export default defineComponent({
   name: 'ProfilingGraph',
   setup() {
     // 当前视图模式
-    const activeMode = ref('tableAndFlame');
+    const activeMode = ref<ViewModeType>(ViewModeType.Combine);
 
     /** 切换视图模式 */
-    const handleModeChange = (val: string) => {
+    const handleModeChange = (val: ViewModeType) => {
       activeMode.value = val;
     };
 
@@ -56,8 +58,8 @@ export default defineComponent({
           onModeChange={this.handleModeChange}
         />
         <div class='profiling-graph-content'>
-          {['table', 'tableAndFlame'].includes(this.activeMode) ? <TableGraph /> : ''}
-          {['flame', 'tableAndFlame'].includes(this.activeMode) ? (
+          {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) ? <TableGraph /> : ''}
+          {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) ? (
             <FrameGraph
               appName={'bkmonitor_production'}
               profileId={'3d0d77e0669cdb72'}

@@ -27,15 +27,15 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { DropdownMenu, Input } from 'bk-magic-vue';
 
-import { ViewModeItem } from '../../../typings/profiling-graph';
+import { ViewModeItem, ViewModeType } from '../../../typings/profiling-graph';
 
 import './chart-title.scss';
 
 interface IChartTitleProps {
-  activeMode: string;
+  activeMode: ViewModeType;
 }
 interface IChartTitleEvent {
-  onModeChange: string;
+  onModeChange: ViewModeType;
 }
 
 @Component
@@ -44,15 +44,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
 
   downloadTypeMaps = ['png', 'json', 'pprof', 'html'];
   viewModeList: ViewModeItem[] = [
-    { id: 'table', icon: 'table' },
-    { id: 'tableAndFlame', icon: 'mc-fenping' },
-    { id: 'flame', icon: 'mc-flame' },
-    { id: 'topo', icon: 'Component' }
+    { id: ViewModeType.Table, icon: 'table' },
+    { id: ViewModeType.Combine, icon: 'mc-fenping' },
+    { id: ViewModeType.Flame, icon: 'mc-flame' },
+    { id: ViewModeType.Topo, icon: 'Component' }
   ];
   ellipsisDirection = 'ltr';
 
   @Emit('modeChange')
-  handleModeChange(val) {
+  handleModeChange(val: ViewModeType) {
     return val;
   }
 
