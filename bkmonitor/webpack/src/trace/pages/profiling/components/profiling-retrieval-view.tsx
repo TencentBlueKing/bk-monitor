@@ -25,12 +25,18 @@
  */
 import { defineComponent } from 'vue';
 
+import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
+
 import './profiling-retrieval-view.scss';
 
 export default defineComponent({
   name: 'ProfilingRetrievalView',
   setup() {},
   render() {
-    return <div class='profiling-retrieval-view-component'></div>;
+    return (
+      <div class='profiling-retrieval-view-component'>
+        <ProfilingGraph />
+      </div>
+    );
   }
 });

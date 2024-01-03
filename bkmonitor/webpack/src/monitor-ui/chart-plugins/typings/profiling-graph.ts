@@ -24,62 +24,37 @@
  * IN THE SOFTWARE.
  */
 
-/**
- * 查找父节点
- */
-export const findRegionById = (tree, id, parents = []) => {
-  // eslint-disable-next-line @typescript-eslint/prefer-for-of
-  for (let i = 0; i < tree.length; i++) {
-    const region = tree[i];
-    if (region.id === id) {
-      parents.push(region.id);
-      return parents.reverse();
-    }
-    if (region.children) {
-      const found = findRegionById(region.children, id, parents);
-      if (found) {
-        parents.push(region.id);
-        return found;
-      }
-    }
-  }
-  return null;
-};
+export enum ViewModeType {
+  Table = 'table',
+  Combine = 'combine',
+  Flame = 'flame',
+  Topo = 'topo'
+}
 
-/**
- * 查找子节点
- */
-export const findChildById = (treeList, id) => {
-  const temp = [];
-  const searchFn = function (treeList) {
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
-    for (let i = 0; i < treeList.length; i++) {
-      const item = treeList[i];
-      if (item.id !== id) {
-        temp.push(item.id);
-      }
-      if (item.children) {
-        searchFn(item.children);
-      }
-    }
-  };
-  searchFn(treeList);
-  return temp;
-};
+export interface ViewModeItem {
+  id: ViewModeType;
+  icon: string;
+}
 
-/**
- * @desc 字符串生成 hash 值
- */
-export const getHashVal = string => {
-  let hash = 0;
-  let i;
-  let chr;
-  if (string.length === 0) return hash;
-  for (i = 0; i < string.length; i++) {
-    chr = string.charCodeAt(i);
-    hash = (hash << 5) - hash + chr;
-    hash |= 0;
-  }
+export interface ProfilingTableItem {
+  location: string;
+  self: string;
+  Total: string;
+  color?: string;
+}
 
-  return Math.abs(hash);
-};
+export interface TableColumn {
+  id: string;
+  sort: string;
+}
+
+export interface ITableTipsDetail {
+  left?: number; // 提示框左边距离画布左边的距离
+  top?: number; // 提示框上边距离画布上边的距离
+  title?: string;
+  proportion?: string | number;
+  duration?: string;
+  diffDuration?: string;
+  diffValue?: number | string;
+  id?: string;
+}
