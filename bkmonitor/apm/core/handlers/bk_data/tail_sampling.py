@@ -173,6 +173,7 @@ class TailSamplingFlow(ApmFlow):
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None):
         """使用dataId互认方式接入数据源"""
+        maintainers = ",".join(list(set([operator] + cls._BKBASE_MAINTAINER)))
 
         return {
             "operator": operator,
@@ -185,7 +186,7 @@ class TailSamplingFlow(ApmFlow):
             "access_raw_data": {
                 "tags": [],
                 "raw_data_name": name,
-                "maintainer": operator,
+                "maintainer": maintainers,
                 "raw_data_alias": name,
                 "data_source_tags": ["server"],
                 "data_region": "inland",
